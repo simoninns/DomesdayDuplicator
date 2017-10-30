@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<GPIFIIModel version="3">
+  <InterfaceDefination>
+    <InterfaceSetting>
+      <I2SEnabled>False</I2SEnabled>
+      <I2CEnabled>False</I2CEnabled>
+      <SPIEnabled>False</SPIEnabled>
+      <I2SEnabled>False</I2SEnabled>
+      <ADMuxedEnabled>False</ADMuxedEnabled>
+      <InterfaceType>Slave</InterfaceType>
+      <CommunicationType>Synchronous</CommunicationType>
+      <ClockSource>External</ClockSource>
+      <ClockEdge>Positive</ClockEdge>
+      <Endianness>LittleEndian</Endianness>
+      <DataBusWidth>Bit16</DataBusWidth>
+      <AddressBuswidth>0</AddressBuswidth>
+    </InterfaceSetting>
+  </InterfaceDefination>
+  <Signals>
+    <Signal ElementId="INPUT0" SignalType="Input" SpecialFunction="None">
+      <DisplayName>nWR</DisplayName>
+      <GPIOPinNumber>GPIO_17</GPIOPinNumber>
+      <Polarity>ActiveLow</Polarity>
+    </Signal>
+    <Signal ElementId="OUTPUT0" SignalType="Output" SpecialFunction="None">
+      <DisplayName>nReset</DisplayName>
+      <GPIOPinNumber>GPIO_27</GPIOPinNumber>
+      <IntialValue>Low</IntialValue>
+      <Polarity>ActiveHigh</Polarity>
+      <Delay>Alpha</Delay>
+      <AssetionType>Assert</AssetionType>
+    </Signal>
+    <Signal ElementId="OUTPUT1" SignalType="Output" SpecialFunction="None">
+      <DisplayName>nReady</DisplayName>
+      <GPIOPinNumber>GPIO_18</GPIOPinNumber>
+      <IntialValue>High</IntialValue>
+      <Polarity>ActiveHigh</Polarity>
+      <Delay>Alpha</Delay>
+      <AssetionType>Assert</AssetionType>
+    </Signal>
+    <Signal ElementId="FLAG0" SignalType="Flags" SpecialFunction="None">
+      <DisplayName>TH0_Ready</DisplayName>
+      <GPIOPinNumber>GPIO_19</GPIOPinNumber>
+      <IntialValue>Low</IntialValue>
+      <Polarity>ActiveLow</Polarity>
+      <Flags>Thread_0_DMA_Ready</Flags>
+    </Signal>
+    <Signal ElementId="FLAG1" SignalType="Flags" SpecialFunction="None">
+      <DisplayName>TH0_Watermark</DisplayName>
+      <GPIOPinNumber>GPIO_20</GPIOPinNumber>
+      <IntialValue>Low</IntialValue>
+      <Polarity>ActiveLow</Polarity>
+      <Flags>Thread_0_DMA_WaterMark</Flags>
+    </Signal>
+  </Signals>
+  <StateMachine>
+    <AddressCounter />
+    <DataCounter />
+    <ControlCounter />
+    <AddressComparator />
+    <DataComparator />
+    <ControlComparator />
+    <DRQ />
+    <AddrData />
+    <State ElementId="STARTSTATE0" StateType="StartState">
+      <DisplayName>START</DisplayName>
+      <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
+      <RepeatCount>0</RepeatCount>
+    </State>
+    <State ElementId="STATE5" StateType="NormalState">
+      <DisplayName>IDLE</DisplayName>
+      <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
+      <RepeatCount>0</RepeatCount>
+    </State>
+    <State ElementId="STATE2" StateType="NormalState">
+      <DisplayName>READ_DATA</DisplayName>
+      <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
+      <RepeatCount>0</RepeatCount>
+      <Action ElementId="IN_DATA0" ActionType="IN_DATA">
+        <DataSourceSink>Socket</DataSourceSink>
+        <ThreadNumber>Thread0</ThreadNumber>
+        <SampleData>True</SampleData>
+        <WriteDataIntoDataSink>True</WriteDataIntoDataSink>
+      </Action>
+    </State>
+    <Transition ElementId="TRANSITION0" SourceState="STARTSTATE0" DestinationState="STATE5" Equation="LOGIC_ONE" />
+    <Transition ElementId="TRANSITION1" SourceState="STATE5" DestinationState="STATE2" Equation="!nWR" />
+    <Transition ElementId="TRANSITION2" SourceState="STATE2" DestinationState="STATE5" Equation="nWR" />
+  </StateMachine>
+</GPIFIIModel>
