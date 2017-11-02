@@ -40,8 +40,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 4
 Title "Domesday Duplicator"
-Date "2017-10-31"
-Rev "1.2"
+Date "2017-11-02"
+Rev "1.3"
 Comp "http://www.domesday86.com"
 Comment1 "(c)2017 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -49,10 +49,10 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L GPIFII_J6 J5
+L GPIFII_J6 J4
 U 1 1 59D0E982
 P 7300 3900
-F 0 "J5" H 6750 4950 60  0000 C CNN
+F 0 "J4" H 6750 4950 60  0000 C CNN
 F 1 "GPIFII_J6" H 6900 2750 60  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 7300 3900 60  0001 C CNN
 F 3 "" H 7300 3900 60  0001 C CNN
@@ -60,10 +60,10 @@ F 3 "" H 7300 3900 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GPIFII_J7 J4
+L GPIFII_J7 J3
 U 1 1 59D0E9C8
 P 4000 3900
-F 0 "J4" H 3300 4950 60  0000 C CNN
+F 0 "J3" H 3300 4950 60  0000 C CNN
 F 1 "GPIFII_J7" H 3450 2750 60  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 4000 3900 60  0001 C CNN
 F 3 "" H 4000 3900 60  0001 C CNN
@@ -92,10 +92,10 @@ Wire Wire Line
 	3050 4900 2850 4900
 Connection ~ 2850 4900
 $Comp
-L GND #PWR010
+L GND #PWR05
 U 1 1 59D0EAAC
 P 2850 5550
-F 0 "#PWR010" H 2850 5300 50  0001 C CNN
+F 0 "#PWR05" H 2850 5300 50  0001 C CNN
 F 1 "GND" H 2850 5400 50  0000 C CNN
 F 2 "" H 2850 5550 50  0001 C CNN
 F 3 "" H 2850 5550 50  0001 C CNN
@@ -156,10 +156,10 @@ Wire Wire Line
 Wire Wire Line
 	8300 3100 8100 3100
 $Comp
-L +5V #PWR011
+L +5V #PWR06
 U 1 1 59D0EC1B
 P 6300 2450
-F 0 "#PWR011" H 6300 2300 50  0001 C CNN
+F 0 "#PWR06" H 6300 2300 50  0001 C CNN
 F 1 "+5V" H 6300 2590 50  0000 C CNN
 F 2 "" H 6300 2450 50  0001 C CNN
 F 3 "" H 6300 2450 50  0001 C CNN
