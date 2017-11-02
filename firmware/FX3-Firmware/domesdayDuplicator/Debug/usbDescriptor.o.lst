@@ -1,0 +1,331 @@
+   1              		.cpu arm926ej-s
+   2              		.fpu softvfp
+   3              		.eabi_attribute 20, 1
+   4              		.eabi_attribute 21, 1
+   5              		.eabi_attribute 23, 3
+   6              		.eabi_attribute 24, 1
+   7              		.eabi_attribute 25, 1
+   8              		.eabi_attribute 26, 1
+   9              		.eabi_attribute 30, 6
+  10              		.eabi_attribute 34, 0
+  11              		.eabi_attribute 18, 4
+  12              		.file	"usbDescriptor.c"
+  13              		.text
+  14              	.Ltext0:
+  15              		.cfi_sections	.debug_frame
+  16              		.global	USB30DeviceDscr
+  17              		.section	.rodata
+  18              		.align	5
+  21              	USB30DeviceDscr:
+  22 0000 12       		.byte	18
+  23 0001 01       		.byte	1
+  24 0002 00       		.byte	0
+  25 0003 03       		.byte	3
+  26 0004 00       		.byte	0
+  27 0005 00       		.byte	0
+  28 0006 00       		.byte	0
+  29 0007 09       		.byte	9
+  30 0008 B4       		.byte	-76
+  31 0009 04       		.byte	4
+  32 000a F1       		.byte	-15
+  33 000b 00       		.byte	0
+  34 000c 00       		.byte	0
+  35 000d 00       		.byte	0
+  36 000e 01       		.byte	1
+  37 000f 02       		.byte	2
+  38 0010 00       		.byte	0
+  39 0011 01       		.byte	1
+  40              		.global	USB20DeviceDscr
+  41 0012 00000000 		.align	5
+  41      00000000 
+  41      00000000 
+  41      0000
+  44              	USB20DeviceDscr:
+  45 0020 12       		.byte	18
+  46 0021 01       		.byte	1
+  47 0022 10       		.byte	16
+  48 0023 02       		.byte	2
+  49 0024 00       		.byte	0
+  50 0025 00       		.byte	0
+  51 0026 00       		.byte	0
+  52 0027 40       		.byte	64
+  53 0028 B4       		.byte	-76
+  54 0029 04       		.byte	4
+  55 002a F1       		.byte	-15
+  56 002b 00       		.byte	0
+  57 002c 00       		.byte	0
+  58 002d 00       		.byte	0
+  59 002e 01       		.byte	1
+  60 002f 02       		.byte	2
+  61 0030 00       		.byte	0
+  62 0031 01       		.byte	1
+  63              		.global	USBBOSDscr
+  64 0032 00000000 		.align	5
+  64      00000000 
+  64      00000000 
+  64      0000
+  67              	USBBOSDscr:
+  68 0040 05       		.byte	5
+  69 0041 0F       		.byte	15
+  70 0042 16       		.byte	22
+  71 0043 00       		.byte	0
+  72 0044 02       		.byte	2
+  73 0045 07       		.byte	7
+  74 0046 10       		.byte	16
+  75 0047 02       		.byte	2
+  76 0048 02       		.byte	2
+  77 0049 00       		.byte	0
+  78 004a 00       		.byte	0
+  79 004b 00       		.byte	0
+  80 004c 0A       		.byte	10
+  81 004d 10       		.byte	16
+  82 004e 03       		.byte	3
+  83 004f 00       		.byte	0
+  84 0050 0E       		.byte	14
+  85 0051 00       		.byte	0
+  86 0052 03       		.byte	3
+  87 0053 0A       		.byte	10
+  88 0054 FF       		.byte	-1
+  89 0055 07       		.byte	7
+  90              		.global	USBDeviceQualDscr
+  91 0056 00000000 		.align	5
+  91      00000000 
+  91      0000
+  94              	USBDeviceQualDscr:
+  95 0060 0A       		.byte	10
+  96 0061 06       		.byte	6
+  97 0062 00       		.byte	0
+  98 0063 02       		.byte	2
+  99 0064 00       		.byte	0
+ 100 0065 00       		.byte	0
+ 101 0066 00       		.byte	0
+ 102 0067 40       		.byte	64
+ 103 0068 01       		.byte	1
+ 104 0069 00       		.byte	0
+ 105              		.global	USBSSConfigDscr
+ 106 006a 00000000 		.align	5
+ 106      00000000 
+ 106      00000000 
+ 106      00000000 
+ 106      00000000 
+ 109              	USBSSConfigDscr:
+ 110 0080 09       		.byte	9
+ 111 0081 02       		.byte	2
+ 112 0082 1F       		.byte	31
+ 113 0083 00       		.byte	0
+ 114 0084 01       		.byte	1
+ 115 0085 01       		.byte	1
+ 116 0086 00       		.byte	0
+ 117 0087 80       		.byte	-128
+ 118 0088 32       		.byte	50
+ 119 0089 09       		.byte	9
+ 120 008a 04       		.byte	4
+ 121 008b 00       		.byte	0
+ 122 008c 00       		.byte	0
+ 123 008d 01       		.byte	1
+ 124 008e FF       		.byte	-1
+ 125 008f 00       		.byte	0
+ 126 0090 00       		.byte	0
+ 127 0091 00       		.byte	0
+ 128 0092 07       		.byte	7
+ 129 0093 05       		.byte	5
+ 130 0094 81       		.byte	-127
+ 131 0095 02       		.byte	2
+ 132 0096 00       		.byte	0
+ 133 0097 04       		.byte	4
+ 134 0098 00       		.byte	0
+ 135 0099 06       		.byte	6
+ 136 009a 30       		.byte	48
+ 137 009b 0F       		.byte	15
+ 138 009c 00       		.byte	0
+ 139 009d 00       		.byte	0
+ 140 009e 00       		.byte	0
+ 141              		.global	USBHSConfigDscr
+ 142 009f 00       		.align	5
+ 145              	USBHSConfigDscr:
+ 146 00a0 09       		.byte	9
+ 147 00a1 02       		.byte	2
+ 148 00a2 19       		.byte	25
+ 149 00a3 00       		.byte	0
+ 150 00a4 01       		.byte	1
+ 151 00a5 01       		.byte	1
+ 152 00a6 00       		.byte	0
+ 153 00a7 80       		.byte	-128
+ 154 00a8 32       		.byte	50
+ 155 00a9 09       		.byte	9
+ 156 00aa 04       		.byte	4
+ 157 00ab 00       		.byte	0
+ 158 00ac 00       		.byte	0
+ 159 00ad 01       		.byte	1
+ 160 00ae FF       		.byte	-1
+ 161 00af 00       		.byte	0
+ 162 00b0 00       		.byte	0
+ 163 00b1 00       		.byte	0
+ 164 00b2 07       		.byte	7
+ 165 00b3 05       		.byte	5
+ 166 00b4 81       		.byte	-127
+ 167 00b5 02       		.byte	2
+ 168 00b6 00       		.byte	0
+ 169 00b7 02       		.byte	2
+ 170 00b8 00       		.byte	0
+ 171              		.global	USBFSConfigDscr
+ 172 00b9 00000000 		.align	5
+ 172      000000
+ 175              	USBFSConfigDscr:
+ 176 00c0 09       		.byte	9
+ 177 00c1 02       		.byte	2
+ 178 00c2 19       		.byte	25
+ 179 00c3 00       		.byte	0
+ 180 00c4 01       		.byte	1
+ 181 00c5 01       		.byte	1
+ 182 00c6 00       		.byte	0
+ 183 00c7 80       		.byte	-128
+ 184 00c8 32       		.byte	50
+ 185 00c9 09       		.byte	9
+ 186 00ca 04       		.byte	4
+ 187 00cb 00       		.byte	0
+ 188 00cc 00       		.byte	0
+ 189 00cd 01       		.byte	1
+ 190 00ce FF       		.byte	-1
+ 191 00cf 00       		.byte	0
+ 192 00d0 00       		.byte	0
+ 193 00d1 00       		.byte	0
+ 194 00d2 07       		.byte	7
+ 195 00d3 05       		.byte	5
+ 196 00d4 81       		.byte	-127
+ 197 00d5 02       		.byte	2
+ 198 00d6 40       		.byte	64
+ 199 00d7 00       		.byte	0
+ 200 00d8 00       		.byte	0
+ 201              		.global	USBStringLangIDDscr
+ 202 00d9 00000000 		.align	5
+ 202      000000
+ 205              	USBStringLangIDDscr:
+ 206 00e0 04       		.byte	4
+ 207 00e1 03       		.byte	3
+ 208 00e2 09       		.byte	9
+ 209 00e3 04       		.byte	4
+ 210              		.global	USBManufactureDscr
+ 211 00e4 00000000 		.align	5
+ 211      00000000 
+ 211      00000000 
+ 211      00000000 
+ 211      00000000 
+ 214              	USBManufactureDscr:
+ 215 0100 16       		.byte	22
+ 216 0101 03       		.byte	3
+ 217 0102 44       		.byte	68
+ 218 0103 00       		.byte	0
+ 219 0104 6F       		.byte	111
+ 220 0105 00       		.byte	0
+ 221 0106 6D       		.byte	109
+ 222 0107 00       		.byte	0
+ 223 0108 65       		.byte	101
+ 224 0109 00       		.byte	0
+ 225 010a 73       		.byte	115
+ 226 010b 00       		.byte	0
+ 227 010c 64       		.byte	100
+ 228 010d 00       		.byte	0
+ 229 010e 61       		.byte	97
+ 230 010f 00       		.byte	0
+ 231 0110 79       		.byte	121
+ 232 0111 00       		.byte	0
+ 233 0112 38       		.byte	56
+ 234 0113 00       		.byte	0
+ 235 0114 36       		.byte	54
+ 236 0115 00       		.byte	0
+ 237              		.global	USBProductDscr
+ 238 0116 00000000 		.align	5
+ 238      00000000 
+ 238      0000
+ 241              	USBProductDscr:
+ 242 0120 28       		.byte	40
+ 243 0121 03       		.byte	3
+ 244 0122 44       		.byte	68
+ 245 0123 00       		.byte	0
+ 246 0124 6F       		.byte	111
+ 247 0125 00       		.byte	0
+ 248 0126 6D       		.byte	109
+ 249 0127 00       		.byte	0
+ 250 0128 65       		.byte	101
+ 251 0129 00       		.byte	0
+ 252 012a 73       		.byte	115
+ 253 012b 00       		.byte	0
+ 254 012c 64       		.byte	100
+ 255 012d 00       		.byte	0
+ 256 012e 61       		.byte	97
+ 257 012f 00       		.byte	0
+ 258 0130 79       		.byte	121
+ 259 0131 00       		.byte	0
+ 260 0132 20       		.byte	32
+ 261 0133 00       		.byte	0
+ 262 0134 44       		.byte	68
+ 263 0135 00       		.byte	0
+ 264 0136 75       		.byte	117
+ 265 0137 00       		.byte	0
+ 266 0138 70       		.byte	112
+ 267 0139 00       		.byte	0
+ 268 013a 6C       		.byte	108
+ 269 013b 00       		.byte	0
+ 270 013c 69       		.byte	105
+ 271 013d 00       		.byte	0
+ 272 013e 63       		.byte	99
+ 273 013f 00       		.byte	0
+ 274 0140 61       		.byte	97
+ 275 0141 00       		.byte	0
+ 276 0142 74       		.byte	116
+ 277 0143 00       		.byte	0
+ 278 0144 6F       		.byte	111
+ 279 0145 00       		.byte	0
+ 280 0146 72       		.byte	114
+ 281 0147 00       		.byte	0
+ 282              		.global	USBOSDscr
+ 283 0148 00000000 		.align	5
+ 283      00000000 
+ 283      00000000 
+ 283      00000000 
+ 283      00000000 
+ 286              	USBOSDscr:
+ 287 0160 0E       		.byte	14
+ 288 0161 03       		.byte	3
+ 289 0162 4F       		.byte	79
+ 290 0163 00       		.byte	0
+ 291 0164 53       		.byte	83
+ 292 0165 00       		.byte	0
+ 293 0166 20       		.byte	32
+ 294 0167 00       		.byte	0
+ 295 0168 44       		.byte	68
+ 296 0169 00       		.byte	0
+ 297 016a 65       		.byte	101
+ 298 016b 00       		.byte	0
+ 299 016c 73       		.byte	115
+ 300 016d 00       		.byte	0
+ 301 016e 63       		.byte	99
+ 302 016f 00       		.byte	0
+ 303              		.comm	CyFxUsbDscrAlignBuffer,32,32
+ 304 0170 00000000 		.text
+ 304      00000000 
+ 304      00000000 
+ 304      00000000 
+ 305              	.Letext0:
+ 306              		.file 1 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu3
+ 307              		.file 2 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu3
+ 308              		.file 3 "../usbDescriptor.c"
+ 309              		.file 4 "c:\\program files (x86)\\cypress\\ez-usb fx3 sdk\\1.3\\arm gcc\\arm-none-eabi\\include\\s
+DEFINED SYMBOLS
+                            *ABS*:00000000 usbDescriptor.c
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:21     .rodata:00000000 USB30DeviceDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:18     .rodata:00000000 $d
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:44     .rodata:00000020 USB20DeviceDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:67     .rodata:00000040 USBBOSDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:94     .rodata:00000060 USBDeviceQualDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:109    .rodata:00000080 USBSSConfigDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:145    .rodata:000000a0 USBHSConfigDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:175    .rodata:000000c0 USBFSConfigDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:205    .rodata:000000e0 USBStringLangIDDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:214    .rodata:00000100 USBManufactureDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:241    .rodata:00000120 USBProductDscr
+C:\Users\simon\AppData\Local\Temp\ccfxL2Zi.s:286    .rodata:00000160 USBOSDscr
+                            *COM*:00000020 CyFxUsbDscrAlignBuffer
+
+NO UNDEFINED SYMBOLS

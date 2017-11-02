@@ -1,0 +1,73 @@
+   1              	# 1 "../cyfx_gcc_startup.S"
+   1              	#  Copyright Cypress Semiconductor Corporation, 2010-2011,
+   0              	
+   0              	
+   2              	#  All Rights Reserved
+   3              	#  UNPUBLISHED, LICENSED SOFTWARE.
+   4              	#
+   5              	#  CONFIDENTIAL AND PROPRIETARY INFORMATION
+   6              	#  WHICH IS THE PROPERTY OF CYPRESS.
+   7              	#
+   8              	#  Use of this file is governed
+   9              	#  by the license agreement included in the file
+  10              	#
+  11              	#     <install>/license/license.txt
+  12              	#
+  13              	#  where <install> is the Cypress software
+  14              	#  installation root directory path.
+  15              	#
+  16              	
+  17              	# Cypress FX3 Firmware Startup code
+  18              	
+  19              	
+  20              	.section .text
+  21              	.code 32
+  22              	
+  23              	.global jump
+  24              	jump:
+  25 0000 10FF2FE1 	    bx  R0
+  26              	
+  27              	.global CyU3PToolChainInit
+  28              	CyU3PToolChainInit:
+  29              	
+  30              	# clear the BSS area
+  31              	__main:
+  32 0004 0000A0E3 		mov	R0, #0
+  33 0008 14109FE5 		ldr	R1, =_bss_start
+  34 000c 14209FE5 		ldr	R2, =_bss_end
+  35 0010 020051E1 	1:	cmp	R1, R2
+  36 0014 04008134 		strlo	R0, [R1], #4
+  37 0018 FCFFFF3A 		blo	1b
+  38              	
+  39 001c FEFFFFEA 		b	main
+  40              	
+  41              	
+  42              	.global __user_initial_stackheap
+  43              	__user_initial_stackheap:
+  44              	
+  45              	# The tool chain is not expected to place the stack.
+  46              	# No heap is expected to be used by USB 3.0 platform drivers.
+  47              	# Place them as required by the user code
+  48              	.if  INTER == TRUE
+  49              	    bx      lr                 
+  50              	.else
+  51 0020 0EF0A0E1 	    mov     pc, lr             
+  52              	.endif
+  53              	
+  54 0024 00000000 	.end
+  54      00000000 
+DEFINED SYMBOLS
+../cyfx_gcc_startup.S:24     .text:00000000 jump
+../cyfx_gcc_startup.S:25     .text:00000000 $a
+../cyfx_gcc_startup.S:28     .text:00000004 CyU3PToolChainInit
+../cyfx_gcc_startup.S:31     .text:00000004 __main
+../cyfx_gcc_startup.S:43     .text:00000020 __user_initial_stackheap
+../cyfx_gcc_startup.S:54     .text:00000024 $d
+                   .debug_aranges:0000000c $d
+
+UNDEFINED SYMBOLS
+_bss_start
+_bss_end
+main
+INTER
+TRUE
