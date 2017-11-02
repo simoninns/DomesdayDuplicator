@@ -1,14 +1,14 @@
-Fitter Status : Successful - Thu Nov 02 11:43:30 2017
+Fitter Status : Successful - Thu Nov 02 12:06:50 2017
 Quartus Prime Version : 17.0.0 Build 595 04/25/2017 SJ Lite Edition
 Revision Name : DomesdayDuplicator
 Top-level Entity Name : DomesdayDuplicator
 Family : Cyclone IV E
 Device : EP4CE22F17C6
 Timing Models : Final
-Total logic elements : 249 / 22,320 ( 1 % )
-    Total combinational functions : 152 / 22,320 ( < 1 % )
-    Dedicated logic registers : 196 / 22,320 ( < 1 % )
-Total registers : 196
+Total logic elements : 252 / 22,320 ( 1 % )
+    Total combinational functions : 155 / 22,320 ( < 1 % )
+    Dedicated logic registers : 197 / 22,320 ( < 1 % )
+Total registers : 197
 Total pins : 73 / 154 ( 47 % )
 Total virtual pins : 0
 Total memory bits : 163,840 / 608,256 ( 27 % )
