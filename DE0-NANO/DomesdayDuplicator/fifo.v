@@ -25,7 +25,7 @@
 ************************************************************************/
 
 module fifo (
-	input [15:0] inputData,
+	input [9:0] inputData,
 	input inputClock,
 	input nReset,
 	
@@ -34,7 +34,7 @@ module fifo (
 	
 	input nReady,
 	
-	output [15:0] outputData,
+	output [9:0] outputData,
 	
 	output reg empty_flag,
 	output reg almostEmpty_flag,

@@ -27,22 +27,20 @@
 module readAdcData(
 	input clock,
 	input nReset,
-	input runFlag,
 	input [9:0] adcDatabus,
 	
-	output reg [15:0] adcData
+	output reg [9:0] adcData
 );
+
+reg [9:0] adcUintValue;
 
 // ADC data is valid on the negative edge of the clock
 always @ (negedge clock, negedge nReset) begin
 	if (!nReset) begin
-		adcData <= 16'd0;
+		adcData <= 10'd0;
 	end else begin
-		// Uncomment to generate a test data counter
-		// if (runFlag) adcData <= adcData + 16'd1; // Test data counter
-		
-		// Get the ADC data and shift 10-bit data to 16-bit (x256)
-		if (runFlag) adcData <= adcDatabus << 6;
+		// Read the ADC value
+		adcData <= adcDatabus;	
 	end
 end
 

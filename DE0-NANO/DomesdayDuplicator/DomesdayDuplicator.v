@@ -165,12 +165,11 @@ fx3StateMachine fx3StateMachine0 (
 //assign debugHeader[2] = fifoFull;
 
 // Read the current ADC value
-wire [15:0] adc_outputData;
+wire [9:0] adc_outputData;
 readAdcData readAdcData0 (
 	// Inputs
 	.clock(adc_clock),
 	.nReset(fx3_nReset),
-	.runFlag(1'b1),
 	.adcDatabus(adcData),
 	
 	// Outputs
@@ -179,7 +178,7 @@ readAdcData readAdcData0 (
 
 
 // Dual-clock FIFO buffer from ADC to FX3
-wire [15:0] fifo_outputData;
+wire [9:0] fifo_outputData;
 wire fifoEmpty;
 wire fifoAlmostEmpty;
 wire fifoHalfFull;
@@ -200,7 +199,12 @@ fifo fifo0 (
 	.full_flag(fifoFull)
 );
 
-// Copy the FIFO output data to the FX3 data bus
-assign fx3_databus = fifo_outputData;
+// Convert 10-bit ADC data to 16-bit signed integer output
+adcDataConvert adcDataConvert0 (
+	.clock(fx3_clock),
+	.nReset(fx3_nReset),
+	.inputData(fifo_outputData),
+	.outputData(fx3_databus)
+);
 
 endmodule

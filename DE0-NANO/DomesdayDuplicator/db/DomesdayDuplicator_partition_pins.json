@@ -4,15 +4,7 @@
 			"name" : "Top",
 			"pins" : [
 				{
-					"name" : "GPIO0[3]",
-					"strict" : false
-				},
-				{
 					"name" : "GPIO0[4]",
-					"strict" : false
-				},
-				{
-					"name" : "GPIO0[5]",
 					"strict" : false
 				},
 				{
@@ -20,15 +12,7 @@
 					"strict" : false
 				},
 				{
-					"name" : "GPIO0[7]",
-					"strict" : false
-				},
-				{
 					"name" : "GPIO0[8]",
-					"strict" : false
-				},
-				{
-					"name" : "GPIO0[9]",
 					"strict" : false
 				},
 				{
@@ -36,15 +20,7 @@
 					"strict" : false
 				},
 				{
-					"name" : "GPIO0[11]",
-					"strict" : false
-				},
-				{
 					"name" : "GPIO0[12]",
-					"strict" : false
-				},
-				{
-					"name" : "GPIO0[13]",
 					"strict" : false
 				},
 				{
