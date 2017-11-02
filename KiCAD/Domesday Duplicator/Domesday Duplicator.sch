@@ -40,8 +40,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 4
 Title "Domesday Duplicator"
-Date "2017-10-31"
-Rev "1.2"
+Date "2017-11-02"
+Rev "1.3"
 Comp "http://www.domesday86.com"
 Comment1 "(c)2017 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -155,16 +155,8 @@ Text GLabel 2300 5450 0    60   Input ~ 0
 USB_CTL11
 Text GLabel 2300 5550 0    60   Input ~ 0
 USB_CTL12
-Text GLabel 4100 3750 2    60   Input ~ 0
-USB_SCL
-Text GLabel 4100 3850 2    60   Input ~ 0
-USB_SDA
 Text GLabel 2300 4050 0    60   Input ~ 0
 USB_PCLK
-Wire Wire Line
-	3800 3750 4100 3750
-Wire Wire Line
-	4100 3850 3800 3850
 Wire Wire Line
 	3800 3950 4100 3950
 Wire Wire Line
@@ -307,10 +299,6 @@ Text GLabel 2850 2450 2    60   Input ~ 0
 USB_DATA14
 Text GLabel 2850 2550 2    60   Input ~ 0
 USB_DATA15
-Text GLabel 2850 2700 2    60   Input ~ 0
-USB_SCL
-Text GLabel 2850 2800 2    60   Input ~ 0
-USB_SDA
 Wire Wire Line
 	1750 1050 1850 1050
 Wire Wire Line
@@ -339,10 +327,6 @@ Wire Wire Line
 	1750 2250 1850 2250
 Wire Wire Line
 	1750 2450 1850 2450
-Wire Wire Line
-	2850 2800 2750 2800
-Wire Wire Line
-	2850 2700 2750 2700
 Wire Wire Line
 	2850 2550 2750 2550
 Wire Wire Line
@@ -395,54 +379,6 @@ F13 "IN" I L 6400 1300 60
 F14 "REFT" O L 6400 1500 60 
 F15 "REFB" O L 6400 1600 60 
 $EndSheet
-Text GLabel 6100 7200 2    60   Input ~ 0
-USB_SCL
-Text GLabel 6100 7400 2    60   Input ~ 0
-USB_SDA
-$Comp
-L R R1
-U 1 1 59D24611
-P 5800 7200
-F 0 "R1" V 5880 7200 50  0000 C CNN
-F 1 "4K7" V 5800 7200 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805_HandSoldering" V 5730 7200 50  0001 C CNN
-F 3 "" H 5800 7200 50  0001 C CNN
-	1    5800 7200
-	0    1    1    0   
-$EndComp
-$Comp
-L R R2
-U 1 1 59D2479B
-P 5800 7400
-F 0 "R2" V 5880 7400 50  0000 C CNN
-F 1 "4K7" V 5800 7400 50  0000 C CNN
-F 2 "Resistors_SMD:R_0805_HandSoldering" V 5730 7400 50  0001 C CNN
-F 3 "" H 5800 7400 50  0001 C CNN
-	1    5800 7400
-	0    1    1    0   
-$EndComp
-Wire Wire Line
-	5950 7200 6100 7200
-Wire Wire Line
-	6100 7400 5950 7400
-Wire Wire Line
-	5650 7400 5550 7400
-Wire Wire Line
-	5550 7400 5550 7050
-Wire Wire Line
-	5650 7200 5550 7200
-Connection ~ 5550 7200
-$Comp
-L +3.3V #PWR02
-U 1 1 59D25004
-P 5550 7050
-F 0 "#PWR02" H 5550 6900 50  0001 C CNN
-F 1 "+3.3V" H 5550 7190 50  0000 C CNN
-F 2 "" H 5550 7050 50  0001 C CNN
-F 3 "" H 5550 7050 50  0001 C CNN
-	1    5550 7050
-	1    0    0    -1  
-$EndComp
 $Sheet
 S 5100 1200 800  300 
 U 59D276FC
@@ -510,21 +446,10 @@ Wire Wire Line
 Wire Wire Line
 	8450 4250 8450 5850
 $Comp
-L +3.3V #PWR03
-U 1 1 59D2E4A4
-P 6950 3500
-F 0 "#PWR03" H 6950 3350 50  0001 C CNN
-F 1 "+3.3V" H 6950 3640 50  0000 C CNN
-F 2 "" H 6950 3500 50  0001 C CNN
-F 3 "" H 6950 3500 50  0001 C CNN
-	1    6950 3500
-	1    0    0    -1  
-$EndComp
-$Comp
-L +5V #PWR04
+L +5V #PWR02
 U 1 1 59D2E5E1
 P 6700 3500
-F 0 "#PWR04" H 6700 3350 50  0001 C CNN
+F 0 "#PWR02" H 6700 3350 50  0001 C CNN
 F 1 "+5V" H 6700 3640 50  0000 C CNN
 F 2 "" H 6700 3500 50  0001 C CNN
 F 3 "" H 6700 3500 50  0001 C CNN
@@ -534,10 +459,10 @@ $EndComp
 NoConn ~ 7050 3750
 NoConn ~ 7050 3850
 $Comp
-L GND #PWR05
+L GND #PWR03
 U 1 1 59D2E990
 P 8450 5850
-F 0 "#PWR05" H 8450 5600 50  0001 C CNN
+F 0 "#PWR03" H 8450 5600 50  0001 C CNN
 F 1 "GND" H 8450 5700 50  0000 C CNN
 F 2 "" H 8450 5850 50  0001 C CNN
 F 3 "" H 8450 5850 50  0001 C CNN
@@ -548,10 +473,6 @@ Wire Wire Line
 	7050 4250 6700 4250
 Wire Wire Line
 	6700 4250 6700 3500
-Wire Wire Line
-	7050 5150 6950 5150
-Wire Wire Line
-	6950 5150 6950 3500
 Text GLabel 6550 4450 0    60   Input ~ 0
 ADC_CLK
 Wire Wire Line
@@ -559,30 +480,6 @@ Wire Wire Line
 Wire Wire Line
 	8300 5150 8450 5150
 Connection ~ 8450 5150
-Text GLabel 6550 5250 0    60   Input ~ 0
-EXT_GPIO0
-Text GLabel 8850 5250 2    60   Input ~ 0
-EXT_GPIO1
-Text GLabel 6550 5350 0    60   Input ~ 0
-EXT_GPIO2
-Text GLabel 8850 5350 2    60   Input ~ 0
-EXT_GPIO3
-Text GLabel 6550 5450 0    60   Input ~ 0
-EXT_GPIO4
-Text GLabel 8850 5450 2    60   Input ~ 0
-EXT_GPIO5
-Wire Wire Line
-	6550 5250 7050 5250
-Wire Wire Line
-	7050 5350 6550 5350
-Wire Wire Line
-	6550 5450 7050 5450
-Wire Wire Line
-	8300 5250 8850 5250
-Wire Wire Line
-	8300 5350 8850 5350
-Wire Wire Line
-	8300 5450 8850 5450
 NoConn ~ 7050 5550
 NoConn ~ 7050 5650
 NoConn ~ 8300 5650
@@ -644,51 +541,6 @@ Wire Wire Line
 	7150 2200 7300 2200
 Wire Wire Line
 	7150 2400 7300 2400
-$Comp
-L CONN_01X08 J3
-U 1 1 59D39960
-P 9950 1600
-F 0 "J3" H 9950 2050 50  0000 C CNN
-F 1 "Expansion" V 10050 1600 50  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x08_Pitch2.54mm" H 9950 1600 50  0001 C CNN
-F 3 "" H 9950 1600 50  0001 C CNN
-	1    9950 1600
-	1    0    0    -1  
-$EndComp
-Text GLabel 9500 1450 0    60   Input ~ 0
-EXT_GPIO0
-Text GLabel 9500 1650 0    60   Input ~ 0
-EXT_GPIO2
-Text GLabel 9500 1850 0    60   Input ~ 0
-EXT_GPIO4
-Text GLabel 9500 1550 0    60   Input ~ 0
-EXT_GPIO1
-Text GLabel 9500 1750 0    60   Input ~ 0
-EXT_GPIO3
-Text GLabel 9500 1950 0    60   Input ~ 0
-EXT_GPIO5
-$Comp
-L GND #PWR06
-U 1 1 59D3AE54
-P 9650 2050
-F 0 "#PWR06" H 9650 1800 50  0001 C CNN
-F 1 "GND" H 9650 1900 50  0000 C CNN
-F 2 "" H 9650 2050 50  0001 C CNN
-F 3 "" H 9650 2050 50  0001 C CNN
-	1    9650 2050
-	1    0    0    -1  
-$EndComp
-$Comp
-L +3.3V #PWR07
-U 1 1 59D3AF94
-P 9650 1150
-F 0 "#PWR07" H 9650 1000 50  0001 C CNN
-F 1 "+3.3V" H 9650 1290 50  0000 C CNN
-F 2 "" H 9650 1150 50  0001 C CNN
-F 3 "" H 9650 1150 50  0001 C CNN
-	1    9650 1150
-	1    0    0    -1  
-$EndComp
 Wire Wire Line
 	8300 4350 8850 4350
 Wire Wire Line
@@ -709,42 +561,11 @@ Wire Wire Line
 	8300 3850 8850 3850
 Wire Wire Line
 	8300 3750 8850 3750
-Wire Wire Line
-	9750 1250 9650 1250
-Wire Wire Line
-	9650 1250 9650 1150
-Wire Wire Line
-	9750 1350 9650 1350
-Wire Wire Line
-	9650 1350 9650 2050
-Wire Wire Line
-	9500 1450 9750 1450
-Wire Wire Line
-	9750 1550 9500 1550
-Wire Wire Line
-	9500 1650 9750 1650
-Wire Wire Line
-	9750 1750 9500 1750
-Wire Wire Line
-	9500 1850 9750 1850
-Wire Wire Line
-	9750 1950 9500 1950
 $Comp
-L +3.3V #PWR08
-U 1 1 59D2436D
-P 2500 3450
-F 0 "#PWR08" H 2500 3300 50  0001 C CNN
-F 1 "+3.3V" H 2500 3590 50  0000 C CNN
-F 2 "" H 2500 3450 50  0001 C CNN
-F 3 "" H 2500 3450 50  0001 C CNN
-	1    2500 3450
-	1    0    0    -1  
-$EndComp
-$Comp
-L +5V #PWR09
+L +5V #PWR04
 U 1 1 59D16023
 P 2350 3550
-F 0 "#PWR09" H 2350 3400 50  0001 C CNN
+F 0 "#PWR04" H 2350 3400 50  0001 C CNN
 F 1 "+5V" H 2350 3690 50  0000 C CNN
 F 2 "" H 2350 3550 50  0001 C CNN
 F 3 "" H 2350 3550 50  0001 C CNN
@@ -752,11 +573,7 @@ F 3 "" H 2350 3550 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2550 5150 2500 5150
-Wire Wire Line
 	2550 4250 2350 4250
-Wire Wire Line
-	2500 5150 2500 3450
 Wire Wire Line
 	2350 4250 2350 3550
 Text Notes 1100 4200 0    60   ~ 0
@@ -785,4 +602,16 @@ Text Notes 1100 5500 0    60   ~ 0
 FX3_GPIO28
 Text Notes 1100 5600 0    60   ~ 0
 FX3_GPIO29
+NoConn ~ 3800 3750
+NoConn ~ 3800 3850
+NoConn ~ 2750 2700
+NoConn ~ 2750 2800
+NoConn ~ 7050 5250
+NoConn ~ 7050 5350
+NoConn ~ 7050 5450
+NoConn ~ 8300 5450
+NoConn ~ 8300 5350
+NoConn ~ 8300 5250
+NoConn ~ 7050 5150
+NoConn ~ 2550 5150
 $EndSCHEMATC
