@@ -43,14 +43,14 @@ module fifo (
 );
 
 wire rdEmpty;
-wire [13:0] rdLevel;
+wire [14:0] rdLevel;
 wire rdFull;
 
 // Control Async clear flag
 wire aclr;
 assign aclr = (nReset == 1'b1 && nReady == 1'b0) ? 1'b0 : 1'b1;
 
-// Map in the FCFIFO IP function (8192 word FIFO)
+// Map in the FCFIFO IP function
 IPfifo IPfifo0 (
 	.aclr(aclr),							// Clear FIFO when in reset or not ready
 	.data(inputData),						// Input data to FIFO
@@ -82,7 +82,7 @@ always @(posedge outputClock, negedge nReset)begin
 			if (rdEmpty) begin
 				halfFull_flag <= 1'b0;
 			end else begin
-				if (rdLevel > 14'd4096) begin
+				if (rdLevel > 15'd8192) begin
 					halfFull_flag <= 1'b1;
 				end else begin
 					halfFull_flag <= 1'b0;
@@ -97,7 +97,7 @@ always @(posedge outputClock, negedge nReset)begin
 			if (rdEmpty) begin
 				almostEmpty_flag <= 1'b1;
 			end else begin
-				if (rdLevel < 14'd8) begin
+				if (rdLevel < 15'd8) begin
 					almostEmpty_flag <= 1'b1;
 				end else begin
 					almostEmpty_flag <= 1'b0;
