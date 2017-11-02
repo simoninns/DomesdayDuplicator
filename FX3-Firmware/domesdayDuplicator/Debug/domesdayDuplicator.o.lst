@@ -1,0 +1,2868 @@
+   1              		.cpu arm926ej-s
+   2              		.fpu softvfp
+   3              		.eabi_attribute 20, 1
+   4              		.eabi_attribute 21, 1
+   5              		.eabi_attribute 23, 3
+   6              		.eabi_attribute 24, 1
+   7              		.eabi_attribute 25, 1
+   8              		.eabi_attribute 26, 1
+   9              		.eabi_attribute 30, 6
+  10              		.eabi_attribute 34, 0
+  11              		.eabi_attribute 18, 4
+  12              		.file	"domesdayDuplicator.c"
+  13              		.text
+  14              	.Ltext0:
+  15              		.cfi_sections	.debug_frame
+  16              		.global	CyFxGpifTransition
+  17              		.data
+  18              		.align	2
+  21              	CyFxGpifTransition:
+  22 0000 0000     		.short	0
+  23 0002 AAAA     		.short	-21846
+  24 0004 5555     		.short	21845
+  25              		.global	CyFxGpifWavedata
+  26 0006 0000     		.align	2
+  29              	CyFxGpifWavedata:
+  30 0008 0180731E 		.word	510885889
+  31 000c 00010000 		.word	256
+  32 0010 00000080 		.word	-2147483648
+  33 0014 00000000 		.word	0
+  34 0018 00000000 		.word	0
+  35 001c 00000000 		.word	0
+  36 0020 0280732E 		.word	779321346
+  37 0024 00000020 		.word	536870912
+  38 0028 00000080 		.word	-2147483648
+  39 002c 00000000 		.word	0
+  40 0030 00000000 		.word	0
+  41 0034 00000000 		.word	0
+  42              		.global	CyFxGpifWavedataPosition
+  43              		.align	2
+  46              	CyFxGpifWavedataPosition:
+  47 0038 00       		.byte	0
+  48 0039 01       		.byte	1
+  49 003a 00       		.byte	0
+  50              		.global	CyFxGpifRegValue
+  51 003b 00       		.align	2
+  54              	CyFxGpifRegValue:
+  55 003c 00830080 		.word	-2147450112
+  56 0040 67000000 		.word	103
+  57 0044 00000000 		.word	0
+  58 0048 46000000 		.word	70
+  59 004c 00000000 		.word	0
+  60 0050 00000000 		.word	0
+  61 0054 00000000 		.word	0
+  62 0058 82000000 		.word	130
+  63 005c 82070000 		.word	1922
+  64 0060 54001000 		.word	1048660
+  65 0064 F1FF0000 		.word	65521
+  66 0068 0D000000 		.word	13
+  67 006c 00000000 		.word	0
+  68 0070 00000000 		.word	0
+  69 0074 01000000 		.word	1
+  70 0078 10000000 		.word	16
+  71 007c 14000000 		.word	20
+  72 0080 00000000 		.word	0
+  73 0084 00000000 		.word	0
+  74 0088 00000000 		.word	0
+  75 008c 00000000 		.word	0
+  76 0090 00000000 		.word	0
+  77 0094 00000000 		.word	0
+  78 0098 00000000 		.word	0
+  79 009c 00000000 		.word	0
+  80 00a0 00000000 		.word	0
+  81 00a4 00000000 		.word	0
+  82 00a8 00000000 		.word	0
+  83 00ac 00000000 		.word	0
+  84 00b0 06000000 		.word	6
+  85 00b4 00000000 		.word	0
+  86 00b8 FFFF0000 		.word	65535
+  87 00bc 0A010000 		.word	266
+  88 00c0 00000000 		.word	0
+  89 00c4 FFFF0000 		.word	65535
+  90 00c8 00000000 		.word	0
+  91 00cc FFFF0000 		.word	65535
+  92 00d0 0A010000 		.word	266
+  93 00d4 00000000 		.word	0
+  94 00d8 FFFF0000 		.word	65535
+  95 00dc 00000000 		.word	0
+  96 00e0 00000000 		.word	0
+  97 00e4 00000000 		.word	0
+  98 00e8 00000000 		.word	0
+  99 00ec 00000000 		.word	0
+ 100 00f0 00000000 		.word	0
+ 101 00f4 00000000 		.word	0
+ 102 00f8 00000000 		.word	0
+ 103 00fc 00000000 		.word	0
+ 104 0100 00000000 		.word	0
+ 105 0104 00000000 		.word	0
+ 106 0108 00000000 		.word	0
+ 107 010c 00000000 		.word	0
+ 108 0110 00000000 		.word	0
+ 109 0114 00000000 		.word	0
+ 110 0118 00000000 		.word	0
+ 111 011c 00000000 		.word	0
+ 112 0120 00000000 		.word	0
+ 113 0124 00000000 		.word	0
+ 114 0128 00000000 		.word	0
+ 115 012c 00000000 		.word	0
+ 116 0130 00000000 		.word	0
+ 117 0134 00000000 		.word	0
+ 118 0138 00040180 		.word	-2147417088
+ 119 013c 01040180 		.word	-2147417087
+ 120 0140 02040180 		.word	-2147417086
+ 121 0144 03040180 		.word	-2147417085
+ 122 0148 00000000 		.word	0
+ 123 014c 00000000 		.word	0
+ 124 0150 00000000 		.word	0
+ 125 0154 00000000 		.word	0
+ 126 0158 00000000 		.word	0
+ 127 015c 00000000 		.word	0
+ 128 0160 00000000 		.word	0
+ 129 0164 00000000 		.word	0
+ 130 0168 C1FFFFFF 		.word	-63
+ 131              		.global	CyFxGpifConfig
+ 132              		.section	.rodata
+ 133              		.align	2
+ 136              	CyFxGpifConfig:
+ 137 0000 0300     		.short	3
+ 138 0002 0000     		.space	2
+ 139 0004 00000000 		.word	CyFxGpifWavedata
+ 140 0008 00000000 		.word	CyFxGpifWavedataPosition
+ 141 000c 0300     		.short	3
+ 142 000e 0000     		.space	2
+ 143 0010 00000000 		.word	CyFxGpifTransition
+ 144 0014 4C00     		.short	76
+ 145 0016 0000     		.space	2
+ 146 0018 00000000 		.word	CyFxGpifRegValue
+ 147              		.comm	glAppThread,168,4
+ 148              		.comm	glDmaChHandle,172,4
+ 149              		.global	glIsApplnActive
+ 150              		.bss
+ 151              		.align	2
+ 154              	glIsApplnActive:
+ 155 0000 00000000 		.space	4
+ 156              		.global	glForceLinkU2
+ 157              		.align	2
+ 160              	glForceLinkU2:
+ 161 0004 00000000 		.space	4
+ 162              		.text
+ 163              		.align	2
+ 164              		.global	main
+ 166              	main:
+ 167              	.LFB0:
+ 168              		.file 1 "../domesdayDuplicator.c"
+   1:../domesdayDuplicator.c **** /************************************************************************
+   2:../domesdayDuplicator.c **** 
+   3:../domesdayDuplicator.c **** 	domesdayDuplicator.c
+   4:../domesdayDuplicator.c **** 
+   5:../domesdayDuplicator.c **** 	FX3 Firmware main functions
+   6:../domesdayDuplicator.c **** 	DomesdayDuplicator - LaserDisc RF sampler
+   7:../domesdayDuplicator.c **** 	Copyright (C) 2017 Simon Inns
+   8:../domesdayDuplicator.c **** 
+   9:../domesdayDuplicator.c **** 	This file is part of Domesday Duplicator.
+  10:../domesdayDuplicator.c **** 
+  11:../domesdayDuplicator.c **** 	Domesday Duplicator is free software: you can redistribute it and/or
+  12:../domesdayDuplicator.c **** 	modify it under the terms of the GNU General Public License as
+  13:../domesdayDuplicator.c **** 	published by the Free Software Foundation, either version 3 of the
+  14:../domesdayDuplicator.c **** 	License, or (at your option) any later version.
+  15:../domesdayDuplicator.c **** 
+  16:../domesdayDuplicator.c **** 	This program is distributed in the hope that it will be useful,
+  17:../domesdayDuplicator.c **** 	but WITHOUT ANY WARRANTY; without even the implied warranty of
+  18:../domesdayDuplicator.c **** 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  19:../domesdayDuplicator.c **** 	GNU General Public License for more details.
+  20:../domesdayDuplicator.c **** 
+  21:../domesdayDuplicator.c **** 	You should have received a copy of the GNU General Public License
+  22:../domesdayDuplicator.c **** 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  23:../domesdayDuplicator.c **** 	Email: simon.inns@gmail.com
+  24:../domesdayDuplicator.c **** 
+  25:../domesdayDuplicator.c **** ************************************************************************/
+  26:../domesdayDuplicator.c **** 
+  27:../domesdayDuplicator.c **** // External includes
+  28:../domesdayDuplicator.c **** #include "cyu3system.h"
+  29:../domesdayDuplicator.c **** #include "cyu3os.h"
+  30:../domesdayDuplicator.c **** #include "cyu3dma.h"
+  31:../domesdayDuplicator.c **** #include "cyu3error.h"
+  32:../domesdayDuplicator.c **** #include "cyu3usb.h"
+  33:../domesdayDuplicator.c **** #include "cyu3uart.h"
+  34:../domesdayDuplicator.c **** #include "cyu3gpio.h"
+  35:../domesdayDuplicator.c **** #include "cyu3utils.h"
+  36:../domesdayDuplicator.c **** #include "cyu3pib.h"
+  37:../domesdayDuplicator.c **** #include "cyu3gpif.h"
+  38:../domesdayDuplicator.c **** 
+  39:../domesdayDuplicator.c **** // Local includes
+  40:../domesdayDuplicator.c **** #include "domesdayDuplicator.h"
+  41:../domesdayDuplicator.c **** #include "domesdayDuplicatorGpif.h"
+  42:../domesdayDuplicator.c **** 
+  43:../domesdayDuplicator.c **** // Global definitions
+  44:../domesdayDuplicator.c **** CyU3PThread glAppThread; // Application thread structure
+  45:../domesdayDuplicator.c **** CyU3PDmaChannel glDmaChHandle; // DMA channel handle
+  46:../domesdayDuplicator.c **** 
+  47:../domesdayDuplicator.c **** CyBool_t glIsApplnActive = CyFalse; // Application active/ready flag
+  48:../domesdayDuplicator.c **** CyBool_t glForceLinkU2 = CyFalse; // Force U2 flag
+  49:../domesdayDuplicator.c **** 
+  50:../domesdayDuplicator.c **** // Main application function
+  51:../domesdayDuplicator.c **** int main(void)
+  52:../domesdayDuplicator.c **** {
+ 169              		.loc 1 52 0
+ 170              		.cfi_startproc
+ 171              		@ args = 0, pretend = 0, frame = 112
+ 172              		@ frame_needed = 1, uses_anonymous_args = 0
+ 173 0000 00482DE9 		stmfd	sp!, {fp, lr}
+ 174              	.LCFI0:
+ 175              		.cfi_def_cfa_offset 8
+ 176              		.cfi_offset 11, -8
+ 177              		.cfi_offset 14, -4
+ 178 0004 04B08DE2 		add	fp, sp, #4
+ 179              	.LCFI1:
+ 180              		.cfi_def_cfa 11, 4
+ 181 0008 70D04DE2 		sub	sp, sp, #112
+  53:../domesdayDuplicator.c ****     CyU3PIoMatrixConfig_t io_cfg;
+  54:../domesdayDuplicator.c ****     CyU3PPibClock_t pibClock;
+  55:../domesdayDuplicator.c ****     CyU3PGpioClock_t gpioClock;
+  56:../domesdayDuplicator.c ****     CyU3PGpioSimpleConfig_t gpioConfig;
+  57:../domesdayDuplicator.c ****     CyU3PReturnStatus_t status = CY_U3P_SUCCESS;
+ 182              		.loc 1 57 0
+ 183 000c 0030A0E3 		mov	r3, #0
+ 184 0010 08300BE5 		str	r3, [fp, #-8]
+  58:../domesdayDuplicator.c **** 
+  59:../domesdayDuplicator.c ****     // Perform initial clock configuration of the FX3
+  60:../domesdayDuplicator.c ****     CyU3PSysClockConfig_t clockConfig;
+  61:../domesdayDuplicator.c ****     clockConfig.setSysClk400  = CyTrue; // True = 403.2 MHz, false = 384 MHz
+ 185              		.loc 1 61 0
+ 186 0014 0130A0E3 		mov	r3, #1
+ 187 0018 70300BE5 		str	r3, [fp, #-112]
+  62:../domesdayDuplicator.c ****     clockConfig.cpuClkDiv     = 2;
+ 188              		.loc 1 62 0
+ 189 001c 0230A0E3 		mov	r3, #2
+ 190 0020 6C304BE5 		strb	r3, [fp, #-108]
+  63:../domesdayDuplicator.c ****     clockConfig.dmaClkDiv     = 2;
+ 191              		.loc 1 63 0
+ 192 0024 0230A0E3 		mov	r3, #2
+ 193 0028 6B304BE5 		strb	r3, [fp, #-107]
+  64:../domesdayDuplicator.c ****     clockConfig.mmioClkDiv    = 2;
+ 194              		.loc 1 64 0
+ 195 002c 0230A0E3 		mov	r3, #2
+ 196 0030 6A304BE5 		strb	r3, [fp, #-106]
+  65:../domesdayDuplicator.c ****     clockConfig.useStandbyClk = CyFalse;
+ 197              		.loc 1 65 0
+ 198 0034 0030A0E3 		mov	r3, #0
+ 199 0038 68300BE5 		str	r3, [fp, #-104]
+  66:../domesdayDuplicator.c ****     clockConfig.clkSrc        = CY_U3P_SYS_CLK;
+ 200              		.loc 1 66 0
+ 201 003c 0330A0E3 		mov	r3, #3
+ 202 0040 64304BE5 		strb	r3, [fp, #-100]
+  67:../domesdayDuplicator.c ****     status = CyU3PDeviceInit(&clockConfig);
+ 203              		.loc 1 67 0
+ 204 0044 70304BE2 		sub	r3, fp, #112
+ 205 0048 0300A0E1 		mov	r0, r3
+ 206 004c FEFFFFEB 		bl	CyU3PDeviceInit
+ 207 0050 08000BE5 		str	r0, [fp, #-8]
+  68:../domesdayDuplicator.c ****     if (status != CY_U3P_SUCCESS) {
+ 208              		.loc 1 68 0
+ 209 0054 08301BE5 		ldr	r3, [fp, #-8]
+ 210 0058 000053E3 		cmp	r3, #0
+ 211 005c 0000000A 		beq	.L2
+  69:../domesdayDuplicator.c ****         goto handleFatalError;
+ 212              		.loc 1 69 0
+ 213 0060 7B0000EA 		b	.L3
+ 214              	.L2:
+  70:../domesdayDuplicator.c ****     }
+  71:../domesdayDuplicator.c **** 
+  72:../domesdayDuplicator.c ****     // Start GPIF clocks, they need to be running before we attach a DMA channel to GPIF
+  73:../domesdayDuplicator.c **** 	pibClock.clkDiv = 4; // 403.2 / 4 = 100.8 MHz
+ 215              		.loc 1 73 0
+ 216 0064 0430A0E3 		mov	r3, #4
+ 217 0068 B0344BE1 		strh	r3, [fp, #-64]	@ movhi
+  74:../domesdayDuplicator.c **** 	pibClock.clkSrc = CY_U3P_SYS_CLK;
+ 218              		.loc 1 74 0
+ 219 006c 0330A0E3 		mov	r3, #3
+ 220 0070 34304BE5 		strb	r3, [fp, #-52]
+  75:../domesdayDuplicator.c **** 	pibClock.isHalfDiv = CyFalse;
+ 221              		.loc 1 75 0
+ 222 0074 0030A0E3 		mov	r3, #0
+ 223 0078 3C300BE5 		str	r3, [fp, #-60]
+  76:../domesdayDuplicator.c **** 	pibClock.isDllEnable = CyFalse; // Disable Dll (not required for synchronous applications)
+ 224              		.loc 1 76 0
+ 225 007c 0030A0E3 		mov	r3, #0
+ 226 0080 38300BE5 		str	r3, [fp, #-56]
+  77:../domesdayDuplicator.c **** 	status = CyU3PPibInit(CyTrue, &pibClock);
+ 227              		.loc 1 77 0
+ 228 0084 40304BE2 		sub	r3, fp, #64
+ 229 0088 0100A0E3 		mov	r0, #1
+ 230 008c 0310A0E1 		mov	r1, r3
+ 231 0090 FEFFFFEB 		bl	CyU3PPibInit
+ 232 0094 08000BE5 		str	r0, [fp, #-8]
+  78:../domesdayDuplicator.c **** 	if (status != CY_U3P_SUCCESS) {
+ 233              		.loc 1 78 0
+ 234 0098 08301BE5 		ldr	r3, [fp, #-8]
+ 235 009c 000053E3 		cmp	r3, #0
+ 236 00a0 0000000A 		beq	.L4
+  79:../domesdayDuplicator.c **** 		goto handleFatalError;
+ 237              		.loc 1 79 0
+ 238 00a4 6A0000EA 		b	.L3
+ 239              	.L4:
+  80:../domesdayDuplicator.c **** 	}
+  81:../domesdayDuplicator.c **** 
+  82:../domesdayDuplicator.c ****     // Initialise the state of the caches - Icache, Dcache, DMAcache
+  83:../domesdayDuplicator.c ****     status = CyU3PDeviceCacheControl(CyTrue, CyFalse, CyFalse);
+ 240              		.loc 1 83 0
+ 241 00a8 0100A0E3 		mov	r0, #1
+ 242 00ac 0010A0E3 		mov	r1, #0
+ 243 00b0 0020A0E3 		mov	r2, #0
+ 244 00b4 FEFFFFEB 		bl	CyU3PDeviceCacheControl
+ 245 00b8 08000BE5 		str	r0, [fp, #-8]
+  84:../domesdayDuplicator.c ****     if (status != CY_U3P_SUCCESS) {
+ 246              		.loc 1 84 0
+ 247 00bc 08301BE5 		ldr	r3, [fp, #-8]
+ 248 00c0 000053E3 		cmp	r3, #0
+ 249 00c4 0000000A 		beq	.L5
+  85:../domesdayDuplicator.c ****         goto handleFatalError;
+ 250              		.loc 1 85 0
+ 251 00c8 610000EA 		b	.L3
+ 252              	.L5:
+  86:../domesdayDuplicator.c ****     }
+  87:../domesdayDuplicator.c **** 
+  88:../domesdayDuplicator.c ****     // Initialise the IO matrix
+  89:../domesdayDuplicator.c ****     io_cfg.isDQ32Bit = CyFalse; // Data bus is 16-bits
+ 253              		.loc 1 89 0
+ 254 00cc 0030A0E3 		mov	r3, #0
+ 255 00d0 30300BE5 		str	r3, [fp, #-48]
+  90:../domesdayDuplicator.c ****     io_cfg.useUart   = CyTrue;
+ 256              		.loc 1 90 0
+ 257 00d4 0130A0E3 		mov	r3, #1
+ 258 00d8 2C300BE5 		str	r3, [fp, #-44]
+  91:../domesdayDuplicator.c ****     io_cfg.useI2C    = CyFalse;
+ 259              		.loc 1 91 0
+ 260 00dc 0030A0E3 		mov	r3, #0
+ 261 00e0 28300BE5 		str	r3, [fp, #-40]
+  92:../domesdayDuplicator.c ****     io_cfg.useI2S    = CyFalse;
+ 262              		.loc 1 92 0
+ 263 00e4 0030A0E3 		mov	r3, #0
+ 264 00e8 24300BE5 		str	r3, [fp, #-36]
+  93:../domesdayDuplicator.c ****     io_cfg.useSpi    = CyFalse;
+ 265              		.loc 1 93 0
+ 266 00ec 0030A0E3 		mov	r3, #0
+ 267 00f0 20300BE5 		str	r3, [fp, #-32]
+  94:../domesdayDuplicator.c ****     io_cfg.lppMode   = CY_U3P_IO_MATRIX_LPP_UART_ONLY; // 16-bit data bus with UART
+ 268              		.loc 1 94 0
+ 269 00f4 0130A0E3 		mov	r3, #1
+ 270 00f8 1A304BE5 		strb	r3, [fp, #-26]
+  95:../domesdayDuplicator.c ****     status = CyU3PDeviceConfigureIOMatrix(&io_cfg);
+ 271              		.loc 1 95 0
+ 272 00fc 30304BE2 		sub	r3, fp, #48
+ 273 0100 0300A0E1 		mov	r0, r3
+ 274 0104 FEFFFFEB 		bl	CyU3PDeviceConfigureIOMatrix
+ 275 0108 08000BE5 		str	r0, [fp, #-8]
+  96:../domesdayDuplicator.c ****     if (status != CY_U3P_SUCCESS) {
+ 276              		.loc 1 96 0
+ 277 010c 08301BE5 		ldr	r3, [fp, #-8]
+ 278 0110 000053E3 		cmp	r3, #0
+ 279 0114 0000000A 		beq	.L6
+  97:../domesdayDuplicator.c ****         goto handleFatalError;
+ 280              		.loc 1 97 0
+ 281 0118 4D0000EA 		b	.L3
+ 282              	.L6:
+  98:../domesdayDuplicator.c ****     }
+  99:../domesdayDuplicator.c **** 
+ 100:../domesdayDuplicator.c ****     // Initialise the GPIO module clocks, needed for nRESET towards FPGA
+ 101:../domesdayDuplicator.c **** 	gpioClock.fastClkDiv = 2;
+ 283              		.loc 1 101 0
+ 284 011c 0230A0E3 		mov	r3, #2
+ 285 0120 4C304BE5 		strb	r3, [fp, #-76]
+ 102:../domesdayDuplicator.c **** 	gpioClock.slowClkDiv = 0;
+ 286              		.loc 1 102 0
+ 287 0124 0030A0E3 		mov	r3, #0
+ 288 0128 4B304BE5 		strb	r3, [fp, #-75]
+ 103:../domesdayDuplicator.c **** 	gpioClock.simpleDiv = CY_U3P_GPIO_SIMPLE_DIV_BY_2;
+ 289              		.loc 1 103 0
+ 290 012c 0030A0E3 		mov	r3, #0
+ 291 0130 44304BE5 		strb	r3, [fp, #-68]
+ 104:../domesdayDuplicator.c **** 	gpioClock.clkSrc = CY_U3P_SYS_CLK;
+ 292              		.loc 1 104 0
+ 293 0134 0330A0E3 		mov	r3, #3
+ 294 0138 43304BE5 		strb	r3, [fp, #-67]
+ 105:../domesdayDuplicator.c **** 	gpioClock.halfDiv = 0;
+ 295              		.loc 1 105 0
+ 296 013c 0030A0E3 		mov	r3, #0
+ 297 0140 48300BE5 		str	r3, [fp, #-72]
+ 106:../domesdayDuplicator.c **** 	status = CyU3PGpioInit(&gpioClock, 0);
+ 298              		.loc 1 106 0
+ 299 0144 4C304BE2 		sub	r3, fp, #76
+ 300 0148 0300A0E1 		mov	r0, r3
+ 301 014c 0010A0E3 		mov	r1, #0
+ 302 0150 FEFFFFEB 		bl	CyU3PGpioInit
+ 303 0154 08000BE5 		str	r0, [fp, #-8]
+ 107:../domesdayDuplicator.c **** 	if (status != CY_U3P_SUCCESS) {
+ 304              		.loc 1 107 0
+ 305 0158 08301BE5 		ldr	r3, [fp, #-8]
+ 306 015c 000053E3 		cmp	r3, #0
+ 307 0160 0000000A 		beq	.L7
+ 108:../domesdayDuplicator.c **** 		goto handleFatalError;
+ 308              		.loc 1 108 0
+ 309 0164 3A0000EA 		b	.L3
+ 310              	.L7:
+ 109:../domesdayDuplicator.c **** 	}
+ 110:../domesdayDuplicator.c **** 
+ 111:../domesdayDuplicator.c **** 	// Claim CTRL[10]/GPIO27 from the GPIF Interface (nRESET signal)
+ 112:../domesdayDuplicator.c **** 	status = CyU3PDeviceGpioOverride(27, CyTrue);
+ 311              		.loc 1 112 0
+ 312 0168 1B00A0E3 		mov	r0, #27
+ 313 016c 0110A0E3 		mov	r1, #1
+ 314 0170 FEFFFFEB 		bl	CyU3PDeviceGpioOverride
+ 315 0174 08000BE5 		str	r0, [fp, #-8]
+ 113:../domesdayDuplicator.c **** 	if (status != CY_U3P_SUCCESS) {
+ 316              		.loc 1 113 0
+ 317 0178 08301BE5 		ldr	r3, [fp, #-8]
+ 318 017c 000053E3 		cmp	r3, #0
+ 319 0180 0000000A 		beq	.L8
+ 114:../domesdayDuplicator.c **** 		goto handleFatalError;
+ 320              		.loc 1 114 0
+ 321 0184 320000EA 		b	.L3
+ 322              	.L8:
+ 115:../domesdayDuplicator.c **** 	}
+ 116:../domesdayDuplicator.c **** 
+ 117:../domesdayDuplicator.c **** 	// Bring the FPGA out of reset by driving nRESET/GPIO27 high
+ 118:../domesdayDuplicator.c **** 	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+ 323              		.loc 1 118 0
+ 324 0188 60304BE2 		sub	r3, fp, #96
+ 325 018c 0300A0E1 		mov	r0, r3
+ 326 0190 0010A0E3 		mov	r1, #0
+ 327 0194 1420A0E3 		mov	r2, #20
+ 328 0198 FEFFFFEB 		bl	CyU3PMemSet
+ 119:../domesdayDuplicator.c **** 	gpioConfig.outValue = 1;
+ 329              		.loc 1 119 0
+ 330 019c 0130A0E3 		mov	r3, #1
+ 331 01a0 60300BE5 		str	r3, [fp, #-96]
+ 120:../domesdayDuplicator.c **** 	gpioConfig.driveLowEn = CyTrue;
+ 332              		.loc 1 120 0
+ 333 01a4 0130A0E3 		mov	r3, #1
+ 334 01a8 5C300BE5 		str	r3, [fp, #-92]
+ 121:../domesdayDuplicator.c **** 	gpioConfig.driveHighEn = CyTrue;
+ 335              		.loc 1 121 0
+ 336 01ac 0130A0E3 		mov	r3, #1
+ 337 01b0 58300BE5 		str	r3, [fp, #-88]
+ 122:../domesdayDuplicator.c **** 	status = CyU3PGpioSetSimpleConfig(27, &gpioConfig);
+ 338              		.loc 1 122 0
+ 339 01b4 60304BE2 		sub	r3, fp, #96
+ 340 01b8 1B00A0E3 		mov	r0, #27
+ 341 01bc 0310A0E1 		mov	r1, r3
+ 342 01c0 FEFFFFEB 		bl	CyU3PGpioSetSimpleConfig
+ 343 01c4 08000BE5 		str	r0, [fp, #-8]
+ 123:../domesdayDuplicator.c **** 	if (status != CY_U3P_SUCCESS) {
+ 344              		.loc 1 123 0
+ 345 01c8 08301BE5 		ldr	r3, [fp, #-8]
+ 346 01cc 000053E3 		cmp	r3, #0
+ 347 01d0 0000000A 		beq	.L9
+ 124:../domesdayDuplicator.c **** 		goto handleFatalError;
+ 348              		.loc 1 124 0
+ 349 01d4 1E0000EA 		b	.L3
+ 350              	.L9:
+ 125:../domesdayDuplicator.c **** 	}
+ 126:../domesdayDuplicator.c **** 
+ 127:../domesdayDuplicator.c **** 	// Claim CTRL[1]/GPIO18 from the GPIF Interface (nREADY signal)
+ 128:../domesdayDuplicator.c **** 	status = CyU3PDeviceGpioOverride(18, CyTrue);
+ 351              		.loc 1 128 0
+ 352 01d8 1200A0E3 		mov	r0, #18
+ 353 01dc 0110A0E3 		mov	r1, #1
+ 354 01e0 FEFFFFEB 		bl	CyU3PDeviceGpioOverride
+ 355 01e4 08000BE5 		str	r0, [fp, #-8]
+ 129:../domesdayDuplicator.c **** 	if (status != CY_U3P_SUCCESS) {
+ 356              		.loc 1 129 0
+ 357 01e8 08301BE5 		ldr	r3, [fp, #-8]
+ 358 01ec 000053E3 		cmp	r3, #0
+ 359 01f0 0000000A 		beq	.L10
+ 130:../domesdayDuplicator.c **** 		goto handleFatalError;
+ 360              		.loc 1 130 0
+ 361 01f4 160000EA 		b	.L3
+ 362              	.L10:
+ 131:../domesdayDuplicator.c **** 	}
+ 132:../domesdayDuplicator.c **** 
+ 133:../domesdayDuplicator.c **** 	// Make the FPGA transfer not ready by driving nREADY/GPIO18 high
+ 134:../domesdayDuplicator.c **** 	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+ 363              		.loc 1 134 0
+ 364 01f8 60304BE2 		sub	r3, fp, #96
+ 365 01fc 0300A0E1 		mov	r0, r3
+ 366 0200 0010A0E3 		mov	r1, #0
+ 367 0204 1420A0E3 		mov	r2, #20
+ 368 0208 FEFFFFEB 		bl	CyU3PMemSet
+ 135:../domesdayDuplicator.c **** 	gpioConfig.outValue = 1;
+ 369              		.loc 1 135 0
+ 370 020c 0130A0E3 		mov	r3, #1
+ 371 0210 60300BE5 		str	r3, [fp, #-96]
+ 136:../domesdayDuplicator.c **** 	gpioConfig.driveLowEn = CyTrue;
+ 372              		.loc 1 136 0
+ 373 0214 0130A0E3 		mov	r3, #1
+ 374 0218 5C300BE5 		str	r3, [fp, #-92]
+ 137:../domesdayDuplicator.c **** 	gpioConfig.driveHighEn = CyTrue;
+ 375              		.loc 1 137 0
+ 376 021c 0130A0E3 		mov	r3, #1
+ 377 0220 58300BE5 		str	r3, [fp, #-88]
+ 138:../domesdayDuplicator.c **** 	status = CyU3PGpioSetSimpleConfig(18, &gpioConfig);
+ 378              		.loc 1 138 0
+ 379 0224 60304BE2 		sub	r3, fp, #96
+ 380 0228 1200A0E3 		mov	r0, #18
+ 381 022c 0310A0E1 		mov	r1, r3
+ 382 0230 FEFFFFEB 		bl	CyU3PGpioSetSimpleConfig
+ 383 0234 08000BE5 		str	r0, [fp, #-8]
+ 139:../domesdayDuplicator.c **** 	if (status != CY_U3P_SUCCESS) {
+ 384              		.loc 1 139 0
+ 385 0238 08301BE5 		ldr	r3, [fp, #-8]
+ 386 023c 000053E3 		cmp	r3, #0
+ 387 0240 0000000A 		beq	.L11
+ 140:../domesdayDuplicator.c **** 		goto handleFatalError;
+ 388              		.loc 1 140 0
+ 389 0244 020000EA 		b	.L3
+ 390              	.L11:
+ 141:../domesdayDuplicator.c **** 	}
+ 142:../domesdayDuplicator.c **** 
+ 143:../domesdayDuplicator.c ****     // Initialise the RTOS kernel
+ 144:../domesdayDuplicator.c ****     CyU3PKernelEntry();
+ 391              		.loc 1 144 0
+ 392 0248 FEFFFFEB 		bl	_tx_initialize_kernel_enter
+ 145:../domesdayDuplicator.c **** 
+ 146:../domesdayDuplicator.c ****     return 0;
+ 393              		.loc 1 146 0
+ 394 024c 0030A0E3 		mov	r3, #0
+ 395 0250 000000EA 		b	.L13
+ 396              	.L3:
+ 147:../domesdayDuplicator.c **** 
+ 148:../domesdayDuplicator.c **** handleFatalError:
+ 149:../domesdayDuplicator.c **** 
+ 150:../domesdayDuplicator.c ****     // An unrecoverable error has occurred
+ 151:../domesdayDuplicator.c **** 	// Loop forever
+ 152:../domesdayDuplicator.c **** 	while(1);
+ 397              		.loc 1 152 0 discriminator 1
+ 398 0254 FEFFFFEA 		b	.L3
+ 399              	.L13:
+ 153:../domesdayDuplicator.c **** }
+ 400              		.loc 1 153 0
+ 401 0258 0300A0E1 		mov	r0, r3
+ 402 025c 04D04BE2 		sub	sp, fp, #4
+ 403              		@ sp needed
+ 404 0260 0088BDE8 		ldmfd	sp!, {fp, pc}
+ 405              		.cfi_endproc
+ 406              	.LFE0:
+ 408              		.section	.rodata
+ 409              		.align	2
+ 410              	.LC0:
+ 411 001c 0D0A446F 		.ascii	"\015\012Domesday Duplicator FX3 Firmware\015\012\000"
+ 411      6D657364 
+ 411      61792044 
+ 411      75706C69 
+ 411      6361746F 
+ 412 0041 000000   		.align	2
+ 413              	.LC1:
+ 414 0044 28632932 		.ascii	"(c)2017 Simon Inns - domesday86.com\015\012\000"
+ 414      30313720 
+ 414      53696D6F 
+ 414      6E20496E 
+ 414      6E73202D 
+ 415 006a 0000     		.align	2
+ 416              	.LC2:
+ 417 006c 44656275 		.ascii	"Debug console initialised\015\012\000"
+ 417      6720636F 
+ 417      6E736F6C 
+ 417      6520696E 
+ 417      69746961 
+ 418              		.align	2
+ 419              	.LC3:
+ 420 0088 2A00     		.ascii	"*\000"
+ 421              		.text
+ 422              		.align	2
+ 423              		.global	domDupThreadInitialise
+ 425              	domDupThreadInitialise:
+ 426              	.LFB1:
+ 154:../domesdayDuplicator.c **** 
+ 155:../domesdayDuplicator.c **** // Function to initialise the application's main thread
+ 156:../domesdayDuplicator.c **** void domDupThreadInitialise(uint32_t input)
+ 157:../domesdayDuplicator.c **** {
+ 427              		.loc 1 157 0
+ 428              		.cfi_startproc
+ 429              		@ args = 0, pretend = 0, frame = 24
+ 430              		@ frame_needed = 1, uses_anonymous_args = 0
+ 431 0264 00482DE9 		stmfd	sp!, {fp, lr}
+ 432              	.LCFI2:
+ 433              		.cfi_def_cfa_offset 8
+ 434              		.cfi_offset 11, -8
+ 435              		.cfi_offset 14, -4
+ 436 0268 04B08DE2 		add	fp, sp, #4
+ 437              	.LCFI3:
+ 438              		.cfi_def_cfa 11, 4
+ 439 026c 18D04DE2 		sub	sp, sp, #24
+ 440 0270 18000BE5 		str	r0, [fp, #-24]
+ 158:../domesdayDuplicator.c ****     CyU3PReturnStatus_t status;
+ 159:../domesdayDuplicator.c ****     CyU3PUsbLinkPowerMode powerState;
+ 160:../domesdayDuplicator.c **** 
+ 161:../domesdayDuplicator.c ****     uint32_t debugPause = 0;
+ 441              		.loc 1 161 0
+ 442 0274 0030A0E3 		mov	r3, #0
+ 443 0278 0C300BE5 		str	r3, [fp, #-12]
+ 162:../domesdayDuplicator.c **** 
+ 163:../domesdayDuplicator.c ****     // Initialise the debug console
+ 164:../domesdayDuplicator.c ****     domDupDebugInit();
+ 444              		.loc 1 164 0
+ 445 027c FEFFFFEB 		bl	domDupDebugInit
+ 165:../domesdayDuplicator.c ****     CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware\r\n");
+ 446              		.loc 1 165 0
+ 447 0280 0100A0E3 		mov	r0, #1
+ 448 0284 2C119FE5 		ldr	r1, .L23
+ 449 0288 FEFFFFEB 		bl	CyU3PDebugPrint
+ 166:../domesdayDuplicator.c ****     CyU3PDebugPrint(1, "(c)2017 Simon Inns - domesday86.com\r\n");
+ 450              		.loc 1 166 0
+ 451 028c 0100A0E3 		mov	r0, #1
+ 452 0290 24119FE5 		ldr	r1, .L23+4
+ 453 0294 FEFFFFEB 		bl	CyU3PDebugPrint
+ 167:../domesdayDuplicator.c ****     CyU3PDebugPrint(1, "Debug console initialised\r\n");
+ 454              		.loc 1 167 0
+ 455 0298 0100A0E3 		mov	r0, #1
+ 456 029c 1C119FE5 		ldr	r1, .L23+8
+ 457 02a0 FEFFFFEB 		bl	CyU3PDebugPrint
+ 168:../domesdayDuplicator.c **** 
+ 169:../domesdayDuplicator.c ****     // Initialise the application
+ 170:../domesdayDuplicator.c ****     domDupInitialiseApplication();
+ 458              		.loc 1 170 0
+ 459 02a4 FEFFFFEB 		bl	domDupInitialiseApplication
+ 460              	.L22:
+ 171:../domesdayDuplicator.c **** 
+ 172:../domesdayDuplicator.c ****     // Main application thread loop
+ 173:../domesdayDuplicator.c ****     while(1) {
+ 174:../domesdayDuplicator.c ****         // Try to get the USB 3.0 link back to U0
+ 175:../domesdayDuplicator.c ****         if (glForceLinkU2) {
+ 461              		.loc 1 175 0
+ 462 02a8 14319FE5 		ldr	r3, .L23+12
+ 463 02ac 003093E5 		ldr	r3, [r3]
+ 464 02b0 000053E3 		cmp	r3, #0
+ 465 02b4 1700000A 		beq	.L15
+ 176:../domesdayDuplicator.c ****         	status = CyU3PUsbGetLinkPowerState(&powerState);
+ 466              		.loc 1 176 0
+ 467 02b8 0D304BE2 		sub	r3, fp, #13
+ 468 02bc 0300A0E1 		mov	r0, r3
+ 469 02c0 FEFFFFEB 		bl	CyU3PUsbGetLinkPowerState
+ 470 02c4 08000BE5 		str	r0, [fp, #-8]
+ 177:../domesdayDuplicator.c ****             while ((glForceLinkU2) && (status == CY_U3P_SUCCESS) && (powerState == CyU3PUsbLPM_U0))
+ 471              		.loc 1 177 0
+ 472 02c8 070000EA 		b	.L16
+ 473              	.L18:
+ 178:../domesdayDuplicator.c ****                 // Try to get to U2 state
+ 179:../domesdayDuplicator.c ****                 CyU3PUsbSetLinkPowerState(CyU3PUsbLPM_U2);
+ 474              		.loc 1 179 0
+ 475 02cc 0200A0E3 		mov	r0, #2
+ 476 02d0 FEFFFFEB 		bl	CyU3PUsbSetLinkPowerState
+ 180:../domesdayDuplicator.c ****                 CyU3PThreadSleep(5);
+ 477              		.loc 1 180 0
+ 478 02d4 0500A0E3 		mov	r0, #5
+ 479 02d8 FEFFFFEB 		bl	_tx_thread_sleep
+ 181:../domesdayDuplicator.c ****                 status = CyU3PUsbGetLinkPowerState(&powerState);
+ 480              		.loc 1 181 0
+ 481 02dc 0D304BE2 		sub	r3, fp, #13
+ 482 02e0 0300A0E1 		mov	r0, r3
+ 483 02e4 FEFFFFEB 		bl	CyU3PUsbGetLinkPowerState
+ 484 02e8 08000BE5 		str	r0, [fp, #-8]
+ 485              	.L16:
+ 177:../domesdayDuplicator.c ****                 // Try to get to U2 state
+ 486              		.loc 1 177 0 discriminator 1
+ 487 02ec D0309FE5 		ldr	r3, .L23+12
+ 488 02f0 003093E5 		ldr	r3, [r3]
+ 489 02f4 000053E3 		cmp	r3, #0
+ 490 02f8 2000000A 		beq	.L17
+ 177:../domesdayDuplicator.c ****                 // Try to get to U2 state
+ 491              		.loc 1 177 0 is_stmt 0 discriminator 2
+ 492 02fc 08301BE5 		ldr	r3, [fp, #-8]
+ 493 0300 000053E3 		cmp	r3, #0
+ 494 0304 1D00001A 		bne	.L17
+ 177:../domesdayDuplicator.c ****                 // Try to get to U2 state
+ 495              		.loc 1 177 0 discriminator 1
+ 496 0308 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 497 030c 000053E3 		cmp	r3, #0
+ 498 0310 EDFFFF0A 		beq	.L18
+ 499 0314 190000EA 		b	.L17
+ 500              	.L15:
+ 182:../domesdayDuplicator.c ****             }
+ 183:../domesdayDuplicator.c ****         } else {
+ 184:../domesdayDuplicator.c ****             // Try to get the USB link back to U0
+ 185:../domesdayDuplicator.c ****             if (CyU3PUsbGetSpeed () == CY_U3P_SUPER_SPEED) {
+ 501              		.loc 1 185 0 is_stmt 1
+ 502 0318 FEFFFFEB 		bl	CyU3PUsbGetSpeed
+ 503 031c 0030A0E1 		mov	r3, r0
+ 504 0320 030053E3 		cmp	r3, #3
+ 505 0324 1500001A 		bne	.L17
+ 186:../domesdayDuplicator.c ****             	status = CyU3PUsbGetLinkPowerState (&powerState);
+ 506              		.loc 1 186 0
+ 507 0328 0D304BE2 		sub	r3, fp, #13
+ 508 032c 0300A0E1 		mov	r0, r3
+ 509 0330 FEFFFFEB 		bl	CyU3PUsbGetLinkPowerState
+ 510 0334 08000BE5 		str	r0, [fp, #-8]
+ 187:../domesdayDuplicator.c ****                 while ((status == CY_U3P_SUCCESS) && (powerState >= CyU3PUsbLPM_U1) &&
+ 511              		.loc 1 187 0
+ 512 0338 070000EA 		b	.L19
+ 513              	.L20:
+ 188:../domesdayDuplicator.c ****                 	(powerState <= CyU3PUsbLPM_U3)) {
+ 189:../domesdayDuplicator.c ****                     CyU3PUsbSetLinkPowerState(CyU3PUsbLPM_U0);
+ 514              		.loc 1 189 0
+ 515 033c 0000A0E3 		mov	r0, #0
+ 516 0340 FEFFFFEB 		bl	CyU3PUsbSetLinkPowerState
+ 190:../domesdayDuplicator.c ****                     CyU3PThreadSleep(1);
+ 517              		.loc 1 190 0
+ 518 0344 0100A0E3 		mov	r0, #1
+ 519 0348 FEFFFFEB 		bl	_tx_thread_sleep
+ 191:../domesdayDuplicator.c ****                     status = CyU3PUsbGetLinkPowerState(&powerState);
+ 520              		.loc 1 191 0
+ 521 034c 0D304BE2 		sub	r3, fp, #13
+ 522 0350 0300A0E1 		mov	r0, r3
+ 523 0354 FEFFFFEB 		bl	CyU3PUsbGetLinkPowerState
+ 524 0358 08000BE5 		str	r0, [fp, #-8]
+ 525              	.L19:
+ 187:../domesdayDuplicator.c ****                 	(powerState <= CyU3PUsbLPM_U3)) {
+ 526              		.loc 1 187 0 discriminator 1
+ 527 035c 08301BE5 		ldr	r3, [fp, #-8]
+ 528 0360 000053E3 		cmp	r3, #0
+ 529 0364 0500001A 		bne	.L17
+ 187:../domesdayDuplicator.c ****                 	(powerState <= CyU3PUsbLPM_U3)) {
+ 530              		.loc 1 187 0 is_stmt 0 discriminator 2
+ 531 0368 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 532 036c 000053E3 		cmp	r3, #0
+ 533 0370 0200000A 		beq	.L17
+ 188:../domesdayDuplicator.c ****                     CyU3PUsbSetLinkPowerState(CyU3PUsbLPM_U0);
+ 534              		.loc 1 188 0 is_stmt 1 discriminator 1
+ 535 0374 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 187:../domesdayDuplicator.c ****                 	(powerState <= CyU3PUsbLPM_U3)) {
+ 536              		.loc 1 187 0 discriminator 1
+ 537 0378 030053E3 		cmp	r3, #3
+ 538 037c EEFFFF9A 		bls	.L20
+ 539              	.L17:
+ 192:../domesdayDuplicator.c ****                 }
+ 193:../domesdayDuplicator.c ****             }
+ 194:../domesdayDuplicator.c ****         }
+ 195:../domesdayDuplicator.c **** 
+ 196:../domesdayDuplicator.c ****         // Output application heart beat character to debug console
+ 197:../domesdayDuplicator.c ****         debugPause++;
+ 540              		.loc 1 197 0
+ 541 0380 0C301BE5 		ldr	r3, [fp, #-12]
+ 542 0384 013083E2 		add	r3, r3, #1
+ 543 0388 0C300BE5 		str	r3, [fp, #-12]
+ 198:../domesdayDuplicator.c ****         if (debugPause == 1000000) {
+ 544              		.loc 1 198 0
+ 545 038c 0C201BE5 		ldr	r2, [fp, #-12]
+ 546 0390 30309FE5 		ldr	r3, .L23+16
+ 547 0394 030052E1 		cmp	r2, r3
+ 548 0398 0500001A 		bne	.L21
+ 199:../domesdayDuplicator.c ****         	CyU3PDebugPrint(1, "*");
+ 549              		.loc 1 199 0
+ 550 039c 0100A0E3 		mov	r0, #1
+ 551 03a0 24109FE5 		ldr	r1, .L23+20
+ 552 03a4 FEFFFFEB 		bl	CyU3PDebugPrint
+ 200:../domesdayDuplicator.c ****         	debugPause = 0;
+ 553              		.loc 1 200 0
+ 554 03a8 0030A0E3 		mov	r3, #0
+ 555 03ac 0C300BE5 		str	r3, [fp, #-12]
+ 201:../domesdayDuplicator.c ****         }
+ 202:../domesdayDuplicator.c ****     }
+ 556              		.loc 1 202 0
+ 557 03b0 BCFFFFEA 		b	.L22
+ 558              	.L21:
+ 559 03b4 BBFFFFEA 		b	.L22
+ 560              	.L24:
+ 561              		.align	2
+ 562              	.L23:
+ 563 03b8 1C000000 		.word	.LC0
+ 564 03bc 44000000 		.word	.LC1
+ 565 03c0 6C000000 		.word	.LC2
+ 566 03c4 00000000 		.word	glForceLinkU2
+ 567 03c8 40420F00 		.word	1000000
+ 568 03cc 88000000 		.word	.LC3
+ 569              		.cfi_endproc
+ 570              	.LFE1:
+ 572              		.section	.rodata
+ 573 008a 0000     		.align	2
+ 574              	.LC4:
+ 575 008c 32383A64 		.ascii	"28:domDup\000"
+ 575      6F6D4475 
+ 575      7000
+ 576              		.text
+ 577              		.align	2
+ 578              		.global	CyFxApplicationDefine
+ 580              	CyFxApplicationDefine:
+ 581              	.LFB2:
+ 203:../domesdayDuplicator.c **** }
+ 204:../domesdayDuplicator.c **** 
+ 205:../domesdayDuplicator.c **** // Function to create the initial application thread
+ 206:../domesdayDuplicator.c **** void CyFxApplicationDefine(void)
+ 207:../domesdayDuplicator.c **** {
+ 582              		.loc 1 207 0
+ 583              		.cfi_startproc
+ 584              		@ args = 0, pretend = 0, frame = 8
+ 585              		@ frame_needed = 1, uses_anonymous_args = 0
+ 586 03d0 00482DE9 		stmfd	sp!, {fp, lr}
+ 587              	.LCFI4:
+ 588              		.cfi_def_cfa_offset 8
+ 589              		.cfi_offset 11, -8
+ 590              		.cfi_offset 14, -4
+ 591 03d4 04B08DE2 		add	fp, sp, #4
+ 592              	.LCFI5:
+ 593              		.cfi_def_cfa 11, 4
+ 594 03d8 28D04DE2 		sub	sp, sp, #40
+ 208:../domesdayDuplicator.c ****     void *ptr = NULL;
+ 595              		.loc 1 208 0
+ 596 03dc 0030A0E3 		mov	r3, #0
+ 597 03e0 08300BE5 		str	r3, [fp, #-8]
+ 209:../domesdayDuplicator.c ****     uint32_t returnCode = CY_U3P_SUCCESS;
+ 598              		.loc 1 209 0
+ 599 03e4 0030A0E3 		mov	r3, #0
+ 600 03e8 0C300BE5 		str	r3, [fp, #-12]
+ 210:../domesdayDuplicator.c **** 
+ 211:../domesdayDuplicator.c ****     // Allocate the memory for the threads
+ 212:../domesdayDuplicator.c ****     ptr = CyU3PMemAlloc(CY_FX_GPIFTOUSB_THREAD_STACK);
+ 601              		.loc 1 212 0
+ 602 03ec 010AA0E3 		mov	r0, #4096
+ 603 03f0 FEFFFFEB 		bl	CyU3PMemAlloc
+ 604 03f4 08000BE5 		str	r0, [fp, #-8]
+ 213:../domesdayDuplicator.c **** 
+ 214:../domesdayDuplicator.c ****     // Create the application's main thread
+ 215:../domesdayDuplicator.c ****     returnCode = CyU3PThreadCreate(
+ 605              		.loc 1 215 0
+ 606 03f8 08301BE5 		ldr	r3, [fp, #-8]
+ 607 03fc 00308DE5 		str	r3, [sp]
+ 608 0400 013AA0E3 		mov	r3, #4096
+ 609 0404 04308DE5 		str	r3, [sp, #4]
+ 610 0408 0830A0E3 		mov	r3, #8
+ 611 040c 08308DE5 		str	r3, [sp, #8]
+ 612 0410 0830A0E3 		mov	r3, #8
+ 613 0414 0C308DE5 		str	r3, [sp, #12]
+ 614 0418 0030A0E3 		mov	r3, #0
+ 615 041c 10308DE5 		str	r3, [sp, #16]
+ 616 0420 0130A0E3 		mov	r3, #1
+ 617 0424 14308DE5 		str	r3, [sp, #20]
+ 618 0428 A830A0E3 		mov	r3, #168
+ 619 042c 18308DE5 		str	r3, [sp, #24]
+ 620 0430 28009FE5 		ldr	r0, .L28
+ 621 0434 28109FE5 		ldr	r1, .L28+4
+ 622 0438 28209FE5 		ldr	r2, .L28+8
+ 623 043c 0030A0E3 		mov	r3, #0
+ 624 0440 FEFFFFEB 		bl	_txe_thread_create
+ 625 0444 0C000BE5 		str	r0, [fp, #-12]
+ 216:../domesdayDuplicator.c **** 		&glAppThread,						// Application thread structure
+ 217:../domesdayDuplicator.c **** 		"28:domDup",						// Thread ID and thread name
+ 218:../domesdayDuplicator.c **** 		domDupThreadInitialise,				// Application thread entry function
+ 219:../domesdayDuplicator.c **** 		0,									// No input parameter to thread
+ 220:../domesdayDuplicator.c **** 		ptr,								// Pointer to the allocated thread stack
+ 221:../domesdayDuplicator.c **** 		CY_FX_GPIFTOUSB_THREAD_STACK,		// Application thread stack size
+ 222:../domesdayDuplicator.c **** 		CY_FX_GPIFTOUSB_THREAD_PRIORITY,	// Application thread priority
+ 223:../domesdayDuplicator.c **** 		CY_FX_GPIFTOUSB_THREAD_PRIORITY,	// Application thread priority
+ 224:../domesdayDuplicator.c **** 		CYU3P_NO_TIME_SLICE,				// No time slice for the application thread
+ 225:../domesdayDuplicator.c **** 		CYU3P_AUTO_START					// Start the thread immediately
+ 226:../domesdayDuplicator.c **** 		);
+ 227:../domesdayDuplicator.c **** 
+ 228:../domesdayDuplicator.c ****     // Check the return code
+ 229:../domesdayDuplicator.c ****     if (returnCode != 0) {
+ 626              		.loc 1 229 0
+ 627 0448 0C301BE5 		ldr	r3, [fp, #-12]
+ 628 044c 000053E3 		cmp	r3, #0
+ 629 0450 0000000A 		beq	.L25
+ 630              	.L27:
+ 230:../domesdayDuplicator.c ****     	// Could not create initial thread
+ 231:../domesdayDuplicator.c ****     	// Application cannot start
+ 232:../domesdayDuplicator.c ****         while(1);
+ 631              		.loc 1 232 0 discriminator 1
+ 632 0454 FEFFFFEA 		b	.L27
+ 633              	.L25:
+ 233:../domesdayDuplicator.c ****     }
+ 234:../domesdayDuplicator.c **** }
+ 634              		.loc 1 234 0
+ 635 0458 04D04BE2 		sub	sp, fp, #4
+ 636              		@ sp needed
+ 637 045c 0088BDE8 		ldmfd	sp!, {fp, pc}
+ 638              	.L29:
+ 639              		.align	2
+ 640              	.L28:
+ 641 0460 00000000 		.word	glAppThread
+ 642 0464 8C000000 		.word	.LC4
+ 643 0468 00000000 		.word	domDupThreadInitialise
+ 644              		.cfi_endproc
+ 645              	.LFE2:
+ 647              		.section	.rodata
+ 648 0096 0000     		.align	2
+ 649              	.LC5:
+ 650 0098 43795533 		.ascii	"CyU3PUsbStart failed, Error code = %d\012\000"
+ 650      50557362 
+ 650      53746172 
+ 650      74206661 
+ 650      696C6564 
+ 651 00bf 00       		.align	2
+ 652              	.LC6:
+ 653 00c0 43795533 		.ascii	"CyU3PUsbSetDesc USB3 failed, Error code = %d\012\000"
+ 653      50557362 
+ 653      53657444 
+ 653      65736320 
+ 653      55534233 
+ 654 00ee 0000     		.align	2
+ 655              	.LC7:
+ 656 00f0 43795533 		.ascii	"CyU3PUsbSetDesc USB 2 failed, Error code = %d\012\000"
+ 656      50557362 
+ 656      53657444 
+ 656      65736320 
+ 656      55534220 
+ 657 011f 00       		.align	2
+ 658              	.LC8:
+ 659 0120 43795533 		.ascii	"CyU3PUsbSetDesc BOS failed, Error code = %d\012\000"
+ 659      50557362 
+ 659      53657444 
+ 659      65736320 
+ 659      424F5320 
+ 660 014d 000000   		.align	2
+ 661              	.LC9:
+ 662 0150 43795533 		.ascii	"CyU3PUsbSetDesc qualifier descriptor failed, Error "
+ 662      50557362 
+ 662      53657444 
+ 662      65736320 
+ 662      7175616C 
+ 663 0183 636F6465 		.ascii	"code = %d\012\000"
+ 663      203D2025 
+ 663      640A00
+ 664 018e 0000     		.align	2
+ 665              	.LC10:
+ 666 0190 43795533 		.ascii	"CyU3PUsbSetDesc configuration descriptor failed, Er"
+ 666      50557362 
+ 666      53657444 
+ 666      65736320 
+ 666      636F6E66 
+ 667 01c3 726F7220 		.ascii	"ror code = %d\012\000"
+ 667      636F6465 
+ 667      203D2025 
+ 667      640A00
+ 668 01d2 0000     		.align	2
+ 669              	.LC11:
+ 670 01d4 43795533 		.ascii	"CyU3PUsbSetDesc Other Speed Descriptor failed, Erro"
+ 670      50557362 
+ 670      53657444 
+ 670      65736320 
+ 670      4F746865 
+ 671 0207 7220436F 		.ascii	"r Code = %d\012\000"
+ 671      6465203D 
+ 671      2025640A 
+ 671      00
+ 672              		.align	2
+ 673              	.LC12:
+ 674 0214 43795533 		.ascii	"CyU3PUsbSetDesc Full-Speed Descriptor failed, Error"
+ 674      50557362 
+ 674      53657444 
+ 674      65736320 
+ 674      46756C6C 
+ 675 0247 20436F64 		.ascii	" Code = %d\012\000"
+ 675      65203D20 
+ 675      25640A00 
+ 676 0253 00       		.align	2
+ 677              	.LC13:
+ 678 0254 43795533 		.ascii	"CyU3PUsbSetDesc string 0 descriptor failed, Error c"
+ 678      50557362 
+ 678      53657444 
+ 678      65736320 
+ 678      73747269 
+ 679 0287 6F646520 		.ascii	"ode = %d\012\000"
+ 679      3D202564 
+ 679      0A00
+ 680 0291 000000   		.align	2
+ 681              	.LC14:
+ 682 0294 43795533 		.ascii	"CyU3PUsbSetDesc string descriptor 1 failed, Error c"
+ 682      50557362 
+ 682      53657444 
+ 682      65736320 
+ 682      73747269 
+ 683 02c7 6F646520 		.ascii	"ode = %d\012\000"
+ 683      3D202564 
+ 683      0A00
+ 684 02d1 000000   		.align	2
+ 685              	.LC15:
+ 686 02d4 43795533 		.ascii	"CyU3PUsbSetDesc string descriptor 2 failed, Error c"
+ 686      50557362 
+ 686      53657444 
+ 686      65736320 
+ 686      73747269 
+ 687 0307 6F646520 		.ascii	"ode = %d\012\000"
+ 687      3D202564 
+ 687      0A00
+ 688 0311 000000   		.align	2
+ 689              	.LC16:
+ 690 0314 496E6974 		.ascii	"Initialisation successfull; Connecting to host\015\012"
+ 690      69616C69 
+ 690      73617469 
+ 690      6F6E2073 
+ 690      75636365 
+ 691 0344 00       		.ascii	"\000"
+ 692 0345 000000   		.align	2
+ 693              	.LC17:
+ 694 0348 43795533 		.ascii	"CyU3PConnectState failed, Error code = %d\012\000"
+ 694      50436F6E 
+ 694      6E656374 
+ 694      53746174 
+ 694      65206661 
+ 695 0373 00       		.align	2
+ 696              	.LC18:
+ 697 0374 4170706C 		.ascii	"Application initialisation complete.\015\012\000"
+ 697      69636174 
+ 697      696F6E20 
+ 697      696E6974 
+ 697      69616C69 
+ 698              		.text
+ 699              		.align	2
+ 700              		.global	domDupInitialiseApplication
+ 702              	domDupInitialiseApplication:
+ 703              	.LFB3:
+ 235:../domesdayDuplicator.c **** 
+ 236:../domesdayDuplicator.c **** // Function to initialise the USB application (note: does not start application)
+ 237:../domesdayDuplicator.c **** void domDupInitialiseApplication(void)
+ 238:../domesdayDuplicator.c **** {
+ 704              		.loc 1 238 0
+ 705              		.cfi_startproc
+ 706              		@ args = 0, pretend = 0, frame = 8
+ 707              		@ frame_needed = 1, uses_anonymous_args = 0
+ 708 046c 00482DE9 		stmfd	sp!, {fp, lr}
+ 709              	.LCFI6:
+ 710              		.cfi_def_cfa_offset 8
+ 711              		.cfi_offset 11, -8
+ 712              		.cfi_offset 14, -4
+ 713 0470 04B08DE2 		add	fp, sp, #4
+ 714              	.LCFI7:
+ 715              		.cfi_def_cfa 11, 4
+ 716 0474 08D04DE2 		sub	sp, sp, #8
+ 239:../domesdayDuplicator.c ****     CyU3PReturnStatus_t apiReturnStatus = CY_U3P_SUCCESS;
+ 717              		.loc 1 239 0
+ 718 0478 0030A0E3 		mov	r3, #0
+ 719 047c 0C300BE5 		str	r3, [fp, #-12]
+ 240:../domesdayDuplicator.c ****     CyBool_t noRenum = CyFalse;
+ 720              		.loc 1 240 0
+ 721 0480 0030A0E3 		mov	r3, #0
+ 722 0484 08300BE5 		str	r3, [fp, #-8]
+ 241:../domesdayDuplicator.c **** 
+ 242:../domesdayDuplicator.c ****     // Start the USB processing
+ 243:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbStart();
+ 723              		.loc 1 243 0
+ 724 0488 FEFFFFEB 		bl	CyU3PUsbStart
+ 725 048c 0C000BE5 		str	r0, [fp, #-12]
+ 244:../domesdayDuplicator.c ****     if (apiReturnStatus == CY_U3P_ERROR_NO_REENUM_REQUIRED) noRenum = CyTrue;
+ 726              		.loc 1 244 0
+ 727 0490 0C301BE5 		ldr	r3, [fp, #-12]
+ 728 0494 FE0053E3 		cmp	r3, #254
+ 729 0498 0200001A 		bne	.L31
+ 730              		.loc 1 244 0 is_stmt 0 discriminator 1
+ 731 049c 0130A0E3 		mov	r3, #1
+ 732 04a0 08300BE5 		str	r3, [fp, #-8]
+ 733 04a4 080000EA 		b	.L32
+ 734              	.L31:
+ 245:../domesdayDuplicator.c ****     else if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 735              		.loc 1 245 0 is_stmt 1
+ 736 04a8 0C301BE5 		ldr	r3, [fp, #-12]
+ 737 04ac 000053E3 		cmp	r3, #0
+ 738 04b0 0500000A 		beq	.L32
+ 246:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbStart failed, Error code = %d\n", apiReturnStatus);
+ 739              		.loc 1 246 0
+ 740 04b4 0400A0E3 		mov	r0, #4
+ 741 04b8 D4129FE5 		ldr	r1, .L47
+ 742 04bc 0C201BE5 		ldr	r2, [fp, #-12]
+ 743 04c0 FEFFFFEB 		bl	CyU3PDebugPrint
+ 247:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 744              		.loc 1 247 0
+ 745 04c4 0C001BE5 		ldr	r0, [fp, #-12]
+ 746 04c8 FEFFFFEB 		bl	domDupErrorHandler
+ 747              	.L32:
+ 248:../domesdayDuplicator.c ****     }
+ 249:../domesdayDuplicator.c **** 
+ 250:../domesdayDuplicator.c ****     // Use fast enumeration
+ 251:../domesdayDuplicator.c ****     CyU3PUsbRegisterSetupCallback(domDupUSBSetupCB, CyTrue);
+ 748              		.loc 1 251 0
+ 749 04cc C4029FE5 		ldr	r0, .L47+4
+ 750 04d0 0110A0E3 		mov	r1, #1
+ 751 04d4 FEFFFFEB 		bl	CyU3PUsbRegisterSetupCallback
+ 252:../domesdayDuplicator.c **** 
+ 253:../domesdayDuplicator.c ****     // Add USB event callback function
+ 254:../domesdayDuplicator.c ****     CyU3PUsbRegisterEventCallback(domDupUSBEventCB);
+ 752              		.loc 1 254 0
+ 753 04d8 BC029FE5 		ldr	r0, .L47+8
+ 754 04dc FEFFFFEB 		bl	CyU3PUsbRegisterEventCallback
+ 255:../domesdayDuplicator.c **** 
+ 256:../domesdayDuplicator.c ****     // Add LPM request callback function
+ 257:../domesdayDuplicator.c ****     CyU3PUsbRegisterLPMRequestCallback(domDupLPMRequestCB);
+ 755              		.loc 1 257 0
+ 756 04e0 B8029FE5 		ldr	r0, .L47+12
+ 757 04e4 FEFFFFEB 		bl	CyU3PUsbRegisterLPMRequestCallback
+ 258:../domesdayDuplicator.c **** 
+ 259:../domesdayDuplicator.c ****     // Set the USB descriptors
+ 260:../domesdayDuplicator.c **** 
+ 261:../domesdayDuplicator.c ****     // Super speed device descriptor (USB 3)
+ 262:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_SS_DEVICE_DESCR, 0, (uint8_t *)USB30DeviceDscr
+ 758              		.loc 1 262 0
+ 759 04e8 0000A0E3 		mov	r0, #0
+ 760 04ec 0010A0E3 		mov	r1, #0
+ 761 04f0 AC229FE5 		ldr	r2, .L47+16
+ 762 04f4 FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 763 04f8 0C000BE5 		str	r0, [fp, #-12]
+ 263:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 764              		.loc 1 263 0
+ 765 04fc 0C301BE5 		ldr	r3, [fp, #-12]
+ 766 0500 000053E3 		cmp	r3, #0
+ 767 0504 0500000A 		beq	.L33
+ 264:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc USB3 failed, Error code = %d\n", apiReturnStatus);
+ 768              		.loc 1 264 0
+ 769 0508 0400A0E3 		mov	r0, #4
+ 770 050c 94129FE5 		ldr	r1, .L47+20
+ 771 0510 0C201BE5 		ldr	r2, [fp, #-12]
+ 772 0514 FEFFFFEB 		bl	CyU3PDebugPrint
+ 265:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 773              		.loc 1 265 0
+ 774 0518 0C001BE5 		ldr	r0, [fp, #-12]
+ 775 051c FEFFFFEB 		bl	domDupErrorHandler
+ 776              	.L33:
+ 266:../domesdayDuplicator.c ****     }
+ 267:../domesdayDuplicator.c **** 
+ 268:../domesdayDuplicator.c ****     // High speed device descriptor (USB 2)
+ 269:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_HS_DEVICE_DESCR, 0, (uint8_t *)USB20DeviceDscr
+ 777              		.loc 1 269 0
+ 778 0520 0100A0E3 		mov	r0, #1
+ 779 0524 0010A0E3 		mov	r1, #0
+ 780 0528 7C229FE5 		ldr	r2, .L47+24
+ 781 052c FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 782 0530 0C000BE5 		str	r0, [fp, #-12]
+ 270:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 783              		.loc 1 270 0
+ 784 0534 0C301BE5 		ldr	r3, [fp, #-12]
+ 785 0538 000053E3 		cmp	r3, #0
+ 786 053c 0500000A 		beq	.L34
+ 271:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc USB 2 failed, Error code = %d\n", apiReturnStatus);
+ 787              		.loc 1 271 0
+ 788 0540 0400A0E3 		mov	r0, #4
+ 789 0544 64129FE5 		ldr	r1, .L47+28
+ 790 0548 0C201BE5 		ldr	r2, [fp, #-12]
+ 791 054c FEFFFFEB 		bl	CyU3PDebugPrint
+ 272:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 792              		.loc 1 272 0
+ 793 0550 0C001BE5 		ldr	r0, [fp, #-12]
+ 794 0554 FEFFFFEB 		bl	domDupErrorHandler
+ 795              	.L34:
+ 273:../domesdayDuplicator.c ****     }
+ 274:../domesdayDuplicator.c **** 
+ 275:../domesdayDuplicator.c ****     // BOS descriptor
+ 276:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_SS_BOS_DESCR, 0, (uint8_t *)USBBOSDscr);
+ 796              		.loc 1 276 0
+ 797 0558 0700A0E3 		mov	r0, #7
+ 798 055c 0010A0E3 		mov	r1, #0
+ 799 0560 4C229FE5 		ldr	r2, .L47+32
+ 800 0564 FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 801 0568 0C000BE5 		str	r0, [fp, #-12]
+ 277:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 802              		.loc 1 277 0
+ 803 056c 0C301BE5 		ldr	r3, [fp, #-12]
+ 804 0570 000053E3 		cmp	r3, #0
+ 805 0574 0500000A 		beq	.L35
+ 278:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc BOS failed, Error code = %d\n", apiReturnStatus);
+ 806              		.loc 1 278 0
+ 807 0578 0400A0E3 		mov	r0, #4
+ 808 057c 34129FE5 		ldr	r1, .L47+36
+ 809 0580 0C201BE5 		ldr	r2, [fp, #-12]
+ 810 0584 FEFFFFEB 		bl	CyU3PDebugPrint
+ 279:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 811              		.loc 1 279 0
+ 812 0588 0C001BE5 		ldr	r0, [fp, #-12]
+ 813 058c FEFFFFEB 		bl	domDupErrorHandler
+ 814              	.L35:
+ 280:../domesdayDuplicator.c ****     }
+ 281:../domesdayDuplicator.c **** 
+ 282:../domesdayDuplicator.c ****     // Device qualifier descriptor
+ 283:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_DEVQUAL_DESCR, 0, (uint8_t *)USBDeviceQualDscr
+ 815              		.loc 1 283 0
+ 816 0590 0200A0E3 		mov	r0, #2
+ 817 0594 0010A0E3 		mov	r1, #0
+ 818 0598 1C229FE5 		ldr	r2, .L47+40
+ 819 059c FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 820 05a0 0C000BE5 		str	r0, [fp, #-12]
+ 284:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 821              		.loc 1 284 0
+ 822 05a4 0C301BE5 		ldr	r3, [fp, #-12]
+ 823 05a8 000053E3 		cmp	r3, #0
+ 824 05ac 0500000A 		beq	.L36
+ 285:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc qualifier descriptor failed, Error code = %d\n", apiRet
+ 825              		.loc 1 285 0
+ 826 05b0 0400A0E3 		mov	r0, #4
+ 827 05b4 04129FE5 		ldr	r1, .L47+44
+ 828 05b8 0C201BE5 		ldr	r2, [fp, #-12]
+ 829 05bc FEFFFFEB 		bl	CyU3PDebugPrint
+ 286:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 830              		.loc 1 286 0
+ 831 05c0 0C001BE5 		ldr	r0, [fp, #-12]
+ 832 05c4 FEFFFFEB 		bl	domDupErrorHandler
+ 833              	.L36:
+ 287:../domesdayDuplicator.c ****     }
+ 288:../domesdayDuplicator.c **** 
+ 289:../domesdayDuplicator.c ****     // Super speed configuration descriptor
+ 290:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_SS_CONFIG_DESCR, 0, (uint8_t *)USBSSConfigDscr
+ 834              		.loc 1 290 0
+ 835 05c8 0600A0E3 		mov	r0, #6
+ 836 05cc 0010A0E3 		mov	r1, #0
+ 837 05d0 EC219FE5 		ldr	r2, .L47+48
+ 838 05d4 FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 839 05d8 0C000BE5 		str	r0, [fp, #-12]
+ 291:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 840              		.loc 1 291 0
+ 841 05dc 0C301BE5 		ldr	r3, [fp, #-12]
+ 842 05e0 000053E3 		cmp	r3, #0
+ 843 05e4 0500000A 		beq	.L37
+ 292:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc configuration descriptor failed, Error code = %d\n", ap
+ 844              		.loc 1 292 0
+ 845 05e8 0400A0E3 		mov	r0, #4
+ 846 05ec D4119FE5 		ldr	r1, .L47+52
+ 847 05f0 0C201BE5 		ldr	r2, [fp, #-12]
+ 848 05f4 FEFFFFEB 		bl	CyU3PDebugPrint
+ 293:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 849              		.loc 1 293 0
+ 850 05f8 0C001BE5 		ldr	r0, [fp, #-12]
+ 851 05fc FEFFFFEB 		bl	domDupErrorHandler
+ 852              	.L37:
+ 294:../domesdayDuplicator.c ****     }
+ 295:../domesdayDuplicator.c **** 
+ 296:../domesdayDuplicator.c ****     // High speed configuration descriptor
+ 297:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_HS_CONFIG_DESCR, 0, (uint8_t *)USBHSConfigDscr
+ 853              		.loc 1 297 0
+ 854 0600 0400A0E3 		mov	r0, #4
+ 855 0604 0010A0E3 		mov	r1, #0
+ 856 0608 BC219FE5 		ldr	r2, .L47+56
+ 857 060c FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 858 0610 0C000BE5 		str	r0, [fp, #-12]
+ 298:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 859              		.loc 1 298 0
+ 860 0614 0C301BE5 		ldr	r3, [fp, #-12]
+ 861 0618 000053E3 		cmp	r3, #0
+ 862 061c 0500000A 		beq	.L38
+ 299:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc Other Speed Descriptor failed, Error Code = %d\n", apiR
+ 863              		.loc 1 299 0
+ 864 0620 0400A0E3 		mov	r0, #4
+ 865 0624 A4119FE5 		ldr	r1, .L47+60
+ 866 0628 0C201BE5 		ldr	r2, [fp, #-12]
+ 867 062c FEFFFFEB 		bl	CyU3PDebugPrint
+ 300:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 868              		.loc 1 300 0
+ 869 0630 0C001BE5 		ldr	r0, [fp, #-12]
+ 870 0634 FEFFFFEB 		bl	domDupErrorHandler
+ 871              	.L38:
+ 301:../domesdayDuplicator.c ****     }
+ 302:../domesdayDuplicator.c **** 
+ 303:../domesdayDuplicator.c ****     // Full speed configuration descriptor
+ 304:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_FS_CONFIG_DESCR, 0, (uint8_t *)USBFSConfigDscr
+ 872              		.loc 1 304 0
+ 873 0638 0300A0E3 		mov	r0, #3
+ 874 063c 0010A0E3 		mov	r1, #0
+ 875 0640 8C219FE5 		ldr	r2, .L47+64
+ 876 0644 FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 877 0648 0C000BE5 		str	r0, [fp, #-12]
+ 305:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 878              		.loc 1 305 0
+ 879 064c 0C301BE5 		ldr	r3, [fp, #-12]
+ 880 0650 000053E3 		cmp	r3, #0
+ 881 0654 0500000A 		beq	.L39
+ 306:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc Full-Speed Descriptor failed, Error Code = %d\n", apiRe
+ 882              		.loc 1 306 0
+ 883 0658 0400A0E3 		mov	r0, #4
+ 884 065c 74119FE5 		ldr	r1, .L47+68
+ 885 0660 0C201BE5 		ldr	r2, [fp, #-12]
+ 886 0664 FEFFFFEB 		bl	CyU3PDebugPrint
+ 307:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 887              		.loc 1 307 0
+ 888 0668 0C001BE5 		ldr	r0, [fp, #-12]
+ 889 066c FEFFFFEB 		bl	domDupErrorHandler
+ 890              	.L39:
+ 308:../domesdayDuplicator.c ****     }
+ 309:../domesdayDuplicator.c **** 
+ 310:../domesdayDuplicator.c ****     // String descriptor 0
+ 311:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_STRING_DESCR, 0, (uint8_t *)USBStringLangIDDsc
+ 891              		.loc 1 311 0
+ 892 0670 0500A0E3 		mov	r0, #5
+ 893 0674 0010A0E3 		mov	r1, #0
+ 894 0678 5C219FE5 		ldr	r2, .L47+72
+ 895 067c FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 896 0680 0C000BE5 		str	r0, [fp, #-12]
+ 312:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 897              		.loc 1 312 0
+ 898 0684 0C301BE5 		ldr	r3, [fp, #-12]
+ 899 0688 000053E3 		cmp	r3, #0
+ 900 068c 0500000A 		beq	.L40
+ 313:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc string 0 descriptor failed, Error code = %d\n", apiRetu
+ 901              		.loc 1 313 0
+ 902 0690 0400A0E3 		mov	r0, #4
+ 903 0694 44119FE5 		ldr	r1, .L47+76
+ 904 0698 0C201BE5 		ldr	r2, [fp, #-12]
+ 905 069c FEFFFFEB 		bl	CyU3PDebugPrint
+ 314:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 906              		.loc 1 314 0
+ 907 06a0 0C001BE5 		ldr	r0, [fp, #-12]
+ 908 06a4 FEFFFFEB 		bl	domDupErrorHandler
+ 909              	.L40:
+ 315:../domesdayDuplicator.c ****     }
+ 316:../domesdayDuplicator.c **** 
+ 317:../domesdayDuplicator.c ****     // String descriptor 1
+ 318:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_STRING_DESCR, 1, (uint8_t *)USBManufactureDscr
+ 910              		.loc 1 318 0
+ 911 06a8 0500A0E3 		mov	r0, #5
+ 912 06ac 0110A0E3 		mov	r1, #1
+ 913 06b0 2C219FE5 		ldr	r2, .L47+80
+ 914 06b4 FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 915 06b8 0C000BE5 		str	r0, [fp, #-12]
+ 319:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 916              		.loc 1 319 0
+ 917 06bc 0C301BE5 		ldr	r3, [fp, #-12]
+ 918 06c0 000053E3 		cmp	r3, #0
+ 919 06c4 0500000A 		beq	.L41
+ 320:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc string descriptor 1 failed, Error code = %d\n", apiRetu
+ 920              		.loc 1 320 0
+ 921 06c8 0400A0E3 		mov	r0, #4
+ 922 06cc 14119FE5 		ldr	r1, .L47+84
+ 923 06d0 0C201BE5 		ldr	r2, [fp, #-12]
+ 924 06d4 FEFFFFEB 		bl	CyU3PDebugPrint
+ 321:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 925              		.loc 1 321 0
+ 926 06d8 0C001BE5 		ldr	r0, [fp, #-12]
+ 927 06dc FEFFFFEB 		bl	domDupErrorHandler
+ 928              	.L41:
+ 322:../domesdayDuplicator.c ****     }
+ 323:../domesdayDuplicator.c **** 
+ 324:../domesdayDuplicator.c ****     // String descriptor 2
+ 325:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_STRING_DESCR, 2, (uint8_t *)USBProductDscr);
+ 929              		.loc 1 325 0
+ 930 06e0 0500A0E3 		mov	r0, #5
+ 931 06e4 0210A0E3 		mov	r1, #2
+ 932 06e8 FC209FE5 		ldr	r2, .L47+88
+ 933 06ec FEFFFFEB 		bl	CyU3PUsbSetDesc
+ 934 06f0 0C000BE5 		str	r0, [fp, #-12]
+ 326:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS)
+ 935              		.loc 1 326 0
+ 936 06f4 0C301BE5 		ldr	r3, [fp, #-12]
+ 937 06f8 000053E3 		cmp	r3, #0
+ 938 06fc 0500000A 		beq	.L42
+ 327:../domesdayDuplicator.c ****     {
+ 328:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PUsbSetDesc string descriptor 2 failed, Error code = %d\n", apiRetu
+ 939              		.loc 1 328 0
+ 940 0700 0400A0E3 		mov	r0, #4
+ 941 0704 E4109FE5 		ldr	r1, .L47+92
+ 942 0708 0C201BE5 		ldr	r2, [fp, #-12]
+ 943 070c FEFFFFEB 		bl	CyU3PDebugPrint
+ 329:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 944              		.loc 1 329 0
+ 945 0710 0C001BE5 		ldr	r0, [fp, #-12]
+ 946 0714 FEFFFFEB 		bl	domDupErrorHandler
+ 947              	.L42:
+ 330:../domesdayDuplicator.c ****     }
+ 331:../domesdayDuplicator.c **** 
+ 332:../domesdayDuplicator.c ****     // Show status in debug console
+ 333:../domesdayDuplicator.c ****     CyU3PDebugPrint (4, "Initialisation successfull; Connecting to host\r\n");
+ 948              		.loc 1 333 0
+ 949 0718 0400A0E3 		mov	r0, #4
+ 950 071c D0109FE5 		ldr	r1, .L47+96
+ 951 0720 FEFFFFEB 		bl	CyU3PDebugPrint
+ 334:../domesdayDuplicator.c **** 
+ 335:../domesdayDuplicator.c ****     // Connect to the host
+ 336:../domesdayDuplicator.c ****     if (!noRenum) {
+ 952              		.loc 1 336 0
+ 953 0724 08301BE5 		ldr	r3, [fp, #-8]
+ 954 0728 000053E3 		cmp	r3, #0
+ 955 072c 0D00001A 		bne	.L43
+ 337:../domesdayDuplicator.c ****         apiReturnStatus = CyU3PConnectState(CyTrue, CyTrue);
+ 956              		.loc 1 337 0
+ 957 0730 0100A0E3 		mov	r0, #1
+ 958 0734 0110A0E3 		mov	r1, #1
+ 959 0738 FEFFFFEB 		bl	CyU3PConnectState
+ 960 073c 0C000BE5 		str	r0, [fp, #-12]
+ 338:../domesdayDuplicator.c ****         if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 961              		.loc 1 338 0
+ 962 0740 0C301BE5 		ldr	r3, [fp, #-12]
+ 963 0744 000053E3 		cmp	r3, #0
+ 964 0748 0C00000A 		beq	.L45
+ 339:../domesdayDuplicator.c ****             CyU3PDebugPrint (4, "CyU3PConnectState failed, Error code = %d\n", apiReturnStatus);
+ 965              		.loc 1 339 0
+ 966 074c 0400A0E3 		mov	r0, #4
+ 967 0750 A0109FE5 		ldr	r1, .L47+100
+ 968 0754 0C201BE5 		ldr	r2, [fp, #-12]
+ 969 0758 FEFFFFEB 		bl	CyU3PDebugPrint
+ 340:../domesdayDuplicator.c ****             domDupErrorHandler(apiReturnStatus);
+ 970              		.loc 1 340 0
+ 971 075c 0C001BE5 		ldr	r0, [fp, #-12]
+ 972 0760 FEFFFFEB 		bl	domDupErrorHandler
+ 973 0764 050000EA 		b	.L45
+ 974              	.L43:
+ 341:../domesdayDuplicator.c ****         }
+ 342:../domesdayDuplicator.c ****     } else {
+ 343:../domesdayDuplicator.c ****     	// If application is already active.  Restart the application
+ 344:../domesdayDuplicator.c ****         if (glIsApplnActive) domDupStopApplication ();
+ 975              		.loc 1 344 0
+ 976 0768 8C309FE5 		ldr	r3, .L47+104
+ 977 076c 003093E5 		ldr	r3, [r3]
+ 978 0770 000053E3 		cmp	r3, #0
+ 979 0774 0000000A 		beq	.L46
+ 980              		.loc 1 344 0 is_stmt 0 discriminator 1
+ 981 0778 FEFFFFEB 		bl	domDupStopApplication
+ 982              	.L46:
+ 345:../domesdayDuplicator.c **** 
+ 346:../domesdayDuplicator.c ****         // Start the application
+ 347:../domesdayDuplicator.c ****         domDupStartApplication ();
+ 983              		.loc 1 347 0 is_stmt 1
+ 984 077c FEFFFFEB 		bl	domDupStartApplication
+ 985              	.L45:
+ 348:../domesdayDuplicator.c ****     }
+ 349:../domesdayDuplicator.c ****     CyU3PDebugPrint(8, "Application initialisation complete.\r\n");
+ 986              		.loc 1 349 0
+ 987 0780 0800A0E3 		mov	r0, #8
+ 988 0784 74109FE5 		ldr	r1, .L47+108
+ 989 0788 FEFFFFEB 		bl	CyU3PDebugPrint
+ 350:../domesdayDuplicator.c **** }
+ 990              		.loc 1 350 0
+ 991 078c 04D04BE2 		sub	sp, fp, #4
+ 992              		@ sp needed
+ 993 0790 0088BDE8 		ldmfd	sp!, {fp, pc}
+ 994              	.L48:
+ 995              		.align	2
+ 996              	.L47:
+ 997 0794 98000000 		.word	.LC5
+ 998 0798 00000000 		.word	domDupUSBSetupCB
+ 999 079c 00000000 		.word	domDupUSBEventCB
+ 1000 07a0 00000000 		.word	domDupLPMRequestCB
+ 1001 07a4 00000000 		.word	USB30DeviceDscr
+ 1002 07a8 C0000000 		.word	.LC6
+ 1003 07ac 00000000 		.word	USB20DeviceDscr
+ 1004 07b0 F0000000 		.word	.LC7
+ 1005 07b4 00000000 		.word	USBBOSDscr
+ 1006 07b8 20010000 		.word	.LC8
+ 1007 07bc 00000000 		.word	USBDeviceQualDscr
+ 1008 07c0 50010000 		.word	.LC9
+ 1009 07c4 00000000 		.word	USBSSConfigDscr
+ 1010 07c8 90010000 		.word	.LC10
+ 1011 07cc 00000000 		.word	USBHSConfigDscr
+ 1012 07d0 D4010000 		.word	.LC11
+ 1013 07d4 00000000 		.word	USBFSConfigDscr
+ 1014 07d8 14020000 		.word	.LC12
+ 1015 07dc 00000000 		.word	USBStringLangIDDscr
+ 1016 07e0 54020000 		.word	.LC13
+ 1017 07e4 00000000 		.word	USBManufactureDscr
+ 1018 07e8 94020000 		.word	.LC14
+ 1019 07ec 00000000 		.word	USBProductDscr
+ 1020 07f0 D4020000 		.word	.LC15
+ 1021 07f4 14030000 		.word	.LC16
+ 1022 07f8 48030000 		.word	.LC17
+ 1023 07fc 00000000 		.word	glIsApplnActive
+ 1024 0800 74030000 		.word	.LC18
+ 1025              		.cfi_endproc
+ 1026              	.LFE3:
+ 1028              		.section	.rodata
+ 1029 039b 00       		.align	2
+ 1030              	.LC19:
+ 1031 039c 4552524F 		.ascii	"ERROR: CyU3PUsbGetSpeed returned an invalid speed!\015"
+ 1031      523A2043 
+ 1031      79553350 
+ 1031      55736247 
+ 1031      65745370 
+ 1032 03cf 0A00     		.ascii	"\012\000"
+ 1033 03d1 000000   		.align	2
+ 1034              	.LC20:
+ 1035 03d4 43795533 		.ascii	"CyU3PSetEpConfig failed, Error code = %d\012\000"
+ 1035      50536574 
+ 1035      4570436F 
+ 1035      6E666967 
+ 1035      20666169 
+ 1036 03fe 0000     		.align	2
+ 1037              	.LC21:
+ 1038 0400 43795533 		.ascii	"CyU3PDmaChannelCreate failed, Error code = %d\012\000"
+ 1038      50446D61 
+ 1038      4368616E 
+ 1038      6E656C43 
+ 1038      72656174 
+ 1039 042f 00       		.align	2
+ 1040              	.LC22:
+ 1041 0430 43795533 		.ascii	"CyU3PDmaChannelSetXfer failed, Error code = %d\012\000"
+ 1041      50446D61 
+ 1041      4368616E 
+ 1041      6E656C53 
+ 1041      65745866 
+ 1042              		.align	2
+ 1043              	.LC23:
+ 1044 0460 43795533 		.ascii	"CyU3PGpifLoad failed, error code = %d\012\000"
+ 1044      50477069 
+ 1044      664C6F61 
+ 1044      64206661 
+ 1044      696C6564 
+ 1045 0487 00       		.align	2
+ 1046              	.LC24:
+ 1047 0488 43795533 		.ascii	"CyU3PGpifSocketConfigure failed for thread0, error "
+ 1047      50477069 
+ 1047      66536F63 
+ 1047      6B657443 
+ 1047      6F6E6669 
+ 1048 04bb 636F6465 		.ascii	"code = %d\012\000"
+ 1048      203D2025 
+ 1048      640A00
+ 1049 04c6 0000     		.align	2
+ 1050              	.LC25:
+ 1051 04c8 43795533 		.ascii	"CyU3PGpifSMStart failed, error code = %d\012\000"
+ 1051      50477069 
+ 1051      66534D53 
+ 1051      74617274 
+ 1051      20666169 
+ 1052              		.text
+ 1053              		.align	2
+ 1054              		.global	domDupStartApplication
+ 1056              	domDupStartApplication:
+ 1057              	.LFB4:
+ 351:../domesdayDuplicator.c **** 
+ 352:../domesdayDuplicator.c **** // Function to start application once SET_CONF received from host
+ 353:../domesdayDuplicator.c **** void domDupStartApplication(void)
+ 354:../domesdayDuplicator.c **** {
+ 1058              		.loc 1 354 0
+ 1059              		.cfi_startproc
+ 1060              		@ args = 0, pretend = 0, frame = 56
+ 1061              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1062 0804 00482DE9 		stmfd	sp!, {fp, lr}
+ 1063              	.LCFI8:
+ 1064              		.cfi_def_cfa_offset 8
+ 1065              		.cfi_offset 11, -8
+ 1066              		.cfi_offset 14, -4
+ 1067 0808 04B08DE2 		add	fp, sp, #4
+ 1068              	.LCFI9:
+ 1069              		.cfi_def_cfa 11, 4
+ 1070 080c 40D04DE2 		sub	sp, sp, #64
+ 355:../domesdayDuplicator.c ****     uint16_t size = 0;
+ 1071              		.loc 1 355 0
+ 1072 0810 0030A0E3 		mov	r3, #0
+ 1073 0814 B6304BE1 		strh	r3, [fp, #-6]	@ movhi
+ 356:../domesdayDuplicator.c ****     CyU3PEpConfig_t epCfg;
+ 357:../domesdayDuplicator.c ****     CyU3PDmaChannelConfig_t dmaConfig;
+ 358:../domesdayDuplicator.c ****     CyU3PReturnStatus_t apiReturnStatus = CY_U3P_SUCCESS;
+ 1074              		.loc 1 358 0
+ 1075 0818 0030A0E3 		mov	r3, #0
+ 1076 081c 0C300BE5 		str	r3, [fp, #-12]
+ 359:../domesdayDuplicator.c ****     CyU3PUSBSpeed_t usbSpeed = CyU3PUsbGetSpeed();
+ 1077              		.loc 1 359 0
+ 1078 0820 FEFFFFEB 		bl	CyU3PUsbGetSpeed
+ 1079 0824 0030A0E1 		mov	r3, r0
+ 1080 0828 0D304BE5 		strb	r3, [fp, #-13]
+ 360:../domesdayDuplicator.c **** 
+ 361:../domesdayDuplicator.c ****     // Check the USB speed and set the end-point size
+ 362:../domesdayDuplicator.c ****     switch (usbSpeed) {
+ 1081              		.loc 1 362 0
+ 1082 082c 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 1083 0830 020053E3 		cmp	r3, #2
+ 1084 0834 0600000A 		beq	.L51
+ 1085 0838 030053E3 		cmp	r3, #3
+ 1086 083c 0700000A 		beq	.L52
+ 1087 0840 010053E3 		cmp	r3, #1
+ 1088 0844 0800001A 		bne	.L63
+ 363:../domesdayDuplicator.c ****     case CY_U3P_FULL_SPEED:
+ 364:../domesdayDuplicator.c ****         size = 64;
+ 1089              		.loc 1 364 0
+ 1090 0848 4030A0E3 		mov	r3, #64
+ 1091 084c B6304BE1 		strh	r3, [fp, #-6]	@ movhi
+ 365:../domesdayDuplicator.c ****         break;
+ 1092              		.loc 1 365 0
+ 1093 0850 0B0000EA 		b	.L54
+ 1094              	.L51:
+ 366:../domesdayDuplicator.c **** 
+ 367:../domesdayDuplicator.c ****     case CY_U3P_HIGH_SPEED:
+ 368:../domesdayDuplicator.c ****         size = 512;
+ 1095              		.loc 1 368 0
+ 1096 0854 023CA0E3 		mov	r3, #512
+ 1097 0858 B6304BE1 		strh	r3, [fp, #-6]	@ movhi
+ 369:../domesdayDuplicator.c ****         break;
+ 1098              		.loc 1 369 0
+ 1099 085c 080000EA 		b	.L54
+ 1100              	.L52:
+ 370:../domesdayDuplicator.c **** 
+ 371:../domesdayDuplicator.c ****     case  CY_U3P_SUPER_SPEED:
+ 372:../domesdayDuplicator.c ****         size = 1024;
+ 1101              		.loc 1 372 0
+ 1102 0860 013BA0E3 		mov	r3, #1024
+ 1103 0864 B6304BE1 		strh	r3, [fp, #-6]	@ movhi
+ 373:../domesdayDuplicator.c ****         break;
+ 1104              		.loc 1 373 0
+ 1105 0868 050000EA 		b	.L54
+ 1106              	.L63:
+ 374:../domesdayDuplicator.c **** 
+ 375:../domesdayDuplicator.c ****     default:
+ 376:../domesdayDuplicator.c ****         CyU3PDebugPrint (4, "ERROR: CyU3PUsbGetSpeed returned an invalid speed!\r\n");
+ 1107              		.loc 1 376 0
+ 1108 086c 0400A0E3 		mov	r0, #4
+ 1109 0870 0C129FE5 		ldr	r1, .L64
+ 1110 0874 FEFFFFEB 		bl	CyU3PDebugPrint
+ 377:../domesdayDuplicator.c ****         domDupErrorHandler (CY_U3P_ERROR_FAILURE);
+ 1111              		.loc 1 377 0
+ 1112 0878 4A00A0E3 		mov	r0, #74
+ 1113 087c FEFFFFEB 		bl	domDupErrorHandler
+ 378:../domesdayDuplicator.c ****         break;
+ 1114              		.loc 1 378 0
+ 1115 0880 0000A0E1 		mov	r0, r0	@ nop
+ 1116              	.L54:
+ 379:../domesdayDuplicator.c ****     }
+ 380:../domesdayDuplicator.c **** 
+ 381:../domesdayDuplicator.c ****     CyU3PMemSet ((uint8_t *)&epCfg, 0, sizeof (epCfg));
+ 1117              		.loc 1 381 0
+ 1118 0884 1C304BE2 		sub	r3, fp, #28
+ 1119 0888 0300A0E1 		mov	r0, r3
+ 1120 088c 0010A0E3 		mov	r1, #0
+ 1121 0890 0C20A0E3 		mov	r2, #12
+ 1122 0894 FEFFFFEB 		bl	CyU3PMemSet
+ 382:../domesdayDuplicator.c ****     epCfg.enable = CyTrue;
+ 1123              		.loc 1 382 0
+ 1124 0898 0130A0E3 		mov	r3, #1
+ 1125 089c 1C300BE5 		str	r3, [fp, #-28]
+ 383:../domesdayDuplicator.c ****     epCfg.epType = CY_U3P_USB_EP_BULK;
+ 1126              		.loc 1 383 0
+ 1127 08a0 0230A0E3 		mov	r3, #2
+ 1128 08a4 18304BE5 		strb	r3, [fp, #-24]
+ 384:../domesdayDuplicator.c ****     epCfg.burstLen = (usbSpeed == CY_U3P_SUPER_SPEED) ? (CY_FX_EP_BURST_LENGTH) : 1;
+ 1129              		.loc 1 384 0
+ 1130 08a8 0D305BE5 		ldrb	r3, [fp, #-13]	@ zero_extendqisi2
+ 1131 08ac 030053E3 		cmp	r3, #3
+ 1132 08b0 0100001A 		bne	.L55
+ 1133              		.loc 1 384 0 is_stmt 0 discriminator 1
+ 1134 08b4 1030A0E3 		mov	r3, #16
+ 1135 08b8 000000EA 		b	.L56
+ 1136              	.L55:
+ 1137              		.loc 1 384 0 discriminator 2
+ 1138 08bc 0130A0E3 		mov	r3, #1
+ 1139              	.L56:
+ 1140              		.loc 1 384 0 discriminator 3
+ 1141 08c0 12304BE5 		strb	r3, [fp, #-18]
+ 385:../domesdayDuplicator.c ****     epCfg.streams = 0;
+ 1142              		.loc 1 385 0 is_stmt 1 discriminator 3
+ 1143 08c4 0030A0E3 		mov	r3, #0
+ 1144 08c8 B6314BE1 		strh	r3, [fp, #-22]	@ movhi
+ 386:../domesdayDuplicator.c ****     epCfg.pcktSize = size;
+ 1145              		.loc 1 386 0 discriminator 3
+ 1146 08cc B6305BE1 		ldrh	r3, [fp, #-6]	@ movhi
+ 1147 08d0 B4314BE1 		strh	r3, [fp, #-20]	@ movhi
+ 387:../domesdayDuplicator.c **** 
+ 388:../domesdayDuplicator.c ****     // Configure consumer end-point
+ 389:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PSetEpConfig(CY_FX_EP_CONSUMER, &epCfg);
+ 1148              		.loc 1 389 0 discriminator 3
+ 1149 08d4 1C304BE2 		sub	r3, fp, #28
+ 1150 08d8 8100A0E3 		mov	r0, #129
+ 1151 08dc 0310A0E1 		mov	r1, r3
+ 1152 08e0 FEFFFFEB 		bl	CyU3PSetEpConfig
+ 1153 08e4 0C000BE5 		str	r0, [fp, #-12]
+ 390:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1154              		.loc 1 390 0 discriminator 3
+ 1155 08e8 0C301BE5 		ldr	r3, [fp, #-12]
+ 1156 08ec 000053E3 		cmp	r3, #0
+ 1157 08f0 0500000A 		beq	.L57
+ 391:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PSetEpConfig failed, Error code = %d\n", apiReturnStatus);
+ 1158              		.loc 1 391 0
+ 1159 08f4 0400A0E3 		mov	r0, #4
+ 1160 08f8 88119FE5 		ldr	r1, .L64+4
+ 1161 08fc 0C201BE5 		ldr	r2, [fp, #-12]
+ 1162 0900 FEFFFFEB 		bl	CyU3PDebugPrint
+ 392:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 1163              		.loc 1 392 0
+ 1164 0904 0C001BE5 		ldr	r0, [fp, #-12]
+ 1165 0908 FEFFFFEB 		bl	domDupErrorHandler
+ 1166              	.L57:
+ 393:../domesdayDuplicator.c ****     }
+ 394:../domesdayDuplicator.c **** 
+ 395:../domesdayDuplicator.c ****     // Flush the end-point
+ 396:../domesdayDuplicator.c ****     CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
+ 1167              		.loc 1 396 0
+ 1168 090c 8100A0E3 		mov	r0, #129
+ 1169 0910 FEFFFFEB 		bl	CyU3PUsbFlushEp
+ 397:../domesdayDuplicator.c **** 
+ 398:../domesdayDuplicator.c ****     // Create a DMA AUTO channel for the GPIF to USB transfer
+ 399:../domesdayDuplicator.c ****     CyU3PMemSet ((uint8_t *)&dmaConfig, 0, sizeof (dmaConfig));
+ 1170              		.loc 1 399 0
+ 1171 0914 38304BE2 		sub	r3, fp, #56
+ 1172 0918 0300A0E1 		mov	r0, r3
+ 1173 091c 0010A0E3 		mov	r1, #0
+ 1174 0920 1C20A0E3 		mov	r2, #28
+ 1175 0924 FEFFFFEB 		bl	CyU3PMemSet
+ 400:../domesdayDuplicator.c ****     dmaConfig.size  = CY_FX_DMA_BUF_SIZE;
+ 1176              		.loc 1 400 0
+ 1177 0928 0139A0E3 		mov	r3, #16384
+ 1178 092c B8334BE1 		strh	r3, [fp, #-56]	@ movhi
+ 401:../domesdayDuplicator.c ****     dmaConfig.count = CY_FX_DMA_BUF_COUNT;
+ 1179              		.loc 1 401 0
+ 1180 0930 0430A0E3 		mov	r3, #4
+ 1181 0934 B6334BE1 		strh	r3, [fp, #-54]	@ movhi
+ 402:../domesdayDuplicator.c ****     dmaConfig.prodSckId = CY_FX_GPIF_PRODUCER_SOCKET0;
+ 1182              		.loc 1 402 0
+ 1183 0938 013CA0E3 		mov	r3, #256
+ 1184 093c B4334BE1 		strh	r3, [fp, #-52]	@ movhi
+ 403:../domesdayDuplicator.c ****     dmaConfig.consSckId = CY_FX_EP_CONSUMER_SOCKET;
+ 1185              		.loc 1 403 0
+ 1186 0940 44319FE5 		ldr	r3, .L64+8
+ 1187 0944 B2334BE1 		strh	r3, [fp, #-50]	@ movhi
+ 404:../domesdayDuplicator.c ****     dmaConfig.dmaMode = CY_U3P_DMA_MODE_BYTE;
+ 1188              		.loc 1 404 0
+ 1189 0948 0030A0E3 		mov	r3, #0
+ 1190 094c 28304BE5 		strb	r3, [fp, #-40]
+ 405:../domesdayDuplicator.c **** 
+ 406:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PDmaChannelCreate (&glDmaChHandle, CY_U3P_DMA_TYPE_AUTO, &dmaConfig);
+ 1191              		.loc 1 406 0
+ 1192 0950 38304BE2 		sub	r3, fp, #56
+ 1193 0954 34019FE5 		ldr	r0, .L64+12
+ 1194 0958 0010A0E3 		mov	r1, #0
+ 1195 095c 0320A0E1 		mov	r2, r3
+ 1196 0960 FEFFFFEB 		bl	CyU3PDmaChannelCreate
+ 1197 0964 0C000BE5 		str	r0, [fp, #-12]
+ 407:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1198              		.loc 1 407 0
+ 1199 0968 0C301BE5 		ldr	r3, [fp, #-12]
+ 1200 096c 000053E3 		cmp	r3, #0
+ 1201 0970 0500000A 		beq	.L58
+ 408:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PDmaChannelCreate failed, Error code = %d\n", apiReturnStatus);
+ 1202              		.loc 1 408 0
+ 1203 0974 0400A0E3 		mov	r0, #4
+ 1204 0978 14119FE5 		ldr	r1, .L64+16
+ 1205 097c 0C201BE5 		ldr	r2, [fp, #-12]
+ 1206 0980 FEFFFFEB 		bl	CyU3PDebugPrint
+ 409:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 1207              		.loc 1 409 0
+ 1208 0984 0C001BE5 		ldr	r0, [fp, #-12]
+ 1209 0988 FEFFFFEB 		bl	domDupErrorHandler
+ 1210              	.L58:
+ 410:../domesdayDuplicator.c ****     }
+ 411:../domesdayDuplicator.c **** 
+ 412:../domesdayDuplicator.c ****     // Start the DMA channel transfer
+ 413:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PDmaChannelSetXfer(&glDmaChHandle, 0);
+ 1211              		.loc 1 413 0
+ 1212 098c FC009FE5 		ldr	r0, .L64+12
+ 1213 0990 0010A0E3 		mov	r1, #0
+ 1214 0994 FEFFFFEB 		bl	CyU3PDmaChannelSetXfer
+ 1215 0998 0C000BE5 		str	r0, [fp, #-12]
+ 414:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1216              		.loc 1 414 0
+ 1217 099c 0C301BE5 		ldr	r3, [fp, #-12]
+ 1218 09a0 000053E3 		cmp	r3, #0
+ 1219 09a4 0500000A 		beq	.L59
+ 415:../domesdayDuplicator.c **** 		CyU3PDebugPrint(4, "CyU3PDmaChannelSetXfer failed, Error code = %d\n", apiReturnStatus);
+ 1220              		.loc 1 415 0
+ 1221 09a8 0400A0E3 		mov	r0, #4
+ 1222 09ac E4109FE5 		ldr	r1, .L64+20
+ 1223 09b0 0C201BE5 		ldr	r2, [fp, #-12]
+ 1224 09b4 FEFFFFEB 		bl	CyU3PDebugPrint
+ 416:../domesdayDuplicator.c **** 		domDupErrorHandler(apiReturnStatus);
+ 1225              		.loc 1 416 0
+ 1226 09b8 0C001BE5 		ldr	r0, [fp, #-12]
+ 1227 09bc FEFFFFEB 		bl	domDupErrorHandler
+ 1228              	.L59:
+ 417:../domesdayDuplicator.c **** 	}
+ 418:../domesdayDuplicator.c **** 
+ 419:../domesdayDuplicator.c ****     // Load the GPIF state machine
+ 420:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PGpifLoad (&CyFxGpifConfig);
+ 1229              		.loc 1 420 0
+ 1230 09c0 D4009FE5 		ldr	r0, .L64+24
+ 1231 09c4 FEFFFFEB 		bl	CyU3PGpifLoad
+ 1232 09c8 0C000BE5 		str	r0, [fp, #-12]
+ 421:../domesdayDuplicator.c **** 
+ 422:../domesdayDuplicator.c ****     // Register callback for GPIF CPU interrupt events
+ 423:../domesdayDuplicator.c ****     CyU3PGpifRegisterCallback(GpifDmaEventCB);
+ 1233              		.loc 1 423 0
+ 1234 09cc CC009FE5 		ldr	r0, .L64+28
+ 1235 09d0 FEFFFFEB 		bl	CyU3PGpifRegisterCallback
+ 424:../domesdayDuplicator.c **** 
+ 425:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1236              		.loc 1 425 0
+ 1237 09d4 0C301BE5 		ldr	r3, [fp, #-12]
+ 1238 09d8 000053E3 		cmp	r3, #0
+ 1239 09dc 0500000A 		beq	.L60
+ 426:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PGpifLoad failed, error code = %d\n", apiReturnStatus);
+ 1240              		.loc 1 426 0
+ 1241 09e0 0400A0E3 		mov	r0, #4
+ 1242 09e4 B8109FE5 		ldr	r1, .L64+32
+ 1243 09e8 0C201BE5 		ldr	r2, [fp, #-12]
+ 1244 09ec FEFFFFEB 		bl	CyU3PDebugPrint
+ 427:../domesdayDuplicator.c ****         domDupErrorHandler (apiReturnStatus);
+ 1245              		.loc 1 427 0
+ 1246 09f0 0C001BE5 		ldr	r0, [fp, #-12]
+ 1247 09f4 FEFFFFEB 		bl	domDupErrorHandler
+ 1248              	.L60:
+ 428:../domesdayDuplicator.c ****     }
+ 429:../domesdayDuplicator.c **** 
+ 430:../domesdayDuplicator.c ****     // Watermark value = 3, bus width = 16
+ 431:../domesdayDuplicator.c ****     // Therefore, the number of 16-bit data words that may be written after the clock edge at which
+ 432:../domesdayDuplicator.c ****     // flag is sampled asserted = (3 x (32/16)) – 4 = 2
+ 433:../domesdayDuplicator.c **** 
+ 434:../domesdayDuplicator.c ****     // Set the thread 0 water-mark level to 1x 32 bit word
+ 435:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PGpifSocketConfigure(0, CY_FX_GPIF_PRODUCER_SOCKET0, 3, CyFalse, 1);
+ 1249              		.loc 1 435 0
+ 1250 09f8 0130A0E3 		mov	r3, #1
+ 1251 09fc 00308DE5 		str	r3, [sp]
+ 1252 0a00 0000A0E3 		mov	r0, #0
+ 1253 0a04 011CA0E3 		mov	r1, #256
+ 1254 0a08 0320A0E3 		mov	r2, #3
+ 1255 0a0c 0030A0E3 		mov	r3, #0
+ 1256 0a10 FEFFFFEB 		bl	CyU3PGpifSocketConfigure
+ 1257 0a14 0C000BE5 		str	r0, [fp, #-12]
+ 436:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1258              		.loc 1 436 0
+ 1259 0a18 0C301BE5 		ldr	r3, [fp, #-12]
+ 1260 0a1c 000053E3 		cmp	r3, #0
+ 1261 0a20 0500000A 		beq	.L61
+ 437:../domesdayDuplicator.c **** 		CyU3PDebugPrint(4, "CyU3PGpifSocketConfigure failed for thread0, error code = %d\n", apiReturnSta
+ 1262              		.loc 1 437 0
+ 1263 0a24 0400A0E3 		mov	r0, #4
+ 1264 0a28 78109FE5 		ldr	r1, .L64+36
+ 1265 0a2c 0C201BE5 		ldr	r2, [fp, #-12]
+ 1266 0a30 FEFFFFEB 		bl	CyU3PDebugPrint
+ 438:../domesdayDuplicator.c **** 		domDupErrorHandler (apiReturnStatus);
+ 1267              		.loc 1 438 0
+ 1268 0a34 0C001BE5 		ldr	r0, [fp, #-12]
+ 1269 0a38 FEFFFFEB 		bl	domDupErrorHandler
+ 1270              	.L61:
+ 439:../domesdayDuplicator.c **** 	}
+ 440:../domesdayDuplicator.c **** 
+ 441:../domesdayDuplicator.c **** 	// Start the GPIF state machine
+ 442:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PGpifSMStart (START, ALPHA_START);
+ 1271              		.loc 1 442 0
+ 1272 0a3c 0000A0E3 		mov	r0, #0
+ 1273 0a40 0010A0E3 		mov	r1, #0
+ 1274 0a44 FEFFFFEB 		bl	CyU3PGpifSMStart
+ 1275 0a48 0C000BE5 		str	r0, [fp, #-12]
+ 443:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1276              		.loc 1 443 0
+ 1277 0a4c 0C301BE5 		ldr	r3, [fp, #-12]
+ 1278 0a50 000053E3 		cmp	r3, #0
+ 1279 0a54 0500000A 		beq	.L62
+ 444:../domesdayDuplicator.c ****         CyU3PDebugPrint (4, "CyU3PGpifSMStart failed, error code = %d\n", apiReturnStatus);
+ 1280              		.loc 1 444 0
+ 1281 0a58 0400A0E3 		mov	r0, #4
+ 1282 0a5c 48109FE5 		ldr	r1, .L64+40
+ 1283 0a60 0C201BE5 		ldr	r2, [fp, #-12]
+ 1284 0a64 FEFFFFEB 		bl	CyU3PDebugPrint
+ 445:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 1285              		.loc 1 445 0
+ 1286 0a68 0C001BE5 		ldr	r0, [fp, #-12]
+ 1287 0a6c FEFFFFEB 		bl	domDupErrorHandler
+ 1288              	.L62:
+ 446:../domesdayDuplicator.c ****     }
+ 447:../domesdayDuplicator.c **** 
+ 448:../domesdayDuplicator.c ****     // Set the application active flag to true
+ 449:../domesdayDuplicator.c ****     glIsApplnActive = CyTrue;
+ 1289              		.loc 1 449 0
+ 1290 0a70 38309FE5 		ldr	r3, .L64+44
+ 1291 0a74 0120A0E3 		mov	r2, #1
+ 1292 0a78 002083E5 		str	r2, [r3]
+ 450:../domesdayDuplicator.c **** }
+ 1293              		.loc 1 450 0
+ 1294 0a7c 04D04BE2 		sub	sp, fp, #4
+ 1295              		@ sp needed
+ 1296 0a80 0088BDE8 		ldmfd	sp!, {fp, pc}
+ 1297              	.L65:
+ 1298              		.align	2
+ 1299              	.L64:
+ 1300 0a84 9C030000 		.word	.LC19
+ 1301 0a88 D4030000 		.word	.LC20
+ 1302 0a8c 01030000 		.word	769
+ 1303 0a90 00000000 		.word	glDmaChHandle
+ 1304 0a94 00040000 		.word	.LC21
+ 1305 0a98 30040000 		.word	.LC22
+ 1306 0a9c 00000000 		.word	CyFxGpifConfig
+ 1307 0aa0 00000000 		.word	GpifDmaEventCB
+ 1308 0aa4 60040000 		.word	.LC23
+ 1309 0aa8 88040000 		.word	.LC24
+ 1310 0aac C8040000 		.word	.LC25
+ 1311 0ab0 00000000 		.word	glIsApplnActive
+ 1312              		.cfi_endproc
+ 1313              	.LFE4:
+ 1315              		.align	2
+ 1316              		.global	domDupStopApplication
+ 1318              	domDupStopApplication:
+ 1319              	.LFB5:
+ 451:../domesdayDuplicator.c **** 
+ 452:../domesdayDuplicator.c **** // Function to stop the application.  Called when host signals RESET or DISCONNECT
+ 453:../domesdayDuplicator.c **** void domDupStopApplication(void)
+ 454:../domesdayDuplicator.c **** {
+ 1320              		.loc 1 454 0
+ 1321              		.cfi_startproc
+ 1322              		@ args = 0, pretend = 0, frame = 16
+ 1323              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1324 0ab4 00482DE9 		stmfd	sp!, {fp, lr}
+ 1325              	.LCFI10:
+ 1326              		.cfi_def_cfa_offset 8
+ 1327              		.cfi_offset 11, -8
+ 1328              		.cfi_offset 14, -4
+ 1329 0ab8 04B08DE2 		add	fp, sp, #4
+ 1330              	.LCFI11:
+ 1331              		.cfi_def_cfa 11, 4
+ 1332 0abc 10D04DE2 		sub	sp, sp, #16
+ 455:../domesdayDuplicator.c ****     CyU3PEpConfig_t epCfg;
+ 456:../domesdayDuplicator.c ****     CyU3PReturnStatus_t apiReturnStatus = CY_U3P_SUCCESS;
+ 1333              		.loc 1 456 0
+ 1334 0ac0 0030A0E3 		mov	r3, #0
+ 1335 0ac4 08300BE5 		str	r3, [fp, #-8]
+ 457:../domesdayDuplicator.c **** 
+ 458:../domesdayDuplicator.c ****     // Set the application activity flag to false
+ 459:../domesdayDuplicator.c ****     glIsApplnActive = CyFalse;
+ 1336              		.loc 1 459 0
+ 1337 0ac8 7C309FE5 		ldr	r3, .L68
+ 1338 0acc 0020A0E3 		mov	r2, #0
+ 1339 0ad0 002083E5 		str	r2, [r3]
+ 460:../domesdayDuplicator.c **** 
+ 461:../domesdayDuplicator.c ****     // Disable the GPIF state-machine
+ 462:../domesdayDuplicator.c ****     CyU3PGpifDisable (CyTrue);
+ 1340              		.loc 1 462 0
+ 1341 0ad4 0100A0E3 		mov	r0, #1
+ 1342 0ad8 FEFFFFEB 		bl	CyU3PGpifDisable
+ 463:../domesdayDuplicator.c **** 
+ 464:../domesdayDuplicator.c ****     // Disable PIB
+ 465:../domesdayDuplicator.c ****     CyU3PPibDeInit();
+ 1343              		.loc 1 465 0
+ 1344 0adc FEFFFFEB 		bl	CyU3PPibDeInit
+ 466:../domesdayDuplicator.c **** 
+ 467:../domesdayDuplicator.c ****     // Destroy DMA channels
+ 468:../domesdayDuplicator.c ****     CyU3PDmaChannelDestroy (&glDmaChHandle);
+ 1345              		.loc 1 468 0
+ 1346 0ae0 68009FE5 		ldr	r0, .L68+4
+ 1347 0ae4 FEFFFFEB 		bl	CyU3PDmaChannelDestroy
+ 469:../domesdayDuplicator.c **** 
+ 470:../domesdayDuplicator.c ****     // Flush end-points
+ 471:../domesdayDuplicator.c ****     CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
+ 1348              		.loc 1 471 0
+ 1349 0ae8 8100A0E3 		mov	r0, #129
+ 1350 0aec FEFFFFEB 		bl	CyU3PUsbFlushEp
+ 472:../domesdayDuplicator.c **** 
+ 473:../domesdayDuplicator.c ****     // Disable end-points
+ 474:../domesdayDuplicator.c ****     CyU3PMemSet ((uint8_t *)&epCfg, 0, sizeof (epCfg));
+ 1351              		.loc 1 474 0
+ 1352 0af0 14304BE2 		sub	r3, fp, #20
+ 1353 0af4 0300A0E1 		mov	r0, r3
+ 1354 0af8 0010A0E3 		mov	r1, #0
+ 1355 0afc 0C20A0E3 		mov	r2, #12
+ 1356 0b00 FEFFFFEB 		bl	CyU3PMemSet
+ 475:../domesdayDuplicator.c ****     epCfg.enable = CyFalse;
+ 1357              		.loc 1 475 0
+ 1358 0b04 0030A0E3 		mov	r3, #0
+ 1359 0b08 14300BE5 		str	r3, [fp, #-20]
+ 476:../domesdayDuplicator.c **** 
+ 477:../domesdayDuplicator.c ****     // Un-configure consumer end-point
+ 478:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PSetEpConfig(CY_FX_EP_CONSUMER, &epCfg);
+ 1360              		.loc 1 478 0
+ 1361 0b0c 14304BE2 		sub	r3, fp, #20
+ 1362 0b10 8100A0E3 		mov	r0, #129
+ 1363 0b14 0310A0E1 		mov	r1, r3
+ 1364 0b18 FEFFFFEB 		bl	CyU3PSetEpConfig
+ 1365 0b1c 08000BE5 		str	r0, [fp, #-8]
+ 479:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1366              		.loc 1 479 0
+ 1367 0b20 08301BE5 		ldr	r3, [fp, #-8]
+ 1368 0b24 000053E3 		cmp	r3, #0
+ 1369 0b28 0500000A 		beq	.L66
+ 480:../domesdayDuplicator.c ****         CyU3PDebugPrint(4, "CyU3PSetEpConfig failed, Error code = %d\n", apiReturnStatus);
+ 1370              		.loc 1 480 0
+ 1371 0b2c 0400A0E3 		mov	r0, #4
+ 1372 0b30 1C109FE5 		ldr	r1, .L68+8
+ 1373 0b34 08201BE5 		ldr	r2, [fp, #-8]
+ 1374 0b38 FEFFFFEB 		bl	CyU3PDebugPrint
+ 481:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 1375              		.loc 1 481 0
+ 1376 0b3c 08001BE5 		ldr	r0, [fp, #-8]
+ 1377 0b40 FEFFFFEB 		bl	domDupErrorHandler
+ 1378              	.L66:
+ 482:../domesdayDuplicator.c ****     }
+ 483:../domesdayDuplicator.c **** }
+ 1379              		.loc 1 483 0
+ 1380 0b44 04D04BE2 		sub	sp, fp, #4
+ 1381              		@ sp needed
+ 1382 0b48 0088BDE8 		ldmfd	sp!, {fp, pc}
+ 1383              	.L69:
+ 1384              		.align	2
+ 1385              	.L68:
+ 1386 0b4c 00000000 		.word	glIsApplnActive
+ 1387 0b50 00000000 		.word	glDmaChHandle
+ 1388 0b54 D4030000 		.word	.LC20
+ 1389              		.cfi_endproc
+ 1390              	.LFE5:
+ 1392              		.align	2
+ 1393              		.global	domDupErrorHandler
+ 1395              	domDupErrorHandler:
+ 1396              	.LFB6:
+ 484:../domesdayDuplicator.c **** 
+ 485:../domesdayDuplicator.c **** // Error handling function
+ 486:../domesdayDuplicator.c **** void domDupErrorHandler(CyU3PReturnStatus_t apiReturnStatus)
+ 487:../domesdayDuplicator.c **** {
+ 1397              		.loc 1 487 0
+ 1398              		.cfi_startproc
+ 1399              		@ args = 0, pretend = 0, frame = 8
+ 1400              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1401 0b58 00482DE9 		stmfd	sp!, {fp, lr}
+ 1402              	.LCFI12:
+ 1403              		.cfi_def_cfa_offset 8
+ 1404              		.cfi_offset 11, -8
+ 1405              		.cfi_offset 14, -4
+ 1406 0b5c 04B08DE2 		add	fp, sp, #4
+ 1407              	.LCFI13:
+ 1408              		.cfi_def_cfa 11, 4
+ 1409 0b60 08D04DE2 		sub	sp, sp, #8
+ 1410 0b64 08000BE5 		str	r0, [fp, #-8]
+ 1411              	.L71:
+ 488:../domesdayDuplicator.c **** 	// Application failed; loop forever
+ 489:../domesdayDuplicator.c ****     while(1) {
+ 490:../domesdayDuplicator.c ****         CyU3PThreadSleep (100);
+ 1412              		.loc 1 490 0 discriminator 1
+ 1413 0b68 6400A0E3 		mov	r0, #100
+ 1414 0b6c FEFFFFEB 		bl	_tx_thread_sleep
+ 491:../domesdayDuplicator.c ****     }
+ 1415              		.loc 1 491 0 discriminator 1
+ 1416 0b70 FCFFFFEA 		b	.L71
+ 1417              		.cfi_endproc
+ 1418              	.LFE6:
+ 1420              		.align	2
+ 1421              		.global	domDupDebugInit
+ 1423              	domDupDebugInit:
+ 1424              	.LFB7:
+ 492:../domesdayDuplicator.c **** }
+ 493:../domesdayDuplicator.c **** 
+ 494:../domesdayDuplicator.c **** 
+ 495:../domesdayDuplicator.c **** 
+ 496:../domesdayDuplicator.c **** // Initialise debug console.  Debug is routed to UART
+ 497:../domesdayDuplicator.c **** // Serial speed is 115200 8N1
+ 498:../domesdayDuplicator.c **** void domDupDebugInit(void)
+ 499:../domesdayDuplicator.c **** {
+ 1425              		.loc 1 499 0
+ 1426              		.cfi_startproc
+ 1427              		@ args = 0, pretend = 0, frame = 32
+ 1428              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1429 0b74 00482DE9 		stmfd	sp!, {fp, lr}
+ 1430              	.LCFI14:
+ 1431              		.cfi_def_cfa_offset 8
+ 1432              		.cfi_offset 11, -8
+ 1433              		.cfi_offset 14, -4
+ 1434 0b78 04B08DE2 		add	fp, sp, #4
+ 1435              	.LCFI15:
+ 1436              		.cfi_def_cfa 11, 4
+ 1437 0b7c 20D04DE2 		sub	sp, sp, #32
+ 500:../domesdayDuplicator.c ****     CyU3PUartConfig_t uartConfig;
+ 501:../domesdayDuplicator.c ****     CyU3PReturnStatus_t apiReturnStatus = CY_U3P_SUCCESS;
+ 1438              		.loc 1 501 0
+ 1439 0b80 0030A0E3 		mov	r3, #0
+ 1440 0b84 08300BE5 		str	r3, [fp, #-8]
+ 502:../domesdayDuplicator.c **** 
+ 503:../domesdayDuplicator.c ****     // Initialise the UART
+ 504:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUartInit();
+ 1441              		.loc 1 504 0
+ 1442 0b88 FEFFFFEB 		bl	CyU3PUartInit
+ 1443 0b8c 08000BE5 		str	r0, [fp, #-8]
+ 505:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1444              		.loc 1 505 0
+ 1445 0b90 08301BE5 		ldr	r3, [fp, #-8]
+ 1446 0b94 000053E3 		cmp	r3, #0
+ 1447 0b98 0100000A 		beq	.L73
+ 506:../domesdayDuplicator.c ****         // Call the error handling function
+ 507:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 1448              		.loc 1 507 0
+ 1449 0b9c 08001BE5 		ldr	r0, [fp, #-8]
+ 1450 0ba0 FEFFFFEB 		bl	domDupErrorHandler
+ 1451              	.L73:
+ 508:../domesdayDuplicator.c ****     }
+ 509:../domesdayDuplicator.c **** 
+ 510:../domesdayDuplicator.c ****     // Configure the UART
+ 511:../domesdayDuplicator.c ****     CyU3PMemSet ((uint8_t *)&uartConfig, 0, sizeof (uartConfig));
+ 1452              		.loc 1 511 0
+ 1453 0ba4 20304BE2 		sub	r3, fp, #32
+ 1454 0ba8 0300A0E1 		mov	r0, r3
+ 1455 0bac 0010A0E3 		mov	r1, #0
+ 1456 0bb0 1820A0E3 		mov	r2, #24
+ 1457 0bb4 FEFFFFEB 		bl	CyU3PMemSet
+ 512:../domesdayDuplicator.c ****     uartConfig.baudRate = CY_U3P_UART_BAUDRATE_115200;
+ 1458              		.loc 1 512 0
+ 1459 0bb8 AC309FE5 		ldr	r3, .L77
+ 1460 0bbc 10300BE5 		str	r3, [fp, #-16]
+ 513:../domesdayDuplicator.c ****     uartConfig.stopBit = CY_U3P_UART_ONE_STOP_BIT;
+ 1461              		.loc 1 513 0
+ 1462 0bc0 0130A0E3 		mov	r3, #1
+ 1463 0bc4 0C304BE5 		strb	r3, [fp, #-12]
+ 514:../domesdayDuplicator.c ****     uartConfig.parity = CY_U3P_UART_NO_PARITY;
+ 1464              		.loc 1 514 0
+ 1465 0bc8 0030A0E3 		mov	r3, #0
+ 1466 0bcc 0B304BE5 		strb	r3, [fp, #-11]
+ 515:../domesdayDuplicator.c ****     uartConfig.txEnable = CyTrue;
+ 1467              		.loc 1 515 0
+ 1468 0bd0 0130A0E3 		mov	r3, #1
+ 1469 0bd4 20300BE5 		str	r3, [fp, #-32]
+ 516:../domesdayDuplicator.c ****     uartConfig.rxEnable = CyFalse;
+ 1470              		.loc 1 516 0
+ 1471 0bd8 0030A0E3 		mov	r3, #0
+ 1472 0bdc 1C300BE5 		str	r3, [fp, #-28]
+ 517:../domesdayDuplicator.c ****     uartConfig.flowCtrl = CyFalse;
+ 1473              		.loc 1 517 0
+ 1474 0be0 0030A0E3 		mov	r3, #0
+ 1475 0be4 18300BE5 		str	r3, [fp, #-24]
+ 518:../domesdayDuplicator.c ****     uartConfig.isDma = CyTrue;
+ 1476              		.loc 1 518 0
+ 1477 0be8 0130A0E3 		mov	r3, #1
+ 1478 0bec 14300BE5 		str	r3, [fp, #-20]
+ 519:../domesdayDuplicator.c **** 
+ 520:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUartSetConfig (&uartConfig, NULL);
+ 1479              		.loc 1 520 0
+ 1480 0bf0 20304BE2 		sub	r3, fp, #32
+ 1481 0bf4 0300A0E1 		mov	r0, r3
+ 1482 0bf8 0010A0E3 		mov	r1, #0
+ 1483 0bfc FEFFFFEB 		bl	CyU3PUartSetConfig
+ 1484 0c00 08000BE5 		str	r0, [fp, #-8]
+ 521:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1485              		.loc 1 521 0
+ 1486 0c04 08301BE5 		ldr	r3, [fp, #-8]
+ 1487 0c08 000053E3 		cmp	r3, #0
+ 1488 0c0c 0100000A 		beq	.L74
+ 522:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 1489              		.loc 1 522 0
+ 1490 0c10 08001BE5 		ldr	r0, [fp, #-8]
+ 1491 0c14 FEFFFFEB 		bl	domDupErrorHandler
+ 1492              	.L74:
+ 523:../domesdayDuplicator.c ****     }
+ 524:../domesdayDuplicator.c **** 
+ 525:../domesdayDuplicator.c ****     // Set the UART transfer to a large number
+ 526:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PUartTxSetBlockXfer (0xFFFFFFFF);
+ 1493              		.loc 1 526 0
+ 1494 0c18 0000E0E3 		mvn	r0, #0
+ 1495 0c1c FEFFFFEB 		bl	CyU3PUartTxSetBlockXfer
+ 1496 0c20 08000BE5 		str	r0, [fp, #-8]
+ 527:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1497              		.loc 1 527 0
+ 1498 0c24 08301BE5 		ldr	r3, [fp, #-8]
+ 1499 0c28 000053E3 		cmp	r3, #0
+ 1500 0c2c 0100000A 		beq	.L75
+ 528:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 1501              		.loc 1 528 0
+ 1502 0c30 08001BE5 		ldr	r0, [fp, #-8]
+ 1503 0c34 FEFFFFEB 		bl	domDupErrorHandler
+ 1504              	.L75:
+ 529:../domesdayDuplicator.c ****     }
+ 530:../domesdayDuplicator.c **** 
+ 531:../domesdayDuplicator.c ****     // Initialise debug on the UART
+ 532:../domesdayDuplicator.c ****     apiReturnStatus = CyU3PDebugInit (CY_U3P_LPP_SOCKET_UART_CONS, 8);
+ 1505              		.loc 1 532 0
+ 1506 0c38 0300A0E3 		mov	r0, #3
+ 1507 0c3c 0810A0E3 		mov	r1, #8
+ 1508 0c40 FEFFFFEB 		bl	CyU3PDebugInit
+ 1509 0c44 08000BE5 		str	r0, [fp, #-8]
+ 533:../domesdayDuplicator.c ****     if (apiReturnStatus != CY_U3P_SUCCESS) {
+ 1510              		.loc 1 533 0
+ 1511 0c48 08301BE5 		ldr	r3, [fp, #-8]
+ 1512 0c4c 000053E3 		cmp	r3, #0
+ 1513 0c50 0100000A 		beq	.L76
+ 534:../domesdayDuplicator.c ****         domDupErrorHandler(apiReturnStatus);
+ 1514              		.loc 1 534 0
+ 1515 0c54 08001BE5 		ldr	r0, [fp, #-8]
+ 1516 0c58 FEFFFFEB 		bl	domDupErrorHandler
+ 1517              	.L76:
+ 535:../domesdayDuplicator.c ****     }
+ 536:../domesdayDuplicator.c **** 
+ 537:../domesdayDuplicator.c ****     CyU3PDebugPreamble(CyFalse);
+ 1518              		.loc 1 537 0
+ 1519 0c5c 0000A0E3 		mov	r0, #0
+ 1520 0c60 FEFFFFEB 		bl	CyU3PDebugPreamble
+ 538:../domesdayDuplicator.c **** }
+ 1521              		.loc 1 538 0
+ 1522 0c64 04D04BE2 		sub	sp, fp, #4
+ 1523              		@ sp needed
+ 1524 0c68 0088BDE8 		ldmfd	sp!, {fp, pc}
+ 1525              	.L78:
+ 1526              		.align	2
+ 1527              	.L77:
+ 1528 0c6c 00C20100 		.word	115200
+ 1529              		.cfi_endproc
+ 1530              	.LFE7:
+ 1532              		.section	.rodata
+ 1533 04f2 0000     		.align	2
+ 1534              	.LC26:
+ 1535 04f4 0D0A4465 		.ascii	"\015\012Debug: Interrupt received from GPIF\015\012"
+ 1535      6275673A 
+ 1535      20496E74 
+ 1535      65727275 
+ 1535      70742072 
+ 1536 051b 00       		.ascii	"\000"
+ 1537              		.text
+ 1538              		.align	2
+ 1539              		.global	GpifDmaEventCB
+ 1541              	GpifDmaEventCB:
+ 1542              	.LFB8:
+ 539:../domesdayDuplicator.c **** 
+ 540:../domesdayDuplicator.c **** // Call back functions ----------------------------------------------------------------------------
+ 541:../domesdayDuplicator.c **** 
+ 542:../domesdayDuplicator.c **** // Handle CPU_INT from GPIF callback (used for debug)
+ 543:../domesdayDuplicator.c **** void GpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State)
+ 544:../domesdayDuplicator.c **** {
+ 1543              		.loc 1 544 0
+ 1544              		.cfi_startproc
+ 1545              		@ args = 0, pretend = 0, frame = 8
+ 1546              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1547 0c70 00482DE9 		stmfd	sp!, {fp, lr}
+ 1548              	.LCFI16:
+ 1549              		.cfi_def_cfa_offset 8
+ 1550              		.cfi_offset 11, -8
+ 1551              		.cfi_offset 14, -4
+ 1552 0c74 04B08DE2 		add	fp, sp, #4
+ 1553              	.LCFI17:
+ 1554              		.cfi_def_cfa 11, 4
+ 1555 0c78 08D04DE2 		sub	sp, sp, #8
+ 1556 0c7c 0020A0E1 		mov	r2, r0
+ 1557 0c80 0130A0E1 		mov	r3, r1
+ 1558 0c84 05204BE5 		strb	r2, [fp, #-5]
+ 1559 0c88 06304BE5 		strb	r3, [fp, #-6]
+ 545:../domesdayDuplicator.c **** 	if (Event == CYU3P_GPIF_EVT_SM_INTERRUPT) CyU3PDebugPrint(8, "\r\nDebug: Interrupt received from G
+ 1560              		.loc 1 545 0
+ 1561 0c8c 05305BE5 		ldrb	r3, [fp, #-5]	@ zero_extendqisi2
+ 1562 0c90 010053E3 		cmp	r3, #1
+ 1563 0c94 0200001A 		bne	.L79
+ 1564              		.loc 1 545 0 is_stmt 0 discriminator 1
+ 1565 0c98 0800A0E3 		mov	r0, #8
+ 1566 0c9c 08109FE5 		ldr	r1, .L81
+ 1567 0ca0 FEFFFFEB 		bl	CyU3PDebugPrint
+ 1568              	.L79:
+ 546:../domesdayDuplicator.c **** }
+ 1569              		.loc 1 546 0 is_stmt 1
+ 1570 0ca4 04D04BE2 		sub	sp, fp, #4
+ 1571              		@ sp needed
+ 1572 0ca8 0088BDE8 		ldmfd	sp!, {fp, pc}
+ 1573              	.L82:
+ 1574              		.align	2
+ 1575              	.L81:
+ 1576 0cac F4040000 		.word	.LC26
+ 1577              		.cfi_endproc
+ 1578              	.LFE8:
+ 1580              		.section	.rodata
+ 1581              		.align	2
+ 1582              	.LC27:
+ 1583 051c 53544152 		.ascii	"START data collection request received from host\015"
+ 1583      54206461 
+ 1583      74612063 
+ 1583      6F6C6C65 
+ 1583      6374696F 
+ 1584 054d 0A00     		.ascii	"\012\000"
+ 1585 054f 00       		.align	2
+ 1586              	.LC28:
+ 1587 0550 53544F50 		.ascii	"STOP data collection request received from host\015"
+ 1587      20646174 
+ 1587      6120636F 
+ 1587      6C6C6563 
+ 1587      74696F6E 
+ 1588 0580 0A00     		.ascii	"\012\000"
+ 1589              		.text
+ 1590              		.align	2
+ 1591              		.global	domDupUSBSetupCB
+ 1593              	domDupUSBSetupCB:
+ 1594              	.LFB9:
+ 547:../domesdayDuplicator.c **** 
+ 548:../domesdayDuplicator.c **** // USB set-up request callback
+ 549:../domesdayDuplicator.c **** CyBool_t domDupUSBSetupCB (uint32_t setupData0, uint32_t setupData1)
+ 550:../domesdayDuplicator.c **** {
+ 1595              		.loc 1 550 0
+ 1596              		.cfi_startproc
+ 1597              		@ args = 0, pretend = 0, frame = 24
+ 1598              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1599 0cb0 00482DE9 		stmfd	sp!, {fp, lr}
+ 1600              	.LCFI18:
+ 1601              		.cfi_def_cfa_offset 8
+ 1602              		.cfi_offset 11, -8
+ 1603              		.cfi_offset 14, -4
+ 1604 0cb4 04B08DE2 		add	fp, sp, #4
+ 1605              	.LCFI19:
+ 1606              		.cfi_def_cfa 11, 4
+ 1607 0cb8 18D04DE2 		sub	sp, sp, #24
+ 1608 0cbc 18000BE5 		str	r0, [fp, #-24]
+ 1609 0cc0 1C100BE5 		str	r1, [fp, #-28]
+ 551:../domesdayDuplicator.c ****     uint8_t  bRequest, bReqType;
+ 552:../domesdayDuplicator.c ****     uint8_t  bType, bTarget;
+ 553:../domesdayDuplicator.c ****     uint16_t wValue;
+ 554:../domesdayDuplicator.c ****     uint16_t wIndex;
+ 555:../domesdayDuplicator.c ****     CyBool_t isHandled = CyFalse;
+ 1610              		.loc 1 555 0
+ 1611 0cc4 0030A0E3 		mov	r3, #0
+ 1612 0cc8 08300BE5 		str	r3, [fp, #-8]
+ 556:../domesdayDuplicator.c **** 
+ 557:../domesdayDuplicator.c ****     /* Decode the fields from the setup request. */
+ 558:../domesdayDuplicator.c ****     bReqType = (setupData0 & CY_U3P_USB_REQUEST_TYPE_MASK);
+ 1613              		.loc 1 558 0
+ 1614 0ccc 18301BE5 		ldr	r3, [fp, #-24]
+ 1615 0cd0 09304BE5 		strb	r3, [fp, #-9]
+ 559:../domesdayDuplicator.c ****     bType    = (bReqType & CY_U3P_USB_TYPE_MASK);
+ 1616              		.loc 1 559 0
+ 1617 0cd4 09305BE5 		ldrb	r3, [fp, #-9]
+ 1618 0cd8 603003E2 		and	r3, r3, #96
+ 1619 0cdc 0A304BE5 		strb	r3, [fp, #-10]
+ 560:../domesdayDuplicator.c ****     bTarget  = (bReqType & CY_U3P_USB_TARGET_MASK);
+ 1620              		.loc 1 560 0
+ 1621 0ce0 09305BE5 		ldrb	r3, [fp, #-9]
+ 1622 0ce4 033003E2 		and	r3, r3, #3
+ 1623 0ce8 0B304BE5 		strb	r3, [fp, #-11]
+ 561:../domesdayDuplicator.c ****     bRequest = ((setupData0 & CY_U3P_USB_REQUEST_MASK) >> CY_U3P_USB_REQUEST_POS);
+ 1624              		.loc 1 561 0
+ 1625 0cec 18301BE5 		ldr	r3, [fp, #-24]
+ 1626 0cf0 FF3C03E2 		and	r3, r3, #65280
+ 1627 0cf4 2334A0E1 		mov	r3, r3, lsr #8
+ 1628 0cf8 0C304BE5 		strb	r3, [fp, #-12]
+ 562:../domesdayDuplicator.c ****     wValue   = ((setupData0 & CY_U3P_USB_VALUE_MASK)   >> CY_U3P_USB_VALUE_POS);
+ 1629              		.loc 1 562 0
+ 1630 0cfc 18301BE5 		ldr	r3, [fp, #-24]
+ 1631 0d00 2338A0E1 		mov	r3, r3, lsr #16
+ 1632 0d04 BE304BE1 		strh	r3, [fp, #-14]	@ movhi
+ 563:../domesdayDuplicator.c ****     wIndex   = ((setupData1 & CY_U3P_USB_INDEX_MASK)   >> CY_U3P_USB_INDEX_POS);
+ 1633              		.loc 1 563 0
+ 1634 0d08 1C301BE5 		ldr	r3, [fp, #-28]
+ 1635 0d0c B0314BE1 		strh	r3, [fp, #-16]	@ movhi
+ 564:../domesdayDuplicator.c **** 
+ 565:../domesdayDuplicator.c ****     // Handle vendor specific requests from the host
+ 566:../domesdayDuplicator.c ****     if (bType == CY_U3P_USB_VENDOR_RQT) {
+ 1636              		.loc 1 566 0
+ 1637 0d10 0A305BE5 		ldrb	r3, [fp, #-10]	@ zero_extendqisi2
+ 1638 0d14 400053E3 		cmp	r3, #64
+ 1639 0d18 1900001A 		bne	.L84
+ 567:../domesdayDuplicator.c ****     	if (glIsApplnActive) {
+ 1640              		.loc 1 567 0
+ 1641 0d1c 8C319FE5 		ldr	r3, .L95
+ 1642 0d20 003093E5 		ldr	r3, [r3]
+ 1643 0d24 000053E3 		cmp	r3, #0
+ 1644 0d28 1500000A 		beq	.L84
+ 568:../domesdayDuplicator.c **** 			// Handle vendor request for collection start/stop
+ 569:../domesdayDuplicator.c **** 			if (bRequest == 0xB5) {
+ 1645              		.loc 1 569 0
+ 1646 0d2c 0C305BE5 		ldrb	r3, [fp, #-12]	@ zero_extendqisi2
+ 1647 0d30 B50053E3 		cmp	r3, #181
+ 1648 0d34 1100001A 		bne	.L85
+ 570:../domesdayDuplicator.c **** 				if (wValue == 1) {
+ 1649              		.loc 1 570 0
+ 1650 0d38 BE305BE1 		ldrh	r3, [fp, #-14]
+ 1651 0d3c 010053E3 		cmp	r3, #1
+ 1652 0d40 0500001A 		bne	.L86
+ 571:../domesdayDuplicator.c **** 					// Start collection request from USB host
+ 572:../domesdayDuplicator.c **** 					CyU3PDebugPrint(8, "START data collection request received from host\r\n");
+ 1653              		.loc 1 572 0
+ 1654 0d44 0800A0E3 		mov	r0, #8
+ 1655 0d48 64119FE5 		ldr	r1, .L95+4
+ 1656 0d4c FEFFFFEB 		bl	CyU3PDebugPrint
+ 573:../domesdayDuplicator.c **** 					CyU3PGpioSetValue(18, 0); // nREADY GPIO low
+ 1657              		.loc 1 573 0
+ 1658 0d50 1200A0E3 		mov	r0, #18
+ 1659 0d54 0010A0E3 		mov	r1, #0
+ 1660 0d58 FEFFFFEB 		bl	CyU3PGpioSetValue
+ 1661              	.L86:
+ 574:../domesdayDuplicator.c **** 				}
+ 575:../domesdayDuplicator.c **** 
+ 576:../domesdayDuplicator.c **** 				if (wValue == 0) {
+ 1662              		.loc 1 576 0
+ 1663 0d5c BE305BE1 		ldrh	r3, [fp, #-14]
+ 1664 0d60 000053E3 		cmp	r3, #0
+ 1665 0d64 0500001A 		bne	.L85
+ 577:../domesdayDuplicator.c **** 					// Stop collection request from USB host
+ 578:../domesdayDuplicator.c **** 					CyU3PDebugPrint(8, "STOP data collection request received from host\r\n");
+ 1666              		.loc 1 578 0
+ 1667 0d68 0800A0E3 		mov	r0, #8
+ 1668 0d6c 44119FE5 		ldr	r1, .L95+8
+ 1669 0d70 FEFFFFEB 		bl	CyU3PDebugPrint
+ 579:../domesdayDuplicator.c **** 					CyU3PGpioSetValue(18, 1); // nREADY GPIO high
+ 1670              		.loc 1 579 0
+ 1671 0d74 1200A0E3 		mov	r0, #18
+ 1672 0d78 0110A0E3 		mov	r1, #1
+ 1673 0d7c FEFFFFEB 		bl	CyU3PGpioSetValue
+ 1674              	.L85:
+ 580:../domesdayDuplicator.c **** 				}
+ 581:../domesdayDuplicator.c **** 			}
+ 582:../domesdayDuplicator.c **** 
+ 583:../domesdayDuplicator.c **** 			// ACK the request
+ 584:../domesdayDuplicator.c **** 			CyU3PUsbAckSetup();
+ 1675              		.loc 1 584 0
+ 1676 0d80 FEFFFFEB 		bl	CyU3PUsbAckSetup
+ 1677              	.L84:
+ 585:../domesdayDuplicator.c **** 		}
+ 586:../domesdayDuplicator.c ****     }
+ 587:../domesdayDuplicator.c **** 
+ 588:../domesdayDuplicator.c ****     if (bType == CY_U3P_USB_STANDARD_RQT) {
+ 1678              		.loc 1 588 0
+ 1679 0d84 0A305BE5 		ldrb	r3, [fp, #-10]	@ zero_extendqisi2
+ 1680 0d88 000053E3 		cmp	r3, #0
+ 1681 0d8c 4300001A 		bne	.L87
+ 589:../domesdayDuplicator.c ****         // Target interface - Set/clear feature
+ 590:../domesdayDuplicator.c ****         if ((bTarget == CY_U3P_USB_TARGET_INTF) &&
+ 1682              		.loc 1 590 0
+ 1683 0d90 0B305BE5 		ldrb	r3, [fp, #-11]	@ zero_extendqisi2
+ 1684 0d94 010053E3 		cmp	r3, #1
+ 1685 0d98 1E00001A 		bne	.L88
+ 1686              		.loc 1 590 0 is_stmt 0 discriminator 1
+ 1687 0d9c 0C305BE5 		ldrb	r3, [fp, #-12]	@ zero_extendqisi2
+ 1688 0da0 030053E3 		cmp	r3, #3
+ 1689 0da4 0200000A 		beq	.L89
+ 591:../domesdayDuplicator.c ****         	((bRequest == CY_U3P_USB_SC_SET_FEATURE) || (bRequest == CY_U3P_USB_SC_CLEAR_FEATURE)) &&
+ 1690              		.loc 1 591 0 is_stmt 1
+ 1691 0da8 0C305BE5 		ldrb	r3, [fp, #-12]	@ zero_extendqisi2
+ 1692 0dac 010053E3 		cmp	r3, #1
+ 1693 0db0 1800001A 		bne	.L88
+ 1694              	.L89:
+ 1695              		.loc 1 591 0 is_stmt 0 discriminator 1
+ 1696 0db4 BE305BE1 		ldrh	r3, [fp, #-14]
+ 1697 0db8 000053E3 		cmp	r3, #0
+ 1698 0dbc 1500001A 		bne	.L88
+ 592:../domesdayDuplicator.c ****         	(wValue == 0)) {
+ 593:../domesdayDuplicator.c ****             if (glIsApplnActive) {
+ 1699              		.loc 1 593 0 is_stmt 1
+ 1700 0dc0 E8309FE5 		ldr	r3, .L95
+ 1701 0dc4 003093E5 		ldr	r3, [r3]
+ 1702 0dc8 000053E3 		cmp	r3, #0
+ 1703 0dcc 0B00000A 		beq	.L90
+ 594:../domesdayDuplicator.c ****                 CyU3PUsbAckSetup();
+ 1704              		.loc 1 594 0
+ 1705 0dd0 FEFFFFEB 		bl	CyU3PUsbAckSetup
+ 595:../domesdayDuplicator.c **** 
+ 596:../domesdayDuplicator.c ****                 // Force link to U2 on suspend
+ 597:../domesdayDuplicator.c ****                 if (bRequest == CY_U3P_USB_SC_SET_FEATURE) {
+ 1706              		.loc 1 597 0
+ 1707 0dd4 0C305BE5 		ldrb	r3, [fp, #-12]	@ zero_extendqisi2
+ 1708 0dd8 030053E3 		cmp	r3, #3
+ 1709 0ddc 0300001A 		bne	.L91
+ 598:../domesdayDuplicator.c ****                     glForceLinkU2 = CyTrue;
+ 1710              		.loc 1 598 0
+ 1711 0de0 D4309FE5 		ldr	r3, .L95+12
+ 1712 0de4 0120A0E3 		mov	r2, #1
+ 1713 0de8 002083E5 		str	r2, [r3]
+ 1714 0dec 070000EA 		b	.L93
+ 1715              	.L91:
+ 599:../domesdayDuplicator.c ****                 } else {
+ 600:../domesdayDuplicator.c ****                     glForceLinkU2 = CyFalse;
+ 1716              		.loc 1 600 0
+ 1717 0df0 C4309FE5 		ldr	r3, .L95+12
+ 1718 0df4 0020A0E3 		mov	r2, #0
+ 1719 0df8 002083E5 		str	r2, [r3]
+ 1720 0dfc 030000EA 		b	.L93
+ 1721              	.L90:
+ 601:../domesdayDuplicator.c ****                 }
+ 602:../domesdayDuplicator.c ****             }
+ 603:../domesdayDuplicator.c ****             else CyU3PUsbStall(0, CyTrue, CyFalse);
+ 1722              		.loc 1 603 0
+ 1723 0e00 0000A0E3 		mov	r0, #0
+ 1724 0e04 0110A0E3 		mov	r1, #1
+ 1725 0e08 0020A0E3 		mov	r2, #0
+ 1726 0e0c FEFFFFEB 		bl	CyU3PUsbStall
+ 1727              	.L93:
+ 604:../domesdayDuplicator.c **** 
+ 605:../domesdayDuplicator.c ****             isHandled = CyTrue;
+ 1728              		.loc 1 605 0
+ 1729 0e10 0130A0E3 		mov	r3, #1
+ 1730 0e14 08300BE5 		str	r3, [fp, #-8]
+ 1731              	.L88:
+ 606:../domesdayDuplicator.c ****         }
+ 607:../domesdayDuplicator.c **** 
+ 608:../domesdayDuplicator.c ****         // Target end-point - Clear feature request
+ 609:../domesdayDuplicator.c ****         if ((bTarget == CY_U3P_USB_TARGET_ENDPT) &&
+ 1732              		.loc 1 609 0
+ 1733 0e18 0B305BE5 		ldrb	r3, [fp, #-11]	@ zero_extendqisi2
+ 1734 0e1c 020053E3 		cmp	r3, #2
+ 1735 0e20 1E00001A 		bne	.L87
+ 1736              		.loc 1 609 0 is_stmt 0 discriminator 1
+ 1737 0e24 0C305BE5 		ldrb	r3, [fp, #-12]	@ zero_extendqisi2
+ 1738 0e28 010053E3 		cmp	r3, #1
+ 1739 0e2c 1B00001A 		bne	.L87
+ 610:../domesdayDuplicator.c ****         	(bRequest == CY_U3P_USB_SC_CLEAR_FEATURE) &&
+ 1740              		.loc 1 610 0 is_stmt 1
+ 1741 0e30 BE305BE1 		ldrh	r3, [fp, #-14]
+ 1742 0e34 000053E3 		cmp	r3, #0
+ 1743 0e38 1800001A 		bne	.L87
+ 611:../domesdayDuplicator.c ****         	(wValue == CY_U3P_USBX_FS_EP_HALT)) {
+ 612:../domesdayDuplicator.c ****             if (glIsApplnActive) {
+ 1744              		.loc 1 612 0
+ 1745 0e3c 6C309FE5 		ldr	r3, .L95
+ 1746 0e40 003093E5 		ldr	r3, [r3]
+ 1747 0e44 000053E3 		cmp	r3, #0
+ 1748 0e48 1400000A 		beq	.L87
+ 613:../domesdayDuplicator.c ****                 if (wIndex == CY_FX_EP_CONSUMER) {
+ 1749              		.loc 1 613 0
+ 1750 0e4c B0315BE1 		ldrh	r3, [fp, #-16]
+ 1751 0e50 810053E3 		cmp	r3, #129
+ 1752 0e54 1100001A 		bne	.L87
+ 614:../domesdayDuplicator.c ****                     CyU3PDmaChannelReset (&glDmaChHandle);
+ 1753              		.loc 1 614 0
+ 1754 0e58 60009FE5 		ldr	r0, .L95+16
+ 1755 0e5c FEFFFFEB 		bl	CyU3PDmaChannelReset
+ 615:../domesdayDuplicator.c ****                     CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
+ 1756              		.loc 1 615 0
+ 1757 0e60 8100A0E3 		mov	r0, #129
+ 1758 0e64 FEFFFFEB 		bl	CyU3PUsbFlushEp
+ 616:../domesdayDuplicator.c ****                     CyU3PUsbResetEp (CY_FX_EP_CONSUMER);
+ 1759              		.loc 1 616 0
+ 1760 0e68 8100A0E3 		mov	r0, #129
+ 1761 0e6c FEFFFFEB 		bl	CyU3PUsbResetEp
+ 617:../domesdayDuplicator.c ****                     CyU3PDmaChannelSetXfer(&glDmaChHandle, 0);
+ 1762              		.loc 1 617 0
+ 1763 0e70 48009FE5 		ldr	r0, .L95+16
+ 1764 0e74 0010A0E3 		mov	r1, #0
+ 1765 0e78 FEFFFFEB 		bl	CyU3PDmaChannelSetXfer
+ 618:../domesdayDuplicator.c ****                     CyU3PUsbStall (wIndex, CyFalse, CyTrue);
+ 1766              		.loc 1 618 0
+ 1767 0e7c B0315BE1 		ldrh	r3, [fp, #-16]	@ movhi
+ 1768 0e80 FF3003E2 		and	r3, r3, #255
+ 1769 0e84 0300A0E1 		mov	r0, r3
+ 1770 0e88 0010A0E3 		mov	r1, #0
+ 1771 0e8c 0120A0E3 		mov	r2, #1
+ 1772 0e90 FEFFFFEB 		bl	CyU3PUsbStall
+ 619:../domesdayDuplicator.c ****                     isHandled = CyTrue;
+ 1773              		.loc 1 619 0
+ 1774 0e94 0130A0E3 		mov	r3, #1
+ 1775 0e98 08300BE5 		str	r3, [fp, #-8]
+ 620:../domesdayDuplicator.c ****                     CyU3PUsbAckSetup ();
+ 1776              		.loc 1 620 0
+ 1777 0e9c FEFFFFEB 		bl	CyU3PUsbAckSetup
+ 1778              	.L87:
+ 621:../domesdayDuplicator.c ****                 }
+ 622:../domesdayDuplicator.c ****             }
+ 623:../domesdayDuplicator.c ****         }
+ 624:../domesdayDuplicator.c ****     }
+ 625:../domesdayDuplicator.c **** 
+ 626:../domesdayDuplicator.c ****     return isHandled;
+ 1779              		.loc 1 626 0
+ 1780 0ea0 08301BE5 		ldr	r3, [fp, #-8]
+ 627:../domesdayDuplicator.c **** }
+ 1781              		.loc 1 627 0
+ 1782 0ea4 0300A0E1 		mov	r0, r3
+ 1783 0ea8 04D04BE2 		sub	sp, fp, #4
+ 1784              		@ sp needed
+ 1785 0eac 0088BDE8 		ldmfd	sp!, {fp, pc}
+ 1786              	.L96:
+ 1787              		.align	2
+ 1788              	.L95:
+ 1789 0eb0 00000000 		.word	glIsApplnActive
+ 1790 0eb4 1C050000 		.word	.LC27
+ 1791 0eb8 50050000 		.word	.LC28
+ 1792 0ebc 00000000 		.word	glForceLinkU2
+ 1793 0ec0 00000000 		.word	glDmaChHandle
+ 1794              		.cfi_endproc
+ 1795              	.LFE9:
+ 1797              		.section	.rodata
+ 1798 0582 0000     		.align	2
+ 1799              	.LC29:
+ 1800 0584 43595F55 		.ascii	"CY_U3P_USB_EVENT_CONNECT detected\015\012\000"
+ 1800      33505F55 
+ 1800      53425F45 
+ 1800      56454E54 
+ 1800      5F434F4E 
+ 1801              		.align	2
+ 1802              	.LC30:
+ 1803 05a8 43595F55 		.ascii	"CY_U3P_USB_EVENT_SETCONF detected\015\012\000"
+ 1803      33505F55 
+ 1803      53425F45 
+ 1803      56454E54 
+ 1803      5F534554 
+ 1804              		.align	2
+ 1805              	.LC31:
+ 1806 05cc 43595F55 		.ascii	"CY_U3P_USB_EVENT_DISCONNECT detected\015\012\000"
+ 1806      33505F55 
+ 1806      53425F45 
+ 1806      56454E54 
+ 1806      5F444953 
+ 1807 05f3 00       		.align	2
+ 1808              	.LC32:
+ 1809 05f4 554E4B4E 		.ascii	"UNKNOWN USB event detected\015\012\000"
+ 1809      4F574E20 
+ 1809      55534220 
+ 1809      6576656E 
+ 1809      74206465 
+ 1810 0611 000000   		.text
+ 1811              		.align	2
+ 1812              		.global	domDupUSBEventCB
+ 1814              	domDupUSBEventCB:
+ 1815              	.LFB10:
+ 628:../domesdayDuplicator.c **** 
+ 629:../domesdayDuplicator.c **** // Callback function to handle USB events
+ 630:../domesdayDuplicator.c **** void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
+ 631:../domesdayDuplicator.c **** {
+ 1816              		.loc 1 631 0
+ 1817              		.cfi_startproc
+ 1818              		@ args = 0, pretend = 0, frame = 8
+ 1819              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1820 0ec4 00482DE9 		stmfd	sp!, {fp, lr}
+ 1821              	.LCFI20:
+ 1822              		.cfi_def_cfa_offset 8
+ 1823              		.cfi_offset 11, -8
+ 1824              		.cfi_offset 14, -4
+ 1825 0ec8 04B08DE2 		add	fp, sp, #4
+ 1826              	.LCFI21:
+ 1827              		.cfi_def_cfa 11, 4
+ 1828 0ecc 08D04DE2 		sub	sp, sp, #8
+ 1829 0ed0 0020A0E1 		mov	r2, r0
+ 1830 0ed4 0130A0E1 		mov	r3, r1
+ 1831 0ed8 05204BE5 		strb	r2, [fp, #-5]
+ 1832 0edc B8304BE1 		strh	r3, [fp, #-8]	@ movhi
+ 632:../domesdayDuplicator.c ****     switch (eventType) {
+ 1833              		.loc 1 632 0
+ 1834 0ee0 05305BE5 		ldrb	r3, [fp, #-5]	@ zero_extendqisi2
+ 1835 0ee4 050053E3 		cmp	r3, #5
+ 1836 0ee8 03F19F97 		ldrls	pc, [pc, r3, asl #2]
+ 1837 0eec 290000EA 		b	.L98
+ 1838              	.L100:
+ 1839 0ef0 080F0000 		.word	.L99
+ 1840 0ef4 400F0000 		.word	.L101
+ 1841 0ef8 980F0000 		.word	.L98
+ 1842 0efc 980F0000 		.word	.L98
+ 1843 0f00 400F0000 		.word	.L101
+ 1844 0f04 180F0000 		.word	.L102
+ 1845              	.L99:
+ 633:../domesdayDuplicator.c ****     case CY_U3P_USB_EVENT_CONNECT:
+ 634:../domesdayDuplicator.c **** 		CyU3PDebugPrint(8, "CY_U3P_USB_EVENT_CONNECT detected\r\n");
+ 1846              		.loc 1 634 0
+ 1847 0f08 0800A0E3 		mov	r0, #8
+ 1848 0f0c 9C109FE5 		ldr	r1, .L108
+ 1849 0f10 FEFFFFEB 		bl	CyU3PDebugPrint
+ 635:../domesdayDuplicator.c **** 		break;
+ 1850              		.loc 1 635 0
+ 1851 0f14 230000EA 		b	.L97
+ 1852              	.L102:
+ 636:../domesdayDuplicator.c **** 
+ 637:../domesdayDuplicator.c ****     case CY_U3P_USB_EVENT_SETCONF:
+ 638:../domesdayDuplicator.c ****     	CyU3PDebugPrint(8, "CY_U3P_USB_EVENT_SETCONF detected\r\n");
+ 1853              		.loc 1 638 0
+ 1854 0f18 0800A0E3 		mov	r0, #8
+ 1855 0f1c 90109FE5 		ldr	r1, .L108+4
+ 1856 0f20 FEFFFFEB 		bl	CyU3PDebugPrint
+ 639:../domesdayDuplicator.c ****     	// If the application is already active, stop it
+ 640:../domesdayDuplicator.c ****         if (glIsApplnActive) {
+ 1857              		.loc 1 640 0
+ 1858 0f24 8C309FE5 		ldr	r3, .L108+8
+ 1859 0f28 003093E5 		ldr	r3, [r3]
+ 1860 0f2c 000053E3 		cmp	r3, #0
+ 1861 0f30 0000000A 		beq	.L104
+ 641:../domesdayDuplicator.c ****             domDupStopApplication();
+ 1862              		.loc 1 641 0
+ 1863 0f34 FEFFFFEB 		bl	domDupStopApplication
+ 1864              	.L104:
+ 642:../domesdayDuplicator.c ****         }
+ 643:../domesdayDuplicator.c **** 
+ 644:../domesdayDuplicator.c ****         // Start the application
+ 645:../domesdayDuplicator.c ****         domDupStartApplication();
+ 1865              		.loc 1 645 0
+ 1866 0f38 FEFFFFEB 		bl	domDupStartApplication
+ 646:../domesdayDuplicator.c ****         break;
+ 1867              		.loc 1 646 0
+ 1868 0f3c 190000EA 		b	.L97
+ 1869              	.L101:
+ 647:../domesdayDuplicator.c **** 
+ 648:../domesdayDuplicator.c ****     case CY_U3P_USB_EVENT_RESET:
+ 649:../domesdayDuplicator.c ****     case CY_U3P_USB_EVENT_DISCONNECT:
+ 650:../domesdayDuplicator.c ****         glForceLinkU2 = CyFalse;
+ 1870              		.loc 1 650 0
+ 1871 0f40 74309FE5 		ldr	r3, .L108+12
+ 1872 0f44 0020A0E3 		mov	r2, #0
+ 1873 0f48 002083E5 		str	r2, [r3]
+ 651:../domesdayDuplicator.c **** 
+ 652:../domesdayDuplicator.c ****         // Stop the application
+ 653:../domesdayDuplicator.c ****         if (glIsApplnActive) {
+ 1874              		.loc 1 653 0
+ 1875 0f4c 64309FE5 		ldr	r3, .L108+8
+ 1876 0f50 003093E5 		ldr	r3, [r3]
+ 1877 0f54 000053E3 		cmp	r3, #0
+ 1878 0f58 0000000A 		beq	.L105
+ 654:../domesdayDuplicator.c ****             domDupStopApplication();
+ 1879              		.loc 1 654 0
+ 1880 0f5c FEFFFFEB 		bl	domDupStopApplication
+ 1881              	.L105:
+ 655:../domesdayDuplicator.c ****         }
+ 656:../domesdayDuplicator.c **** 
+ 657:../domesdayDuplicator.c ****         if (eventType == CY_U3P_USB_EVENT_DISCONNECT) {
+ 1882              		.loc 1 657 0
+ 1883 0f60 05305BE5 		ldrb	r3, [fp, #-5]	@ zero_extendqisi2
+ 1884 0f64 010053E3 		cmp	r3, #1
+ 1885 0f68 0200001A 		bne	.L106
+ 658:../domesdayDuplicator.c ****             CyU3PDebugPrint (8, "CY_U3P_USB_EVENT_DISCONNECT detected\r\n");
+ 1886              		.loc 1 658 0
+ 1887 0f6c 0800A0E3 		mov	r0, #8
+ 1888 0f70 48109FE5 		ldr	r1, .L108+16
+ 1889 0f74 FEFFFFEB 		bl	CyU3PDebugPrint
+ 1890              	.L106:
+ 659:../domesdayDuplicator.c ****         }
+ 660:../domesdayDuplicator.c **** 
+ 661:../domesdayDuplicator.c ****         if (eventType == CY_U3P_USB_EVENT_RESET) {
+ 1891              		.loc 1 661 0
+ 1892 0f78 05305BE5 		ldrb	r3, [fp, #-5]	@ zero_extendqisi2
+ 1893 0f7c 040053E3 		cmp	r3, #4
+ 1894 0f80 0300001A 		bne	.L107
+ 662:../domesdayDuplicator.c **** 			CyU3PDebugPrint (8, "CY_U3P_USB_EVENT_DISCONNECT detected\r\n");
+ 1895              		.loc 1 662 0
+ 1896 0f84 0800A0E3 		mov	r0, #8
+ 1897 0f88 30109FE5 		ldr	r1, .L108+16
+ 1898 0f8c FEFFFFEB 		bl	CyU3PDebugPrint
+ 663:../domesdayDuplicator.c **** 		}
+ 664:../domesdayDuplicator.c ****         break;
+ 1899              		.loc 1 664 0
+ 1900 0f90 040000EA 		b	.L97
+ 1901              	.L107:
+ 1902 0f94 030000EA 		b	.L97
+ 1903              	.L98:
+ 665:../domesdayDuplicator.c **** 
+ 666:../domesdayDuplicator.c ****     default:
+ 667:../domesdayDuplicator.c ****     	// Unknown/unhandled USB event received
+ 668:../domesdayDuplicator.c ****     	CyU3PDebugPrint (8, "UNKNOWN USB event detected\r\n");
+ 1904              		.loc 1 668 0
+ 1905 0f98 0800A0E3 		mov	r0, #8
+ 1906 0f9c 20109FE5 		ldr	r1, .L108+20
+ 1907 0fa0 FEFFFFEB 		bl	CyU3PDebugPrint
+ 669:../domesdayDuplicator.c ****         break;
+ 1908              		.loc 1 669 0
+ 1909 0fa4 0000A0E1 		mov	r0, r0	@ nop
+ 1910              	.L97:
+ 670:../domesdayDuplicator.c ****     }
+ 671:../domesdayDuplicator.c **** }
+ 1911              		.loc 1 671 0
+ 1912 0fa8 04D04BE2 		sub	sp, fp, #4
+ 1913              		@ sp needed
+ 1914 0fac 0088BDE8 		ldmfd	sp!, {fp, pc}
+ 1915              	.L109:
+ 1916              		.align	2
+ 1917              	.L108:
+ 1918 0fb0 84050000 		.word	.LC29
+ 1919 0fb4 A8050000 		.word	.LC30
+ 1920 0fb8 00000000 		.word	glIsApplnActive
+ 1921 0fbc 00000000 		.word	glForceLinkU2
+ 1922 0fc0 CC050000 		.word	.LC31
+ 1923 0fc4 F4050000 		.word	.LC32
+ 1924              		.cfi_endproc
+ 1925              	.LFE10:
+ 1927              		.align	2
+ 1928              		.global	domDupLPMRequestCB
+ 1930              	domDupLPMRequestCB:
+ 1931              	.LFB11:
+ 672:../domesdayDuplicator.c **** 
+ 673:../domesdayDuplicator.c **** // Callback function to handle LPM requests (unused, always returns true)
+ 674:../domesdayDuplicator.c **** CyBool_t domDupLPMRequestCB(CyU3PUsbLinkPowerMode linkMode)
+ 675:../domesdayDuplicator.c **** {
+ 1932              		.loc 1 675 0
+ 1933              		.cfi_startproc
+ 1934              		@ args = 0, pretend = 0, frame = 8
+ 1935              		@ frame_needed = 1, uses_anonymous_args = 0
+ 1936              		@ link register save eliminated.
+ 1937 0fc8 04B02DE5 		str	fp, [sp, #-4]!
+ 1938              	.LCFI22:
+ 1939              		.cfi_def_cfa_offset 4
+ 1940              		.cfi_offset 11, -4
+ 1941 0fcc 00B08DE2 		add	fp, sp, #0
+ 1942              	.LCFI23:
+ 1943              		.cfi_def_cfa_register 11
+ 1944 0fd0 0CD04DE2 		sub	sp, sp, #12
+ 1945 0fd4 0030A0E1 		mov	r3, r0
+ 1946 0fd8 05304BE5 		strb	r3, [fp, #-5]
+ 676:../domesdayDuplicator.c ****     return CyTrue;
+ 1947              		.loc 1 676 0
+ 1948 0fdc 0130A0E3 		mov	r3, #1
+ 677:../domesdayDuplicator.c **** }
+ 1949              		.loc 1 677 0
+ 1950 0fe0 0300A0E1 		mov	r0, r3
+ 1951 0fe4 00D04BE2 		sub	sp, fp, #0
+ 1952              		@ sp needed
+ 1953 0fe8 04B09DE4 		ldr	fp, [sp], #4
+ 1954 0fec 1EFF2FE1 		bx	lr
+ 1955              		.cfi_endproc
+ 1956              	.LFE11:
+ 1958              	.Letext0:
+ 1959              		.file 2 "c:\\program files (x86)\\cypress\\ez-usb fx3 sdk\\1.3\\arm gcc\\arm-none-eabi\\include\\s
+ 1960              		.file 3 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu3
+ 1961              		.file 4 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyfx
+ 1962              		.file 5 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/tx_p
+ 1963              		.file 6 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/tx_a
+ 1964              		.file 7 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu3
+ 1965              		.file 8 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu3
+ 1966              		.file 9 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu3
+ 1967              		.file 10 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu
+ 1968              		.file 11 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu
+ 1969              		.file 12 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu
+ 1970              		.file 13 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu
+ 1971              		.file 14 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu
+ 1972              		.file 15 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu
+ 1973              		.file 16 "C:\\Program Files (x86)\\Cypress\\EZ-USB FX3 SDK\\1.3\\\\firmware\\u3p_firmware\\inc/cyu
+ 1974              		.file 17 "../domesdayDuplicator.h"
+ 1975              		.file 18 "../domesdayDuplicatorGpif.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 domesdayDuplicator.c
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:21     .data:00000000 CyFxGpifTransition
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:18     .data:00000000 $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:29     .data:00000008 CyFxGpifWavedata
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:46     .data:00000038 CyFxGpifWavedataPosition
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:54     .data:0000003c CyFxGpifRegValue
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:136    .rodata:00000000 CyFxGpifConfig
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:133    .rodata:00000000 $d
+                            *COM*:000000a8 glAppThread
+                            *COM*:000000ac glDmaChHandle
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:154    .bss:00000000 glIsApplnActive
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:151    .bss:00000000 $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:160    .bss:00000004 glForceLinkU2
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:163    .text:00000000 $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:166    .text:00000000 main
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:425    .text:00000264 domDupThreadInitialise
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1423   .text:00000b74 domDupDebugInit
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:702    .text:0000046c domDupInitialiseApplication
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:563    .text:000003b8 $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:577    .text:000003d0 $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:580    .text:000003d0 CyFxApplicationDefine
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:641    .text:00000460 $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:699    .text:0000046c $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1395   .text:00000b58 domDupErrorHandler
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1318   .text:00000ab4 domDupStopApplication
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1056   .text:00000804 domDupStartApplication
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:997    .text:00000794 $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1593   .text:00000cb0 domDupUSBSetupCB
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1814   .text:00000ec4 domDupUSBEventCB
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1930   .text:00000fc8 domDupLPMRequestCB
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1053   .text:00000804 $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1300   .text:00000a84 $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1541   .text:00000c70 GpifDmaEventCB
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1315   .text:00000ab4 $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1386   .text:00000b4c $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1392   .text:00000b58 $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1528   .text:00000c6c $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1538   .text:00000c70 $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1576   .text:00000cac $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1590   .text:00000cb0 $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1789   .text:00000eb0 $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1811   .text:00000ec4 $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1839   .text:00000ef0 $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1847   .text:00000f08 $a
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1918   .text:00000fb0 $d
+C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1927   .text:00000fc8 $a
+                     .debug_frame:00000010 $d
+
+UNDEFINED SYMBOLS
+CyU3PDeviceInit
+CyU3PPibInit
+CyU3PDeviceCacheControl
+CyU3PDeviceConfigureIOMatrix
+CyU3PGpioInit
+CyU3PDeviceGpioOverride
+CyU3PMemSet
+CyU3PGpioSetSimpleConfig
+_tx_initialize_kernel_enter
+CyU3PDebugPrint
+CyU3PUsbGetLinkPowerState
+CyU3PUsbSetLinkPowerState
+_tx_thread_sleep
+CyU3PUsbGetSpeed
+CyU3PMemAlloc
+_txe_thread_create
+CyU3PUsbStart
+CyU3PUsbRegisterSetupCallback
+CyU3PUsbRegisterEventCallback
+CyU3PUsbRegisterLPMRequestCallback
+CyU3PUsbSetDesc
+CyU3PConnectState
+USB30DeviceDscr
+USB20DeviceDscr
+USBBOSDscr
+USBDeviceQualDscr
+USBSSConfigDscr
+USBHSConfigDscr
+USBFSConfigDscr
+USBStringLangIDDscr
+USBManufactureDscr
+USBProductDscr
+CyU3PSetEpConfig
+CyU3PUsbFlushEp
+CyU3PDmaChannelCreate
+CyU3PDmaChannelSetXfer
+CyU3PGpifLoad
+CyU3PGpifRegisterCallback
+CyU3PGpifSocketConfigure
+CyU3PGpifSMStart
+CyU3PGpifDisable
+CyU3PPibDeInit
+CyU3PDmaChannelDestroy
+CyU3PUartInit
+CyU3PUartSetConfig
+CyU3PUartTxSetBlockXfer
+CyU3PDebugInit
+CyU3PDebugPreamble
+CyU3PGpioSetValue
+CyU3PUsbAckSetup
+CyU3PUsbStall
+CyU3PDmaChannelReset
+CyU3PUsbResetEp
