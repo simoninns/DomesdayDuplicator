@@ -40,8 +40,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 3 4
 Title "Domesday Duplicator"
-Date "2017-11-02"
-Rev "1.3"
+Date "2017-11-04"
+Rev "1.4"
 Comp "http://www.domesday86.com"
 Comment1 "(c)2017 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -143,28 +143,17 @@ Wire Wire Line
 $Comp
 L C C10
 U 1 1 59D2039F
-P 2600 3750
-F 0 "C10" H 2625 3850 50  0000 L CNN
-F 1 "100nF" H 2625 3650 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 2638 3600 50  0001 C CNN
-F 3 "" H 2600 3750 50  0001 C CNN
-	1    2600 3750
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	2600 2700 2600 3600
-Connection ~ 5550 4250
-$Comp
-L C C13
-U 1 1 59D204A9
 P 2900 3750
-F 0 "C13" H 2925 3850 50  0000 L CNN
+F 0 "C10" H 2925 3850 50  0000 L CNN
 F 1 "100nF" H 2925 3650 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0805_HandSoldering" H 2938 3600 50  0001 C CNN
 F 3 "" H 2900 3750 50  0001 C CNN
 	1    2900 3750
 	1    0    0    -1  
 $EndComp
+Wire Wire Line
+	2900 2700 2900 3600
+Connection ~ 5550 4250
 $Comp
 L C C19
 U 1 1 59D204E6
@@ -714,10 +703,10 @@ Wire Wire Line
 Connection ~ 9650 4850
 Connection ~ 8850 4550
 Wire Wire Line
-	2600 3900 2600 4250
-Connection ~ 2600 4250
+	2900 3900 2900 4250
+Connection ~ 2900 4250
 Wire Wire Line
-	5700 2700 2600 2700
+	2900 2700 5700 2700
 $Comp
 L CP C16
 U 1 1 59FB4859
@@ -762,16 +751,6 @@ F 3 "" H 4900 3750 50  0001 C CNN
 	1    4900 3750
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	2900 3600 2900 2800
-Wire Wire Line
-	2900 2800 5700 2800
-Wire Wire Line
-	3200 3600 3200 2800
-Connection ~ 3200 2800
-Wire Wire Line
-	2900 3900 2900 4250
-Connection ~ 2900 4250
 Wire Wire Line
 	3200 3900 3200 4250
 Connection ~ 3200 4250
@@ -837,4 +816,12 @@ Wire Wire Line
 	7400 3900 7800 3900
 NoConn ~ 8950 4250
 NoConn ~ 10350 4250
+Wire Wire Line
+	3200 3600 3200 2700
+Connection ~ 3200 2700
+Wire Wire Line
+	5700 2800 5550 2800
+Wire Wire Line
+	5550 2800 5550 2700
+Connection ~ 5550 2700
 $EndSCHEMATC

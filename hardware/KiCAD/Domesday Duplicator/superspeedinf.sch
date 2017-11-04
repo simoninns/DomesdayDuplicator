@@ -40,8 +40,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 4
 Title "Domesday Duplicator"
-Date "2017-11-02"
-Rev "1.3"
+Date "2017-11-04"
+Rev "1.4"
 Comp "http://www.domesday86.com"
 Comment1 "(c)2017 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
