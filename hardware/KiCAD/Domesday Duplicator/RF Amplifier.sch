@@ -40,8 +40,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 4 4
 Title "Domesday Duplicator"
-Date "2017-11-04"
-Rev "1.4"
+Date "2017-11-07"
+Rev "1.5"
 Comp "http://www.domesday86.com"
 Comment1 "(c)2017 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -234,7 +234,7 @@ L C C27
 U 1 1 59D28506
 P 7200 3750
 F 0 "C27" H 7225 3850 50  0000 L CNN
-F 1 "10pF" H 7225 3650 50  0000 L CNN
+F 1 "220pF (1%)" H 7225 3650 50  0000 L CNN
 F 2 "Capacitors_SMD:C_0805_HandSoldering" H 7238 3600 50  0001 C CNN
 F 3 "" H 7200 3750 50  0001 C CNN
 	1    7200 3750
@@ -310,4 +310,6 @@ Wire Wire Line
 Connection ~ 3500 6100
 Text Notes 6800 4350 2    60   ~ 0
 Gain = 6.45x
+Text Notes 6750 3350 0    60   ~ 0
+Anti-alias filter cut-off frequency is\n15.39 MHz (RC low-pass R6 and C27)
 $EndSCHEMATC
