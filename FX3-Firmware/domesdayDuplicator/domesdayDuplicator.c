@@ -158,11 +158,11 @@ void domDupThreadInitialise(uint32_t input)
     CyU3PReturnStatus_t status;
     CyU3PUsbLinkPowerMode powerState;
 
-    uint32_t debugPause = 0;
+//    uint32_t debugPause = 0;
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware\r\n");
+    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - V1.1b\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - domesday86.com\r\n");
     CyU3PDebugPrint(1, "Debug console initialised\r\n");
 
@@ -194,11 +194,11 @@ void domDupThreadInitialise(uint32_t input)
         }
 
         // Output application heart beat character to debug console
-        debugPause++;
-        if (debugPause == 1000000) {
-        	CyU3PDebugPrint(1, "*");
-        	debugPause = 0;
-        }
+//        debugPause++;
+//        if (debugPause == 1000000) {
+//        	CyU3PDebugPrint(1, "*");
+//        	debugPause = 0;
+//        }
     }
 }
 
@@ -378,6 +378,12 @@ void domDupStartApplication(void)
         break;
     }
 
+    // Check that we are connected to a USB 3 host
+    if (usbSpeed != CY_U3P_SUPER_SPEED) {
+    	CyU3PDebugPrint (4, "ERROR: USB 2 is not supported, connect device to a USB 3 port!\r\n");
+    	domDupErrorHandler (CY_U3P_ERROR_FAILURE);
+    }
+
     CyU3PMemSet ((uint8_t *)&epCfg, 0, sizeof (epCfg));
     epCfg.enable = CyTrue;
     epCfg.epType = CY_U3P_USB_EP_BULK;
@@ -399,11 +405,11 @@ void domDupStartApplication(void)
     CyU3PMemSet ((uint8_t *)&dmaConfig, 0, sizeof (dmaConfig));
     dmaConfig.size  = CY_FX_DMA_BUF_SIZE;
     dmaConfig.count = CY_FX_DMA_BUF_COUNT;
-    dmaConfig.prodSckId = CY_FX_GPIF_PRODUCER_SOCKET0;
+    dmaConfig.prodSckId = CY_FX_EP_PRODUCER_SOCKET;
     dmaConfig.consSckId = CY_FX_EP_CONSUMER_SOCKET;
     dmaConfig.dmaMode = CY_U3P_DMA_MODE_BYTE;
 
-    apiReturnStatus = CyU3PDmaChannelCreate (&glDmaChHandle, CY_U3P_DMA_TYPE_AUTO, &dmaConfig);
+    apiReturnStatus = CyU3PDmaChannelCreate(&glDmaChHandle, CY_U3P_DMA_TYPE_AUTO, &dmaConfig);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
         CyU3PDebugPrint(4, "CyU3PDmaChannelCreate failed, Error code = %d\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
@@ -432,7 +438,7 @@ void domDupStartApplication(void)
     // flag is sampled asserted = (3 x (32/16)) – 4 = 2
 
     // Set the thread 0 water-mark level to 1x 32 bit word
-    apiReturnStatus = CyU3PGpifSocketConfigure(0, CY_FX_GPIF_PRODUCER_SOCKET0, 3, CyFalse, 1);
+    apiReturnStatus = CyU3PGpifSocketConfigure(0, CY_FX_EP_PRODUCER_SOCKET, 3, CyFalse, 1);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
 		CyU3PDebugPrint(4, "CyU3PGpifSocketConfigure failed for thread0, error code = %d\n", apiReturnStatus);
 		domDupErrorHandler (apiReturnStatus);
@@ -487,7 +493,7 @@ void domDupErrorHandler(CyU3PReturnStatus_t apiReturnStatus)
 {
 	// Application failed; loop forever
     while(1) {
-        CyU3PThreadSleep (100);
+        CyU3PThreadSleep(100);
     }
 }
 

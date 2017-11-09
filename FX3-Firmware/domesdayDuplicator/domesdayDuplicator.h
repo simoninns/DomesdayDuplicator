@@ -47,7 +47,7 @@
 // End-point and socket definitions
 #define CY_FX_EP_CONSUMER               0x81
 #define CY_FX_EP_CONSUMER_SOCKET        CY_U3P_UIB_SOCKET_CONS_1
-#define CY_FX_GPIF_PRODUCER_SOCKET0     CY_U3P_PIB_SOCKET_0
+#define CY_FX_EP_PRODUCER_SOCKET		CY_U3P_PIB_SOCKET_0
 
 // Set USB 3 burst length to 16K
 #define CY_FX_EP_BURST_LENGTH           (16)
