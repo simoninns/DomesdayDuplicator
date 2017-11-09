@@ -2765,51 +2765,51 @@
  1975              		.file 18 "../domesdayDuplicatorGpif.h"
 DEFINED SYMBOLS
                             *ABS*:00000000 domesdayDuplicator.c
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:21     .data:00000000 CyFxGpifTransition
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:18     .data:00000000 $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:29     .data:00000008 CyFxGpifWavedata
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:46     .data:00000038 CyFxGpifWavedataPosition
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:54     .data:0000003c CyFxGpifRegValue
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:136    .rodata:00000000 CyFxGpifConfig
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:133    .rodata:00000000 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:21     .data:00000000 CyFxGpifTransition
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:18     .data:00000000 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:29     .data:00000008 CyFxGpifWavedata
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:46     .data:00000038 CyFxGpifWavedataPosition
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:54     .data:0000003c CyFxGpifRegValue
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:136    .rodata:00000000 CyFxGpifConfig
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:133    .rodata:00000000 $d
                             *COM*:000000a8 glAppThread
                             *COM*:000000ac glDmaChHandle
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:154    .bss:00000000 glIsApplnActive
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:151    .bss:00000000 $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:160    .bss:00000004 glForceLinkU2
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:163    .text:00000000 $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:166    .text:00000000 main
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:425    .text:00000264 domDupThreadInitialise
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1423   .text:00000b74 domDupDebugInit
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:702    .text:0000046c domDupInitialiseApplication
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:563    .text:000003b8 $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:577    .text:000003d0 $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:580    .text:000003d0 CyFxApplicationDefine
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:641    .text:00000460 $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:699    .text:0000046c $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1395   .text:00000b58 domDupErrorHandler
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1318   .text:00000ab4 domDupStopApplication
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1056   .text:00000804 domDupStartApplication
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:997    .text:00000794 $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1593   .text:00000cb0 domDupUSBSetupCB
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1814   .text:00000ec4 domDupUSBEventCB
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1930   .text:00000fc8 domDupLPMRequestCB
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1053   .text:00000804 $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1300   .text:00000a84 $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1541   .text:00000c70 GpifDmaEventCB
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1315   .text:00000ab4 $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1386   .text:00000b4c $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1392   .text:00000b58 $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1528   .text:00000c6c $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1538   .text:00000c70 $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1576   .text:00000cac $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1590   .text:00000cb0 $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1789   .text:00000eb0 $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1811   .text:00000ec4 $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1839   .text:00000ef0 $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1847   .text:00000f08 $a
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1918   .text:00000fb0 $d
-C:\Users\simon\AppData\Local\Temp\ccYagEPR.s:1927   .text:00000fc8 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:154    .bss:00000000 glIsApplnActive
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:151    .bss:00000000 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:160    .bss:00000004 glForceLinkU2
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:163    .text:00000000 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:166    .text:00000000 main
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:425    .text:00000264 domDupThreadInitialise
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1423   .text:00000b74 domDupDebugInit
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:702    .text:0000046c domDupInitialiseApplication
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:563    .text:000003b8 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:577    .text:000003d0 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:580    .text:000003d0 CyFxApplicationDefine
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:641    .text:00000460 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:699    .text:0000046c $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1395   .text:00000b58 domDupErrorHandler
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1318   .text:00000ab4 domDupStopApplication
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1056   .text:00000804 domDupStartApplication
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:997    .text:00000794 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1593   .text:00000cb0 domDupUSBSetupCB
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1814   .text:00000ec4 domDupUSBEventCB
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1930   .text:00000fc8 domDupLPMRequestCB
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1053   .text:00000804 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1300   .text:00000a84 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1541   .text:00000c70 GpifDmaEventCB
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1315   .text:00000ab4 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1386   .text:00000b4c $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1392   .text:00000b58 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1528   .text:00000c6c $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1538   .text:00000c70 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1576   .text:00000cac $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1590   .text:00000cb0 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1789   .text:00000eb0 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1811   .text:00000ec4 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1839   .text:00000ef0 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1847   .text:00000f08 $a
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1918   .text:00000fb0 $d
+C:\Users\simon\AppData\Local\Temp\ccSk6i2h.s:1927   .text:00000fc8 $a
                      .debug_frame:00000010 $d
 
 UNDEFINED SYMBOLS
