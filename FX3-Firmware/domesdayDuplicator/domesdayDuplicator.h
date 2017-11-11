@@ -20,6 +20,7 @@
 
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 	Email: simon.inns@gmail.com
 
 ************************************************************************/
@@ -33,10 +34,8 @@
 #include "cyu3externcstart.h"
 #include "cyu3gpif.h"
 
-#define CY_FX_GPIFTOUSB_DMA_TX_SIZE        (0) 		// DMA transfer size is set to infinite
 #define CY_FX_GPIFTOUSB_THREAD_STACK       (0x1000) // Application thread stack size
 #define CY_FX_GPIFTOUSB_THREAD_PRIORITY    (8) 		// Application thread priority
-#define CY_FX_GPIFTOUSB_PATTERN            (0xAA) 	// 8-bit pattern to be loaded into the source buffers
 
 // Define Event Flag values
 // First 22 Events are defined in cyu3usb.h at "typedef enum CyU3PUsbEventType_t"
@@ -69,7 +68,6 @@ extern const uint8_t USBSSConfigDscr[];
 extern const uint8_t USBStringLangIDDscr[];
 extern const uint8_t USBManufactureDscr[];
 extern const uint8_t USBProductDscr[];
-extern const uint8_t USBOSDscr[];
 
 #include <cyu3externcend.h>
 
@@ -82,6 +80,7 @@ void domDupStopApplication(void);
 void domDupErrorHandler(CyU3PReturnStatus_t apiReturnStatus);
 void domDupDebugInit(void);
 
+// Callback function prototypes
 void GpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State);
 CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1);
 void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData);

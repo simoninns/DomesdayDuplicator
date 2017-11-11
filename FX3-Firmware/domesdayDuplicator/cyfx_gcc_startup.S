@@ -46,9 +46,9 @@ __user_initial_stackheap:
 # No heap is expected to be used by USB 3.0 platform drivers.
 # Place them as required by the user code
 .if  INTER == TRUE
-    bx      lr                 
+    bx      lr
 .else
-    mov     pc, lr             
+    mov     pc, lr
 .endif
 
 .end

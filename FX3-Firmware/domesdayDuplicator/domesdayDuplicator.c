@@ -20,6 +20,7 @@
 
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 	Email: simon.inns@gmail.com
 
 ************************************************************************/
@@ -162,7 +163,7 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - V1.1b\r\n");
+    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - V1.2b\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - domesday86.com\r\n");
     CyU3PDebugPrint(1, "Debug console initialised\r\n");
 
@@ -330,7 +331,7 @@ void domDupInitialiseApplication(void)
     }
 
     // Show status in debug console
-    CyU3PDebugPrint (4, "Initialisation successfull; Connecting to host\r\n");
+    CyU3PDebugPrint (4, "Initialisation successful; Connecting to host\r\n");
 
     // Connect to the host
     if (!noRenum) {
@@ -435,7 +436,7 @@ void domDupStartApplication(void)
 
     // Watermark value = 3, bus width = 16
     // Therefore, the number of 16-bit data words that may be written after the clock edge at which the partial
-    // flag is sampled asserted = (3 x (32/16)) – 4 = 2
+    // flag is sampled asserted = (3 x (32/16)) Â– 4 = 2
 
     // Set the thread 0 water-mark level to 1x 32 bit word
     apiReturnStatus = CyU3PGpifSocketConfigure(0, CY_FX_EP_PRODUCER_SOCKET, 3, CyFalse, 1);
@@ -681,6 +682,3 @@ CyBool_t domDupLPMRequestCB(CyU3PUsbLinkPowerMode linkMode)
 {
     return CyTrue;
 }
-
-
-
