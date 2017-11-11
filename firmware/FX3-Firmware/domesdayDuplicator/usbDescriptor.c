@@ -20,11 +20,19 @@
 
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 	Email: simon.inns@gmail.com
 
 ************************************************************************/
 
 #include "domesdayDuplicator.h"
+
+// VID and PID definition
+#define VID_H	0x1D
+#define VID_L	0x50
+
+#define PID_H	0x60
+#define PID_L	0x3B
 
 // Standard device descriptor for USB 3.0
 const uint8_t USB30DeviceDscr[] __attribute__ ((aligned (32))) = {
@@ -35,8 +43,8 @@ const uint8_t USB30DeviceDscr[] __attribute__ ((aligned (32))) = {
     0x00,                           // Device sub-class
     0x00,                           // Device protocol
     0x09,                           // Maximum packet size for EP0 : 2^9
-    0xB4,0x04,                      // Vendor ID
-    0xF1,0x00,                      // Product ID
+    VID_L,VID_H,                    // Vendor ID
+    PID_L,PID_H,                    // Product ID
     0x00,0x00,                      // Device release number
     0x01,                           // Manufacture string index
     0x02,                           // Product string index
@@ -53,8 +61,8 @@ const uint8_t USB20DeviceDscr[] __attribute__ ((aligned (32))) = {
     0x00,                           // Device sub-class
     0x00,                           // Device protocol
     0x40,                           // Maximum packet size for EP0 : 64 bytes
-    0xB4,0x04,                      // Vendor ID
-    0xF1,0x00,                      // Product ID
+    VID_L,VID_H,                    // Vendor ID
+    PID_L,PID_H,                    // Product ID
     0x00,0x00,                      // Device release number
     0x01,                           // Manufacture string index
     0x02,                           // Product string index
@@ -250,19 +258,5 @@ const uint8_t USBProductDscr[] __attribute__ ((aligned (32))) = {
 	'r',0x00
 };
 
-// Microsoft OS Descriptor.
-const uint8_t USBOSDscr[] __attribute__ ((aligned (32))) = {
-    0x0E,							// Descriptor size
-    CY_U3P_USB_STRING_DESCR,		// Device descriptor type (2 bytes)
-    'O', 0x00,
-    'S', 0x00,
-    ' ', 0x00,
-    'D', 0x00,
-    'e', 0x00,
-    's', 0x00,
-    'c', 0x00
-};
-
 // No more code after this line!
 const uint8_t CyFxUsbDscrAlignBuffer[32] __attribute__ ((aligned (32)));
-

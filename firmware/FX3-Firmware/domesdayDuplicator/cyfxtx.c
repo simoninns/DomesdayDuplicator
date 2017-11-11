@@ -107,8 +107,8 @@ tx_application_define (
 }
 
 /* This function initializes the custom heap for OS specific dynamic memory allocation.
- * The function should not be explicitly invoked. This function is called from the 
- * API library. Modify this function depending upon the heap requirement of 
+ * The function should not be explicitly invoked. This function is called from the
+ * API library. Modify this function depending upon the heap requirement of
  * application code. The minimum required value is specified by the predefined macro.
  * Any value less than specified can cause the drivers to stop functioning.
  * The function creates a global byte pool.
@@ -187,7 +187,7 @@ CyU3PMemSet (
 
 void
 CyU3PMemCopy (
-        uint8_t *dest, 
+        uint8_t *dest,
         uint8_t *src,
         uint32_t count)
 {
@@ -216,10 +216,10 @@ CyU3PMemCopy (
     }
 }
 
-int32_t 
+int32_t
 CyU3PMemCmp (
         const void* s1,
-        const void* s2, 
+        const void* s2,
         uint32_t n)
 {
     const uint8_t *ptr1 = s1, *ptr2 = s2;
@@ -230,14 +230,14 @@ CyU3PMemCmp (
         {
             return *ptr1 - *ptr2;
         }
-        
+
         ptr1++;
         ptr2++;
-    }  
+    }
     return 0;
 }
 
-/* This function shall be invoked by the API library 
+/* This function shall be invoked by the API library
  * and should not be explicitly invoked.
  * If other buffer sizes are required by the application code, this function must
  * be modified to create other block pools.
@@ -293,7 +293,7 @@ CyU3PDmaBufferInit (
     glBufferManager.searchPos  = 0;
 }
 
-/* This function shall be invoked by the API library 
+/* This function shall be invoked by the API library
  * and should not be explicitly invoked.
  */
 void
@@ -539,4 +539,3 @@ CyU3PFreeHeaps (
 }
 
 /* [ ] */
-

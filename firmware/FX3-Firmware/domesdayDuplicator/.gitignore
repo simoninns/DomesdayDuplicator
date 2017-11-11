@@ -1,3 +1,5 @@
+# .project and .classpath should be under version control!
+
 .metadata
 bin/
 tmp/
@@ -20,7 +22,7 @@ local.properties
 *.pydevproject
 
 # CDT-specific (C/C++ Development Tooling)
-#.cproject
+.cproject
 
 # Java annotation processor (APT)
 .factorypath

@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS :=
+LIBS := -lcyu3lpp -lcyfxapi -lcyu3threadx -lc -lgcc
 
