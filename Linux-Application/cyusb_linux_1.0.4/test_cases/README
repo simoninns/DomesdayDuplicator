@@ -1,0 +1,9 @@
+This directory contains code to generate sample data for testing purposes.
+
+The program create will ask a few questions interactively and generate a sufficiently large
+binary file with data. The data can be fixed or variable (random) and the random number seed
+is generated using the gettimeofday() function to generate different random data every time,
+or data can auto-increment from a start value until it rolls over at oxff.
+
+You can use od -x <filename> to display contents in hexadecimal.
+

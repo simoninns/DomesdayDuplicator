@@ -1,0 +1,21 @@
+
+                        CYPRESS SEMICONDUCTOR CORPORATION
+                                    FX3 SDK
+
+USB ISOLOOP-MANUAL_IN_OUT EXAMPLE
+-------------------------------
+
+  This is another variant of the USB isochronous loopback application that
+  shows the use of the ARM9 CPU as a source or sink for data exchanged with
+  the USB host.
+  
+  Though the functionality implemented is the same as the other loopback
+  examples, the implementation is different. In this case, the data received
+  on the 3-OUT endpoint is received by the firmware application, copied into
+  another data buffer and then sent to the USB host through the 3-IN endpoint.
+
+  Two separate DMA channels are used to implement the data path for the two
+  endpoints, and there is no connectivity established at the hardware level
+  between the two endpoints.
+
+
