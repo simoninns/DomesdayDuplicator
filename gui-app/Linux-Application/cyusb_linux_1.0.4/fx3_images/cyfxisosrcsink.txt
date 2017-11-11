@@ -1,0 +1,21 @@
+
+                        CYPRESS SEMICONDUCTOR CORPORATION
+                                    FX3 SDK
+
+USB ISO SOURCE SINK EXAMPLE
+-------------------------------
+
+  This example illustrates the use of the FX3 firmware APIs to implement
+  a data source and data sink over a pair of USB Iso endpoints.
+
+  The device enumerates as a vendor specific USB device with a pair of Iso
+  endpoints (3-OUT and 3-IN). The OUT endpoint acts as data sink and the IN
+  endpoint acts as data source to the PC Host.
+
+  The source and sink is achieved with the help of a a DMA MANUAL_IN channel 
+  and a DMA MANUAL_OUT channel. Any data received from the host through the 
+  DMA MANUAL_IN channel is discarded. A constant data pattern is continuously
+  loaded into the DMA MANUAL_OUT channel and sent to the host. 
+
+
+

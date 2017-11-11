@@ -1,0 +1,23 @@
+
+                        CYPRESS SEMICONDUCTOR CORPORATION
+                                    FX3 SDK
+
+USB ISOLOOP-AUTO EXAMPLE
+-------------------------
+
+  This example illustrates the use of the FX3 firmware APIs to implement
+  a data loopback application over a pair of USB isochronous endpoints.
+
+  The device enumerates as a vendor specific USB device with a pair of isochronous
+  endpoints (3-OUT and 3-IN).  The application loops back any data that it
+  receives on the isochronous OUT endpoint on the isochronous IN endpoint.
+
+  The mult settings is enabled only for USB SS and USB HS operations.
+  USB FS functions with a smaller EP size and single packet per microframe.
+
+  The loopback is achieved with the help of a DMA AUTO channel which is
+  created connecting the two endpoints.  There is no FX3 CPU involvement
+  in the data transfer, and the loopback is performed automatically by the
+  FX3 device hardware.
+
+

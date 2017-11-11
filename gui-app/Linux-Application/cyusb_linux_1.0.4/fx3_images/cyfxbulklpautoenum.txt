@@ -1,0 +1,22 @@
+
+                        CYPRESS SEMICONDUCTOR CORPORATION
+                                    FX3 SDK
+
+USB BULKLOOP-AUTO NORMAL ENUMERATION EXAMPLE
+-------------------------
+
+  This example illustrates the use of the FX3 firmware APIs to implement
+  a data loopback application over a pair of USB bulk endpoints.
+
+  The device enumerates as a vendor specific USB device with a pair of bulk
+  endpoints (1-OUT and 1-IN).  The application loops back any data that it
+  receives on the bulk OUT endpoint on the bulk IN endpoint.
+
+  The loopback is achieved with the help of a DMA AUTO channel which is
+  created connecting the two endpoints.  There is no FX3 CPU involvement
+  in the data transfer, and the loopback is performed automatically by the
+  FX3 device hardware.
+
+  This example uses normal enumeration. All setup packets are handled by
+  the application.
+
