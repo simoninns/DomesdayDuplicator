@@ -10583,69 +10583,69 @@ END GROUP
  .text.main     0x400035f8      0x1f0 ./domesdayDuplicator.o
                 0x400035f8                main
  .text.domDupThreadInitialise
-                0x400037e8       0xe0 ./domesdayDuplicator.o
+                0x400037e8       0xdc ./domesdayDuplicator.o
                 0x400037e8                domDupThreadInitialise
  .text.CyFxApplicationDefine
-                0x400038c8       0x6c ./domesdayDuplicator.o
-                0x400038c8                CyFxApplicationDefine
+                0x400038c4       0x6c ./domesdayDuplicator.o
+                0x400038c4                CyFxApplicationDefine
  .text.domDupInitialiseApplication
-                0x40003934      0x2dc ./domesdayDuplicator.o
-                0x40003934                domDupInitialiseApplication
+                0x40003930      0x2dc ./domesdayDuplicator.o
+                0x40003930                domDupInitialiseApplication
  .text.domDupStartApplication
-                0x40003c10      0x24c ./domesdayDuplicator.o
-                0x40003c10                domDupStartApplication
+                0x40003c0c      0x24c ./domesdayDuplicator.o
+                0x40003c0c                domDupStartApplication
  .text.domDupStopApplication
-                0x40003e5c       0x78 ./domesdayDuplicator.o
-                0x40003e5c                domDupStopApplication
+                0x40003e58       0x78 ./domesdayDuplicator.o
+                0x40003e58                domDupStopApplication
  .text.domDupErrorHandler
-                0x40003ed4       0x10 ./domesdayDuplicator.o
-                0x40003ed4                domDupErrorHandler
+                0x40003ed0       0x10 ./domesdayDuplicator.o
+                0x40003ed0                domDupErrorHandler
  .text.domDupDebugInit
-                0x40003ee4       0xb8 ./domesdayDuplicator.o
-                0x40003ee4                domDupDebugInit
+                0x40003ee0       0xb8 ./domesdayDuplicator.o
+                0x40003ee0                domDupDebugInit
  .text.GpifDmaEventCB
-                0x40003f9c       0x30 ./domesdayDuplicator.o
-                0x40003f9c                GpifDmaEventCB
+                0x40003f98       0x30 ./domesdayDuplicator.o
+                0x40003f98                GpifDmaEventCB
  .text.domDupUSBSetupCB
-                0x40003fcc      0x1a0 ./domesdayDuplicator.o
-                0x40003fcc                domDupUSBSetupCB
+                0x40003fc8      0x1a0 ./domesdayDuplicator.o
+                0x40003fc8                domDupUSBSetupCB
  .text.domDupUSBEventCB
-                0x4000416c       0xb8 ./domesdayDuplicator.o
-                0x4000416c                domDupUSBEventCB
+                0x40004168       0xb8 ./domesdayDuplicator.o
+                0x40004168                domDupUSBEventCB
  .text.domDupLPMRequestCB
-                0x40004224       0x18 ./domesdayDuplicator.o
-                0x40004224                domDupLPMRequestCB
- .text          0x4000423c       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_return.o)
-                0x4000423c                _tx_thread_system_return
- .text          0x4000428c       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_schedule.o)
-                0x4000428c                _tx_thread_schedule
- .text          0x400042f8       0xf0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_interrupt.o)
-                0x400042f8                _tx_timer_interrupt
- .text          0x400043e8       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_low_level.o)
-                0x400043e8                _tx_initialize_low_level
- .text          0x40004424       0x78 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_build.o)
-                0x40004424                _tx_thread_stack_build
- .text          0x4000449c       0x10 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/../../../../arm-none-eabi/lib/thumb/libc.a(lib_a-strcpy.o)
-                0x4000449c                strcpy
- .text          0x400044ac       0x10 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/../../../../arm-none-eabi/lib/thumb/libc.a(lib_a-strlen.o)
-                0x400044ac                strlen
- .text          0x400044bc      0x11c /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_udivsi3.o)
-                0x400044bc                __udivsi3
-                0x400044bc                __aeabi_uidiv
-                0x400045b8                __aeabi_uidivmod
- .text          0x400045d8      0x150 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_divsi3.o)
-                0x400045d8                __aeabi_idiv
-                0x400045d8                __divsi3
-                0x40004708                __aeabi_idivmod
- .text          0x40004728        0x4 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_dvmd_tls.o)
-                0x40004728                __aeabi_ldiv0
-                0x40004728                __aeabi_idiv0
+                0x40004220       0x18 ./domesdayDuplicator.o
+                0x40004220                domDupLPMRequestCB
+ .text          0x40004238       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_return.o)
+                0x40004238                _tx_thread_system_return
+ .text          0x40004288       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_schedule.o)
+                0x40004288                _tx_thread_schedule
+ .text          0x400042f4       0xf0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_interrupt.o)
+                0x400042f4                _tx_timer_interrupt
+ .text          0x400043e4       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_low_level.o)
+                0x400043e4                _tx_initialize_low_level
+ .text          0x40004420       0x78 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_build.o)
+                0x40004420                _tx_thread_stack_build
+ .text          0x40004498       0x10 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/../../../../arm-none-eabi/lib/thumb/libc.a(lib_a-strcpy.o)
+                0x40004498                strcpy
+ .text          0x400044a8       0x10 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/../../../../arm-none-eabi/lib/thumb/libc.a(lib_a-strlen.o)
+                0x400044a8                strlen
+ .text          0x400044b8      0x11c /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_udivsi3.o)
+                0x400044b8                __udivsi3
+                0x400044b8                __aeabi_uidiv
+                0x400045b4                __aeabi_uidivmod
+ .text          0x400045d4      0x150 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_divsi3.o)
+                0x400045d4                __aeabi_idiv
+                0x400045d4                __divsi3
+                0x40004704                __aeabi_idivmod
+ .text          0x40004724        0x4 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_dvmd_tls.o)
+                0x40004724                __aeabi_ldiv0
+                0x40004724                __aeabi_idiv0
  *(.rodata*)
  .rodata.CyFxGpifConfig
-                0x4000472c       0x1c ./domesdayDuplicator.o
-                0x4000472c                CyFxGpifConfig
- .rodata        0x40004748      0x63c ./domesdayDuplicator.o
- *fill*         0x40004d84       0x1c 
+                0x40004728       0x1c ./domesdayDuplicator.o
+                0x40004728                CyFxGpifConfig
+ .rodata        0x40004744      0x648 ./domesdayDuplicator.o
+ *fill*         0x40004d8c       0x14 
  .rodata.USB30DeviceDscr
                 0x40004da0       0x20 ./usbDescriptor.o
                 0x40004da0                USB30DeviceDscr
@@ -13528,24 +13528,24 @@ OUTPUT(domesdayDuplicator.elf elf32-littlearm)
  .arm_vfe_header
                 0x00000194        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_cleanup.o)
 
-.debug_line     0x00000000     0x163a
+.debug_line     0x00000000     0x1639
  .debug_line    0x00000000       0x53 ./cyfx_gcc_startup.o
  .debug_line    0x00000053      0x544 ./cyfxtx.o
- .debug_line    0x00000597      0x659 ./domesdayDuplicator.o
- .debug_line    0x00000bf0      0x33a ./usbDescriptor.o
- .debug_line    0x00000f2a       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
- .debug_line    0x00000faa       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
- .debug_line    0x00000ffa       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
- .debug_line    0x000010da      0x194 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3isr_armcc.o)
- .debug_line    0x0000126e       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_return.o)
- .debug_line    0x000012d6       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_schedule.o)
- .debug_line    0x0000133a       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_vectored_context_save.o)
- .debug_line    0x000013a6       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_interrupt.o)
- .debug_line    0x00001432       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_context_restore.o)
- .debug_line    0x000014ce       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_irq_nesting_end.o)
- .debug_line    0x00001522       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_irq_nesting_start.o)
- .debug_line    0x0000157a       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_low_level.o)
- .debug_line    0x000015d2       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_build.o)
+ .debug_line    0x00000597      0x658 ./domesdayDuplicator.o
+ .debug_line    0x00000bef      0x33a ./usbDescriptor.o
+ .debug_line    0x00000f29       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
+ .debug_line    0x00000fa9       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
+ .debug_line    0x00000ff9       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+ .debug_line    0x000010d9      0x194 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3isr_armcc.o)
+ .debug_line    0x0000126d       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_return.o)
+ .debug_line    0x000012d5       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_schedule.o)
+ .debug_line    0x00001339       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_vectored_context_save.o)
+ .debug_line    0x000013a5       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_interrupt.o)
+ .debug_line    0x00001431       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_context_restore.o)
+ .debug_line    0x000014cd       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_irq_nesting_end.o)
+ .debug_line    0x00001521       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_irq_nesting_start.o)
+ .debug_line    0x00001579       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_low_level.o)
+ .debug_line    0x000015d1       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_build.o)
 
 .debug_info     0x00000000     0x3323
  .debug_info    0x00000000       0x8e ./cyfx_gcc_startup.o
