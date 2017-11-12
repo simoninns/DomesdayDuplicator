@@ -1,3 +1,30 @@
+/************************************************************************
+
+    usbdevice.cpp
+
+    QT/Linux RF Capture application USB device functions
+    DomesdayDuplicator - LaserDisc RF sampler
+    Copyright (C) 2017 Simon Inns
+
+    This file is part of Domesday Duplicator.
+
+    Domesday Duplicator is free software: you can redistribute it and/or
+    modify it under the terms of the GNU General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Email: simon.inns@gmail.com
+
+************************************************************************/
+
 #include "usbdevice.h"
 
 // Class constructor
@@ -7,7 +34,7 @@ usbDevice::usbDevice()
     usbDeviceOpenFlag = false;
     numberOfDevices = 0;
     selectedDevice = 0;
-    transferFlag = false;
+    transferInProgressFlag = false;
 }
 
 // Class destructor
@@ -104,11 +131,11 @@ void usbDevice::startTransfer(void)
         return;
     }
 
-    if (transferFlag) {
+    if (transferInProgressFlag) {
         // Transfer already in progress!
         qDebug() << "usbDevice::startTransfer(): Called, but transfer is already in progress";
     } else {
-        transferFlag = true;
+        transferInProgressFlag = true;
         qDebug() << "usbDevice::startTransfer(): Transfer starting";
 
         // Set vendor specific (0x40) request 0xB5 with value 1 to start USB device transfer
@@ -129,11 +156,11 @@ void usbDevice::startTransfer(void)
 // Stop transfer of data from device
 void usbDevice::stopTransfer(void)
 {
-    if (!transferFlag) {
+    if (!transferInProgressFlag) {
         // Transfer not in progress!
         qDebug() << "usbDevice::stopTransfer(): Called, but transfer is not in progress";
     } else {
-        transferFlag = false;
+        transferInProgressFlag = false;
         qDebug() << "usbDevice::stopTransfer(): Transfer stopping";
 
         // Set vendor specific request 0xB5 with value 0 to stop USB device transfer
