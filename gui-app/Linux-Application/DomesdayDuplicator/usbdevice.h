@@ -30,6 +30,8 @@
 
 #include <QDebug>
 #include <QByteArray>
+#include <QFile>
+#include <QtConcurrent/QtConcurrent>
 
 // Include the USB library wrapper
 #include <cyusb.h>
@@ -45,7 +47,7 @@ public:
     void startTransfer(void);
     void stopTransfer(void);
     bool isTransferInProgress();
-    void transferBulkInBlock(void);
+    void transferData(void);
 
 private:
     bool usbDeviceOpenFlag;
@@ -54,8 +56,7 @@ private:
     bool transferInProgressFlag;
     void showLibUsbErrorCode(int errorCode);
 
-    QByteArray bulkInBuffer;
-    cyusb_handle *deviceHandle;
+    QFuture<void> dataWritingThread;
 };
 
 #endif // USBDEVICE_H

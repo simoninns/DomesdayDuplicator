@@ -64,11 +64,6 @@ domesdayDuplicator::domesdayDuplicator(QWidget *parent) :
         status->setText(tr("Duplicator connected"));
     }
 
-    // Set up a timer for polling during bulk transfer and ensure it's stopped
-    bulkTransferTimer = new QTimer(this);
-    bulkTransferTimer->stop();
-    connect(bulkTransferTimer, SIGNAL(timeout()), this, SLOT(transferPoll()));
-
     // We need to support device hot-plug and hot-unplug detection, otherwise this won't
     // make much sense to the user... Still; keeping it simple for initial testing...
 }
@@ -94,36 +89,5 @@ void domesdayDuplicator::on_transferButton_clicked()
 
         qDebug() << "domesdayDuplicator::on_transferButton_clicked() - Starting transfer";
         domDupDevice->startTransfer();
-    }
-
-    // If transfer is in progress, set up a timer to poll the data transfer function
-    // otherwise ensure that the timer is stopped
-    if (domDupDevice->isTransferInProgress()) {
-        // Transfer is in progress
-
-        // Each poll of the timer transfers 256Kbytes
-        // The expected data rate is >64 Mbytes/sec
-        // Therefore we have to poll at 64 * 1024 = 65536 Kbytes / 256 Kbytes = 256 polls/sec
-        // 1000ms / 256 polls = 3.9
-        bulkTransferTimer->start(4);
-    } else {
-        // Transfer is not in progress
-        bulkTransferTimer->stop();
-    }
-}
-
-// Polled function to transfer data from bulk IN end-point
-void domesdayDuplicator::transferPoll(void)
-{
-    // Transfer a block of data
-    qDebug() << "domesdayDuplicator::transferPoll() - Transfering a block";
-    domDupDevice->transferBulkInBlock();
-
-    // If something goes wrong, transfer will be cancelled, we need to check for that here
-    if (!domDupDevice->isTransferInProgress()) {
-        // Unexpected transfer stop
-        qDebug() << "domesdayDuplicator::transferPoll() - Transfer stopped due to error";
-        bulkTransferTimer->stop();
-        ui->transferButton->setText(tr("Start transfer"));
     }
 }
