@@ -35,6 +35,13 @@ usbDevice::usbDevice()
     numberOfDevices = 0;
     selectedDevice = 0;
     transferInProgressFlag = false;
+
+    // Initialise the device handle
+    deviceHandle = NULL;
+
+    // Configure data transfer buffer
+    bulkInBuffer.resize(1024 * 256); // 256 Kbyte buffer
+    bulkInBuffer.fill('\0');
 }
 
 // Class destructor
@@ -125,6 +132,8 @@ void usbDevice::connectDevice(int deviceNumber)
 // Start transfer of data from device
 void usbDevice::startTransfer(void)
 {
+    int apiResponse;
+
     // Ensure a device is connected
     if (!usbDeviceOpenFlag) {
         qDebug() << "usbDevice::startTransfer(): Called, but no device is open";
@@ -135,27 +144,40 @@ void usbDevice::startTransfer(void)
         // Transfer already in progress!
         qDebug() << "usbDevice::startTransfer(): Called, but transfer is already in progress";
     } else {
-        transferInProgressFlag = true;
         qDebug() << "usbDevice::startTransfer(): Transfer starting";
 
         // Set vendor specific (0x40) request 0xB5 with value 1 to start USB device transfer
-        cyusb_handle *deviceHandle = NULL;
         deviceHandle = cyusb_gethandle(selectedDevice);
         cyusb_control_transfer(deviceHandle, 0x40, 0xB5, 0x01, 0x00, 0x00, 0x00, 1000);
 
-        // Become the user mode driver
-        // Claim the BULK in interface
-        // Perform a BULK transfer
+        // Ensure that a kernel driver is not attached to the device
+        apiResponse = cyusb_kernel_driver_active(deviceHandle, 0);
+        if (apiResponse != 0) {
+            qDebug() << "usbDevice::startTransfer(): Kernel driver already attached - cannot transfer";
+            transferInProgressFlag = false;
+            return;
+        }
 
-        // cyusb_detach_kernel_driver
-        // cyusb_claim_interface
-        // cyusb_bulk_transfer
+        // Claim the USB device's interface number 0
+        apiResponse = cyusb_claim_interface(deviceHandle, 0);
+        if (apiResponse != 0) {
+            qDebug() << "usbDevice::startTransfer(): Could not claim USB device interface - cannot transfer";
+            transferInProgressFlag = false;
+            return;
+        } else {
+            qDebug() << "usbDevice::startTransfer(): USB device interface claimed successfully";
+        }
+
+        // Flag the transfer as in progress
+        transferInProgressFlag = true;
     }
 }
 
 // Stop transfer of data from device
 void usbDevice::stopTransfer(void)
 {
+    int apiResponse;
+
     if (!transferInProgressFlag) {
         // Transfer not in progress!
         qDebug() << "usbDevice::stopTransfer(): Called, but transfer is not in progress";
@@ -164,8 +186,91 @@ void usbDevice::stopTransfer(void)
         qDebug() << "usbDevice::stopTransfer(): Transfer stopping";
 
         // Set vendor specific request 0xB5 with value 0 to stop USB device transfer
-        cyusb_handle *deviceHandle = NULL;
         deviceHandle = cyusb_gethandle(selectedDevice);
         cyusb_control_transfer(deviceHandle, 0x40, 0xB5, 0x00, 0x00, 0x00, 0x00, 1000);
+
+        // Release the USB device's interface number 0
+        apiResponse = cyusb_release_interface(deviceHandle, 0);
+        if (apiResponse != 0) {
+            qDebug() << "usbDevice::stopTransfer(): Could not release USB device interface";
+            transferInProgressFlag = false;
+            return;
+        } else {
+            qDebug() << "usbDevice::startTransfer(): USB device interface released successfully";
+        }
     }
+}
+
+// Get transfer in progress flag status
+bool usbDevice::isTransferInProgress()
+{
+    return transferInProgressFlag;
+}
+
+// Transfer a block of data from the device using the bulk in interface
+void usbDevice::transferBulkInBlock(void)
+{
+    int apiResponse = 0;
+    int bytesReceived = 0;
+    int transferredBytes = 0;
+
+    if (!transferInProgressFlag) {
+        qDebug() << "usbDevice::startTransfer(): called, but no transfer is in progress";
+        return;
+    }
+
+    // Clear the bulk in transfer buffer
+    bulkInBuffer.fill('\0');
+
+    // Here we attempt to receive 256 Kbytes of data but, if for any reason the bulk transfer
+    // returns < 1024 bytes, we quit transfering and leave it until the next poll
+    for (int kbytesReceived = 0; kbytesReceived < 256; kbytesReceived++) {
+        // Perform a bulk IN transfer with a time-out of 10ms
+        apiResponse = cyusb_bulk_transfer(deviceHandle, 0x81, (unsigned char*)bulkInBuffer.data()+bytesReceived, 1024, &transferredBytes, 10);
+        if (apiResponse != 0) {
+            qDebug() << "usbDevice::transferBulkInBlock(): cyusb_bulk_transfer() failed";
+            showLibUsbErrorCode(apiResponse);
+            transferInProgressFlag = false;
+            return;
+        } else {
+            bytesReceived += transferredBytes;
+        }
+
+        // Check for a short transfer
+        if (transferredBytes != 1024) continue;
+    }
+
+    // Show the actual number of received bytes in the debug
+    qDebug() << "usbDevice::transferBulkInBlock(): Total of" << bytesReceived << "bytes received from USB device";
+}
+
+void usbDevice::showLibUsbErrorCode(int errorCode)
+{
+    if (errorCode == LIBUSB_ERROR_IO)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_IO";
+        else if (errorCode == LIBUSB_ERROR_INVALID_PARAM)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_INVALID_PARAM";
+        else if (errorCode == LIBUSB_ERROR_ACCESS)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_ACCESS";
+        else if (errorCode == LIBUSB_ERROR_NO_DEVICE)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_NO_DEVICE";
+        else if (errorCode == LIBUSB_ERROR_NOT_FOUND)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_NOT_FOUND";
+        else if (errorCode == LIBUSB_ERROR_BUSY)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_BUSY";
+        else if (errorCode == LIBUSB_ERROR_TIMEOUT)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_TIMEOUT";
+        else if (errorCode == LIBUSB_ERROR_OVERFLOW)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_OVERFLOW";
+        else if (errorCode == LIBUSB_ERROR_PIPE)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_PIPE";
+        else if (errorCode == LIBUSB_ERROR_INTERRUPTED)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_INTERRUPTED";
+        else if (errorCode == LIBUSB_ERROR_NO_MEM)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_NO_MEM";
+        else if (errorCode == LIBUSB_ERROR_NOT_SUPPORTED)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_NOT_SUPPORTED";
+        else if (errorCode == LIBUSB_ERROR_OTHER)
+            qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_OTHER";
+        else qDebug() << "libUSB Error code:" << errorCode << "LIBUSB_ERROR_UNDOCUMENTED";
 }
