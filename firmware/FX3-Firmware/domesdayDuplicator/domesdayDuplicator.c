@@ -169,9 +169,8 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PThreadSleep(200);
-    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - V1.3b\r\n");
-    CyU3PDebugPrint(1, "(c)2017 Simon Inns - domesday86.com\r\n");
+    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - V1.4b\r\n");
+    CyU3PDebugPrint(1, "(c)2017 Simon Inns - http://www.domesday86.com\r\n");
     CyU3PDebugPrint(1, "Debug console initialised\r\n");
 
     // Initialise the application
