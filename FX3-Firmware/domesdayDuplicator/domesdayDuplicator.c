@@ -70,16 +70,6 @@ int main(void)
         goto handleFatalError;
     }
 
-    // Start GPIF clocks, they need to be running before we attach a DMA channel to GPIF
-	pibClock.clkDiv = 4; // 403.2 / 4 = 100.8 MHz
-	pibClock.clkSrc = CY_U3P_SYS_CLK;
-	pibClock.isHalfDiv = CyFalse;
-	pibClock.isDllEnable = CyFalse; // Disable Dll (not required for synchronous applications)
-	status = CyU3PPibInit(CyTrue, &pibClock);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
     // Initialise the state of the caches - Icache, Dcache, DMAcache
     status = CyU3PDeviceCacheControl(CyTrue, CyFalse, CyFalse);
     if (status != CY_U3P_SUCCESS) {
@@ -93,10 +83,26 @@ int main(void)
     io_cfg.useI2S    = CyFalse;
     io_cfg.useSpi    = CyFalse;
     io_cfg.lppMode   = CY_U3P_IO_MATRIX_LPP_UART_ONLY; // 16-bit data bus with UART
+
+    io_cfg.gpioSimpleEn[0] = 0;
+    io_cfg.gpioSimpleEn[1] = 0x08000000; // GPIO 59
+    io_cfg.gpioComplexEn[0] = 0;
+    io_cfg.gpioComplexEn[1] = 0;
+
     status = CyU3PDeviceConfigureIOMatrix(&io_cfg);
     if (status != CY_U3P_SUCCESS) {
         goto handleFatalError;
     }
+
+    // Start GPIF clocks, they need to be running before we attach a DMA channel to GPIF
+	pibClock.clkDiv = 4; // 403.2 / 4 = 100.8 MHz
+	pibClock.clkSrc = CY_U3P_SYS_CLK;
+	pibClock.isHalfDiv = CyFalse;
+	pibClock.isDllEnable = CyFalse; // Disable Dll (not required for synchronous applications)
+	status = CyU3PPibInit(CyTrue, &pibClock);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
 
     // Initialise the GPIO module clocks, needed for nRESET towards FPGA
 	gpioClock.fastClkDiv = 2;
@@ -163,7 +169,8 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - V1.2b\r\n");
+    CyU3PThreadSleep(200);
+    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - V1.3b\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - domesday86.com\r\n");
     CyU3PDebugPrint(1, "Debug console initialised\r\n");
 

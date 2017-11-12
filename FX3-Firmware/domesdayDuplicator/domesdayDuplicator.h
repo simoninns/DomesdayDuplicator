@@ -28,20 +28,14 @@
 #ifndef _DOMESDAYDUPLICATOR_H_
 #define _DOMESDAYDUPLICATOR_H_
 
+#include "cyu3externcstart.h"
 #include "cyu3usb.h"
 #include "cyu3types.h"
 #include "cyu3usbconst.h"
-#include "cyu3externcstart.h"
 #include "cyu3gpif.h"
 
 #define CY_FX_GPIFTOUSB_THREAD_STACK       (0x1000) // Application thread stack size
 #define CY_FX_GPIFTOUSB_THREAD_PRIORITY    (8) 		// Application thread priority
-
-// Define Event Flag values
-// First 22 Events are defined in cyu3usb.h at "typedef enum CyU3PUsbEventType_t"
-#define USB_EVENTS				(0x7FFFFF)
-#define USER_COMMAND_AVAILABLE	(23)
-#define ANY_EVENT				(USB_EVENTS + (1<<USER_COMMAND_AVAILABLE))
 
 // End-point and socket definitions
 #define CY_FX_EP_CONSUMER               0x81
@@ -57,20 +51,6 @@
 // Set the total number of DMA buffers available to 4
 #define CY_FX_DMA_BUF_COUNT             (4)
 
-// Extern definitions for the USB Descriptors
-extern const uint8_t USB20DeviceDscr[];
-extern const uint8_t USB30DeviceDscr[];
-extern const uint8_t USBDeviceQualDscr[];
-extern const uint8_t USBFSConfigDscr[];
-extern const uint8_t USBHSConfigDscr[];
-extern const uint8_t USBBOSDscr[];
-extern const uint8_t USBSSConfigDscr[];
-extern const uint8_t USBStringLangIDDscr[];
-extern const uint8_t USBManufactureDscr[];
-extern const uint8_t USBProductDscr[];
-
-#include <cyu3externcend.h>
-
 // Function prototypes
 void domDupThreadInitialise(uint32_t input);
 void CyFxApplicationDefine(void);
@@ -85,5 +65,19 @@ void GpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State);
 CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1);
 void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData);
 CyBool_t domDupLPMRequestCB(CyU3PUsbLinkPowerMode linkMode);
+
+// External definitions for the USB Descriptors
+extern const uint8_t USB20DeviceDscr[];
+extern const uint8_t USB30DeviceDscr[];
+extern const uint8_t USBDeviceQualDscr[];
+extern const uint8_t USBFSConfigDscr[];
+extern const uint8_t USBHSConfigDscr[];
+extern const uint8_t USBBOSDscr[];
+extern const uint8_t USBSSConfigDscr[];
+extern const uint8_t USBStringLangIDDscr[];
+extern const uint8_t USBManufactureDscr[];
+extern const uint8_t USBProductDscr[];
+
+#include <cyu3externcend.h>
 
 #endif // _DOMESDAYDUPLICATOR_H_

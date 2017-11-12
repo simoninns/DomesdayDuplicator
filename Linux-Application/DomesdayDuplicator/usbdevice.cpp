@@ -35,13 +35,6 @@ usbDevice::usbDevice()
     numberOfDevices = 0;
     selectedDevice = 0;
     transferInProgressFlag = false;
-
-    // Initialise the device handle
-    deviceHandle = NULL;
-
-    // Configure data transfer buffer
-    bulkInBuffer.resize(1024 * 256); // 256 Kbyte buffer
-    bulkInBuffer.fill('\0');
 }
 
 // Class destructor
@@ -132,8 +125,6 @@ void usbDevice::connectDevice(int deviceNumber)
 // Start transfer of data from device
 void usbDevice::startTransfer(void)
 {
-    int apiResponse;
-
     // Ensure a device is connected
     if (!usbDeviceOpenFlag) {
         qDebug() << "usbDevice::startTransfer(): Called, but no device is open";
@@ -146,27 +137,9 @@ void usbDevice::startTransfer(void)
     } else {
         qDebug() << "usbDevice::startTransfer(): Transfer starting";
 
-        // Set vendor specific (0x40) request 0xB5 with value 1 to start USB device transfer
-        deviceHandle = cyusb_gethandle(selectedDevice);
-        cyusb_control_transfer(deviceHandle, 0x40, 0xB5, 0x01, 0x00, 0x00, 0x00, 1000);
-
-        // Ensure that a kernel driver is not attached to the device
-        apiResponse = cyusb_kernel_driver_active(deviceHandle, 0);
-        if (apiResponse != 0) {
-            qDebug() << "usbDevice::startTransfer(): Kernel driver already attached - cannot transfer";
-            transferInProgressFlag = false;
-            return;
-        }
-
-        // Claim the USB device's interface number 0
-        apiResponse = cyusb_claim_interface(deviceHandle, 0);
-        if (apiResponse != 0) {
-            qDebug() << "usbDevice::startTransfer(): Could not claim USB device interface - cannot transfer";
-            transferInProgressFlag = false;
-            return;
-        } else {
-            qDebug() << "usbDevice::startTransfer(): USB device interface claimed successfully";
-        }
+        // Start the data transfer thread
+        //dataWritingThread = QtConcurrent::run(transferData, deviceHandle);
+        transferData();
 
         // Flag the transfer as in progress
         transferInProgressFlag = true;
@@ -176,8 +149,6 @@ void usbDevice::startTransfer(void)
 // Stop transfer of data from device
 void usbDevice::stopTransfer(void)
 {
-    int apiResponse;
-
     if (!transferInProgressFlag) {
         // Transfer not in progress!
         qDebug() << "usbDevice::stopTransfer(): Called, but transfer is not in progress";
@@ -185,19 +156,8 @@ void usbDevice::stopTransfer(void)
         transferInProgressFlag = false;
         qDebug() << "usbDevice::stopTransfer(): Transfer stopping";
 
-        // Set vendor specific request 0xB5 with value 0 to stop USB device transfer
-        deviceHandle = cyusb_gethandle(selectedDevice);
-        cyusb_control_transfer(deviceHandle, 0x40, 0xB5, 0x00, 0x00, 0x00, 0x00, 1000);
-
-        // Release the USB device's interface number 0
-        apiResponse = cyusb_release_interface(deviceHandle, 0);
-        if (apiResponse != 0) {
-            qDebug() << "usbDevice::stopTransfer(): Could not release USB device interface";
-            transferInProgressFlag = false;
-            return;
-        } else {
-            qDebug() << "usbDevice::startTransfer(): USB device interface released successfully";
-        }
+        // Stop the data transfer thread if it's still running
+        //if (dataWritingThread.isRunning()) dataWritingThread.end();
     }
 }
 
@@ -208,40 +168,103 @@ bool usbDevice::isTransferInProgress()
 }
 
 // Transfer a block of data from the device using the bulk in interface
-void usbDevice::transferBulkInBlock(void)
+void usbDevice::transferData(void)
 {
     int apiResponse = 0;
-    int bytesReceived = 0;
+    qint64 bytesReceived = 0;
     int transferredBytes = 0;
+    cyusb_handle *deviceHandle;
 
-    if (!transferInProgressFlag) {
-        qDebug() << "usbDevice::startTransfer(): called, but no transfer is in progress";
+    // Configure data transfer buffer
+    QByteArray *bulkInBuffer = new QByteArray;
+    bulkInBuffer->resize(1024 * 1024); // 1024 Kbyte buffer
+
+    qDebug() << "usbDevice::transferData(): called";
+
+    // Get the file IO ready -----------------------------------------
+
+    // Clear the bulk in transfer buffer
+    bulkInBuffer->fill('\0');
+
+    // Get a file ready for writing
+    QFile *dataFile = new QFile;
+
+    // Open a file to transfer the data into:
+    dataFile->setFileName("/home/sdi/rf_capture_file.dat");
+    if (!dataFile->open(QFile::WriteOnly)) {
+        qDebug() << "usbDevice::transferData(): Unable to open file with filename of" << "/home/sdi/rf_capture_file.bin";
+    } else {
+        qDebug() << "usbDevice::transferData(): File open for data with filename of" << "/home/sdi/rf_capture_file.bin";
+    }
+
+    // Get the USB device ready ----------------------------------------
+
+    // Fetch the USB device handle
+    deviceHandle = cyusb_gethandle(selectedDevice);
+
+    // Ensure that a kernel driver is not attached to the device
+    apiResponse = cyusb_kernel_driver_active(deviceHandle, 0);
+    if (apiResponse != 0) {
+        qDebug() << "usbDevice::startTransfer(): Kernel driver already attached - cannot transfer";
+        transferInProgressFlag = false;
         return;
     }
 
-    // Clear the bulk in transfer buffer
-    bulkInBuffer.fill('\0');
+    // Claim the USB device's interface number 0
+    apiResponse = cyusb_claim_interface(deviceHandle, 0);
+    if (apiResponse != 0) {
+        qDebug() << "usbDevice::startTransfer(): Could not claim USB device interface - cannot transfer";
+        transferInProgressFlag = false;
+        return;
+    } else {
+        qDebug() << "usbDevice::startTransfer(): USB device interface claimed successfully";
+    }
 
-    // Here we attempt to receive 256 Kbytes of data but, if for any reason the bulk transfer
-    // returns < 1024 bytes, we quit transfering and leave it until the next poll
-    for (int kbytesReceived = 0; kbytesReceived < 256; kbytesReceived++) {
+    // Set vendor specific request 0xB5 with value 0 to start USB device transfer
+    cyusb_control_transfer(deviceHandle, 0x40, 0xB5, 0x01, 0x00, 0x00, 0x00, 1000);
+
+    // Perform the transfer --------------------------------------------
+
+    // Get 1024 Kbytes from the device
+    for (int kbytesReceived = 0; kbytesReceived < 1024; kbytesReceived++) {
         // Perform a bulk IN transfer with a time-out of 10ms
-        apiResponse = cyusb_bulk_transfer(deviceHandle, 0x81, (unsigned char*)bulkInBuffer.data()+bytesReceived, 1024, &transferredBytes, 10);
+        apiResponse = cyusb_bulk_transfer(deviceHandle, 0x81, (unsigned char*)bulkInBuffer->data()+(int)bytesReceived, 1024, &transferredBytes, 10);
         if (apiResponse != 0) {
-            qDebug() << "usbDevice::transferBulkInBlock(): cyusb_bulk_transfer() failed";
+            qDebug() << "usbDevice::transferData(): cyusb_bulk_transfer() failed";
             showLibUsbErrorCode(apiResponse);
-            transferInProgressFlag = false;
             return;
         } else {
-            bytesReceived += transferredBytes;
+            bytesReceived += (qint64)transferredBytes;
         }
 
         // Check for a short transfer
         if (transferredBytes != 1024) continue;
     }
 
-    // Show the actual number of received bytes in the debug
-    qDebug() << "usbDevice::transferBulkInBlock(): Total of" << bytesReceived << "bytes received from USB device";
+    // Close the file IO ------------------------------------------------
+
+    // Write the data to the output file
+    dataFile->write(*bulkInBuffer, bytesReceived);
+
+    // Close the data file
+    dataFile->close();
+    qDebug() << "usbDevice::transferData(): Data file closed";
+
+
+    // Close the USB device ---------------------------------------------
+
+    // Set vendor specific request 0xB5 with value 0 to stop USB device transfer
+    cyusb_control_transfer(deviceHandle, 0x40, 0xB5, 0x00, 0x00, 0x00, 0x00, 1000);
+
+    // Release the USB device's interface number 0
+    apiResponse = cyusb_release_interface(deviceHandle, 0);
+    if (apiResponse != 0) {
+        qDebug() << "usbDevice::stopTransfer(): Could not release USB device interface";
+        transferInProgressFlag = false;
+        return;
+    } else {
+        qDebug() << "usbDevice::startTransfer(): USB device interface released successfully";
+    }
 }
 
 void usbDevice::showLibUsbErrorCode(int errorCode)
