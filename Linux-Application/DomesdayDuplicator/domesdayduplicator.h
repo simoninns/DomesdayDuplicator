@@ -31,6 +31,7 @@
 #include <QMainWindow>
 #include <QDebug>
 #include <QLabel>
+#include <QTimer>
 
 #include "usbdevice.h"
 
@@ -50,13 +51,14 @@ public:
 
 private slots:
     void on_transferButton_clicked();
+    void transferPoll(void);
 
 private:
     Ui::domesdayDuplicator *ui;
 
     usbDevice *domDupDevice;
     QLabel *status; // Status label for the status bar
-    bool transferInProgressFlag;
+    QTimer *bulkTransferTimer;
 };
 
 #endif // DOMESDAYDUPLICATOR_H

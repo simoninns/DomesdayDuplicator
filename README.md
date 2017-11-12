@@ -10,7 +10,7 @@ The hardware/software solution is designed to act as a sampling front-end to the
 
 This project is currently work-in-progress and should be considered beta (current GitHub builds may not work at all).
 
-Please see http://www.domesday86.com for detailed documentation on the overall Domesday86 project.
+Please see http://www.domesday86.com/?page_id=978 for detailed documentation on the Domesday Duplicator and overall information about the Domesday86 project.
 
 There are 3 main components that make up the Domesday Duplicator:
 
@@ -28,7 +28,7 @@ The Domesday Duplicator is intended to allow high-quality back-ups of the analog
 
 ## Installation
 
-Please see http://www.domesday86.com for detailed documentation on the Domesday Duplicator
+Please see http://www.domesday86.com/?page_id=978 for detailed documentation on the Domesday Duplicator
 
 ## Author
 

@@ -29,6 +29,7 @@
 #define USBDEVICE_H
 
 #include <QDebug>
+#include <QByteArray>
 
 // Include the USB library wrapper
 #include <cyusb.h>
@@ -43,12 +44,18 @@ public:
     void connectDevice(int);
     void startTransfer(void);
     void stopTransfer(void);
+    bool isTransferInProgress();
+    void transferBulkInBlock(void);
 
 private:
     bool usbDeviceOpenFlag;
     int numberOfDevices;
     int selectedDevice;
     bool transferInProgressFlag;
+    void showLibUsbErrorCode(int errorCode);
+
+    QByteArray bulkInBuffer;
+    cyusb_handle *deviceHandle;
 };
 
 #endif // USBDEVICE_H
