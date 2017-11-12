@@ -415,7 +415,7 @@ Discarded input sections
  .debug_macro   0x00000000      0x25d ./usbDescriptor.o
  .debug_macro   0x00000000       0x6d ./usbDescriptor.o
  .debug_macro   0x00000000       0x28 ./usbDescriptor.o
- .debug_macro   0x00000000       0x46 ./usbDescriptor.o
+ .debug_macro   0x00000000       0x34 ./usbDescriptor.o
  COMMON         0x00000000       0x20 ./usbDescriptor.o
  i.CyU3PGpioDeInit
                 0x00000000       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
@@ -10539,7 +10539,7 @@ END GROUP
  .text.__stub   0x00002388       0x98 linker stubs
                 0x00002420                . = ALIGN (0x4)
 
-.text           0x40003000     0x25b0
+.text           0x40003000     0x25f0
  *(.text*)
  .text          0x40003000       0x2c ./cyfx_gcc_startup.o
                 0x40003000                jump
@@ -10580,2142 +10580,2142 @@ END GROUP
  .text.CyU3PDmaBufferFree
                 0x4000350c       0xec ./cyfxtx.o
                 0x4000350c                CyU3PDmaBufferFree
- .text.main     0x400035f8      0x1cc ./domesdayDuplicator.o
+ .text.main     0x400035f8      0x1f0 ./domesdayDuplicator.o
                 0x400035f8                main
  .text.domDupThreadInitialise
-                0x400037c4       0xdc ./domesdayDuplicator.o
-                0x400037c4                domDupThreadInitialise
+                0x400037e8       0xe0 ./domesdayDuplicator.o
+                0x400037e8                domDupThreadInitialise
  .text.CyFxApplicationDefine
-                0x400038a0       0x6c ./domesdayDuplicator.o
-                0x400038a0                CyFxApplicationDefine
+                0x400038c8       0x6c ./domesdayDuplicator.o
+                0x400038c8                CyFxApplicationDefine
  .text.domDupInitialiseApplication
-                0x4000390c      0x2dc ./domesdayDuplicator.o
-                0x4000390c                domDupInitialiseApplication
+                0x40003934      0x2dc ./domesdayDuplicator.o
+                0x40003934                domDupInitialiseApplication
  .text.domDupStartApplication
-                0x40003be8      0x24c ./domesdayDuplicator.o
-                0x40003be8                domDupStartApplication
+                0x40003c10      0x24c ./domesdayDuplicator.o
+                0x40003c10                domDupStartApplication
  .text.domDupStopApplication
-                0x40003e34       0x78 ./domesdayDuplicator.o
-                0x40003e34                domDupStopApplication
+                0x40003e5c       0x78 ./domesdayDuplicator.o
+                0x40003e5c                domDupStopApplication
  .text.domDupErrorHandler
-                0x40003eac       0x10 ./domesdayDuplicator.o
-                0x40003eac                domDupErrorHandler
+                0x40003ed4       0x10 ./domesdayDuplicator.o
+                0x40003ed4                domDupErrorHandler
  .text.domDupDebugInit
-                0x40003ebc       0xb8 ./domesdayDuplicator.o
-                0x40003ebc                domDupDebugInit
+                0x40003ee4       0xb8 ./domesdayDuplicator.o
+                0x40003ee4                domDupDebugInit
  .text.GpifDmaEventCB
-                0x40003f74       0x30 ./domesdayDuplicator.o
-                0x40003f74                GpifDmaEventCB
+                0x40003f9c       0x30 ./domesdayDuplicator.o
+                0x40003f9c                GpifDmaEventCB
  .text.domDupUSBSetupCB
-                0x40003fa4      0x1a0 ./domesdayDuplicator.o
-                0x40003fa4                domDupUSBSetupCB
+                0x40003fcc      0x1a0 ./domesdayDuplicator.o
+                0x40003fcc                domDupUSBSetupCB
  .text.domDupUSBEventCB
-                0x40004144       0xb8 ./domesdayDuplicator.o
-                0x40004144                domDupUSBEventCB
+                0x4000416c       0xb8 ./domesdayDuplicator.o
+                0x4000416c                domDupUSBEventCB
  .text.domDupLPMRequestCB
-                0x400041fc       0x18 ./domesdayDuplicator.o
-                0x400041fc                domDupLPMRequestCB
- .text          0x40004214       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_return.o)
-                0x40004214                _tx_thread_system_return
- .text          0x40004264       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_schedule.o)
-                0x40004264                _tx_thread_schedule
- .text          0x400042d0       0xf0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_interrupt.o)
-                0x400042d0                _tx_timer_interrupt
- .text          0x400043c0       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_low_level.o)
-                0x400043c0                _tx_initialize_low_level
- .text          0x400043fc       0x78 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_build.o)
-                0x400043fc                _tx_thread_stack_build
- .text          0x40004474       0x10 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/../../../../arm-none-eabi/lib/thumb/libc.a(lib_a-strcpy.o)
-                0x40004474                strcpy
- .text          0x40004484       0x10 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/../../../../arm-none-eabi/lib/thumb/libc.a(lib_a-strlen.o)
-                0x40004484                strlen
- .text          0x40004494      0x11c /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_udivsi3.o)
-                0x40004494                __udivsi3
-                0x40004494                __aeabi_uidiv
-                0x40004590                __aeabi_uidivmod
- .text          0x400045b0      0x150 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_divsi3.o)
-                0x400045b0                __aeabi_idiv
-                0x400045b0                __divsi3
-                0x400046e0                __aeabi_idivmod
- .text          0x40004700        0x4 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_dvmd_tls.o)
-                0x40004700                __aeabi_ldiv0
-                0x40004700                __aeabi_idiv0
+                0x40004224       0x18 ./domesdayDuplicator.o
+                0x40004224                domDupLPMRequestCB
+ .text          0x4000423c       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_return.o)
+                0x4000423c                _tx_thread_system_return
+ .text          0x4000428c       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_schedule.o)
+                0x4000428c                _tx_thread_schedule
+ .text          0x400042f8       0xf0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_interrupt.o)
+                0x400042f8                _tx_timer_interrupt
+ .text          0x400043e8       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_low_level.o)
+                0x400043e8                _tx_initialize_low_level
+ .text          0x40004424       0x78 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_build.o)
+                0x40004424                _tx_thread_stack_build
+ .text          0x4000449c       0x10 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/../../../../arm-none-eabi/lib/thumb/libc.a(lib_a-strcpy.o)
+                0x4000449c                strcpy
+ .text          0x400044ac       0x10 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/../../../../arm-none-eabi/lib/thumb/libc.a(lib_a-strlen.o)
+                0x400044ac                strlen
+ .text          0x400044bc      0x11c /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_udivsi3.o)
+                0x400044bc                __udivsi3
+                0x400044bc                __aeabi_uidiv
+                0x400045b8                __aeabi_uidivmod
+ .text          0x400045d8      0x150 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_divsi3.o)
+                0x400045d8                __aeabi_idiv
+                0x400045d8                __divsi3
+                0x40004708                __aeabi_idivmod
+ .text          0x40004728        0x4 /home/sdi/Cypress/arm-2013.11/bin/../lib/gcc/arm-none-eabi/4.8.1/thumb/libgcc.a(_dvmd_tls.o)
+                0x40004728                __aeabi_ldiv0
+                0x40004728                __aeabi_idiv0
  *(.rodata*)
  .rodata.CyFxGpifConfig
-                0x40004704       0x1c ./domesdayDuplicator.o
-                0x40004704                CyFxGpifConfig
- .rodata        0x40004720      0x63c ./domesdayDuplicator.o
- *fill*         0x40004d5c        0x4 
+                0x4000472c       0x1c ./domesdayDuplicator.o
+                0x4000472c                CyFxGpifConfig
+ .rodata        0x40004748      0x63c ./domesdayDuplicator.o
+ *fill*         0x40004d84       0x1c 
  .rodata.USB30DeviceDscr
-                0x40004d60       0x20 ./usbDescriptor.o
-                0x40004d60                USB30DeviceDscr
- .rodata.USB20DeviceDscr
-                0x40004d80       0x20 ./usbDescriptor.o
-                0x40004d80                USB20DeviceDscr
- .rodata.USBBOSDscr
                 0x40004da0       0x20 ./usbDescriptor.o
-                0x40004da0                USBBOSDscr
- .rodata.USBDeviceQualDscr
+                0x40004da0                USB30DeviceDscr
+ .rodata.USB20DeviceDscr
                 0x40004dc0       0x20 ./usbDescriptor.o
-                0x40004dc0                USBDeviceQualDscr
- .rodata.USBSSConfigDscr
+                0x40004dc0                USB20DeviceDscr
+ .rodata.USBBOSDscr
                 0x40004de0       0x20 ./usbDescriptor.o
-                0x40004de0                USBSSConfigDscr
- .rodata.USBHSConfigDscr
+                0x40004de0                USBBOSDscr
+ .rodata.USBDeviceQualDscr
                 0x40004e00       0x20 ./usbDescriptor.o
-                0x40004e00                USBHSConfigDscr
- .rodata.USBFSConfigDscr
+                0x40004e00                USBDeviceQualDscr
+ .rodata.USBSSConfigDscr
                 0x40004e20       0x20 ./usbDescriptor.o
-                0x40004e20                USBFSConfigDscr
- .rodata.USBStringLangIDDscr
+                0x40004e20                USBSSConfigDscr
+ .rodata.USBHSConfigDscr
                 0x40004e40       0x20 ./usbDescriptor.o
-                0x40004e40                USBStringLangIDDscr
- .rodata.USBManufactureDscr
+                0x40004e40                USBHSConfigDscr
+ .rodata.USBFSConfigDscr
                 0x40004e60       0x20 ./usbDescriptor.o
-                0x40004e60                USBManufactureDscr
+                0x40004e60                USBFSConfigDscr
+ .rodata.USBStringLangIDDscr
+                0x40004e80       0x20 ./usbDescriptor.o
+                0x40004e80                USBStringLangIDDscr
+ .rodata.USBManufactureDscr
+                0x40004ea0       0x20 ./usbDescriptor.o
+                0x40004ea0                USBManufactureDscr
  .rodata.USBProductDscr
-                0x40004e80       0x40 ./usbDescriptor.o
-                0x40004e80                USBProductDscr
+                0x40004ec0       0x40 ./usbDescriptor.o
+                0x40004ec0                USBProductDscr
  *(.constdata)
- .constdata     0x40004ec0      0x134 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
-                0x40004ec0                glConstGpifDefaults
-                0x40004ff0                glGpifConstMaxState
- .constdata     0x40004ff4       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
-                0x40004ff4                glPmmcCsdValue
-                0x40005004                glPmmcExtCsdValue
- .constdata     0x4000501c        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000501c                CyU3PSSEpTypeMap
- .constdata     0x40005020       0x48 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40005020                glUsbMaxPacketSize
-                0x40005044                glUsb3CompliancePatterns
- .constdata     0x40005068      0x100 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+ .constdata     0x40004f00      0x134 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
+                0x40004f00                glConstGpifDefaults
+                0x40005030                glGpifConstMaxState
+ .constdata     0x40005034       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x40005034                glPmmcCsdValue
+                0x40005044                glPmmcExtCsdValue
+ .constdata     0x4000505c        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000505c                CyU3PSSEpTypeMap
+ .constdata     0x40005060       0x48 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40005060                glUsbMaxPacketSize
+                0x40005084                glUsb3CompliancePatterns
+ .constdata     0x400050a8      0x100 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
  *(.emb_text)
- .emb_text      0x40005168      0x254 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x40005168                CyU3PSysCleanDCache
-                0x40005174                CyU3PSysClearDCache
-                0x40005180                CyU3PSysFlushIRegion
-                0x400051b8                CyU3PSysClearDRegion
-                0x400051f0                CyU3PSysCleanDRegion
-                0x40005228                CyU3PSysFlushDRegion
-                0x40005260                CyU3PSysCacheIRegion
-                0x40005304                CyU3PSysCacheDRegion
-                0x400053a4                CyU3PSysUnlockICache
-                0x400053b0                CyU3PSysUnlockDCache
+ .emb_text      0x400051a8      0x254 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x400051a8                CyU3PSysCleanDCache
+                0x400051b4                CyU3PSysClearDCache
+                0x400051c0                CyU3PSysFlushIRegion
+                0x400051f8                CyU3PSysClearDRegion
+                0x40005230                CyU3PSysCleanDRegion
+                0x40005268                CyU3PSysFlushDRegion
+                0x400052a0                CyU3PSysCacheIRegion
+                0x40005344                CyU3PSysCacheDRegion
+                0x400053e4                CyU3PSysUnlockICache
+                0x400053f0                CyU3PSysUnlockDCache
  *(CYU3P_EXCEPTION_VECTORS)
  CYU3P_EXCEPTION_VECTORS
-                0x400053bc       0x48 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
-                0x400053bc                __cyu3p_exception_vectors
-                0x400053dc                __CyU3PSWIHandler
-                0x400053e0                __CyU3PReservedHandler
-                0x400053e4                __CyU3PFiqHandler
- *fill*         0x40005404        0x4 
+                0x400053fc       0x48 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
+                0x400053fc                __cyu3p_exception_vectors
+                0x4000541c                __CyU3PSWIHandler
+                0x40005420                __CyU3PReservedHandler
+                0x40005424                __CyU3PFiqHandler
+ *fill*         0x40005444        0x4 
  CYU3P_EXCEPTION_VECTORS.__stub
-                0x40005408      0x1a0 linker stubs
-                0x400055a8                _etext = .
-                0x400055a8                . = ALIGN (0x4)
+                0x40005448      0x1a0 linker stubs
+                0x400055e8                _etext = .
+                0x400055e8                . = ALIGN (0x4)
 
-.glue_7         0x400055b0        0x0
+.glue_7         0x400055f0        0x0
  .glue_7        0x00000000        0x0 linker stubs
 
-.glue_7t        0x400055b0        0x0
+.glue_7t        0x400055f0        0x0
  .glue_7t       0x00000000        0x0 linker stubs
 
-.vfp11_veneer   0x400055b0        0x0
+.vfp11_veneer   0x400055f0        0x0
  .vfp11_veneer  0x00000000        0x0 linker stubs
 
-.v4_bx          0x400055b0        0x0
+.v4_bx          0x400055f0        0x0
  .v4_bx         0x00000000        0x0 linker stubs
 
-.iplt           0x400055b0        0x0
+.iplt           0x400055f0        0x0
  .iplt          0x00000000        0x0 ./cyfx_gcc_startup.o
 
 i.CyU3PGpioInit
-                0x400055b0      0x14c
+                0x400055f0      0x14c
  i.CyU3PGpioInit
-                0x400055b0      0x14c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
-                0x400055b0                CyU3PGpioInit
+                0x400055f0      0x14c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
+                0x400055f0                CyU3PGpioInit
 
 i.CyU3PGpioInt_Handler
-                0x400056fc      0x1c4
+                0x4000573c      0x1c4
  i.CyU3PGpioInt_Handler
-                0x400056fc      0x1c4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
-                0x400056fc                CyU3PGpioInt_Handler
+                0x4000573c      0x1c4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
+                0x4000573c                CyU3PGpioInt_Handler
 
 i.CyU3PGpioSetSimpleConfig
-                0x400058c0       0xf0
+                0x40005900       0xf0
  i.CyU3PGpioSetSimpleConfig
-                0x400058c0       0xf0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
-                0x400058c0                CyU3PGpioSetSimpleConfig
+                0x40005900       0xf0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
+                0x40005900                CyU3PGpioSetSimpleConfig
 
 i.CyU3PGpioSetValue
-                0x400059b0       0xd8
+                0x400059f0       0xd8
  i.CyU3PGpioSetValue
-                0x400059b0       0xd8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
-                0x400059b0                CyU3PGpioSetValue
+                0x400059f0       0xd8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
+                0x400059f0                CyU3PGpioSetValue
 
 i.CyU3PRegisterGpioCallBack
-                0x40005a88       0x10
+                0x40005ac8       0x10
  i.CyU3PRegisterGpioCallBack
-                0x40005a88       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
-                0x40005a88                CyU3PRegisterGpioCallBack
+                0x40005ac8       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
+                0x40005ac8                CyU3PRegisterGpioCallBack
 
 i.CyU3PRegisterUartCallBack
-                0x40005a98       0x10
+                0x40005ad8       0x10
  i.CyU3PRegisterUartCallBack
-                0x40005a98       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
-                0x40005a98                CyU3PRegisterUartCallBack
+                0x40005ad8       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
+                0x40005ad8                CyU3PRegisterUartCallBack
 
 i.CyU3PUartGetLock
-                0x40005aa8       0x5c
+                0x40005ae8       0x5c
  i.CyU3PUartGetLock
-                0x40005aa8       0x5c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
+                0x40005ae8       0x5c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
 
 i.CyU3PUartInit
-                0x40005b04       0xe8
+                0x40005b44       0xe8
  i.CyU3PUartInit
-                0x40005b04       0xe8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
-                0x40005b04                CyU3PUartInit
+                0x40005b44       0xe8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
+                0x40005b44                CyU3PUartInit
 
 i.CyU3PUartInt_ThreadHandler
-                0x40005bec       0xd4
+                0x40005c2c       0xd4
  i.CyU3PUartInt_ThreadHandler
-                0x40005bec       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
-                0x40005bec                CyU3PUartInt_ThreadHandler
+                0x40005c2c       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
+                0x40005c2c                CyU3PUartInt_ThreadHandler
 
 i.CyU3PUartReleaseLock
-                0x40005cc0       0x44
+                0x40005d00       0x44
  i.CyU3PUartReleaseLock
-                0x40005cc0       0x44 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
+                0x40005d00       0x44 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
 
 i.CyU3PUartSetConfig
-                0x40005d04      0x218
+                0x40005d44      0x218
  i.CyU3PUartSetConfig
-                0x40005d04      0x218 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
-                0x40005d04                CyU3PUartSetConfig
+                0x40005d44      0x218 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
+                0x40005d44                CyU3PUartSetConfig
 
 i.CyU3PUartTxSetBlockXfer
-                0x40005f1c       0x50
+                0x40005f5c       0x50
  i.CyU3PUartTxSetBlockXfer
-                0x40005f1c       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
-                0x40005f1c                CyU3PUartTxSetBlockXfer
+                0x40005f5c       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
+                0x40005f5c                CyU3PUartTxSetBlockXfer
 
 i.CyU3PDmaChannelAcquireLock
-                0x40005f6c       0x84
+                0x40005fac       0x84
  i.CyU3PDmaChannelAcquireLock
-                0x40005f6c       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40005fac       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDmaChannelCacheControl
-                0x40005ff0       0x54
+                0x40006030       0x54
  i.CyU3PDmaChannelCacheControl
-                0x40005ff0       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40005ff0                CyU3PDmaChannelCacheControl
+                0x40006030       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40006030                CyU3PDmaChannelCacheControl
 
 i.CyU3PDmaChannelCommitBuffer
-                0x40006044      0x2f0
+                0x40006084      0x2f0
  i.CyU3PDmaChannelCommitBuffer
-                0x40006044      0x2f0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40006044                CyU3PDmaChannelCommitBuffer
+                0x40006084      0x2f0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40006084                CyU3PDmaChannelCommitBuffer
 
 i.CyU3PDmaChannelConfigure_TypeAuto
-                0x40006334       0x90
+                0x40006374       0x90
  i.CyU3PDmaChannelConfigure_TypeAuto
-                0x40006334       0x90 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40006374       0x90 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDmaChannelConfigure_TypeManual
-                0x400063c4      0x26c
+                0x40006404      0x26c
  i.CyU3PDmaChannelConfigure_TypeManual
-                0x400063c4      0x26c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40006404      0x26c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDmaChannelCreate
-                0x40006630      0x404
+                0x40006670      0x404
  i.CyU3PDmaChannelCreate
-                0x40006630      0x404 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40006630                CyU3PDmaChannelCreate
+                0x40006670      0x404 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40006670                CyU3PDmaChannelCreate
 
 i.CyU3PDmaChannelDestroy
-                0x40006a34       0xb4
+                0x40006a74       0xb4
  i.CyU3PDmaChannelDestroy
-                0x40006a34       0xb4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40006a34                CyU3PDmaChannelDestroy
+                0x40006a74       0xb4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40006a74                CyU3PDmaChannelDestroy
 
 i.CyU3PDmaChannelDestroy_TypeAuto
-                0x40006ae8       0xd4
+                0x40006b28       0xd4
  i.CyU3PDmaChannelDestroy_TypeAuto
-                0x40006ae8       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40006b28       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDmaChannelDestroy_TypeManual
-                0x40006bc0      0x1c8
+                0x40006c00      0x1c8
  i.CyU3PDmaChannelDestroy_TypeManual
-                0x40006bc0      0x1b4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
- *fill*         0x40006d74        0x4 
+                0x40006c00      0x1b4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+ *fill*         0x40006db4        0x4 
  i.CyU3PDmaChannelDestroy_TypeManual.__stub
-                0x40006d78        0xc linker stubs
+                0x40006db8        0xc linker stubs
 
 i.CyU3PDmaChannelGetBuffer
-                0x40006d88      0x334
+                0x40006dc8      0x334
  i.CyU3PDmaChannelGetBuffer
-                0x40006d88      0x334 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40006d88                CyU3PDmaChannelGetBuffer
+                0x40006dc8      0x334 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40006dc8                CyU3PDmaChannelGetBuffer
 
 i.CyU3PDmaChannelReset
-                0x400070bc      0x120
+                0x400070fc      0x120
  i.CyU3PDmaChannelReset
-                0x400070bc      0x120 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x400070bc                CyU3PDmaChannelReset
+                0x400070fc      0x120 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x400070fc                CyU3PDmaChannelReset
 
 i.CyU3PDmaChannelReset_TypeAuto
-                0x400071dc       0x6c
+                0x4000721c       0x6c
  i.CyU3PDmaChannelReset_TypeAuto
-                0x400071dc       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x4000721c       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDmaChannelReset_TypeManual
-                0x40007248       0xf8
+                0x40007288       0xf8
  i.CyU3PDmaChannelReset_TypeManual
-                0x40007248       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007288       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDmaChannelResumeUsbConsumer
-                0x40007340       0x64
+                0x40007380       0x64
  i.CyU3PDmaChannelResumeUsbConsumer
-                0x40007340       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40007340                CyU3PDmaChannelResumeUsbConsumer
+                0x40007380       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007380                CyU3PDmaChannelResumeUsbConsumer
 
 i.CyU3PDmaChannelSendData
-                0x400073a4      0x1b4
+                0x400073e4      0x1b4
  i.CyU3PDmaChannelSendData
-                0x400073a4      0x1b4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x400073a4                CyU3PDmaChannelSendData
+                0x400073e4      0x1b4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x400073e4                CyU3PDmaChannelSendData
 
 i.CyU3PDmaChannelSetXfer
-                0x40007558       0xdc
+                0x40007598       0xdc
  i.CyU3PDmaChannelSetXfer
-                0x40007558       0xdc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40007558                CyU3PDmaChannelSetXfer
+                0x40007598       0xdc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007598                CyU3PDmaChannelSetXfer
 
 i.CyU3PDmaChannelSetXfer_TypeAuto
-                0x40007634      0x1a0
+                0x40007674      0x1a0
  i.CyU3PDmaChannelSetXfer_TypeAuto
-                0x40007634      0x1a0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007674      0x1a0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDmaChannelSetXfer_TypeManual
-                0x400077d4      0x1ec
+                0x40007814      0x1ec
  i.CyU3PDmaChannelSetXfer_TypeManual
-                0x400077d4      0x1ec /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007814      0x1ec /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDmaChannelSetupRecvBuffer
-                0x400079c0      0x220
+                0x40007a00      0x220
  i.CyU3PDmaChannelSetupRecvBuffer
-                0x400079c0      0x220 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x400079c0                CyU3PDmaChannelSetupRecvBuffer
+                0x40007a00      0x220 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007a00                CyU3PDmaChannelSetupRecvBuffer
 
 i.CyU3PDmaChannelSuspendUsbConsumer
-                0x40007be0       0xc0
+                0x40007c20       0xc0
  i.CyU3PDmaChannelSuspendUsbConsumer
-                0x40007be0       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40007be0                CyU3PDmaChannelSuspendUsbConsumer
+                0x40007c20       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007c20                CyU3PDmaChannelSuspendUsbConsumer
 
 i.CyU3PDmaChannelWaitForCompletion
-                0x40007ca0      0x130
+                0x40007ce0      0x130
  i.CyU3PDmaChannelWaitForCompletion
-                0x40007ca0      0x130 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40007ca0                CyU3PDmaChannelWaitForCompletion
+                0x40007ce0      0x130 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007ce0                CyU3PDmaChannelWaitForCompletion
 
 i.CyU3PDmaChannelWaitForRecvBuffer
-                0x40007dd0      0x1a4
+                0x40007e10      0x1a4
  i.CyU3PDmaChannelWaitForRecvBuffer
-                0x40007dd0      0x1a4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
-                0x40007dd0                CyU3PDmaChannelWaitForRecvBuffer
+                0x40007e10      0x1a4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007e10                CyU3PDmaChannelWaitForRecvBuffer
 
 i.CyU3PDmaConfigureSockets_TypeAuto
-                0x40007f74      0x100
+                0x40007fb4      0x100
  i.CyU3PDmaConfigureSockets_TypeAuto
-                0x40007f74      0x100 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x40007fb4      0x100 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDmaConfigureSockets_TypeManual
-                0x40008074      0x11c
+                0x400080b4      0x11c
  i.CyU3PDmaConfigureSockets_TypeManual
-                0x40008074      0x11c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
+                0x400080b4      0x11c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3channel.o)
 
 i.CyU3PDebugApplicationDefine
-                0x40008190       0xf0
+                0x400081d0       0xf0
  i.CyU3PDebugApplicationDefine
-                0x40008190       0xdc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
-                0x40008190                CyU3PDebugApplicationDefine
- *fill*         0x4000826c        0x4 
+                0x400081d0       0xdc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+                0x400081d0                CyU3PDebugApplicationDefine
+ *fill*         0x400082ac        0x4 
  i.CyU3PDebugApplicationDefine.__stub
-                0x40008270        0xc linker stubs
+                0x400082b0        0xc linker stubs
 
 i.CyU3PDebugChannelReset
-                0x40008280       0x34
+                0x400082c0       0x34
  i.CyU3PDebugChannelReset
-                0x40008280       0x34 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+                0x400082c0       0x34 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
 
 i.CyU3PDebugInit
-                0x400082b4      0x19c
+                0x400082f4      0x19c
  i.CyU3PDebugInit
-                0x400082b4      0x19c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
-                0x400082b4                CyU3PDebugInit
+                0x400082f4      0x19c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+                0x400082f4                CyU3PDebugInit
 
 i.CyU3PDebugIntToStr
-                0x40008450       0x80
+                0x40008490       0x80
  i.CyU3PDebugIntToStr
-                0x40008450       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
-                0x40008450                CyU3PDebugIntToStr
+                0x40008490       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+                0x40008490                CyU3PDebugIntToStr
 
 i.CyU3PDebugPreamble
-                0x400084d0       0x10
+                0x40008510       0x10
  i.CyU3PDebugPreamble
-                0x400084d0       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
-                0x400084d0                CyU3PDebugPreamble
+                0x40008510       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+                0x40008510                CyU3PDebugPreamble
 
 i.CyU3PDebugPrint
-                0x400084e0      0x250
+                0x40008520      0x250
  i.CyU3PDebugPrint
-                0x400084e0      0x240 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
-                0x400084e0                CyU3PDebugPrint
+                0x40008520      0x240 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+                0x40008520                CyU3PDebugPrint
  i.CyU3PDebugPrint.__stub
-                0x40008720        0xc linker stubs
+                0x40008760        0xc linker stubs
 
 i.CyU3PDebugThreadEntry
-                0x40008730       0xf8
+                0x40008770       0xf8
  i.CyU3PDebugThreadEntry
-                0x40008730       0xe4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
-                0x40008730                CyU3PDebugThreadEntry
- *fill*         0x40008814        0x4 
+                0x40008770       0xe4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+                0x40008770                CyU3PDebugThreadEntry
+ *fill*         0x40008854        0x4 
  i.CyU3PDebugThreadEntry.__stub
-                0x40008818        0xc linker stubs
+                0x40008858        0xc linker stubs
 
 i.MyDebugSNPrint
-                0x40008828      0x2b8
+                0x40008868      0x2b8
  i.MyDebugSNPrint
-                0x40008828      0x298 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+                0x40008868      0x298 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
  i.MyDebugSNPrint.__stub
-                0x40008ac0       0x18 linker stubs
+                0x40008b00       0x18 linker stubs
 
 i.CyU3PDmaDscrGetConfig
-                0x40008ae0       0x6c
+                0x40008b20       0x6c
  i.CyU3PDmaDscrGetConfig
-                0x40008ae0       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3descriptor.o)
-                0x40008ae0                CyU3PDmaDscrGetConfig
+                0x40008b20       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3descriptor.o)
+                0x40008b20                CyU3PDmaDscrGetConfig
 
 i.CyU3PDmaDscrSetConfig
-                0x40008b4c       0x98
+                0x40008b8c       0x98
  i.CyU3PDmaDscrSetConfig
-                0x40008b4c       0x98 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3descriptor.o)
-                0x40008b4c                CyU3PDmaDscrSetConfig
+                0x40008b8c       0x98 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3descriptor.o)
+                0x40008b8c                CyU3PDmaDscrSetConfig
 
 i.CyU3PDevCheckDevStateStruct
-                0x40008be4      0x150
+                0x40008c24      0x150
  i.CyU3PDevCheckDevStateStruct
-                0x40008be4      0x150 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
+                0x40008c24      0x150 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
 
 i.CyU3PDeviceCacheControl
-                0x40008d34       0x98
+                0x40008d74       0x98
  i.CyU3PDeviceCacheControl
-                0x40008d34       0x98 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
-                0x40008d34                CyU3PDeviceCacheControl
+                0x40008d74       0x98 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
+                0x40008d74                CyU3PDeviceCacheControl
 
 i.CyU3PDeviceInit
-                0x40008dcc      0x490
+                0x40008e0c      0x490
  i.CyU3PDeviceInit
-                0x40008dcc      0x490 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
-                0x40008dcc                CyU3PDeviceInit
+                0x40008e0c      0x490 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
+                0x40008e0c                CyU3PDeviceInit
 
 i.CyU3PSysSetupMMU
-                0x4000925c       0x2c
+                0x4000929c       0x2c
  i.CyU3PSysSetupMMU
-                0x4000925c       0x2c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
-                0x4000925c                CyU3PSysSetupMMU
+                0x4000929c       0x2c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
+                0x4000929c                CyU3PSysSetupMMU
 
 i.CyU3PSysWatchDogConfigure
-                0x40009288       0xf4
+                0x400092c8       0xf4
  i.CyU3PSysWatchDogConfigure
-                0x40009288       0xf4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
-                0x40009288                CyU3PSysWatchDogConfigure
+                0x400092c8       0xf4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
+                0x400092c8                CyU3PSysWatchDogConfigure
 
 i.CyU3PDmaApplicationDefine
-                0x40009380       0xd0
+                0x400093c0       0xd0
  i.CyU3PDmaApplicationDefine
-                0x40009380       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x40009380                CyU3PDmaApplicationDefine
+                0x400093c0       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x400093c0                CyU3PDmaApplicationDefine
  i.CyU3PDmaApplicationDefine.__stub
-                0x40009440        0xc linker stubs
+                0x40009480        0xc linker stubs
 
 i.CyU3PDmaChannelHandleError
-                0x40009450       0x9c
+                0x40009490       0x9c
  i.CyU3PDmaChannelHandleError
-                0x40009450       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x40009490       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
 
 i.CyU3PDmaChannelIsValid
-                0x400094ec       0x40
+                0x4000952c       0x40
  i.CyU3PDmaChannelIsValid
-                0x400094ec       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x400094ec                CyU3PDmaChannelIsValid
+                0x4000952c       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000952c                CyU3PDmaChannelIsValid
 
-i.CyU3PDmaInit  0x40009530       0xc0
+i.CyU3PDmaInit  0x40009570       0xc0
  i.CyU3PDmaInit
-                0x40009530       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x40009530                CyU3PDmaInit
+                0x40009570       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x40009570                CyU3PDmaInit
  i.CyU3PDmaInit.__stub
-                0x400095d0       0x18 linker stubs
+                0x40009610       0x18 linker stubs
 
 i.CyU3PDmaIntHandler_TypeAuto
-                0x400095f0      0x36c
+                0x40009630      0x36c
  i.CyU3PDmaIntHandler_TypeAuto
-                0x400095f0      0x36c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x40009630      0x36c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
 
 i.CyU3PDmaIntHandler_TypeManual
-                0x4000995c      0x600
+                0x4000999c      0x600
  i.CyU3PDmaIntHandler_TypeManual
-                0x4000995c      0x600 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000999c      0x600 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
 
 i.CyU3PDmaIntHandler_TypeManyToOne
-                0x40009f5c      0x5e0
+                0x40009f9c      0x5e0
  i.CyU3PDmaIntHandler_TypeManyToOne
-                0x40009f5c      0x5e0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x40009f9c      0x5e0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
 
 i.CyU3PDmaIntHandler_TypeOneToMany
-                0x4000a53c      0x688
+                0x4000a57c      0x688
  i.CyU3PDmaIntHandler_TypeOneToMany
-                0x4000a53c      0x688 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000a57c      0x688 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
 
 i.CyU3PDmaIsSockAvlEnReqd
-                0x4000abc4       0x64
+                0x4000ac04       0x64
  i.CyU3PDmaIsSockAvlEnReqd
-                0x4000abc4       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x4000abc4                CyU3PDmaIsSockAvlEnReqd
+                0x4000ac04       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000ac04                CyU3PDmaIsSockAvlEnReqd
 
 i.CyU3PDmaMsgSend
-                0x4000ac28       0x50
+                0x4000ac68       0x50
  i.CyU3PDmaMsgSend
-                0x4000ac28       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x4000ac28                CyU3PDmaMsgSend
+                0x4000ac68       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000ac68                CyU3PDmaMsgSend
 
 i.CyU3PDmaMultiChannelHandleError
-                0x4000ac78       0xf8
+                0x4000acb8       0xf8
  i.CyU3PDmaMultiChannelHandleError
-                0x4000ac78       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x4000ac78                CyU3PDmaMultiChannelHandleError
+                0x4000acb8       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000acb8                CyU3PDmaMultiChannelHandleError
 
 i.CyU3PDmaMultiChannelIsValid
-                0x4000ad70       0x40
+                0x4000adb0       0x40
  i.CyU3PDmaMultiChannelIsValid
-                0x4000ad70       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x4000ad70                CyU3PDmaMultiChannelIsValid
+                0x4000adb0       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000adb0                CyU3PDmaMultiChannelIsValid
 
 i.CyU3PDmaThreadEntry
-                0x4000adb0      0x114
+                0x4000adf0      0x114
  i.CyU3PDmaThreadEntry
-                0x4000adb0      0x114 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x4000adb0                CyU3PDmaThreadEntry
+                0x4000adf0      0x114 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000adf0                CyU3PDmaThreadEntry
 
 i.CyU3PDmaUsbInEpGetChannel
-                0x4000aec4       0x3c
+                0x4000af04       0x3c
  i.CyU3PDmaUsbInEpGetChannel
-                0x4000aec4       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x4000aec4                CyU3PDmaUsbInEpGetChannel
+                0x4000af04       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000af04                CyU3PDmaUsbInEpGetChannel
 
 i.CyU3PDmaUsbInEpGetMultiChannel
-                0x4000af00       0x3c
+                0x4000af40       0x3c
  i.CyU3PDmaUsbInEpGetMultiChannel
-                0x4000af00       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x4000af00                CyU3PDmaUsbInEpGetMultiChannel
+                0x4000af40       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x4000af40                CyU3PDmaUsbInEpGetMultiChannel
 
 i.CyU3PDmaDscrChainCreate
-                0x4000af40      0x160
+                0x4000af80      0x160
  i.CyU3PDmaDscrChainCreate
-                0x4000af40      0x150 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
-                0x4000af40                CyU3PDmaDscrChainCreate
+                0x4000af80      0x150 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
+                0x4000af80                CyU3PDmaDscrChainCreate
  i.CyU3PDmaDscrChainCreate.__stub
-                0x4000b090        0xc linker stubs
+                0x4000b0d0        0xc linker stubs
 
 i.CyU3PDmaDscrChainDestroy
-                0x4000b0a0       0xa0
+                0x4000b0e0       0xa0
  i.CyU3PDmaDscrChainDestroy
-                0x4000b0a0       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
-                0x4000b0a0                CyU3PDmaDscrChainDestroy
- *fill*         0x4000b12c        0x4 
+                0x4000b0e0       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
+                0x4000b0e0                CyU3PDmaDscrChainDestroy
+ *fill*         0x4000b16c        0x4 
  i.CyU3PDmaDscrChainDestroy.__stub
-                0x4000b130        0xc linker stubs
+                0x4000b170        0xc linker stubs
 
 i.CyU3PDmaDscrGet
-                0x4000b140       0xe0
+                0x4000b180       0xe0
  i.CyU3PDmaDscrGet
-                0x4000b140       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
-                0x4000b140                CyU3PDmaDscrGet
+                0x4000b180       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
+                0x4000b180                CyU3PDmaDscrGet
 
 i.CyU3PDmaDscrGetFreeCount
-                0x4000b220       0x10
+                0x4000b260       0x10
  i.CyU3PDmaDscrGetFreeCount
-                0x4000b220       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
-                0x4000b220                CyU3PDmaDscrGetFreeCount
+                0x4000b260       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
+                0x4000b260                CyU3PDmaDscrGetFreeCount
 
 i.CyU3PDmaDscrListCreate
-                0x4000b230       0x68
+                0x4000b270       0x68
  i.CyU3PDmaDscrListCreate
-                0x4000b230       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
-                0x4000b230                CyU3PDmaDscrListCreate
- *fill*         0x4000b284        0x4 
+                0x4000b270       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
+                0x4000b270                CyU3PDmaDscrListCreate
+ *fill*         0x4000b2c4        0x4 
  i.CyU3PDmaDscrListCreate.__stub
-                0x4000b288        0xc linker stubs
+                0x4000b2c8        0xc linker stubs
 
 i.CyU3PDmaDscrPut
-                0x4000b298       0x9c
+                0x4000b2d8       0x9c
  i.CyU3PDmaDscrPut
-                0x4000b298       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
-                0x4000b298                CyU3PDmaDscrPut
+                0x4000b2d8       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
+                0x4000b2d8                CyU3PDmaDscrPut
 
-FX3FWINIT       0x4000b334      0x100
-                0x4000b334                PROVIDE (__start_FX3FWINIT, .)
- FX3FWINIT      0x4000b334      0x100 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
-                0x4000b334                CyU3PSetupStackPtrs
-                0x4000b3f0                CyU3PFirmwareEntry
-                0x4000b434                PROVIDE (__stop_FX3FWINIT, .)
+FX3FWINIT       0x4000b374      0x100
+                0x4000b374                PROVIDE (__start_FX3FWINIT, .)
+ FX3FWINIT      0x4000b374      0x100 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
+                0x4000b374                CyU3PSetupStackPtrs
+                0x4000b430                CyU3PFirmwareEntry
+                0x4000b474                PROVIDE (__stop_FX3FWINIT, .)
 
 i.CyU3PGpifConfigure
-                0x4000b434       0xa4
+                0x4000b474       0xa4
  i.CyU3PGpifConfigure
-                0x4000b434       0xa4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
-                0x4000b434                CyU3PGpifConfigure
+                0x4000b474       0xa4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
+                0x4000b474                CyU3PGpifConfigure
 
 i.CyU3PGpifDisable
-                0x4000b4d8       0x90
+                0x4000b518       0x90
  i.CyU3PGpifDisable
-                0x4000b4d8       0x90 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
-                0x4000b4d8                CyU3PGpifDisable
+                0x4000b518       0x90 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
+                0x4000b518                CyU3PGpifDisable
 
 i.CyU3PGpifLoad
-                0x4000b568      0x274
+                0x4000b5a8      0x274
  i.CyU3PGpifLoad
-                0x4000b568      0x274 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
-                0x4000b568                CyU3PGpifLoad
+                0x4000b5a8      0x274 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
+                0x4000b5a8                CyU3PGpifLoad
 
 i.CyU3PGpifRegisterCallback
-                0x4000b7dc       0x10
+                0x4000b81c       0x10
  i.CyU3PGpifRegisterCallback
-                0x4000b7dc       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
-                0x4000b7dc                CyU3PGpifRegisterCallback
+                0x4000b81c       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
+                0x4000b81c                CyU3PGpifRegisterCallback
 
 i.CyU3PGpifSMStart
-                0x4000b7ec      0x154
+                0x4000b82c      0x154
  i.CyU3PGpifSMStart
-                0x4000b7ec      0x154 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
-                0x4000b7ec                CyU3PGpifSMStart
+                0x4000b82c      0x154 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
+                0x4000b82c                CyU3PGpifSMStart
 
 i.CyU3PGpifSocketConfigure
-                0x4000b940       0xc0
+                0x4000b980       0xc0
  i.CyU3PGpifSocketConfigure
-                0x4000b940       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
-                0x4000b940                CyU3PGpifSocketConfigure
+                0x4000b980       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3gpif.o)
+                0x4000b980                CyU3PGpifSocketConfigure
 
 i.CyU3PDeviceConfigureIOMatrix
-                0x4000ba00       0x38
+                0x4000ba40       0x38
  i.CyU3PDeviceConfigureIOMatrix
-                0x4000ba00       0x38 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
-                0x4000ba00                CyU3PDeviceConfigureIOMatrix
+                0x4000ba40       0x38 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
+                0x4000ba40                CyU3PDeviceConfigureIOMatrix
 
 i.CyU3PDeviceGpioOverride
-                0x4000ba38       0x34
+                0x4000ba78       0x34
  i.CyU3PDeviceGpioOverride
-                0x4000ba38       0x34 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
-                0x4000ba38                CyU3PDeviceGpioOverride
+                0x4000ba78       0x34 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
+                0x4000ba78                CyU3PDeviceGpioOverride
 
 i.CyU3PIsGpioComplexIOConfigured
-                0x4000ba6c       0x18
+                0x4000baac       0x18
  i.CyU3PIsGpioComplexIOConfigured
-                0x4000ba6c       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
-                0x4000ba6c                CyU3PIsGpioComplexIOConfigured
+                0x4000baac       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
+                0x4000baac                CyU3PIsGpioComplexIOConfigured
 
 i.CyU3PIsGpioSimpleIOConfigured
-                0x4000ba84       0x18
+                0x4000bac4       0x18
  i.CyU3PIsGpioSimpleIOConfigured
-                0x4000ba84       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
-                0x4000ba84                CyU3PIsGpioSimpleIOConfigured
+                0x4000bac4       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
+                0x4000bac4                CyU3PIsGpioSimpleIOConfigured
 
 i.CyU3PIsGpioValid
-                0x4000ba9c       0x1c
+                0x4000badc       0x1c
  i.CyU3PIsGpioValid
-                0x4000ba9c       0x1c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
-                0x4000ba9c                CyU3PIsGpioValid
+                0x4000badc       0x1c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
+                0x4000badc                CyU3PIsGpioValid
 
 i.CyU3PIsLppIOConfigured
-                0x4000bab8       0x84
+                0x4000baf8       0x84
  i.CyU3PIsLppIOConfigured
-                0x4000bab8       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
-                0x4000bab8                CyU3PIsLppIOConfigured
+                0x4000baf8       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3iocfg.o)
+                0x4000baf8                CyU3PIsLppIOConfigured
 
 i.CyU3PGpioSetClock
-                0x4000bb3c       0xfc
+                0x4000bb7c       0xfc
  i.CyU3PGpioSetClock
-                0x4000bb3c       0xfc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x4000bb3c                CyU3PGpioSetClock
+                0x4000bb7c       0xfc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000bb7c                CyU3PGpioSetClock
 
 i.CyU3PLppApplicationDefine
-                0x4000bc38       0xa0
+                0x4000bc78       0xa0
  i.CyU3PLppApplicationDefine
-                0x4000bc38       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x4000bc38                CyU3PLppApplicationDefine
- *fill*         0x4000bcc4        0x4 
+                0x4000bc78       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000bc78                CyU3PLppApplicationDefine
+ *fill*         0x4000bd04        0x4 
  i.CyU3PLppApplicationDefine.__stub
-                0x4000bcc8        0xc linker stubs
+                0x4000bd08        0xc linker stubs
 
 i.CyU3PLppEventSend
-                0x4000bcd8       0x28
+                0x4000bd18       0x28
  i.CyU3PLppEventSend
-                0x4000bcd8       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x4000bcd8                CyU3PLppEventSend
+                0x4000bd18       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000bd18                CyU3PLppEventSend
 
 i.CyU3PLppGpioBlockIsOn
-                0x4000bd00       0x10
+                0x4000bd40       0x10
  i.CyU3PLppGpioBlockIsOn
-                0x4000bd00       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x4000bd00                CyU3PLppGpioBlockIsOn
+                0x4000bd40       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000bd40                CyU3PLppGpioBlockIsOn
 
-i.CyU3PLppInit  0x4000bd10      0x1a0
+i.CyU3PLppInit  0x4000bd50      0x1a0
  i.CyU3PLppInit
-                0x4000bd10      0x1a0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x4000bd10                CyU3PLppInit
+                0x4000bd50      0x1a0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000bd50                CyU3PLppInit
 
 i.CyU3PLppRestoreState
-                0x4000beb0      0x128
+                0x4000bef0      0x128
  i.CyU3PLppRestoreState
-                0x4000beb0      0x128 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x4000beb0                CyU3PLppRestoreState
+                0x4000bef0      0x128 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000bef0                CyU3PLppRestoreState
 
 i.CyU3PLppSocketInit
-                0x4000bfd8       0x50
+                0x4000c018       0x50
  i.CyU3PLppSocketInit
-                0x4000bfd8       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000c018       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
 
 i.CyU3PLppThreadEntry
-                0x4000c028      0x130
+                0x4000c068      0x130
  i.CyU3PLppThreadEntry
-                0x4000c028      0x130 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x4000c028                CyU3PLppThreadEntry
+                0x4000c068      0x130 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000c068                CyU3PLppThreadEntry
 
 i.CyU3PUartSetClock
-                0x4000c158       0xd8
+                0x4000c198       0xd8
  i.CyU3PUartSetClock
-                0x4000c158       0xd8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x4000c158                CyU3PUartSetClock
+                0x4000c198       0xd8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000c198                CyU3PUartSetClock
 
 i.CyU3UpdateLppActiveInfo
-                0x4000c230       0x84
+                0x4000c270       0x84
  i.CyU3UpdateLppActiveInfo
-                0x4000c230       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x4000c270       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
 
 i.CyU3PInitPageTable
-                0x4000c2b4        0xc
+                0x4000c2f4        0xc
  i.CyU3PInitPageTable
-                0x4000c2b4        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c2b4                CyU3PInitPageTable
+                0x4000c2f4        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c2f4                CyU3PInitPageTable
 
 i.CyU3PSysBarrierSync
-                0x4000c2c0        0xc
+                0x4000c300        0xc
  i.CyU3PSysBarrierSync
-                0x4000c2c0        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c2c0                CyU3PSysBarrierSync
+                0x4000c300        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c300                CyU3PSysBarrierSync
 
 i.CyU3PSysDisableCacheMMU
-                0x4000c2cc       0x28
+                0x4000c30c       0x28
  i.CyU3PSysDisableCacheMMU
-                0x4000c2cc       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c2cc                CyU3PSysDisableCacheMMU
+                0x4000c30c       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c30c                CyU3PSysDisableCacheMMU
 
 i.CyU3PSysDisableDCache
-                0x4000c2f4       0x10
+                0x4000c334       0x10
  i.CyU3PSysDisableDCache
-                0x4000c2f4       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c2f4                CyU3PSysDisableDCache
+                0x4000c334       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c334                CyU3PSysDisableDCache
 
 i.CyU3PSysDisableICache
-                0x4000c304       0x10
+                0x4000c344       0x10
  i.CyU3PSysDisableICache
-                0x4000c304       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c304                CyU3PSysDisableICache
+                0x4000c344       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c344                CyU3PSysDisableICache
 
 i.CyU3PSysEnableDCache
-                0x4000c314       0x10
+                0x4000c354       0x10
  i.CyU3PSysEnableDCache
-                0x4000c314       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c314                CyU3PSysEnableDCache
+                0x4000c354       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c354                CyU3PSysEnableDCache
 
 i.CyU3PSysEnableICache
-                0x4000c324       0x14
+                0x4000c364       0x14
  i.CyU3PSysEnableICache
-                0x4000c324       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c324                CyU3PSysEnableICache
+                0x4000c364       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c364                CyU3PSysEnableICache
 
 i.CyU3PSysEnableMMU
-                0x4000c338       0x10
+                0x4000c378       0x10
  i.CyU3PSysEnableMMU
-                0x4000c338       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c338                CyU3PSysEnableMMU
+                0x4000c378       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c378                CyU3PSysEnableMMU
 
 i.CyU3PSysFlushICache
-                0x4000c348        0xc
+                0x4000c388        0xc
  i.CyU3PSysFlushICache
-                0x4000c348        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c348                CyU3PSysFlushICache
+                0x4000c388        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c388                CyU3PSysFlushICache
 
 i.CyU3PSysInitTCMs
-                0x4000c354       0x14
+                0x4000c394       0x14
  i.CyU3PSysInitTCMs
-                0x4000c354       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c354                CyU3PSysInitTCMs
+                0x4000c394       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c394                CyU3PSysInitTCMs
 
 i.CyU3PSysLoadTLB
-                0x4000c368       0x3c
+                0x4000c3a8       0x3c
  i.CyU3PSysLoadTLB
-                0x4000c368       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c368                CyU3PSysLoadTLB
+                0x4000c3a8       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c3a8                CyU3PSysLoadTLB
 
 i.CyU3PSysLockTLBEntry
-                0x4000c3a4       0x28
+                0x4000c3e4       0x28
  i.CyU3PSysLockTLBEntry
-                0x4000c3a4       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
-                0x4000c3a4                CyU3PSysLockTLBEntry
+                0x4000c3e4       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+                0x4000c3e4                CyU3PSysLockTLBEntry
 
 i.CyU3PGpifInit
-                0x4000c3cc       0x7c
+                0x4000c40c       0x7c
  i.CyU3PGpifInit
-                0x4000c3cc       0x7c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
-                0x4000c3cc                CyU3PGpifInit
+                0x4000c40c       0x7c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x4000c40c                CyU3PGpifInit
 
 i.CyU3PPibApplicationDefine
-                0x4000c448      0x150
+                0x4000c488      0x150
  i.CyU3PPibApplicationDefine
-                0x4000c448      0x13c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
-                0x4000c448                CyU3PPibApplicationDefine
- *fill*         0x4000c584        0x4 
+                0x4000c488      0x13c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x4000c488                CyU3PPibApplicationDefine
+ *fill*         0x4000c5c4        0x4 
  i.CyU3PPibApplicationDefine.__stub
-                0x4000c588        0xc linker stubs
+                0x4000c5c8        0xc linker stubs
 
 i.CyU3PPibDeInit
-                0x4000c598       0x70
+                0x4000c5d8       0x70
  i.CyU3PPibDeInit
-                0x4000c598       0x70 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
-                0x4000c598                CyU3PPibDeInit
+                0x4000c5d8       0x70 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x4000c5d8                CyU3PPibDeInit
 
-i.CyU3PPibInit  0x4000c608      0x164
+i.CyU3PPibInit  0x4000c648      0x164
  i.CyU3PPibInit
-                0x4000c608      0x164 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
-                0x4000c608                CyU3PPibInit
+                0x4000c648      0x164 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x4000c648                CyU3PPibInit
 
 i.CyU3PPibSocketInit
-                0x4000c76c       0x50
+                0x4000c7ac       0x50
  i.CyU3PPibSocketInit
-                0x4000c76c       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x4000c7ac       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
 
 i.CyU3PPibThreadEntry
-                0x4000c7bc      0x2b0
+                0x4000c7fc      0x2b0
  i.CyU3PPibThreadEntry
-                0x4000c7bc      0x2b0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
-                0x4000c7bc                CyU3PPibThreadEntry
+                0x4000c7fc      0x2b0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x4000c7fc                CyU3PPibThreadEntry
 
 i.CyU3PPmmcInit
-                0x4000ca6c      0x184
+                0x4000caac      0x184
  i.CyU3PPmmcInit
-                0x4000ca6c      0x184 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
-                0x4000ca6c                CyU3PPmmcInit
+                0x4000caac      0x184 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x4000caac                CyU3PPmmcInit
 
 i.CyU3PDmaSocketDisable
-                0x4000cbf0       0x60
+                0x4000cc30       0x60
  i.CyU3PDmaSocketDisable
-                0x4000cbf0       0x60 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
-                0x4000cbf0                CyU3PDmaSocketDisable
+                0x4000cc30       0x60 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x4000cc30                CyU3PDmaSocketDisable
 
 i.CyU3PDmaSocketGetConfig
-                0x4000cc50       0xa0
+                0x4000cc90       0xa0
  i.CyU3PDmaSocketGetConfig
-                0x4000cc50       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
-                0x4000cc50                CyU3PDmaSocketGetConfig
+                0x4000cc90       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x4000cc90                CyU3PDmaSocketGetConfig
 
 i.CyU3PDmaSocketIsValidConsumer
-                0x4000ccf0       0xe0
+                0x4000cd30       0xe0
  i.CyU3PDmaSocketIsValidConsumer
-                0x4000ccf0       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
-                0x4000ccf0                CyU3PDmaSocketIsValidConsumer
+                0x4000cd30       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x4000cd30                CyU3PDmaSocketIsValidConsumer
 
 i.CyU3PDmaSocketIsValidProducer
-                0x4000cdd0       0xe0
+                0x4000ce10       0xe0
  i.CyU3PDmaSocketIsValidProducer
-                0x4000cdd0       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
-                0x4000cdd0                CyU3PDmaSocketIsValidProducer
+                0x4000ce10       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x4000ce10                CyU3PDmaSocketIsValidProducer
 
 i.CyU3PDmaSocketSendEvent
-                0x4000ceb0       0x48
+                0x4000cef0       0x48
  i.CyU3PDmaSocketSendEvent
-                0x4000ceb0       0x48 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
-                0x4000ceb0                CyU3PDmaSocketSendEvent
+                0x4000cef0       0x48 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x4000cef0                CyU3PDmaSocketSendEvent
 
 i.CyU3PDmaSocketSetConfig
-                0x4000cef8       0xac
+                0x4000cf38       0xac
  i.CyU3PDmaSocketSetConfig
-                0x4000cef8       0xac /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
-                0x4000cef8                CyU3PDmaSocketSetConfig
+                0x4000cf38       0xac /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x4000cf38                CyU3PDmaSocketSetConfig
 
 i.CyU3PDmaSocketUpdateStatus
-                0x4000cfa4       0x74
+                0x4000cfe4       0x74
  i.CyU3PDmaSocketUpdateStatus
-                0x4000cfa4       0x74 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x4000cfe4       0x74 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
 
 i.CyU3PDmaUpdateSocketResume
-                0x4000d018       0xd4
+                0x4000d058       0xd4
  i.CyU3PDmaUpdateSocketResume
-                0x4000d018       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
-                0x4000d018                CyU3PDmaUpdateSocketResume
+                0x4000d058       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x4000d058                CyU3PDmaUpdateSocketResume
 
 i.CyU3PDmaUpdateSocketSuspendOption
-                0x4000d0ec      0x164
+                0x4000d12c      0x164
  i.CyU3PDmaUpdateSocketSuspendOption
-                0x4000d0ec      0x164 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
-                0x4000d0ec                CyU3PDmaUpdateSocketSuspendOption
+                0x4000d12c      0x164 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x4000d12c                CyU3PDmaUpdateSocketSuspendOption
 
 i.CyU3PApplicationDefine
-                0x4000d250       0xe8
+                0x4000d290       0xe8
  i.CyU3PApplicationDefine
-                0x4000d250       0xc8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
-                0x4000d250                CyU3PApplicationDefine
+                0x4000d290       0xc8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
+                0x4000d290                CyU3PApplicationDefine
  i.CyU3PApplicationDefine.__stub
-                0x4000d318       0x18 linker stubs
+                0x4000d358       0x18 linker stubs
 
 i.CyU3PSysCheckBootState
-                0x4000d338       0xb0
+                0x4000d378       0xb0
  i.CyU3PSysCheckBootState
-                0x4000d338       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
-                0x4000d338                CyU3PSysCheckBootState
+                0x4000d378       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
+                0x4000d378                CyU3PSysCheckBootState
  i.CyU3PSysCheckBootState.__stub
-                0x4000d3d8        0xc linker stubs
+                0x4000d418        0xc linker stubs
 
 i.CyU3PSysGetRegBkpAddr
-                0x4000d3e8       0x10
+                0x4000d428       0x10
  i.CyU3PSysGetRegBkpAddr
-                0x4000d3e8       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
-                0x4000d3e8                CyU3PSysGetRegBkpAddr
+                0x4000d428       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
+                0x4000d428                CyU3PSysGetRegBkpAddr
 
 i.CyU3PSysModuleInitCompleteEvt
-                0x4000d3f8       0x24
+                0x4000d438       0x24
  i.CyU3PSysModuleInitCompleteEvt
-                0x4000d3f8       0x24 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
-                0x4000d3f8                CyU3PSysModuleInitCompleteEvt
+                0x4000d438       0x24 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
+                0x4000d438                CyU3PSysModuleInitCompleteEvt
 
 i.CyU3PSysThreadEntry
-                0x4000d420       0x78
+                0x4000d460       0x78
  i.CyU3PSysThreadEntry
-                0x4000d420       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
-                0x4000d420                CyU3PSysThreadEntry
+                0x4000d460       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
+                0x4000d460                CyU3PSysThreadEntry
  i.CyU3PSysThreadEntry.__stub
-                0x4000d488        0xc linker stubs
+                0x4000d4c8        0xc linker stubs
 
 i.CyU3PSystemRegisterDriver
-                0x4000d498        0x4
+                0x4000d4d8        0x4
  i.CyU3PSystemRegisterDriver
-                0x4000d498        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
-                0x4000d498                CyU3PSystemRegisterDriver
+                0x4000d4d8        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
+                0x4000d4d8                CyU3PSystemRegisterDriver
 
 i.CyU3PConnectState
-                0x4000d49c      0x248
+                0x4000d4dc      0x248
  i.CyU3PConnectState
-                0x4000d49c      0x248 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000d49c                CyU3PConnectState
+                0x4000d4dc      0x248 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000d4dc                CyU3PConnectState
 
 i.CyU3POtgGetMode
-                0x4000d6e4       0x10
+                0x4000d724       0x10
  i.CyU3POtgGetMode
-                0x4000d6e4       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000d6e4                CyU3POtgGetMode
+                0x4000d724       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000d724                CyU3POtgGetMode
 
 i.CyU3POtgIsDeviceMode
-                0x4000d6f4       0xcc
+                0x4000d734       0xcc
  i.CyU3POtgIsDeviceMode
-                0x4000d6f4       0xcc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000d6f4                CyU3POtgIsDeviceMode
+                0x4000d734       0xcc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000d734                CyU3POtgIsDeviceMode
 
 i.CyU3POtgIsHostMode
-                0x4000d7c0       0xc0
+                0x4000d800       0xc0
  i.CyU3POtgIsHostMode
-                0x4000d7c0       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000d7c0                CyU3POtgIsHostMode
+                0x4000d800       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000d800                CyU3POtgIsHostMode
 
 i.CyU3POtgIsStarted
-                0x4000d880       0x10
+                0x4000d8c0       0x10
  i.CyU3POtgIsStarted
-                0x4000d880       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000d880                CyU3POtgIsStarted
+                0x4000d8c0       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000d8c0                CyU3POtgIsStarted
 
 i.CyU3PSetEpConfig
-                0x4000d890      0x5e0
+                0x4000d8d0      0x5e0
  i.CyU3PSetEpConfig
-                0x4000d890      0x5e0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000d890                CyU3PSetEpConfig
+                0x4000d8d0      0x5e0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000d8d0                CyU3PSetEpConfig
 
 i.CyU3PSetUsbCoreClock
-                0x4000de70       0x84
+                0x4000deb0       0x84
  i.CyU3PSetUsbCoreClock
-                0x4000de70       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000de70                CyU3PSetUsbCoreClock
+                0x4000deb0       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000deb0                CyU3PSetUsbCoreClock
 
-i.CyU3PUibInit  0x4000def4      0x1c8
+i.CyU3PUibInit  0x4000df34      0x1c8
  i.CyU3PUibInit
-                0x4000def4      0x1c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000df34      0x1c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
 
 i.CyU3PUsb2Resume
-                0x4000e0bc      0x158
+                0x4000e0fc      0x158
  i.CyU3PUsb2Resume
-                0x4000e0bc      0x158 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000e0bc                CyU3PUsb2Resume
+                0x4000e0fc      0x158 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000e0fc                CyU3PUsb2Resume
 
 i.CyU3PUsbAckSetup
-                0x4000e214       0xf8
+                0x4000e254       0xf8
  i.CyU3PUsbAckSetup
-                0x4000e214       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000e214                CyU3PUsbAckSetup
+                0x4000e254       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000e254                CyU3PUsbAckSetup
 
 i.CyU3PUsbCreateDmaChannels
-                0x4000e30c      0x16c
+                0x4000e34c      0x16c
  i.CyU3PUsbCreateDmaChannels
-                0x4000e30c      0x16c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000e30c                CyU3PUsbCreateDmaChannels
+                0x4000e34c      0x16c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000e34c                CyU3PUsbCreateDmaChannels
 
 i.CyU3PUsbEnableEpInterrupts
-                0x4000e478      0x18c
+                0x4000e4b8      0x18c
  i.CyU3PUsbEnableEpInterrupts
-                0x4000e478      0x18c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000e478                CyU3PUsbEnableEpInterrupts
+                0x4000e4b8      0x18c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000e4b8                CyU3PUsbEnableEpInterrupts
 
 i.CyU3PUsbFlushEp
-                0x4000e604       0xbc
+                0x4000e644       0xbc
  i.CyU3PUsbFlushEp
-                0x4000e604       0xbc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000e604                CyU3PUsbFlushEp
+                0x4000e644       0xbc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000e644                CyU3PUsbFlushEp
 
 i.CyU3PUsbGetEP0Data
-                0x4000e6c0      0x1b8
+                0x4000e700      0x1b8
  i.CyU3PUsbGetEP0Data
-                0x4000e6c0      0x1b8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000e6c0                CyU3PUsbGetEP0Data
+                0x4000e700      0x1b8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000e700                CyU3PUsbGetEP0Data
 
 i.CyU3PUsbGetEpSeqNum
-                0x4000e878       0x8c
+                0x4000e8b8       0x8c
  i.CyU3PUsbGetEpSeqNum
-                0x4000e878       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000e878                CyU3PUsbGetEpSeqNum
+                0x4000e8b8       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000e8b8                CyU3PUsbGetEpSeqNum
 
 i.CyU3PUsbGetLinkPowerState
-                0x4000e904      0x12c
+                0x4000e944      0x12c
  i.CyU3PUsbGetLinkPowerState
-                0x4000e904      0x12c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000e904                CyU3PUsbGetLinkPowerState
+                0x4000e944      0x12c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000e944                CyU3PUsbGetLinkPowerState
 
 i.CyU3PUsbGetLock
-                0x4000ea30        0x4
+                0x4000ea70        0x4
  i.CyU3PUsbGetLock
-                0x4000ea30        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000ea70        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
 
 i.CyU3PUsbGetSpeed
-                0x4000ea34       0x10
+                0x4000ea74       0x10
  i.CyU3PUsbGetSpeed
-                0x4000ea34       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000ea34                CyU3PUsbGetSpeed
+                0x4000ea74       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000ea74                CyU3PUsbGetSpeed
 
 i.CyU3PUsbHostIsStarted
-                0x4000ea44       0x10
+                0x4000ea84       0x10
  i.CyU3PUsbHostIsStarted
-                0x4000ea44       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000ea44                CyU3PUsbHostIsStarted
+                0x4000ea84       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000ea84                CyU3PUsbHostIsStarted
 
 i.CyU3PUsbIsNewCtrlRqtRecvd
-                0x4000ea54       0x4c
+                0x4000ea94       0x4c
  i.CyU3PUsbIsNewCtrlRqtRecvd
-                0x4000ea54       0x4c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000ea94       0x4c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
 
 i.CyU3PUsbLoadBootloaderDescs
-                0x4000eaa0       0x6c
+                0x4000eae0       0x6c
  i.CyU3PUsbLoadBootloaderDescs
-                0x4000eaa0       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000eaa0                CyU3PUsbLoadBootloaderDescs
+                0x4000eae0       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000eae0                CyU3PUsbLoadBootloaderDescs
 
 i.CyU3PUsbMapStream
-                0x4000eb0c       0x7c
+                0x4000eb4c       0x7c
  i.CyU3PUsbMapStream
-                0x4000eb0c       0x7c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000eb0c                CyU3PUsbMapStream
+                0x4000eb4c       0x7c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000eb4c                CyU3PUsbMapStream
 
 i.CyU3PUsbOtgVbusChangeHandler
-                0x4000eb88       0xb4
+                0x4000ebc8       0xb4
  i.CyU3PUsbOtgVbusChangeHandler
-                0x4000eb88       0xb4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000eb88                CyU3PUsbOtgVbusChangeHandler
+                0x4000ebc8       0xb4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000ebc8                CyU3PUsbOtgVbusChangeHandler
 
 i.CyU3PUsbPhyDisable
-                0x4000ec3c      0x204
+                0x4000ec7c      0x204
  i.CyU3PUsbPhyDisable
-                0x4000ec3c      0x204 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000ec3c                CyU3PUsbPhyDisable
+                0x4000ec7c      0x204 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000ec7c                CyU3PUsbPhyDisable
 
 i.CyU3PUsbPhyEnable
-                0x4000ee40      0x334
+                0x4000ee80      0x334
  i.CyU3PUsbPhyEnable
-                0x4000ee40      0x334 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000ee40                CyU3PUsbPhyEnable
+                0x4000ee80      0x334 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000ee80                CyU3PUsbPhyEnable
 
 i.CyU3PUsbPowerOn
-                0x4000f174        0xc
+                0x4000f1b4        0xc
  i.CyU3PUsbPowerOn
-                0x4000f174        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000f174                CyU3PUsbPowerOn
+                0x4000f1b4        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000f1b4                CyU3PUsbPowerOn
 
 i.CyU3PUsbPutLock
-                0x4000f180        0x4
+                0x4000f1c0        0x4
  i.CyU3PUsbPutLock
-                0x4000f180        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000f1c0        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
 
 i.CyU3PUsbResetEndpointMemories
-                0x4000f184      0x320
+                0x4000f1c4      0x320
  i.CyU3PUsbResetEndpointMemories
-                0x4000f184      0x320 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000f184                CyU3PUsbResetEndpointMemories
+                0x4000f1c4      0x320 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000f1c4                CyU3PUsbResetEndpointMemories
 
 i.CyU3PUsbResetEp
-                0x4000f4a4       0xd4
+                0x4000f4e4       0xd4
  i.CyU3PUsbResetEp
-                0x4000f4a4       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000f4a4                CyU3PUsbResetEp
+                0x4000f4e4       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000f4e4                CyU3PUsbResetEp
 
 i.CyU3PUsbResumeInEpChannels
-                0x4000f578       0x58
+                0x4000f5b8       0x58
  i.CyU3PUsbResumeInEpChannels
-                0x4000f578       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000f5b8       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
 
 i.CyU3PUsbSendEP0Data
-                0x4000f5d0      0x254
+                0x4000f610      0x254
  i.CyU3PUsbSendEP0Data
-                0x4000f5d0      0x254 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000f5d0                CyU3PUsbSendEP0Data
+                0x4000f610      0x254 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000f610                CyU3PUsbSendEP0Data
 
 i.CyU3PUsbSendErdy
-                0x4000f824       0xf4
+                0x4000f864       0xf4
  i.CyU3PUsbSendErdy
-                0x4000f824       0xf4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000f824                CyU3PUsbSendErdy
+                0x4000f864       0xf4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000f864                CyU3PUsbSendErdy
 
 i.CyU3PUsbSetDesc
-                0x4000f918      0x1c8
+                0x4000f958      0x1c8
  i.CyU3PUsbSetDesc
-                0x4000f918      0x1c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000f918                CyU3PUsbSetDesc
+                0x4000f958      0x1c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000f958                CyU3PUsbSetDesc
 
 i.CyU3PUsbSetEpNak
-                0x4000fae0      0x1b4
+                0x4000fb20      0x1b4
  i.CyU3PUsbSetEpNak
-                0x4000fae0      0x1b4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000fae0                CyU3PUsbSetEpNak
+                0x4000fb20      0x1b4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000fb20                CyU3PUsbSetEpNak
 
 i.CyU3PUsbSetEpSeqNum
-                0x4000fc94       0x80
+                0x4000fcd4       0x80
  i.CyU3PUsbSetEpSeqNum
-                0x4000fc94       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000fc94                CyU3PUsbSetEpSeqNum
+                0x4000fcd4       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000fcd4                CyU3PUsbSetEpSeqNum
 
 i.CyU3PUsbSetLinkPowerState
-                0x4000fd14      0x154
+                0x4000fd54      0x154
  i.CyU3PUsbSetLinkPowerState
-                0x4000fd14      0x154 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000fd14                CyU3PUsbSetLinkPowerState
+                0x4000fd54      0x154 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000fd54                CyU3PUsbSetLinkPowerState
 
 i.CyU3PUsbStall
-                0x4000fe68      0x378
+                0x4000fea8      0x378
  i.CyU3PUsbStall
-                0x4000fe68      0x378 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x4000fe68                CyU3PUsbStall
+                0x4000fea8      0x378 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x4000fea8                CyU3PUsbStall
 
 i.CyU3PUsbStart
-                0x400101e0      0x3a8
+                0x40010220      0x3a8
  i.CyU3PUsbStart
-                0x400101e0      0x3a8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x400101e0                CyU3PUsbStart
+                0x40010220      0x3a8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x40010220                CyU3PUsbStart
 
 i.CyU3PUsbSuspendInEpChannels
-                0x40010588       0x60
+                0x400105c8       0x60
  i.CyU3PUsbSuspendInEpChannels
-                0x40010588       0x60 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x400105c8       0x60 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
 
 i.GetUsbLinkActive
-                0x400105e8       0x80
+                0x40010628       0x80
  i.GetUsbLinkActive
-                0x400105e8       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x40010628       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
 
 i.CyU3PHsGrantIntrHandler
-                0x40010668       0x78
+                0x400106a8       0x78
  i.CyU3PHsGrantIntrHandler
-                0x40010668       0x78 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x400106a8       0x78 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUibApplicationDefine
-                0x400106e0      0x1b8
+                0x40010720      0x1b8
  i.CyU3PUibApplicationDefine
-                0x400106e0      0x1a4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x400106e0                CyU3PUibApplicationDefine
- *fill*         0x40010884        0x4 
+                0x40010720      0x1a4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40010720                CyU3PUibApplicationDefine
+ *fill*         0x400108c4        0x4 
  i.CyU3PUibApplicationDefine.__stub
-                0x40010888        0xc linker stubs
+                0x400108c8        0xc linker stubs
 
 i.CyU3PUibDevCtrlEvtHandler
-                0x40010898      0x1d4
+                0x400108d8      0x1d4
  i.CyU3PUibDevCtrlEvtHandler
-                0x40010898      0x1d4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40010898                CyU3PUibDevCtrlEvtHandler
+                0x400108d8      0x1d4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x400108d8                CyU3PUibDevCtrlEvtHandler
 
 i.CyU3PUibEPEvtHandler
-                0x40010a6c      0x270
+                0x40010aac      0x270
  i.CyU3PUibEPEvtHandler
-                0x40010a6c      0x270 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40010a6c                CyU3PUibEPEvtHandler
+                0x40010aac      0x270 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40010aac                CyU3PUibEPEvtHandler
 
 i.CyU3PUibInitVars
-                0x40010ce0       0xd8
+                0x40010d20       0xd8
  i.CyU3PUibInitVars
-                0x40010ce0       0xc4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
- *fill*         0x40010da4        0x4 
+                0x40010d20       0xc4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+ *fill*         0x40010de4        0x4 
  i.CyU3PUibInitVars.__stub
-                0x40010da8        0xc linker stubs
+                0x40010de8        0xc linker stubs
 
 i.CyU3PUibLnkErrClrTimerCb
-                0x40010db8       0xa0
+                0x40010df8       0xa0
  i.CyU3PUibLnkErrClrTimerCb
-                0x40010db8       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40010df8       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUibLnkIntrEvtHandler
-                0x40010e58       0xa0
+                0x40010e98       0xa0
  i.CyU3PUibLnkIntrEvtHandler
-                0x40010e58       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40010e58                CyU3PUibLnkIntrEvtHandler
+                0x40010e98       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40010e98                CyU3PUibLnkIntrEvtHandler
 
 i.CyU3PUibProtEpIntrEvtHandler
-                0x40010ef8      0x4d8
+                0x40010f38      0x4d8
  i.CyU3PUibProtEpIntrEvtHandler
-                0x40010ef8      0x4d8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40010ef8                CyU3PUibProtEpIntrEvtHandler
+                0x40010f38      0x4d8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40010f38                CyU3PUibProtEpIntrEvtHandler
 
 i.CyU3PUibProtIntrEvtHandler
-                0x400113d0      0x13c
+                0x40011410      0x13c
  i.CyU3PUibProtIntrEvtHandler
-                0x400113d0      0x13c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x400113d0                CyU3PUibProtIntrEvtHandler
+                0x40011410      0x13c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40011410                CyU3PUibProtIntrEvtHandler
 
 i.CyU3PUibSendDescr
-                0x4001150c      0x624
+                0x4001154c      0x624
  i.CyU3PUibSendDescr
-                0x4001150c      0x624 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x4001154c      0x624 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUibSocketInit
-                0x40011b30       0x9c
+                0x40011b70       0x9c
  i.CyU3PUibSocketInit
-                0x40011b30       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40011b30                CyU3PUibSocketInit
+                0x40011b70       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40011b70                CyU3PUibSocketInit
 
 i.CyU3PUibStatusTimerCb
-                0x40011bcc       0xa4
+                0x40011c0c       0xa4
  i.CyU3PUibStatusTimerCb
-                0x40011bcc       0xa4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40011c0c       0xa4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUibThreadEntry
-                0x40011c70       0x90
+                0x40011cb0       0x90
  i.CyU3PUibThreadEntry
-                0x40011c70       0x7c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40011c70                CyU3PUibThreadEntry
- *fill*         0x40011cec        0x4 
+                0x40011cb0       0x7c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40011cb0                CyU3PUibThreadEntry
+ *fill*         0x40011d2c        0x4 
  i.CyU3PUibThreadEntry.__stub
-                0x40011cf0        0xc linker stubs
+                0x40011d30        0xc linker stubs
 
 i.CyU3PUibVbusChangeHandler
-                0x40011d00      0x168
+                0x40011d40      0x168
  i.CyU3PUibVbusChangeHandler
-                0x40011d00      0x168 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40011d00                CyU3PUibVbusChangeHandler
+                0x40011d40      0x168 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40011d40                CyU3PUibVbusChangeHandler
 
 i.CyU3PUsbAddToEventLog
-                0x40011e68       0x84
+                0x40011ea8       0x84
  i.CyU3PUsbAddToEventLog
-                0x40011e68       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40011e68                CyU3PUsbAddToEventLog
+                0x40011ea8       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40011ea8                CyU3PUsbAddToEventLog
 
 i.CyU3PUsbCheckUsb3Disconnect
-                0x40011eec      0x260
+                0x40011f2c      0x260
  i.CyU3PUsbCheckUsb3Disconnect
-                0x40011eec      0x260 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40011f2c      0x260 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbDescInit
-                0x40012150       0x30
+                0x40012190       0x30
  i.CyU3PUsbDescInit
-                0x40012150       0x1c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40012150                CyU3PUsbDescInit
- *fill*         0x4001216c        0x4 
+                0x40012190       0x1c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40012190                CyU3PUsbDescInit
+ *fill*         0x400121ac        0x4 
  i.CyU3PUsbDescInit.__stub
-                0x40012170        0xc linker stubs
+                0x400121b0        0xc linker stubs
 
 i.CyU3PUsbEpPrepare
-                0x40012180      0x1f8
+                0x400121c0      0x1f8
  i.CyU3PUsbEpPrepare
-                0x40012180      0x1f8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40012180                CyU3PUsbEpPrepare
+                0x400121c0      0x1f8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x400121c0                CyU3PUsbEpPrepare
 
 i.CyU3PUsbFallBackToUsb2
-                0x40012378      0x2ac
+                0x400123b8      0x2ac
  i.CyU3PUsbFallBackToUsb2
-                0x40012378      0x2ac /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x400123b8      0x2ac /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbGetEpStatus
-                0x40012624       0xb8
+                0x40012664       0xb8
  i.CyU3PUsbGetEpStatus
-                0x40012624       0xb8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40012624                CyU3PUsbGetEpStatus
+                0x40012664       0xb8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40012664                CyU3PUsbGetEpStatus
 
 i.CyU3PUsbHandleClearFeature
-                0x400126dc      0x118
+                0x4001271c      0x118
  i.CyU3PUsbHandleClearFeature
-                0x400126dc      0x118 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x4001271c      0x118 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbHandleEvents
-                0x400127f4      0x488
+                0x40012834      0x488
  i.CyU3PUsbHandleEvents
-                0x400127f4      0x488 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x400127f4                CyU3PUsbHandleEvents
+                0x40012834      0x488 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40012834                CyU3PUsbHandleEvents
 
 i.CyU3PUsbHandleGetStatus
-                0x40012c7c       0xf8
+                0x40012cbc       0xf8
  i.CyU3PUsbHandleGetStatus
-                0x40012c7c       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40012cbc       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbHandleSetFeature
-                0x40012d74      0x118
+                0x40012db4      0x118
  i.CyU3PUsbHandleSetFeature
-                0x40012d74      0x118 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40012db4      0x118 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbReEnableUsb3
-                0x40012e8c      0x1dc
+                0x40012ecc      0x1dc
  i.CyU3PUsbReEnableUsb3
-                0x40012e8c      0x1dc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40012ecc      0x1dc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbRegisterEventCallback
-                0x40013068       0x54
+                0x400130a8       0x54
  i.CyU3PUsbRegisterEventCallback
-                0x40013068       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40013068                CyU3PUsbRegisterEventCallback
+                0x400130a8       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x400130a8                CyU3PUsbRegisterEventCallback
 
 i.CyU3PUsbRegisterLPMRequestCallback
-                0x400130bc       0x10
+                0x400130fc       0x10
  i.CyU3PUsbRegisterLPMRequestCallback
-                0x400130bc       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x400130bc                CyU3PUsbRegisterLPMRequestCallback
+                0x400130fc       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x400130fc                CyU3PUsbRegisterLPMRequestCallback
 
 i.CyU3PUsbRegisterSetupCallback
-                0x400130cc       0x60
+                0x4001310c       0x60
  i.CyU3PUsbRegisterSetupCallback
-                0x400130cc       0x60 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x400130cc                CyU3PUsbRegisterSetupCallback
+                0x4001310c       0x60 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x4001310c                CyU3PUsbRegisterSetupCallback
 
 i.CyU3PUsbResetHandler
-                0x4001312c      0x170
+                0x4001316c      0x170
  i.CyU3PUsbResetHandler
-                0x4001312c      0x170 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x4001316c      0x170 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbResumeHandler
-                0x4001329c       0x50
+                0x400132dc       0x50
  i.CyU3PUsbResumeHandler
-                0x4001329c       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x400132dc       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbSSConnecthandler
-                0x400132ec      0x270
+                0x4001332c      0x270
  i.CyU3PUsbSSConnecthandler
-                0x400132ec      0x270 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x400132ec                CyU3PUsbSSConnecthandler
+                0x4001332c      0x270 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x4001332c                CyU3PUsbSSConnecthandler
 
 i.CyU3PUsbSSDisConnecthandler
-                0x4001355c      0x1e0
+                0x4001359c      0x1e0
  i.CyU3PUsbSSDisConnecthandler
-                0x4001355c      0x1e0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x4001359c      0x1e0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbSSReset
-                0x4001373c      0x1a8
+                0x4001377c      0x1a8
  i.CyU3PUsbSSReset
-                0x4001373c      0x1a8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x4001373c                CyU3PUsbSSReset
+                0x4001377c      0x1a8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x4001377c                CyU3PUsbSSReset
 
 i.CyU3PUsbSendCompliancePatterns
-                0x400138e4      0x210
+                0x40013924      0x210
  i.CyU3PUsbSendCompliancePatterns
-                0x400138e4      0x210 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40013924      0x210 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbSetupCommand
-                0x40013af4      0x818
+                0x40013b34      0x818
  i.CyU3PUsbSetupCommand
-                0x40013af4      0x818 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40013b34      0x818 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PUsbSuspendHandler
-                0x4001430c       0x50
+                0x4001434c       0x50
  i.CyU3PUsbSuspendHandler
-                0x4001430c       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x4001434c       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.HandleVbusOffEvent
-                0x4001435c      0x130
+                0x4001439c      0x130
  i.HandleVbusOffEvent
-                0x4001435c      0x130 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x4001439c      0x130 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
 
 i.CyU3PComputeChecksum
-                0x4001448c       0x5c
+                0x400144cc       0x5c
  i.CyU3PComputeChecksum
-                0x4001448c       0x5c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
-                0x4001448c                CyU3PComputeChecksum
+                0x400144cc       0x5c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
+                0x400144cc                CyU3PComputeChecksum
 
 i.__aeabi_memclr4
-                0x400144e8       0x20
+                0x40014528       0x20
  i.__aeabi_memclr4
-                0x400144e8       0x20 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
-                0x400144e8                __aeabi_memclr4
+                0x40014528       0x20 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
+                0x40014528                __aeabi_memclr4
 
 i.__aeabi_memcpy
-                0x40014508       0x5c
+                0x40014548       0x5c
  i.__aeabi_memcpy
-                0x40014508       0x5c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
-                0x40014508                __aeabi_memcpy
+                0x40014548       0x5c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
+                0x40014548                __aeabi_memcpy
 
 i.__aeabi_memcpy4
-                0x40014564       0x24
+                0x400145a4       0x24
  i.__aeabi_memcpy4
-                0x40014564       0x24 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
-                0x40014564                __aeabi_memcpy4
+                0x400145a4       0x24 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
+                0x400145a4                __aeabi_memcpy4
 
 i.__aeabi_memset
-                0x40014588       0x20
+                0x400145c8       0x20
  i.__aeabi_memset
-                0x40014588       0x20 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
-                0x40014588                __aeabi_memset
+                0x400145c8       0x20 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3utils.o)
+                0x400145c8                __aeabi_memset
 
 i.CyU3POsTimerInit
-                0x400145a8      0x114
+                0x400145e8      0x114
  i.CyU3POsTimerInit
-                0x400145a8      0x114 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
-                0x400145a8                CyU3POsTimerInit
+                0x400145e8      0x114 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
+                0x400145e8                CyU3POsTimerInit
 
 i.CyU3PVicClearInt
-                0x400146bc        0xc
+                0x400146fc        0xc
  i.CyU3PVicClearInt
-                0x400146bc        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
-                0x400146bc                CyU3PVicClearInt
+                0x400146fc        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
+                0x400146fc                CyU3PVicClearInt
 
 i.CyU3PVicDisableAllInterrupts
-                0x400146c8       0x10
+                0x40014708       0x10
  i.CyU3PVicDisableAllInterrupts
-                0x400146c8       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
-                0x400146c8                CyU3PVicDisableAllInterrupts
+                0x40014708       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
+                0x40014708                CyU3PVicDisableAllInterrupts
 
 i.CyU3PVicDisableInt
-                0x400146d8       0x14
+                0x40014718       0x14
  i.CyU3PVicDisableInt
-                0x400146d8       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
-                0x400146d8                CyU3PVicDisableInt
+                0x40014718       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
+                0x40014718                CyU3PVicDisableInt
 
 i.CyU3PVicEnableInt
-                0x400146ec       0x14
+                0x4001472c       0x14
  i.CyU3PVicEnableInt
-                0x400146ec       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
-                0x400146ec                CyU3PVicEnableInt
+                0x4001472c       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
+                0x4001472c                CyU3PVicEnableInt
 
 i.CyU3PVicEnableInterrupts
-                0x40014700        0xc
+                0x40014740        0xc
  i.CyU3PVicEnableInterrupts
-                0x40014700        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
-                0x40014700                CyU3PVicEnableInterrupts
+                0x40014740        0xc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
+                0x40014740                CyU3PVicEnableInterrupts
 
-i.CyU3PVicInit  0x40014710       0x40
+i.CyU3PVicInit  0x40014750       0x40
  i.CyU3PVicInit
-                0x40014710       0x34 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
-                0x40014710                CyU3PVicInit
- *fill*         0x40014744        0x4 
+                0x40014750       0x34 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
+                0x40014750                CyU3PVicInit
+ *fill*         0x40014784        0x4 
  i.CyU3PVicInit.__stub
-                0x40014748        0x8 linker stubs
+                0x40014788        0x8 linker stubs
 
 i.CyU3PMboxReset
-                0x40014750       0x40
+                0x40014790       0x40
  i.CyU3PMboxReset
-                0x40014750       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cywbmbox.o)
-                0x40014750                CyU3PMboxReset
+                0x40014790       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cywbmbox.o)
+                0x40014790                CyU3PMboxReset
 
 i.CyFx3DevClearSwInterrupt
-                0x40014790       0x18
+                0x400147d0       0x18
  i.CyFx3DevClearSwInterrupt
-                0x40014790       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014790                CyFx3DevClearSwInterrupt
+                0x400147d0       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x400147d0                CyFx3DevClearSwInterrupt
 
 i.CyFx3DevIOConfigure
-                0x400147a8      0x194
+                0x400147e8      0x194
  i.CyFx3DevIOConfigure
-                0x400147a8      0x194 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x400147a8                CyFx3DevIOConfigure
+                0x400147e8      0x194 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x400147e8                CyFx3DevIOConfigure
 
 i.CyFx3DevIOIsGpio
-                0x4001493c       0x40
+                0x4001497c       0x40
  i.CyFx3DevIOIsGpio
-                0x4001493c       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x4001493c                CyFx3DevIOIsGpio
+                0x4001497c       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x4001497c                CyFx3DevIOIsGpio
 
 i.CyFx3DevIOIsI2cConfigured
-                0x4001497c       0x10
+                0x400149bc       0x10
  i.CyFx3DevIOIsI2cConfigured
-                0x4001497c       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x4001497c                CyFx3DevIOIsI2cConfigured
+                0x400149bc       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x400149bc                CyFx3DevIOIsI2cConfigured
 
 i.CyFx3DevIOIsI2sConfigured
-                0x4001498c       0x10
+                0x400149cc       0x10
  i.CyFx3DevIOIsI2sConfigured
-                0x4001498c       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x4001498c                CyFx3DevIOIsI2sConfigured
+                0x400149cc       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x400149cc                CyFx3DevIOIsI2sConfigured
 
 i.CyFx3DevIOIsSpiConfigured
-                0x4001499c       0x10
+                0x400149dc       0x10
  i.CyFx3DevIOIsSpiConfigured
-                0x4001499c       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x4001499c                CyFx3DevIOIsSpiConfigured
+                0x400149dc       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x400149dc                CyFx3DevIOIsSpiConfigured
 
 i.CyFx3DevIOIsUartConfigured
-                0x400149ac       0x10
+                0x400149ec       0x10
  i.CyFx3DevIOIsUartConfigured
-                0x400149ac       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x400149ac                CyFx3DevIOIsUartConfigured
+                0x400149ec       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x400149ec                CyFx3DevIOIsUartConfigured
 
 i.CyFx3DevIOSelectGpio
-                0x400149bc       0xd0
+                0x400149fc       0xd0
  i.CyFx3DevIOSelectGpio
-                0x400149bc       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x400149bc                CyFx3DevIOSelectGpio
+                0x400149fc       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x400149fc                CyFx3DevIOSelectGpio
 
 i.CyFx3DevIOSetConfig
-                0x40014a8c      0x274
+                0x40014acc      0x274
  i.CyFx3DevIOSetConfig
-                0x40014a8c      0x274 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014acc      0x274 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
 
 i.CyFx3DevIdentifyPart
-                0x40014d00       0xa8
+                0x40014d40       0xa8
  i.CyFx3DevIdentifyPart
-                0x40014d00       0xa8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014d00                CyFx3DevIdentifyPart
+                0x40014d40       0xa8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014d40                CyFx3DevIdentifyPart
 
 i.CyFx3DevInitPageTables
-                0x40014da8       0x74
+                0x40014de8       0x74
  i.CyFx3DevInitPageTables
-                0x40014da8       0x74 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014da8                CyFx3DevInitPageTables
+                0x40014de8       0x74 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014de8                CyFx3DevInitPageTables
 
 i.CyFx3DevIsGpif32Supported
-                0x40014e1c       0x28
+                0x40014e5c       0x28
  i.CyFx3DevIsGpif32Supported
-                0x40014e1c       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014e1c                CyFx3DevIsGpif32Supported
+                0x40014e5c       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014e5c                CyFx3DevIsGpif32Supported
 
 i.CyFx3DevIsGpifSupported
-                0x40014e44       0x28
+                0x40014e84       0x28
  i.CyFx3DevIsGpifSupported
-                0x40014e44       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014e44                CyFx3DevIsGpifSupported
+                0x40014e84       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014e84                CyFx3DevIsGpifSupported
 
 i.CyFx3DevIsI2sSupported
-                0x40014e6c       0x28
+                0x40014eac       0x28
  i.CyFx3DevIsI2sSupported
-                0x40014e6c       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014e6c                CyFx3DevIsI2sSupported
+                0x40014eac       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014eac                CyFx3DevIsI2sSupported
 
 i.CyFx3DevIsOtgSupported
-                0x40014e94       0x28
+                0x40014ed4       0x28
  i.CyFx3DevIsOtgSupported
-                0x40014e94       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014e94                CyFx3DevIsOtgSupported
+                0x40014ed4       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014ed4                CyFx3DevIsOtgSupported
 
 i.CyFx3DevIsSib0Supported
-                0x40014ebc       0x28
+                0x40014efc       0x28
  i.CyFx3DevIsSib0Supported
-                0x40014ebc       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014ebc                CyFx3DevIsSib0Supported
+                0x40014efc       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014efc                CyFx3DevIsSib0Supported
 
 i.CyFx3DevIsSib1Supported
-                0x40014ee4       0x28
+                0x40014f24       0x28
  i.CyFx3DevIsSib1Supported
-                0x40014ee4       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014ee4                CyFx3DevIsSib1Supported
+                0x40014f24       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014f24                CyFx3DevIsSib1Supported
 
 i.CyFx3DevIsUsb3Supported
-                0x40014f0c       0x28
+                0x40014f4c       0x28
  i.CyFx3DevIsUsb3Supported
-                0x40014f0c       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x40014f0c                CyFx3DevIsUsb3Supported
+                0x40014f4c       0x28 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40014f4c                CyFx3DevIsUsb3Supported
 
 i.CyFx3BusyWait
-                0x40014f34       0x30
+                0x40014f74       0x30
  i.CyFx3BusyWait
-                0x40014f34       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
-                0x40014f34                CyFx3BusyWait
+                0x40014f74       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
+                0x40014f74                CyFx3BusyWait
 
 i.CyFx3PibDllEnable
-                0x40014f64       0x68
+                0x40014fa4       0x68
  i.CyFx3PibDllEnable
-                0x40014f64       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
-                0x40014f64                CyFx3PibDllEnable
+                0x40014fa4       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
+                0x40014fa4                CyFx3PibDllEnable
 
 i.CyFx3PibGetDllStatus
-                0x40014fcc       0x14
+                0x4001500c       0x14
  i.CyFx3PibGetDllStatus
-                0x40014fcc       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
-                0x40014fcc                CyFx3PibGetDllStatus
+                0x4001500c       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
+                0x4001500c                CyFx3PibGetDllStatus
 
 i.CyFx3PibPowerOff
-                0x40014fe0       0x14
+                0x40015020       0x14
  i.CyFx3PibPowerOff
-                0x40014fe0       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
-                0x40014fe0                CyFx3PibPowerOff
+                0x40015020       0x14 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
+                0x40015020                CyFx3PibPowerOff
 
 i.CyFx3PibPowerOn
-                0x40014ff4       0x54
+                0x40015034       0x54
  i.CyFx3PibPowerOn
-                0x40014ff4       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
-                0x40014ff4                CyFx3PibPowerOn
+                0x40015034       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
+                0x40015034                CyFx3PibPowerOn
 
 i.CyFx3SetCpuFreq
-                0x40015048       0x30
+                0x40015088       0x30
  i.CyFx3SetCpuFreq
-                0x40015048       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
-                0x40015048                CyFx3SetCpuFreq
+                0x40015088       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
+                0x40015088                CyFx3SetCpuFreq
 
 i.CyFx3Usb2PhySetup
-                0x40015078       0x18
+                0x400150b8       0x18
  i.CyFx3Usb2PhySetup
-                0x40015078       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
-                0x40015078                CyFx3Usb2PhySetup
+                0x400150b8       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
+                0x400150b8                CyFx3Usb2PhySetup
 
 i.CyFx3Usb3LnkRelaxHpTimeout
-                0x40015090       0x18
+                0x400150d0       0x18
  i.CyFx3Usb3LnkRelaxHpTimeout
-                0x40015090       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
-                0x40015090                CyFx3Usb3LnkRelaxHpTimeout
+                0x400150d0       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
+                0x400150d0                CyFx3Usb3LnkRelaxHpTimeout
 
 i.CyFx3Usb3LnkSetup
-                0x400150a8       0x3c
+                0x400150e8       0x3c
  i.CyFx3Usb3LnkSetup
-                0x400150a8       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
-                0x400150a8                CyFx3Usb3LnkSetup
+                0x400150e8       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
+                0x400150e8                CyFx3Usb3LnkSetup
 
 i.CyFx3Usb3SendTP
-                0x400150e4       0x30
+                0x40015124       0x30
  i.CyFx3Usb3SendTP
-                0x400150e4       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
-                0x400150e4                CyFx3Usb3SendTP
+                0x40015124       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
+                0x40015124                CyFx3Usb3SendTP
 
 i.CyFx3UsbDmaPrefetchEnable
-                0x40015114       0x2c
+                0x40015154       0x2c
  i.CyFx3UsbDmaPrefetchEnable
-                0x40015114       0x2c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
-                0x40015114                CyFx3UsbDmaPrefetchEnable
+                0x40015154       0x2c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
+                0x40015154                CyFx3UsbDmaPrefetchEnable
 
 i.CyFx3UsbPowerOn
-                0x40015140       0x80
+                0x40015180       0x80
  i.CyFx3UsbPowerOn
-                0x40015140       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
-                0x40015140                CyFx3UsbPowerOn
+                0x40015180       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
+                0x40015180                CyFx3UsbPowerOn
 
 i.CyFx3UsbWritePhyReg
-                0x400151c0       0x94
+                0x40015200       0x94
  i.CyFx3UsbWritePhyReg
-                0x400151c0       0x94 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
-                0x400151c0                CyFx3UsbWritePhyReg
+                0x40015200       0x94 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_usb.o)
+                0x40015200                CyFx3UsbWritePhyReg
 
 i.CyU3PSibApplicationDefine
-                0x40015258       0xb8
+                0x40015298       0xb8
  i.CyU3PSibApplicationDefine
-                0x40015258       0xa8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
-                0x40015258                CyU3PSibApplicationDefine
+                0x40015298       0xa8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
+                0x40015298                CyU3PSibApplicationDefine
  i.CyU3PSibApplicationDefine.__stub
-                0x40015300        0xc linker stubs
+                0x40015340        0xc linker stubs
 
 i.CyU3PSibInitIntfParams
-                0x40015310       0x58
+                0x40015350       0x58
  i.CyU3PSibInitIntfParams
-                0x40015310       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
-                0x40015310                CyU3PSibInitIntfParams
+                0x40015350       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
+                0x40015350                CyU3PSibInitIntfParams
 
 i.CyU3PSibThreadEntry
-                0x40015368       0x70
+                0x400153a8       0x70
  i.CyU3PSibThreadEntry
-                0x40015368       0x70 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
-                0x40015368                CyU3PSibThreadEntry
+                0x400153a8       0x70 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
+                0x400153a8                CyU3PSibThreadEntry
 
 i.CyU3PDmaMultiChannelResumeUsbConsumer
-                0x400153d8       0x64
+                0x40015418       0x64
  i.CyU3PDmaMultiChannelResumeUsbConsumer
-                0x400153d8       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3multichannelutils.o)
-                0x400153d8                CyU3PDmaMultiChannelResumeUsbConsumer
+                0x40015418       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3multichannelutils.o)
+                0x40015418                CyU3PDmaMultiChannelResumeUsbConsumer
 
 i.CyU3PDmaMultiChannelSuspendUsbConsumer
-                0x4001543c       0xdc
+                0x4001547c       0xdc
  i.CyU3PDmaMultiChannelSuspendUsbConsumer
-                0x4001543c       0xdc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3multichannelutils.o)
-                0x4001543c                CyU3PDmaMultiChannelSuspendUsbConsumer
+                0x4001547c       0xdc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3multichannelutils.o)
+                0x4001547c                CyU3PDmaMultiChannelSuspendUsbConsumer
 
 i.CyU3PDmaIntHandler
-                0x40015518      0x178
+                0x40015558      0x178
  i.CyU3PDmaIntHandler
-                0x40015518      0x178 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dmaint.o)
+                0x40015558      0x178 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dmaint.o)
 
 i.CyU3PDmaMultiChannelAcquireLock
-                0x40015690       0x84
+                0x400156d0       0x84
  i.CyU3PDmaMultiChannelAcquireLock
-                0x40015690       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3multichannel.o)
-                0x40015690                CyU3PDmaMultiChannelAcquireLock
+                0x400156d0       0x84 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3multichannel.o)
+                0x400156d0                CyU3PDmaMultiChannelAcquireLock
 
 i._tx_initialize_kernel_enter
-                0x40015718       0x78
+                0x40015758       0x78
  i._tx_initialize_kernel_enter
-                0x40015718       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_kernel_enter.o)
-                0x40015718                _tx_initialize_kernel_enter
+                0x40015758       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_kernel_enter.o)
+                0x40015758                _tx_initialize_kernel_enter
  i._tx_initialize_kernel_enter.__stub
-                0x40015780        0xc linker stubs
+                0x400157c0        0xc linker stubs
 
 i._tx_thread_identify
-                0x40015790      0x114
+                0x400157d0      0x114
  i._tx_thread_identify
-                0x40015790      0x114 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_identify.o)
-                0x40015790                _tx_thread_identify
+                0x400157d0      0x114 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_identify.o)
+                0x400157d0                _tx_thread_identify
 
 i._tx_thread_initialize
-                0x400158a4      0x100
+                0x400158e4      0x100
  i._tx_thread_initialize
-                0x400158a4      0x100 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_initialize.o)
-                0x400158a4                _tx_thread_initialize
+                0x400158e4      0x100 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_initialize.o)
+                0x400158e4                _tx_thread_initialize
 
 i._tx_thread_sleep
-                0x400159a4      0x1c4
+                0x400159e4      0x1c4
  i._tx_thread_sleep
-                0x400159a4      0x1c4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_sleep.o)
-                0x400159a4                _tx_thread_sleep
+                0x400159e4      0x1c4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_sleep.o)
+                0x400159e4                _tx_thread_sleep
 
 i._tx_thread_system_suspend
-                0x40015b68      0x604
+                0x40015ba8      0x604
  i._tx_thread_system_suspend
-                0x40015b68      0x604 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_suspend.o)
-                0x40015b68                _tx_thread_system_suspend
+                0x40015ba8      0x604 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_suspend.o)
+                0x40015ba8                _tx_thread_system_suspend
 
 i._tx_timer_initialize
-                0x4001616c      0x144
+                0x400161ac      0x144
  i._tx_timer_initialize
-                0x4001616c      0x144 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_initialize.o)
-                0x4001616c                _tx_timer_initialize
+                0x400161ac      0x144 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_initialize.o)
+                0x400161ac                _tx_timer_initialize
 
 i._tx_timer_system_activate
-                0x400162b0       0xec
+                0x400162f0       0xec
  i._tx_timer_system_activate
-                0x400162b0       0xec /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_system_activate.o)
-                0x400162b0                _tx_timer_system_activate
+                0x400162f0       0xec /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_system_activate.o)
+                0x400162f0                _tx_timer_system_activate
 
 i._tx_timer_thread_entry
-                0x4001639c      0x244
+                0x400163dc      0x244
  i._tx_timer_thread_entry
-                0x4001639c      0x244 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_thread_entry.o)
-                0x4001639c                _tx_timer_thread_entry
+                0x400163dc      0x244 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_thread_entry.o)
+                0x400163dc                _tx_timer_thread_entry
 
 i._tx_trace_initialize
-                0x400165e0       0x50
+                0x40016620       0x50
  i._tx_trace_initialize
-                0x400165e0       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_trace_initialize.o)
-                0x400165e0                _tx_trace_initialize
+                0x40016620       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_trace_initialize.o)
+                0x40016620                _tx_trace_initialize
 
 i._txe_byte_allocate
-                0x40016630      0x110
+                0x40016670      0x110
  i._txe_byte_allocate
-                0x40016630      0x110 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_byte_allocate.o)
-                0x40016630                _txe_byte_allocate
+                0x40016670      0x110 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_byte_allocate.o)
+                0x40016670                _txe_byte_allocate
 
 i._txe_byte_pool_create
-                0x40016740      0x190
+                0x40016780      0x190
  i._txe_byte_pool_create
-                0x40016740      0x190 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_byte_pool_create.o)
-                0x40016740                _txe_byte_pool_create
+                0x40016780      0x190 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_byte_pool_create.o)
+                0x40016780                _txe_byte_pool_create
 
 i._txe_event_flags_create
-                0x400168d0      0x140
+                0x40016910      0x140
  i._txe_event_flags_create
-                0x400168d0      0x140 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_event_flags_create.o)
-                0x400168d0                _txe_event_flags_create
+                0x40016910      0x140 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_event_flags_create.o)
+                0x40016910                _txe_event_flags_create
 
 i._txe_event_flags_delete
-                0x40016a10       0x80
+                0x40016a50       0x80
  i._txe_event_flags_delete
-                0x40016a10       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_event_flags_delete.o)
-                0x40016a10                _txe_event_flags_delete
+                0x40016a50       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_event_flags_delete.o)
+                0x40016a50                _txe_event_flags_delete
 
 i._txe_event_flags_get
-                0x40016a90       0xc0
+                0x40016ad0       0xc0
  i._txe_event_flags_get
-                0x40016a90       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_event_flags_get.o)
-                0x40016a90                _txe_event_flags_get
+                0x40016ad0       0xc0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_event_flags_get.o)
+                0x40016ad0                _txe_event_flags_get
 
 i._txe_event_flags_set
-                0x40016b50       0x68
+                0x40016b90       0x68
  i._txe_event_flags_set
-                0x40016b50       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_event_flags_set.o)
-                0x40016b50                _txe_event_flags_set
+                0x40016b90       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_event_flags_set.o)
+                0x40016b90                _txe_event_flags_set
 
 i._txe_mutex_create
-                0x40016bb8      0x178
+                0x40016bf8      0x178
  i._txe_mutex_create
-                0x40016bb8      0x178 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_mutex_create.o)
-                0x40016bb8                _txe_mutex_create
+                0x40016bf8      0x178 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_mutex_create.o)
+                0x40016bf8                _txe_mutex_create
 
 i._txe_mutex_delete
-                0x40016d30       0x80
+                0x40016d70       0x80
  i._txe_mutex_delete
-                0x40016d30       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_mutex_delete.o)
-                0x40016d30                _txe_mutex_delete
+                0x40016d70       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_mutex_delete.o)
+                0x40016d70                _txe_mutex_delete
 
 i._txe_mutex_get
-                0x40016db0       0xd4
+                0x40016df0       0xd4
  i._txe_mutex_get
-                0x40016db0       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_mutex_get.o)
-                0x40016db0                _txe_mutex_get
+                0x40016df0       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_mutex_get.o)
+                0x40016df0                _txe_mutex_get
 
 i._txe_mutex_put
-                0x40016e84       0xa0
+                0x40016ec4       0xa0
  i._txe_mutex_put
-                0x40016e84       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_mutex_put.o)
-                0x40016e84                _txe_mutex_put
+                0x40016ec4       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_mutex_put.o)
+                0x40016ec4                _txe_mutex_put
 
 i._txe_queue_create
-                0x40016f24      0x1b8
+                0x40016f64      0x1b8
  i._txe_queue_create
-                0x40016f24      0x1b8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_queue_create.o)
-                0x40016f24                _txe_queue_create
+                0x40016f64      0x1b8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_queue_create.o)
+                0x40016f64                _txe_queue_create
 
 i._txe_queue_front_send
-                0x400170dc       0xa0
+                0x4001711c       0xa0
  i._txe_queue_front_send
-                0x400170dc       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_queue_front_send.o)
-                0x400170dc                _txe_queue_front_send
+                0x4001711c       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_queue_front_send.o)
+                0x4001711c                _txe_queue_front_send
 
 i._txe_queue_receive
-                0x4001717c       0xa0
+                0x400171bc       0xa0
  i._txe_queue_receive
-                0x4001717c       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_queue_receive.o)
-                0x4001717c                _txe_queue_receive
+                0x400171bc       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_queue_receive.o)
+                0x400171bc                _txe_queue_receive
 
 i._txe_queue_send
-                0x4001721c       0xa0
+                0x4001725c       0xa0
  i._txe_queue_send
-                0x4001721c       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_queue_send.o)
-                0x4001721c                _txe_queue_send
+                0x4001725c       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_queue_send.o)
+                0x4001725c                _txe_queue_send
 
 i._txe_thread_create
-                0x400172bc      0x264
+                0x400172fc      0x264
  i._txe_thread_create
-                0x400172bc      0x264 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_create.o)
-                0x400172bc                _txe_thread_create
+                0x400172fc      0x264 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_create.o)
+                0x400172fc                _txe_thread_create
 
 i._txe_thread_info_get
-                0x40017520       0x74
+                0x40017560       0x74
  i._txe_thread_info_get
-                0x40017520       0x74 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_info_get.o)
-                0x40017520                _txe_thread_info_get
+                0x40017560       0x74 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_info_get.o)
+                0x40017560                _txe_thread_info_get
 
 i._txe_thread_priority_change
-                0x40017594       0xa0
+                0x400175d4       0xa0
  i._txe_thread_priority_change
-                0x40017594       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_priority_change.o)
-                0x40017594                _txe_thread_priority_change
+                0x400175d4       0xa0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_priority_change.o)
+                0x400175d4                _txe_thread_priority_change
 
 i._txe_thread_relinquish
-                0x40017634       0x34
+                0x40017674       0x34
  i._txe_thread_relinquish
-                0x40017634       0x34 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_relinquish.o)
-                0x40017634                _txe_thread_relinquish
+                0x40017674       0x34 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_relinquish.o)
+                0x40017674                _txe_thread_relinquish
 
 i._txe_thread_resume
-                0x40017668       0x40
+                0x400176a8       0x40
  i._txe_thread_resume
-                0x40017668       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_resume.o)
-                0x40017668                _txe_thread_resume
+                0x400176a8       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_thread_resume.o)
+                0x400176a8                _txe_thread_resume
 
 i._txe_timer_activate
-                0x400176a8       0x40
+                0x400176e8       0x40
  i._txe_timer_activate
-                0x400176a8       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_timer_activate.o)
-                0x400176a8                _txe_timer_activate
+                0x400176e8       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_timer_activate.o)
+                0x400176e8                _txe_timer_activate
 
 i._txe_timer_change
-                0x400176e8       0x88
+                0x40017728       0x88
  i._txe_timer_change
-                0x400176e8       0x88 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_timer_change.o)
-                0x400176e8                _txe_timer_change
+                0x40017728       0x88 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_timer_change.o)
+                0x40017728                _txe_timer_change
 
 i._txe_timer_create
-                0x40017770      0x1c8
+                0x400177b0      0x1c8
  i._txe_timer_create
-                0x40017770      0x1c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_timer_create.o)
-                0x40017770                _txe_timer_create
+                0x400177b0      0x1c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_timer_create.o)
+                0x400177b0                _txe_timer_create
 
 i._txe_timer_deactivate
-                0x40017938       0x40
+                0x40017978       0x40
  i._txe_timer_deactivate
-                0x40017938       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_timer_deactivate.o)
-                0x40017938                _txe_timer_deactivate
+                0x40017978       0x40 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(txe_timer_deactivate.o)
+                0x40017978                _txe_timer_deactivate
 
 i._tx_byte_allocate
-                0x40017978      0x2c8
+                0x400179b8      0x2c8
  i._tx_byte_allocate
-                0x40017978      0x2c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_byte_allocate.o)
-                0x40017978                _tx_byte_allocate
+                0x400179b8      0x2c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_byte_allocate.o)
+                0x400179b8                _tx_byte_allocate
 
 i._tx_byte_pool_cleanup
-                0x40017c40       0xd0
+                0x40017c80       0xd0
  i._tx_byte_pool_cleanup
-                0x40017c40       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_byte_pool_cleanup.o)
-                0x40017c40                _tx_byte_pool_cleanup
+                0x40017c80       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_byte_pool_cleanup.o)
+                0x40017c80                _tx_byte_pool_cleanup
 
 i._tx_byte_pool_create
-                0x40017d10      0x258
+                0x40017d50      0x258
  i._tx_byte_pool_create
-                0x40017d10      0x258 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_byte_pool_create.o)
-                0x40017d10                _tx_byte_pool_create
+                0x40017d50      0x258 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_byte_pool_create.o)
+                0x40017d50                _tx_byte_pool_create
 
 i._tx_byte_pool_search
-                0x40017f68      0x1b8
+                0x40017fa8      0x1b8
  i._tx_byte_pool_search
-                0x40017f68      0x1b8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_byte_pool_search.o)
-                0x40017f68                _tx_byte_pool_search
+                0x40017fa8      0x1b8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_byte_pool_search.o)
+                0x40017fa8                _tx_byte_pool_search
 
 i._tx_event_flags_create
-                0x40018120      0x1cc
+                0x40018160      0x1cc
  i._tx_event_flags_create
-                0x40018120      0x1cc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_create.o)
-                0x40018120                _tx_event_flags_create
+                0x40018160      0x1cc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_create.o)
+                0x40018160                _tx_event_flags_create
 
 i._tx_event_flags_delete
-                0x400182ec      0x24c
+                0x4001832c      0x24c
  i._tx_event_flags_delete
-                0x400182ec      0x24c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_delete.o)
-                0x400182ec                _tx_event_flags_delete
+                0x4001832c      0x24c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_delete.o)
+                0x4001832c                _tx_event_flags_delete
 
 i._tx_event_flags_get
-                0x40018538      0x2d0
+                0x40018578      0x2d0
  i._tx_event_flags_get
-                0x40018538      0x2d0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_get.o)
-                0x40018538                _tx_event_flags_get
+                0x40018578      0x2d0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_get.o)
+                0x40018578                _tx_event_flags_get
 
 i._tx_event_flags_set
-                0x40018808      0x5e8
+                0x40018848      0x5e8
  i._tx_event_flags_set
-                0x40018808      0x5e8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_set.o)
-                0x40018808                _tx_event_flags_set
+                0x40018848      0x5e8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_set.o)
+                0x40018848                _tx_event_flags_set
 
 i._tx_initialize_high_level
-                0x40018df0       0xa8
+                0x40018e30       0xa8
  i._tx_initialize_high_level
-                0x40018df0       0xa8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_high_level.o)
-                0x40018df0                _tx_initialize_high_level
+                0x40018e30       0xa8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_high_level.o)
+                0x40018e30                _tx_initialize_high_level
 
 i._tx_mutex_create
-                0x40018e98      0x1d8
+                0x40018ed8      0x1d8
  i._tx_mutex_create
-                0x40018e98      0x1d8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_create.o)
-                0x40018e98                _tx_mutex_create
+                0x40018ed8      0x1d8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_create.o)
+                0x40018ed8                _tx_mutex_create
 
 i._tx_mutex_delete
-                0x40019070      0x2dc
+                0x400190b0      0x2dc
  i._tx_mutex_delete
-                0x40019070      0x2dc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_delete.o)
-                0x40019070                _tx_mutex_delete
+                0x400190b0      0x2dc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_delete.o)
+                0x400190b0                _tx_mutex_delete
 
 i._tx_mutex_get
-                0x4001934c      0x2f4
+                0x4001938c      0x2f4
  i._tx_mutex_get
-                0x4001934c      0x2f4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_get.o)
-                0x4001934c                _tx_mutex_get
+                0x4001938c      0x2f4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_get.o)
+                0x4001938c                _tx_mutex_get
 
 i._tx_mutex_priority_change
-                0x40019640       0x88
+                0x40019680       0x88
  i._tx_mutex_priority_change
-                0x40019640       0x88 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_priority_change.o)
-                0x40019640                _tx_mutex_priority_change
+                0x40019680       0x88 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_priority_change.o)
+                0x40019680                _tx_mutex_priority_change
 
 i._tx_mutex_put
-                0x400196c8      0x4d4
+                0x40019708      0x4d4
  i._tx_mutex_put
-                0x400196c8      0x4d4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_put.o)
-                0x400196c8                _tx_mutex_put
+                0x40019708      0x4d4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_put.o)
+                0x40019708                _tx_mutex_put
 
 i._tx_queue_create
-                0x40019b9c      0x20c
+                0x40019bdc      0x20c
  i._tx_queue_create
-                0x40019b9c      0x20c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_create.o)
-                0x40019b9c                _tx_queue_create
+                0x40019bdc      0x20c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_create.o)
+                0x40019bdc                _tx_queue_create
 
 i._tx_queue_front_send
-                0x40019da8      0x3bc
+                0x40019de8      0x3bc
  i._tx_queue_front_send
-                0x40019da8      0x3bc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_front_send.o)
-                0x40019da8                _tx_queue_front_send
+                0x40019de8      0x3bc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_front_send.o)
+                0x40019de8                _tx_queue_front_send
 
 i._tx_queue_receive
-                0x4001a164      0x460
+                0x4001a1a4      0x460
  i._tx_queue_receive
-                0x4001a164      0x460 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_receive.o)
-                0x4001a164                _tx_queue_receive
+                0x4001a1a4      0x460 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_receive.o)
+                0x4001a1a4                _tx_queue_receive
 
 i._tx_queue_send
-                0x4001a5c4      0x3ac
+                0x4001a604      0x3ac
  i._tx_queue_send
-                0x4001a5c4      0x3ac /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_send.o)
-                0x4001a5c4                _tx_queue_send
+                0x4001a604      0x3ac /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_send.o)
+                0x4001a604                _tx_queue_send
 
 i._tx_thread_create
-                0x4001a970      0x33c
+                0x4001a9b0      0x33c
  i._tx_thread_create
-                0x4001a970      0x33c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_create.o)
-                0x4001a970                _tx_thread_create
+                0x4001a9b0      0x33c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_create.o)
+                0x4001a9b0                _tx_thread_create
 
 i._tx_thread_info_get
-                0x4001acac      0x1a8
+                0x4001acec      0x1a8
  i._tx_thread_info_get
-                0x4001acac      0x1a8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_info_get.o)
-                0x4001acac                _tx_thread_info_get
+                0x4001acec      0x1a8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_info_get.o)
+                0x4001acec                _tx_thread_info_get
 
 i._tx_thread_priority_change
-                0x4001ae54      0x1a0
+                0x4001ae94      0x1a0
  i._tx_thread_priority_change
-                0x4001ae54      0x1a0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_priority_change.o)
-                0x4001ae54                _tx_thread_priority_change
+                0x4001ae94      0x1a0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_priority_change.o)
+                0x4001ae94                _tx_thread_priority_change
 
 i._tx_thread_relinquish
-                0x4001aff4      0x2f0
+                0x4001b034      0x2f0
  i._tx_thread_relinquish
-                0x4001aff4      0x2f0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_relinquish.o)
-                0x4001aff4                _tx_thread_relinquish
+                0x4001b034      0x2f0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_relinquish.o)
+                0x4001b034                _tx_thread_relinquish
 
 i._tx_thread_resume
-                0x4001b2e4      0x1d0
+                0x4001b324      0x1d0
  i._tx_thread_resume
-                0x4001b2e4      0x1d0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_resume.o)
-                0x4001b2e4                _tx_thread_resume
+                0x4001b324      0x1d0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_resume.o)
+                0x4001b324                _tx_thread_resume
 
 i._tx_thread_shell_entry
-                0x4001b4b4       0x9c
+                0x4001b4f4       0x9c
  i._tx_thread_shell_entry
-                0x4001b4b4       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_shell_entry.o)
-                0x4001b4b4                _tx_thread_shell_entry
+                0x4001b4f4       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_shell_entry.o)
+                0x4001b4f4                _tx_thread_shell_entry
 
 i._tx_thread_stack_analyze
-                0x4001b550       0xd4
+                0x4001b590       0xd4
  i._tx_thread_stack_analyze
-                0x4001b550       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_analyze.o)
-                0x4001b550                _tx_thread_stack_analyze
+                0x4001b590       0xd4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_analyze.o)
+                0x4001b590                _tx_thread_stack_analyze
 
 i._tx_thread_stack_error_handler
-                0x4001b624       0x4c
+                0x4001b664       0x4c
  i._tx_thread_stack_error_handler
-                0x4001b624       0x4c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_error_handler.o)
-                0x4001b624                _tx_thread_stack_error_handler
+                0x4001b664       0x4c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_error_handler.o)
+                0x4001b664                _tx_thread_stack_error_handler
 
 i._tx_thread_system_preempt_check
-                0x4001b670       0xb0
+                0x4001b6b0       0xb0
  i._tx_thread_system_preempt_check
-                0x4001b670       0xb0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_preempt_check.o)
-                0x4001b670                _tx_thread_system_preempt_check
+                0x4001b6b0       0xb0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_preempt_check.o)
+                0x4001b6b0                _tx_thread_system_preempt_check
 
 i._tx_thread_system_resume
-                0x4001b720      0x3c8
+                0x4001b760      0x3c8
  i._tx_thread_system_resume
-                0x4001b720      0x3c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_resume.o)
-                0x4001b720                _tx_thread_system_resume
+                0x4001b760      0x3c8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_resume.o)
+                0x4001b760                _tx_thread_system_resume
 
 i._tx_thread_time_slice
-                0x4001bae8      0x168
+                0x4001bb28      0x168
  i._tx_thread_time_slice
-                0x4001bae8      0x168 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_time_slice.o)
-                0x4001bae8                _tx_thread_time_slice
+                0x4001bb28      0x168 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_time_slice.o)
+                0x4001bb28                _tx_thread_time_slice
 
 i._tx_thread_timeout
-                0x4001bc50       0x6c
+                0x4001bc90       0x6c
  i._tx_thread_timeout
-                0x4001bc50       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_timeout.o)
-                0x4001bc50                _tx_thread_timeout
+                0x4001bc90       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_timeout.o)
+                0x4001bc90                _tx_thread_timeout
 
 i._tx_timer_activate
-                0x4001bcbc      0x140
+                0x4001bcfc      0x140
  i._tx_timer_activate
-                0x4001bcbc      0x140 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_activate.o)
-                0x4001bcbc                _tx_timer_activate
+                0x4001bcfc      0x140 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_activate.o)
+                0x4001bcfc                _tx_timer_activate
 
 i._tx_timer_change
-                0x4001bdfc      0x12c
+                0x4001be3c      0x12c
  i._tx_timer_change
-                0x4001bdfc      0x12c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_change.o)
-                0x4001bdfc                _tx_timer_change
+                0x4001be3c      0x12c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_change.o)
+                0x4001be3c                _tx_timer_change
 
 i._tx_timer_create
-                0x4001bf28      0x1fc
+                0x4001bf68      0x1fc
  i._tx_timer_create
-                0x4001bf28      0x1fc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_create.o)
-                0x4001bf28                _tx_timer_create
+                0x4001bf68      0x1fc /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_create.o)
+                0x4001bf68                _tx_timer_create
 
 i._tx_timer_deactivate
-                0x4001c124      0x274
+                0x4001c164      0x274
  i._tx_timer_deactivate
-                0x4001c124      0x274 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_deactivate.o)
-                0x4001c124                _tx_timer_deactivate
+                0x4001c164      0x274 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_deactivate.o)
+                0x4001c164                _tx_timer_deactivate
 
 i._tx_timer_expiration_process
-                0x4001c398       0x3c
+                0x4001c3d8       0x3c
  i._tx_timer_expiration_process
-                0x4001c398       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_expiration_process.o)
-                0x4001c398                _tx_timer_expiration_process
+                0x4001c3d8       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_expiration_process.o)
+                0x4001c3d8                _tx_timer_expiration_process
 
 i._tx_timer_system_deactivate
-                0x4001c3d4       0xa4
+                0x4001c414       0xa4
  i._tx_timer_system_deactivate
-                0x4001c3d4       0xa4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_system_deactivate.o)
-                0x4001c3d4                _tx_timer_system_deactivate
+                0x4001c414       0xa4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_system_deactivate.o)
+                0x4001c414                _tx_timer_system_deactivate
 
 i._tx_trace_object_register
-                0x4001c478      0x1ac
+                0x4001c4b8      0x1ac
  i._tx_trace_object_register
-                0x4001c478      0x1ac /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_trace_object_register.o)
-                0x4001c478                _tx_trace_object_register
+                0x4001c4b8      0x1ac /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_trace_object_register.o)
+                0x4001c4b8                _tx_trace_object_register
 
 i._tx_trace_object_unregister
-                0x4001c624       0x94
+                0x4001c664       0x94
  i._tx_trace_object_unregister
-                0x4001c624       0x94 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_trace_object_unregister.o)
-                0x4001c624                _tx_trace_object_unregister
+                0x4001c664       0x94 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_trace_object_unregister.o)
+                0x4001c664                _tx_trace_object_unregister
 
 i._tx_event_flags_cleanup
-                0x4001c6b8       0xd0
+                0x4001c6f8       0xd0
  i._tx_event_flags_cleanup
-                0x4001c6b8       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_cleanup.o)
-                0x4001c6b8                _tx_event_flags_cleanup
+                0x4001c6f8       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_event_flags_cleanup.o)
+                0x4001c6f8                _tx_event_flags_cleanup
 
 i._tx_mutex_cleanup
-                0x4001c788       0xd0
+                0x4001c7c8       0xd0
  i._tx_mutex_cleanup
-                0x4001c788       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_cleanup.o)
-                0x4001c788                _tx_mutex_cleanup
+                0x4001c7c8       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_cleanup.o)
+                0x4001c7c8                _tx_mutex_cleanup
 
 i._tx_mutex_prioritize
-                0x4001c858      0x274
+                0x4001c898      0x274
  i._tx_mutex_prioritize
-                0x4001c858      0x274 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_prioritize.o)
-                0x4001c858                _tx_mutex_prioritize
+                0x4001c898      0x274 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_mutex_prioritize.o)
+                0x4001c898                _tx_mutex_prioritize
 
 i._tx_queue_cleanup
-                0x4001cacc       0xe8
+                0x4001cb0c       0xe8
  i._tx_queue_cleanup
-                0x4001cacc       0xe8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_cleanup.o)
-                0x4001cacc                _tx_queue_cleanup
+                0x4001cb0c       0xe8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_cleanup.o)
+                0x4001cb0c                _tx_queue_cleanup
 
-.rel.dyn        0x4001cbb4        0x0
+.rel.dyn        0x4001cbf4        0x0
  .rel.iplt      0x00000000        0x0 ./cyfx_gcc_startup.o
 
 .data           0x40030000      0x420
@@ -13528,24 +13528,24 @@ OUTPUT(domesdayDuplicator.elf elf32-littlearm)
  .arm_vfe_header
                 0x00000194        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_queue_cleanup.o)
 
-.debug_line     0x00000000     0x1635
+.debug_line     0x00000000     0x163a
  .debug_line    0x00000000       0x53 ./cyfx_gcc_startup.o
  .debug_line    0x00000053      0x544 ./cyfxtx.o
- .debug_line    0x00000597      0x654 ./domesdayDuplicator.o
- .debug_line    0x00000beb      0x33a ./usbDescriptor.o
- .debug_line    0x00000f25       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
- .debug_line    0x00000fa5       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
- .debug_line    0x00000ff5       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
- .debug_line    0x000010d5      0x194 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3isr_armcc.o)
- .debug_line    0x00001269       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_return.o)
- .debug_line    0x000012d1       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_schedule.o)
- .debug_line    0x00001335       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_vectored_context_save.o)
- .debug_line    0x000013a1       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_interrupt.o)
- .debug_line    0x0000142d       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_context_restore.o)
- .debug_line    0x000014c9       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_irq_nesting_end.o)
- .debug_line    0x0000151d       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_irq_nesting_start.o)
- .debug_line    0x00001575       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_low_level.o)
- .debug_line    0x000015cd       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_build.o)
+ .debug_line    0x00000597      0x659 ./domesdayDuplicator.o
+ .debug_line    0x00000bf0      0x33a ./usbDescriptor.o
+ .debug_line    0x00000f2a       0x80 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
+ .debug_line    0x00000faa       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3entry_armcc.o)
+ .debug_line    0x00000ffa       0xe0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3mmu.o)
+ .debug_line    0x000010da      0x194 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3isr_armcc.o)
+ .debug_line    0x0000126e       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_system_return.o)
+ .debug_line    0x000012d6       0x64 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_schedule.o)
+ .debug_line    0x0000133a       0x6c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_vectored_context_save.o)
+ .debug_line    0x000013a6       0x8c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_interrupt.o)
+ .debug_line    0x00001432       0x9c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_context_restore.o)
+ .debug_line    0x000014ce       0x54 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_irq_nesting_end.o)
+ .debug_line    0x00001522       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_irq_nesting_start.o)
+ .debug_line    0x0000157a       0x58 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_low_level.o)
+ .debug_line    0x000015d2       0x68 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_stack_build.o)
 
 .debug_info     0x00000000     0x3323
  .debug_info    0x00000000       0x8e ./cyfx_gcc_startup.o
@@ -13588,7 +13588,7 @@ OUTPUT(domesdayDuplicator.elf elf32-littlearm)
  .debug_ranges  0x00000000       0x88 ./cyfxtx.o
  .debug_ranges  0x00000088       0x68 ./domesdayDuplicator.o
 
-.debug_macro    0x00000000     0x24d5
+.debug_macro    0x00000000     0x24c3
  .debug_macro   0x00000000      0x1c2 ./cyfxtx.o
  .debug_macro   0x000001c2      0x820 ./cyfxtx.o
  .debug_macro   0x000009e2       0x52 ./cyfxtx.o
@@ -13624,17 +13624,17 @@ OUTPUT(domesdayDuplicator.elf elf32-littlearm)
  .debug_macro   0x000021af       0x6e ./domesdayDuplicator.o
  .debug_macro   0x0000221d       0x12 ./domesdayDuplicator.o
  .debug_macro   0x0000222f       0x28 ./domesdayDuplicator.o
- .debug_macro   0x00002257       0x46 ./domesdayDuplicator.o
- .debug_macro   0x0000229d       0x28 ./domesdayDuplicator.o
- .debug_macro   0x000022c5      0x210 ./usbDescriptor.o
+ .debug_macro   0x00002257       0x34 ./domesdayDuplicator.o
+ .debug_macro   0x0000228b       0x28 ./domesdayDuplicator.o
+ .debug_macro   0x000022b3      0x210 ./usbDescriptor.o
 
-.debug_str      0x00000000     0xcea0
+.debug_str      0x00000000     0xce39
  .debug_str     0x00000000     0x9642 ./cyfxtx.o
                                0x9865 (size before relaxing)
- .debug_str     0x00009642     0x3625 ./domesdayDuplicator.o
-                               0xca29 (size before relaxing)
- .debug_str     0x0000cc67      0x239 ./usbDescriptor.o
-                               0x940a (size before relaxing)
+ .debug_str     0x00009642     0x35be ./domesdayDuplicator.o
+                               0xc9c2 (size before relaxing)
+ .debug_str     0x0000cc00      0x239 ./usbDescriptor.o
+                               0x93a3 (size before relaxing)
 
 .debug_frame    0x00000000     0x1094
  .debug_frame   0x00000000      0x200 ./cyfxtx.o

@@ -27,12 +27,17 @@
 
 #include "domesdayDuplicator.h"
 
-// VID and PID definition
-#define VID_H	0x1D
-#define VID_L	0x50
+// VID and PID definition (Domesday Duplicator)
+//#define VID_H	0x1D
+//#define VID_L	0x50
+//#define PID_H	0x60
+//#define PID_L	0x3B
 
-#define PID_H	0x60
-#define PID_L	0x3B
+// VID and PID definition (Cypress FX3 default - useful for testing)
+#define VID_H	0x04
+#define VID_L	0xB4
+#define PID_H	0x00
+#define PID_L	0xF1
 
 // Standard device descriptor for USB 3.0
 const uint8_t USB30DeviceDscr[] __attribute__ ((aligned (32))) = {
@@ -90,8 +95,8 @@ const uint8_t USBBOSDscr[] __attribute__ ((aligned (32))) = {
     0x00,                           // Supported device level features
     0x0E,0x00,                      // Speeds supported by the device : SS, HS and FS
     0x03,                           // Functionality support
-    0x0A,                           // U1 Device Exit latency
-    0xFF,0x07                       // U2 Device Exit latency
+    0x00,                           // U1 Device Exit latency (Disable Low Power Management)
+    0x00,0x00                       // U2 Device Exit latency (Disable LPM)
 };
 
 // Standard device qualifier descriptor
