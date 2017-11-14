@@ -1,4 +1,4 @@
-update=08/11/2017 16:16:09
+update=14/11/2017 09:56:59
 version=1
 last_client=kicad
 [pcbnew]
@@ -23,8 +23,6 @@ ModuleOutlineThickness=0.150000000000
 [cvpcb]
 version=1
 NetIExt=net
-[general]
-version=1
 [eeschema]
 version=1
 LibDir=
@@ -63,6 +61,9 @@ LibName31=de0-nano_gpio
 LibName32=opa690
 LibName33=gpifii_j7
 LibName34=gpifii_j6
+LibName35=bnc_rosenberger
+[general]
+version=1
 [schematic_editor]
 version=1
 PageLayoutDescrFile=
