@@ -28,8 +28,6 @@
 #include "domesdayduplicator.h"
 #include "ui_domesdayduplicator.h"
 
-#include "usbdevice.h"
-
 // Class constructor
 domesdayDuplicator::domesdayDuplicator(QWidget *parent) :
     QMainWindow(parent),
@@ -51,18 +49,8 @@ domesdayDuplicator::domesdayDuplicator(QWidget *parent) :
     // Show start up in debug
     qDebug() << "Domesday duplicator main window running";
 
-    // Open a device
-    domDupDevice = new usbDevice();
-
-    // Detect any connected devices
-    int numberOfDevicesFound = 0;
-    numberOfDevicesFound = domDupDevice->detectDevices();
-
-    // If a device was found connect to the first device (only supports one device!)
-    if (numberOfDevicesFound > 0) {
-        domDupDevice->connectDevice(0);
-        status->setText(tr("Duplicator connected"));
-    }
+    // Declare a streamer object for streaming transfer
+    dataStreamer = new streamer;
 
     // We need to support device hot-plug and hot-unplug detection, otherwise this won't
     // make much sense to the user... Still; keeping it simple for initial testing...
@@ -77,17 +65,17 @@ domesdayDuplicator::~domesdayDuplicator()
 // Transfer button triggered
 void domesdayDuplicator::on_transferButton_clicked()
 {
-    if (domDupDevice->isTransferInProgress()) {
+    if (0) {
         // Stop transfer
         ui->transferButton->setText(tr("Start transfer"));
-
+        dataStreamer->stopTransfer();
         qDebug() << "domesdayDuplicator::on_transferButton_clicked() - Stopping transfer";
-        domDupDevice->stopTransfer();
+
     } else {
         // Start transfer
         ui->transferButton->setText(tr("Stop transfer"));
-
+        dataStreamer->startTransfer();
         qDebug() << "domesdayDuplicator::on_transferButton_clicked() - Starting transfer";
-        domDupDevice->startTransfer();
+
     }
 }

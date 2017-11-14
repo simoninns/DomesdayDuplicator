@@ -32,7 +32,7 @@
 #include <QDebug>
 #include <QLabel>
 
-#include "usbdevice.h"
+#include "streamer.h"
 
 class QLabel;
 
@@ -54,8 +54,8 @@ private slots:
 private:
     Ui::domesdayDuplicator *ui;
 
-    usbDevice *domDupDevice;
     QLabel *status;
+    streamer *dataStreamer;
 };
 
 #endif // DOMESDAYDUPLICATOR_H
