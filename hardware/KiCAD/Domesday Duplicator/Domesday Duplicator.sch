@@ -106,144 +106,76 @@ $EndSheet
 $Comp
 L DE0-Nano_GPIO J1
 U 1 1 59D13A5F
-P 8800 2200
-F 0 "J1" H 8400 1100 60  0000 C CNN
-F 1 "DE0-Nano_GPIO0" H 8700 3300 60  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 8800 2200 60  0001 C CNN
-F 3 "" H 8800 2200 60  0001 C CNN
-	1    8800 2200
+P 8800 5100
+F 0 "J1" H 8400 4000 60  0000 C CNN
+F 1 "DE0-Nano_GPIO0" H 8700 6200 60  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 8800 5100 60  0001 C CNN
+F 3 "" H 8800 5100 60  0001 C CNN
+	1    8800 5100
 	1    0    0    -1  
 $EndComp
-Text GLabel 9700 1450 2    60   Input ~ 0
+Text GLabel 7750 3150 0    60   Input ~ 0
 USB_DATA0
-Text GLabel 9700 1550 2    60   Input ~ 0
+Text GLabel 7750 3050 0    60   Input ~ 0
 USB_DATA1
-Text GLabel 9700 1650 2    60   Input ~ 0
+Text GLabel 7750 2950 0    60   Input ~ 0
 USB_DATA2
-Text GLabel 9700 1850 2    60   Input ~ 0
+Text GLabel 7750 2850 0    60   Input ~ 0
 USB_DATA3
-Text GLabel 9700 1950 2    60   Input ~ 0
+Text GLabel 7750 2750 0    60   Input ~ 0
 USB_DATA4
-Text GLabel 9700 2050 2    60   Input ~ 0
+Text GLabel 7750 2550 0    60   Input ~ 0
 USB_DATA5
-Text GLabel 9700 2150 2    60   Input ~ 0
+Text GLabel 7750 2450 0    60   Input ~ 0
 USB_DATA6
-Text GLabel 9700 2250 2    60   Input ~ 0
+Text GLabel 7750 2350 0    60   Input ~ 0
 USB_DATA7
-Text GLabel 9700 2350 2    60   Input ~ 0
+Text GLabel 7750 2250 0    60   Input ~ 0
 USB_DATA8
-Text GLabel 9700 2450 2    60   Input ~ 0
+Text GLabel 7750 2150 0    60   Input ~ 0
 USB_DATA9
-Text GLabel 9700 2550 2    60   Input ~ 0
+Text GLabel 7750 2050 0    60   Input ~ 0
 USB_DATA10
-Text GLabel 9700 2750 2    60   Input ~ 0
+Text GLabel 7750 1950 0    60   Input ~ 0
 USB_DATA11
-Text GLabel 9700 2850 2    60   Input ~ 0
+Text GLabel 7750 1850 0    60   Input ~ 0
 USB_DATA12
-Text GLabel 9700 2950 2    60   Input ~ 0
+Text GLabel 7750 1650 0    60   Input ~ 0
 USB_DATA13
-Text GLabel 9700 3050 2    60   Input ~ 0
+Text GLabel 7750 1550 0    60   Input ~ 0
 USB_DATA14
-Text GLabel 9700 3150 2    60   Input ~ 0
+Text GLabel 7750 1450 0    60   Input ~ 0
 USB_DATA15
-Text GLabel 7900 1650 0    60   Input ~ 0
+Text GLabel 9800 2850 2    60   Input ~ 0
 USB_CTL0
-Text GLabel 7900 1850 0    60   Input ~ 0
+Text GLabel 9800 2750 2    60   Input ~ 0
 USB_CTL1
-Text GLabel 7900 1950 0    60   Input ~ 0
+Text GLabel 9800 2550 2    60   Input ~ 0
 USB_CTL2
-Text GLabel 7900 2050 0    60   Input ~ 0
+Text GLabel 9800 2450 2    60   Input ~ 0
 USB_CTL3
-Text GLabel 7900 2150 0    60   Input ~ 0
+Text GLabel 9800 2350 2    60   Input ~ 0
 USB_CTL4
-Text GLabel 7900 2250 0    60   Input ~ 0
+Text GLabel 9800 2250 2    60   Input ~ 0
 USB_CTL5
-Text GLabel 7900 2350 0    60   Input ~ 0
+Text GLabel 9800 2150 2    60   Input ~ 0
 USB_CTL6
-Text GLabel 7900 2450 0    60   Input ~ 0
+Text GLabel 9800 2050 2    60   Input ~ 0
 USB_CTL7
-Text GLabel 7900 2550 0    60   Input ~ 0
+Text GLabel 9800 1950 2    60   Input ~ 0
 USB_CTL8
-Text GLabel 7900 2750 0    60   Input ~ 0
+Text GLabel 9800 1850 2    60   Input ~ 0
 USB_CTL9
-Text GLabel 7900 2850 0    60   Input ~ 0
+Text GLabel 9800 1650 2    60   Input ~ 0
 USB_CTL10
-Text GLabel 7900 2950 0    60   Input ~ 0
+Text GLabel 9800 1550 2    60   Input ~ 0
 USB_CTL11
-Text GLabel 7900 3050 0    60   Input ~ 0
+Text GLabel 9800 1450 2    60   Input ~ 0
 USB_CTL12
-Text GLabel 7900 1550 0    60   Input ~ 0
+Text GLabel 9800 3050 2    60   Input ~ 0
 USB_PCLK
 Wire Wire Line
-	9400 1450 9700 1450
-Wire Wire Line
-	9700 1550 9400 1550
-Wire Wire Line
-	9400 1650 9700 1650
-Wire Wire Line
-	9700 1850 9400 1850
-Wire Wire Line
-	9400 1950 9700 1950
-Wire Wire Line
-	9700 2050 9400 2050
-Wire Wire Line
-	9400 2150 9700 2150
-Wire Wire Line
-	9700 2250 9400 2250
-Wire Wire Line
-	9400 2350 9700 2350
-Wire Wire Line
-	9700 2450 9400 2450
-Wire Wire Line
-	9400 2550 9700 2550
-Wire Wire Line
-	9700 2750 9400 2750
-Wire Wire Line
-	9400 2850 9700 2850
-Wire Wire Line
-	9700 2950 9400 2950
-Wire Wire Line
-	9400 3050 9700 3050
-Wire Wire Line
-	9400 3150 9700 3150
-Wire Wire Line
-	7900 1550 8150 1550
-Wire Wire Line
-	8150 1650 7900 1650
-Wire Wire Line
-	7900 1850 8150 1850
-Wire Wire Line
-	8150 1950 7900 1950
-Wire Wire Line
-	7900 2050 8150 2050
-Wire Wire Line
-	8150 2150 7900 2150
-Wire Wire Line
-	7900 2250 8150 2250
-Wire Wire Line
-	8150 2350 7900 2350
-Wire Wire Line
-	7900 2450 8150 2450
-Wire Wire Line
-	8150 2550 7900 2550
-Wire Wire Line
-	7900 2750 8150 2750
-Wire Wire Line
-	8150 2850 7900 2850
-Wire Wire Line
-	7900 2950 8150 2950
-Wire Wire Line
-	7900 3050 8150 3050
-NoConn ~ 8150 1250
-NoConn ~ 8150 1350
-NoConn ~ 8150 1450
-NoConn ~ 8150 3150
-Wire Wire Line
-	9400 1750 9600 1750
-Wire Wire Line
 	9600 1750 9600 3350
-Wire Wire Line
-	9400 2650 9600 2650
 Connection ~ 9600 2650
 $Comp
 L GND #PWR01
@@ -430,36 +362,34 @@ Wire Wire Line
 $Comp
 L DE0-Nano_GPIO J2
 U 1 1 59D2B222
-P 8800 5100
-F 0 "J2" H 8400 4000 60  0000 C CNN
-F 1 "DE0-Nano_GPIO1" H 8700 6200 60  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 8800 5100 60  0001 C CNN
-F 3 "" H 8800 5100 60  0001 C CNN
-	1    8800 5100
+P 8800 2200
+F 0 "J2" H 8400 1100 60  0000 C CNN
+F 1 "DE0-Nano_GPIO1" H 8700 3300 60  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 8800 2200 60  0001 C CNN
+F 3 "" H 8800 2200 60  0001 C CNN
+	1    8800 2200
 	1    0    0    -1  
 $EndComp
-Text GLabel 9950 4750 2    60   Input ~ 0
+Text GLabel 7650 6050 0    60   Input ~ 0
 ADC_DATA0
-Text GLabel 7650 4750 0    60   Input ~ 0
+Text GLabel 9700 5950 2    60   Input ~ 0
 ADC_DATA1
-Text GLabel 9950 4550 2    60   Input ~ 0
+Text GLabel 7650 5950 0    60   Input ~ 0
 ADC_DATA2
-Text GLabel 7650 4550 0    60   Input ~ 0
+Text GLabel 9700 5850 2    60   Input ~ 0
 ADC_DATA3
-Text GLabel 9950 4450 2    60   Input ~ 0
+Text GLabel 7650 5850 0    60   Input ~ 0
 ADC_DATA4
-Text GLabel 7650 4450 0    60   Input ~ 0
+Text GLabel 9700 5750 2    60   Input ~ 0
 ADC_DATA5
-Text GLabel 9950 4350 2    60   Input ~ 0
+Text GLabel 7650 5750 0    60   Input ~ 0
 ADC_DATA6
-Text GLabel 7650 4350 0    60   Input ~ 0
+Text GLabel 9700 5650 2    60   Input ~ 0
 ADC_DATA7
-Text GLabel 9950 4250 2    60   Input ~ 0
+Text GLabel 7650 5650 0    60   Input ~ 0
 ADC_DATA8
-Text GLabel 9950 4150 2    60   Input ~ 0
+Text GLabel 9700 5450 2    60   Input ~ 0
 ADC_DATA9
-Wire Wire Line
-	9400 4650 9550 4650
 Wire Wire Line
 	9550 4650 9550 6250
 $Comp
@@ -473,8 +403,6 @@ F 3 "" H 7800 3900 50  0001 C CNN
 	1    7800 3900
 	1    0    0    -1  
 $EndComp
-NoConn ~ 8150 4150
-NoConn ~ 8150 4250
 $Comp
 L GND #PWR03
 U 1 1 59D2E990
@@ -487,15 +415,9 @@ F 3 "" H 9550 6250 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8150 4650 7800 4650
-Wire Wire Line
 	7800 4650 7800 3900
-Text GLabel 7650 4850 0    60   Input ~ 0
+Text GLabel 9700 6050 2    60   Input ~ 0
 ADC_CLK
-Wire Wire Line
-	7650 4850 8150 4850
-Wire Wire Line
-	9400 5550 9550 5550
 Connection ~ 9550 5550
 Text GLabel 3850 1650 2    60   Input ~ 0
 ADC_DATA0
@@ -541,26 +463,6 @@ Wire Wire Line
 	3700 2550 3850 2550
 Wire Wire Line
 	3700 2750 3850 2750
-Wire Wire Line
-	9400 4750 9950 4750
-Wire Wire Line
-	8150 4750 7650 4750
-Wire Wire Line
-	7650 4550 8150 4550
-Wire Wire Line
-	7650 4450 8150 4450
-Wire Wire Line
-	7650 4350 8150 4350
-Wire Wire Line
-	9400 4550 9950 4550
-Wire Wire Line
-	9400 4450 9950 4450
-Wire Wire Line
-	9400 4350 9950 4350
-Wire Wire Line
-	9400 4250 9950 4250
-Wire Wire Line
-	9400 4150 9950 4150
 $Comp
 L +5V #PWR04
 U 1 1 59D16023
@@ -573,38 +475,7 @@ F 3 "" H 7950 1050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8150 1750 7950 1750
-Wire Wire Line
 	7950 1750 7950 1050
-Text Notes 6700 1700 0    60   ~ 0
-FX3_GPIO17
-Text Notes 6700 1900 0    60   ~ 0
-FX3_GPIO18
-Text Notes 6700 2000 0    60   ~ 0
-FX3_GPIO19
-Text Notes 6700 2100 0    60   ~ 0
-FX3_GPIO20
-Text Notes 6700 2200 0    60   ~ 0
-FX3_GPIO21
-Text Notes 6700 2300 0    60   ~ 0
-FX3_GPIO22
-Text Notes 6700 2400 0    60   ~ 0
-FX3_GPIO23
-Text Notes 6700 2500 0    60   ~ 0
-FX3_GPIO24
-Text Notes 6700 2600 0    60   ~ 0
-FX3_GPIO25
-Text Notes 6700 2800 0    60   ~ 0
-FX3_GPIO26
-Text Notes 6700 2900 0    60   ~ 0
-FX3_GPIO27
-Text Notes 6700 3000 0    60   ~ 0
-FX3_GPIO28
-Text Notes 6700 3100 0    60   ~ 0
-FX3_GPIO29
-NoConn ~ 9400 1250
-NoConn ~ 9400 1350
-NoConn ~ 8150 2650
 NoConn ~ 2850 5200
 NoConn ~ 2850 5300
 Text GLabel 3850 5250 2    60   Input ~ 0
@@ -671,76 +542,179 @@ Wire Wire Line
 	3750 6650 3850 6650
 Wire Wire Line
 	3750 6750 3850 6750
-Text GLabel 7650 5750 0    60   Input ~ 0
+Text GLabel 7650 4350 0    60   Input ~ 0
 USB_DATA16
-Text GLabel 9950 5650 2    60   Input ~ 0
+Text GLabel 9700 4350 2    60   Input ~ 0
 USB_DATA17
-Text GLabel 7650 5650 0    60   Input ~ 0
+Text GLabel 7650 4450 0    60   Input ~ 0
 USB_DATA18
-Text GLabel 9950 5450 2    60   Input ~ 0
+Text GLabel 9700 4450 2    60   Input ~ 0
 USB_DATA19
-Text GLabel 7650 5450 0    60   Input ~ 0
+Text GLabel 7650 4550 0    60   Input ~ 0
 USB_DATA20
-Text GLabel 9950 5350 2    60   Input ~ 0
+Text GLabel 9700 4550 2    60   Input ~ 0
 USB_DATA21
-Text GLabel 7650 5350 0    60   Input ~ 0
+Text GLabel 7650 4950 0    60   Input ~ 0
 USB_DATA22
-Text GLabel 9950 5250 2    60   Input ~ 0
+Text GLabel 9700 4950 2    60   Input ~ 0
 USB_DATA23
-Text GLabel 7650 5250 0    60   Input ~ 0
+Text GLabel 7650 5050 0    60   Input ~ 0
 USB_DATA24
-Text GLabel 9950 5150 2    60   Input ~ 0
+Text GLabel 9700 5050 2    60   Input ~ 0
 USB_DATA25
 Text GLabel 7650 5150 0    60   Input ~ 0
 USB_DATA26
-Text GLabel 9950 5050 2    60   Input ~ 0
+Text GLabel 9700 5150 2    60   Input ~ 0
 USB_DATA27
-Text GLabel 7650 5050 0    60   Input ~ 0
+Text GLabel 7650 5250 0    60   Input ~ 0
 USB_DATA28
-Text GLabel 9950 4950 2    60   Input ~ 0
+Text GLabel 9700 5250 2    60   Input ~ 0
 USB_DATA29
-Text GLabel 7650 4950 0    60   Input ~ 0
+Text GLabel 7650 5350 0    60   Input ~ 0
 USB_DATA30
-Text GLabel 9950 4850 2    60   Input ~ 0
+Text GLabel 9700 5350 2    60   Input ~ 0
 USB_DATA31
+Wire Wire Line
+	7950 1750 8150 1750
+Wire Wire Line
+	9400 1750 9600 1750
+Wire Wire Line
+	9400 2650 9600 2650
+Wire Wire Line
+	7800 4650 8150 4650
+Wire Wire Line
+	9400 4650 9550 4650
+Wire Wire Line
+	9400 5550 9550 5550
+NoConn ~ 8150 4150
+NoConn ~ 8150 4250
 NoConn ~ 8150 5550
-NoConn ~ 8150 5850
-NoConn ~ 8150 5950
-NoConn ~ 8150 6050
-NoConn ~ 9400 5750
-NoConn ~ 9400 5850
-NoConn ~ 9400 5950
-NoConn ~ 9400 6050
+NoConn ~ 8150 1250
+NoConn ~ 8150 1350
+NoConn ~ 8150 2650
+NoConn ~ 9400 4250
+NoConn ~ 9400 4150
 Wire Wire Line
-	7650 5750 8150 5750
+	8150 1450 7750 1450
 Wire Wire Line
-	7650 5650 8150 5650
+	7750 1550 8150 1550
 Wire Wire Line
-	7650 5450 8150 5450
+	8150 1650 7750 1650
 Wire Wire Line
-	7650 5350 8150 5350
+	7750 1850 8150 1850
 Wire Wire Line
-	7650 5250 8150 5250
+	7750 1950 8150 1950
 Wire Wire Line
-	7650 5150 8150 5150
+	7750 2050 8150 2050
 Wire Wire Line
-	7650 5050 8150 5050
+	7750 2150 8150 2150
+Wire Wire Line
+	7750 2250 8150 2250
+Wire Wire Line
+	7750 2350 8150 2350
+Wire Wire Line
+	7750 2450 8150 2450
+Wire Wire Line
+	7750 2550 8150 2550
+Wire Wire Line
+	8150 2750 7750 2750
+Wire Wire Line
+	7750 2850 8150 2850
+Wire Wire Line
+	7750 2950 8150 2950
+Wire Wire Line
+	7750 3050 8150 3050
+Wire Wire Line
+	7750 3150 8150 3150
+Wire Wire Line
+	9400 1450 9800 1450
+Wire Wire Line
+	9800 1550 9400 1550
+Wire Wire Line
+	9400 1650 9800 1650
+Wire Wire Line
+	9400 1850 9800 1850
+Wire Wire Line
+	9400 1950 9800 1950
+Wire Wire Line
+	9800 2050 9400 2050
+Wire Wire Line
+	9400 2150 9800 2150
+Wire Wire Line
+	9800 2250 9400 2250
+Wire Wire Line
+	9400 2350 9800 2350
+Wire Wire Line
+	9400 2450 9800 2450
+Wire Wire Line
+	9800 2550 9400 2550
+Wire Wire Line
+	9400 2750 9800 2750
+Wire Wire Line
+	9800 2850 9400 2850
+NoConn ~ 9400 2950
+NoConn ~ 9400 1350
+NoConn ~ 9400 1250
+Wire Wire Line
+	7650 4350 8150 4350
+Wire Wire Line
+	8150 4450 7650 4450
+Wire Wire Line
+	7650 4550 8150 4550
 Wire Wire Line
 	7650 4950 8150 4950
 Wire Wire Line
-	9400 5650 9950 5650
+	8150 5050 7650 5050
 Wire Wire Line
-	9400 5450 9950 5450
+	7650 5150 8150 5150
 Wire Wire Line
-	9400 5350 9950 5350
+	8150 5250 7650 5250
 Wire Wire Line
-	9400 5250 9950 5250
+	7650 5350 8150 5350
 Wire Wire Line
-	9400 5150 9950 5150
+	9400 4550 9700 4550
 Wire Wire Line
-	9400 5050 9950 5050
+	9700 4450 9400 4450
 Wire Wire Line
-	9400 4950 9950 4950
+	9400 4350 9700 4350
+NoConn ~ 9400 4750
+NoConn ~ 8150 4750
+NoConn ~ 8150 4850
 Wire Wire Line
-	9400 4850 9950 4850
+	9400 4950 9700 4950
+Wire Wire Line
+	9700 5050 9400 5050
+Wire Wire Line
+	9400 5150 9700 5150
+Wire Wire Line
+	9700 5250 9400 5250
+Wire Wire Line
+	9400 5350 9700 5350
+NoConn ~ 9400 4850
+NoConn ~ 9400 3150
+Wire Wire Line
+	9400 3050 9800 3050
+Wire Wire Line
+	9400 5450 9700 5450
+Wire Wire Line
+	9400 5650 9700 5650
+Wire Wire Line
+	9700 5750 9400 5750
+Wire Wire Line
+	9700 5850 9400 5850
+Wire Wire Line
+	9700 5950 9400 5950
+Wire Wire Line
+	9700 6050 9400 6050
+Wire Wire Line
+	7650 5650 8150 5650
+Wire Wire Line
+	7650 5750 8150 5750
+Wire Wire Line
+	7650 5850 8150 5850
+Wire Wire Line
+	7650 5950 8150 5950
+Wire Wire Line
+	8150 6050 7650 6050
+NoConn ~ 8150 5450
 $EndSCHEMATC
