@@ -28,41 +28,37 @@
 
 #include "transferthread.h"
 
-
-// might want to overload isRunning()
-
 // Public functions
 void transferThread::setParameters(
-    unsigned int ep, //0
-    unsigned int type, //? (type of transfer)
-    unsigned int maxpkt, //16
-    unsigned int numpkts, //16
-    unsigned int numrqts, //16
-    cyusb_handle* targetDeviceHandle)
+    unsigned int endpointParameter, //0
+    unsigned int endpointTypeParameter, //? (type of transfer)
+    unsigned int packetSizeParameter, //16
+    unsigned int requestSizeParameter, //16
+    unsigned int queueDepthParameter, //16
+    cyusb_handle* deviceHandleParameter)
 {
     qDebug() << "transferThread::setParameters(): Called";
 
     // Default all status variables
-    successCount = 0;	// Number of successful transfers
-    failureCount = 0;	// Number of failed transfers
-    transferSize = 0;	// Size of data transfers performed so far
-    transferIndex = 0;	// Write index into the transfer_size array
+    successCount = 0;           // Number of successful transfers
+    failureCount = 0;           // Number of failed transfers
+    transferSize = 0;           // Size of data transfers performed so far
+    transferIndex = 0;          // Write index into the transfer_size array
     transferPerformance = 0;	// Performance in KBps
-    stopTransferRequest = false;	// Request to stop data transfers
-    requestsInFlight = 0;	// Number of transfers that are in progress
-    transferRunning = false;	// Whether the streamer application is running
+    stopTransferRequest = false;// Request to stop data transfers
+    requestsInFlight = 0;       // Number of transfers that are in progress
+    transferRunning = false;	// Transfer running flag
 
     // Copy parameters to the objects private storage
-    endpoint = ep;
-    endpointType = type;
-    packetSize = maxpkt;
-    requestSize = numpkts;
-    queueDepth = numrqts;
-    *deviceHandle = (cyusb_handle *)targetDeviceHandle;
+    endpoint = endpointParameter;
+    endpointType = endpointTypeParameter;
+    packetSize = packetSizeParameter;
+    requestSize = requestSizeParameter;
+    queueDepth = queueDepthParameter;
+    deviceHandle = deviceHandleParameter;
 }
 
 // Get the current success count
-// streamer_update_results
 unsigned int transferThread::getSuccessCount(void)
 {
     qDebug() << "transferThread::getSuccessCount(): Success count = " << successCount;
@@ -83,10 +79,25 @@ unsigned int transferThread::getPerformanceCount(void)
     return transferPerformance;
 }
 
-// Protected functions
+// Stop the transfer
+void transferThread::stop(void)
+{
+    qDebug() << "transferThread::stop(): Stopping the transfer request";
+    stopTransferRequest = true;
+}
+
+// Return a flag showing if a transfer is running
+bool transferThread::isRunning(void)
+{
+    return transferRunning;
+}
+
+// Protected functions --------------------------------------------------------------------------------
 
 void transferThread::run(void)
 {
+    int transferReturnStatus = 0; // Status return from libUSB
+
     qDebug() << "transferThread::run(): Called - allocated thread ID" << thread()->currentThreadId();;
 
     // Check for validity of the device handle
@@ -103,126 +114,96 @@ void transferThread::run(void)
     qDebug() << "\tRequest size     :" << requestSize;
     qDebug() << "\tQueue depth      :" << queueDepth;
 
-    // Set up the transfer buffers
+    // Set up the transfer buffers (note: the maximum size of a QByteArray is 2GBytes)
+    // NOTE: for testing there is only a single buffer... FIX ME!
+    QByteArray *dataBuffers = new QByteArray;
+    QByteArray *transfers = new QByteArray;
 
     // Record the timestamp at start of transfer (for statistics generation)
+    gettimeofday(&startTimestamp, NULL); // Might be better to use the QT library for this?
+
+    // Flag as running
+    transferRunning = true;
+    stopTransferRequest = false;
 
     // Launch the transfers
+    for (unsigned int launchCounter = 0; launchCounter < queueDepth; launchCounter++) {
+        qDebug() << "transferThread::run(): Launching transfer number" << launchCounter << "of" << queueDepth;
 
-    // Wait for a stop signal
+        switch (endpointType) {
+            case LIBUSB_TRANSFER_TYPE_BULK:
+                qDebug() << "transferThread::run(): Endpoint type is LIBUSB_TRANSFER_TYPE_BULK";
+                libusb_fill_bulk_transfer((unsigned char *)transfers->data(), deviceHandle, endpoint,
+                        (unsigned char *)dataBuffers->data(), requestSize * packetSize, transferThread::transferCallback, NULL, 5000);
+                transferReturnStatus = libusb_submit_transfer((libusb_transfer *)transfers->data());
+                if (transferReturnStatus == 0) requestsInFlight++;
+                break;
 
-}
-
-//    cyusb_handle *deviceHandle = (cyusb_handle *)arg;
-//    struct libusb_transfer **transfers = NULL;		// List of transfer structures.
-//    unsigned char **databuffers = NULL;			// List of data buffers.
-//    int  rStatus;
-
-
-
-//    // Allocate buffers and transfer structures
-//    bool allocfail = false;
-
-//    databuffers = (unsigned char **)calloc (queueDepth, sizeof (unsigned char *));
-//    transfers   = (struct libusb_transfer **)calloc (queueDepth, sizeof (struct libusb_transfer *));
-
-//    if ((databuffers != NULL) && (transfers != NULL)) {
-
-//        for (unsigned int i = 0; i < queueDepth; i++) {
-
-//            databuffers[i] = (unsigned char *)malloc (requestSize * packetSize);
-//            transfers[i]   = libusb_alloc_transfer (
-//                    (endpointType == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS) ? requestSize : 0);
-
-//            if ((databuffers[i] == NULL) || (transfers[i] == NULL)) {
-//                allocfail = true;
-//                break;
-//            }
-//        }
-
-//    } else {
-
-//        allocfail = true;
-
-//    }
-
-//    // Check if all memory allocations have succeeded
-//    if (allocfail) {
-//        qDebug() << "Failed to allocate buffers and transfer structures";
-//        freeTransferBuffers(databuffers, transfers);
-//        pthread_exit (NULL);
-//    }
-
-//    // Take the transfer start timestamp
-//    gettimeofday (&startTimestamp, NULL);
-
-//    // Launch all the transfers till queue depth is complete
-//    for (unsigned int i = 0; i < queueDepth; i++) {
-//        switch (endpointType) {
-//            case LIBUSB_TRANSFER_TYPE_BULK:
-//                libusb_fill_bulk_transfer (transfers[i], deviceHandle, endpoint,
-//                        databuffers[i], requestSize * packetSize, streamer::transferCallback, NULL, 5000);
-//                rStatus = libusb_submit_transfer (transfers[i]);
-//                if (rStatus == 0)
-//                    requestsInFlight++;
-//                break;
-
-//            case LIBUSB_TRANSFER_TYPE_INTERRUPT:
+            case LIBUSB_TRANSFER_TYPE_INTERRUPT:
+                qDebug() << "transferThread::run(): Endpoint type is LIBUSB_TRANSFER_TYPE_INTERRUPT";
 //                libusb_fill_interrupt_transfer (transfers[i], deviceHandle, endpoint,
 //                        databuffers[i], requestSize * packetSize, streamer::transferCallback, NULL, 5000);
-//                rStatus = libusb_submit_transfer (transfers[i]);
-//                if (rStatus == 0)
-//                    requestsInFlight++;
-//                break;
+//                transferReturnStatus = libusb_submit_transfer (transfers[i]);
+                if (transferReturnStatus == 0) requestsInFlight++;
+                break;
 
-//            case LIBUSB_TRANSFER_TYPE_ISOCHRONOUS:
+            case LIBUSB_TRANSFER_TYPE_ISOCHRONOUS:
+                qDebug() << "transferThread::run(): Endpoint type is LIBUSB_TRANSFER_TYPE_ISOCHRONOUS";
 //                libusb_fill_iso_transfer (transfers[i], deviceHandle, endpoint, databuffers[i],
 //                        requestSize * packetSize, requestSize, streamer::transferCallback, NULL, 5000);
 //                libusb_set_iso_packet_lengths (transfers[i], packetSize);
-//                rStatus = libusb_submit_transfer (transfers[i]);
-//                if (rStatus == 0)
-//                    requestsInFlight++;
-//                break;
+//                transferReturnStatus = libusb_submit_transfer (transfers[i]);
+                if (transferReturnStatus == 0) requestsInFlight++;
+                break;
 
-//            default:
-//                break;
-//        }
-//    }
+            default:
+                qDebug() << "transferThread::run(): Endpoint type is UNKNOWN";
+                break;
+        }
+    }
 
-//    // Show the current number of inflight requests
-//    qDebug() << requestsInFlight << "Queued %d requests";
+    // Show the current number of inflight requests
+    qDebug() << "transferThread::run(): Queued" << requestsInFlight << "requests";
 
-//    struct timeval timeout;
+    // NEED TO RECODE THIS BIT... NOT VERY NEAT...
+    struct timeval timeout;
 
-//    // Use a 1 second timeout for the libusb_handle_events_timeout call
-//    timeout.tv_sec  = 1;
-//    timeout.tv_usec = 0;
+    // Use a 1 second timeout for the libusb_handle_events_timeout call
+    timeout.tv_sec  = 1;
+    timeout.tv_usec = 0;
 
-//    // Keep handling events until transfer stop is requested.
-//    do {
-//        libusb_handle_events_timeout (NULL, &timeout);
-//    } while (!stopTransferRequest);
+    // Process libUSB events whilst transfer is running
+    do {
+        libusb_handle_events_timeout (NULL, &timeout);
+    } while (!stopTransferRequest);
 
-//    qDebug() << "Stopping streamer app";
-//    while (requestsInFlight != 0) {
-//        qDebug() << requestsInFlight << "requests are pending";
-//        libusb_handle_events_timeout (NULL, &timeout);
-//        sleep (1);
-//    }
+    qDebug() << "transferThread::run(): Stopping streamer thread";
 
-//    freeTransferBuffers(databuffers, transfers);
-//    streamerRunning = false;
+    // Process libUSB events whilst the transfer is stopping
+    while (requestsInFlight != 0) {
+        qDebug() << "transferThread::run():" << requestsInFlight << "requests are pending";
+        libusb_handle_events_timeout(NULL, &timeout);
+        sleep(1);
+    }
 
-//    qDebug() << "Streamer test completed";
-//    pthread_exit (NULL);
-//}
+    qDebug() << "transferThread::run(): Transfer thread completed";
+}
+
+
 
 // Function: transferCallback (xfer_callback)
 // This is the call back function called by libusb upon completion of a queued data transfer.
+void transferThread::transferCallback(struct libusb_transfer *transfer)
+{
+    qDebug() << "transferThread::transferCallback(): Called";
+}
+
+
+
 //void transferThread::transferCallback(struct libusb_transfer *transfer)
 //{
 //    unsigned int elapsed_time;
-//    double       performance;
+//    double       performance;qDebug() << "streamer::startTransfer(): Started";
 //    int          size = 0;
 
 //    // Check if the transfer has succeeded.
@@ -300,34 +281,6 @@ void transferThread::run(void)
 //    }
 //}
 
-
-// Extra stuff - possibly not needed
-// Free the data buffers and transfer structures
-//void streamer::freeTransferBuffers(unsigned char **databuffers,
-//    struct libusb_transfer **transfers)
-//{
-//    // Free up any allocated transfer structures
-//    if (transfers != NULL) {
-//        for (unsigned int i = 0; i < queueDepth; i++) {
-//            if (transfers[i] != NULL) {
-//                libusb_free_transfer (transfers[i]);
-//            }
-//            transfers[i] = NULL;
-//        }
-//        free (transfers);
-//    }
-
-//    // Free up any allocated data buffers
-//    if (databuffers != NULL) {
-//        for (unsigned int i = 0; i < queueDepth; i++) {
-//            if (databuffers[i] != NULL) {
-//                free (databuffers[i]);
-//            }
-//            databuffers[i] = NULL;
-//        }
-//        free (databuffers);
-//    }
-//}
 
 // Function to show the LIBUSB error in the debug stream
 //void streamer::showLibUsbErrorCode(int errorCode)

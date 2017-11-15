@@ -31,7 +31,7 @@
 #include <QObject>
 #include <QThread>
 #include <QDebug>
-#include <QString>
+#include <QByteArray>
 
 // Include the required USB libraries
 #include <libusb-1.0/libusb.h>
@@ -45,6 +45,8 @@ public:
     unsigned int getSuccessCount(void);
     unsigned int getFailureCount(void);
     unsigned int getPerformanceCount(void);
+    void stop(void);
+    bool isRunning(void);
 
     void run();
 
@@ -71,6 +73,8 @@ private:
 
     struct timeval	startTimestamp;         // Data transfer start time stamp.
     struct timeval	endTimestamp;			// Data transfer stop time stamp.
+
+    void transferCallback(struct libusb_transfer *);
 
 signals:
 

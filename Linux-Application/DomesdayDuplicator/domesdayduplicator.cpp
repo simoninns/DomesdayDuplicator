@@ -65,14 +65,15 @@ domesdayDuplicator::~domesdayDuplicator()
 // Transfer button triggered
 void domesdayDuplicator::on_transferButton_clicked()
 {
-    if (0) {
-        // Stop transfer
+    // Is a transfer in progress?
+    if (dataStreamer->isRunning()) {
+        // Yes - Stop the transfer
         ui->transferButton->setText(tr("Start transfer"));
         dataStreamer->stopTransfer();
         qDebug() << "domesdayDuplicator::on_transferButton_clicked() - Stopping transfer";
 
     } else {
-        // Start transfer
+        // No - Start transfer
         ui->transferButton->setText(tr("Stop transfer"));
         dataStreamer->startTransfer();
         qDebug() << "domesdayDuplicator::on_transferButton_clicked() - Starting transfer";
