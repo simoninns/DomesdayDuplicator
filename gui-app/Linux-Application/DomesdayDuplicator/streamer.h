@@ -33,13 +33,14 @@
 // Include the required USB libraries
 #include <libusb-1.0/libusb.h>
 #include <cyusb.h>
+#include "transferthread.h"
 
 class streamer
 {
 public:
     // Public functions
-    streamer(); //unsigned int, unsigned int, unsigned int, unsigned int, unsigned int);
-    int startTransfer(void);
+    streamer();
+    void startTransfer(void);
     void stopTransfer(void);
     bool isRunning(void);
     unsigned int getSuccessCount(void);
@@ -62,12 +63,12 @@ private:
     volatile bool	stopTransferRequest;	// Request to stop data transfers
     volatile int     requestsInFlight;       // Number of transfers that are in progress
     volatile bool	streamerRunning;        // Whether the streamer application is running
-    pthread_t        strm_thread;            // Thread used for the streamer operation
 
     struct timeval	startTimestamp;         // Data transfer start time stamp.
     struct timeval	endTimestamp;			// Data transfer stop time stamp.
 
     cyusb_handle *deviceHandle;
+    transferThread thread;
 
     // Private functions
     //void *streamerMainThread(void *);
