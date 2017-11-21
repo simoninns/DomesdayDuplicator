@@ -1,4 +1,4 @@
-update=21/11/2017 13:29:21
+update=21/11/2017 13:33:28
 version=1
 last_client=kicad
 [pcbnew]
@@ -25,16 +25,6 @@ version=1
 NetIExt=net
 [general]
 version=1
-[schematic_editor]
-version=1
-PageLayoutDescrFile=
-PlotDirectoryName=../PDF/
-SubpartIdSeparator=0
-SubpartFirstId=65
-NetFmtName=Pcbnew
-SpiceForceRefPrefix=0
-SpiceUseNetNumbers=0
-LabSize=60
 [eeschema]
 version=1
 LibDir=
@@ -75,3 +65,13 @@ LibName33=opa690
 LibName34=gpifii_j7
 LibName35=gpifii_j6
 LibName36=bnc_rosenberger
+[schematic_editor]
+version=1
+PageLayoutDescrFile=
+PlotDirectoryName=../PDF/
+SubpartIdSeparator=0
+SubpartFirstId=65
+NetFmtName=Pcbnew
+SpiceForceRefPrefix=0
+SpiceUseNetNumbers=0
+LabSize=60
