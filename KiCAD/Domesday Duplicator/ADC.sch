@@ -1,4 +1,5 @@
 EESchema Schematic File Version 2
+LIBS:Domesday Duplicator-rescue
 LIBS:power
 LIBS:device
 LIBS:transistors
@@ -41,8 +42,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 3 4
 Title "Domesday Duplicator"
-Date "2017-11-13"
-Rev "2.0"
+Date "2017-11-21"
+Rev "2.1"
 Comp "http://www.domesday86.com"
 Comment1 "(c)2017 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -166,9 +167,11 @@ F 3 "" H 2050 3750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L LM1117-3.3 U1
+L LM1117-3.3-RESCUE-Domesday_Duplicator U1
 U 1 1 59D20D80
 P 2350 1200
+AR Path="/59D20D80" Ref="U1"  Part="1" 
+AR Path="/59D1E34E/59D20D80" Ref="U1"  Part="1" 
 F 0 "U1" H 2450 950 50  0000 C CNN
 F 1 "LM1117-3.3" H 2350 1450 50  0000 C CNN
 F 2 "TO_SOT_Packages_SMD:SOT-223" H 2350 1200 50  0001 C CNN
