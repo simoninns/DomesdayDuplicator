@@ -26,11 +26,13 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         domesdayduplicator.cpp \
-    usbdevice.cpp
+    streamer.cpp \
+    transferthread.cpp
 
 HEADERS += \
         domesdayduplicator.h \
-    usbdevice.h
+    streamer.h \
+    transferthread.h
 
 FORMS += \
         domesdayduplicator.ui
