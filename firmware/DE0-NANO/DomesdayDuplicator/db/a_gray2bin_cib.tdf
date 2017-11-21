@@ -1,5 +1,5 @@
 --a_gray2bin carry_chain="MANUAL" carry_chain_length=48 device_family="Cyclone IV E" ignore_carry_buffers="OFF" WIDTH=16 bin gray
---VERSION_BEGIN 17.0 cbx_a_gray2bin 2017:04:25:18:06:29:SJ cbx_mgl 2017:04:25:18:09:28:SJ  VERSION_END
+--VERSION_BEGIN 17.1 cbx_a_gray2bin 2017:10:19:05:46:40:SJ cbx_mgl 2017:10:19:06:38:12:SJ  VERSION_END
 
 
 -- Copyright (C) 2017  Intel Corporation. All rights reserved.
@@ -10,12 +10,11 @@
 --  associated documentation or information are expressly subject 
 --  to the terms and conditions of the Intel Program License 
 --  Subscription Agreement, the Intel Quartus Prime License Agreement,
---  the Intel MegaCore Function License Agreement, or other 
---  applicable license agreement, including, without limitation, 
---  that your use is for the sole purpose of programming logic 
---  devices manufactured by Intel and sold by Intel or its 
---  authorized distributors.  Please refer to the applicable 
---  agreement for further details.
+--  the Intel FPGA IP License Agreement, or other applicable license
+--  agreement, including, without limitation, that your use is for
+--  the sole purpose of programming logic devices manufactured by
+--  Intel and sold by Intel or its authorized distributors.  Please
+--  refer to the applicable agreement for further details.
 
 
 

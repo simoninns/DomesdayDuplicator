@@ -1,5 +1,5 @@
 //altpll bandwidth_type="AUTO" CBX_DECLARE_ALL_CONNECTED_PORTS="OFF" clk0_divide_by=25 clk0_duty_cycle=50 clk0_multiply_by=16 clk0_phase_shift="0" compensate_clock="CLK0" device_family="Cyclone IV E" inclk0_input_frequency=20000 intended_device_family="Cyclone IV E" lpm_hint="CBX_MODULE_PREFIX=IPpllGenerator" operation_mode="normal" pll_type="AUTO" port_clk0="PORT_USED" port_clk1="PORT_UNUSED" port_clk2="PORT_UNUSED" port_clk3="PORT_UNUSED" port_clk4="PORT_UNUSED" port_clk5="PORT_UNUSED" port_extclk0="PORT_UNUSED" port_extclk1="PORT_UNUSED" port_extclk2="PORT_UNUSED" port_extclk3="PORT_UNUSED" port_inclk1="PORT_UNUSED" port_phasecounterselect="PORT_UNUSED" port_phasedone="PORT_UNUSED" port_scandata="PORT_UNUSED" port_scandataout="PORT_UNUSED" width_clock=5 clk inclk CARRY_CHAIN="MANUAL" CARRY_CHAIN_LENGTH=48
-//VERSION_BEGIN 17.0 cbx_altclkbuf 2017:04:25:18:06:29:SJ cbx_altiobuf_bidir 2017:04:25:18:06:29:SJ cbx_altiobuf_in 2017:04:25:18:06:29:SJ cbx_altiobuf_out 2017:04:25:18:06:29:SJ cbx_altpll 2017:04:25:18:06:29:SJ cbx_cycloneii 2017:04:25:18:06:29:SJ cbx_lpm_add_sub 2017:04:25:18:06:29:SJ cbx_lpm_compare 2017:04:25:18:06:29:SJ cbx_lpm_counter 2017:04:25:18:06:29:SJ cbx_lpm_decode 2017:04:25:18:06:29:SJ cbx_lpm_mux 2017:04:25:18:06:30:SJ cbx_mgl 2017:04:25:18:09:28:SJ cbx_nadder 2017:04:25:18:06:30:SJ cbx_stratix 2017:04:25:18:06:30:SJ cbx_stratixii 2017:04:25:18:06:30:SJ cbx_stratixiii 2017:04:25:18:06:30:SJ cbx_stratixv 2017:04:25:18:06:30:SJ cbx_util_mgl 2017:04:25:18:06:30:SJ  VERSION_END
+//VERSION_BEGIN 17.1 cbx_altclkbuf 2017:10:19:05:46:40:SJ cbx_altiobuf_bidir 2017:10:19:05:46:40:SJ cbx_altiobuf_in 2017:10:19:05:46:40:SJ cbx_altiobuf_out 2017:10:19:05:46:40:SJ cbx_altpll 2017:10:19:05:46:40:SJ cbx_cycloneii 2017:10:19:05:46:40:SJ cbx_lpm_add_sub 2017:10:19:05:46:40:SJ cbx_lpm_compare 2017:10:19:05:46:40:SJ cbx_lpm_counter 2017:10:19:05:46:40:SJ cbx_lpm_decode 2017:10:19:05:46:40:SJ cbx_lpm_mux 2017:10:19:05:46:40:SJ cbx_mgl 2017:10:19:06:38:12:SJ cbx_nadder 2017:10:19:05:46:40:SJ cbx_stratix 2017:10:19:05:46:40:SJ cbx_stratixii 2017:10:19:05:46:40:SJ cbx_stratixiii 2017:10:19:05:46:40:SJ cbx_stratixv 2017:10:19:05:46:40:SJ cbx_util_mgl 2017:10:19:05:46:40:SJ  VERSION_END
 //CBXI_INSTANCE_NAME="DomesdayDuplicator_IPpllGenerator_IPpllGenerator0_altpll_altpll_component"
 // synthesis VERILOG_INPUT_VERSION VERILOG_2001
 // altera message_off 10463
@@ -14,12 +14,11 @@
 //  associated documentation or information are expressly subject 
 //  to the terms and conditions of the Intel Program License 
 //  Subscription Agreement, the Intel Quartus Prime License Agreement,
-//  the Intel MegaCore Function License Agreement, or other 
-//  applicable license agreement, including, without limitation, 
-//  that your use is for the sole purpose of programming logic 
-//  devices manufactured by Intel and sold by Intel or its 
-//  authorized distributors.  Please refer to the applicable 
-//  agreement for further details.
+//  the Intel FPGA IP License Agreement, or other applicable license
+//  agreement, including, without limitation, that your use is for
+//  the sole purpose of programming logic devices manufactured by
+//  Intel and sold by Intel or its authorized distributors.  Please
+//  refer to the applicable agreement for further details.
 
 
 
