@@ -31,7 +31,10 @@
 #include <QDebug>
 
 // Include the required USB libraries
+extern "C" {
 #include <libusb-1.0/libusb.h>
+}
+
 #include <cyusb.h>
 #include "transferthread.h"
 
