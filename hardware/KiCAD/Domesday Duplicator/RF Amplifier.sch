@@ -1,4 +1,5 @@
 EESchema Schematic File Version 2
+LIBS:Domesday Duplicator-rescue
 LIBS:power
 LIBS:device
 LIBS:transistors
@@ -41,8 +42,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 4 4
 Title "Domesday Duplicator"
-Date "2017-11-13"
-Rev "2.0"
+Date "2017-11-21"
+Rev "2.1"
 Comp "http://www.domesday86.com"
 Comment1 "(c)2017 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
