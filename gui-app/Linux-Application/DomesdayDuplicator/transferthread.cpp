@@ -92,8 +92,19 @@ bool transferThread::isRunning(void)
     return transferRunning;
 }
 
-// Protected functions --------------------------------------------------------------------------------
+// This is the call back function called by libusb upon completion of a queued data transfer.
+void LIBUSB_CALL transferThread::transferCallback(struct libusb_transfer *transfer)
+{
+    qDebug() << "transferThread::transferCallback(): Called - emitting signal";
 
+    // Ensure that the transfer structure is valid
+    if (!transfer || !transfer->user_data) return;
+
+    // Send a signal
+
+}
+
+// Run function for transfer
 void transferThread::run(void)
 {
     int transferReturnStatus = 0; // Status return from libUSB
@@ -114,9 +125,10 @@ void transferThread::run(void)
     qDebug() << "\tRequest size     :" << requestSize;
     qDebug() << "\tQueue depth      :" << queueDepth;
 
-    // Set up the transfer buffers (note: the maximum size of a QByteArray is 2GBytes)
-    // NOTE: for testing there is only a single buffer... FIX ME!
+    // Array for the data
     QByteArray *dataBuffers = new QByteArray;
+
+    // Array for the transfer structure
     QByteArray *transfers = new QByteArray;
 
     // Record the timestamp at start of transfer (for statistics generation)
@@ -133,10 +145,11 @@ void transferThread::run(void)
         switch (endpointType) {
             case LIBUSB_TRANSFER_TYPE_BULK:
                 qDebug() << "transferThread::run(): Endpoint type is LIBUSB_TRANSFER_TYPE_BULK";
-                libusb_fill_bulk_transfer((unsigned char *)transfers->data(), deviceHandle, endpoint,
+                libusb_fill_bulk_transfer((libusb_transfer *)transfers->data(), deviceHandle, endpoint,
                         (unsigned char *)dataBuffers->data(), requestSize * packetSize, transferThread::transferCallback, NULL, 5000);
                 transferReturnStatus = libusb_submit_transfer((libusb_transfer *)transfers->data());
                 if (transferReturnStatus == 0) requestsInFlight++;
+                qDebug() << "transferThread::run(): Launched";
                 break;
 
             case LIBUSB_TRANSFER_TYPE_INTERRUPT:
@@ -189,14 +202,6 @@ void transferThread::run(void)
     qDebug() << "transferThread::run(): Transfer thread completed";
 }
 
-
-
-// Function: transferCallback (xfer_callback)
-// This is the call back function called by libusb upon completion of a queued data transfer.
-void transferThread::transferCallback(struct libusb_transfer *transfer)
-{
-    qDebug() << "transferThread::transferCallback(): Called";
-}
 
 
 

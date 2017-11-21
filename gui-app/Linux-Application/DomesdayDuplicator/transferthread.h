@@ -34,7 +34,9 @@
 #include <QByteArray>
 
 // Include the required USB libraries
+extern "C" {
 #include <libusb-1.0/libusb.h>
+}
 #include <cyusb.h>
 
 class transferThread : public QThread
@@ -49,6 +51,9 @@ public:
     bool isRunning(void);
 
     void run();
+
+    // Callback function for libUSB transfers
+    static void LIBUSB_CALL transferCallback(struct libusb_transfer *transfer);
 
 private:
     // Private variables for storing transfer configuration
@@ -73,8 +78,6 @@ private:
 
     struct timeval	startTimestamp;         // Data transfer start time stamp.
     struct timeval	endTimestamp;			// Data transfer stop time stamp.
-
-    void transferCallback(struct libusb_transfer *);
 
 signals:
 
