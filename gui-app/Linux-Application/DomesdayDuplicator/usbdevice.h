@@ -49,6 +49,14 @@ public:
     ~usbDevice(void);
     bool isConnected(void);
 
+    void setupDevice(void);
+    bool openDevice(void);
+    bool closeDevice(void);
+    void readFromDevice(QByteArray *buf);
+    void writeToDevice(QByteArray *buf);
+
+    void sendVendorSpecificCommand(quint16 command, quint16 value);
+
 signals:
     void statusChanged(bool status);
 
@@ -58,6 +66,10 @@ public slots:
 
 private:
     QUsbManager mUsbManager;
+    QUsbDevice* domDupDevice;
+
+    QtUsb::DeviceFilter domDupFilter;
+    QtUsb::DeviceConfig domDupConfig;
 
 };
 

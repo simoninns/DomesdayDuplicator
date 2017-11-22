@@ -25,9 +25,9 @@
 
 ************************************************************************/
 
-
 #include "usbdevice.h"
 
+// Construct object and connect hot-plug signals
 usbDevice::usbDevice(QObject *parent) : QObject(parent)
 {
     QObject::connect(&mUsbManager, SIGNAL(deviceInserted(QtUsb::FilterList)),
@@ -65,6 +65,7 @@ bool usbDevice::isConnected(void)
     return deviceStatus;
 }
 
+// Function to handle device insertion
 void usbDevice::onDevInserted(QtUsb::FilterList list)
 {
     qDebug("usbDevice::onDevInserted(): USB device(s) inserted");
@@ -80,6 +81,7 @@ void usbDevice::onDevInserted(QtUsb::FilterList list)
     }
 }
 
+// Function to handle device removal
 void usbDevice::onDevRemoved(QtUsb::FilterList list)
 {
     qDebug("usbDevice::onDevRemoved(): USB device(s) removed");
@@ -93,4 +95,64 @@ void usbDevice::onDevRemoved(QtUsb::FilterList list)
             emit statusChanged(false); // Send a signal
         }
     }
+}
+
+// Function to set-up device ready for data transfer
+void usbDevice::setupDevice(void)
+{
+    domDupDevice = new QUsbDevice();
+    domDupDevice->setDebug(true); // Turn on libUSB debug
+
+    // VID and PID of target device
+    domDupFilter.vid = VID;
+    domDupFilter.pid = PID;
+
+    // Configuration of target device
+    domDupConfig.alternate = 0;
+    domDupConfig.config = 0;
+    domDupConfig.interface = 1;
+    domDupConfig.readEp = 0x81;
+    domDupConfig.writeEp = 0x01;
+}
+
+// Function to open the device for IO
+bool usbDevice::openDevice(void)
+{
+    qDebug("usbDevice::openDevice(): Opening USB device");
+
+    QtUsb::DeviceStatus deviceStatus;
+    deviceStatus = mUsbManager.openDevice(domDupDevice, domDupFilter, domDupConfig);
+
+    if (deviceStatus == QtUsb::deviceOK) {
+        // Device is open
+        return true;
+    }
+    // Device is closed
+    return false;
+}
+
+// Function to close the device for IO
+bool usbDevice::closeDevice(void)
+{
+    qDebug("usbDevice::closeDevice(): Closing USB device");
+    mUsbManager.closeDevice(domDupDevice);
+    return false;
+}
+
+// Read data from the device
+void usbDevice::readFromDevice(QByteArray *buf)
+{
+    domDupDevice->read(buf, 1);
+}
+
+// Write data to the device
+void usbDevice::writeToDevice(QByteArray *buf)
+{
+    domDupDevice->write(buf, buf->size());
+}
+
+// Send a vendor specific USB command to the device
+void usbDevice::sendVendorSpecificCommand(quint16 command, quint16 value)
+{
+
 }
