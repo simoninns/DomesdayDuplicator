@@ -59,6 +59,7 @@ public:
 
     void startBulkRead(void);
     void stopBulkRead(void);
+
     quint64 getBulkSuccessCounter(void);
     quint64 getBulkFailureCounter(void);
     quint64 getBulkTransferSpeed(void);
@@ -72,6 +73,7 @@ public slots:
 
 private:
     QUsbManager mUsbManager;
+    //QUsbBulkTransfer* mUsbBulkTransfer;
     QUsbDevice* domDupDevice;
 
     QtUsb::DeviceFilter domDupFilter;

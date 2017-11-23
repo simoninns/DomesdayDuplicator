@@ -345,3 +345,23 @@ qint32 QUsbDevice::sendControlTransfer(
 
     return 1;
 }
+
+qint32 QUsbDevice::startBulkTransfer(void)
+{
+    qint32 rc = 1; // Response code
+    qDebug() << "QUsbDevice::startBulkTransfer(): Called";
+    mUsbBulkTransfer = new QUsbBulkTransfer;
+    mUsbBulkTransfer->setup(mDevHandle, mConfig.readEp);
+    mUsbBulkTransfer->start();
+
+    return rc;
+}
+
+qint32 QUsbDevice::stopBulkTransfer(void)
+{
+    qint32 rc = 1; // Response code
+    qDebug() << "QUsbDevice::stopBulkTransfer(): Called";
+    delete mUsbBulkTransfer;
+    return rc;
+}
+

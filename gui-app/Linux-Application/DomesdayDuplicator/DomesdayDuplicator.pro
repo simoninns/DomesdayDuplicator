@@ -32,7 +32,8 @@ SOURCES += \
     QtUsb/qbaseusb.cpp \
     QtUsb/qlibusb.cpp \
     QtUsb/qusbmanager.cpp \
-    usbdevice.cpp
+    usbdevice.cpp \
+    QtUsb/qusbbulktransfer.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -43,7 +44,8 @@ HEADERS += \
     QtUsb/qusb_global.h \
     QtUsb/qusb_types.h \
     QtUsb/qusbmanager.h \
-    usbdevice.h
+    usbdevice.h \
+    QtUsb/qusbbulktransfer.h
 
 FORMS += \
         mainwindow.ui

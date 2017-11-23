@@ -161,30 +161,32 @@ void usbDevice::sendVendorSpecificCommand(quint16 command, quint16 value)
 // Start a bulk read (continuously transfers data until stopped)
 void usbDevice::startBulkRead(void)
 {
-
+    // Start the bulk transfer
+    domDupDevice->startBulkTransfer();
 }
 
 // Stop a bulk read
 void usbDevice::stopBulkRead(void)
 {
-
+    // Stop the bulk transfer
+    domDupDevice->stopBulkTransfer();
 }
 
 // Get bulk read success counter
 quint64 usbDevice::getBulkSuccessCounter(void)
 {
-
+    return 0;
 }
 
 // Get bulk read failure counter
 quint64 usbDevice::getBulkFailureCounter(void)
 {
-
+    return 0;
 }
 
 // Get bulk read transfer speed
 quint64 usbDevice::getBulkTransferSpeed(void)
 {
-
+    return 0;
 }
 
