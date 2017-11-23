@@ -100,7 +100,15 @@ qint32 QUsbDevice::open() {
   libusb_get_configuration(mDevHandle, &conf);
 
   if (conf != mConfig.config) {
-    if (mDebug) qDebug("Configuration needs to be changed");
+    if (mDebug) {
+        qDebug("Configuration needs to be changed");
+
+        qDebug() << "Device config.alternate = " << mConfig.alternate;
+        qDebug() << "       config.config = " << mConfig.config;
+        qDebug() << "       config.interface = " << mConfig.interface;
+        qDebug() << "       config.readEp = " << mConfig.readEp;
+        qDebug() << "       config.writeEp = " << mConfig.writeEp;
+    }
     rc = libusb_set_configuration(mDevHandle, mConfig.config);
     if (rc != 0) {
       qWarning("Cannot Set Configuration");
@@ -295,4 +303,45 @@ qint32 QUsbDevice::write(const QByteArray* buf, quint32 len) {
   }
 
   return sent;
+}
+
+// Send a control transfer
+qint32 QUsbDevice::sendControlTransfer(
+    quint8                 bmRequestType,
+    quint8                 bRequest,
+    quint16                wValue,
+    quint16                wIndex,
+    const QByteArray*      data,
+    quint16                wLength,
+    quint16                timeout)
+{
+    UsbPrintFuncName();
+
+    // Check the pointer to data is valid (only if data is required)
+    if (wLength != 0) Q_CHECK_PTR(data);
+
+    qint32 rc; // Response code
+
+    // Check that the device is not closed
+    if (!mDevHandle || !mConnected) return -1;
+
+    if (mDebug) {
+        qDebug() << "Sending control transfer to device";
+    }
+
+    if (wLength > 0) {
+        // Transfer with data
+        rc = libusb_control_transfer(mDevHandle, bmRequestType, bRequest, wValue,
+            wIndex, (uchar*)data->data(), wLength, timeout);
+    } else {
+        // Transfer without data
+        rc = libusb_control_transfer(mDevHandle, bmRequestType, bRequest, wValue,
+            wIndex, NULL, 0, timeout);
+    }
+    if (rc != LIBUSB_SUCCESS) {
+        this->printUsbError(rc);
+        return rc;
+    }
+
+    return 1;
 }

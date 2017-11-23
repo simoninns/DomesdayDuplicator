@@ -109,10 +109,10 @@ void usbDevice::setupDevice(void)
 
     // Configuration of target device
     domDupConfig.alternate = 0;
-    domDupConfig.config = 0;
-    domDupConfig.interface = 1;
+    domDupConfig.config = 1;
+    domDupConfig.interface = 0;
     domDupConfig.readEp = 0x81;
-    domDupConfig.writeEp = 0x01;
+    domDupConfig.writeEp = 0x00;
 }
 
 // Function to open the device for IO
@@ -154,5 +154,37 @@ void usbDevice::writeToDevice(QByteArray *buf)
 // Send a vendor specific USB command to the device
 void usbDevice::sendVendorSpecificCommand(quint16 command, quint16 value)
 {
+    // Request type fixed to 0x40 (vendor specific command with no data)
+    domDupDevice->sendControlTransfer(0x40, command, value, 0x00, NULL, 0x00, 1000);
+}
+
+// Start a bulk read (continuously transfers data until stopped)
+void usbDevice::startBulkRead(void)
+{
 
 }
+
+// Stop a bulk read
+void usbDevice::stopBulkRead(void)
+{
+
+}
+
+// Get bulk read success counter
+quint64 usbDevice::getBulkSuccessCounter(void)
+{
+
+}
+
+// Get bulk read failure counter
+quint64 usbDevice::getBulkFailureCounter(void)
+{
+
+}
+
+// Get bulk read transfer speed
+quint64 usbDevice::getBulkTransferSpeed(void)
+{
+
+}
+

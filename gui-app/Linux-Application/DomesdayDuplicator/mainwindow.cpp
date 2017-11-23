@@ -109,18 +109,83 @@ void MainWindow::on_transferPushButton_clicked()
     if (captureFlag) {
         // Stop capturing
         qDebug() << "MainWindow::on_transferPushButton_clicked(): Stopping capture";
-        captureFlag = false;
-        ui->transferPushButton->setText(tr("Start capturing"));
+        stopTransfer();
     } else {
+        // Start capturing
+        qDebug() << "MainWindow::on_transferPushButton_clicked(): Starting capture";
+        startTransfer();
+    }
+}
+
+// Start USB capture transfer
+void MainWindow::startTransfer(void)
+{
+    bool responseFlag = false;
+
+    if (captureFlag == false) {
+        qDebug() << "MainWindow::startTransfer(): Starting transfer";
+
         // Verify that the USB device is still connected
         if (domDupUsbDevice->isConnected()) {
-            // Start capturing
-            qDebug() << "MainWindow::on_transferPushButton_clicked(): Starting capture";
+            // Set the capture flag
             captureFlag = true;
+
+            // Update the transfer button text
             ui->transferPushButton->setText(tr("Stop capturing"));
+
+            // Configure and open the USB device
+            domDupUsbDevice->setupDevice();
+            responseFlag = domDupUsbDevice->openDevice();
+
+            if (responseFlag) {
+                // Send start transfer vendor specific USB command
+                domDupUsbDevice->sendVendorSpecificCommand(0xB5, 1);
+            } else {
+                // Could not open USB device
+                qDebug() << "MainWindow::startTransfer(): Cannot start transfer - Opening USB device failed";
+                captureFlag = false;
+                ui->transferPushButton->setText(tr("Start capturing"));
+            }
         } else {
-            // USB device isn't available
+            // Cannot start transfer; USB device not detected
+            qDebug() << "MainWindow::startTransfer(): Cannot start transfer - USB device not connected";
             ui->transferPushButton->setEnabled(false);
         }
+    } else {
+        qDebug() << "MainWindow::startTransfer(): Called, but transfer is already in progress";
+    }
+}
+
+// Stop USB capture transfer
+void MainWindow::stopTransfer(void)
+{
+    if (captureFlag == true) {
+        qDebug() << "MainWindow::stopTransfer(): Stopping transfer";
+
+        // Set the capture flag
+        captureFlag = false;
+
+        // Update the transfer button text
+        ui->transferPushButton->setText(tr("Start capturing"));
+
+        // Send stop transfer vendor specific USB command
+        domDupUsbDevice->sendVendorSpecificCommand(0xB5, 0);
+
+        // Close the USB device
+        domDupUsbDevice->closeDevice();
+    } else {
+        qDebug() << "MainWindow::stopTransfer(): Called, but transfer is not in progress";
+    }
+}
+
+// Test mode check box toggled
+void MainWindow::on_testModeCheckBox_toggled(bool checked)
+{
+    if (checked) {
+        // Test mode on
+        qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Test mode on (not implemented yet)";
+    } else {
+        // Test mode off
+        qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Test mode off (not implemented yet)";
     }
 }
