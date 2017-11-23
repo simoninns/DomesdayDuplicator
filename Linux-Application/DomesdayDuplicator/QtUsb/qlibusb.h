@@ -3,6 +3,7 @@
 
 #include "qbaseusb.h"
 #include "qusb_compat.h"
+#include "qusbbulktransfer.h"
 #include <QByteArray>
 #include <QDebug>
 #include <QString>
@@ -80,6 +81,9 @@ public slots:
       quint16                wLength,
       quint16                timeout);
 
+  qint32 startBulkTransfer(void);
+  qint32 stopBulkTransfer(void);
+
   /**
    * @brief See base class
    *
@@ -101,5 +105,6 @@ private:
   libusb_context *mCtx;             /**< libusb context */
   QByteArray mReadBuffer;
   quint32 mReadBufferSize;
+  QUsbBulkTransfer* mUsbBulkTransfer;
 };
 #endif // QLIBUSB_H

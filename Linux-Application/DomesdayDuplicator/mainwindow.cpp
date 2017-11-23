@@ -140,6 +140,9 @@ void MainWindow::startTransfer(void)
             if (responseFlag) {
                 // Send start transfer vendor specific USB command
                 domDupUsbDevice->sendVendorSpecificCommand(0xB5, 1);
+
+                // Start the transfer
+                domDupUsbDevice->startBulkRead();
             } else {
                 // Could not open USB device
                 qDebug() << "MainWindow::startTransfer(): Cannot start transfer - Opening USB device failed";
@@ -167,6 +170,9 @@ void MainWindow::stopTransfer(void)
 
         // Update the transfer button text
         ui->transferPushButton->setText(tr("Start capturing"));
+
+        // Stop the transfer
+        domDupUsbDevice->stopBulkRead();
 
         // Send stop transfer vendor specific USB command
         domDupUsbDevice->sendVendorSpecificCommand(0xB5, 0);
