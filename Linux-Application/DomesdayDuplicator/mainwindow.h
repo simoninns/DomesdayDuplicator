@@ -54,8 +54,12 @@ private slots:
     void on_actionAbout_triggered();
     void on_actionSave_As_triggered();
     void on_actionQuit_triggered();
-
     void on_transferPushButton_clicked();
+
+    void startTransfer(void);
+    void stopTransfer(void);
+
+    void on_testModeCheckBox_toggled(bool checked);
 
 private:
     Ui::MainWindow *ui;

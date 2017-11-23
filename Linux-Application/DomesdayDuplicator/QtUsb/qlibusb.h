@@ -71,6 +71,15 @@ public slots:
    */
   qint32 write(const QByteArray *buf, quint32 len);
 
+  qint32 sendControlTransfer(
+      quint8                 bmRequestType,
+      quint8                 bRequest,
+      quint16                wValue,
+      quint16                wIndex,
+      const QByteArray*      data,
+      quint16                wLength,
+      quint16                timeout);
+
   /**
    * @brief See base class
    *
