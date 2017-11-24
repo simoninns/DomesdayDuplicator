@@ -76,3 +76,11 @@ sch2HdlBatchFile
 *.xrpt
 *.xst
 *.xwbt
+
+# ignore Quartus 17 generated folders
+*/db/
+*/incremental_db/
+*/simulation/
+*/timing/
+*/testbench/
+*/*_sim/
