@@ -20,7 +20,7 @@
     <Signal ElementId="INPUT0" SignalType="Input" SpecialFunction="None">
       <DisplayName>nWR</DisplayName>
       <GPIOPinNumber>GPIO_17</GPIOPinNumber>
-      <Polarity>ActiveLow</Polarity>
+      <Polarity>ActiveHigh</Polarity>
     </Signal>
     <Signal ElementId="OUTPUT0" SignalType="Output" SpecialFunction="None">
       <DisplayName>nReset</DisplayName>
@@ -51,6 +51,19 @@
       <IntialValue>Low</IntialValue>
       <Polarity>ActiveLow</Polarity>
       <Flags>Thread_0_DMA_WaterMark</Flags>
+    </Signal>
+    <Signal ElementId="INPUT1" SignalType="Input" SpecialFunction="None">
+      <DisplayName>nError</DisplayName>
+      <GPIOPinNumber>GPIO_21</GPIOPinNumber>
+      <Polarity>ActiveHigh</Polarity>
+    </Signal>
+    <Signal ElementId="OUTPUT2" SignalType="Output" SpecialFunction="None">
+      <DisplayName>nTestmode</DisplayName>
+      <GPIOPinNumber>GPIO_22</GPIOPinNumber>
+      <IntialValue>High</IntialValue>
+      <Polarity>ActiveHigh</Polarity>
+      <Delay>Alpha</Delay>
+      <AssetionType>Assert</AssetionType>
     </Signal>
   </Signals>
   <StateMachine>
