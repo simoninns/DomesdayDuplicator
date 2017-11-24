@@ -165,6 +165,7 @@ void QUsbDevice::close() {
 void QUsbDevice::setDebug(bool enable) {
   QBaseUsbDevice::setDebug(enable);
   if (enable)
+    // LIBUSB_LOG_LEVEL_DEBUG, LIBUSB_LOG_LEVEL_INFO
     libusb_set_debug(mCtx, LIBUSB_LOG_LEVEL_INFO);
   else
     libusb_set_debug(mCtx, LIBUSB_LOG_LEVEL_ERROR);
@@ -351,7 +352,7 @@ qint32 QUsbDevice::startBulkTransfer(void)
     qint32 rc = 1; // Response code
     qDebug() << "QUsbDevice::startBulkTransfer(): Called";
     mUsbBulkTransfer = new QUsbBulkTransfer;
-    mUsbBulkTransfer->setup(mDevHandle, mConfig.readEp);
+    mUsbBulkTransfer->setup(mCtx, mDevHandle, mConfig.readEp);
     mUsbBulkTransfer->start();
 
     return rc;
