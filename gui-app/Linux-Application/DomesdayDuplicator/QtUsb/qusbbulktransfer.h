@@ -40,10 +40,7 @@ class QUsbBulkTransfer : public QThread {
 public:
     QUsbBulkTransfer(void);
     ~QUsbBulkTransfer(void);
-    void setup(libusb_device_handle* devHandle, quint8 endPoint);
-
-    // Callback function for libUSB transfers
-    static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer);
+    void setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint);
 
 signals:
 
@@ -53,28 +50,9 @@ protected slots:
     void run(void);
 
 protected:
-    bool tStop; // Transfer stop flag
+    void freeTransferBuffers (unsigned char **dataBuffers, struct libusb_transfer **transfers);
+    void bulkTransferStop(void);
 
-    libusb_device_handle* bDevHandle;
-    quint8 bEndPoint;
-
-    // Private variables for storing transfer configuration
-    unsigned int    queueDepth;             // Number of requests to queue
-    unsigned int    requestSize;            // Request size in number of packets
-    unsigned int    packetSize;             // Maximum packet size for the endpoint
-
-    // Private variables used to report on the transfer
-    unsigned int    successCount;           // Number of successful transfers
-    unsigned int    failureCount;           // Number of failed transfers
-    unsigned int    transferPerformance;	// Performance in Kilobytes per second
-    unsigned int    transferSize;           // Size of data transfers performed so far
-
-    // Private variables used to control the transfer
-    unsigned int    transferIndex;          // Write index into the transfer_size array
-    volatile int    requestsInFlight;       // Number of transfers that are in progress
-
-    struct timeval	startTimestamp;         // Data transfer start time stamp.
-    struct timeval	endTimestamp;			// Data transfer stop time stamp.
 };
 
 #endif // QUSBBULKTRANSFER_H
