@@ -81,7 +81,7 @@ assign fx3_control[02] = GPIO1[23];	// FX3 GPIO_19
 assign fx3_control[03] = GPIO1[21];	// FX3 GPIO_20
 assign GPIO1[19] = fx3_control[04];	// FX3 GPIO_21 (output)
 assign fx3_control[05] = GPIO1[17];	// FX3 GPIO_22
-assign fx3_control[06] = GPIO1[15];	// FX3 GPIO_23
+assign GPIO1[15] = fx3_control[06];	// FX3 GPIO_23 (output)
 assign fx3_control[07] = GPIO1[13];	// FX3 GPIO_24
 assign fx3_control[08] = GPIO1[11];	// FX3 GPIO_25
 assign fx3_control[09] = GPIO1[09];	// FX3 GPIO_26
@@ -105,6 +105,7 @@ assign GPIO1[31] = fx3_clock; // FX3 GPIO_16
 //
 // fx3_nError			CTL_04 (GPIO_21)		- output not error
 // fx3_nTestmode		CTL_05 (GPIO_22)		- input not testmode
+// fx3_nShort			CTL_06 (GPIO_23)		- output not short packet
 //
 // fx3_addressbus		CTL_12 (GPIO_29)		- address bus (1-bit)
 
@@ -117,9 +118,11 @@ wire fx3_th0Ready;
 wire fx3_th0Watermark;
 wire fx3_nError;
 wire fx3_nTestmode;
+wire fx3_nShort;
 
 assign fx3_control[00] = fx3_nWrite; // 0 = writing, 1 = not writing
 assign fx3_control[04] = fx3_nError; // 0 = error, 1 = not error
+assign fx3_control[06] = fx3_nShort; // 1 = normal packet, 0 = short packet
 
 // Signal inputs from FX3
 assign fx3_nReady = fx3_control[01];
@@ -185,7 +188,8 @@ fx3StateMachine fx3StateMachine0 (
 	.fifoHalfFull(fifoHalfFull),
 	
 	// Outputs
-	.fx3_nWrite(fx3_nWrite)
+	.fx3_nWrite(fx3_nWrite),
+	.fx3_nShort(fx3_nShort)
 );
 
 // Read the current ADC value
