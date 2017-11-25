@@ -71,6 +71,8 @@ IPfifo IPfifo0 (
 
 // Note: DCFIFO is 8192 10-bit words
 // rdLevel (rdusedw) is 14 bits (13 bits + 1)
+// rdLevel should not be used as 'full flag' - refer to DCFIFO
+// documentation for details.
 
 // Process the flags aligned with the output clock
 always @(posedge outputClock, negedge nReset)begin
@@ -90,9 +92,9 @@ always @(posedge outputClock, negedge nReset)begin
 			halfFull_flag <= 1'b0;
 		end
 		
-		// Almost empty logic (almost empty at 128 words) or less
+		// Almost empty logic (almost empty at 128 words or less)
 		if (rdLevel < 14'd128) begin
-			almostEmpty_flag <= 1'b1;
+			almostEmpty_flag <= 1'b0;
 		end else begin
 			almostEmpty_flag <= 1'b0;
 		end
