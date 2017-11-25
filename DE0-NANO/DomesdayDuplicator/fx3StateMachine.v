@@ -32,19 +32,19 @@ module fx3StateMachine(
 	input fx3_th0Watermark,
 	input fifoAlmostEmpty,
 	input fifoHalfFull,
-	input fifoFull,
 	
 	output fx3_nWrite
 );
 
-// State machine state definitions
-reg [5:0]sm_currentState;
-reg [5:0]sm_nextState;
+// State machine state definitions (3-bit 0-7)
+reg [2:0]sm_currentState;
+reg [2:0]sm_nextState;
 
-parameter [5:0] state_th0Wait				= 6'd1;
-parameter [5:0] state_th0WaitWatermark	= 6'd2;
-parameter [5:0] state_th0Send				= 6'd3;
-parameter [5:0] state_th0Delay			= 6'd4;
+parameter [2:0] state_th0Wait				= 3'd1;
+parameter [2:0] state_th0WaitWatermark	= 3'd2;
+parameter [2:0] state_th0Send				= 3'd3;
+parameter [2:0] state_th0Delay			= 3'd4;
+parameter [2:0] state_waitForFIFO		= 3'd5;
 
 // Control the nWrite flag signal to the FX3
 reg fx3_nWrite_flag;
@@ -90,6 +90,9 @@ always @(posedge fx3_clock, negedge fx3_nReset)begin
 	end	
 end
 
+// Note to self; state machine is not handling the event
+// where the FIFO buffer becomes empty.... not good!
+
 // State machine transition control
 always @(*)begin
 	sm_nextState = sm_currentState;
@@ -97,11 +100,11 @@ always @(*)begin
 	case(sm_currentState)
 		
 		// state_th0WaitReady - Wait for thread 0 ready flag,
-		// FIFO to be half-full and nReady
+		// FIFO to be not almost empty and nReady
 		state_th0Wait:begin
-			if ((fx3_th0Ready_flag == 1'b1) &&
-				(fifoHalfFull == 1'b1) &&
-				(fx3_nReady_flag == 1'b0)) begin
+			if ((fx3_th0Ready_flag == 1'b1) &&		// Thread 0 is ready
+				(fifoAlmostEmpty == 1'b0) &&			// FIFO is not almost empty
+				(fx3_nReady_flag == 1'b0)) begin		// Ready flag is set
 				sm_nextState = state_th0WaitWatermark;
 			end else begin
 				sm_nextState = state_th0Wait;
@@ -123,13 +126,31 @@ always @(*)begin
 				// Watermark flag set - transition to thread 0 wait for ready
 				sm_nextState = state_th0Delay;
 			end else begin
-				sm_nextState = state_th0Send; 
+				// Check that FIFO still has sufficient data
+				if (fifoAlmostEmpty == 1'b0) begin
+					// FIFO has sufficient data, continue
+					sm_nextState = state_th0Send; 
+				end else begin
+					// FIFO is almost empty... wait for more data
+					sm_nextState = state_waitForFIFO;
+				end
 			end
 		end
 		
 		// state_th0Delay - Clock delay before beginning the write cycle again 
 		state_th0Delay:begin
 			sm_nextState = state_th0Wait;
+		end
+		
+		// state_waitForFIFO - Wait for the FIFO to fill 
+		state_waitForFIFO:begin
+			if (fifoHalfFull == 1'b1) begin
+				// FIFO has sufficient data, continue
+				sm_nextState = state_th0Send; 
+			end else begin
+				// FIFO is almost empty... wait for more data
+				sm_nextState = state_waitForFIFO;
+			end
 		end
 
 	endcase

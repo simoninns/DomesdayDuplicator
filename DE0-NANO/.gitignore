@@ -7,7 +7,14 @@ templates
 xlnx_auto*
 _xmsgs
 xst
+db/
+incremental_db/
+simulation/
+timing/
+testbench/
+*_sim/
 
+*.bak
 *.bgn
 *.bit
 *.bld
@@ -75,3 +82,5 @@ sch2HdlBatchFile
 *.xrpt
 *.xst
 *.xwbt
+
+

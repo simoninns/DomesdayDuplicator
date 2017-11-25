@@ -1,14 +1,14 @@
-Analysis & Synthesis Status : Successful - Fri Nov 24 17:42:19 2017
+Analysis & Synthesis Status : Successful - Sat Nov 25 09:41:54 2017
 Quartus Prime Version : 17.1.0 Build 590 10/25/2017 SJ Lite Edition
 Revision Name : DomesdayDuplicator
 Top-level Entity Name : DomesdayDuplicator
 Family : Cyclone IV E
-Total logic elements : 310
-    Total combinational functions : 182
-    Dedicated logic registers : 210
-Total registers : 210
+Total logic elements : 259
+    Total combinational functions : 157
+    Dedicated logic registers : 187
+Total registers : 187
 Total pins : 73
 Total virtual pins : 0
-Total memory bits : 327,680
+Total memory bits : 81,920
 Embedded Multiplier 9-bit elements : 0
 Total PLLs : 1

@@ -75,11 +75,11 @@ assign GPIO1[02] = fx3_databus[15];
 
 // 13-bit control bus physical mapping
 //assign fx3_control[00] = GPIO1[27];	// FX3 GPIO_17
-assign GPIO1[27] = fx3_control[00]; // Output
+assign GPIO1[27] = fx3_control[00]; // FX3 GPIO_17 (output)
 assign fx3_control[01] = GPIO1[25];	// FX3 GPIO_18
 assign fx3_control[02] = GPIO1[23];	// FX3 GPIO_19
 assign fx3_control[03] = GPIO1[21];	// FX3 GPIO_20
-assign fx3_control[04] = GPIO1[19];	// FX3 GPIO_21
+assign GPIO1[19] = fx3_control[04];	// FX3 GPIO_21 (output)
 assign fx3_control[05] = GPIO1[17];	// FX3 GPIO_22
 assign fx3_control[06] = GPIO1[15];	// FX3 GPIO_23
 assign fx3_control[07] = GPIO1[13];	// FX3 GPIO_24
@@ -103,6 +103,9 @@ assign GPIO1[31] = fx3_clock; // FX3 GPIO_16
 // fx3_th0Ready		CTL_02 (GPIO_19)		- thread 0 ready flag
 // fx3_th0Watermark	CTL_03 (GPIO_20)		- thread 0 watermark flag
 //
+// fx3_nError			CTL_04 (GPIO_21)		- output not error
+// fx3_nTestmode		CTL_05 (GPIO_22)		- input not testmode
+//
 // fx3_addressbus		CTL_12 (GPIO_29)		- address bus (1-bit)
 
 
@@ -112,14 +115,19 @@ wire fx3_nWrite;
 wire fx3_nReady;
 wire fx3_th0Ready;
 wire fx3_th0Watermark;
+wire fx3_nError;
+wire fx3_nTestmode;
 
 assign fx3_control[00] = fx3_nWrite; // 0 = writing, 1 = not writing
+assign fx3_control[04] = fx3_nError; // 0 = error, 1 = not error
 
 // Signal inputs from FX3
 assign fx3_nReady = fx3_control[01];
 
 assign fx3_th0Ready     = fx3_control[02]; // 1 = not ready, 0 = ready
 assign fx3_th0Watermark = fx3_control[03];
+
+assign fx3_nTestmode = fx3_control[05];
 
 // nReset signal from FX3
 assign fx3_nReset = fx3_control[10];
@@ -175,7 +183,6 @@ fx3StateMachine fx3StateMachine0 (
 	.fx3_th0Watermark(fx3_th0Watermark),
 	.fifoAlmostEmpty(fifoAlmostEmpty),
 	.fifoHalfFull(fifoHalfFull),
-	.fifoFull(fifoFull),
 	
 	// Outputs
 	.fx3_nWrite(fx3_nWrite)
@@ -188,6 +195,7 @@ readAdcData readAdcData0 (
 	.clock(adc_clock),
 	.nReset(fx3_nReset),
 	.adcDatabus(adcData),
+	.nTestmode(fx3_nTestmode),
 	
 	// Outputs
 	.adcData(adc_outputData)
@@ -200,6 +208,9 @@ wire fifoEmpty;
 wire fifoAlmostEmpty;
 wire fifoHalfFull;
 wire fifoFull;
+
+// Flag error if FIFO becomes full (i.e. we are loosing data)
+assign fx3_nError = !fifoFull;
 
 fifo fifo0 (
 	.inputData(adc_outputData),
