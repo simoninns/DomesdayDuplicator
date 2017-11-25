@@ -65,6 +65,11 @@
       <Delay>Alpha</Delay>
       <AssetionType>Assert</AssetionType>
     </Signal>
+    <Signal ElementId="INPUT2" SignalType="Input" SpecialFunction="None">
+      <DisplayName>nShort</DisplayName>
+      <GPIOPinNumber>GPIO_23</GPIOPinNumber>
+      <Polarity>ActiveHigh</Polarity>
+    </Signal>
   </Signals>
   <StateMachine>
     <AddressCounter />
@@ -96,9 +101,6 @@
         <WriteDataIntoDataSink>True</WriteDataIntoDataSink>
       </Action>
     </State>
-    <Transition ElementId="TRANSITION0" SourceState="STARTSTATE0" DestinationState="STATE5" Equation="LOGIC_ONE" />
-    <Transition ElementId="TRANSITION1" SourceState="STATE5" DestinationState="STATE2" Equation="!nWR" />
-    <Transition ElementId="TRANSITION2" SourceState="STATE2" DestinationState="STATE5" Equation="nWR" />
     <State ElementId="STATE0" StateType="NormalState">
       <DisplayName>READ_ERROR</DisplayName>
       <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
@@ -111,9 +113,22 @@
       <RepeatCount>0</RepeatCount>
       <Action ElementId="INTR_CPU0" ActionType="INTR_CPU" />
     </State>
+    <Transition ElementId="TRANSITION0" SourceState="STARTSTATE0" DestinationState="STATE5" Equation="LOGIC_ONE" />
+    <Transition ElementId="TRANSITION1" SourceState="STATE5" DestinationState="STATE2" Equation="!nWR" />
+    <Transition ElementId="TRANSITION2" SourceState="STATE2" DestinationState="STATE5" Equation="nWR&amp;nShort" />
     <Transition ElementId="TRANSITION3" SourceState="STATE2" DestinationState="STATE0" Equation="!nError" />
     <Transition ElementId="TRANSITION4" SourceState="STATE0" DestinationState="STATE2" Equation="nError" />
     <Transition ElementId="TRANSITION5" SourceState="STATE5" DestinationState="STATE1" Equation="!nError" />
     <Transition ElementId="TRANSITION6" SourceState="STATE1" DestinationState="STATE5" Equation="nError" />
+    <State ElementId="STATE3" StateType="NormalState">
+      <DisplayName>SHORT_COMMIT</DisplayName>
+      <RepeatUntillNextTransition>False</RepeatUntillNextTransition>
+      <RepeatCount>0</RepeatCount>
+      <Action ElementId="COMMIT0" ActionType="COMMIT">
+        <ThreadNumber>Thread0</ThreadNumber>
+      </Action>
+    </State>
+    <Transition ElementId="TRANSITION7" SourceState="STATE2" DestinationState="STATE3" Equation="nWR&amp;!nShort" />
+    <Transition ElementId="TRANSITION8" SourceState="STATE3" DestinationState="STATE5" Equation="LOGIC_ONE" />
   </StateMachine>
 </GPIFIIModel>
