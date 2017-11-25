@@ -105,6 +105,12 @@
       <DisplayName>SHORT_COMMIT</DisplayName>
       <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
       <RepeatCount>0</RepeatCount>
+      <Action ElementId="IN_DATA0" ActionType="IN_DATA">
+        <DataSourceSink>Socket</DataSourceSink>
+        <ThreadNumber>Thread0</ThreadNumber>
+        <SampleData>True</SampleData>
+        <WriteDataIntoDataSink>True</WriteDataIntoDataSink>
+      </Action>
       <Action ElementId="COMMIT0" ActionType="COMMIT">
         <ThreadNumber>Thread0</ThreadNumber>
       </Action>
@@ -113,6 +119,6 @@
     <Transition ElementId="TRANSITION1" SourceState="STATE5" DestinationState="STATE2" Equation="!nWR" />
     <Transition ElementId="TRANSITION2" SourceState="STATE2" DestinationState="STATE5" Equation="nWR" />
     <Transition ElementId="TRANSITION7" SourceState="STATE2" DestinationState="STATE3" Equation="!nShort" />
-    <Transition ElementId="TRANSITION8" SourceState="STATE3" DestinationState="STATE5" Equation="nShort" />
+    <Transition ElementId="TRANSITION8" SourceState="STATE3" DestinationState="STATE5" Equation="nWR" />
   </StateMachine>
 </GPIFIIModel>
