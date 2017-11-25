@@ -42,6 +42,10 @@ public:
     ~QUsbBulkTransfer(void);
     void setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint);
 
+    quint32 getSuccessCounter(void);
+    quint32 getFailureCounter(void);
+    quint32 getTransferPerformance(void);
+
 signals:
 
 public slots:

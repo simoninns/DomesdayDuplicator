@@ -63,6 +63,10 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->successfulPacketsLabel->setText(tr("0"));
     ui->failedPacketsLabel->setText(tr("0"));
     ui->transferSpeedLabel->setText(tr("0"));
+
+    // Set up a timer for updating capture results
+    captureTimer = new QTimer(this);
+    connect(captureTimer, SIGNAL(timeout()), this, SLOT(updateCaptureInfo()));
 }
 
 MainWindow::~MainWindow()
@@ -146,6 +150,9 @@ void MainWindow::startTransfer(void)
 
                 // Start the transfer
                 domDupUsbDevice->startBulkRead();
+
+                // Start a timer to display the transfer information
+                captureTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
             } else {
                 // Could not open USB device
                 qDebug() << "MainWindow::startTransfer(): Cannot start transfer - Opening USB device failed";
@@ -179,6 +186,9 @@ void MainWindow::stopTransfer(void)
 
         // Stop the transfer
         domDupUsbDevice->stopBulkRead();
+
+        // Stop the timer displaying the transfer information
+        captureTimer->stop();
 
         // Send stop transfer vendor specific USB command
         domDupUsbDevice->sendVendorSpecificCommand(0xB5, 0);
@@ -248,4 +258,15 @@ void MainWindow::on_testModeCheckBox_toggled(bool checked)
             ui->testModeCheckBox->setChecked(true);
         }
     }
+}
+
+// Update the capture information in the main window
+void MainWindow::updateCaptureInfo(void)
+{
+    //qDebug() << "MainWindow::updateCaptureInfo(): Updating capture information";
+
+    // Get the counters from the USB device object and update the window
+    ui->successfulPacketsLabel->setText(QString::number(domDupUsbDevice->getSuccessCounter()));
+    ui->failedPacketsLabel->setText(QString::number(domDupUsbDevice->getFailureCounter()));
+    ui->transferSpeedLabel->setText(QString::number(domDupUsbDevice->getTransferPerformance()) + tr(" KBytes/sec"));
 }

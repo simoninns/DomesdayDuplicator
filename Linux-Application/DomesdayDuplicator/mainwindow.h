@@ -33,6 +33,7 @@
 #include <QLabel>
 #include <QDebug>
 #include <QMessageBox>
+#include <QTimer>
 #include "usbdevice.h"
 
 namespace Ui {
@@ -58,6 +59,7 @@ private slots:
 
     void startTransfer(void);
     void stopTransfer(void);
+    void updateCaptureInfo(void);
 
     void on_testModeCheckBox_toggled(bool checked);
 
@@ -67,6 +69,8 @@ private:
     usbDevice *domDupUsbDevice;
     QLabel *status;
     bool captureFlag;
+
+    QTimer* captureTimer;
 };
 
 #endif // MAINWINDOW_H

@@ -64,9 +64,9 @@ public:
     void startBulkRead(void);
     void stopBulkRead(void);
 
-    quint64 getBulkSuccessCounter(void);
-    quint64 getBulkFailureCounter(void);
-    quint64 getBulkTransferSpeed(void);
+    quint32 getSuccessCounter(void);
+    quint32 getFailureCounter(void);
+    quint32 getTransferPerformance(void);
 
 signals:
     void statusChanged(bool status);

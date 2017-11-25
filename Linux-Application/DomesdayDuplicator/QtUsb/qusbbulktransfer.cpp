@@ -79,7 +79,7 @@ void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHand
     bDevHandle = devHandle;
     bEndPoint = endPoint;
 
-    queueDepth = 4; // The maximum number of simultaneous transfers (should be 16)
+    queueDepth = 16; // The maximum number of simultaneous transfers (should be 16)
 
     // Default all status variables
     successCount = 0;           // Number of successful transfers
@@ -90,7 +90,7 @@ void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHand
     requestsInFlight = 0;       // Number of transfers that are in progress
 
     requestSize = 16;           // Request size (number of packets)
-    packetSize = 1;             // Maximum packet size for the endpoint
+    packetSize = 1024;          // Maximum packet size for the endpoint
 }
 
 void QUsbBulkTransfer::run()
@@ -242,7 +242,7 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         // Transfer has succeeded
         size = requestSize * packetSize;
         successCount++;
-        qDebug() << "bulkTransferCallback(): Successful transfer reported";
+        //qDebug() << "bulkTransferCallback(): Successful transfer reported";
     }
 
     // Update the actual transfer size for this request.
@@ -300,4 +300,22 @@ void QUsbBulkTransfer::freeTransferBuffers(unsigned char **dataBuffers, struct l
         }
         free(dataBuffers);
     }
+}
+
+// Return the current value of the success counter
+quint32 QUsbBulkTransfer::getSuccessCounter(void)
+{
+    return (quint32)successCount;
+}
+
+// Return the current value of the failure counter
+quint32 QUsbBulkTransfer::getFailureCounter(void)
+{
+    return (quint32)failureCount;
+}
+
+// Return the current transfer performance value
+quint32 QUsbBulkTransfer::getTransferPerformance(void)
+{
+    return (quint32)transferPerformance;
 }
