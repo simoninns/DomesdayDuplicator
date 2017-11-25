@@ -103,7 +103,7 @@
     </State>
     <State ElementId="STATE3" StateType="NormalState">
       <DisplayName>SHORT_COMMIT</DisplayName>
-      <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
+      <RepeatUntillNextTransition>False</RepeatUntillNextTransition>
       <RepeatCount>0</RepeatCount>
       <Action ElementId="IN_DATA0" ActionType="IN_DATA">
         <DataSourceSink>Socket</DataSourceSink>
