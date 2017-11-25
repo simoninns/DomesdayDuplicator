@@ -40,6 +40,7 @@ wire [12:0] fx3_control;	// 13-bit control bus
 wire fx3_clock;				// FX3 GPIF Clock
 
 // 32-bit data bus physical mapping (output only)
+// Note: board supports 32-bits; software is limited to 16-bits
 assign GPIO1[32] = fx3_databus[00];
 assign GPIO1[30] = fx3_databus[01];
 assign GPIO1[28] = fx3_databus[02];
@@ -95,19 +96,19 @@ assign GPIO1[31] = fx3_clock; // FX3 GPIO_16
 
 // FX3 Application mapping
 
-// fx3_nReset			CTL_10 (GPIO_27)		- input reset active low
+// fx3_nReset			CTL_10 (GPIO_27)		- input / reset active low
 //
-// fx3_nWrite 			CTL_00 (GPIO_17)		- output not write flag
-// fx3_nReady			CTL_01 (GPIO_18)		- input not Ready flag
+// fx3_nWrite 			CTL_00 (GPIO_17)		- output / not write flag
+// fx3_nReady			CTL_01 (GPIO_18)		- input / not Ready flag
 //
-// fx3_th0Ready		CTL_02 (GPIO_19)		- thread 0 ready flag
-// fx3_th0Watermark	CTL_03 (GPIO_20)		- thread 0 watermark flag
+// fx3_th0Ready		CTL_02 (GPIO_19)		- input / thread 0 ready flag
+// fx3_th0Watermark	CTL_03 (GPIO_20)		- input / thread 0 watermark flag
 //
-// fx3_nError			CTL_04 (GPIO_21)		- output not error
-// fx3_nTestmode		CTL_05 (GPIO_22)		- input not testmode
-// fx3_nShort			CTL_06 (GPIO_23)		- output not short packet
+// fx3_nError			CTL_04 (GPIO_21)		- output / not error
+// fx3_nTestmode		CTL_05 (GPIO_22)		- input / not testmode
+// fx3_nShort			CTL_06 (GPIO_23)		- output / not short packet
 //
-// fx3_addressbus		CTL_12 (GPIO_29)		- address bus (1-bit)
+// fx3_addressbus		CTL_12 (GPIO_29)		- output / address bus (1-bit)
 
 
 // Wire definitions for FX3 GPIO mapping
@@ -130,7 +131,7 @@ assign fx3_nReady = fx3_control[01];
 assign fx3_th0Ready     = fx3_control[02]; // 1 = not ready, 0 = ready
 assign fx3_th0Watermark = fx3_control[03];
 
-assign fx3_nTestmode = fx3_control[05];
+assign fx3_nTestmode = fx3_control[05]; // 1 = not test mode, 0 = test mode
 
 // nReset signal from FX3
 assign fx3_nReset = fx3_control[10];
@@ -193,6 +194,9 @@ fx3StateMachine fx3StateMachine0 (
 );
 
 // Read the current ADC value
+// Note: The test mode flag causes the module
+// to output a sequential data pattern to allow
+// integrity checking of the data transfer
 wire [9:0] adc_outputData;
 readAdcData readAdcData0 (
 	// Inputs
@@ -214,6 +218,8 @@ wire fifoHalfFull;
 wire fifoFull;
 
 // Flag error if FIFO becomes full (i.e. we are loosing data)
+// This is used to signal a transfer issue to the FX3 GPIF 
+// state machine
 assign fx3_nError = !fifoFull;
 
 fifo fifo0 (

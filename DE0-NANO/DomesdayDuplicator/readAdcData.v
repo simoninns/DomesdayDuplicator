@@ -35,17 +35,22 @@ module readAdcData(
 
 reg [9:0] adcUintValue;
 
+// Register to store test data value
+reg [9:0] testData;
+
 // ADC data is valid on the negative edge of the clock
 always @ (negedge clock, negedge nReset) begin
 	if (!nReset) begin
 		adcData <= 10'd0;
+		testData <= 10'd0;
 	end else begin
 		if (nTestmode) begin
 			// Read the ADC value
 			adcData <= adcDatabus;
 		end else begin
-			// Test mode
-			adcData <= 10'd512; // Sample of zero amplitude
+			// Test mode data generation
+			adcData <= testData;
+			testData = testData + 10'd1;
 		end
 	end
 end

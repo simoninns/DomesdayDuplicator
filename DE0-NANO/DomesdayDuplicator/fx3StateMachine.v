@@ -77,22 +77,6 @@ always @(posedge fx3_clock, negedge fx3_nReset) begin
 	end	
 end
 
-// Assign a register for counting the short packet cycle delay
-// (required so the FX3 has time to detect the short packet flag)
-reg [2:0] shortPacketCounter;
-
-always @(posedge fx3_clock, negedge fx3_nReset) begin
-	if(!fx3_nReset)begin 
-		shortPacketCounter <= 3'd0;
-	end else begin
-		if (sm_currentState == state_shortPacket) begin
-			shortPacketCounter <= shortPacketCounter + 3'd1;
-		end else begin
-			shortPacketCounter <= 3'd0;
-		end
-	end	
-end
-
 // Set state machine to idle on reset condition
 // or assign next state as current when running
 always @(posedge fx3_clock, negedge fx3_nReset) begin
@@ -121,8 +105,16 @@ always @(posedge fx3_clock, negedge fx3_nReset)begin
 	end	
 end
 
-// Note to self; state machine is not handling the event
-// where the FIFO buffer becomes empty.... not good!
+// Note: The short packet support is included below, but it's very
+// likely that the timing is incorrect and will result in lost data.
+//
+// Right now (using the Cypress test tools) there doesn't seem to be
+// any support for short packets, so testing isn't possible until the
+// linux application is up and running.
+//
+// In testing (with the present FIFO settings) the FIFO never gets to
+// the 'nearly empty' watermark; so the functionality is not currently
+// used (and data transfer is good).
 
 // State machine transition control
 always @(*)begin
@@ -133,8 +125,9 @@ always @(*)begin
 		// state_th0WaitReady - Wait for thread 0 ready flag,
 		// FIFO to be not almost empty and nReady
 		state_th0Wait:begin
+																// Don't start transfer unless:
 			if ((fx3_th0Ready_flag == 1'b1) &&		// Thread 0 is ready
-				(fifoAlmostEmpty == 1'b0) &&			// FIFO is not almost empty
+				(fifoHalfFull == 1'b1) &&				// FIFO is at least half-full
 				(fx3_nReady_flag == 1'b0)) begin		// Ready flag is set
 				sm_nextState = state_th0WaitWatermark;
 			end else begin
@@ -173,16 +166,9 @@ always @(*)begin
 			sm_nextState = state_th0Wait;
 		end
 		
-		// state_shortPacket - Commit a short packet (FIFO is too low)
+		// state_shortPacket - Commit a short packet (FIFO level is too low)
 		state_shortPacket:begin
-			// Has the short packet cycle counter expired?
-			if (shortPacketCounter == 3'd1) begin
-				// Timer expired, transition
-				sm_nextState = state_th0Wait;
-			end else begin
-				// Continue waiting...
-				sm_nextState = state_shortPacket;
-			end
+			sm_nextState = state_th0Wait;
 		end
 
 	endcase
