@@ -1,5 +1,5 @@
 --dcfifo_mixed_widths ADD_USEDW_MSB_BIT="ON" CARRY_CHAIN="MANUAL" CARRY_CHAIN_LENGTH=48 DEVICE_FAMILY="Cyclone IV E" IGNORE_CARRY_BUFFERS="OFF" LPM_NUMWORDS=8192 LPM_SHOWAHEAD="ON" LPM_WIDTH=10 LPM_WIDTH_R=10 LPM_WIDTHU=14 LPM_WIDTHU_R=14 OVERFLOW_CHECKING="ON" RDSYNC_DELAYPIPE=4 READ_ACLR_SYNCH="ON" UNDERFLOW_CHECKING="ON" USE_EAB="ON" WRITE_ACLR_SYNCH="OFF" WRSYNC_DELAYPIPE=4 aclr data q rdclk rdempty rdfull rdreq rdusedw wrclk wrreq CYCLONEII_M4K_COMPATIBILITY="ON" INTENDED_DEVICE_FAMILY="Cyclone IV E" LOW_POWER_MODE="AUTO" ALTERA_INTERNAL_OPTIONS=AUTO_SHIFT_REGISTER_RECOGNITION=OFF
---VERSION_BEGIN 17.0 cbx_a_gray2bin 2017:04:25:18:06:29:SJ cbx_a_graycounter 2017:04:25:18:06:29:SJ cbx_altdpram 2017:04:25:18:06:29:SJ cbx_altera_counter 2017:04:25:18:06:29:SJ cbx_altera_gray_counter 2017:04:25:18:06:29:SJ cbx_altera_syncram 2017:04:25:18:06:29:SJ cbx_altera_syncram_nd_impl 2017:04:25:18:06:29:SJ cbx_altsyncram 2017:04:25:18:06:29:SJ cbx_cycloneii 2017:04:25:18:06:29:SJ cbx_dcfifo 2017:04:25:18:06:29:SJ cbx_fifo_common 2017:04:25:18:06:29:SJ cbx_lpm_add_sub 2017:04:25:18:06:29:SJ cbx_lpm_compare 2017:04:25:18:06:29:SJ cbx_lpm_counter 2017:04:25:18:06:29:SJ cbx_lpm_decode 2017:04:25:18:06:29:SJ cbx_lpm_mux 2017:04:25:18:06:30:SJ cbx_mgl 2017:04:25:18:09:28:SJ cbx_nadder 2017:04:25:18:06:30:SJ cbx_scfifo 2017:04:25:18:06:30:SJ cbx_stratix 2017:04:25:18:06:30:SJ cbx_stratixii 2017:04:25:18:06:30:SJ cbx_stratixiii 2017:04:25:18:06:30:SJ cbx_stratixv 2017:04:25:18:06:30:SJ cbx_util_mgl 2017:04:25:18:06:30:SJ  VERSION_END
+--VERSION_BEGIN 17.1 cbx_a_gray2bin 2017:10:19:05:46:40:SJ cbx_a_graycounter 2017:10:19:05:46:40:SJ cbx_altdpram 2017:10:19:05:46:40:SJ cbx_altera_counter 2017:10:19:05:46:40:SJ cbx_altera_gray_counter 2017:10:19:05:46:40:SJ cbx_altera_syncram 2017:10:19:05:46:40:SJ cbx_altera_syncram_nd_impl 2017:10:19:05:46:40:SJ cbx_altsyncram 2017:10:19:05:46:40:SJ cbx_cycloneii 2017:10:19:05:46:40:SJ cbx_dcfifo 2017:10:19:05:46:40:SJ cbx_fifo_common 2017:10:19:05:46:40:SJ cbx_lpm_add_sub 2017:10:19:05:46:40:SJ cbx_lpm_compare 2017:10:19:05:46:40:SJ cbx_lpm_counter 2017:10:19:05:46:40:SJ cbx_lpm_decode 2017:10:19:05:46:40:SJ cbx_lpm_mux 2017:10:19:05:46:40:SJ cbx_mgl 2017:10:19:06:38:12:SJ cbx_nadder 2017:10:19:05:46:40:SJ cbx_scfifo 2017:10:19:05:46:40:SJ cbx_stratix 2017:10:19:05:46:40:SJ cbx_stratixii 2017:10:19:05:46:40:SJ cbx_stratixiii 2017:10:19:05:46:40:SJ cbx_stratixv 2017:10:19:05:46:40:SJ cbx_util_mgl 2017:10:19:05:46:40:SJ  VERSION_END
 
 
 -- Copyright (C) 2017  Intel Corporation. All rights reserved.
@@ -10,12 +10,11 @@
 --  associated documentation or information are expressly subject 
 --  to the terms and conditions of the Intel Program License 
 --  Subscription Agreement, the Intel Quartus Prime License Agreement,
---  the Intel MegaCore Function License Agreement, or other 
---  applicable license agreement, including, without limitation, 
---  that your use is for the sole purpose of programming logic 
---  devices manufactured by Intel and sold by Intel or its 
---  authorized distributors.  Please refer to the applicable 
---  agreement for further details.
+--  the Intel FPGA IP License Agreement, or other applicable license
+--  agreement, including, without limitation, that your use is for
+--  the sole purpose of programming logic devices manufactured by
+--  Intel and sold by Intel or its authorized distributors.  Please
+--  refer to the applicable agreement for further details.
 
 
 FUNCTION a_gray2bin_aib (gray[13..0])
@@ -32,15 +31,15 @@ FUNCTION dffpipe_8d9 (clock, clrn, d[0..0])
 RETURNS ( q[0..0]);
 FUNCTION dffpipe_se9 (clock, clrn, d[13..0])
 RETURNS ( q[13..0]);
-FUNCTION alt_synch_pipe_kpl (clock, clrn, d[13..0])
+FUNCTION alt_synch_pipe_cpl (clock, clrn, d[13..0])
 RETURNS ( q[13..0]);
-FUNCTION alt_synch_pipe_lpl (clock, clrn, d[13..0])
+FUNCTION alt_synch_pipe_dpl (clock, clrn, d[13..0])
 RETURNS ( q[13..0]);
 FUNCTION cmpr_r76 (dataa[13..0], datab[13..0])
 RETURNS ( aeb);
 
---synthesis_resources = lut 15 M9K 10 reg 98 
-OPTIONS ALTERA_INTERNAL_OPTION = "AUTO_SHIFT_REGISTER_RECOGNITION=OFF;REMOVE_DUPLICATE_REGISTERS=OFF;SYNCHRONIZER_IDENTIFICATION=OFF;SYNCHRONIZATION_REGISTER_CHAIN_LENGTH = 2;suppress_da_rule_internal=d101;suppress_da_rule_internal=d102;suppress_da_rule_internal=d103;suppress_da_rule_internal=R105;{-to wrptr_g} suppress_da_rule_internal=S102;{-to wrptr_g} POWER_UP_LEVEL=LOW;-name CUT ON -from rdptr_g -to ws_dgrp|dffpipe_8f9:dffpipe9|dffe10a;-name SDC_STATEMENT ""set_false_path -from *rdptr_g* -to *ws_dgrp|dffpipe_8f9:dffpipe9|dffe10a* "";-name CUT ON -from delayed_wrptr_g -to rs_dgwp|dffpipe_7f9:dffpipe6|dffe7a;-name SDC_STATEMENT ""set_false_path -from *delayed_wrptr_g* -to *rs_dgwp|dffpipe_7f9:dffpipe6|dffe7a* """;
+--synthesis_resources = lut 15 M9K 10 reg 164 
+OPTIONS ALTERA_INTERNAL_OPTION = "AUTO_SHIFT_REGISTER_RECOGNITION=OFF;REMOVE_DUPLICATE_REGISTERS=OFF;SYNCHRONIZER_IDENTIFICATION=OFF;SYNCHRONIZATION_REGISTER_CHAIN_LENGTH = 2;suppress_da_rule_internal=d101;suppress_da_rule_internal=d102;suppress_da_rule_internal=d103;suppress_da_rule_internal=R105;{-to wrptr_g} suppress_da_rule_internal=S102;{-to wrptr_g} POWER_UP_LEVEL=LOW;-name CUT ON -from rdptr_g -to ws_dgrp|dffpipe_ue9:dffpipe16|dffe17a;-name SDC_STATEMENT ""set_false_path -from *rdptr_g* -to *ws_dgrp|dffpipe_ue9:dffpipe16|dffe17a* "";-name CUT ON -from delayed_wrptr_g -to rs_dgwp|dffpipe_te9:dffpipe13|dffe14a;-name SDC_STATEMENT ""set_false_path -from *delayed_wrptr_g* -to *rs_dgwp|dffpipe_te9:dffpipe13|dffe14a* """;
 
 SUBDESIGN dcfifo_s1n1
 ( 
@@ -71,8 +70,8 @@ VARIABLE
 	rdfull_reg : dffpipe_8d9;
 	rs_brp : dffpipe_se9;
 	rs_bwp : dffpipe_se9;
-	rs_dgwp : alt_synch_pipe_kpl;
-	ws_dgrp : alt_synch_pipe_lpl;
+	rs_dgwp : alt_synch_pipe_cpl;
+	ws_dgrp : alt_synch_pipe_dpl;
 	rdusedw_sub_dataa[13..0]	:	WIRE;
 	rdusedw_sub_datab[13..0]	:	WIRE;
 	rdusedw_sub_result[13..0]	:	WIRE;

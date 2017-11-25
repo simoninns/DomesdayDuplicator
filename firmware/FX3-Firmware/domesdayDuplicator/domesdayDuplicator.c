@@ -147,6 +147,22 @@ int main(void)
 		goto handleFatalError;
 	}
 
+	// Claim CTRL[5]/GPIO22 from the GPIF Interface (nTestmode signal)
+	status = CyU3PDeviceGpioOverride(22, CyTrue);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Put the FPGA in normal (not test) mode by driving nREADY/GPIO18 high
+	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+	gpioConfig.outValue = 1;
+	gpioConfig.driveLowEn = CyTrue;
+	gpioConfig.driveHighEn = CyTrue;
+	status = CyU3PGpioSetSimpleConfig(22, &gpioConfig);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
     // Initialise the RTOS kernel
     CyU3PKernelEntry();
 
@@ -555,7 +571,7 @@ void domDupDebugInit(void)
 // Handle CPU_INT from GPIF callback (used for debug)
 void GpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State)
 {
-	if (Event == CYU3P_GPIF_EVT_SM_INTERRUPT) CyU3PDebugPrint(8, "\r\nDebug: Interrupt received from GPIF\r\n");
+	if (Event == CYU3P_GPIF_EVT_SM_INTERRUPT) CyU3PDebugPrint(8, "\r\nERROR indication interrupt from GPIF received!\r\n");
 }
 
 // USB set-up request callback
@@ -582,14 +598,29 @@ CyBool_t domDupUSBSetupCB (uint32_t setupData0, uint32_t setupData1)
 			if (bRequest == 0xB5) {
 				if (wValue == 1) {
 					// Start collection request from USB host
-					CyU3PDebugPrint(8, "START data collection request received from host\r\n");
+					CyU3PDebugPrint(8, "Vendor specific command received: Start data collection\r\n");
 					CyU3PGpioSetValue(18, 0); // nREADY GPIO low
 				}
 
 				if (wValue == 0) {
 					// Stop collection request from USB host
-					CyU3PDebugPrint(8, "STOP data collection request received from host\r\n");
+					CyU3PDebugPrint(8, "Vendor specific command received: Stop data collection\r\n");
 					CyU3PGpioSetValue(18, 1); // nREADY GPIO high
+				}
+			}
+
+			// Handle vendor request for test mode
+			if (bRequest == 0xB6) {
+				if (wValue == 0) {
+					// Signal FPGA with test mode off
+					CyU3PDebugPrint(8, "Vendor specific command received: Test mode off\r\n");
+					CyU3PGpioSetValue(22, 1); // nTestmode GPIO high
+				}
+
+				if (wValue == 1) {
+					// Signal FPGA with test mode on
+					CyU3PDebugPrint(8, "Vendor specific command received: Test mode on\r\n");
+					CyU3PGpioSetValue(22, 0); // nTestmode GPIO low
 				}
 			}
 

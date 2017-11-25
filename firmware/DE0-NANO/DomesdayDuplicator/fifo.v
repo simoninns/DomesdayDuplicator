@@ -43,26 +43,34 @@ module fifo (
 );
 
 wire rdEmpty;
-wire [14:0] rdLevel;
+wire [13:0] rdLevel;
 wire rdFull;
+wire [9:0] fifoOutputData;
 
-// Control Async clear flag
-wire aclr;
-assign aclr = (nReset == 1'b1 && nReady == 1'b0) ? 1'b0 : 1'b1;
+// (not) Collect data flag is 0 when we should be collecting data
+// nCollectData is 0 when out of reset and ready
+wire nCollectData;
+assign nCollectData = (nReset == 1'b1 && nReady == 1'b0) ? 1'b0 : 1'b1;
 
-// Map in the FCFIFO IP function
+// Data output is only valid when FIFOis not in reset
+assign outputData = (nCollectData) ? 10'b0 : fifoOutputData;
+
+// Map in the DCFIFO IP function
 IPfifo IPfifo0 (
-	.aclr(aclr),							// Clear FIFO when in reset or not ready
+	.aclr(nCollectData),					// Clear FIFO when in reset or not ready
 	.data(inputData),						// Input data to FIFO
 	.rdclk(outputClock),					// Output clock
 	.rdreq(outputAck),					// Output acknowledge (read-ahead)
 	.wrclk(inputClock),					// Input clock
-	.wrreq(1'b1),							// Input request
-	.q(outputData),						// Output data
+	.wrreq(!nCollectData),				// Input request (only input when collecting data)
+	.q(fifoOutputData),					// Output data
 	.rdempty(rdEmpty),					// Output empty flag
 	.rdfull(rdFull),						// Output full flag
 	.rdusedw(rdLevel)						// Output number of used words
 );
+
+// Note: DCFIFO is 8192 10-bit words
+// rdLevel (rdusedw) is 14 bits (13 bits + 1)
 
 // Process the flags aligned with the output clock
 always @(posedge outputClock, negedge nReset)begin
@@ -75,34 +83,18 @@ always @(posedge outputClock, negedge nReset)begin
 		empty_flag <= rdEmpty;
 		full_flag <= rdFull;
 		
-		// Half full flag logic
-		if (rdFull) begin
+		// Half full flag logic (half full at 4096 words or greater)
+		if (rdLevel > 14'd4096) begin
 			halfFull_flag <= 1'b1;
 		end else begin
-			if (rdEmpty) begin
-				halfFull_flag <= 1'b0;
-			end else begin
-				if (rdLevel > 15'd8192) begin
-					halfFull_flag <= 1'b1;
-				end else begin
-					halfFull_flag <= 1'b0;
-				end
-			end
+			halfFull_flag <= 1'b0;
 		end
 		
-		// Almost empty logic
-		if (rdFull) begin
-			almostEmpty_flag <= 1'b0;
+		// Almost empty logic (almost empty at 32 words) or less
+		if (rdLevel < 14'd32) begin
+			almostEmpty_flag <= 1'b1;
 		end else begin
-			if (rdEmpty) begin
-				almostEmpty_flag <= 1'b1;
-			end else begin
-				if (rdLevel < 15'd8) begin
-					almostEmpty_flag <= 1'b1;
-				end else begin
-					almostEmpty_flag <= 1'b0;
-				end
-			end
+			almostEmpty_flag <= 1'b0;
 		end
 	end
 end

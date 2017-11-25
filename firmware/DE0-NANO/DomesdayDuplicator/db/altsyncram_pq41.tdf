@@ -1,5 +1,5 @@
 --altsyncram ADDRESS_ACLR_B="CLEAR1" ADDRESS_REG_B="CLOCK1" CLOCK_ENABLE_INPUT_B="BYPASS" CYCLONEII_M4K_COMPATIBILITY="ON" DEVICE_FAMILY="Cyclone IV E" ENABLE_ECC="FALSE" LOW_POWER_MODE="AUTO" OPERATION_MODE="DUAL_PORT" OUTDATA_REG_B="UNREGISTERED" WIDTH_A=10 WIDTH_B=10 WIDTH_BYTEENA_A=1 WIDTH_ECCSTATUS=2 WIDTHAD_A=13 WIDTHAD_B=13 aclr1 address_a address_b addressstall_b clock0 clock1 data_a q_b wren_a
---VERSION_BEGIN 17.0 cbx_altera_syncram_nd_impl 2017:04:25:18:06:29:SJ cbx_altsyncram 2017:04:25:18:06:29:SJ cbx_cycloneii 2017:04:25:18:06:29:SJ cbx_lpm_add_sub 2017:04:25:18:06:29:SJ cbx_lpm_compare 2017:04:25:18:06:29:SJ cbx_lpm_decode 2017:04:25:18:06:29:SJ cbx_lpm_mux 2017:04:25:18:06:30:SJ cbx_mgl 2017:04:25:18:09:28:SJ cbx_nadder 2017:04:25:18:06:30:SJ cbx_stratix 2017:04:25:18:06:30:SJ cbx_stratixii 2017:04:25:18:06:30:SJ cbx_stratixiii 2017:04:25:18:06:30:SJ cbx_stratixv 2017:04:25:18:06:30:SJ cbx_util_mgl 2017:04:25:18:06:30:SJ  VERSION_END
+--VERSION_BEGIN 17.1 cbx_altera_syncram_nd_impl 2017:10:19:05:46:40:SJ cbx_altsyncram 2017:10:19:05:46:40:SJ cbx_cycloneii 2017:10:19:05:46:40:SJ cbx_lpm_add_sub 2017:10:19:05:46:40:SJ cbx_lpm_compare 2017:10:19:05:46:40:SJ cbx_lpm_decode 2017:10:19:05:46:40:SJ cbx_lpm_mux 2017:10:19:05:46:40:SJ cbx_mgl 2017:10:19:06:38:12:SJ cbx_nadder 2017:10:19:05:46:40:SJ cbx_stratix 2017:10:19:05:46:40:SJ cbx_stratixii 2017:10:19:05:46:40:SJ cbx_stratixiii 2017:10:19:05:46:40:SJ cbx_stratixv 2017:10:19:05:46:40:SJ cbx_util_mgl 2017:10:19:05:46:40:SJ  VERSION_END
 
 
 -- Copyright (C) 2017  Intel Corporation. All rights reserved.
@@ -10,12 +10,11 @@
 --  associated documentation or information are expressly subject 
 --  to the terms and conditions of the Intel Program License 
 --  Subscription Agreement, the Intel Quartus Prime License Agreement,
---  the Intel MegaCore Function License Agreement, or other 
---  applicable license agreement, including, without limitation, 
---  that your use is for the sole purpose of programming logic 
---  devices manufactured by Intel and sold by Intel or its 
---  authorized distributors.  Please refer to the applicable 
---  agreement for further details.
+--  the Intel FPGA IP License Agreement, or other applicable license
+--  agreement, including, without limitation, that your use is for
+--  the sole purpose of programming logic devices manufactured by
+--  Intel and sold by Intel or its authorized distributors.  Please
+--  refer to the applicable agreement for further details.
 
 
 FUNCTION cycloneive_ram_block (clk0, clk1, clr0, clr1, ena0, ena1, ena2, ena3, portaaddr[PORT_A_ADDRESS_WIDTH-1..0], portaaddrstall, portabyteenamasks[PORT_A_BYTE_ENABLE_MASK_WIDTH-1..0], portadatain[PORT_A_DATA_WIDTH-1..0], portare, portawe, portbaddr[PORT_B_ADDRESS_WIDTH-1..0], portbaddrstall, portbbyteenamasks[PORT_B_BYTE_ENABLE_MASK_WIDTH-1..0], portbdatain[PORT_B_DATA_WIDTH-1..0], portbre, portbwe)
@@ -38,7 +37,7 @@ SUBDESIGN altsyncram_pq41
 	wren_a	:	input;
 ) 
 VARIABLE 
-	ram_block5a0 : cycloneive_ram_block
+	ram_block11a0 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -68,7 +67,7 @@ VARIABLE
 			PORT_B_READ_ENABLE_CLOCK = "clock1",
 			RAM_BLOCK_TYPE = "AUTO"
 		);
-	ram_block5a1 : cycloneive_ram_block
+	ram_block11a1 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -98,7 +97,7 @@ VARIABLE
 			PORT_B_READ_ENABLE_CLOCK = "clock1",
 			RAM_BLOCK_TYPE = "AUTO"
 		);
-	ram_block5a2 : cycloneive_ram_block
+	ram_block11a2 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -128,7 +127,7 @@ VARIABLE
 			PORT_B_READ_ENABLE_CLOCK = "clock1",
 			RAM_BLOCK_TYPE = "AUTO"
 		);
-	ram_block5a3 : cycloneive_ram_block
+	ram_block11a3 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -158,7 +157,7 @@ VARIABLE
 			PORT_B_READ_ENABLE_CLOCK = "clock1",
 			RAM_BLOCK_TYPE = "AUTO"
 		);
-	ram_block5a4 : cycloneive_ram_block
+	ram_block11a4 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -188,7 +187,7 @@ VARIABLE
 			PORT_B_READ_ENABLE_CLOCK = "clock1",
 			RAM_BLOCK_TYPE = "AUTO"
 		);
-	ram_block5a5 : cycloneive_ram_block
+	ram_block11a5 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -218,7 +217,7 @@ VARIABLE
 			PORT_B_READ_ENABLE_CLOCK = "clock1",
 			RAM_BLOCK_TYPE = "AUTO"
 		);
-	ram_block5a6 : cycloneive_ram_block
+	ram_block11a6 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -248,7 +247,7 @@ VARIABLE
 			PORT_B_READ_ENABLE_CLOCK = "clock1",
 			RAM_BLOCK_TYPE = "AUTO"
 		);
-	ram_block5a7 : cycloneive_ram_block
+	ram_block11a7 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -278,7 +277,7 @@ VARIABLE
 			PORT_B_READ_ENABLE_CLOCK = "clock1",
 			RAM_BLOCK_TYPE = "AUTO"
 		);
-	ram_block5a8 : cycloneive_ram_block
+	ram_block11a8 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -308,7 +307,7 @@ VARIABLE
 			PORT_B_READ_ENABLE_CLOCK = "clock1",
 			RAM_BLOCK_TYPE = "AUTO"
 		);
-	ram_block5a9 : cycloneive_ram_block
+	ram_block11a9 : cycloneive_ram_block
 		WITH (
 			CLK0_CORE_CLOCK_ENABLE = "ena0",
 			CLK0_INPUT_CLOCK_ENABLE = "none",
@@ -342,27 +341,27 @@ VARIABLE
 	address_b_wire[12..0]	: WIRE;
 
 BEGIN 
-	ram_block5a[9..0].clk0 = clock0;
-	ram_block5a[9..0].clk1 = clock1;
-	ram_block5a[9..0].clr1 = aclr1;
-	ram_block5a[9..0].ena0 = wren_a;
-	ram_block5a[9..0].portaaddr[] = ( address_a_wire[12..0]);
-	ram_block5a[0].portadatain[] = ( data_a[0..0]);
-	ram_block5a[1].portadatain[] = ( data_a[1..1]);
-	ram_block5a[2].portadatain[] = ( data_a[2..2]);
-	ram_block5a[3].portadatain[] = ( data_a[3..3]);
-	ram_block5a[4].portadatain[] = ( data_a[4..4]);
-	ram_block5a[5].portadatain[] = ( data_a[5..5]);
-	ram_block5a[6].portadatain[] = ( data_a[6..6]);
-	ram_block5a[7].portadatain[] = ( data_a[7..7]);
-	ram_block5a[8].portadatain[] = ( data_a[8..8]);
-	ram_block5a[9].portadatain[] = ( data_a[9..9]);
-	ram_block5a[9..0].portawe = wren_a;
-	ram_block5a[9..0].portbaddr[] = ( address_b_wire[12..0]);
-	ram_block5a[9..0].portbaddrstall = addressstall_b;
-	ram_block5a[9..0].portbre = B"1111111111";
+	ram_block11a[9..0].clk0 = clock0;
+	ram_block11a[9..0].clk1 = clock1;
+	ram_block11a[9..0].clr1 = aclr1;
+	ram_block11a[9..0].ena0 = wren_a;
+	ram_block11a[9..0].portaaddr[] = ( address_a_wire[12..0]);
+	ram_block11a[0].portadatain[] = ( data_a[0..0]);
+	ram_block11a[1].portadatain[] = ( data_a[1..1]);
+	ram_block11a[2].portadatain[] = ( data_a[2..2]);
+	ram_block11a[3].portadatain[] = ( data_a[3..3]);
+	ram_block11a[4].portadatain[] = ( data_a[4..4]);
+	ram_block11a[5].portadatain[] = ( data_a[5..5]);
+	ram_block11a[6].portadatain[] = ( data_a[6..6]);
+	ram_block11a[7].portadatain[] = ( data_a[7..7]);
+	ram_block11a[8].portadatain[] = ( data_a[8..8]);
+	ram_block11a[9].portadatain[] = ( data_a[9..9]);
+	ram_block11a[9..0].portawe = wren_a;
+	ram_block11a[9..0].portbaddr[] = ( address_b_wire[12..0]);
+	ram_block11a[9..0].portbaddrstall = addressstall_b;
+	ram_block11a[9..0].portbre = B"1111111111";
 	address_a_wire[] = address_a[];
 	address_b_wire[] = address_b[];
-	q_b[] = ( ram_block5a[9..0].portbdataout[0..0]);
+	q_b[] = ( ram_block11a[9..0].portbdataout[0..0]);
 END;
 --VALID FILE

@@ -7,6 +7,12 @@ templates
 xlnx_auto*
 _xmsgs
 xst
+db/
+incremental_db/
+simulation/
+timing/
+testbench/
+*_sim/
 
 *.bak
 *.bgn
@@ -77,10 +83,4 @@ sch2HdlBatchFile
 *.xst
 *.xwbt
 
-# ignore Quartus 17 generated folders
-*/db/
-*/incremental_db/
-*/simulation/
-*/timing/
-*/testbench/
-*/*_sim/
+

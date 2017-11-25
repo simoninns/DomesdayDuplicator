@@ -28,6 +28,7 @@ module readAdcData(
 	input clock,
 	input nReset,
 	input [9:0] adcDatabus,
+	input nTestmode,
 	
 	output reg [9:0] adcData
 );
@@ -39,8 +40,13 @@ always @ (negedge clock, negedge nReset) begin
 	if (!nReset) begin
 		adcData <= 10'd0;
 	end else begin
-		// Read the ADC value
-		adcData <= adcDatabus;	
+		if (nTestmode) begin
+			// Read the ADC value
+			adcData <= adcDatabus;
+		end else begin
+			// Test mode
+			adcData <= 10'd512; // Sample of zero amplitude
+		end
 	end
 end
 

@@ -80,7 +80,15 @@
 					"strict" : false
 				},
 				{
+					"name" : "GPIO1[17]",
+					"strict" : false
+				},
+				{
 					"name" : "GPIO1[18]",
+					"strict" : false
+				},
+				{
+					"name" : "GPIO1[19]",
 					"strict" : false
 				},
 				{
