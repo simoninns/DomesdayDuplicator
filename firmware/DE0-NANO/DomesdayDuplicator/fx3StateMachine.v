@@ -51,7 +51,7 @@ parameter [2:0] state_shortPacket		= 3'd5;
 reg fx3_nWrite_flag;
 assign fx3_nWrite = fx3_nWrite_flag;
 wire inSendingState;
-assign inSendingState = (sm_currentState == state_th0Send) ? 1'b0 : 1'b1; // 0 = Writing, 1 = not Writing
+assign inSendingState = (sm_currentState == state_th0Send || sm_currentState == state_shortPacket) ? 1'b0 : 1'b1; // 0 = Writing, 1 = not Writing
 
 // Process the nWrite flag on the clock edge
 always @(posedge fx3_clock, negedge fx3_nReset) begin
