@@ -45,6 +45,17 @@
       <IsGroup>False</IsGroup>
       <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
     </CyNormalState>
+    <CyNormalState>
+      <Left>449.666666666667</Left>
+      <Top>184.076666666667</Top>
+      <Width>83</Width>
+      <Height>70</Height>
+      <Name>STATE3</Name>
+      <DisplayName>SHORT_COMMIT</DisplayName>
+      <zIndex>1</zIndex>
+      <IsGroup>False</IsGroup>
+      <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
+    </CyNormalState>
     <CyStartState>
       <Left>42</Left>
       <Top>45.4466666666667</Top>
@@ -58,6 +69,28 @@
     </CyStartState>
   </CyStates>
   <CyTransitions>
+    <CyTransition>
+      <Name>TRANSITION8</Name>
+      <TransitionEquation>LOGIC_ONE</TransitionEquation>
+      <SourceName>STATE3</SourceName>
+      <SinkName>STATE5</SinkName>
+      <SourceConnectorName>Connector</SourceConnectorName>
+      <SinkConnectorName>Connector</SinkConnectorName>
+      <SourceArrowSymbol>None</SourceArrowSymbol>
+      <SinkArrowSymbol>Arrow</SinkArrowSymbol>
+      <zIndex>0</zIndex>
+    </CyTransition>
+    <CyTransition>
+      <Name>TRANSITION7</Name>
+      <TransitionEquation>nWR&amp;!nShort</TransitionEquation>
+      <SourceName>STATE2</SourceName>
+      <SinkName>STATE3</SinkName>
+      <SourceConnectorName>Connector</SourceConnectorName>
+      <SinkConnectorName>Connector</SinkConnectorName>
+      <SourceArrowSymbol>None</SourceArrowSymbol>
+      <SinkArrowSymbol>Arrow</SinkArrowSymbol>
+      <zIndex>0</zIndex>
+    </CyTransition>
     <CyTransition>
       <Name>TRANSITION6</Name>
       <TransitionEquation>nError</TransitionEquation>
@@ -104,7 +137,7 @@
     </CyTransition>
     <CyTransition>
       <Name>TRANSITION2</Name>
-      <TransitionEquation>nWR</TransitionEquation>
+      <TransitionEquation>nWR&amp;nShort</TransitionEquation>
       <SourceName>STATE2</SourceName>
       <SinkName>STATE5</SinkName>
       <SourceConnectorName>Connector</SourceConnectorName>
