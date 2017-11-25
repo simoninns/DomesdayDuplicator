@@ -90,8 +90,8 @@ always @(posedge outputClock, negedge nReset)begin
 			halfFull_flag <= 1'b0;
 		end
 		
-		// Almost empty logic (almost empty at 32 words) or less
-		if (rdLevel < 14'd32) begin
+		// Almost empty logic (almost empty at 128 words) or less
+		if (rdLevel < 14'd128) begin
 			almostEmpty_flag <= 1'b1;
 		end else begin
 			almostEmpty_flag <= 1'b0;

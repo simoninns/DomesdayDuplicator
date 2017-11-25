@@ -1,1 +1,1 @@
-Warning (10268): Verilog HDL information at readAdcData.v(39): always construct contains both blocking and non-blocking assignments File: C:/Users/simon/Documents/GitHub/DomesdayDuplicator/DE0-NANO/DomesdayDuplicator/readAdcData.v Line: 39
+Warning (10268): Verilog HDL information at fx3StateMachine.v(117): always construct contains both blocking and non-blocking assignments File: /home/sdi/Development/DomesdayDuplicator/DE0-NANO/DomesdayDuplicator/fx3StateMachine.v Line: 117

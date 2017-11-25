@@ -33,7 +33,8 @@ module fx3StateMachine(
 	input fifoAlmostEmpty,
 	input fifoHalfFull,
 	
-	output fx3_nWrite
+	output fx3_nWrite,
+	output fx3_nShort
 );
 
 // State machine state definitions (3-bit 0-7)
@@ -44,7 +45,7 @@ parameter [2:0] state_th0Wait				= 3'd1;
 parameter [2:0] state_th0WaitWatermark	= 3'd2;
 parameter [2:0] state_th0Send				= 3'd3;
 parameter [2:0] state_th0Delay			= 3'd4;
-parameter [2:0] state_waitForFIFO		= 3'd5;
+parameter [2:0] state_shortPacket		= 3'd5;
 
 // Control the nWrite flag signal to the FX3
 reg fx3_nWrite_flag;
@@ -61,10 +62,40 @@ always @(posedge fx3_clock, negedge fx3_nReset) begin
 	end	
 end
 
+// Control the nShort flag signal to the FX3
+reg fx3_nShort_flag;
+assign fx3_nShort = fx3_nShort_flag;
+wire inShortState;
+assign inShortState = (sm_currentState == state_shortPacket) ? 1'b0 : 1'b1; // 0 = Short packet, 1 = not Short packet
+
+// Process the nShort flag on the clock edge
+always @(posedge fx3_clock, negedge fx3_nReset) begin
+	if(!fx3_nReset)begin 
+		fx3_nShort_flag <= 1'b1;
+	end else begin
+		fx3_nShort_flag <= inShortState;
+	end	
+end
+
+// Assign a register for counting the short packet cycle delay
+// (required so the FX3 has time to detect the short packet flag)
+reg [2:0] shortPacketCounter;
+
+always @(posedge fx3_clock, negedge fx3_nReset) begin
+	if(!fx3_nReset)begin 
+		shortPacketCounter <= 3'd0;
+	end else begin
+		if (sm_currentState == state_shortPacket) begin
+			shortPacketCounter <= shortPacketCounter + 3'd1;
+		end else begin
+			shortPacketCounter <= 3'd0;
+		end
+	end	
+end
 
 // Set state machine to idle on reset condition
 // or assign next state as current when running
-always @(posedge fx3_clock, negedge fx3_nReset)begin
+always @(posedge fx3_clock, negedge fx3_nReset) begin
 	if(!fx3_nReset)begin 
 		sm_currentState <= state_th0Wait;
 	end else begin
@@ -131,8 +162,8 @@ always @(*)begin
 					// FIFO has sufficient data, continue
 					sm_nextState = state_th0Send; 
 				end else begin
-					// FIFO is almost empty... wait for more data
-					sm_nextState = state_waitForFIFO;
+					// FIFO is almost empty... commit a short packet
+					sm_nextState = state_shortPacket; 
 				end
 			end
 		end
@@ -142,14 +173,15 @@ always @(*)begin
 			sm_nextState = state_th0Wait;
 		end
 		
-		// state_waitForFIFO - Wait for the FIFO to fill 
-		state_waitForFIFO:begin
-			if (fifoHalfFull == 1'b1) begin
-				// FIFO has sufficient data, continue
-				sm_nextState = state_th0Send; 
+		// state_shortPacket - Commit a short packet (FIFO is too low)
+		state_shortPacket:begin
+			// Has the short packet cycle counter expired?
+			if (shortPacketCounter == 3'd1) begin
+				// Timer expired, transition
+				sm_nextState = state_th0Wait;
 			end else begin
-				// FIFO is almost empty... wait for more data
-				sm_nextState = state_waitForFIFO;
+				// Continue waiting...
+				sm_nextState = state_shortPacket;
 			end
 		end
 
