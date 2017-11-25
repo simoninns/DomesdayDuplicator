@@ -133,6 +133,9 @@ void MainWindow::startTransfer(void)
             // Update the transfer button text
             ui->transferPushButton->setText(tr("Stop capturing"));
 
+            // Disable the test mode check box
+            ui->testModeCheckBox->setEnabled(false);
+
             // Configure and open the USB device
             domDupUsbDevice->setupDevice();
             responseFlag = domDupUsbDevice->openDevice();
@@ -171,6 +174,9 @@ void MainWindow::stopTransfer(void)
         // Update the transfer button text
         ui->transferPushButton->setText(tr("Start capturing"));
 
+        // Enable the test mode check box
+        ui->testModeCheckBox->setEnabled(true);
+
         // Stop the transfer
         domDupUsbDevice->stopBulkRead();
 
@@ -187,11 +193,59 @@ void MainWindow::stopTransfer(void)
 // Test mode check box toggled
 void MainWindow::on_testModeCheckBox_toggled(bool checked)
 {
+    bool responseFlag = false;
+
     if (checked) {
         // Test mode on
-        qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Test mode on (not implemented yet)";
+        qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Test mode data generation on";
+
+        // Verify that the USB device is still connected
+        if (domDupUsbDevice->isConnected()) {
+            // Configure and open the USB device
+            domDupUsbDevice->setupDevice();
+            responseFlag = domDupUsbDevice->openDevice();
+
+            if (responseFlag) {
+                // Send test mode on vendor specific USB command
+                domDupUsbDevice->sendVendorSpecificCommand(0xB6, 1);
+
+                // Close the USB device
+                domDupUsbDevice->closeDevice();
+            } else {
+                // Could not open device
+                qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode on - could not open USB device";
+                ui->testModeCheckBox->setChecked(false);
+            }
+        } else {
+            // Device no longer connected
+            qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode on - USB device not connected";
+            ui->testModeCheckBox->setChecked(false);
+        }
     } else {
         // Test mode off
-        qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Test mode off (not implemented yet)";
+        qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Test mode data generation off";
+
+        // Verify that the USB device is still connected
+        if (domDupUsbDevice->isConnected()) {
+            // Configure and open the USB device
+            domDupUsbDevice->setupDevice();
+            responseFlag = domDupUsbDevice->openDevice();
+
+            if (responseFlag) {
+                // Send test mode off vendor specific USB command
+                domDupUsbDevice->sendVendorSpecificCommand(0xB6, 0);
+
+                // Close the USB device
+                domDupUsbDevice->closeDevice();
+            } else {
+                // Could not open device
+                qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode off - could not open USB device";
+                ui->testModeCheckBox->setChecked(true);
+            }
+        } else {
+            // Device no longer connected
+            qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode off - USB device not connected";
+            ui->testModeCheckBox->setChecked(true);
+        }
     }
 }
