@@ -1,6 +1,6 @@
 /*
  * Project Name: DomesdayDuplicator.cyfx
- * Time : 11/25/2017 11:14:13
+ * Time : 11/25/2017 13:46:59
  * Device Type: FX3
  * Project Type: GPIF2
  *
@@ -21,7 +21,7 @@
 /* Summary
    Number of states in the state machine
  */
-#define CY_NUMBER_OF_STATES 6
+#define CY_NUMBER_OF_STATES 4
 
 /* Summary
    Mapping of user defined state names to state indices
@@ -29,9 +29,7 @@
 #define START 0
 #define IDLE 1
 #define READ_DATA 2
-#define READ_ERROR 4
-#define IDLE_ERROR 3
-#define SHORT_COMMIT 5
+#define SHORT_COMMIT 3
 
 
 /* Summary
@@ -44,7 +42,7 @@
    Transition function values used in the state machine.
  */
 uint16_t CyFxGpifTransition[]  = {
-    0x0000, 0xAAAA, 0x3333, 0x5555, 0xFFFF
+    0x0000, 0x5555, 0xAAAA, 0x3333
 };
 
 /* Summary
@@ -54,23 +52,16 @@ uint16_t CyFxGpifTransition[]  = {
    waveform table. 
  */
 CyU3PGpifWaveData CyFxGpifWavedata[]  = {
-    {{0x3E708001,0x00000104,0x80000000},{0x00000000,0x00000000,0x00000000}},
-    {{0x1E708002,0x20000004,0x80000000},{0x1E738403,0x00000000,0x80000100}},
-    {{0x4E739C05,0x00000000,0xC0100000},{0x1E738404,0x00000100,0x80000100}},
-    {{0x1E708002,0x20000004,0x80000000},{0x00000000,0x00000000,0x00000000}},
-    {{0x00000000,0x00000000,0x00000000},{0x00000000,0x00000000,0x00000000}},
-    {{0x3E708001,0x00000104,0x80000000},{0x1E738404,0x00000100,0x80000100}}
+    {{0x1E738001,0x00000100,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x2E70C002,0x20000006,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x1E738001,0x00000100,0x80000000},{0x2E738603,0x00000000,0x80100000}}
 };
 
 /* Summary
    Table that maps state indices to the descriptor table indices.
  */
 uint8_t CyFxGpifWavedataPosition[]  = {
-    0,1,2,0,3,0,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-    4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-    0,1,5,0,3,0
+    0,1,2,0
 };
 
 /* Summary
@@ -79,11 +70,11 @@ uint8_t CyFxGpifWavedataPosition[]  = {
 uint32_t CyFxGpifRegValue[]  = {
     0x80008300,  /*  CY_U3P_PIB_GPIF_CONFIG */
     0x00000067,  /*  CY_U3P_PIB_GPIF_BUS_CONFIG */
-    0x06000001,  /*  CY_U3P_PIB_GPIF_BUS_CONFIG2 */
+    0x00000000,  /*  CY_U3P_PIB_GPIF_BUS_CONFIG2 */
     0x00000046,  /*  CY_U3P_PIB_GPIF_AD_CONFIG */
     0x00000000,  /*  CY_U3P_PIB_GPIF_STATUS */
     0x00000000,  /*  CY_U3P_PIB_GPIF_INTR */
-    0x00000002,  /*  CY_U3P_PIB_GPIF_INTR_MASK */
+    0x00000000,  /*  CY_U3P_PIB_GPIF_INTR_MASK */
     0x00000082,  /*  CY_U3P_PIB_GPIF_SERIAL_IN_CONFIG */
     0x00000782,  /*  CY_U3P_PIB_GPIF_SERIAL_OUT_CONFIG */
     0x00100454,  /*  CY_U3P_PIB_GPIF_CTRL_BUS_DIRECTION */
