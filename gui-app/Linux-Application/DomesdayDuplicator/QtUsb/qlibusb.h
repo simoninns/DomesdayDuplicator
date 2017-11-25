@@ -84,6 +84,10 @@ public slots:
   qint32 startBulkTransfer(void);
   qint32 stopBulkTransfer(void);
 
+  quint32 getSuccessCounter(void);
+  quint32 getFailureCounter(void);
+  quint32 getTransferPerformance(void);
+
   /**
    * @brief See base class
    *

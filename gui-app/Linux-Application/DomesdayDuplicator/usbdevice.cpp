@@ -112,7 +112,7 @@ void usbDevice::setupDevice(void)
     domDupConfig.config = 1;
     domDupConfig.interface = 0;
     domDupConfig.readEp = 0x81;
-    domDupConfig.writeEp = 0x00;
+    domDupConfig.writeEp = 0x81;
 }
 
 // Function to open the device for IO
@@ -172,21 +172,21 @@ void usbDevice::stopBulkRead(void)
     domDupDevice->stopBulkTransfer();
 }
 
-// Get bulk read success counter
-quint64 usbDevice::getBulkSuccessCounter(void)
+// Return the current value of the bulk transfer stream success counter
+quint32 usbDevice::getSuccessCounter(void)
 {
-    return 0;
+    return domDupDevice->getSuccessCounter();
 }
 
-// Get bulk read failure counter
-quint64 usbDevice::getBulkFailureCounter(void)
+// Return the current value of the bulk transfer stream failure counter
+quint32 usbDevice::getFailureCounter(void)
 {
-    return 0;
+    return domDupDevice->getFailureCounter();
 }
 
-// Get bulk read transfer speed
-quint64 usbDevice::getBulkTransferSpeed(void)
+// Return the current bulk transfer stream performance value
+quint32 usbDevice::getTransferPerformance(void)
 {
-    return 0;
+    return domDupDevice->getTransferPerformance();
 }
 

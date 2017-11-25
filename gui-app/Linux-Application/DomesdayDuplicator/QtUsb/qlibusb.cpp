@@ -347,6 +347,7 @@ qint32 QUsbDevice::sendControlTransfer(
     return 1;
 }
 
+// Start a bulk transfer stream
 qint32 QUsbDevice::startBulkTransfer(void)
 {
     qint32 rc = 1; // Response code
@@ -358,6 +359,7 @@ qint32 QUsbDevice::startBulkTransfer(void)
     return rc;
 }
 
+// Stop a bulk transfer stream
 qint32 QUsbDevice::stopBulkTransfer(void)
 {
     qint32 rc = 1; // Response code
@@ -366,3 +368,20 @@ qint32 QUsbDevice::stopBulkTransfer(void)
     return rc;
 }
 
+// Return the current value of the bulk transfer stream success counter
+quint32 QUsbDevice::getSuccessCounter(void)
+{
+    return mUsbBulkTransfer->getSuccessCounter();
+}
+
+// Return the current value of the bulk transfer stream failure counter
+quint32 QUsbDevice::getFailureCounter(void)
+{
+    return mUsbBulkTransfer->getFailureCounter();
+}
+
+// Return the current bulk transfer stream performance value
+quint32 QUsbDevice::getTransferPerformance(void)
+{
+    return mUsbBulkTransfer->getTransferPerformance();
+}
