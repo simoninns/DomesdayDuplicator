@@ -49,7 +49,7 @@
   <CyTransitions>
     <CyTransition>
       <Name>TRANSITION8</Name>
-      <TransitionEquation>nShort</TransitionEquation>
+      <TransitionEquation>nWR</TransitionEquation>
       <SourceName>STATE3</SourceName>
       <SinkName>STATE5</SinkName>
       <SourceConnectorName>Connector</SourceConnectorName>
