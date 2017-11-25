@@ -2,8 +2,8 @@
 <Root version="4">
   <CyStates>
     <CyNormalState>
-      <Left>560</Left>
-      <Top>47.4100000000001</Top>
+      <Left>489.333333333333</Left>
+      <Top>48.0766666666668</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STATE2</Name>
@@ -13,8 +13,8 @@
       <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
     </CyNormalState>
     <CyNormalState>
-      <Left>334</Left>
-      <Top>46.4099999999999</Top>
+      <Left>263.333333333333</Left>
+      <Top>47.0766666666666</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STATE5</Name>
@@ -24,8 +24,8 @@
       <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
     </CyNormalState>
     <CyNormalState>
-      <Left>449.666666666667</Left>
-      <Top>184.076666666667</Top>
+      <Left>379</Left>
+      <Top>184.743333333334</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STATE3</Name>
