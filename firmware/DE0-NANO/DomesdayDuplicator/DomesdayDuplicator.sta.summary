@@ -3,15 +3,15 @@ TimeQuest Timing Analyzer Summary
 ------------------------------------------------------------
 
 Type  : Slow 1200mV 85C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 13.633
+Slack : 12.624
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Setup 'CLOCK_50'
-Slack : 14.248
+Slack : 15.155
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 0.322
+Slack : 0.244
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Hold 'CLOCK_50'
@@ -19,11 +19,11 @@ Slack : 0.357
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Recovery 'CLOCK_50'
-Slack : 17.242
+Slack : 17.404
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Removal 'CLOCK_50'
-Slack : 0.888
+Slack : 1.238
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Minimum Pulse Width 'CLOCK_50'
@@ -35,31 +35,31 @@ Slack : 15.369
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 13.838
+Slack : 12.904
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Setup 'CLOCK_50'
-Slack : 14.807
+Slack : 15.586
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 0.311
+Slack : 0.242
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Hold 'CLOCK_50'
-Slack : 0.312
+Slack : 0.311
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Recovery 'CLOCK_50'
-Slack : 17.524
+Slack : 17.682
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Removal 'CLOCK_50'
-Slack : 0.800
+Slack : 1.130
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Minimum Pulse Width 'CLOCK_50'
-Slack : 9.499
+Slack : 9.498
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Minimum Pulse Width 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
@@ -67,27 +67,27 @@ Slack : 15.368
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 14.369
+Slack : 13.715
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Setup 'CLOCK_50'
-Slack : 16.575
+Slack : 17.184
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 0.161
+Slack : 0.114
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Hold 'CLOCK_50'
-Slack : 0.187
+Slack : 0.186
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Recovery 'CLOCK_50'
-Slack : 18.350
+Slack : 18.453
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Removal 'CLOCK_50'
-Slack : 0.486
+Slack : 0.669
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Minimum Pulse Width 'CLOCK_50'
@@ -95,7 +95,7 @@ Slack : 9.212
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Minimum Pulse Width 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 15.377
+Slack : 15.376
 TNS   : 0.000
 
 ------------------------------------------------------------
