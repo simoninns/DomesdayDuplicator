@@ -61,7 +61,7 @@ public:
 
     void sendVendorSpecificCommand(quint16 command, quint16 value);
 
-    void startBulkRead(void);
+    void startBulkRead(bool testMode);
     void stopBulkRead(void);
 
     quint32 getSuccessCounter(void);

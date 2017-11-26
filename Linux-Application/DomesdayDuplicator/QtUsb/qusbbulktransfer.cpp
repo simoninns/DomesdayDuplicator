@@ -34,10 +34,14 @@ static libusb_context* bContext;
 static libusb_device_handle* bDevHandle;
 static quint8 bEndPoint;
 
+// The number of simulataneous transfer requests allowed
+#define QUEUEDEPTH  16
+
 // Private variables for storing transfer configuration
-static unsigned int    queueDepth;             // Number of requests to queue
 static unsigned int    requestSize;            // Request size in number of packets
 static unsigned int    packetSize;             // Maximum packet size for the endpoint
+static unsigned int    transferId[QUEUEDEPTH]; // Transfer ID tracking array (used as user_data to track transfers)
+static unsigned int    queueDepth;             // Maximum number of queued transfers allowed
 
 // Private variables used to report on the transfer
 static unsigned int    successCount;           // Number of successful transfers
@@ -52,6 +56,9 @@ static bool            stopTransfers;          // Transfer stop flag
 
 static struct timeval	startTimestamp;        // Data transfer start time stamp.
 static struct timeval	endTimestamp;          // Data transfer stop time stamp.
+
+// Private variables for data checking (test mode)
+static bool             testModeFlag;          // Test mode status flag
 
 QUsbBulkTransfer::QUsbBulkTransfer(void)
 {
@@ -72,14 +79,14 @@ void QUsbBulkTransfer::bulkTransferStop(void)
     stopTransfers = true;
 }
 
-void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint)
+void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, bool testMode)
 {
     // Store the device handle locally
     bContext = mCtx;
     bDevHandle = devHandle;
     bEndPoint = endPoint;
 
-    queueDepth = 16; // The maximum number of simultaneous transfers (should be 16)
+    queueDepth = QUEUEDEPTH; // The maximum number of simultaneous transfers
 
     // Default all status variables
     successCount = 0;           // Number of successful transfers
@@ -91,6 +98,18 @@ void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHand
 
     requestSize = 16;           // Request size (number of packets)
     packetSize = 1024;          // Maximum packet size for the endpoint
+
+    // Set up the transfer identifier array
+    for (quint32 counter = 0; counter < queueDepth; counter++) {
+        transferId[counter] = counter;
+    }
+
+    // Set the test mode flag
+    testModeFlag = testMode;
+
+    if (testModeFlag) {
+        qDebug() << "usbBulkTransfer::setup(): Test mode is ON";
+    }
 }
 
 void QUsbBulkTransfer::run()
@@ -144,8 +163,8 @@ void QUsbBulkTransfer::run()
     for (unsigned int launchCounter = 0; launchCounter < queueDepth; launchCounter++) {
         qDebug() << "QUsbBulkTransfer::run(): Launching transfer number" << launchCounter << "of" << queueDepth;
 
-        libusb_fill_bulk_transfer (transfers[launchCounter], bDevHandle, bEndPoint,
-            dataBuffers[launchCounter], requestSize * packetSize, bulkTransferCallback, NULL, 5000);
+        libusb_fill_bulk_transfer(transfers[launchCounter], bDevHandle, bEndPoint,
+            dataBuffers[launchCounter], requestSize * packetSize, bulkTransferCallback, &transferId[launchCounter], 5000);
 
         qDebug() << "QUsbBulkTransfer::run(): Performing libusb_submit_transfer";
         transferReturnStatus = libusb_submit_transfer(transfers[launchCounter]);
@@ -230,8 +249,74 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     } else {
         // Transfer has succeeded
         size = requestSize * packetSize;
-        successCount++;
-        //qDebug() << "bulkTransferCallback(): Successful transfer reported";
+
+        // If test mode is on we can verify that the data read by the transfer is a sequence of
+        // numbers.  Note that the data is a 10-bit counter (0-1023) which is scaled by the
+        // FPGA to a 16-bit (signed) range before being sent (and we have to allow for that here)
+        if (testModeFlag) {
+            // Test mode is on:
+            // Here we verify that the individual transfer is good (not the entire request)
+
+            // Verify that the amount of data is the same as the expected buffer size
+            if (transfer->length != size) {
+                qDebug() << "bulkTransferCallback(): Buffer length is incorrect = " << transfer->length;
+            }
+
+            quint8 highByte = 0;
+            quint8 lowByte = 0;
+            qint32 currentWord = 0;
+            qint32 previousWord = 0;
+            bool testPassed = true;
+
+            // Dereference the buffer pointer
+            unsigned char *dataBuffer = (unsigned char *)transfer->buffer;
+
+            for (int bytePointer = 0; bytePointer < transfer->length; bytePointer += 2) {
+                // Get two bytes of data (that represent our signed little-endian 16-bit number
+                lowByte  = dataBuffer[bytePointer];
+                highByte = dataBuffer[bytePointer + 1];
+
+                // Convert the bytes into a signed 16-bit value
+                currentWord = lowByte + (highByte << 8);
+
+                // Convert into a 10-bit value
+                currentWord = currentWord / 64;
+
+                // Ensure we are not at the start of the buffer
+                if (bytePointer != 0) {
+                    // Is received data correct?
+                    if (currentWord == (previousWord + 1)) {
+                        // Test was successful
+                    } else {
+                        if (currentWord == 0 && previousWord == 1023) {
+                            // Failure was due to wrap around
+                            // Test was successful
+                        } else {
+                            // Test failed
+                            testPassed = false;
+                            qDebug() << "bulkTransferCallback(): Transfer failed test mode integrity check!";
+                            qDebug() << "Current word =" << currentWord << ": Previous word =" << previousWord;
+                        }
+                    }
+                }
+
+                // Store the current word as previous for next check
+                previousWord = currentWord;
+            }
+
+            // Update the counters
+            if (testPassed) successCount++; else failureCount++;
+        } else {
+            // We can verify the contents if test mode is off, so we just increment
+            // the success counter
+            successCount++;
+        }
+
+        // *transferUserData will equal the value assigned to transferId[transferNumber] from
+        // the transfer launch (allowing us to known where in the sequence the transfer data
+        // belongs
+        //unsigned int *transferUserData = (unsigned int *)transfer->user_data;
+        //qDebug() << "bulkTransferCallback(): Successful transfer ID" << *transferUserData << "reported";
     }
 
     // Update the actual transfer size for this request.
