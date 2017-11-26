@@ -52,6 +52,7 @@ struct transferIdStruct {
 static transferIdStruct transferId[QUEUEDEPTH];
 
 static unsigned int currentDiskBuffer;         // The currently targeted disk number
+static unsigned int currentTransferNumber;     // The current transfer number
 static unsigned int diskBufferDepth;
 
 // Private variables used to report on the transfer
@@ -119,6 +120,7 @@ void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHand
 
     // Set up the disk buffering
     currentDiskBuffer = 0;
+    currentTransferNumber = 0;
     diskBufferDepth = DISKBUFFERDEPTH;
 }
 
@@ -173,13 +175,17 @@ void QUsbBulkTransfer::run()
     for (unsigned int launchCounter = 0; launchCounter < queueDepth; launchCounter++) {
         // Set up the transfer identifier
         transferId[launchCounter].bufferNumber = currentDiskBuffer;
-        transferId[launchCounter].transferNumber = launchCounter;
+        transferId[launchCounter].transferNumber = currentTransferNumber;
 
         libusb_fill_bulk_transfer(transfers[launchCounter], bDevHandle, bEndPoint,
             dataBuffers[launchCounter], requestSize * packetSize, bulkTransferCallback, &transferId[launchCounter], 5000);
+
+        // Next transfer number
+        currentTransferNumber++;
     }
 
-    // Increment the disk buffer number before submition
+    // Reset the bufferNumber and increment the currentDiskBuffer
+    currentTransferNumber = 0;
     currentDiskBuffer++;
 
     // Submit the transfers
@@ -360,15 +366,37 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     // Read the user data field in the transfer struction to work out
     // where the data belongs...
     transferIdStruct *transferUserData = (transferIdStruct *)transfer->user_data;
-    //qDebug() << "bulkTransferCallback():   Buffer number: " << transferUserData->bufferNumber;
-    //qDebug() << "                        Transfer number: " << transferUserData->transferNumber;
+    qDebug() << "bulkTransferCallback(): Recieved buffer:" << transferUserData->bufferNumber << " transfer:" << transferUserData->transferNumber;
+
+    // STORE THE DATA IN A DISK BUFFER HERE - TO-DO!
 
     // Prepare and re-submit the transfer request
-    // NOTE: Need to target the different disk buffers here! TO-DO
     if (!stopTransfers) {
+        // Transfer is still running, so here we resubmit the transfer
+        // but update the user_data information to target the next disk buffer
 
-        // If a transfer fails, ignore the error
+        transferId[currentTransferNumber].bufferNumber = currentDiskBuffer;
+        transferId[currentTransferNumber].transferNumber = currentTransferNumber;
+
+        //qDebug() << "bulkTransferCallback(): Filling buffer:" <<  currentDiskBuffer << " and transfer:" << currentTransferNumber;
+
+        // Reuse the existing buffer space for the transfer and update user_data
+        libusb_fill_bulk_transfer(transfer, bDevHandle, bEndPoint,
+            transfer->buffer, requestSize * packetSize, bulkTransferCallback, &transferId[currentTransferNumber], 5000);
+
+        // Increment the transfer and disk buffers
+        currentTransferNumber++;
+        // Check for transfer number overflow
+        if (currentTransferNumber == queueDepth) {
+            currentTransferNumber = 0;
+            currentDiskBuffer++;
+            // Check for disk buffer number overflow
+            if (currentDiskBuffer == diskBufferDepth) currentDiskBuffer = 0;
+        }
+
+        // If a transfer fails, ignore the error - SHOULD CATCH THIS - TO-DO
         if (libusb_submit_transfer(transfer) == 0) transfersInFlight++;
+        else qDebug() << "bulkTransferCallback(): libusb_submit_transfer failed!";
     }
 }
 
