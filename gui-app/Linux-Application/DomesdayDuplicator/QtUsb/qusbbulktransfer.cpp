@@ -40,8 +40,19 @@ static quint8 bEndPoint;
 // Private variables for storing transfer configuration
 static unsigned int    requestSize;            // Request size in number of packets
 static unsigned int    packetSize;             // Maximum packet size for the endpoint
-static unsigned int    transferId[QUEUEDEPTH]; // Transfer ID tracking array (used as user_data to track transfers)
 static unsigned int    queueDepth;             // Maximum number of queued transfers allowed
+
+// Private variables for tracking transfers
+#define DISKBUFFERDEPTH 8
+
+struct transferIdStruct {
+    unsigned int transferNumber;               // The position of the transfer within the disk buffer
+    unsigned int bufferNumber;                 // The disk buffer to which the transfer belongs
+};
+static transferIdStruct transferId[QUEUEDEPTH];
+
+static unsigned int currentDiskBuffer;         // The currently targeted disk number
+static unsigned int diskBufferDepth;
 
 // Private variables used to report on the transfer
 static unsigned int    successCount;           // Number of successful transfers
@@ -51,7 +62,7 @@ static unsigned int    transferSize;           // Size of data transfers perform
 
 // Private variables used to control the transfer
 static unsigned int    transferIndex;          // Write index into the transfer_size array
-static volatile int    requestsInFlight;       // Number of transfers that are in progress
+static volatile int    transfersInFlight;       // Number of transfers that are in progress
 static bool            stopTransfers;          // Transfer stop flag
 
 static struct timeval	startTimestamp;        // Data transfer start time stamp.
@@ -94,15 +105,10 @@ void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHand
     transferSize = 0;           // Size of data transfers performed so far
     transferIndex = 0;          // Write index into the transfer_size array
     transferPerformance = 0;	// Performance in KBps
-    requestsInFlight = 0;       // Number of transfers that are in progress
+    transfersInFlight = 0;       // Number of transfers that are in progress
 
     requestSize = 16;           // Request size (number of packets)
     packetSize = 1024;          // Maximum packet size for the endpoint
-
-    // Set up the transfer identifier array
-    for (quint32 counter = 0; counter < queueDepth; counter++) {
-        transferId[counter] = counter;
-    }
 
     // Set the test mode flag
     testModeFlag = testMode;
@@ -110,6 +116,10 @@ void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHand
     if (testModeFlag) {
         qDebug() << "usbBulkTransfer::setup(): Test mode is ON";
     }
+
+    // Set up the disk buffering
+    currentDiskBuffer = 0;
+    diskBufferDepth = DISKBUFFERDEPTH;
 }
 
 void QUsbBulkTransfer::run()
@@ -159,32 +169,41 @@ void QUsbBulkTransfer::run()
     // Record the timestamp at start of transfer (for statistics generation)
     gettimeofday(&startTimestamp, NULL); // Might be better to use the QT library for this?
 
-    // Launch the transfers
+    // Set up the initial transfers
     for (unsigned int launchCounter = 0; launchCounter < queueDepth; launchCounter++) {
-        qDebug() << "QUsbBulkTransfer::run(): Launching transfer number" << launchCounter << "of" << queueDepth;
+        // Set up the transfer identifier
+        transferId[launchCounter].bufferNumber = currentDiskBuffer;
+        transferId[launchCounter].transferNumber = launchCounter;
 
         libusb_fill_bulk_transfer(transfers[launchCounter], bDevHandle, bEndPoint,
             dataBuffers[launchCounter], requestSize * packetSize, bulkTransferCallback, &transferId[launchCounter], 5000);
+    }
 
-        qDebug() << "QUsbBulkTransfer::run(): Performing libusb_submit_transfer";
+    // Increment the disk buffer number before submition
+    currentDiskBuffer++;
+
+    // Submit the transfers
+    for (unsigned int launchCounter = 0; launchCounter < queueDepth; launchCounter++) {
+        qDebug() << "QUsbBulkTransfer::run(): Submitting transfer number" << launchCounter << "of" << queueDepth;
+
         transferReturnStatus = libusb_submit_transfer(transfers[launchCounter]);
         if (transferReturnStatus == 0) {
-            requestsInFlight++;
-            qDebug() << "transferThread::run(): Transfer launched";
+            transfersInFlight++;
+            //qDebug() << "transferThread::run(): Transfer launched";
         } else {
             qDebug() << "transferThread::run(): Transfer failed!";
         }
     }
 
-    // Show the current number of inflight requests
-    qDebug() << "QUsbBulkTransfer::run(): Queued" << requestsInFlight << "requests";
+    // Show the current number of inflight transfers
+    qDebug() << "QUsbBulkTransfer::run(): Queued" << transfersInFlight << "transfers";
 
     // Use a 1 second timeout for the libusb_handle_events_timeout call
     struct timeval timeout;
     timeout.tv_sec  = 1;
     timeout.tv_usec = 0;
 
-    // Process libUSB events whilst transfer is running
+    // Process libUSB events whilst transfers are running
     do {
         libusb_handle_events_timeout(bContext, &timeout);
     } while (!stopTransfers);
@@ -192,8 +211,8 @@ void QUsbBulkTransfer::run()
     qDebug() << "transferThread::run(): Stopping streamer thread";
 
     // Process libUSB events whilst the transfer is stopping
-    while (requestsInFlight != 0) {
-        qDebug() << "QUsbBulkTransfer::run(): Stopping -" << requestsInFlight << "requests are pending";
+    while (transfersInFlight != 0) {
+        qDebug() << "QUsbBulkTransfer::run(): Stopping -" << transfersInFlight << "transfers are pending";
         libusb_handle_events_timeout(bContext, &timeout);
         sleep(1);
     }
@@ -248,6 +267,8 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         }
     } else {
         // Transfer has succeeded
+
+        // Calculate the amount of data we should have received:
         size = requestSize * packetSize;
 
         // If test mode is on we can verify that the data read by the transfer is a sequence of
@@ -311,18 +332,12 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
             // the success counter
             successCount++;
         }
-
-        // *transferUserData will equal the value assigned to transferId[transferNumber] from
-        // the transfer launch (allowing us to known where in the sequence the transfer data
-        // belongs
-        //unsigned int *transferUserData = (unsigned int *)transfer->user_data;
-        //qDebug() << "bulkTransferCallback(): Successful transfer ID" << *transferUserData << "reported";
     }
 
-    // Update the actual transfer size for this request.
+    // Update the transfer size for the whole bulk transfer so far
     transferSize += size;
 
-    // Print the transfer statistics when queueDepth transfers are completed.
+    // Calculate the transfer statistics when queueDepth transfers are completed.
     transferIndex++;
     if (transferIndex == queueDepth) {
 
@@ -330,7 +345,7 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         elapsedTime = ((endTimestamp.tv_sec - startTimestamp.tv_sec) * 1000000 +
             (endTimestamp.tv_usec - startTimestamp.tv_usec));
 
-        // Calculate the performance in KBps.
+        // Calculate the performance in Kilo bytes per second
         performance    = (((double)transferSize / 1024) / ((double)elapsedTime / 1000000));
         transferPerformance  = (unsigned int)performance;
 
@@ -339,14 +354,21 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         startTimestamp = endTimestamp;
     }
 
-    // Reduce the number of requests in flight.
-    requestsInFlight--;
+    // Reduce the number of requests in-flight.
+    transfersInFlight--;
 
-    // Prepare and re-submit the read request.
+    // Read the user data field in the transfer struction to work out
+    // where the data belongs...
+    transferIdStruct *transferUserData = (transferIdStruct *)transfer->user_data;
+    //qDebug() << "bulkTransferCallback():   Buffer number: " << transferUserData->bufferNumber;
+    //qDebug() << "                        Transfer number: " << transferUserData->transferNumber;
+
+    // Prepare and re-submit the transfer request
+    // NOTE: Need to target the different disk buffers here! TO-DO
     if (!stopTransfers) {
 
         // If a transfer fails, ignore the error
-        if (libusb_submit_transfer(transfer) == 0) requestsInFlight++;
+        if (libusb_submit_transfer(transfer) == 0) transfersInFlight++;
     }
 }
 
