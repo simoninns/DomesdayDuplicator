@@ -147,7 +147,7 @@ void QUsbBulkTransfer::run()
         libusb_fill_bulk_transfer (transfers[launchCounter], bDevHandle, bEndPoint,
             dataBuffers[launchCounter], requestSize * packetSize, bulkTransferCallback, NULL, 5000);
 
-        qDebug() << "transferThread::run(): Performing libusb_submit_transfer";
+        qDebug() << "QUsbBulkTransfer::run(): Performing libusb_submit_transfer";
         transferReturnStatus = libusb_submit_transfer(transfers[launchCounter]);
         if (transferReturnStatus == 0) {
             requestsInFlight++;
@@ -160,32 +160,21 @@ void QUsbBulkTransfer::run()
     // Show the current number of inflight requests
     qDebug() << "QUsbBulkTransfer::run(): Queued" << requestsInFlight << "requests";
 
-    // NEED TO RECODE THIS BIT... NOT VERY NEAT...
-    struct timeval t1, t2, timeout;
-    gettimeofday(&t1, NULL);
-
     // Use a 1 second timeout for the libusb_handle_events_timeout call
+    struct timeval timeout;
     timeout.tv_sec  = 1;
     timeout.tv_usec = 0;
 
     // Process libUSB events whilst transfer is running
     do {
         libusb_handle_events_timeout(bContext, &timeout);
-
-        // Calculate statistics every half second
-        gettimeofday(&t2, NULL);
-        if (t2.tv_sec > t1.tv_sec) {
-            // REDO THIS BIT, updates cannot be driven from here...
-            //updateResults();
-            t1 = t2;
-        }
     } while (!stopTransfers);
 
     qDebug() << "transferThread::run(): Stopping streamer thread";
 
     // Process libUSB events whilst the transfer is stopping
     while (requestsInFlight != 0) {
-        qDebug() << "QUsbBulkTransfer::run():" << requestsInFlight << "requests are pending";
+        qDebug() << "QUsbBulkTransfer::run(): Stopping -" << requestsInFlight << "requests are pending";
         libusb_handle_events_timeout(bContext, &timeout);
         sleep(1);
     }
