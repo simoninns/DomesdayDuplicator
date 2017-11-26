@@ -40,7 +40,7 @@ class QUsbBulkTransfer : public QThread {
 public:
     QUsbBulkTransfer(void);
     ~QUsbBulkTransfer(void);
-    void setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint);
+    void setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, bool testMode);
 
     quint32 getSuccessCounter(void);
     quint32 getFailureCounter(void);

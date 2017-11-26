@@ -148,8 +148,8 @@ void MainWindow::startTransfer(void)
                 // Send start transfer vendor specific USB command
                 domDupUsbDevice->sendVendorSpecificCommand(0xB5, 1);
 
-                // Start the transfer
-                domDupUsbDevice->startBulkRead();
+                // Start the transfer (pass test mode on/off state)
+                domDupUsbDevice->startBulkRead(ui->testModeCheckBox->isChecked());
 
                 // Start a timer to display the transfer information
                 captureTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
@@ -175,14 +175,11 @@ void MainWindow::stopTransfer(void)
     if (captureFlag == true) {
         qDebug() << "MainWindow::stopTransfer(): Stopping transfer";
 
+        // Disable the button whilst we stop the transfer
+        ui->transferPushButton->setEnabled(false);
+
         // Set the capture flag
         captureFlag = false;
-
-        // Update the transfer button text
-        ui->transferPushButton->setText(tr("Start capturing"));
-
-        // Enable the test mode check box
-        ui->testModeCheckBox->setEnabled(true);
 
         // Stop the transfer
         domDupUsbDevice->stopBulkRead();
@@ -195,6 +192,15 @@ void MainWindow::stopTransfer(void)
 
         // Close the USB device
         domDupUsbDevice->closeDevice();
+
+        // Update the transfer button text
+        ui->transferPushButton->setText(tr("Start capturing"));
+
+        // Enable the test mode check box
+        ui->testModeCheckBox->setEnabled(true);
+
+        // Enable the transfer button
+        ui->transferPushButton->setEnabled(true);
     } else {
         qDebug() << "MainWindow::stopTransfer(): Called, but transfer is not in progress";
     }
