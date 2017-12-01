@@ -45,6 +45,7 @@ public:
     quint32 getSuccessCounter(void);
     quint32 getFailureCounter(void);
     quint32 getTransferPerformance(void);
+    quint32 getDiskFailureCounter(void);
 
 signals:
 

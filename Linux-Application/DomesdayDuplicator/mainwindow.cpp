@@ -63,6 +63,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->successfulPacketsLabel->setText(tr("0"));
     ui->failedPacketsLabel->setText(tr("0"));
     ui->transferSpeedLabel->setText(tr("0"));
+    ui->diskFailLabel->setText(tr("0"));
 
     // Set up a timer for updating capture results
     captureTimer = new QTimer(this);
@@ -275,4 +276,5 @@ void MainWindow::updateCaptureInfo(void)
     ui->successfulPacketsLabel->setText(QString::number(domDupUsbDevice->getSuccessCounter()));
     ui->failedPacketsLabel->setText(QString::number(domDupUsbDevice->getFailureCounter()));
     ui->transferSpeedLabel->setText(QString::number(domDupUsbDevice->getTransferPerformance()) + tr(" KBytes/sec"));
+    ui->diskFailLabel->setText(QString::number(domDupUsbDevice->getDiskFailureCounter()));
 }

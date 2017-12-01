@@ -385,3 +385,9 @@ quint32 QUsbDevice::getTransferPerformance(void)
 {
     return mUsbBulkTransfer->getTransferPerformance();
 }
+
+// Return the current bulk transfer disk write failure count
+quint32 QUsbDevice::getDiskFailureCounter(void)
+{
+    return mUsbBulkTransfer->getDiskFailureCounter();
+}
