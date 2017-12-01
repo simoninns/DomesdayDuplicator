@@ -190,3 +190,8 @@ quint32 usbDevice::getTransferPerformance(void)
     return domDupDevice->getTransferPerformance();
 }
 
+// Return the current value of the bulk transfer stream disk write failure counter
+quint32 usbDevice::getDiskFailureCounter(void)
+{
+    return domDupDevice->getDiskFailureCounter();
+}
