@@ -30,6 +30,7 @@
 
 #include <QDebug>
 #include <QThread>
+#include <QFile>
 extern "C" {
 #include <libusb-1.0/libusb.h>
 }
@@ -56,8 +57,8 @@ protected slots:
 
 protected:
     void freeTransferBuffers (unsigned char **dataBuffers, struct libusb_transfer **transfers);
+    void freeDiskBuffers(unsigned char **diskBuffers);
     void bulkTransferStop(void);
-
 };
 
 #endif // QUSBBULKTRANSFER_H
