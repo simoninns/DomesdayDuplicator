@@ -56,6 +56,7 @@ protected slots:
     void run(void);
 
 protected:
+    void writeBuffersToDisk(void);
     void freeTransferBuffers (unsigned char **dataBuffers, struct libusb_transfer **transfers);
     void freeDiskBuffers(unsigned char **diskBuffers);
     void bulkTransferStop(void);
