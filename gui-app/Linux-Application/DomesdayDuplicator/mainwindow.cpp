@@ -54,6 +54,7 @@ MainWindow::MainWindow(QWidget *parent) :
     } else {
         status->setText(tr("Domesday Duplicator USB device not connected"));
         ui->transferPushButton->setEnabled(false);
+        ui->testModeCheckBox->setEnabled(false);
     }
 
     // Connect to the usb device's signals to show insertion/removal events
@@ -68,6 +69,12 @@ MainWindow::MainWindow(QWidget *parent) :
     // Set up a timer for updating capture results
     captureTimer = new QTimer(this);
     connect(captureTimer, SIGNAL(timeout()), this, SLOT(updateCaptureInfo()));
+
+    // Disable the start transfer button (until a destination file name is supplied)
+    ui->transferPushButton->setEnabled(false);
+
+    // Disable the test mode checkbox until a USB device is connected
+    ui->testModeCheckBox->setEnabled(false);
 }
 
 MainWindow::~MainWindow()
@@ -81,9 +88,11 @@ void MainWindow::usbStatusChanged(bool usbStatus)
     if (usbStatus) {
         status->setText(tr("Connected"));
         ui->transferPushButton->setEnabled(true);
+        ui->testModeCheckBox->setEnabled(true);
     } else {
         status->setText(tr("Domesday Duplicator USB device not connected"));
         ui->transferPushButton->setEnabled(false);
+        ui->testModeCheckBox->setEnabled(false);
     }
 }
 
@@ -97,7 +106,23 @@ void MainWindow::on_actionAbout_triggered()
 // Menu option "Save As" triggered
 void MainWindow::on_actionSave_As_triggered()
 {
+    if (fileName.isEmpty()) {
+        // No previous file name selected.  Fill in the default location and file name
+        fileName = QFileDialog::getSaveFileName(this, tr("Save RF capture as"), QDir::homePath()+tr("/rfcapture.raw"), tr("RAW Files (*.raw)"));
+    } else {
+        // Previous file name selected, fill it in again
+        fileName = QFileDialog::getSaveFileName(this, tr("Save RF capture as"), fileName, tr("RAW Files (*.raw)"));
+    }
 
+    if (fileName.isEmpty()) {
+        // No file name was specified
+        qDebug() << "MainWindow::on_actionSave_As_triggered(): User did not supply a file name";
+        ui->transferPushButton->setEnabled(false);
+    } else {
+        // File name specified
+        qDebug() << "MainWindow::on_actionSave_As_triggered(): Save as filename = " << fileName;
+        ui->transferPushButton->setEnabled(true);
+    }
 }
 
 // Menu option "Quit" triggered
@@ -127,6 +152,12 @@ void MainWindow::startTransfer(void)
 {
     bool responseFlag = false;
 
+    // Ensure we have a file name
+    if (fileName.isEmpty()) {
+        qDebug() << "MainWindow::startTransfer(): No file name specified, cannot start transfer";
+        return;
+    }
+
     if (captureFlag == false) {
         qDebug() << "MainWindow::startTransfer(): Starting transfer";
 
@@ -150,7 +181,7 @@ void MainWindow::startTransfer(void)
                 domDupUsbDevice->sendVendorSpecificCommand(0xB5, 1);
 
                 // Start the transfer (pass test mode on/off state)
-                domDupUsbDevice->startBulkRead(ui->testModeCheckBox->isChecked());
+                domDupUsbDevice->startBulkRead(ui->testModeCheckBox->isChecked(), fileName);
 
                 // Start a timer to display the transfer information
                 captureTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
@@ -163,7 +194,6 @@ void MainWindow::startTransfer(void)
         } else {
             // Cannot start transfer; USB device not detected
             qDebug() << "MainWindow::startTransfer(): Cannot start transfer - USB device not connected";
-            ui->transferPushButton->setEnabled(false);
         }
     } else {
         qDebug() << "MainWindow::startTransfer(): Called, but transfer is already in progress";

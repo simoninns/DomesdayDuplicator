@@ -61,7 +61,7 @@ public:
 
     void sendVendorSpecificCommand(quint16 command, quint16 value);
 
-    void startBulkRead(bool testMode);
+    void startBulkRead(bool testMode, QString fileName);
     void stopBulkRead(void);
 
     quint32 getSuccessCounter(void);

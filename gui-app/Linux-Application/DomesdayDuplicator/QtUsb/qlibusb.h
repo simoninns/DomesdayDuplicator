@@ -81,7 +81,7 @@ public slots:
       quint16                wLength,
       quint16                timeout);
 
-  qint32 startBulkTransfer(bool testMode);
+  qint32 startBulkTransfer(bool testMode, QString fileName);
   qint32 stopBulkTransfer(void);
 
   quint32 getSuccessCounter(void);
