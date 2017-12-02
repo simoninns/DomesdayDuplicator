@@ -92,6 +92,9 @@ static QFile* outputFile;
 struct libusb_transfer **usbTransfers = NULL;		// List of transfer structures.
 unsigned char **usbDataBuffers = NULL;             // List of USB data buffers.
 
+// File name
+static QString captureFileName;
+
 QUsbBulkTransfer::QUsbBulkTransfer(void)
 {
     stopTransfers = false;
@@ -111,7 +114,7 @@ void QUsbBulkTransfer::bulkTransferStop(void)
     stopTransfers = true;
 }
 
-void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, bool testMode)
+void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, bool testMode, QString fileName)
 {
     // Store the device handle locally
     bContext = mCtx;
@@ -126,6 +129,9 @@ void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHand
     if (testModeFlag) {
         qDebug() << "usbBulkTransfer::setup(): Test mode is ON";
     }
+
+    // Set the fileName
+    captureFileName = fileName;
 }
 
 void QUsbBulkTransfer::run()
@@ -160,7 +166,7 @@ void QUsbBulkTransfer::run()
 
     // Open the disk output file for writing
     // NOTE: FILENAME IS FIXED.  This is just for testing purposes!
-    outputFile = new QFile("/home/sdi/capture.bin");
+    outputFile = new QFile(captureFileName);
     if(!outputFile->open(QFile::WriteOnly | QFile::Truncate)) {
         qDebug() << "QUsbBulkTransfer::run(): Could not open destination file for writing!";
         return;
@@ -345,6 +351,8 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     unsigned int threadDiskBuffer = transferUserData->bufferNumber;
     unsigned int threadTransferNumber = transferUserData->transferNumber;
 
+    if (transfer->actual_length != transfer->length) qDebug() << "LENGTH MISMATCH!";
+
     // Disk buffer handling -----------------------------------------------------------------------------------
 
     // Copy the USB data transfer (16K) to the disk write buffer
@@ -460,7 +468,7 @@ void QUsbBulkTransfer::writeBuffersToDisk(void)
         }
 
         // Write the buffer to disk
-        //outputFile->write((const char *)diskBuffers[nextDiskBufferToWrite], (requestSize * packetSize * queueDepth));
+        outputFile->write((const char *)diskBuffers[nextDiskBufferToWrite], (requestSize * packetSize * queueDepth));
         if (errorCount >0) {
             qDebug() << "QUsbBulkTransfer::writeBuffersToDisk(): Buffer" << nextDiskBufferToWrite << "written to disk with" <<
                         errorCount << "errors";

@@ -34,6 +34,7 @@
 #include <QDebug>
 #include <QMessageBox>
 #include <QTimer>
+#include <QFileDialog>
 #include "usbdevice.h"
 
 namespace Ui {
@@ -71,6 +72,7 @@ private:
     bool captureFlag;
 
     QTimer* captureTimer;
+    QString fileName;
 };
 
 #endif // MAINWINDOW_H
