@@ -30,8 +30,7 @@ module fx3StateMachine(
 	input fx3_nReady,
 	input fx3_th0Ready,
 	input fx3_th0Watermark,
-	input fifoAlmostEmpty,
-	input fifoHalfFull,
+	input fifo_DataReady,
 	
 	output fx3_nWrite
 );
@@ -94,13 +93,12 @@ always @(*)begin
 	
 	case(sm_currentState)
 		
-		// state_th0WaitReady - Wait for thread 0 ready flag,
-		// FIFO to be not almost empty and nReady
+		// state_th0WaitReady
 		state_th0Wait:begin
 																// Don't start transfer unless:
-			if ((fx3_th0Ready_flag == 1'b1) &&		// Thread 0 is ready
-				(fifoHalfFull == 1'b1) &&				// FIFO is at least half-full
-				(fx3_nReady_flag == 1'b0)) begin		// Ready flag is set
+			if ((fx3_th0Ready_flag == 1'b1) &&		// FX3 Thread 0 is ready
+				(fifo_DataReady == 1'b1) &&			// FIFO is indicating data ready
+				(fx3_nReady_flag == 1'b0)) begin		// FX3 (not)Ready flag is set
 				sm_nextState = state_th0WaitWatermark;
 			end else begin
 				sm_nextState = state_th0Wait;
@@ -119,7 +117,7 @@ always @(*)begin
 		// state_th0Send - Stream data to thread 0, transistion on thread 0 watermark flag set
 		state_th0Send:begin
 			if (fx3_th0Watermark_flag == 1'b0) begin
-				// Watermark flag set - transition to thread 0 wait for ready
+				// Watermark flag set - transition to state_th0WaitReady
 				sm_nextState = state_th0Delay;
 			end else begin
 				// Continue sending data
@@ -127,7 +125,7 @@ always @(*)begin
 			end
 		end
 		
-		// state_th0Delay - Clock delay before beginning the write cycle again 
+		// state_th0Delay - Clock delay before entering state_th0WaitReady state
 		state_th0Delay:begin
 			sm_nextState = state_th0Wait;
 		end

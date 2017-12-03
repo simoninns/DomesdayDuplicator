@@ -75,14 +75,13 @@ assign GPIO1[02] = fx3_databus[15];
 //assign GPIO0[21] = fx3_databus[31];
 
 // 13-bit control bus physical mapping
-//assign fx3_control[00] = GPIO1[27];	// FX3 GPIO_17
 assign GPIO1[27] = fx3_control[00]; // FX3 GPIO_17 (output)
 assign fx3_control[01] = GPIO1[25];	// FX3 GPIO_18
 assign fx3_control[02] = GPIO1[23];	// FX3 GPIO_19
 assign fx3_control[03] = GPIO1[21];	// FX3 GPIO_20
 assign GPIO1[19] = fx3_control[04];	// FX3 GPIO_21 (output)
 assign fx3_control[05] = GPIO1[17];	// FX3 GPIO_22
-assign GPIO1[15] = fx3_control[06];	// FX3 GPIO_23 (output)
+assign fx3_control[06] = GPIO1[15];	// FX3 GPIO_23
 assign fx3_control[07] = GPIO1[13];	// FX3 GPIO_24
 assign fx3_control[08] = GPIO1[11];	// FX3 GPIO_25
 assign fx3_control[09] = GPIO1[09];	// FX3 GPIO_26
@@ -106,7 +105,6 @@ assign GPIO1[31] = fx3_clock; // FX3 GPIO_16
 //
 // fx3_nError			CTL_04 (GPIO_21)		- output / not error
 // fx3_nTestmode		CTL_05 (GPIO_22)		- input / not testmode
-// fx3_nShort			CTL_06 (GPIO_23)		- output / not short packet
 //
 // fx3_addressbus		CTL_12 (GPIO_29)		- output / address bus (1-bit)
 
@@ -119,11 +117,9 @@ wire fx3_th0Ready;
 wire fx3_th0Watermark;
 wire fx3_nError;
 wire fx3_nTestmode;
-wire fx3_nShort;
 
 assign fx3_control[00] = fx3_nWrite; // 0 = writing, 1 = not writing
 assign fx3_control[04] = fx3_nError; // 0 = error, 1 = not error
-assign fx3_control[06] = fx3_nShort; // 1 = normal packet, 0 = short packet
 
 // Signal inputs from FX3
 assign fx3_nReady = fx3_control[01];
@@ -186,8 +182,7 @@ fx3StateMachine fx3StateMachine0 (
 	.fx3_nReady(fx3_nReady),
 	.fx3_th0Ready(fx3_th0Ready),
 	.fx3_th0Watermark(fx3_th0Watermark),
-	.fifoAlmostEmpty(fifoAlmostEmpty),
-	.fifoHalfFull(fifoHalfFull),
+	.fifo_DataReady(fifo_DataReady),
 	
 	// Outputs
 	.fx3_nWrite(fx3_nWrite)
@@ -212,15 +207,13 @@ readAdcData readAdcData0 (
 
 // Dual-clock FIFO buffer from ADC to FX3
 wire [9:0] fifo_outputData;
-wire fifoEmpty;
-wire fifoAlmostEmpty;
-wire fifoHalfFull;
-wire fifoFull;
+wire fifo_DataReady;
+wire fifo_ErrorFlag;
 
 // Flag error if FIFO becomes full (i.e. we are loosing data)
 // This is used to signal a transfer issue to the FX3 GPIF 
 // state machine
-assign fx3_nError = !fifoFull;
+assign fx3_nError = !fifo_ErrorFlag;
 
 fifo fifo0 (
 	.inputData(adc_outputData),
@@ -231,10 +224,8 @@ fifo fifo0 (
 	.nReady(fx3_nReady),
 	
 	.outputData(fifo_outputData),
-	.empty_flag(fifoEmpty),
-	.almostEmpty_flag(fifoAlmostEmpty),
-	.halfFull_flag(fifoHalfFull),
-	.full_flag(fifoFull)
+	.dataReadyFlag(fifo_DataReady),
+	.errorFlag(fifo_ErrorFlag)
 );
 
 // Convert 10-bit ADC data to 16-bit signed integer output

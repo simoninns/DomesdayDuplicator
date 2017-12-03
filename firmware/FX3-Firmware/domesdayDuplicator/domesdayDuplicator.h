@@ -48,8 +48,11 @@
 // Set the DMA buffer size to 16Kbytes for the application
 #define CY_FX_DMA_BUF_SIZE              (16384)
 
-// Set the total number of DMA buffers available to 4 (64Kbytes total)
-#define CY_FX_DMA_BUF_COUNT             (4)
+// Set the total number of DMA buffers available to 1 (16Kbytes total)
+// Note: Currently the GPIF state-machine is only using a single thread
+//       This could be changed to two threads to increase overall
+//       throughput in the future
+#define CY_FX_DMA_BUF_COUNT             (1)
 
 // Function prototypes
 void domDupThreadInitialise(uint32_t input);
