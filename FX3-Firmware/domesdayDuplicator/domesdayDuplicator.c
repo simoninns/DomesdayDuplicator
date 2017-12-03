@@ -43,7 +43,7 @@
 
 // Global definitions
 CyU3PThread glAppThread; // Application thread structure
-CyU3PDmaChannel glDmaChHandle; // DMA channel handle
+CyU3PDmaMultiChannel glDmaMultiChHandle; // DMA multi-channel handle
 
 CyBool_t glIsApplnActive = CyFalse; // Application active/ready flag
 CyBool_t glForceLinkU2 = CyFalse; // Force U2 flag
@@ -183,7 +183,7 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0023\r\n");
+    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0025\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - http://www.domesday86.com\r\n");
     CyU3PDebugPrint(1, "Debug console initialised\r\n");
 
@@ -368,7 +368,7 @@ void domDupStartApplication(void)
 {
     uint16_t size = 0;
     CyU3PEpConfig_t epCfg;
-    CyU3PDmaChannelConfig_t dmaConfig;
+    CyU3PDmaMultiChannelConfig_t dmaMultiConfig;
     CyU3PReturnStatus_t apiReturnStatus = CY_U3P_SUCCESS;
     CyU3PUSBSpeed_t usbSpeed = CyU3PUsbGetSpeed();
 
@@ -415,24 +415,26 @@ void domDupStartApplication(void)
     // Flush the end-point
     CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
 
-    // Create a DMA AUTO channel for the GPIF to USB transfer
-    CyU3PMemSet ((uint8_t *)&dmaConfig, 0, sizeof (dmaConfig));
-    dmaConfig.size  = CY_FX_DMA_BUF_SIZE;
-    dmaConfig.count = CY_FX_DMA_BUF_COUNT;
-    dmaConfig.prodSckId = CY_FX_EP_PRODUCER_SOCKET;
-    dmaConfig.consSckId = CY_FX_EP_CONSUMER_SOCKET;
-    dmaConfig.dmaMode = CY_U3P_DMA_MODE_BYTE;
+    // Create a DMA manual multi-channel for the GPIF to USB transfer
+    CyU3PMemSet ((uint8_t *)&dmaMultiConfig, 0, sizeof (dmaMultiConfig));
+    dmaMultiConfig.size  = CY_FX_DMA_BUF_SIZE;
+    dmaMultiConfig.count = CY_FX_DMA_BUF_COUNT;
+    dmaMultiConfig.validSckCount = 2;
+    dmaMultiConfig.prodSckId[0] = CY_FX_EP_PRODUCER_SOCKET0;
+    dmaMultiConfig.prodSckId[1] = CY_FX_EP_PRODUCER_SOCKET1;
+    dmaMultiConfig.consSckId[0] = CY_FX_EP_CONSUMER_SOCKET;
+    dmaMultiConfig.dmaMode = CY_U3P_DMA_MODE_BYTE;
 
-    apiReturnStatus = CyU3PDmaChannelCreate(&glDmaChHandle, CY_U3P_DMA_TYPE_AUTO, &dmaConfig);
+    apiReturnStatus = CyU3PDmaMultiChannelCreate(&glDmaMultiChHandle, CY_U3P_DMA_TYPE_MANUAL_MANY_TO_ONE, &dmaMultiConfig);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "CyU3PDmaChannelCreate failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "CyU3PDmaMultiChannelCreate failed, Error code = %d\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // Start the DMA channel transfer
-    apiReturnStatus = CyU3PDmaChannelSetXfer(&glDmaChHandle, 0);
+    apiReturnStatus = CyU3PDmaMultiChannelSetXfer(&glDmaMultiChHandle, 0, 0);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-		CyU3PDebugPrint(4, "CyU3PDmaChannelSetXfer failed, Error code = %d\n", apiReturnStatus);
+		CyU3PDebugPrint(4, "CyU3PDmaMultiChannelSetXfer failed, Error code = %d\n", apiReturnStatus);
 		domDupErrorHandler(apiReturnStatus);
 	}
 
@@ -447,14 +449,21 @@ void domDupStartApplication(void)
         domDupErrorHandler (apiReturnStatus);
     }
 
-    // Watermark value = 3, bus width = 16
+    // Water-mark value = 3, bus width = 16
     // Therefore, the number of 16-bit data words that may be written after the clock edge at which the partial
-    // flag is sampled asserted = (3 x (32/16))  4 = 2
+    // flag is sampled asserted = (3 x (32/16)) - 4 = 2
 
     // Set the thread 0 water-mark level to 1x 32 bit word
-    apiReturnStatus = CyU3PGpifSocketConfigure(0, CY_FX_EP_PRODUCER_SOCKET, 3, CyFalse, 1);
+    apiReturnStatus = CyU3PGpifSocketConfigure(0, CY_FX_EP_PRODUCER_SOCKET0, 3, CyFalse, 1);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
 		CyU3PDebugPrint(4, "CyU3PGpifSocketConfigure failed for thread0, error code = %d\n", apiReturnStatus);
+		domDupErrorHandler (apiReturnStatus);
+	}
+
+    // Set the thread 1 water-mark level to 1x 32 bit word
+	apiReturnStatus = CyU3PGpifSocketConfigure(1, CY_FX_EP_PRODUCER_SOCKET1, 3, CyFalse, 1);
+	if (apiReturnStatus != CY_U3P_SUCCESS) {
+		CyU3PDebugPrint(4, "CyU3PGpifSocketConfigure failed for thread1, error code = %d\n", apiReturnStatus);
 		domDupErrorHandler (apiReturnStatus);
 	}
 
@@ -485,7 +494,7 @@ void domDupStopApplication(void)
     CyU3PPibDeInit();
 
     // Destroy DMA channels
-    CyU3PDmaChannelDestroy (&glDmaChHandle);
+    CyU3PDmaMultiChannelDestroy (&glDmaMultiChHandle);
 
     // Flush end-points
     CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
@@ -646,10 +655,10 @@ CyBool_t domDupUSBSetupCB (uint32_t setupData0, uint32_t setupData1)
         	(wValue == CY_U3P_USBX_FS_EP_HALT)) {
             if (glIsApplnActive) {
                 if (wIndex == CY_FX_EP_CONSUMER) {
-                    CyU3PDmaChannelReset (&glDmaChHandle);
+                    CyU3PDmaMultiChannelReset (&glDmaMultiChHandle);
                     CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
                     CyU3PUsbResetEp (CY_FX_EP_CONSUMER);
-                    CyU3PDmaChannelSetXfer(&glDmaChHandle, 0);
+                    CyU3PDmaMultiChannelSetXfer(&glDmaMultiChHandle, 0, 0);
                     CyU3PUsbStall (wIndex, CyFalse, CyTrue);
                     isHandled = CyTrue;
                     CyU3PUsbAckSetup ();

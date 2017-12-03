@@ -40,7 +40,8 @@
 // End-point and socket definitions
 #define CY_FX_EP_CONSUMER               0x81
 #define CY_FX_EP_CONSUMER_SOCKET        CY_U3P_UIB_SOCKET_CONS_1
-#define CY_FX_EP_PRODUCER_SOCKET		CY_U3P_PIB_SOCKET_0
+#define CY_FX_EP_PRODUCER_SOCKET0		CY_U3P_PIB_SOCKET_0
+#define CY_FX_EP_PRODUCER_SOCKET1		CY_U3P_PIB_SOCKET_1
 
 // Set USB 3 burst length to 16Kbytes
 #define CY_FX_EP_BURST_LENGTH           (16)
@@ -48,11 +49,8 @@
 // Set the DMA buffer size to 16Kbytes for the application
 #define CY_FX_DMA_BUF_SIZE              (16384)
 
-// Set the total number of DMA buffers available to 1 (16Kbytes total)
-// Note: Currently the GPIF state-machine is only using a single thread
-//       This could be changed to two threads to increase overall
-//       throughput in the future
-#define CY_FX_DMA_BUF_COUNT             (1)
+// Set the total number of DMA buffers available to 2 (32Kbytes total)
+#define CY_FX_DMA_BUF_COUNT             (2)
 
 // Function prototypes
 void domDupThreadInitialise(uint32_t input);
