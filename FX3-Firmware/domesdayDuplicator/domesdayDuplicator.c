@@ -183,7 +183,7 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0025\r\n");
+    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0026\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - http://www.domesday86.com\r\n");
     CyU3PDebugPrint(1, "Debug console initialised\r\n");
 
@@ -425,7 +425,7 @@ void domDupStartApplication(void)
     dmaMultiConfig.consSckId[0] = CY_FX_EP_CONSUMER_SOCKET;
     dmaMultiConfig.dmaMode = CY_U3P_DMA_MODE_BYTE;
 
-    apiReturnStatus = CyU3PDmaMultiChannelCreate(&glDmaMultiChHandle, CY_U3P_DMA_TYPE_MANUAL_MANY_TO_ONE, &dmaMultiConfig);
+    apiReturnStatus = CyU3PDmaMultiChannelCreate(&glDmaMultiChHandle, CY_U3P_DMA_TYPE_AUTO_MANY_TO_ONE, &dmaMultiConfig);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
         CyU3PDebugPrint(4, "CyU3PDmaMultiChannelCreate failed, Error code = %d\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
