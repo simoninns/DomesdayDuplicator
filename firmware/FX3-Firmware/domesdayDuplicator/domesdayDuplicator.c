@@ -181,11 +181,9 @@ void domDupThreadInitialise(uint32_t input)
     CyU3PReturnStatus_t status;
     CyU3PUsbLinkPowerMode powerState;
 
-//    uint32_t debugPause = 0;
-
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0021\r\n");
+    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0022\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - http://www.domesday86.com\r\n");
     CyU3PDebugPrint(1, "Debug console initialised\r\n");
 
@@ -215,13 +213,6 @@ void domDupThreadInitialise(uint32_t input)
                 }
             }
         }
-
-        // Output application heart beat character to debug console
-//        debugPause++;
-//        if (debugPause == 1000000) {
-//        	CyU3PDebugPrint(1, "*");
-//        	debugPause = 0;
-//        }
     }
 }
 
@@ -568,10 +559,10 @@ void domDupDebugInit(void)
 
 // Call back functions ----------------------------------------------------------------------------------
 
-// Handle CPU_INT from GPIF callback (used for debug)
+// Handle CPU_INT from GPIF callback (set when the FPGA FIFO buffer is full)
 void GpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State)
 {
-	if (Event == CYU3P_GPIF_EVT_SM_INTERRUPT) CyU3PDebugPrint(8, "\r\nERROR indication interrupt from GPIF received!\r\n");
+	if (Event == CYU3P_GPIF_EVT_SM_INTERRUPT) CyU3PDebugPrint(8, "\r\nFPGA ERROR: FIFO buffer full (nError set) - data has been lost!\r\n");
 }
 
 // USB set-up request callback
@@ -675,11 +666,11 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
 {
     switch (eventType) {
     case CY_U3P_USB_EVENT_CONNECT:
-		CyU3PDebugPrint(8, "CY_U3P_USB_EVENT_CONNECT detected\r\n");
+		CyU3PDebugPrint(8, "CY_U3P_USB_EVENT_CONNECT received - No action taken\r\n");
 		break;
 
     case CY_U3P_USB_EVENT_SETCONF:
-    	CyU3PDebugPrint(8, "CY_U3P_USB_EVENT_SETCONF detected\r\n");
+    	CyU3PDebugPrint(8, "CY_U3P_USB_EVENT_SETCONF received - Restarting application\r\n");
     	// If the application is already active, stop it
         if (glIsApplnActive) {
             domDupStopApplication();
@@ -699,17 +690,17 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
         }
 
         if (eventType == CY_U3P_USB_EVENT_DISCONNECT) {
-            CyU3PDebugPrint (8, "CY_U3P_USB_EVENT_DISCONNECT detected\r\n");
+            CyU3PDebugPrint (8, "CY_U3P_USB_EVENT_DISCONNECT received - Application stopped\r\n");
         }
 
         if (eventType == CY_U3P_USB_EVENT_RESET) {
-			CyU3PDebugPrint (8, "CY_U3P_USB_EVENT_DISCONNECT detected\r\n");
+			CyU3PDebugPrint (8, "CY_U3P_USB_EVENT_RESET received - Application stopped\r\n");
 		}
         break;
 
     default:
     	// Unknown/unhandled USB event received
-    	CyU3PDebugPrint (8, "UNKNOWN USB event detected\r\n");
+    	CyU3PDebugPrint (8, "Unhandled USB event received\r\n");
         break;
     }
 }

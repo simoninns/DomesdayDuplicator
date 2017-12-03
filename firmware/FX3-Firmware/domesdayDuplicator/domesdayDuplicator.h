@@ -42,13 +42,13 @@
 #define CY_FX_EP_CONSUMER_SOCKET        CY_U3P_UIB_SOCKET_CONS_1
 #define CY_FX_EP_PRODUCER_SOCKET		CY_U3P_PIB_SOCKET_0
 
-// Set USB 3 burst length to 16K
+// Set USB 3 burst length to 16Kbytes
 #define CY_FX_EP_BURST_LENGTH           (16)
 
-// Set the DMA buffer size to 16K for the application
+// Set the DMA buffer size to 16Kbytes for the application
 #define CY_FX_DMA_BUF_SIZE              (16384)
 
-// Set the total number of DMA buffers available to 4
+// Set the total number of DMA buffers available to 4 (64Kbytes total)
 #define CY_FX_DMA_BUF_COUNT             (4)
 
 // Function prototypes
