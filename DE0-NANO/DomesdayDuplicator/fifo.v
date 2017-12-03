@@ -86,7 +86,7 @@ always @(posedge outputClock, negedge nReset)begin
 		full_flag <= rdFull;
 		
 		// Half full flag logic (half full at 4096 words or greater)
-		if (rdLevel > 14'd4096) begin
+		if (rdLevel > 14'd512) begin
 			halfFull_flag <= 1'b1;
 		end else begin
 			halfFull_flag <= 1'b0;

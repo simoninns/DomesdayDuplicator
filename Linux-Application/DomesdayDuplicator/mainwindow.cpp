@@ -51,6 +51,7 @@ MainWindow::MainWindow(QWidget *parent) :
     if (domDupUsbDevice->isConnected()) {
         status->setText(tr("Connected"));
         ui->transferPushButton->setEnabled(true);
+        ui->testModeCheckBox->setEnabled(true);
     } else {
         status->setText(tr("Domesday Duplicator USB device not connected"));
         ui->transferPushButton->setEnabled(false);
@@ -118,10 +119,12 @@ void MainWindow::on_actionSave_As_triggered()
         // No file name was specified
         qDebug() << "MainWindow::on_actionSave_As_triggered(): User did not supply a file name";
         ui->transferPushButton->setEnabled(false);
+        ui->testModeCheckBox->setEnabled(false);
     } else {
         // File name specified
         qDebug() << "MainWindow::on_actionSave_As_triggered(): Save as filename = " << fileName;
         ui->transferPushButton->setEnabled(true);
+        ui->testModeCheckBox->setEnabled(true);
     }
 }
 

@@ -239,9 +239,12 @@ void QUsbBulkTransfer::run()
 
     // Set up the initial transfers and target the current disk buffer (0)
     for (unsigned int currentTransferNumber = 0; currentTransferNumber < queueDepth; currentTransferNumber++) {
-        // Set up the transfer identifier
+        // Set up the transfer identifier (sent via user data to the callback)
         transferId[currentTransferNumber].bufferNumber = 0; // Always start with the first buffer
         transferId[currentTransferNumber].transferNumber = currentTransferNumber;
+
+        // Set transfer flag to cause transfer error if there is a short packet
+        usbTransfers[currentTransferNumber]->flags = LIBUSB_TRANSFER_SHORT_NOT_OK;
 
         libusb_fill_bulk_transfer(usbTransfers[currentTransferNumber], bDevHandle, bEndPoint,
             usbDataBuffers[currentTransferNumber], (requestSize * packetSize), bulkTransferCallback, &transferId[currentTransferNumber], 5000);
@@ -350,8 +353,6 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     transferIdStruct *transferUserData = (transferIdStruct *)transfer->user_data;
     unsigned int threadDiskBuffer = transferUserData->bufferNumber;
     unsigned int threadTransferNumber = transferUserData->transferNumber;
-
-    if (transfer->actual_length != transfer->length) qDebug() << "LENGTH MISMATCH!";
 
     // Disk buffer handling -----------------------------------------------------------------------------------
 

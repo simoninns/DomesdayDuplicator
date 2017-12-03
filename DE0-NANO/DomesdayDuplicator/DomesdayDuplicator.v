@@ -164,16 +164,17 @@ assign GPIO0[33] = adc_clock;
 
 // Application logic begins ---------------------------------------------------
 
-// FX3 PCLK is DE0-Nano 50 MHz system clock
-assign fx3_clock = CLOCK_50;
-
-// ADC clock is 40 MHz and generated using a PLL
+// A PLL function is used to generate the required clocks
+//
+// fx3_clock is 64 MHz (also used as system clock)
+// adc_clock is 32 MHz
 IPpllGenerator IPpllGenerator0 (
 	// Inputs
 	.inclk0(CLOCK_50),
 	
 	// Outputs
-	.c0(adc_clock)
+	.c0(fx3_clock),	// 64 MHz clock
+	.c1(adc_clock)		// 32 MHz clock
 );
 
 
@@ -189,8 +190,7 @@ fx3StateMachine fx3StateMachine0 (
 	.fifoHalfFull(fifoHalfFull),
 	
 	// Outputs
-	.fx3_nWrite(fx3_nWrite),
-	.fx3_nShort(fx3_nShort)
+	.fx3_nWrite(fx3_nWrite)
 );
 
 // Read the current ADC value
