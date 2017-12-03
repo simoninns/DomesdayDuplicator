@@ -36,15 +36,13 @@ module fifo (
 	
 	output [9:0] outputData,
 	
-	output reg empty_flag,
-	output reg almostEmpty_flag,
-	output reg halfFull_flag,
-	output reg full_flag
+	output reg dataReadyFlag,
+	output reg errorFlag
 );
 
 wire rdEmpty;
-wire [13:0] rdLevel;
 wire rdFull;
+wire [15:0] rdLevel;
 wire [9:0] fifoOutputData;
 
 // (not) Collect data flag is 0 when we should be collecting data
@@ -52,7 +50,7 @@ wire [9:0] fifoOutputData;
 wire nCollectData;
 assign nCollectData = (nReset == 1'b1 && nReady == 1'b0) ? 1'b0 : 1'b1;
 
-// Data output is only valid when FIFOis not in reset
+// Data output is only valid when FIFO is not in reset
 assign outputData = (nCollectData) ? 10'b0 : fifoOutputData;
 
 // Map in the DCFIFO IP function
@@ -69,34 +67,45 @@ IPfifo IPfifo0 (
 	.rdusedw(rdLevel)						// Output number of used words
 );
 
-// Note: DCFIFO is 8192 10-bit words
-// rdLevel (rdusedw) is 14 bits (13 bits + 1)
+// Note:
+//
+// FX3 DMA buffer size per thread is 16Kbytes
+// The FX3 is supporting 2 threads, therefore the complete DMA data buffer
+// is 32Kbytes.
+//
+// ADC data is 10-bits, this is scaled to 16-bits before sending to the FX3
+// This means that the FX3 DMA buffer is 8K words
+//
+// Data transmission will only start when the FIFO buffer contains
+// enough data to fulfil a complete transfer (i.e. the size of the FX3 DMA
+// buffer).
+//
+// Data transmission to the FX3 is at twice the data rate of ADC data
+// collection.  To ensure the FIFO never gets full, the FIFO size is set
+// to 32K words (32767 10-bit words) - equivalent to 64Kbytes
+
+// Note:
+//
+// rdLevel (rdusedw) is 16 bits (15 bits + 1)
 // rdLevel should not be used as 'full flag' - refer to DCFIFO
 // documentation for details.
 
 // Process the flags aligned with the output clock
 always @(posedge outputClock, negedge nReset)begin
 	if (!nReset) begin
-		empty_flag <= 1'b0;
-		almostEmpty_flag <= 1'b0;
-		halfFull_flag <= 1'b0;
-		full_flag <= 1'b0;
-	end else begin 
-		empty_flag <= rdEmpty;
-		full_flag <= rdFull;
+		dataReadyFlag <= 1'b0;
+		errorFlag <= 1'b0;
+	end else begin
+		// Error flag is set when FIFO is full (data is being lost)
+		errorFlag <= rdFull;
 		
-		// Half full flag logic (half full at 4096 words or greater)
-		if (rdLevel > 14'd512) begin
-			halfFull_flag <= 1'b1;
+		// Flag data ready when 8K words of data are available
+		if (rdLevel > 16'd8191) begin
+			// Data is ready
+			dataReadyFlag <= 1'b1;
 		end else begin
-			halfFull_flag <= 1'b0;
-		end
-		
-		// Almost empty logic (almost empty at 128 words or less)
-		if (rdLevel < 14'd128) begin
-			almostEmpty_flag <= 1'b0;
-		end else begin
-			almostEmpty_flag <= 1'b0;
+			// Data is not ready
+			dataReadyFlag <= 1'b0;
 		end
 	end
 end
