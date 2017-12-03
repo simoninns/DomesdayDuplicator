@@ -1,6 +1,6 @@
 /*
  * Project Name: DomesdayDuplicator.cyfx
- * Time : 12/03/2017 12:20:00
+ * Time : 12/03/2017 14:19:22
  * Device Type: FX3
  * Project Type: GPIF2
  *
@@ -43,7 +43,7 @@
    Transition function values used in the state machine.
  */
 uint16_t CyFxGpifTransition[]  = {
-    0x0000, 0xFFFF, 0x3333, 0x5555, 0xAAAA
+    0x0000, 0xFFFF, 0x5555, 0xCCCC, 0x3333
 };
 
 /* Summary
@@ -53,10 +53,10 @@ uint16_t CyFxGpifTransition[]  = {
    waveform table. 
  */
 CyU3PGpifWaveData CyFxGpifWavedata[]  = {
-    {{0x3E700401,0x00010004,0x80000000},{0x00000000,0x00000000,0x00000000}},
-    {{0x1E739C02,0x00000000,0xC0000100},{0x2E708003,0x20000008,0x80000000}},
-    {{0x1E739C04,0x00000100,0xC0000100},{0x3E700401,0x00010004,0x80000000}},
-    {{0x2E708003,0x20000008,0x80000000},{0x00000000,0x00000000,0x00000000}}
+    {{0x2E700401,0x00030008,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x1E739C02,0x00000000,0xC0000100},{0x2E700403,0x20000006,0x80000000}},
+    {{0x1E739C04,0x00000300,0xC0000100},{0x2E700401,0x00030008,0x80000000}},
+    {{0x2E700403,0x20000006,0x80000000},{0x00000000,0x00000000,0x00000000}}
 };
 
 /* Summary
