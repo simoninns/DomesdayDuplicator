@@ -30,9 +30,12 @@ module fx3StateMachine(
 	input fx3_nReady,
 	input fx3_th0Ready,
 	input fx3_th0Watermark,
+	input fx3_th1Ready,
+	input fx3_th1Watermark,
 	input fifo_DataReady,
 	
-	output fx3_nWrite
+	output fx3_nWrite,
+	output fx3_addressBus
 );
 
 // State machine state definitions (3-bit 0-7)
@@ -59,6 +62,9 @@ always @(posedge fx3_clock, negedge fx3_nReset) begin
 	end	
 end
 
+// Control the address bus signal to the FX3
+assign fx3_addressBus = 1'b0; // Force selection of thread0
+
 // Set state machine to idle on reset condition
 // or assign next state as current when running
 always @(posedge fx3_clock, negedge fx3_nReset) begin
@@ -73,16 +79,22 @@ end
 // are only read on the clock edge
 reg fx3_th0Ready_flag;
 reg fx3_th0Watermark_flag;
+reg fx3_th1Ready_flag;
+reg fx3_th1Watermark_flag;
 reg fx3_nReady_flag;
 
 always @(posedge fx3_clock, negedge fx3_nReset)begin
 	if(!fx3_nReset)begin 
 		fx3_th0Ready_flag <= 1'b0;
 		fx3_th0Watermark_flag <= 1'b0;
+		fx3_th1Ready_flag <= 1'b0;
+		fx3_th1Watermark_flag <= 1'b0;
 		fx3_nReady_flag <= 1'b1;
 	end else begin
 		fx3_th0Ready_flag <= fx3_th0Ready;
 		fx3_th0Watermark_flag <= fx3_th0Watermark;
+		fx3_th1Ready_flag <= fx3_th1Ready;
+		fx3_th1Watermark_flag <= fx3_th1Watermark;
 		fx3_nReady_flag <= fx3_nReady;
 	end	
 end
