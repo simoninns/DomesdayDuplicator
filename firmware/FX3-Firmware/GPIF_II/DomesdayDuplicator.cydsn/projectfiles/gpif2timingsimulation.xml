@@ -6,44 +6,5 @@
   <Scenario Name="SCENARIO0" CurrentThread="Thread1">
     <State StateId="STARTSTATE0" WaitNumber="0" />
     <State StateId="STATE5" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
-    <State StateId="STATE2" WaitNumber="0" />
   </Scenario>
 </GPIFIITimingSimulation>
