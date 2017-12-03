@@ -33,8 +33,7 @@ module fx3StateMachine(
 	input fifoAlmostEmpty,
 	input fifoHalfFull,
 	
-	output fx3_nWrite,
-	output fx3_nShort
+	output fx3_nWrite
 );
 
 // State machine state definitions (3-bit 0-7)
@@ -45,13 +44,12 @@ parameter [2:0] state_th0Wait				= 3'd1;
 parameter [2:0] state_th0WaitWatermark	= 3'd2;
 parameter [2:0] state_th0Send				= 3'd3;
 parameter [2:0] state_th0Delay			= 3'd4;
-parameter [2:0] state_shortPacket		= 3'd5;
 
 // Control the nWrite flag signal to the FX3
 reg fx3_nWrite_flag;
 assign fx3_nWrite = fx3_nWrite_flag;
 wire inSendingState;
-assign inSendingState = (sm_currentState == state_th0Send || sm_currentState == state_shortPacket) ? 1'b0 : 1'b1; // 0 = Writing, 1 = not Writing
+assign inSendingState = (sm_currentState == state_th0Send) ? 1'b0 : 1'b1; // 0 = Writing, 1 = not Writing
 
 // Process the nWrite flag on the clock edge
 always @(posedge fx3_clock, negedge fx3_nReset) begin
@@ -59,21 +57,6 @@ always @(posedge fx3_clock, negedge fx3_nReset) begin
 		fx3_nWrite_flag <= 1'b1;
 	end else begin
 		fx3_nWrite_flag <= inSendingState;
-	end	
-end
-
-// Control the nShort flag signal to the FX3
-reg fx3_nShort_flag;
-assign fx3_nShort = fx3_nShort_flag;
-wire inShortState;
-assign inShortState = (sm_currentState == state_shortPacket) ? 1'b0 : 1'b1; // 0 = Short packet, 1 = not Short packet
-
-// Process the nShort flag on the clock edge
-always @(posedge fx3_clock, negedge fx3_nReset) begin
-	if(!fx3_nReset)begin 
-		fx3_nShort_flag <= 1'b1;
-	end else begin
-		fx3_nShort_flag <= inShortState;
 	end	
 end
 
@@ -104,17 +87,6 @@ always @(posedge fx3_clock, negedge fx3_nReset)begin
 		fx3_nReady_flag <= fx3_nReady;
 	end	
 end
-
-// Note: The short packet support is included below, but it's very
-// likely that the timing is incorrect and will result in lost data.
-//
-// Right now (using the Cypress test tools) there doesn't seem to be
-// any support for short packets, so testing isn't possible until the
-// linux application is up and running.
-//
-// In testing (with the present FIFO settings) the FIFO never gets to
-// the 'nearly empty' watermark; so the functionality is not currently
-// used (and data transfer is good).
 
 // State machine transition control
 always @(*)begin
@@ -150,24 +122,13 @@ always @(*)begin
 				// Watermark flag set - transition to thread 0 wait for ready
 				sm_nextState = state_th0Delay;
 			end else begin
-				// Check that FIFO still has sufficient data
-				if (fifoAlmostEmpty == 1'b0) begin
-					// FIFO has sufficient data, continue
-					sm_nextState = state_th0Send; 
-				end else begin
-					// FIFO is almost empty... commit a short packet
-					sm_nextState = state_shortPacket; 
-				end
+				// Continue sending data
+				sm_nextState = state_th0Send; 
 			end
 		end
 		
 		// state_th0Delay - Clock delay before beginning the write cycle again 
 		state_th0Delay:begin
-			sm_nextState = state_th0Wait;
-		end
-		
-		// state_shortPacket - Commit a short packet (FIFO level is too low)
-		state_shortPacket:begin
 			sm_nextState = state_th0Wait;
 		end
 
