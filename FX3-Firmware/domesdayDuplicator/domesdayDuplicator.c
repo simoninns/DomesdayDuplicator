@@ -115,7 +115,7 @@ int main(void)
 		goto handleFatalError;
 	}
 
-	// Claim CTRL[10]/GPIO27 from the GPIF Interface (nRESET signal)
+	// Claim GPIO27 from the GPIF Interface (nRESET signal)
 	status = CyU3PDeviceGpioOverride(27, CyTrue);
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
@@ -131,34 +131,34 @@ int main(void)
 		goto handleFatalError;
 	}
 
-	// Claim CTRL[1]/GPIO18 from the GPIF Interface (nREADY signal)
-	status = CyU3PDeviceGpioOverride(18, CyTrue);
+	// Claim GPIO19 from the GPIF Interface (collectData signal)
+	status = CyU3PDeviceGpioOverride(19, CyTrue);
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
 	}
 
-	// Make the FPGA transfer not ready by driving nREADY/GPIO18 high
+	// Put the FPGA in not collectData by driving GPIO19 low
 	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = 1;
+	gpioConfig.outValue = 0;
 	gpioConfig.driveLowEn = CyTrue;
 	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(18, &gpioConfig);
+	status = CyU3PGpioSetSimpleConfig(19, &gpioConfig);
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
 	}
 
-	// Claim CTRL[5]/GPIO22 from the GPIF Interface (nTestmode signal)
-	status = CyU3PDeviceGpioOverride(22, CyTrue);
+	// Claim GPIO20 from the GPIF Interface (testMode signal)
+	status = CyU3PDeviceGpioOverride(20, CyTrue);
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
 	}
 
-	// Put the FPGA in normal (not test) mode by driving nREADY/GPIO18 high
+	// Put the FPGA in not test mode by driving GPIO20 low
 	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = 1;
+	gpioConfig.outValue = 0;
 	gpioConfig.driveLowEn = CyTrue;
 	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(22, &gpioConfig);
+	status = CyU3PGpioSetSimpleConfig(20, &gpioConfig);
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
 	}
@@ -183,7 +183,7 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0027\r\n");
+    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0037\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - http://www.domesday86.com\r\n");
     CyU3PDebugPrint(1, "Debug console initialised\r\n");
 
@@ -599,13 +599,13 @@ CyBool_t domDupUSBSetupCB (uint32_t setupData0, uint32_t setupData1)
 				if (wValue == 1) {
 					// Start collection request from USB host
 					CyU3PDebugPrint(8, "Vendor specific command received: Start data collection\r\n");
-					CyU3PGpioSetValue(18, 0); // nREADY GPIO low
+					CyU3PGpioSetValue(19, 1); // collectData GPIO high
 				}
 
 				if (wValue == 0) {
 					// Stop collection request from USB host
 					CyU3PDebugPrint(8, "Vendor specific command received: Stop data collection\r\n");
-					CyU3PGpioSetValue(18, 1); // nREADY GPIO high
+					CyU3PGpioSetValue(19, 0); // collectData GPIO low
 				}
 			}
 
@@ -614,13 +614,13 @@ CyBool_t domDupUSBSetupCB (uint32_t setupData0, uint32_t setupData1)
 				if (wValue == 0) {
 					// Signal FPGA with test mode off
 					CyU3PDebugPrint(8, "Vendor specific command received: Test mode off\r\n");
-					CyU3PGpioSetValue(22, 1); // nTestmode GPIO high
+					CyU3PGpioSetValue(22, 0); // testMode GPIO low
 				}
 
 				if (wValue == 1) {
 					// Signal FPGA with test mode on
 					CyU3PDebugPrint(8, "Vendor specific command received: Test mode on\r\n");
-					CyU3PGpioSetValue(22, 0); // nTestmode GPIO low
+					CyU3PGpioSetValue(22, 1); // testMode GPIO high
 				}
 			}
 

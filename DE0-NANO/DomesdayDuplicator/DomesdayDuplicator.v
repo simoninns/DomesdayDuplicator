@@ -74,73 +74,50 @@ assign GPIO1[02] = fx3_databus[15];
 //assign GPIO0[20] = fx3_databus[30];
 //assign GPIO0[21] = fx3_databus[31];
 
-// 13-bit control bus physical mapping
-assign GPIO1[27] = fx3_control[00]; // FX3 GPIO_17 (output)
-assign fx3_control[01] = GPIO1[25];	// FX3 GPIO_18
-assign fx3_control[02] = GPIO1[23];	// FX3 GPIO_19
-assign fx3_control[03] = GPIO1[21];	// FX3 GPIO_20
-assign GPIO1[19] = fx3_control[04];	// FX3 GPIO_21 (output)
-assign fx3_control[05] = GPIO1[17];	// FX3 GPIO_22
-assign fx3_control[06] = GPIO1[15];	// FX3 GPIO_23
-assign fx3_control[07] = GPIO1[13];	// FX3 GPIO_24
-assign fx3_control[08] = GPIO1[11];	// FX3 GPIO_25
-assign fx3_control[09] = GPIO1[09];	// FX3 GPIO_26
-assign fx3_control[10] = GPIO1[07];	// FX3 GPIO_27
-assign fx3_control[11] = GPIO1[05];	// FX3 GPIO_28
-assign GPIO1[03] = fx3_control[12];	// FX3 GPIO_29 (output)
-
 // FX3 Clock physical mapping
 assign GPIO1[31] = fx3_clock; // FX3 GPIO_16
 
+// 13-bit control bus physical mapping
+assign GPIO1[27] = fx3_control[00]; // FX3 CTL_00 GPIO_17 (output)
+assign fx3_control[01] = GPIO1[25];	// FX3 CTL_01 GPIO_18
+assign fx3_control[02] = GPIO1[23];	// FX3 CTL_02 GPIO_19
+assign fx3_control[03] = GPIO1[21];	// FX3 CTL_03 GPIO_20
+assign fx3_control[04] = GPIO1[19];	// FX3 CTL_04 GPIO_21
+assign fx3_control[05] = GPIO1[17];	// FX3 CTL_05 GPIO_22
+assign fx3_control[06] = GPIO1[15];	// FX3 CTL_06 GPIO_23
+assign fx3_control[07] = GPIO1[13];	// FX3 CTL_07 GPIO_24
+assign fx3_control[08] = GPIO1[11];	// FX3 CTL_08 GPIO_25
+assign fx3_control[09] = GPIO1[09];	// FX3 CTL_09 GPIO_26
+assign fx3_control[10] = GPIO1[07];	// FX3 CTL_10 GPIO_27
+assign fx3_control[11] = GPIO1[05];	// FX3 CTL_11 GPIO_28
+assign fx3_control[12] = GPIO1[03];	// FX3 CTL_12 GPIO_29
 
-// FX3 Application mapping
-
-// fx3_nReset			CTL_10 (GPIO_27)		- input / reset active low
+// FX3 Signal mapping:
 //
-// fx3_nWrite 			CTL_00 (GPIO_17)		- output / not write flag
-// fx3_nReady			CTL_01 (GPIO_18)		- input / not Ready flag
-//
-// fx3_th0Ready		CTL_02 (GPIO_19)		- input / thread 0 ready flag
-// fx3_th0Watermark	CTL_03 (GPIO_20)		- input / thread 0 watermark flag
-//
-// fx3_th1Ready		CTL_06 (GPIO_23)		- input / thread 1 ready flag
-// fx3_th1Watermark	CTL_07 (GPIO_24)		- input / thread 1 watermark flag
-//
-// fx3_addressBus		CTL_12 (GPIO_29)		- output / address bus (1-bit)
-//
-// fx3_nError			CTL_04 (GPIO_21)		- output / not error
-// fx3_nTestmode		CTL_05 (GPIO_22)		- input / not testmode
+// CLK					GPIO16		PCLK		Output	- Data clock
+// dataAvailable		GPIO_17		CTL_00	Output	- FPGA signals if data is available for reading
+// Databus				GPIO0:15					Output	- Databus
+// nReset				GPIO_27		CTL_10	Input		- FX3 signals (not) reset condition
+// collectData			GPIO_19		CTL_02	Input		- FX3 signals data collection on/off
+// readData				GPIO_18		CTL_01	Input		- FX3 signals it is reading from the databus
+// testMode				GPIO_20		CTL_03	Input		- FX3 signals test mode on/off
 
 
 // Wire definitions for FX3 GPIO mapping
 wire fx3_nReset;
-wire fx3_nWrite;
-wire fx3_nReady;
-wire fx3_th0Ready;
-wire fx3_th0Watermark;
-wire fx3_th1Ready;
-wire fx3_th1Watermark;
-wire fx3_addressBus;
-wire fx3_nError;
-wire fx3_nTestmode;
+wire fx3_dataAvailable;
+wire fx3_collectData;
+wire fx3_readData;
+wire fx3_testMode;
 
 // Signal outputs to FX3
-assign fx3_control[00] = fx3_nWrite; // 0 = writing, 1 = not writing
-assign fx3_control[04] = fx3_nError; // 0 = error, 1 = not error
-assign fx3_control[12] = fx3_addressBus;
+assign fx3_control[00] = fx3_dataAvailable;
 
 // Signal inputs from FX3
-assign fx3_nReady = fx3_control[01];
-
-assign fx3_th0Ready     = fx3_control[02]; // 1 = not ready, 0 = ready
-assign fx3_th0Watermark = fx3_control[03];
-assign fx3_th1Ready     = fx3_control[06]; // 1 = not ready, 0 = ready
-assign fx3_th1Watermark = fx3_control[07];
-
-assign fx3_nTestmode = fx3_control[05]; // 1 = not test mode, 0 = test mode
-
-// nReset signal from FX3
-assign fx3_nReset = fx3_control[10];
+assign fx3_nReset      = fx3_control[10];
+assign fx3_collectData = fx3_control[02];
+assign fx3_readData    = fx3_control[01];
+assign fx3_testMode    = fx3_control[03];
 
 // FX3 Hardware mapping ends --------------------------------------------------
 
@@ -170,83 +147,45 @@ assign GPIO0[33] = adc_clock;
 
 // Application logic begins ---------------------------------------------------
 
-// A PLL function is used to generate the required clocks
+
+// PLL Function (clock generation) --------------------------------------------
 //
-// fx3_clock is 64 MHz (also used as system clock)
+// fx3_clock is 32 MHz (also used as system clock)
 // adc_clock is 32 MHz
 IPpllGenerator IPpllGenerator0 (
 	// Inputs
 	.inclk0(CLOCK_50),
 	
 	// Outputs
-	.c0(fx3_clock),	// 64 MHz clock
+	.c0(fx3_clock),	// 32 MHz clock
 	.c1(adc_clock)		// 32 MHz clock
 );
 
+wire fx3isReading;
 
-// FX3 State machine logic
+// Data generation logic -----------------------------------------------------
+dataGenerator dataGenerator0 (
+	// Inputs
+	.nReset(fx3_nReset),						// Not reset
+	.inclk(fx3_clock),						// Input clock
+	.collectData(fx3_collectData),		// Collect data (ADC data is discarded if 0)
+	.readData(fx3isReading),				// 1 = FX3 is reading data
+	.testMode(fx3_testMode),				// 1 = Test mode on
+	
+	// Outputs
+	.dataAvailable(fx3_dataAvailable),	// Set if FIFO buffer contains at least 8192 words of data
+	.dataOut(fx3_databus)					// 16-bit data output
+);
+
+// FX3 GPIF state-machine logic ----------------------------------------------
 fx3StateMachine fx3StateMachine0 (
 	// Inputs
-	.fx3_clock(fx3_clock),
-	.fx3_nReset(fx3_nReset),
-	.fx3_nReady(fx3_nReady),
-	.fx3_th0Ready(fx3_th0Ready),
-	.fx3_th0Watermark(fx3_th0Watermark),
-	.fx3_th1Ready(fx3_th1Ready),
-	.fx3_th1Watermark(fx3_th1Watermark),
-	.fifo_DataReady(fifo_DataReady),
+	.nReset(fx3_nReset),						// Not reset
+	.inclk(fx3_clock),						// Input clock
+	.readData(fx3_readData),				// FX3 is about to start sampling the databus
 	
-	// Outputs
-	.fx3_nWrite(fx3_nWrite),
-	.fx3_addressBus(fx3_addressBus)
-);
-
-// Read the current ADC value
-// Note: The test mode flag causes the module
-// to output a sequential data pattern to allow
-// integrity checking of the data transfer
-wire [9:0] adc_outputData;
-readAdcData readAdcData0 (
-	// Inputs
-	.clock(adc_clock),
-	.nReset(fx3_nReset),
-	.adcDatabus(adcData),
-	.nTestmode(fx3_nTestmode),
-	
-	// Outputs
-	.adcData(adc_outputData)
-);
-
-
-// Dual-clock FIFO buffer from ADC to FX3
-wire [9:0] fifo_outputData;
-wire fifo_DataReady;
-wire fifo_ErrorFlag;
-
-// Flag error if FIFO becomes full (i.e. we are loosing data)
-// This is used to signal a transfer issue to the FX3 GPIF 
-// state machine
-assign fx3_nError = !fifo_ErrorFlag;
-
-fifo fifo0 (
-	.inputData(adc_outputData),
-	.inputClock(adc_clock),
-	.nReset(fx3_nReset),
-	.outputClock(fx3_clock),
-	.outputAck(!fx3_nWrite),
-	.nReady(fx3_nReady),
-	
-	.outputData(fifo_outputData),
-	.dataReadyFlag(fifo_DataReady),
-	.errorFlag(fifo_ErrorFlag)
-);
-
-// Convert 10-bit ADC data to 16-bit signed integer output
-adcDataConvert adcDataConvert0 (
-	.clock(fx3_clock),
-	.nReset(fx3_nReset),
-	.inputData(fifo_outputData),
-	.outputData(fx3_databus)
+	// Output
+	.fx3isReading(fx3isReading)			// Flag to indicate FX3 is sampling the databus
 );
 
 endmodule
