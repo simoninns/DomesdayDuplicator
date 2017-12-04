@@ -12769,246 +12769,246 @@ i._tx_queue_cleanup
 .rel.dyn        0x4001ecdc        0x0
  .rel.iplt      0x00000000        0x0 ./cyfx_gcc_startup.o
 
-.data           0x40030000      0x468
+.data           0x40030000      0x4b0
                 0x40030000                _data = .
  *(.data*)
  .data.CyFxGpifTransition
                 0x40030000        0xc ./domesdayDuplicator.o
                 0x40030000                CyFxGpifTransition
  .data.CyFxGpifWavedata
-                0x4003000c       0x60 ./domesdayDuplicator.o
+                0x4003000c       0xa8 ./domesdayDuplicator.o
                 0x4003000c                CyFxGpifWavedata
  .data.CyFxGpifWavedataPosition
-                0x4003006c        0x8 ./domesdayDuplicator.o
-                0x4003006c                CyFxGpifWavedataPosition
+                0x400300b4        0x8 ./domesdayDuplicator.o
+                0x400300b4                CyFxGpifWavedataPosition
  .data.CyFxGpifRegValue
-                0x40030074      0x130 ./domesdayDuplicator.o
-                0x40030074                CyFxGpifRegValue
- .data          0x400301a4        0x8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
-                0x400301a4                glIsGpioActive
- .data          0x400301ac       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
- .data          0x400301c4       0x16 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
-                0x400301d4                glDebugTraceLevel
-                0x400301d6                glDebugLogMask
- *fill*         0x400301da        0x2 
- .data          0x400301dc       0x20 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
-                0x400301dc                glSysClkFreq
-                0x400301e0                glWatchDogPeriod
-                0x400301e4                glUsbMpllDefault
-                0x400301e8                glIsICacheEnabled
-                0x400301ec                glIsDCacheEnabled
-                0x400301f0                glDmaHandleDCache
-                0x400301f4                glSdk_UsbIsOn
-                0x400301f8                glSdk_GpioIsOn
- .data          0x400301fc        0x8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x400301fc                glLppActive
- .data          0x40030204       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3multichannel.o)
-                0x40030204                glMultiChannelConfigure
-                0x40030208                glMultiChannelDestroy
-                0x4003020c                glMultiChannelReset
-                0x40030210                glMultiChannelSetXfer
- .data          0x40030214       0x21 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
-                0x40030214                glPibActive
-                0x40030218                glPibMmcMode
-                0x4003021c                glPmmcIntrCb
-                0x40030220                glPibMask
-                0x40030224                glPibIntrCb
-                0x40030228                glPibIntrMask
-                0x4003022c                glGpifEvtCb
-                0x40030230                glGpifSMCb
-                0x40030234                glCurrentState
- *fill*         0x40030235        0x3 
- .data          0x40030238       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
-                0x40030238                glDmaSocketCB
-                0x4003023c                glDmaSocket
- .data          0x40030250       0x20 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
-                0x4003025c                glDevBootState
- .data          0x40030270       0x24 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x40030270                glUsbForceLPMAccept
-                0x40030274                glUsbSSCDisable
-                0x40030278                glSwitchToBooter
-                0x4003027c                glIsOtgEnable
-                0x40030280                glIsHnpEnable
-                0x40030284                glPeripheralType
-                0x40030288                glOtgInfo
-                0x40030290                glIsHostEnabled
- .data          0x40030294       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40030294                glUibThreadStarted
-                0x40030298                glInSSReset
-                0x4003029c                glInCheckUsbDisconnect
-                0x400302a0                glUsbUxWake
-                0x400302a4                glRxValidMod
-                0x400302a8                glPollingRxEqSeen
-                0x400302ac                glUsbEpCb
-                0x400302b0                glUsbEpEvtMask
-                0x400302b4                glUsbEvtEnabledEps
-                0x400302b8                glUsbLinkErrorCount
-                0x400302bc                glUsb3TxTrimVal
-                0x400302c4                glUibEventLogBuf
-                0x400302c8                glUibEventLogIdx
-                0x400302cc                glUibEventLogSize
-                0x400302d0                glUsbEvtCb
-                0x400302d4                glUsbSetupCb
-                0x400302d8                glLpmRqtCb
-                0x400302dc                glUibStatusSendErdy
-                0x400302e0                glUibEp0StatusPending
- .data          0x400302e4        0x8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
-                0x400302e4                glOsTimerInterval
- .data          0x400302ec        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cywbmbox.o)
-                0x400302ec                glMboxCb
- .data          0x400302f0       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
-                0x400302f0                gFxOverridePart
-                0x400302f4                gFxOverrideEfuse
-                0x400302f8                glGpioAvailList
- .data          0x4003032c        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
- .data          0x40030330        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
-                0x40030330                glSibDrvEntry
- .data          0x40030334        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3descriptor.o)
-                0x40030334                glDmaDescriptor
- .data          0x40030338       0x1c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x40030338                glUibSetAvlEn
-                0x4003033a                glUibInSetAvlEn
-                0x4003033c                glDmaSocketCtrl
-                0x40030350                glMultiCastIntHandler
- .data          0x40030354        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_kernel_enter.o)
-                0x40030354                _tx_initialize_unused_memory
- .data          0x40030358       0x94 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_initialize.o)
-                0x40030358                _tx_version_id
-                0x400303bc                _tx_thread_system_state
-                0x400303c0                _tx_thread_system_stack_ptr
-                0x400303c4                _tx_thread_current_ptr
-                0x400303c8                _tx_thread_execute_ptr
-                0x400303cc                _tx_thread_created_ptr
-                0x400303d0                _tx_thread_created_count
-                0x400303d4                _tx_thread_priority_maps
-                0x400303d8                _tx_thread_preempted_maps
-                0x400303dc                _tx_thread_highest_priority
-                0x400303e0                _tx_thread_preempt_disable
-                0x400303e4                _tx_build_options
-                0x400303e8                _tx_thread_application_stack_error_handler
- .data          0x400303ec       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_initialize.o)
-                0x400303ec                _tx_timer_system_clock
-                0x400303f0                _tx_timer_time_slice
-                0x400303f4                _tx_timer_expired_time_slice
-                0x400303f8                _tx_timer_list_start
-                0x400303fc                _tx_timer_list_end
-                0x40030400                _tx_timer_current_ptr
-                0x40030404                _tx_timer_expired
-                0x40030408                _tx_timer_created_ptr
-                0x4003040c                _tx_timer_created_count
-                0x40030410                _tx_timer_stack_start
-                0x40030414                _tx_timer_stack_size
-                0x40030418                _tx_timer_priority
- .data          0x4003041c       0x1c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_trace_initialize.o)
-                0x4003041c                _tx_trace_control_header_ptr
-                0x40030420                _tx_trace_registry_start_ptr
-                0x40030424                _tx_trace_registry_end_ptr
-                0x40030428                _tx_trace_buffer_start_ptr
-                0x4003042c                _tx_trace_buffer_end_ptr
-                0x40030430                _tx_trace_buffer_current_ptr
-                0x40030434                _tx_trace_simulated_time
- .data          0x40030438       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_high_level.o)
-                0x40030438                _tx_semaphore_created_ptr
-                0x4003043c                _tx_semaphore_created_count
-                0x40030440                _tx_queue_created_ptr
-                0x40030444                _tx_queue_created_count
-                0x40030448                _tx_event_flags_created_ptr
-                0x4003044c                _tx_event_flags_created_count
-                0x40030450                _tx_mutex_created_ptr
-                0x40030454                _tx_mutex_created_count
-                0x40030458                _tx_block_pool_created_ptr
-                0x4003045c                _tx_block_pool_created_count
-                0x40030460                _tx_byte_pool_created_ptr
-                0x40030464                _tx_byte_pool_created_count
+                0x400300bc      0x130 ./domesdayDuplicator.o
+                0x400300bc                CyFxGpifRegValue
+ .data          0x400301ec        0x8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3gpio.o)
+                0x400301ec                glIsGpioActive
+ .data          0x400301f4       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
+ .data          0x4003020c       0x16 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+                0x4003021c                glDebugTraceLevel
+                0x4003021e                glDebugLogMask
+ *fill*         0x40030222        0x2 
+ .data          0x40030224       0x20 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3device.o)
+                0x40030224                glSysClkFreq
+                0x40030228                glWatchDogPeriod
+                0x4003022c                glUsbMpllDefault
+                0x40030230                glIsICacheEnabled
+                0x40030234                glIsDCacheEnabled
+                0x40030238                glDmaHandleDCache
+                0x4003023c                glSdk_UsbIsOn
+                0x40030240                glSdk_GpioIsOn
+ .data          0x40030244        0x8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x40030244                glLppActive
+ .data          0x4003024c       0x10 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3multichannel.o)
+                0x4003024c                glMultiChannelConfigure
+                0x40030250                glMultiChannelDestroy
+                0x40030254                glMultiChannelReset
+                0x40030258                glMultiChannelSetXfer
+ .data          0x4003025c       0x21 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x4003025c                glPibActive
+                0x40030260                glPibMmcMode
+                0x40030264                glPmmcIntrCb
+                0x40030268                glPibMask
+                0x4003026c                glPibIntrCb
+                0x40030270                glPibIntrMask
+                0x40030274                glGpifEvtCb
+                0x40030278                glGpifSMCb
+                0x4003027c                glCurrentState
+ *fill*         0x4003027d        0x3 
+ .data          0x40030280       0x18 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3socket.o)
+                0x40030280                glDmaSocketCB
+                0x40030284                glDmaSocket
+ .data          0x40030298       0x20 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
+                0x400302a4                glDevBootState
+ .data          0x400302b8       0x24 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x400302b8                glUsbForceLPMAccept
+                0x400302bc                glUsbSSCDisable
+                0x400302c0                glSwitchToBooter
+                0x400302c4                glIsOtgEnable
+                0x400302c8                glIsHnpEnable
+                0x400302cc                glPeripheralType
+                0x400302d0                glOtgInfo
+                0x400302d8                glIsHostEnabled
+ .data          0x400302dc       0x50 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x400302dc                glUibThreadStarted
+                0x400302e0                glInSSReset
+                0x400302e4                glInCheckUsbDisconnect
+                0x400302e8                glUsbUxWake
+                0x400302ec                glRxValidMod
+                0x400302f0                glPollingRxEqSeen
+                0x400302f4                glUsbEpCb
+                0x400302f8                glUsbEpEvtMask
+                0x400302fc                glUsbEvtEnabledEps
+                0x40030300                glUsbLinkErrorCount
+                0x40030304                glUsb3TxTrimVal
+                0x4003030c                glUibEventLogBuf
+                0x40030310                glUibEventLogIdx
+                0x40030314                glUibEventLogSize
+                0x40030318                glUsbEvtCb
+                0x4003031c                glUsbSetupCb
+                0x40030320                glLpmRqtCb
+                0x40030324                glUibStatusSendErdy
+                0x40030328                glUibEp0StatusPending
+ .data          0x4003032c        0x8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3vic.o)
+                0x4003032c                glOsTimerInterval
+ .data          0x40030334        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cywbmbox.o)
+                0x40030334                glMboxCb
+ .data          0x40030338       0x3c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_dev.o)
+                0x40030338                gFxOverridePart
+                0x4003033c                gFxOverrideEfuse
+                0x40030340                glGpioAvailList
+ .data          0x40030374        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(fx3_pib.o)
+ .data          0x40030378        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
+                0x40030378                glSibDrvEntry
+ .data          0x4003037c        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3descriptor.o)
+                0x4003037c                glDmaDescriptor
+ .data          0x40030380       0x1c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x40030380                glUibSetAvlEn
+                0x40030382                glUibInSetAvlEn
+                0x40030384                glDmaSocketCtrl
+                0x40030398                glMultiCastIntHandler
+ .data          0x4003039c        0x4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_kernel_enter.o)
+                0x4003039c                _tx_initialize_unused_memory
+ .data          0x400303a0       0x94 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_initialize.o)
+                0x400303a0                _tx_version_id
+                0x40030404                _tx_thread_system_state
+                0x40030408                _tx_thread_system_stack_ptr
+                0x4003040c                _tx_thread_current_ptr
+                0x40030410                _tx_thread_execute_ptr
+                0x40030414                _tx_thread_created_ptr
+                0x40030418                _tx_thread_created_count
+                0x4003041c                _tx_thread_priority_maps
+                0x40030420                _tx_thread_preempted_maps
+                0x40030424                _tx_thread_highest_priority
+                0x40030428                _tx_thread_preempt_disable
+                0x4003042c                _tx_build_options
+                0x40030430                _tx_thread_application_stack_error_handler
+ .data          0x40030434       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_initialize.o)
+                0x40030434                _tx_timer_system_clock
+                0x40030438                _tx_timer_time_slice
+                0x4003043c                _tx_timer_expired_time_slice
+                0x40030440                _tx_timer_list_start
+                0x40030444                _tx_timer_list_end
+                0x40030448                _tx_timer_current_ptr
+                0x4003044c                _tx_timer_expired
+                0x40030450                _tx_timer_created_ptr
+                0x40030454                _tx_timer_created_count
+                0x40030458                _tx_timer_stack_start
+                0x4003045c                _tx_timer_stack_size
+                0x40030460                _tx_timer_priority
+ .data          0x40030464       0x1c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_trace_initialize.o)
+                0x40030464                _tx_trace_control_header_ptr
+                0x40030468                _tx_trace_registry_start_ptr
+                0x4003046c                _tx_trace_registry_end_ptr
+                0x40030470                _tx_trace_buffer_start_ptr
+                0x40030474                _tx_trace_buffer_end_ptr
+                0x40030478                _tx_trace_buffer_current_ptr
+                0x4003047c                _tx_trace_simulated_time
+ .data          0x40030480       0x30 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_initialize_high_level.o)
+                0x40030480                _tx_semaphore_created_ptr
+                0x40030484                _tx_semaphore_created_count
+                0x40030488                _tx_queue_created_ptr
+                0x4003048c                _tx_queue_created_count
+                0x40030490                _tx_event_flags_created_ptr
+                0x40030494                _tx_event_flags_created_count
+                0x40030498                _tx_mutex_created_ptr
+                0x4003049c                _tx_mutex_created_count
+                0x400304a0                _tx_block_pool_created_ptr
+                0x400304a4                _tx_block_pool_created_count
+                0x400304a8                _tx_byte_pool_created_ptr
+                0x400304ac                _tx_byte_pool_created_count
  *(+RW, +ZI)
-                0x40030468                _edata = .
-                0x40030468                . = ALIGN (0x4)
+                0x400304b0                _edata = .
+                0x400304b0                . = ALIGN (0x4)
 
-.igot.plt       0x40030468        0x0
+.igot.plt       0x400304b0        0x0
  .igot.plt      0x00000000        0x0 ./cyfx_gcc_startup.o
 
-.bss            0x40030480     0x1704
-                0x40030480                _bss_start = .
+.bss            0x400304c0     0x1704
+                0x400304c0                _bss_start = .
  *(.bss*)
  .bss.glMemPoolInit
-                0x40030480        0x4 ./cyfxtx.o
-                0x40030480                glMemPoolInit
+                0x400304c0        0x4 ./cyfxtx.o
+                0x400304c0                glMemPoolInit
  .bss.glBufferManager
-                0x40030484       0x4c ./cyfxtx.o
-                0x40030484                glBufferManager
+                0x400304c4       0x4c ./cyfxtx.o
+                0x400304c4                glBufferManager
  .bss.glIsApplnActive
-                0x400304d0        0x4 ./domesdayDuplicator.o
-                0x400304d0                glIsApplnActive
+                0x40030510        0x4 ./domesdayDuplicator.o
+                0x40030510                glIsApplnActive
  .bss.glForceLinkU2
-                0x400304d4        0x4 ./domesdayDuplicator.o
-                0x400304d4                glForceLinkU2
- .bss           0x400304d8       0x38 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
- .bss           0x40030510      0x1d4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
- .bss           0x400306e4       0xe4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
-                0x400306e4                glLppInterruptHandler
- .bss           0x400307c8      0x10c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
-                0x400307c8                glPibEvt
-                0x400307f0                glPibThread
-                0x40030898                glPibQueue
- .bss           0x400308d4       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
-                0x400308d4                glSysThread
-                0x4003097c                glSysEvent
- .bss           0x400309a4      0x2d8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
-                0x400309a4                glUibChHandle
-                0x40030a50                glUibChHandleOut
-                0x40030afc                glPcktSizeIn
-                0x40030bbc                glPcktSizeOut
- *fill*         0x40030c7c        0x4 
- .bss           0x40030c80      0x2d8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
-                0x40030c80                glUibDeviceInfo
-                0x40030d08                glHostOtgHandlers
-                0x40030d20                glUibThread
-                0x40030dc8                glUibQueue
-                0x40030e04                glUibEvent
-                0x40030e2c                glUibLock
-                0x40030e64                glUibDescrPtrs
-                0x40030ee0                glUibSelBuffer
-                0x40030f00                glUibStatusTimer
-                0x40030f2c                glUibLnkErrClrTimer
- .bss           0x40030f58       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
-                0x40030f58                glSibThread
-                0x40031000                glSibEvent
-                0x40031028                glSibIntfParams
- .bss           0x40031050      0x24c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
-                0x40031050                glDmaLPPSocketCtrl
-                0x40031070                glDmaPIBSocketCtrl
-                0x400310f0                glDmaSIBSocketCtrl
-                0x40031110                glDmaUIBSocketCtrl
-                0x40031150                glDmaUIBINSocketCtrl
-                0x40031190                glDmaThread
-                0x40031238                glDmaEvent
-                0x40031260                glDmaQueue
- .bss           0x4003129c       0x7c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
-                0x4003129c                glDmaDscrList
- .bss           0x40031318      0x180 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_initialize.o)
-                0x40031318                _tx_thread_lowest_bit
-                0x40031418                _tx_thread_priority_list
- .bss           0x40031498      0x528 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_initialize.o)
-                0x40031498                _tx_timer_list
-                0x40031518                _tx_timer_thread
-                0x400315c0                _tx_timer_thread_stack_area
-                0x400319c0                . = ALIGN (0x4)
- COMMON         0x400319c0       0x34 ./cyfxtx.o
-                0x400319c0                glMemBytePool
- COMMON         0x400319f4      0x190 ./domesdayDuplicator.o
-                0x400319f4                glDmaMultiChHandle
-                0x40031adc                glAppThread
-                0x40031b84                _bss_end = .
+                0x40030514        0x4 ./domesdayDuplicator.o
+                0x40030514                glForceLinkU2
+ .bss           0x40030518       0x38 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3lpp.a(cyu3uart.o)
+ .bss           0x40030550      0x1d4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3debug.o)
+ .bss           0x40030724       0xe4 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3lpp.o)
+                0x40030724                glLppInterruptHandler
+ .bss           0x40030808      0x10c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3pib.o)
+                0x40030808                glPibEvt
+                0x40030830                glPibThread
+                0x400308d8                glPibQueue
+ .bss           0x40030914       0xd0 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3system.o)
+                0x40030914                glSysThread
+                0x400309bc                glSysEvent
+ .bss           0x400309e4      0x2d8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usb.o)
+                0x400309e4                glUibChHandle
+                0x40030a90                glUibChHandleOut
+                0x40030b3c                glPcktSizeIn
+                0x40030bfc                glPcktSizeOut
+ *fill*         0x40030cbc        0x4 
+ .bss           0x40030cc0      0x2d8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3usbpp.o)
+                0x40030cc0                glUibDeviceInfo
+                0x40030d48                glHostOtgHandlers
+                0x40030d60                glUibThread
+                0x40030e08                glUibQueue
+                0x40030e44                glUibEvent
+                0x40030e6c                glUibLock
+                0x40030ea4                glUibDescrPtrs
+                0x40030f20                glUibSelBuffer
+                0x40030f40                glUibStatusTimer
+                0x40030f6c                glUibLnkErrClrTimer
+ .bss           0x40030f98       0xf8 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyfx3stor.o)
+                0x40030f98                glSibThread
+                0x40031040                glSibEvent
+                0x40031068                glSibIntfParams
+ .bss           0x40031090      0x24c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dma.o)
+                0x40031090                glDmaLPPSocketCtrl
+                0x400310b0                glDmaPIBSocketCtrl
+                0x40031130                glDmaSIBSocketCtrl
+                0x40031150                glDmaUIBSocketCtrl
+                0x40031190                glDmaUIBINSocketCtrl
+                0x400311d0                glDmaThread
+                0x40031278                glDmaEvent
+                0x400312a0                glDmaQueue
+ .bss           0x400312dc       0x7c /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyfxapi.a(cyu3dscrpool.o)
+                0x400312dc                glDmaDscrList
+ .bss           0x40031358      0x180 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_thread_initialize.o)
+                0x40031358                _tx_thread_lowest_bit
+                0x40031458                _tx_thread_priority_list
+ .bss           0x400314d8      0x528 /home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug/libcyu3threadx.a(tx_timer_initialize.o)
+                0x400314d8                _tx_timer_list
+                0x40031558                _tx_timer_thread
+                0x40031600                _tx_timer_thread_stack_area
+                0x40031a00                . = ALIGN (0x4)
+ COMMON         0x40031a00       0x34 ./cyfxtx.o
+                0x40031a00                glMemBytePool
+ COMMON         0x40031a34      0x190 ./domesdayDuplicator.o
+                0x40031a34                glDmaMultiChHandle
+                0x40031b1c                glAppThread
+                0x40031bc4                _bss_end = .
 
-.ARM.extab      0x40031b84        0x0
+.ARM.extab      0x40031bc4        0x0
  *(.ARM.extab* .gnu.linkonce.armextab.*)
-                0x40031b84                . = ALIGN (0x4)
-                0x40031b84                __exidx_start = .
+                0x40031bc4                . = ALIGN (0x4)
+                0x40031bc4                __exidx_start = .
 
-.ARM.exidx      0x40031b84        0x0
+.ARM.exidx      0x40031bc4        0x0
  *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-                0x40031b84                . = ALIGN (0x4)
-                0x40031b84                __exidx_end = .
+                0x40031bc4                . = ALIGN (0x4)
+                0x40031bc4                __exidx_end = .
 OUTPUT(domesdayDuplicator.elf elf32-littlearm)
 
 .ARM.attributes
@@ -13644,7 +13644,7 @@ OUTPUT(domesdayDuplicator.elf elf32-littlearm)
  .debug_ranges  0x00000000       0x88 ./cyfxtx.o
  .debug_ranges  0x00000088       0x68 ./domesdayDuplicator.o
 
-.debug_macro    0x00000000     0x24d5
+.debug_macro    0x00000000     0x24e7
  .debug_macro   0x00000000      0x1c2 ./cyfxtx.o
  .debug_macro   0x000001c2      0x820 ./cyfxtx.o
  .debug_macro   0x000009e2       0x52 ./cyfxtx.o
@@ -13681,15 +13681,15 @@ OUTPUT(domesdayDuplicator.elf elf32-littlearm)
  .debug_macro   0x0000221d       0x12 ./domesdayDuplicator.o
  .debug_macro   0x0000222f       0x28 ./domesdayDuplicator.o
  .debug_macro   0x00002257       0x3a ./domesdayDuplicator.o
- .debug_macro   0x00002291       0x34 ./domesdayDuplicator.o
- .debug_macro   0x000022c5      0x210 ./usbDescriptor.o
+ .debug_macro   0x00002291       0x46 ./domesdayDuplicator.o
+ .debug_macro   0x000022d7      0x210 ./usbDescriptor.o
 
-.debug_str      0x00000000     0xcf79
+.debug_str      0x00000000     0xcf9b
  .debug_str     0x00000000     0x9642 ./cyfxtx.o
                                0x9865 (size before relaxing)
- .debug_str     0x00009642     0x36fe ./domesdayDuplicator.o
-                               0xcb16 (size before relaxing)
- .debug_str     0x0000cd40      0x239 ./usbDescriptor.o
+ .debug_str     0x00009642     0x3720 ./domesdayDuplicator.o
+                               0xcb38 (size before relaxing)
+ .debug_str     0x0000cd62      0x239 ./usbDescriptor.o
                                0x93d2 (size before relaxing)
 
 .debug_frame    0x00000000     0x1094

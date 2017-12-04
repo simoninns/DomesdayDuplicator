@@ -3,8 +3,5 @@
   <Clock>100</Clock>
   <BufferSize>16</BufferSize>
   <WaterMark>0</WaterMark>
-  <Scenario Name="SCENARIO0" CurrentThread="Thread1">
-    <State StateId="STARTSTATE0" WaitNumber="0" />
-    <State StateId="STATE5" WaitNumber="0" />
-  </Scenario>
+  <Scenario Name="SCENARIO0" CurrentThread="Thread1" />
 </GPIFIITimingSimulation>
