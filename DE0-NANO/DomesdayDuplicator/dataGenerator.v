@@ -60,9 +60,6 @@ always @ (posedge inclk, negedge nReset) begin
 				// Test mode data generation
 				testData <= testData + 10'd1;
 			end
-		end else begin
-			// Not collecting data, output '0' level ADC value
-			testData <= 10'd512;
 		end
 	end
 end

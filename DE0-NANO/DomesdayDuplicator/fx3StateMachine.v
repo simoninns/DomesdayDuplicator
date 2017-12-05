@@ -106,7 +106,7 @@ always @(*)begin
 		
 		// state_sendPacket
 		state_sendPacket:begin
-			if (wordCounter > 14'd8191) begin
+			if (wordCounter == 14'd8191) begin
 				// Packet send, go back to waiting
 				sm_nextState = state_waitForRequest;
 			end else begin
