@@ -85,11 +85,6 @@
         <CounterInterrupt>Mask</CounterInterrupt>
       </Action>
     </State>
-    <State ElementId="STATE0" StateType="NormalState">
-      <DisplayName>TH0_IDLE</DisplayName>
-      <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
-      <RepeatCount>0</RepeatCount>
-    </State>
     <State ElementId="STATE1" StateType="NormalState">
       <DisplayName>TH0_WAIT</DisplayName>
       <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
@@ -140,39 +135,12 @@
       </Action>
       <Action ElementId="COUNT_DATA0" ActionType="COUNT_DATA" />
     </State>
-    <State ElementId="STATE7" StateType="NormalState">
-      <DisplayName>TH1_IDLE</DisplayName>
-      <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
-      <RepeatCount>0</RepeatCount>
-    </State>
-    <Transition ElementId="TRANSITION8" SourceState="STATE6" DestinationState="STATE9" Equation="DATA_CNT_HIT" />
-    <Transition ElementId="TRANSITION2" SourceState="STATE1" DestinationState="STATE2" Equation="DMA_RDY_TH0" />
-    <Transition ElementId="TRANSITION1" SourceState="STATE0" DestinationState="STATE1" Equation="dataAvailable" />
-    <Transition ElementId="TRANSITION0" SourceState="STARTSTATE0" DestinationState="STATE0" Equation="LOGIC_ONE" />
-    <Transition ElementId="TRANSITION4" SourceState="STATE3" DestinationState="STATE8" Equation="DATA_CNT_HIT" />
+    <Transition ElementId="TRANSITION9" SourceState="STARTSTATE0" DestinationState="STATE1" Equation="LOGIC_ONE" />
+    <Transition ElementId="TRANSITION4" SourceState="STATE3" DestinationState="STATE4" Equation="DATA_CNT_HIT" />
+    <Transition ElementId="TRANSITION8" SourceState="STATE6" DestinationState="STATE1" Equation="DATA_CNT_HIT" />
+    <Transition ElementId="TRANSITION2" SourceState="STATE1" DestinationState="STATE2" Equation="DMA_RDY_TH0&amp;dataAvailable" />
     <Transition ElementId="TRANSITION3" SourceState="STATE2" DestinationState="STATE3" Equation="LOGIC_ONE" />
-    <Transition ElementId="TRANSITION6" SourceState="STATE4" DestinationState="STATE5" Equation="DMA_RDY_TH1" />
+    <Transition ElementId="TRANSITION6" SourceState="STATE4" DestinationState="STATE5" Equation="DMA_RDY_TH1&amp;dataAvailable" />
     <Transition ElementId="TRANSITION7" SourceState="STATE5" DestinationState="STATE6" Equation="LOGIC_ONE" />
-    <Transition ElementId="TRANSITION9" SourceState="STATE1" DestinationState="STATE0" Equation="!dataAvailable|!DMA_RDY_TH0" />
-    <Transition ElementId="TRANSITION5" SourceState="STATE4" DestinationState="STATE7" Equation="!dataAvailable|!DMA_RDY_TH1" />
-    <Transition ElementId="TRANSITION10" SourceState="STATE7" DestinationState="STATE4" Equation="dataAvailable" />
-    <State ElementId="STATE8" StateType="NormalState">
-      <DisplayName>TH0_COMMIT</DisplayName>
-      <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
-      <RepeatCount>0</RepeatCount>
-      <Action ElementId="COMMIT0" ActionType="COMMIT">
-        <ThreadNumber>Thread0</ThreadNumber>
-      </Action>
-    </State>
-    <State ElementId="STATE9" StateType="NormalState">
-      <DisplayName>TH1_COMMIT</DisplayName>
-      <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
-      <RepeatCount>0</RepeatCount>
-      <Action ElementId="COMMIT0" ActionType="COMMIT">
-        <ThreadNumber>Thread1</ThreadNumber>
-      </Action>
-    </State>
-    <Transition ElementId="TRANSITION11" SourceState="STATE8" DestinationState="STATE4" Equation="LOGIC_ONE" />
-    <Transition ElementId="TRANSITION12" SourceState="STATE9" DestinationState="STATE1" Equation="LOGIC_ONE" />
   </StateMachine>
 </GPIFIIModel>

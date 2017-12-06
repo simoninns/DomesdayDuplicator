@@ -1,6 +1,6 @@
 /*
  * Project Name: DomesdayDuplicator.cyfx
- * Time : 12/06/2017 14:47:23
+ * Time : 12/06/2017 15:06:51
  * Device Type: FX3
  * Project Type: GPIF2
  *
@@ -21,22 +21,18 @@
 /* Summary
    Number of states in the state machine
  */
-#define CY_NUMBER_OF_STATES 11
+#define CY_NUMBER_OF_STATES 7
 
 /* Summary
    Mapping of user defined state names to state indices
  */
 #define START 0
 #define TH0_REQUEST 2
-#define TH0_IDLE 1
-#define TH0_WAIT 4
+#define TH0_WAIT 1
 #define TH0_READ 3
-#define TH1_WAIT 6
-#define TH1_REQUEST 7
-#define TH1_READ 9
-#define TH1_IDLE 8
-#define TH0_COMMIT 5
-#define TH1_COMMIT 10
+#define TH1_WAIT 4
+#define TH1_REQUEST 5
+#define TH1_READ 6
 
 
 /* Summary
@@ -49,7 +45,7 @@
    Transition function values used in the state machine.
  */
 uint16_t CyFxGpifTransition[]  = {
-    0x0000, 0xAAAA, 0xFFFF, 0x7777
+    0x0000, 0xAAAA, 0x8888, 0xFFFF
 };
 
 /* Summary
@@ -59,22 +55,19 @@ uint16_t CyFxGpifTransition[]  = {
    waveform table. 
  */
 CyU3PGpifWaveData CyFxGpifWavedata[]  = {
-    {{0x1E738001,0x00000000,0x80000000},{0x00000000,0x00000000,0x00000000}},
-    {{0x1E701A04,0x00001006,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x2E701A01,0x00001000,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x3E739C02,0x00000100,0x81000080},{0x00000000,0x00000000,0x00000000}},
     {{0x1E739403,0x20000000,0x80000040},{0x00000000,0x00000000,0x00000000}},
-    {{0x2E739C05,0x00000000,0x80100000},{0x00000000,0x00000000,0x00000000}},
-    {{0x2E739C02,0x00000100,0x81000080},{0x1E738001,0x00000000,0x80000000}},
-    {{0x1E701A06,0x04001006,0x80000000},{0x00000000,0x00000000,0x00000000}},
-    {{0x2E739C07,0x00000100,0x81000080},{0x1E738008,0x00000000,0x80000000}},
-    {{0x1E739409,0x24000000,0x80000040},{0x00000000,0x00000000,0x00000000}},
-    {{0x2E739C0A,0x04000000,0x80100000},{0x00000000,0x00000000,0x00000000}}
+    {{0x2E701A04,0x04001000,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x3E739C05,0x00000100,0x81000080},{0x00000000,0x00000000,0x00000000}},
+    {{0x1E739406,0x24000000,0x80000040},{0x00000000,0x00000000,0x00000000}}
 };
 
 /* Summary
    Table that maps state indices to the descriptor table indices.
  */
 uint8_t CyFxGpifWavedataPosition[]  = {
-    0,1,2,3,4,5,6,7,5,8,1
+    0,1,2,3,4,5,0
 };
 
 /* Summary
