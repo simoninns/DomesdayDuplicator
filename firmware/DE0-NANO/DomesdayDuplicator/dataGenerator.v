@@ -79,7 +79,7 @@ always @ (posedge inclk, negedge nReset) begin
 			dataAvailable_flag = 1'b0;
 		end
 		
-		if (simCounter > 8000000) simCounter = 32'd0;
+		if (simCounter > 2000000) simCounter = 32'd0;
 	end
 end
 

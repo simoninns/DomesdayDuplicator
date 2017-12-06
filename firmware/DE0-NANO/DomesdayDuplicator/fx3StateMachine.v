@@ -38,14 +38,13 @@ module fx3StateMachine (
 reg [3:0]sm_currentState;
 reg [3:0]sm_nextState;
 
-parameter [3:0] state_idle					= 4'd01;
-parameter [3:0] state_waitForRequest	= 4'd02;
-parameter [3:0] state_sendPacket			= 4'd03;
+parameter [3:0] state_waitForRequest	= 4'd01;
+parameter [3:0] state_sendPacket			= 4'd02;
 
 // Set state to state_idle on reset - or assign the next state
 always @(posedge inclk, negedge nReset) begin
 	if(!nReset) begin 
-		sm_currentState <= state_idle;
+		sm_currentState <= state_waitForRequest;
 	end else begin
 		sm_currentState <= sm_nextState;
 	end	
@@ -87,13 +86,8 @@ always @(*)begin
 	sm_nextState = sm_currentState;
 	
 	case(sm_currentState)
-
-		// state_idle
-		state_idle:begin
-			sm_nextState = state_waitForRequest;
-		end
 		
-		// state_waitForRequest
+		// state_waitForRequest (waits for the FX3 to request a packet)
 		state_waitForRequest:begin
 			// Is the GPIF reading data?
 			if (readData_flag == 1'b1 && wordCounter == 16'd0) begin
@@ -104,9 +98,9 @@ always @(*)begin
 			end
 		end
 		
-		// state_sendPacket
+		// state_sendPacket (sends a packet of 8192 words to the FX3)
 		state_sendPacket:begin
-			if (wordCounter >= 16'd8191) begin
+			if (wordCounter == 16'd8191) begin
 				// Packet send, go back to waiting
 				sm_nextState = state_waitForRequest;
 			end else begin
