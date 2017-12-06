@@ -150,14 +150,14 @@ assign GPIO0[33] = adc_clock;
 
 // PLL Function (clock generation) --------------------------------------------
 //
-// fx3_clock is 32 MHz (also used as system clock)
+// fx3_clock is 64 MHz (also used as system clock)
 // adc_clock is 32 MHz
 IPpllGenerator IPpllGenerator0 (
 	// Inputs
 	.inclk0(CLOCK_50),
 	
 	// Outputs
-	.c0(fx3_clock),	// 32 MHz clock
+	.c0(fx3_clock),	// 64 MHz clock
 	.c1(adc_clock)		// 32 MHz clock
 );
 

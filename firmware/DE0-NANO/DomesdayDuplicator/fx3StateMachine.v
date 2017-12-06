@@ -65,16 +65,16 @@ end
 
 // Counter for the sendPacket state
 // Here we should send 8192 words to the FX3
-reg [13:0] wordCounter;
+reg [15:0] wordCounter;
 
 always @(posedge inclk, negedge nReset) begin
 	if (!nReset) begin
-		wordCounter <= 14'd0;
+		wordCounter <= 16'd0;
 	end else begin
 		if (sm_currentState == state_sendPacket) begin
-			wordCounter = wordCounter + 14'd1;
+			wordCounter = wordCounter + 16'd1;
 		end else begin
-			wordCounter = 14'd0;
+			wordCounter = 16'd0;
 		end
 	end
 end
@@ -96,7 +96,7 @@ always @(*)begin
 		// state_waitForRequest
 		state_waitForRequest:begin
 			// Is the GPIF reading data?
-			if (readData_flag == 1'b1) begin
+			if (readData_flag == 1'b1 && wordCounter == 16'd0) begin
 				sm_nextState = state_sendPacket;
 			end else begin
 				// GPIF not ready... wait
@@ -106,7 +106,7 @@ always @(*)begin
 		
 		// state_sendPacket
 		state_sendPacket:begin
-			if (wordCounter == 14'd8191) begin
+			if (wordCounter >= 16'd8191) begin
 				// Packet send, go back to waiting
 				sm_nextState = state_waitForRequest;
 			end else begin
