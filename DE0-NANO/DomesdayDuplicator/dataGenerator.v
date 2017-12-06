@@ -47,9 +47,6 @@ convertTenToSixteenBits convertTenToSixteenBits0 (
 // Register to store test data value
 reg [9:0] testData;
 
-// TEMP: Data is always available
-assign dataAvailable = collectData;
-
 // TEMP: Generate test data (always in test mode for now)
 always @ (posedge inclk, negedge nReset) begin
 	if (!nReset) begin
@@ -58,9 +55,31 @@ always @ (posedge inclk, negedge nReset) begin
 		if (collectData) begin
 			if (readData) begin
 				// Test mode data generation
-				testData <= testData + 10'd1;
+				testData = testData + 10'd1;
 			end
 		end
+	end
+end
+
+// Simulate dataAvailable
+reg [31:0] simCounter;
+reg dataAvailable_flag;
+assign dataAvailable = dataAvailable_flag;
+
+always @ (posedge inclk, negedge nReset) begin
+	if (!nReset) begin
+		simCounter <= 10'd0;
+		dataAvailable_flag = 1'b0;
+	end else begin
+		simCounter = simCounter + 32'd1;
+		
+		if (simCounter > 1000000 && simCounter < 1000010) begin
+			dataAvailable_flag = 1'b1;
+		end else begin
+			dataAvailable_flag = 1'b0;
+		end
+		
+		if (simCounter > 8000000) simCounter = 32'd0;
 	end
 end
 
