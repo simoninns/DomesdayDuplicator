@@ -2,19 +2,8 @@
 <Root version="4">
   <CyStates>
     <CyNormalState>
-      <Left>279</Left>
-      <Top>36.4099999999999</Top>
-      <Width>83</Width>
-      <Height>70</Height>
-      <Name>STATE0</Name>
-      <DisplayName>TH0_IDLE</DisplayName>
-      <zIndex>1</zIndex>
-      <IsGroup>False</IsGroup>
-      <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
-    </CyNormalState>
-    <CyNormalState>
-      <Left>123</Left>
-      <Top>195.41</Top>
+      <Left>306</Left>
+      <Top>38.41</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STATE1</Name>
@@ -24,8 +13,8 @@
       <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
     </CyNormalState>
     <CyNormalState>
-      <Left>39</Left>
-      <Top>302.41</Top>
+      <Left>308</Left>
+      <Top>177.41</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STATE2</Name>
@@ -35,8 +24,8 @@
       <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
     </CyNormalState>
     <CyNormalState>
-      <Left>38</Left>
-      <Top>412.41</Top>
+      <Left>308</Left>
+      <Top>314.41</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STATE3</Name>
@@ -46,8 +35,8 @@
       <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
     </CyNormalState>
     <CyNormalState>
-      <Left>531</Left>
-      <Top>184.41</Top>
+      <Left>567</Left>
+      <Top>42.41</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STATE4</Name>
@@ -57,8 +46,8 @@
       <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
     </CyNormalState>
     <CyNormalState>
-      <Left>619</Left>
-      <Top>294.41</Top>
+      <Left>566</Left>
+      <Top>179.41</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STATE5</Name>
@@ -68,8 +57,8 @@
       <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
     </CyNormalState>
     <CyNormalState>
-      <Left>619</Left>
-      <Top>404.41</Top>
+      <Left>566</Left>
+      <Top>312.41</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STATE6</Name>
@@ -78,42 +67,9 @@
       <IsGroup>False</IsGroup>
       <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
     </CyNormalState>
-    <CyNormalState>
-      <Left>404</Left>
-      <Top>35.4099999999999</Top>
-      <Width>83</Width>
-      <Height>70</Height>
-      <Name>STATE7</Name>
-      <DisplayName>TH1_IDLE</DisplayName>
-      <zIndex>1</zIndex>
-      <IsGroup>False</IsGroup>
-      <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
-    </CyNormalState>
-    <CyNormalState>
-      <Left>132</Left>
-      <Top>514.41</Top>
-      <Width>83</Width>
-      <Height>70</Height>
-      <Name>STATE8</Name>
-      <DisplayName>TH0_COMMIT</DisplayName>
-      <zIndex>1</zIndex>
-      <IsGroup>False</IsGroup>
-      <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
-    </CyNormalState>
-    <CyNormalState>
-      <Left>522</Left>
-      <Top>510.41</Top>
-      <Width>83</Width>
-      <Height>70</Height>
-      <Name>STATE9</Name>
-      <DisplayName>TH1_COMMIT</DisplayName>
-      <zIndex>1</zIndex>
-      <IsGroup>False</IsGroup>
-      <ParentID>00000000-0000-0000-0000-000000000000</ParentID>
-    </CyNormalState>
     <CyStartState>
-      <Left>65</Left>
-      <Top>36.4466666666667</Top>
+      <Left>68</Left>
+      <Top>37.4466666666667</Top>
       <Width>83</Width>
       <Height>70</Height>
       <Name>STARTSTATE0</Name>
@@ -125,22 +81,11 @@
   </CyStates>
   <CyTransitions>
     <CyTransition>
-      <Name>TRANSITION12</Name>
+      <Name>TRANSITION9</Name>
       <TransitionEquation>LOGIC_ONE</TransitionEquation>
-      <SourceName>STATE9</SourceName>
+      <SourceName>STARTSTATE0</SourceName>
       <SinkName>STATE1</SinkName>
-      <SourceConnectorName>Connector</SourceConnectorName>
-      <SinkConnectorName>Connector</SinkConnectorName>
-      <SourceArrowSymbol>None</SourceArrowSymbol>
-      <SinkArrowSymbol>Arrow</SinkArrowSymbol>
-      <zIndex>0</zIndex>
-    </CyTransition>
-    <CyTransition>
-      <Name>TRANSITION11</Name>
-      <TransitionEquation>LOGIC_ONE</TransitionEquation>
-      <SourceName>STATE8</SourceName>
-      <SinkName>STATE4</SinkName>
-      <SourceConnectorName>Connector</SourceConnectorName>
+      <SourceConnectorName>Connector4</SourceConnectorName>
       <SinkConnectorName>Connector</SinkConnectorName>
       <SourceArrowSymbol>None</SourceArrowSymbol>
       <SinkArrowSymbol>Arrow</SinkArrowSymbol>
@@ -150,7 +95,7 @@
       <Name>TRANSITION8</Name>
       <TransitionEquation>DATA_CNT_HIT</TransitionEquation>
       <SourceName>STATE6</SourceName>
-      <SinkName>STATE9</SinkName>
+      <SinkName>STATE1</SinkName>
       <SourceConnectorName>Connector</SourceConnectorName>
       <SinkConnectorName>Connector</SinkConnectorName>
       <SourceArrowSymbol>None</SourceArrowSymbol>
@@ -161,40 +106,7 @@
       <Name>TRANSITION4</Name>
       <TransitionEquation>DATA_CNT_HIT</TransitionEquation>
       <SourceName>STATE3</SourceName>
-      <SinkName>STATE8</SinkName>
-      <SourceConnectorName>Connector</SourceConnectorName>
-      <SinkConnectorName>Connector</SinkConnectorName>
-      <SourceArrowSymbol>None</SourceArrowSymbol>
-      <SinkArrowSymbol>Arrow</SinkArrowSymbol>
-      <zIndex>0</zIndex>
-    </CyTransition>
-    <CyTransition>
-      <Name>TRANSITION10</Name>
-      <TransitionEquation>dataAvailable</TransitionEquation>
-      <SourceName>STATE7</SourceName>
       <SinkName>STATE4</SinkName>
-      <SourceConnectorName>Connector</SourceConnectorName>
-      <SinkConnectorName>Connector</SinkConnectorName>
-      <SourceArrowSymbol>None</SourceArrowSymbol>
-      <SinkArrowSymbol>Arrow</SinkArrowSymbol>
-      <zIndex>0</zIndex>
-    </CyTransition>
-    <CyTransition>
-      <Name>TRANSITION5</Name>
-      <TransitionEquation>!dataAvailable|!DMA_RDY_TH1</TransitionEquation>
-      <SourceName>STATE4</SourceName>
-      <SinkName>STATE7</SinkName>
-      <SourceConnectorName>Connector</SourceConnectorName>
-      <SinkConnectorName>Connector</SinkConnectorName>
-      <SourceArrowSymbol>None</SourceArrowSymbol>
-      <SinkArrowSymbol>Arrow</SinkArrowSymbol>
-      <zIndex>0</zIndex>
-    </CyTransition>
-    <CyTransition>
-      <Name>TRANSITION9</Name>
-      <TransitionEquation>!dataAvailable|!DMA_RDY_TH0</TransitionEquation>
-      <SourceName>STATE1</SourceName>
-      <SinkName>STATE0</SinkName>
       <SourceConnectorName>Connector</SourceConnectorName>
       <SinkConnectorName>Connector</SinkConnectorName>
       <SourceArrowSymbol>None</SourceArrowSymbol>
@@ -214,7 +126,7 @@
     </CyTransition>
     <CyTransition>
       <Name>TRANSITION6</Name>
-      <TransitionEquation>DMA_RDY_TH1</TransitionEquation>
+      <TransitionEquation>DMA_RDY_TH1&amp;dataAvailable</TransitionEquation>
       <SourceName>STATE4</SourceName>
       <SinkName>STATE5</SinkName>
       <SourceConnectorName>Connector</SourceConnectorName>
@@ -236,32 +148,10 @@
     </CyTransition>
     <CyTransition>
       <Name>TRANSITION2</Name>
-      <TransitionEquation>DMA_RDY_TH0</TransitionEquation>
+      <TransitionEquation>DMA_RDY_TH0&amp;dataAvailable</TransitionEquation>
       <SourceName>STATE1</SourceName>
       <SinkName>STATE2</SinkName>
       <SourceConnectorName>Connector</SourceConnectorName>
-      <SinkConnectorName>Connector</SinkConnectorName>
-      <SourceArrowSymbol>None</SourceArrowSymbol>
-      <SinkArrowSymbol>Arrow</SinkArrowSymbol>
-      <zIndex>0</zIndex>
-    </CyTransition>
-    <CyTransition>
-      <Name>TRANSITION1</Name>
-      <TransitionEquation>dataAvailable</TransitionEquation>
-      <SourceName>STATE0</SourceName>
-      <SinkName>STATE1</SinkName>
-      <SourceConnectorName>Connector</SourceConnectorName>
-      <SinkConnectorName>Connector</SinkConnectorName>
-      <SourceArrowSymbol>None</SourceArrowSymbol>
-      <SinkArrowSymbol>Arrow</SinkArrowSymbol>
-      <zIndex>0</zIndex>
-    </CyTransition>
-    <CyTransition>
-      <Name>TRANSITION0</Name>
-      <TransitionEquation>LOGIC_ONE</TransitionEquation>
-      <SourceName>STARTSTATE0</SourceName>
-      <SinkName>STATE0</SinkName>
-      <SourceConnectorName>Connector4</SourceConnectorName>
       <SinkConnectorName>Connector</SinkConnectorName>
       <SourceArrowSymbol>None</SourceArrowSymbol>
       <SinkArrowSymbol>Arrow</SinkArrowSymbol>
