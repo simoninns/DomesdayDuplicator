@@ -174,6 +174,8 @@ dataGenerator dataGenerator0 (
 	.testMode(fx3_testMode),				// 1 = Test mode on
 	
 	// Outputs
+	.fullError(fx3_control[04]),
+	.emptyError(fx3_control[05]),
 	.dataAvailable(fx3_dataAvailable),	// Set if FIFO buffer contains at least 8192 words of data
 	.dataOut(fx3_databus)					// 16-bit data output
 );

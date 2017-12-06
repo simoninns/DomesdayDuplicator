@@ -32,6 +32,8 @@ module dataGenerator (
 	input readData,
 	input testMode,
 	
+	output fullError,
+	output emptyError,
 	output dataAvailable,
 	output [15:0] dataOut
 );
@@ -58,6 +60,8 @@ IPfifo IPfifo0 (
 	.wrreq(collectData),		// Write request
 	
 	.q(fifoDataOut),			// [9:0] Data output
+	.rdempty(emptyError),
+	.rdfull(fullError),
 	.rdusedw(fifoUsedWords)	// [15:0] (read) used words
 );
 
