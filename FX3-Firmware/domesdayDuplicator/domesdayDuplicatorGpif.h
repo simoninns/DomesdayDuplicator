@@ -1,6 +1,6 @@
 /*
  * Project Name: DomesdayDuplicator.cyfx
- * Time : 12/05/2017 21:17:14
+ * Time : 12/06/2017 14:47:23
  * Device Type: FX3
  * Project Type: GPIF2
  *
@@ -21,7 +21,7 @@
 /* Summary
    Number of states in the state machine
  */
-#define CY_NUMBER_OF_STATES 9
+#define CY_NUMBER_OF_STATES 11
 
 /* Summary
    Mapping of user defined state names to state indices
@@ -31,10 +31,12 @@
 #define TH0_IDLE 1
 #define TH0_WAIT 4
 #define TH0_READ 3
-#define TH1_WAIT 5
-#define TH1_REQUEST 6
-#define TH1_READ 8
-#define TH1_IDLE 7
+#define TH1_WAIT 6
+#define TH1_REQUEST 7
+#define TH1_READ 9
+#define TH1_IDLE 8
+#define TH0_COMMIT 5
+#define TH1_COMMIT 10
 
 
 /* Summary
@@ -60,17 +62,19 @@ CyU3PGpifWaveData CyFxGpifWavedata[]  = {
     {{0x1E738001,0x00000000,0x80000000},{0x00000000,0x00000000,0x00000000}},
     {{0x1E701A04,0x00001006,0x80000000},{0x00000000,0x00000000,0x00000000}},
     {{0x1E739403,0x20000000,0x80000040},{0x00000000,0x00000000,0x00000000}},
-    {{0x1E701A05,0x04001006,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x2E739C05,0x00000000,0x80100000},{0x00000000,0x00000000,0x00000000}},
     {{0x2E739C02,0x00000100,0x81000080},{0x1E738001,0x00000000,0x80000000}},
-    {{0x2E739C06,0x00000100,0x81000080},{0x1E738007,0x00000000,0x80000000}},
-    {{0x1E739408,0x24000000,0x80000040},{0x00000000,0x00000000,0x00000000}}
+    {{0x1E701A06,0x04001006,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x2E739C07,0x00000100,0x81000080},{0x1E738008,0x00000000,0x80000000}},
+    {{0x1E739409,0x24000000,0x80000040},{0x00000000,0x00000000,0x00000000}},
+    {{0x2E739C0A,0x04000000,0x80100000},{0x00000000,0x00000000,0x00000000}}
 };
 
 /* Summary
    Table that maps state indices to the descriptor table indices.
  */
 uint8_t CyFxGpifWavedataPosition[]  = {
-    0,1,2,3,4,5,6,3,1
+    0,1,2,3,4,5,6,7,5,8,1
 };
 
 /* Summary
