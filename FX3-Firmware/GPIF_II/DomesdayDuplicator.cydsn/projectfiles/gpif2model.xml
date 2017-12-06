@@ -54,6 +54,16 @@
       <Delay>Alpha</Delay>
       <AssetionType>Assert</AssetionType>
     </Signal>
+    <Signal ElementId="INPUT1" SignalType="Input" SpecialFunction="None">
+      <DisplayName>GPIO_21_CTL04</DisplayName>
+      <GPIOPinNumber>GPIO_21</GPIOPinNumber>
+      <Polarity>ActiveHigh</Polarity>
+    </Signal>
+    <Signal ElementId="INPUT2" SignalType="Input" SpecialFunction="None">
+      <DisplayName>GPIO_22_CTL05</DisplayName>
+      <GPIOPinNumber>GPIO_22</GPIOPinNumber>
+      <Polarity>ActiveHigh</Polarity>
+    </Signal>
   </Signals>
   <StateMachine>
     <AddressCounter />

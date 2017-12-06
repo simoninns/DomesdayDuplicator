@@ -1,6 +1,6 @@
 /*
  * Project Name: DomesdayDuplicator.cyfx
- * Time : 12/06/2017 15:06:51
+ * Time : 12/06/2017 19:38:55
  * Device Type: FX3
  * Project Type: GPIF2
  *
@@ -84,7 +84,7 @@ uint32_t CyFxGpifRegValue[]  = {
     0x00000082,  /*  CY_U3P_PIB_GPIF_SERIAL_IN_CONFIG */
     0x00000782,  /*  CY_U3P_PIB_GPIF_SERIAL_OUT_CONFIG */
     0x00100054,  /*  CY_U3P_PIB_GPIF_CTRL_BUS_DIRECTION */
-    0x0000FFFE,  /*  CY_U3P_PIB_GPIF_CTRL_BUS_DEFAULT */
+    0x0000FFCE,  /*  CY_U3P_PIB_GPIF_CTRL_BUS_DEFAULT */
     0x00000000,  /*  CY_U3P_PIB_GPIF_CTRL_BUS_POLARITY */
     0x00000000,  /*  CY_U3P_PIB_GPIF_CTRL_BUS_TOGGLE */
     0x00000000,  /*  CY_U3P_PIB_GPIF_CTRL_BUS_SELECT */
