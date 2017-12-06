@@ -167,7 +167,8 @@ wire fx3isReading;
 dataGenerator dataGenerator0 (
 	// Inputs
 	.nReset(fx3_nReset),						// Not reset
-	.inclk(fx3_clock),						// Input clock
+	.adcClk(adc_clock),						// Data collection clock (ADC)
+	.fx3Clk(fx3_clock),						// Data output clock (FX3)
 	.collectData(fx3_collectData),		// Collect data (ADC data is discarded if 0)
 	.readData(fx3isReading),				// 1 = FX3 is reading data
 	.testMode(fx3_testMode),				// 1 = Test mode on

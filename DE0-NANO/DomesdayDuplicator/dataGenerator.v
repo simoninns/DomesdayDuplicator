@@ -26,7 +26,8 @@
 
 module dataGenerator (
 	input nReset,
-	input inclk,
+	input adcClk,
+	input fx3Clk,
 	input collectData,
 	input readData,
 	input testMode,
@@ -35,51 +36,46 @@ module dataGenerator (
 	output [15:0] dataOut
 );
 
-// Convert the 10-bit unsigned data to  16-bit signed data
+// Convert the 10-bit unsigned data from the FIFO
+// to 16-bit signed data ready for the FX3 data bus
 convertTenToSixteenBits convertTenToSixteenBits0 (
 	.nReset(nReset),
-	.inclk(inclk),
-	.inputData(testData),
+	.inclk(fx3Clk),
+	.inputData(fifoDataOut),
 	
 	.outputData(dataOut)
 );
 
+// Dual-clock FIFO IP
+wire [15:0] fifoUsedWords;
+wire [9:0] fifoDataOut;
+
+IPfifo IPfifo0 (
+	.data(adcData),			// [9:0] data in
+	.rdclk(fx3Clk),			// FX3 clock
+	.rdreq(readData),			// Read request
+	.wrclk(adcClk),			// ADC clock
+	.wrreq(collectData),		// Write request
+	
+	.q(fifoDataOut),			// [9:0] Data output
+	.rdusedw(fifoUsedWords)	// [15:0] (read) used words
+);
+
+// Generate the data available flag
+assign dataAvailable = (fifoUsedWords > 16'd8191) ? 1'b1 : 1'b0;
+
 // Register to store test data value
-reg [9:0] testData;
+reg [9:0] adcData;
 
 // TEMP: Generate test data (always in test mode for now)
-always @ (posedge inclk, negedge nReset) begin
+always @ (posedge adcClk, negedge nReset) begin
 	if (!nReset) begin
-		testData <= 10'd0;
+		adcData <= 10'd0;
 	end else begin
 		if (collectData) begin
-			if (readData) begin
-				// Test mode data generation
-				testData = testData + 10'd1;
-			end
+			// Test mode data generation
+			adcData = adcData + 10'd1;
 		end
-	end
-end
-
-// Simulate dataAvailable
-reg [31:0] simCounter;
-reg dataAvailable_flag;
-assign dataAvailable = dataAvailable_flag;
-
-always @ (posedge inclk, negedge nReset) begin
-	if (!nReset) begin
-		simCounter <= 10'd0;
-		dataAvailable_flag = 1'b0;
-	end else begin
-		simCounter = simCounter + 32'd1;
-		
-		if (simCounter > 1000000 && simCounter < 1000010) begin
-			dataAvailable_flag = 1'b1;
-		end else begin
-			dataAvailable_flag = 1'b0;
-		end
-		
-		if (simCounter > 2000000) simCounter = 32'd0;
 	end
 end
 

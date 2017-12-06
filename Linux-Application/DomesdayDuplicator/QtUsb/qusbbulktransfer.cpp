@@ -452,11 +452,9 @@ void QUsbBulkTransfer::writeBuffersToDisk(void)
                             // Test was successful
                         } else {
                             // Test failed
-                            //qDebug() << "QUsbBulkTransfer::writeBuffersToDisk(): Disk buffer failed test mode integrity check!";
-                            qDebug() << "QUsbBulkTransfer::writeBuffersToDisk(): FAIL - Current word =" << currentWord << ": Previous word =" << previousWord << ": Position =" << bytePointer;
-                            //qDebug() << "  Disk buffer =" << nextDiskBufferToWrite;
-                            //qDebug() << "  transfer =" << bytePointer / (requestSize * packetSize);
-                            //qDebug() << "  Failed byte position =" << bytePointer;
+                            qDebug() << "QUsbBulkTransfer::writeBuffersToDisk(): FAIL - Current word =" << currentWord <<
+                                        ": Previous word =" << previousWord << ": Position =" << bytePointer <<
+                                        "  Disk buffer =" << nextDiskBufferToWrite << "  transfer =" << bytePointer / (requestSize * packetSize);
 
                             errorCount++;
                         }
