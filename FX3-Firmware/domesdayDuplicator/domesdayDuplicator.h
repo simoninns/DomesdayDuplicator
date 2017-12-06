@@ -43,12 +43,21 @@
 #define CY_FX_EP_PRODUCER_SOCKET0		CY_U3P_PIB_SOCKET_0
 #define CY_FX_EP_PRODUCER_SOCKET1		CY_U3P_PIB_SOCKET_1
 
+// NOTE:
+//
+// The size of the DMA buffer causes an automatic COMMIT in the GPIF state-machine
+// when reached.  This is mirrored by the FPGA which sends 8192 16-bit words per
+// transfer.  The 16K burst length is also matched by the Linux GUI application
+// that puts 16x1K transfers in-flight at any one time.
+//
+// In other words, if you are thinking of altering the 3 parameters below, make sure
+// you really know what your doing as there are soft-dependencies in the rest of the
+// project code :)
+//
 // Set USB 3 burst length to 16Kbytes
 #define CY_FX_EP_BURST_LENGTH           (16)
-
 // Set the DMA buffer size to 16Kbytes for the application
 #define CY_FX_DMA_BUF_SIZE              (16384)
-
 // Set the total number of DMA buffers available to 2 (32Kbytes total)
 #define CY_FX_DMA_BUF_COUNT             (2)
 
