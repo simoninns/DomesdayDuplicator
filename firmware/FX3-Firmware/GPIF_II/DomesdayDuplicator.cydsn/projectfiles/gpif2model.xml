@@ -86,7 +86,7 @@
       </Action>
     </State>
     <State ElementId="STATE0" StateType="NormalState">
-      <DisplayName>IDLE</DisplayName>
+      <DisplayName>TH0_IDLE</DisplayName>
       <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
       <RepeatCount>0</RepeatCount>
     </State>
@@ -145,10 +145,16 @@
     <Transition ElementId="TRANSITION1" SourceState="STATE0" DestinationState="STATE1" Equation="dataAvailable" />
     <Transition ElementId="TRANSITION0" SourceState="STARTSTATE0" DestinationState="STATE0" Equation="LOGIC_ONE" />
     <Transition ElementId="TRANSITION8" SourceState="STATE6" DestinationState="STATE1" Equation="DATA_CNT_HIT" />
-    <Transition ElementId="TRANSITION5" SourceState="STATE4" DestinationState="STATE0" Equation="!dataAvailable|!DMA_RDY_TH1" />
+    <State ElementId="STATE7" StateType="NormalState">
+      <DisplayName>TH1_IDLE</DisplayName>
+      <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
+      <RepeatCount>0</RepeatCount>
+    </State>
     <Transition ElementId="TRANSITION3" SourceState="STATE2" DestinationState="STATE3" Equation="LOGIC_ONE" />
     <Transition ElementId="TRANSITION6" SourceState="STATE4" DestinationState="STATE5" Equation="DMA_RDY_TH1" />
     <Transition ElementId="TRANSITION7" SourceState="STATE5" DestinationState="STATE6" Equation="LOGIC_ONE" />
     <Transition ElementId="TRANSITION9" SourceState="STATE1" DestinationState="STATE0" Equation="!dataAvailable|!DMA_RDY_TH0" />
+    <Transition ElementId="TRANSITION5" SourceState="STATE4" DestinationState="STATE7" Equation="!dataAvailable|!DMA_RDY_TH1" />
+    <Transition ElementId="TRANSITION10" SourceState="STATE7" DestinationState="STATE4" Equation="dataAvailable" />
   </StateMachine>
 </GPIFIIModel>

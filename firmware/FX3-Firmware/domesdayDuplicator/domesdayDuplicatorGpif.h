@@ -1,6 +1,6 @@
 /*
  * Project Name: DomesdayDuplicator.cyfx
- * Time : 12/04/2017 21:26:22
+ * Time : 12/05/2017 21:17:14
  * Device Type: FX3
  * Project Type: GPIF2
  *
@@ -21,19 +21,20 @@
 /* Summary
    Number of states in the state machine
  */
-#define CY_NUMBER_OF_STATES 8
+#define CY_NUMBER_OF_STATES 9
 
 /* Summary
    Mapping of user defined state names to state indices
  */
 #define START 0
 #define TH0_REQUEST 2
-#define IDLE 1
+#define TH0_IDLE 1
 #define TH0_WAIT 4
 #define TH0_READ 3
 #define TH1_WAIT 5
 #define TH1_REQUEST 6
-#define TH1_READ 7
+#define TH1_READ 8
+#define TH1_IDLE 7
 
 
 /* Summary
@@ -46,7 +47,7 @@
    Transition function values used in the state machine.
  */
 uint16_t CyFxGpifTransition[]  = {
-    0x0000, 0xAAAA, 0x7777, 0xFFFF, 0xCCCC
+    0x0000, 0xAAAA, 0xFFFF, 0x7777
 };
 
 /* Summary
@@ -57,19 +58,19 @@ uint16_t CyFxGpifTransition[]  = {
  */
 CyU3PGpifWaveData CyFxGpifWavedata[]  = {
     {{0x1E738001,0x00000000,0x80000000},{0x00000000,0x00000000,0x00000000}},
-    {{0x1E701A04,0x00001004,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x1E701A04,0x00001006,0x80000000},{0x00000000,0x00000000,0x00000000}},
     {{0x1E739403,0x20000000,0x80000040},{0x00000000,0x00000000,0x00000000}},
-    {{0x2E734005,0x04100008,0x80000000},{0x00000000,0x00000000,0x00000000}},
-    {{0x3E739C02,0x00000100,0x81000080},{0x1E738001,0x00000000,0x80000000}},
-    {{0x1E738001,0x00000000,0x80000000},{0x3E739C06,0x00000100,0x81000080}},
-    {{0x1E739407,0x24000000,0x80000040},{0x00000000,0x00000000,0x00000000}}
+    {{0x1E701A05,0x04001006,0x80000000},{0x00000000,0x00000000,0x00000000}},
+    {{0x2E739C02,0x00000100,0x81000080},{0x1E738001,0x00000000,0x80000000}},
+    {{0x2E739C06,0x00000100,0x81000080},{0x1E738007,0x00000000,0x80000000}},
+    {{0x1E739408,0x24000000,0x80000040},{0x00000000,0x00000000,0x00000000}}
 };
 
 /* Summary
    Table that maps state indices to the descriptor table indices.
  */
 uint8_t CyFxGpifWavedataPosition[]  = {
-    0,1,2,3,4,5,6,1
+    0,1,2,3,4,5,6,3,1
 };
 
 /* Summary
