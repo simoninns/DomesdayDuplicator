@@ -31,6 +31,8 @@
 #include <QDebug>
 #include <QThread>
 #include <QFile>
+#include <QtConcurrent/QtConcurrent>
+
 extern "C" {
 #include <libusb-1.0/libusb.h>
 }
@@ -56,7 +58,7 @@ protected slots:
     void run(void);
 
 protected:
-    void writeBuffersToDisk(void);
+    void processDiskBuffers(void);
     void freeTransferBuffers (unsigned char **dataBuffers, struct libusb_transfer **transfers);
     void freeDiskBuffers(unsigned char **diskBuffers);
     void bulkTransferStop(void);

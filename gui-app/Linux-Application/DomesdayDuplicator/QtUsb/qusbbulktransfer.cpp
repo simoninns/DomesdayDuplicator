@@ -29,6 +29,7 @@
 
 // Callback function for libUSB transfers
 static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer);
+static void writeDiskBuffer(void);
 
 static libusb_context* bContext;
 static libusb_device_handle* bDevHandle;
@@ -48,7 +49,7 @@ static unsigned int    queueDepth;             // Maximum number of queued trans
 // Note: Each disk buffer is QUEUEDEPTH transfers
 // i.e. if the queue depth is 16 and the transfer size is (16 * 1024) bytes
 // (16Kbytes) each disk buffer will be 16K, so 8 * 16K = 256K in total
-#define DISKBUFFERDEPTH 8
+#define DISKBUFFERDEPTH 128
 
 struct transferIdStruct {
     unsigned int transferNumber;               // The position of the transfer within the disk buffer
@@ -62,11 +63,13 @@ static unsigned int diskBufferDepth;           // The number of available disk b
 static unsigned int diskBufferFill[DISKBUFFERDEPTH];    // The current fill level of the buffer
 static unsigned int diskBufferState[DISKBUFFERDEPTH];   // The current state of the buffer
 static unsigned int nextDiskBufferToWrite;              // The next buffer to be written to disk
+static unsigned int currentlyWritingBuffer;             // The buffer currently being written
 
 unsigned char **diskBuffers = NULL;			// List of disk write buffers.
 
 #define DBSTATE_FILLING    0
 #define DBSTATE_WAITINGTOWRITE 1
+#define DBSTATE_WRITING 2
 
 // Private variables used to report on the transfer
 static unsigned int    successCount;           // Number of successful transfers
@@ -272,7 +275,7 @@ void QUsbBulkTransfer::run()
     // Process libUSB events whilst transfers are in flight
     do {
         libusb_handle_events_timeout(bContext, &timeout);
-        writeBuffersToDisk();
+        processDiskBuffers();
     } while (!stopTransfers);
 
     qDebug() << "transferThread::run(): Stopping streamer thread";
@@ -281,7 +284,7 @@ void QUsbBulkTransfer::run()
     while (transfersInFlight != 0) {
         qDebug() << "QUsbBulkTransfer::run(): Stopping -" << transfersInFlight << "transfers are pending";
         libusb_handle_events_timeout(bContext, &timeout);
-        writeBuffersToDisk();
+        processDiskBuffers();
         usleep(200);
     }
 
@@ -411,18 +414,28 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     }
 }
 
-// Function to write waiting buffers to disk
-void QUsbBulkTransfer::writeBuffersToDisk(void)
+// Function to process the disk buffers
+void QUsbBulkTransfer::processDiskBuffers(void)
+{
+    // Check if the next disk buffer to be written is waiting to write
+    if (diskBufferState[nextDiskBufferToWrite] == DBSTATE_WAITINGTOWRITE) {
+        // Run the disk write function in the background
+        currentlyWritingBuffer = nextDiskBufferToWrite;
+        diskBufferState[currentlyWritingBuffer] = DBSTATE_WRITING;
+        QFuture<void> future = QtConcurrent::run( writeDiskBuffer );
+    }
+}
+
+// Function to process the disk buffers
+static void writeDiskBuffer(void)
 {
     qint32 errorCount = 0;
 
     // Note: Disk buffers must be written in the correct order, so this function
     //   cycles through the disk buffers in numerical order.
 
-    // Check if the next disk buffer to be written is waiting to write
-    if (diskBufferState[nextDiskBufferToWrite] == DBSTATE_WAITINGTOWRITE) {
-        // Buffer is waiting to be written, write it to disk...
-
+    // Check if the current disk buffer is waiting to write
+    if (diskBufferState[currentlyWritingBuffer] == DBSTATE_WRITING) {
         // If we are in test mode, check the integrity of the disk buffer's data
         if (testModeFlag) {
             quint8 highByte = 0;
@@ -432,8 +445,8 @@ void QUsbBulkTransfer::writeBuffersToDisk(void)
 
             for (quint64 bytePointer = 0; bytePointer < (requestSize * packetSize * queueDepth); bytePointer += 2) {
                 // Get two bytes of data (that represent our signed little-endian 16-bit number
-                lowByte  = diskBuffers[nextDiskBufferToWrite][bytePointer];
-                highByte = diskBuffers[nextDiskBufferToWrite][bytePointer + 1];
+                lowByte  = diskBuffers[currentlyWritingBuffer][bytePointer];
+                highByte = diskBuffers[currentlyWritingBuffer][bytePointer + 1];
 
                 // Convert the bytes into a signed 16-bit value
                 currentWord = lowByte + (highByte << 8);
@@ -454,7 +467,7 @@ void QUsbBulkTransfer::writeBuffersToDisk(void)
                             // Test failed
                             qDebug() << "QUsbBulkTransfer::writeBuffersToDisk(): FAIL - Current word =" << currentWord <<
                                         ": Previous word =" << previousWord << ": Position =" << bytePointer <<
-                                        "  Disk buffer =" << nextDiskBufferToWrite << "  transfer =" << bytePointer / (requestSize * packetSize);
+                                        "  Disk buffer =" << currentlyWritingBuffer << "  transfer =" << bytePointer / (requestSize * packetSize);
 
                             errorCount++;
                         }
@@ -467,16 +480,16 @@ void QUsbBulkTransfer::writeBuffersToDisk(void)
         }
 
         // Write the buffer to disk
-        //outputFile->write((const char *)diskBuffers[nextDiskBufferToWrite], (requestSize * packetSize * queueDepth));
+        outputFile->write((const char *)diskBuffers[currentlyWritingBuffer], (requestSize * packetSize * queueDepth));
         if (errorCount >0) {
-            qDebug() << "QUsbBulkTransfer::writeBuffersToDisk(): Buffer" << nextDiskBufferToWrite << "written to disk with" <<
+            qDebug() << "QUsbBulkTransfer::writeBuffersToDisk(): Buffer" << currentlyWritingBuffer << "written to disk with" <<
                         errorCount << "errors";
             diskFailureCount++;
         }
 
         // Mark buffer as ready for filling
-        diskBufferFill[nextDiskBufferToWrite] = 0; // Buffer is now 'empty'
-        diskBufferState[nextDiskBufferToWrite] = DBSTATE_FILLING;
+        diskBufferFill[currentlyWritingBuffer] = 0; // Buffer is now 'empty'
+        diskBufferState[currentlyWritingBuffer] = DBSTATE_FILLING;
 
         // Point to the next buffer for writing (and check for pointer overflow)
         nextDiskBufferToWrite++;
