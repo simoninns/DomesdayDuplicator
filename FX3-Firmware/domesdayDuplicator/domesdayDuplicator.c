@@ -84,8 +84,10 @@ int main(void)
     io_cfg.useSpi    = CyFalse;
     io_cfg.lppMode   = CY_U3P_IO_MATRIX_LPP_UART_ONLY; // 16-bit data bus with UART
 
-    io_cfg.gpioSimpleEn[0] = 0;
-    io_cfg.gpioSimpleEn[1] = 0x08000000; // GPIO 59
+    // Note:
+    // If io_cfg.isDQ32Bit = CyFalse then GPIO[0:15] and CTL[0:4] will be reserved for GPIF
+    io_cfg.gpioSimpleEn[0] = 0;	// Most significant GPIOs 32-63
+    io_cfg.gpioSimpleEn[1] = 0; // Least significant GPIOs 0-31
     io_cfg.gpioComplexEn[0] = 0;
     io_cfg.gpioComplexEn[1] = 0;
 
@@ -183,7 +185,7 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0042\r\n");
+    CyU3PDebugPrint(1, "\r\n\r\nDomesday Duplicator FX3 Firmware - Build 0050\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - http://www.domesday86.com\r\n");
     CyU3PDebugPrint(1, "Debug console initialised\r\n");
 
@@ -571,7 +573,7 @@ void domDupDebugInit(void)
 // Handle CPU_INT from GPIF callback (set when the FPGA FIFO buffer is full)
 void GpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State)
 {
-	if (Event == CYU3P_GPIF_EVT_SM_INTERRUPT) CyU3PDebugPrint(8, "\r\nFPGA ERROR: FIFO buffer full (nError set) - data has been lost!\r\n");
+	if (Event == CYU3P_GPIF_EVT_SM_INTERRUPT) CyU3PDebugPrint(8, "Warning: GPIF sent INT_CPU signal!\r\n");
 }
 
 // USB set-up request callback
@@ -614,13 +616,13 @@ CyBool_t domDupUSBSetupCB (uint32_t setupData0, uint32_t setupData1)
 				if (wValue == 0) {
 					// Signal FPGA with test mode off
 					CyU3PDebugPrint(8, "Vendor specific command received: Test mode off\r\n");
-					CyU3PGpioSetValue(22, 0); // testMode GPIO low
+					CyU3PGpioSetValue(20, 0); // testMode GPIO low
 				}
 
 				if (wValue == 1) {
 					// Signal FPGA with test mode on
 					CyU3PDebugPrint(8, "Vendor specific command received: Test mode on\r\n");
-					CyU3PGpioSetValue(22, 1); // testMode GPIO high
+					CyU3PGpioSetValue(20, 1); // testMode GPIO high
 				}
 			}
 

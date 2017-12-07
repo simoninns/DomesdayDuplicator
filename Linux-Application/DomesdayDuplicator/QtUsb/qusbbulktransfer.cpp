@@ -467,7 +467,7 @@ void QUsbBulkTransfer::writeBuffersToDisk(void)
         }
 
         // Write the buffer to disk
-        outputFile->write((const char *)diskBuffers[nextDiskBufferToWrite], (requestSize * packetSize * queueDepth));
+        //outputFile->write((const char *)diskBuffers[nextDiskBufferToWrite], (requestSize * packetSize * queueDepth));
         if (errorCount >0) {
             qDebug() << "QUsbBulkTransfer::writeBuffersToDisk(): Buffer" << nextDiskBufferToWrite << "written to disk with" <<
                         errorCount << "errors";

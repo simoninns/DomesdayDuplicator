@@ -31,6 +31,7 @@ module dataGenerator (
 	input collectData,
 	input readData,
 	input testMode,
+	input [9:0] adcData,
 	
 	output fullError,
 	output emptyError,
@@ -49,11 +50,19 @@ convertTenToSixteenBits convertTenToSixteenBits0 (
 );
 
 // Dual-clock FIFO IP
+//
+// Note: FIFO is 32767 10-bit words; therefore we can
+// buffer 4 packets (of 8192 words) before overflow.
+// Since the USB transfer is 16-bits, this is equivilent
+// to 64Kbytes of buffering.
+//
+// Right now there is no error condition checking for a
+// full FIFO.
 wire [15:0] fifoUsedWords;
 wire [9:0] fifoDataOut;
 
 IPfifo IPfifo0 (
-	.data(adcData),			// [9:0] data in
+	.data(adcDataRead),		// [9:0] data in
 	.rdclk(fx3Clk),			// FX3 clock
 	.rdreq(readData),			// Read request
 	.wrclk(adcClk),			// ADC clock
@@ -69,16 +78,26 @@ IPfifo IPfifo0 (
 assign dataAvailable = (fifoUsedWords > 16'd8191) ? 1'b1 : 1'b0;
 
 // Register to store test data value
-reg [9:0] adcData;
+reg [9:0] testData;
+reg [9:0] adcDataRead;
 
-// TEMP: Generate test data (always in test mode for now)
-always @ (posedge adcClk, negedge nReset) begin
+// Collect data on the negative edge of the ADC clock
+always @ (negedge adcClk, negedge nReset) begin
 	if (!nReset) begin
-		adcData <= 10'd0;
+		testData = 10'd0;
 	end else begin
 		if (collectData) begin
 			// Test mode data generation
-			adcData = adcData + 10'd1;
+			testData = testData + 10'd1;
+			
+			// Select the data source
+			if (testMode) begin
+				// We are in test mode, use the test data
+				adcDataRead = testData;
+			end else begin
+				// We are in normal mode, use the ADC data bus
+				adcDataRead = adcData;
+			end
 		end
 	end
 end
