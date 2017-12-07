@@ -172,6 +172,7 @@ dataGenerator dataGenerator0 (
 	.collectData(fx3_collectData),		// Collect data (ADC data is discarded if 0)
 	.readData(fx3isReading),				// 1 = FX3 is reading data
 	.testMode(fx3_testMode),				// 1 = Test mode on
+	.adcData(adcData),						// ADC data bus input
 	
 	// Outputs
 	.fullError(fx3_control[04]),

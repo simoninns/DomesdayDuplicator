@@ -50,16 +50,20 @@
 // transfer.  The 16K burst length is also matched by the Linux GUI application
 // that puts 16x1K transfers in-flight at any one time.
 //
-// In other words, if you are thinking of altering the 3 parameters below, make sure
-// you really know what your doing as there are soft-dependencies in the rest of the
+// The DMA buffer count does not change the 'size' of the DMA buffer (from the
+// perspective of the COMMIT counter), it increases the amount of data the FX3
+// can hold for transfer at any one time.
+//
+// If you are thinking of altering the 3 parameters below, make sure you really
+// know what your doing as there are soft-dependencies in the rest of the
 // project code :)
 //
 // Set USB 3 burst length to 16Kbytes
 #define CY_FX_EP_BURST_LENGTH           (16)
 // Set the DMA buffer size to 16Kbytes for the application
 #define CY_FX_DMA_BUF_SIZE              (16384)
-// Set the total number of DMA buffers available to 2 (32Kbytes total)
-#define CY_FX_DMA_BUF_COUNT             (2)
+// Set the total number of DMA buffers available to 4 (64Kbytes total)
+#define CY_FX_DMA_BUF_COUNT             (4)
 
 // Function prototypes
 void domDupThreadInitialise(uint32_t input);

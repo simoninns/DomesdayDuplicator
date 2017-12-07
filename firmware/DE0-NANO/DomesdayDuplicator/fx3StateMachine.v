@@ -68,7 +68,7 @@ reg [15:0] wordCounter;
 
 always @(posedge inclk, negedge nReset) begin
 	if (!nReset) begin
-		wordCounter <= 16'd0;
+		wordCounter = 16'd0;
 	end else begin
 		if (sm_currentState == state_sendPacket) begin
 			wordCounter = wordCounter + 16'd1;

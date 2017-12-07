@@ -82,7 +82,7 @@
     <State ElementId="STATE2" StateType="NormalState">
       <DisplayName>TH0_REQUEST</DisplayName>
       <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
-      <RepeatCount>4</RepeatCount>
+      <RepeatCount>3</RepeatCount>
       <Action ElementId="DR_GPIO0" ActionType="DR_GPIO">
         <ControlPinName>readData</ControlPinName>
       </Action>
@@ -120,7 +120,7 @@
     <State ElementId="STATE5" StateType="NormalState">
       <DisplayName>TH1_REQUEST</DisplayName>
       <RepeatUntillNextTransition>True</RepeatUntillNextTransition>
-      <RepeatCount>4</RepeatCount>
+      <RepeatCount>3</RepeatCount>
       <Action ElementId="DR_GPIO0" ActionType="DR_GPIO">
         <ControlPinName>readData</ControlPinName>
       </Action>
@@ -145,9 +145,9 @@
       </Action>
       <Action ElementId="COUNT_DATA0" ActionType="COUNT_DATA" />
     </State>
+    <Transition ElementId="TRANSITION0" SourceState="STATE3" DestinationState="STATE4" Equation="DATA_CNT_HIT" />
     <Transition ElementId="TRANSITION9" SourceState="STARTSTATE0" DestinationState="STATE1" Equation="LOGIC_ONE" />
-    <Transition ElementId="TRANSITION4" SourceState="STATE3" DestinationState="STATE4" Equation="DATA_CNT_HIT" />
-    <Transition ElementId="TRANSITION8" SourceState="STATE6" DestinationState="STATE1" Equation="DATA_CNT_HIT" />
+    <Transition ElementId="TRANSITION1" SourceState="STATE6" DestinationState="STATE1" Equation="DATA_CNT_HIT" />
     <Transition ElementId="TRANSITION2" SourceState="STATE1" DestinationState="STATE2" Equation="DMA_RDY_TH0&amp;dataAvailable" />
     <Transition ElementId="TRANSITION3" SourceState="STATE2" DestinationState="STATE3" Equation="LOGIC_ONE" />
     <Transition ElementId="TRANSITION6" SourceState="STATE4" DestinationState="STATE5" Equation="DMA_RDY_TH1&amp;dataAvailable" />
