@@ -53,7 +53,7 @@ convertTenToSixteenBits convertTenToSixteenBits0 (
 //
 // Note: FIFO is 32767 10-bit words; therefore we can
 // buffer 4 packets (of 8192 words) before overflow.
-// Since the USB transfer is 16-bits, this is equivilent
+// Since the USB transfer is 16-bits, this is equivalent
 // to 64Kbytes of buffering.
 //
 // Right now there is no error condition checking for a
