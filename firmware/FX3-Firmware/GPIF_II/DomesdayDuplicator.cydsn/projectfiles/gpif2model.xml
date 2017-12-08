@@ -55,7 +55,7 @@
       <AssetionType>Assert</AssetionType>
     </Signal>
     <Signal ElementId="INPUT1" SignalType="Input" SpecialFunction="None">
-      <DisplayName>GPIO_21_CTL04</DisplayName>
+      <DisplayName>bufferError</DisplayName>
       <GPIOPinNumber>GPIO_21</GPIOPinNumber>
       <Polarity>ActiveHigh</Polarity>
     </Signal>
