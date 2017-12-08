@@ -82,7 +82,7 @@ assign GPIO1[27] = fx3_control[00]; // FX3 CTL_00 GPIO_17 (output)
 assign fx3_control[01] = GPIO1[25];	// FX3 CTL_01 GPIO_18
 assign fx3_control[02] = GPIO1[23];	// FX3 CTL_02 GPIO_19
 assign fx3_control[03] = GPIO1[21];	// FX3 CTL_03 GPIO_20
-assign fx3_control[04] = GPIO1[19];	// FX3 CTL_04 GPIO_21
+assign GPIO1[19] = fx3_control[04];	// FX3 CTL_04 GPIO_21 (output)
 assign fx3_control[05] = GPIO1[17];	// FX3 CTL_05 GPIO_22
 assign fx3_control[06] = GPIO1[15];	// FX3 CTL_06 GPIO_23
 assign fx3_control[07] = GPIO1[13];	// FX3 CTL_07 GPIO_24
@@ -96,6 +96,7 @@ assign fx3_control[12] = GPIO1[03];	// FX3 CTL_12 GPIO_29
 //
 // CLK					GPIO16		PCLK		Output	- Data clock
 // dataAvailable		GPIO_17		CTL_00	Output	- FPGA signals if data is available for reading
+// bufferError			GPIO_21		CTL_04	Output	- FPGA signals buffering error
 // Databus				GPIO0:15					Output	- Databus
 // nReset				GPIO_27		CTL_10	Input		- FX3 signals (not) reset condition
 // collectData			GPIO_19		CTL_02	Input		- FX3 signals data collection on/off
@@ -109,9 +110,11 @@ wire fx3_dataAvailable;
 wire fx3_collectData;
 wire fx3_readData;
 wire fx3_testMode;
+wire fx3_bufferError;
 
 // Signal outputs to FX3
 assign fx3_control[00] = fx3_dataAvailable;
+assign fx3_control[04] = fx3_bufferError;
 
 // Signal inputs from FX3
 assign fx3_nReset      = fx3_control[10];
@@ -175,8 +178,7 @@ dataGenerator dataGenerator0 (
 	.adcData(adcData),						// ADC data bus input
 	
 	// Outputs
-	.fullError(fx3_control[04]),
-	.emptyError(fx3_control[05]),
+	.bufferError(fx3_bufferError),		// Set if a FIFO buffer error occurs
 	.dataAvailable(fx3_dataAvailable),	// Set if FIFO buffer contains at least 8192 words of data
 	.dataOut(fx3_databus)					// 16-bit data output
 );

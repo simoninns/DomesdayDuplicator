@@ -48,7 +48,10 @@ CyU3PDmaMultiChannel glDmaMultiChHandle; // DMA multi-channel handle
 CyBool_t glIsApplnActive = CyFalse; // Application active/ready flag
 CyBool_t glForceLinkU2 = CyFalse; // Force U2 flag
 
-CyBool_t bufferErrorFlag = CyFalse; // Buffer over/under-run error flag
+volatile CyBool_t bufferErrorFlag = CyFalse; // Buffer over/under-run error flag
+CyBool_t bufferErrorDisplayFlag = CyFalse; // Buffer over/under-run error display flag
+
+volatile CyBool_t dataCollectionFlag = CyFalse; // Flag to show if the host application is collecting data
 
 // Main application function
 int main(void)
@@ -181,7 +184,7 @@ int main(void)
 	gpioConfig.driveLowEn = CyFalse;
 	gpioConfig.driveHighEn = CyFalse;
 	gpioConfig.inputEn = CyTrue;
-	gpioConfig.intrMode = CY_U3P_GPIO_INTR_POS_EDGE;
+	gpioConfig.intrMode = CY_U3P_GPIO_INTR_BOTH_EDGE;
 
 	status = CyU3PGpioSetSimpleConfig(21, &gpioConfig);
 	if (status != CY_U3P_SUCCESS) {
@@ -208,7 +211,7 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware - Build 0053\r\n");
+    CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware - Build 0054\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - http://www.domesday86.com\r\n\r\n");
     CyU3PDebugPrint(1, "domDupThreadInitialise(): Debug console initialised\r\n");
 
@@ -237,6 +240,15 @@ void domDupThreadInitialise(uint32_t input)
                     status = CyU3PUsbGetLinkPowerState(&powerState);
                 }
             }
+        }
+
+        // Process the buffer error flag (generate via GPIO interrupt)
+        if (bufferErrorFlag) {
+        	// Ensure we only output the debug once per capture
+        	if (!bufferErrorDisplayFlag) {
+        		bufferErrorDisplayFlag = CyTrue;
+        		CyU3PDebugPrint(4, "domDupThreadInitialise(): FPGA has flagged a buffer error!\r\n");
+        	}
         }
     }
 }
@@ -282,7 +294,7 @@ void domDupInitialiseApplication(void)
     apiReturnStatus = CyU3PUsbStart();
     if (apiReturnStatus == CY_U3P_ERROR_NO_REENUM_REQUIRED) noRenum = CyTrue;
     else if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbStart failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbStart failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
@@ -300,63 +312,63 @@ void domDupInitialiseApplication(void)
     // Super speed device descriptor (USB 3)
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_SS_DEVICE_DESCR, 0, (uint8_t *)USB30DeviceDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc USB3 failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc USB3 failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // High speed device descriptor (USB 2)
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_HS_DEVICE_DESCR, 0, (uint8_t *)USB20DeviceDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc USB 2 failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc USB 2 failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // BOS descriptor
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_SS_BOS_DESCR, 0, (uint8_t *)USBBOSDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc BOS failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc BOS failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // Device qualifier descriptor
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_DEVQUAL_DESCR, 0, (uint8_t *)USBDeviceQualDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc qualifier descriptor failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc qualifier descriptor failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // Super speed configuration descriptor
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_SS_CONFIG_DESCR, 0, (uint8_t *)USBSSConfigDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc configuration descriptor failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc configuration descriptor failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // High speed configuration descriptor
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_HS_CONFIG_DESCR, 0, (uint8_t *)USBHSConfigDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc Other Speed Descriptor failed, Error Code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc Other Speed Descriptor failed, Error Code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // Full speed configuration descriptor
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_FS_CONFIG_DESCR, 0, (uint8_t *)USBFSConfigDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc Full-Speed Descriptor failed, Error Code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc Full-Speed Descriptor failed, Error Code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // String descriptor 0
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_STRING_DESCR, 0, (uint8_t *)USBStringLangIDDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc string 0 descriptor failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc string 0 descriptor failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // String descriptor 1
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_STRING_DESCR, 1, (uint8_t *)USBManufactureDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc string descriptor 1 failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc string descriptor 1 failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
@@ -364,7 +376,7 @@ void domDupInitialiseApplication(void)
     apiReturnStatus = CyU3PUsbSetDesc(CY_U3P_USB_SET_STRING_DESCR, 2, (uint8_t *)USBProductDscr);
     if (apiReturnStatus != CY_U3P_SUCCESS)
     {
-        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc string descriptor 2 failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PUsbSetDesc string descriptor 2 failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
@@ -375,7 +387,7 @@ void domDupInitialiseApplication(void)
     if (!noRenum) {
         apiReturnStatus = CyU3PConnectState(CyTrue, CyTrue);
         if (apiReturnStatus != CY_U3P_SUCCESS) {
-            CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PConnectState failed, Error code = %d\n", apiReturnStatus);
+            CyU3PDebugPrint(4, "domDupInitialiseApplication(): CyU3PConnectState failed, Error code = %d\r\n", apiReturnStatus);
             domDupErrorHandler(apiReturnStatus);
         }
     } else {
@@ -433,7 +445,7 @@ void domDupStartApplication(void)
     // Configure consumer end-point
     apiReturnStatus = CyU3PSetEpConfig(CY_FX_EP_CONSUMER, &epCfg);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PSetEpConfig failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PSetEpConfig failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
@@ -452,14 +464,14 @@ void domDupStartApplication(void)
 
     apiReturnStatus = CyU3PDmaMultiChannelCreate(&glDmaMultiChHandle, CY_U3P_DMA_TYPE_AUTO_MANY_TO_ONE, &dmaMultiConfig);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PDmaMultiChannelCreate failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PDmaMultiChannelCreate failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
     // Start the DMA channel transfer
     apiReturnStatus = CyU3PDmaMultiChannelSetXfer(&glDmaMultiChHandle, 0, 0);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-		CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PDmaMultiChannelSetXfer failed, Error code = %d\n", apiReturnStatus);
+		CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PDmaMultiChannelSetXfer failed, Error code = %d\r\n", apiReturnStatus);
 		domDupErrorHandler(apiReturnStatus);
 	}
 
@@ -470,7 +482,7 @@ void domDupStartApplication(void)
     CyU3PGpifRegisterCallback(gpifDmaEventCB);
 
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PGpifLoad failed, error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PGpifLoad failed, error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler (apiReturnStatus);
     }
 
@@ -481,21 +493,21 @@ void domDupStartApplication(void)
     // Set the thread 0 water-mark level to 1x 32 bit word
     apiReturnStatus = CyU3PGpifSocketConfigure(0, CY_FX_EP_PRODUCER_SOCKET0, 3, CyFalse, 1);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-		CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PGpifSocketConfigure failed for thread0, error code = %d\n", apiReturnStatus);
+		CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PGpifSocketConfigure failed for thread0, error code = %d\r\n", apiReturnStatus);
 		domDupErrorHandler (apiReturnStatus);
 	}
 
     // Set the thread 1 water-mark level to 1x 32 bit word
 	apiReturnStatus = CyU3PGpifSocketConfigure(1, CY_FX_EP_PRODUCER_SOCKET1, 3, CyFalse, 1);
 	if (apiReturnStatus != CY_U3P_SUCCESS) {
-		CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PGpifSocketConfigure failed for thread1, error code = %d\n", apiReturnStatus);
+		CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PGpifSocketConfigure failed for thread1, error code = %d\r\n", apiReturnStatus);
 		domDupErrorHandler (apiReturnStatus);
 	}
 
 	// Start the GPIF state machine
     apiReturnStatus = CyU3PGpifSMStart (START, ALPHA_START);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PGpifSMStart failed, error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupStartApplication(): CyU3PGpifSMStart failed, error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 
@@ -531,7 +543,7 @@ void domDupStopApplication(void)
     // Un-configure consumer end-point
     apiReturnStatus = CyU3PSetEpConfig(CY_FX_EP_CONSUMER, &epCfg);
     if (apiReturnStatus != CY_U3P_SUCCESS) {
-        CyU3PDebugPrint(4, "domDupStopApplication(): CyU3PSetEpConfig failed, Error code = %d\n", apiReturnStatus);
+        CyU3PDebugPrint(4, "domDupStopApplication(): CyU3PSetEpConfig failed, Error code = %d\r\n", apiReturnStatus);
         domDupErrorHandler(apiReturnStatus);
     }
 }
@@ -626,12 +638,23 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 
 					// Clear the FPGA buffer error flag
 					bufferErrorFlag = CyFalse;
+					bufferErrorDisplayFlag = CyFalse;
+
+					// Flag that the host is collecting data
+					dataCollectionFlag = CyTrue;
 				}
 
 				if (wValue == 0) {
 					// Stop collection request from USB host
 					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: Stop data collection\r\n");
 					CyU3PGpioSetValue(19, CyFalse); // collectData GPIO low
+
+					// Flag that the host is not collecting data
+					dataCollectionFlag = CyFalse;
+
+					// Clear the FPGA buffer error flag
+					bufferErrorFlag = CyFalse;
+					bufferErrorDisplayFlag = CyFalse;
 				}
 			}
 
@@ -747,24 +770,24 @@ CyBool_t domDupLPMRequestCB(CyU3PUsbLinkPowerMode linkMode)
 }
 
 // Callback function for GPIO pin interrupt
+//
+// Note: This interrupt call is made in interrupt context, which means that any blocking
+//       API calls cannot be made from this callback. i.e. don't try to output debug.
 void gpioInterruptCallback(uint8_t gpioTriggerPin)
 {
     CyBool_t gpioValue = CyFalse;
     CyU3PReturnStatus_t apiReturnStatus = CY_U3P_SUCCESS;
 
-    // Get the status of the pin
-    apiReturnStatus = CyU3PGpioGetValue (gpioTriggerPin, &gpioValue);
+    // Get the status of the pin (that caused the interrupt)
+    apiReturnStatus = CyU3PGpioGetValue(gpioTriggerPin, &gpioValue);
     if (apiReturnStatus == CY_U3P_SUCCESS) {
-        // GPIO21 is the FPGA error flag (when high)
-        if ((gpioTriggerPin == 21) && (gpioValue == CyTrue)) {
-        	// Only handle the error if this is the first one received
-        	if (!bufferErrorFlag) {
-        		bufferErrorFlag = CyTrue;
-        		CyU3PDebugPrint(8, "gpioInterruptCallback(): FPGA flagged buffer error\r\n");
+        // GPIO21 is the FPGA error flag
+        if (gpioTriggerPin == 21) {
+        	if (gpioValue == CyTrue) {
+        		if (dataCollectionFlag) bufferErrorFlag = CyTrue;
+        	} else {
+        		bufferErrorFlag = CyFalse;
         	}
-        } else {
-        	// Unhandled interrupt
-        	CyU3PDebugPrint(8, "gpioInterruptCallback(): Unhandled GPIO interrupt received\r\n");
         }
     }
 }
