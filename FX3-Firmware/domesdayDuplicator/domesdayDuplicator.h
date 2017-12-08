@@ -75,10 +75,11 @@ void domDupErrorHandler(CyU3PReturnStatus_t apiReturnStatus);
 void domDupDebugInit(void);
 
 // Callback function prototypes
-void GpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State);
+void gpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State);
 CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1);
 void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData);
 CyBool_t domDupLPMRequestCB(CyU3PUsbLinkPowerMode linkMode);
+void gpioInterruptCallback(uint8_t gpioTriggerPin);
 
 // External definitions for the USB Descriptors
 extern const uint8_t USB20DeviceDscr[];
