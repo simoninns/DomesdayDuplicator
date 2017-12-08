@@ -33,8 +33,7 @@ module dataGenerator (
 	input testMode,
 	input [9:0] adcData,
 	
-	output fullError,
-	output emptyError,
+	output bufferError,
 	output dataAvailable,
 	output [15:0] dataOut
 );
@@ -69,8 +68,8 @@ IPfifo IPfifo0 (
 	.wrreq(collectData),		// Write request
 	
 	.q(fifoDataOut),			// [9:0] Data output
-	.rdempty(emptyError),
-	.rdfull(fullError),
+	.rdempty(rdEmpty),
+	.rdfull(rdFull),
 	.rdusedw(fifoUsedWords)	// [15:0] (read) used words
 );
 
@@ -98,6 +97,31 @@ always @ (negedge adcClk, negedge nReset) begin
 				// We are in normal mode, use the ADC data bus
 				adcDataRead = adcData;
 			end
+		end
+	end
+end
+
+// Generate buffer error flag
+//
+// Note: This flag is only set if we are collecting data
+//       The flag is not cleared until data collection stops
+wire rdEmpty;
+wire rdFull;
+reg bufferError_flag;
+assign bufferError = bufferError_flag;
+
+always @ (posedge fx3Clk, negedge nReset) begin
+	if (!nReset) begin
+		bufferError_flag = 1'b0;
+	end else begin
+		if (collectData) begin
+			// Collecting data, check for errors
+			if ((rdFull) || (fifoUsedWords > 16'd32700)) begin
+				bufferError_flag = 1'b1;
+			end
+		end else begin
+			// Only flag errors if we are collecting data
+			bufferError_flag = 1'b0;
 		end
 	end
 end
