@@ -37,7 +37,6 @@ extern "C" {
 #include <libusb-1.0/libusb.h>
 }
 
-//class QUSBSHARED_EXPORT QUsbBulkTransfer : public QThread {
 class QUsbBulkTransfer : public QThread {
     Q_OBJECT
 public:
@@ -58,10 +57,18 @@ protected slots:
     void run(void);
 
 protected:
-    void processDiskBuffers(void);
-    void freeTransferBuffers (unsigned char **dataBuffers, struct libusb_transfer **transfers);
-    void freeDiskBuffers(unsigned char **diskBuffers);
+    void freeUsbTransferBuffers(unsigned char **dataBuffers, struct libusb_transfer **transfers);
     void bulkTransferStop(void);
+
+    libusb_context* libUsbContext;
+    libusb_device_handle* libUsbDeviceHandle;
+    quint8 libUsbEndPoint;
+
+    quint32 requestSize; // Request size in number of packets
+    quint32 packetSize;  // Maximum packet size for the endpoint
+    quint32 queueDepth;  // Maximum number of queued transfers allowed
+
+    QString captureFileName; // Capture file name
 };
 
 #endif // QUSBBULKTRANSFER_H
