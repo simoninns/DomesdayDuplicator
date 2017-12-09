@@ -195,3 +195,9 @@ quint32 usbDevice::getDiskFailureCounter(void)
 {
     return domDupDevice->getDiskFailureCounter();
 }
+
+// Return the current number of available disk buffers
+quint32 usbDevice::getAvailableDiskBuffers(void)
+{
+    return domDupDevice->getAvailableDiskBuffers();
+}

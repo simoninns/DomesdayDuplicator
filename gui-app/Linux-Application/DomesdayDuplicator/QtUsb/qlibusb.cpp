@@ -391,3 +391,9 @@ quint32 QUsbDevice::getDiskFailureCounter(void)
 {
     return mUsbBulkTransfer->getDiskFailureCounter();
 }
+
+// Return the current number of available disk buffers
+quint32 QUsbDevice::getAvailableDiskBuffers(void)
+{
+    return mUsbBulkTransfer->getAvailableDiskBuffers();
+}
