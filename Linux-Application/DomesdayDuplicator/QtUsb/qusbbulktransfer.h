@@ -48,6 +48,7 @@ public:
     quint32 getFailureCounter(void);
     quint32 getTransferPerformance(void);
     quint32 getDiskFailureCounter(void);
+    quint32 getAvailableDiskBuffers(void);
 
 signals:
 
@@ -59,6 +60,9 @@ protected slots:
 protected:
     void freeUsbTransferBuffers(unsigned char **dataBuffers, struct libusb_transfer **transfers);
     void bulkTransferStop(void);
+
+    void allocateDiskBuffers(void);
+    void freeDiskBuffers(void);
 
     libusb_context* libUsbContext;
     libusb_device_handle* libUsbDeviceHandle;

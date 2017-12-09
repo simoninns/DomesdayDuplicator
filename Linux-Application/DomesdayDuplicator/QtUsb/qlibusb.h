@@ -88,6 +88,7 @@ public slots:
   quint32 getFailureCounter(void);
   quint32 getTransferPerformance(void);
   quint32 getDiskFailureCounter(void);
+  quint32 getAvailableDiskBuffers(void);
 
   /**
    * @brief See base class
