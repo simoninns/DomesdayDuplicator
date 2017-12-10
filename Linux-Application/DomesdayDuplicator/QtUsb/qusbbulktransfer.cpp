@@ -60,20 +60,58 @@ struct statisticsStruct {
 };
 static statisticsStruct statistics;
 
+// Notes:
+//
+// The ADC generates data at a rate of around 64Mbytes/sec
+//
+// The REQUEST_SIZE, PACKET_SIZE and QUEUE_DEPTH relate to the libUSB transfers
+// The NUMBER_OF_DISK_BUFFERS and QUEUE_BUFFERS_PER_DISK_BUFFER relate to the disk write functions
+//
+// Every libUSB transfer thread requests REQUEST_SIZE * PACKET_SIZE bytes from the USB library
+// The QUEUE_DEPTH controls the maximum number of thread requests allowed at any time
+// The size of the queue is (REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH
+//
+// QUEUE_BUFFERS_PER_DISK_BUFFER defines the number of queues stored in each disk buffer
+// So the size of a disk buffer is defined by:
+//   ((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER
+//
+// The number of available disk buffers is set by NUMBER_OF_DISK_BUFFERS so the total amount
+// of available disk buffer space is defined by:
+//   (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER) * NUMBER_OF_DISK_BUFFERS
+//
+// It is recommended that PACKET_SIZE is equal to the endpoint burst length (16Kbytes)
+//
+// The settings below give the following results:
+//
+// Size of request per libUSB transfer request thread =
+//   (16 * 16384) = 256Kbytes
+//
+// Size of transfer queue =
+//   (256Kbytes) * 16 = 4Mbytes
+//
+// Size of each disk buffer =
+//   4MBytes * 32 = 128Mbytes
+//
+// Total size of disk buffers =
+//   128Mbytes * 4 = 512Mbytes
+//
 #define REQUEST_SIZE 16
-#define PACKET_SIZE 1024
+#define PACKET_SIZE 16384
 #define QUEUE_DEPTH 16
+#define NUMBER_OF_DISK_BUFFERS 4
+#define QUEUE_BUFFERS_PER_DISK_BUFFER 32
 
 // FPGA test mode status flag
 static bool testModeFlag;
 
 // Disk buffer variables
-#define NUMBER_OF_DISK_BUFFERS 8
-#define QUEUE_BUFFERS_PER_DISK_BUFFER 32
 static unsigned char **diskDataBuffers = NULL; // List of disk data buffers
 static quint32 numberOfDiskBuffers;
 static quint32 queueBuffersPerDiskBuffer;
 static bool diskBufferStatus[NUMBER_OF_DISK_BUFFERS];
+
+// Disk IO
+static QFile* outputFile;
 
 QUsbBulkTransfer::QUsbBulkTransfer(void)
 {
@@ -181,6 +219,13 @@ void QUsbBulkTransfer::run()
     // Allocate disk buffers
     allocateDiskBuffers();
 
+    // Open the capture file for writing
+    outputFile = new QFile(captureFileName);
+        if(!outputFile->open(QFile::WriteOnly | QFile::Truncate)) {
+            qDebug() << "QUsbBulkTransfer::run(): Could not open destination file for writing!";
+            return;
+    }
+
     // Create a thread for writing disk buffers to disk
     QFuture<void> future = QtConcurrent::run( processDiskBuffers );
 
@@ -232,6 +277,9 @@ void QUsbBulkTransfer::run()
         usleep(200); // Prevent debug flood
     }
 
+    // Close the capture file
+    outputFile->close();
+
     // Free up the transfer buffers
     freeUsbTransferBuffers(usbDataBuffers, usbTransfers);
 
@@ -277,9 +325,9 @@ void QUsbBulkTransfer::allocateDiskBuffers(void)
     bool allocFail = false;
 
     // Set the size of the disk buffers
-    quint32 queueSize = (requestSize * packetSize) * queueDepth; // = (16 * 1024) * 16 = 256K
-    queueBuffersPerDiskBuffer = QUEUE_BUFFERS_PER_DISK_BUFFER; // 256Kbytes * 32 = 8192Kbytes per buffer
-    numberOfDiskBuffers = NUMBER_OF_DISK_BUFFERS; // 8 * 8192Kbytes = 64MBytes (approx. 1 second of ADC data)
+    quint32 queueSize = (requestSize * packetSize) * queueDepth;
+    queueBuffersPerDiskBuffer = QUEUE_BUFFERS_PER_DISK_BUFFER;
+    numberOfDiskBuffers = NUMBER_OF_DISK_BUFFERS;
 
     diskDataBuffers = (unsigned char **)calloc(numberOfDiskBuffers, sizeof (unsigned char *));
     if (diskDataBuffers != NULL) {
@@ -335,6 +383,8 @@ static void processDiskBuffers(void)
 
             // Write the disk buffer to disk
             //qDebug() << "processDiskBuffers(): Writing disk buffer" << nextDiskBufferToWrite;
+            outputFile->write((const char *)diskDataBuffers[nextDiskBufferToWrite],
+                              (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER));
 
             // Simulate a write
             QThread::msleep(50); // 50 milliseconds
@@ -353,15 +403,15 @@ static void processDiskBuffers(void)
     qDebug() << "QUsbBulkTransfer::processDiskBuffers(): Stopped";
 }
 
-// Function to test a disk buffer's data for errors
+// Function to test a disk buffer's data for errors (when in test data mode)
 static void testDiskBuffer(quint32 diskBufferNumber)
 {
     quint8 highByte = 0;
     quint8 lowByte = 0;
     qint32 currentWord = 0;
     qint32 previousWord = 0;
-    qint64 errorCount = 0;
 
+    // Calculate the size of a single disk buffer
     quint64 bufferSize = ((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER;
 
     for (quint64 bytePointer = 0; bytePointer < bufferSize; bytePointer += 2) {
@@ -390,7 +440,7 @@ static void testDiskBuffer(quint32 diskBufferNumber)
                                ": Previous word =" << previousWord << ": Position =" << bytePointer <<
                                 "  Disk buffer =" << diskBufferNumber;
 
-                    errorCount++;
+                    statistics.diskFailureCount++;
                 }
             }
         }
@@ -532,8 +582,9 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
 
             if (currentWord == 0) blankCounter++;
         }
-        // Simple check... there should be 8 zero values per transfer
-        if (blankCounter != 8) qDebug() << "bulkTransferCallback(): Test mode" << blankCounter << "of" << transfer->length;
+        // Simple check for the correct number of 0 values in the test data
+        // This is to prevent debug flood if there are issues
+        if (blankCounter != ((REQUEST_SIZE * PACKET_SIZE) / 2048)) qDebug() << "bulkTransferCallback(): Test mode" << blankCounter << "of" << transfer->length;
     }
 
     // Disk buffer handling
@@ -593,7 +644,8 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         libusb_fill_bulk_transfer(transfer, transfer->dev_handle, transfer->endpoint,
             transfer->buffer, transfer->length, bulkTransferCallback, transfer->user_data, 5000);
 
-        // If a transfer fails, ignore the error
+        // If a transfer fails, ignore the error (this will reduce the number of in-flight
+        // transfers by 1 - but it should never happen...
         if (libusb_submit_transfer(transfer) == 0) transfersInFlight++;
         else qDebug() << "bulkTransferCallback(): libusb_submit_transfer failed!";
     }
