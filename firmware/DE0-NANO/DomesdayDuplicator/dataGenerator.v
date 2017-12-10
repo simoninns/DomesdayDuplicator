@@ -118,6 +118,8 @@ always @ (posedge fx3Clk, negedge nReset) begin
 			// Collecting data, check for errors
 			if ((rdFull) || (fifoUsedWords > 16'd32700)) begin
 				bufferError_flag = 1'b1;
+			end else begin
+				bufferError_flag = 1'b0;
 			end
 		end else begin
 			// Only flag errors if we are collecting data
