@@ -95,7 +95,12 @@ always @ (negedge adcClk, negedge nReset) begin
 				adcDataRead = testData;
 			end else begin
 				// We are in normal mode, use the ADC data bus
-				adcDataRead = adcData;
+				// Note: Here we correct the DC offset (see project notes for details)
+				if (adcData <= 10'd65) begin
+					adcDataRead = 0;
+				end else begin
+					adcDataRead = adcData - 10'd65;
+				end
 			end
 		end
 	end
