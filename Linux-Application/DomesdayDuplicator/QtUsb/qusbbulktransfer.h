@@ -44,11 +44,12 @@ public:
     ~QUsbBulkTransfer(void);
     void setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, bool testMode, QString fileName);
 
-    quint32 getSuccessCounter(void);
-    quint32 getFailureCounter(void);
+    quint32 getPacketCounter(void);
+    quint32 getPacketSize(void);
     quint32 getTransferPerformance(void);
-    quint32 getDiskFailureCounter(void);
+    quint32 getTestFailureCounter(void);
     quint32 getAvailableDiskBuffers(void);
+    quint32 getNumberOfDiskBuffers(void);
 
 signals:
 

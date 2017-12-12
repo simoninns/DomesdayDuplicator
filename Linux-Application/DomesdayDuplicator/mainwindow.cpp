@@ -62,11 +62,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(domDupUsbDevice, SIGNAL(statusChanged(bool)), SLOT(usbStatusChanged(bool)));
 
     // Set up the text labels
-    ui->successfulPacketsLabel->setText(tr("0"));
-    ui->failedPacketsLabel->setText(tr("0"));
+    ui->capturedDataLabel->setText(tr("0"));
     ui->transferSpeedLabel->setText(tr("0"));
-    ui->diskFailLabel->setText(tr("0"));
-    ui->availableDiskBuffersLabel->setText(tr("0"));
+    ui->diskBufferProgressBar->setValue(0);
+    ui->testModeFailLabel->setText(tr("0"));
 
     // Set up a timer for updating capture results
     captureTimer = new QTimer(this);
@@ -304,12 +303,27 @@ void MainWindow::on_testModeCheckBox_toggled(bool checked)
 // Update the capture information in the main window
 void MainWindow::updateCaptureInfo(void)
 {
-    //qDebug() << "MainWindow::updateCaptureInfo(): Updating capture information";
+    // Calculate and display the current amount of captured data (in MBytes)
+    qreal capturedData = (qreal)(domDupUsbDevice->getPacketCounter() * domDupUsbDevice->getPacketSize()) / 1024;
 
-    // Get the counters from the USB device object and update the window
-    ui->successfulPacketsLabel->setText(QString::number(domDupUsbDevice->getSuccessCounter()));
-    ui->failedPacketsLabel->setText(QString::number(domDupUsbDevice->getFailureCounter()));
-    ui->transferSpeedLabel->setText(QString::number(domDupUsbDevice->getTransferPerformance()) + tr(" KBytes/sec"));
-    ui->diskFailLabel->setText(QString::number(domDupUsbDevice->getDiskFailureCounter()));
-    ui->availableDiskBuffersLabel->setText(QString::number(domDupUsbDevice->getAvailableDiskBuffers()));
+    if (capturedData < 1024) ui->capturedDataLabel->setText(QString::number(capturedData, 'f', 0) + tr(" MBytes"));
+    else {
+        capturedData = capturedData / 1024;
+        ui->capturedDataLabel->setText(QString::number(capturedData, 'f', 2) + tr(" GBytes"));
+    }
+
+    // Display the current transfer performance
+    qreal transferPerformance = domDupUsbDevice->getTransferPerformance() / 1024;
+    ui->transferSpeedLabel->setText(QString::number(transferPerformance, 'f', 0) + tr(" MBytes/sec"));
+
+    // Display the available number of disk buffers (as a percentage)
+    quint32 bufferAvailablity = (100 / domDupUsbDevice->getNumberOfDiskBuffers()) * domDupUsbDevice->getAvailableDiskBuffers();
+    ui->diskBufferProgressBar->setValue(bufferAvailablity);
+
+    // Display the number of test mode failures
+    ui->testModeFailLabel->setText(QString::number(domDupUsbDevice->getTestFailureCounter()));
 }
+
+
+
+

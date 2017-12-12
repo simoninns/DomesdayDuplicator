@@ -64,11 +64,12 @@ public:
     void startBulkRead(bool testMode, QString fileName);
     void stopBulkRead(void);
 
-    quint32 getSuccessCounter(void);
-    quint32 getFailureCounter(void);
+    quint32 getPacketCounter(void);
+    quint32 getPacketSize(void);
     quint32 getTransferPerformance(void);
-    quint32 getDiskFailureCounter(void);
+    quint32 getTestFailureCounter(void);
     quint32 getAvailableDiskBuffers(void);
+    quint32 getNumberOfDiskBuffers(void);
 
 signals:
     void statusChanged(bool status);

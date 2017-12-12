@@ -38,8 +38,18 @@ static void testDiskBuffer(quint32 diskBufferNumber);
 // transfer callback
 
 // Private variables used to control the transfer callbacks
-static quint32 transfersInFlight;   // Number of transfers that are in progress
-static bool stopUsbTransfers;       // USB transfer stop flag
+static quint32 transfersInFlight;       // Number of transfers that are in progress
+static bool stopUsbTransfers;           // USB transfer stop flag
+static bool stopDiskTransfers;          // Disk transfer stop flag
+static bool diskTransferRunning;        // Disk transfers running flag
+static bool bufferFlushComplete;        // Flag for initial FIFO 'buffer flush'
+
+// Note: The 'buffer flush' functionality throws away the data from the first queue
+// of USB transfers.  This is required as the FPGA FIFO will overflow before data
+// collection begins causing the first received data to be potentially corrupt. Since
+// there is no effective 'real time' mechanism to tell the FPGA to flush data we simple
+// read it out and discard before starting to write data to disk.  The amount of lost
+// data depends on the size of the queue (see below)
 
 // Structure to hold libUSB transfer user data
 struct transferUserDataStruct {
@@ -51,11 +61,10 @@ struct transferUserDataStruct {
 
 // Private variables used to report statistics about the transfer process
 struct statisticsStruct {
-    quint32 successCount;           // Number of successful transfers
-    quint32 failureCount;           // Number of failed transfers
+    quint32 packetCount;           // Number of successful transfers
     quint32 transferPerformance;    // Performance in Kilobytes per second
     quint32 transferSize;           // Size of data transfers performed so far
-    quint32 diskFailureCount;       // Number of disk write failures
+    quint32 testFailureCount;       // Number of disk write failures
     struct timeval startTimestamp;  // Data transfer start time stamp.
 };
 static statisticsStruct statistics;
@@ -116,6 +125,7 @@ static QFile* outputFile;
 QUsbBulkTransfer::QUsbBulkTransfer(void)
 {
     stopUsbTransfers = false;
+    stopDiskTransfers = false;
     qDebug() << "QUsbBulkTransfer::QUsbBulkTransfer(): Called";
 }
 
@@ -131,6 +141,7 @@ void QUsbBulkTransfer::bulkTransferStop(void)
 {
     // Set flag to cause transferring to stop (handled by transfer run() and bulkTransferCallback())
     stopUsbTransfers = true;
+    stopDiskTransfers = true;
 }
 
 void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, bool testMode, QString fileName)
@@ -174,17 +185,17 @@ void QUsbBulkTransfer::run()
     // Reset transfer tracking ready for the new run...
 
     // Reset transfer statistics (globals)
-    statistics.successCount = 0;
-    statistics.failureCount = 0;
+    statistics.packetCount = 0;
     statistics.transferSize = 0;
     statistics.transferPerformance = 0;
-    statistics.diskFailureCount = 0;
+    statistics.testFailureCount = 0;
     gettimeofday(&statistics.startTimestamp, NULL);
 
     // Reset transfer variables
     transfersInFlight = 0;      // Number of transfers that are in progress (global)
     requestSize = REQUEST_SIZE; // Request size (number of packets)
     packetSize = PACKET_SIZE;   // Maximum packet size for the endpoint (in bytes)
+    bufferFlushComplete = false;
 
     // Allocate buffers and transfer structures for USB->PC communication
     bool allocFail = false;
@@ -268,16 +279,24 @@ void QUsbBulkTransfer::run()
         libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
     } while (!stopUsbTransfers);
 
-    qDebug() << "transferThread::run(): Stopping streamer thread";
-
     // Process libUSB events whilst the transfer is stopping
+    qDebug() << "transferThread::run(): Stopping in-flight USB transfer threads...";
     while (transfersInFlight != 0) {
-        qDebug() << "QUsbBulkTransfer::run(): Stopping -" << transfersInFlight << "transfers are pending";
         libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
         usleep(200); // Prevent debug flood
     }
+    qDebug() << "transferThread::run(): USB transfer threads stopped";
 
-    // Close the capture file
+    // Signal the disk transfers to stop
+    qDebug() << "transferThread::run(): Stopping disk transfer thread...";
+    stopDiskTransfers = true;
+
+    while (diskTransferRunning) {
+        // Wait for disk transfers to complete
+    }
+    qDebug() << "transferThread::run(): Disk transfers thread has stopped";
+
+    // Close the disk capture file
     outputFile->close();
 
     // Free up the transfer buffers
@@ -375,6 +394,9 @@ static void processDiskBuffers(void)
 
     quint32 nextDiskBufferToWrite = 0;
 
+    // Flag to show disk transfers are running
+    diskTransferRunning = true;
+
     do {
         // Is the next disk buffer to write ready?
         if (diskBufferStatus[nextDiskBufferToWrite] == true) {
@@ -398,9 +420,13 @@ static void processDiskBuffers(void)
             // Check for overflow
             if (nextDiskBufferToWrite == numberOfDiskBuffers) nextDiskBufferToWrite = 0;
         }
-    } while (!stopUsbTransfers);
+    } while ((!stopDiskTransfers) || (diskBufferStatus[nextDiskBufferToWrite] == true));
+    // Stop when stopDiskTransfers is true and the next disk buffer isn't ready
 
     qDebug() << "QUsbBulkTransfer::processDiskBuffers(): Stopped";
+
+    // Flag to show disk transfers are complete
+    diskTransferRunning = false;
 }
 
 // Function to test a disk buffer's data for errors (when in test data mode)
@@ -440,7 +466,7 @@ static void testDiskBuffer(quint32 diskBufferNumber)
                                ": Previous word =" << previousWord << ": Position =" << bytePointer <<
                                 "  Disk buffer =" << diskBufferNumber;
 
-                    statistics.diskFailureCount++;
+                    statistics.testFailureCount++;
                 }
             }
         }
@@ -451,28 +477,29 @@ static void testDiskBuffer(quint32 diskBufferNumber)
 
 // Functions to report transfer statistics -------------------------------------------
 
-// Return the current value of the success counter
-quint32 QUsbBulkTransfer::getSuccessCounter(void)
+// Return the current value of the bulk transfer packet counter
+quint32 QUsbBulkTransfer::getPacketCounter(void)
 {
-    return (quint32)statistics.successCount;
+    return (quint32)statistics.packetCount;
 }
 
-// Return the current value of the failure counter
-quint32 QUsbBulkTransfer::getFailureCounter(void)
+// Return the current value of the bulk transfer packet size
+quint32 QUsbBulkTransfer::getPacketSize(void)
 {
-    return (quint32)statistics.failureCount;
+    // Returns current packet size in KBytes
+    return (REQUEST_SIZE * PACKET_SIZE) / 1024;
 }
 
-// Return the current transfer performance value
+// Return the current bulk transfer stream performance value in KBytes/sec
 quint32 QUsbBulkTransfer::getTransferPerformance(void)
 {
     return (quint32)statistics.transferPerformance;
 }
 
-// Return the current value of the disk write failure counter
-quint32 QUsbBulkTransfer::getDiskFailureCounter(void)
+// Return the current bulk transfer disk write failure count
+quint32 QUsbBulkTransfer::getTestFailureCounter(void)
 {
-    return (quint32)statistics.diskFailureCount;
+    return (quint32)statistics.testFailureCount;
 }
 
 // Return the current number of available disk buffers
@@ -487,6 +514,12 @@ quint32 QUsbBulkTransfer::getAvailableDiskBuffers(void)
     return availableDiskBuffers;
 }
 
+// Return the total number of available disk buffers
+quint32 QUsbBulkTransfer::getNumberOfDiskBuffers(void)
+{
+    return numberOfDiskBuffers;
+}
+
 
 // LibUSB transfer callback handling function ---------------------------------------------------------
 static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
@@ -496,9 +529,6 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
 
     // Check if the transfer has succeeded
     if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-        // Transfer has failed
-        statistics.failureCount++;
-
         // Show the failure reason in the debug
         switch (transfer->status) {
             case LIBUSB_TRANSFER_ERROR:
@@ -529,8 +559,8 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
                 qDebug() << "bulkTransferCallback(): LIBUSB_TRANSFER - Unknown error";
         }
     } else {
-        // Transfer has succeeded
-        statistics.successCount++;
+        // Transfer has succeeded (increment statistics unless this is a FIFO flush transfer)
+        if (bufferFlushComplete) statistics.packetCount++;
     }
 
     // Update the transfer size for the whole bulk transfer so far
@@ -562,75 +592,60 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         statistics.startTimestamp = endTimestamp;
     }
 
-    // Test mode
-    if (testModeFlag) {
-        quint32 blankCounter = 0;
-        quint8 highByte = 0;
-        quint8 lowByte = 0;
-        qint32 currentWord = 0;
+    // Write received data to disk (unless we are performing a buffer flush)
+    if (bufferFlushComplete) {
+        // Disk buffer handling
 
-        for (quint32 bytePointer = 0; bytePointer < (quint32)transfer->length; bytePointer += 2) {
-            // Get two bytes of data (that represent our signed little-endian 16-bit number
-            lowByte  = transfer->buffer[bytePointer];
-            highByte = transfer->buffer[bytePointer + 1];
+        // Copy the transfer data into the disk buffer
+        //
+        // The offset calculation is as follows:
+        //
+        // ((queue number * (queue length * transfer length)) + (transfer number * transfer length))
+        // ((queueNumber * (QUEUE_DEPTH * transfer->length)) + (transferNumber * transfer->length))
+        memcpy(diskDataBuffers[diskBufferNumber]
+              + ((queueNumber * (QUEUE_DEPTH * transfer->length))
+              + (transferNumber * transfer->length)),
+              transfer->buffer, transfer->length);
 
-            // Convert the bytes into a signed 16-bit value
-            currentWord = lowByte + (highByte << 8);
+        // Target the next transfer to the next queue
+        queueNumber++;
 
-            // Convert into a 10-bit value
-            currentWord = currentWord / 64;
+        // Does the queueNumber exceed the available disk buffer space? (current buffer full)
+        if (queueNumber == queueBuffersPerDiskBuffer) {
 
-            if (currentWord == 0) blankCounter++;
+            // Is this the last transfer in the current queue?
+            if (transferNumber == maximumTransferNumber) {
+                // Mark the disk buffer as ready for writing
+                //qDebug() << "bulkTransferCallback(): Buffer" << diskBufferNumber << "full";
+                diskBufferStatus[diskBufferNumber] = true; // Status = writing
+            }
+
+            // Queues exceeded, point at next disk buffer
+            diskBufferNumber++;
+
+            // Reset the queue number
+            queueNumber = 0;
+
+            // Does the current disk buffer exceed the available number of disk buffers?
+            if (diskBufferNumber == numberOfDiskBuffers) {
+                // Disk buffers exceeded, point at first disk buffer again
+                diskBufferNumber = 0;
+            }
+
+            // Check for buffer overflow
+            if (diskBufferStatus[diskBufferNumber] == true) {
+                // The newly selected buffer is still waiting to be written
+                // We are about to start overwriting unsaved data... oh boy
+                statistics.testFailureCount++;
+                qDebug() << "bulkTransferCallback(): ERROR - No available disk buffers - Data is being overwritten!";
+            }
         }
-        // Simple check for the correct number of 0 values in the test data
-        // This is to prevent debug flood if there are issues
-        if (blankCounter != ((REQUEST_SIZE * PACKET_SIZE) / 2048)) qDebug() << "bulkTransferCallback(): Test mode" << blankCounter << "of" << transfer->length;
-    }
-
-    // Disk buffer handling
-
-    // Copy the transfer data into the disk buffer
-    //
-    // The offset calculation is as follows:
-    //
-    // ((queue number * (queue length * transfer length)) + (transfer number * transfer length))
-    // ((queueNumber * (QUEUE_DEPTH * transfer->length)) + (transferNumber * transfer->length))
-    memcpy(diskDataBuffers[diskBufferNumber] + ((queueNumber * (QUEUE_DEPTH * transfer->length)) + (transferNumber * transfer->length)),
-          transfer->buffer, transfer->length);
-
-    //qDebug() << "TN =" << transferNumber << "MTN =" << maximumTransferNumber << "QN =" << queueNumber << "DBN =" << diskBufferNumber;
-
-    // Target the next transfer to the next queue
-    queueNumber++;
-
-    // Does the queueNumber exceed the available disk buffer space? (current buffer full)
-    if (queueNumber == queueBuffersPerDiskBuffer) {
+    } else {
+        // Buffer flush
 
         // Is this the last transfer in the current queue?
         if (transferNumber == maximumTransferNumber) {
-            // Mark the disk buffer as ready for writing
-            //qDebug() << "bulkTransferCallback(): Buffer" << diskBufferNumber << "full";
-            diskBufferStatus[diskBufferNumber] = true; // Status = writing
-        }
-
-        // Queues exceeded, point at next disk buffer
-        diskBufferNumber++;
-
-        // Reset the queue number
-        queueNumber = 0;
-
-        // Does the current disk buffer exceed the available number of disk buffers?
-        if (diskBufferNumber == numberOfDiskBuffers) {
-            // Disk buffers exceeded, point at first disk buffer again
-            diskBufferNumber = 0;
-        }
-
-        // Check for buffer overflow
-        if (diskBufferStatus[diskBufferNumber] == true) {
-            // The newly selected buffer is still waiting to be written
-            // We are about to start overwriting unsaved data... oh boy
-            statistics.diskFailureCount++;
-            qDebug() << "bulkTransferCallback(): ERROR - No available disk buffers - Data is being overwritten!";
+            bufferFlushComplete = true;
         }
     }
 
@@ -639,7 +654,10 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     transferUserData->diskBufferNumber = diskBufferNumber;
 
     // Prepare and re-submit the transfer request (unless stopTransfers has been flagged)
-    if (!stopUsbTransfers) {
+    if (stopUsbTransfers == true && queueNumber == 0) {
+        // Abandon the next transfer
+        // Note: we wait for queueNumber = 0 to ensure the disk buffer is written
+    } else {
         // Fill and resubmit the transfer
         libusb_fill_bulk_transfer(transfer, transfer->dev_handle, transfer->endpoint,
             transfer->buffer, transfer->length, bulkTransferCallback, transfer->user_data, 5000);

@@ -3,19 +3,19 @@ TimeQuest Timing Analyzer Summary
 ------------------------------------------------------------
 
 Type  : Slow 1200mV 85C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 9.244
+Slack : 9.360
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 12.489
+Slack : 13.221
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 0.254
+Slack : 0.255
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 0.358
+Slack : 0.357
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Minimum Pulse Width 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
@@ -27,19 +27,19 @@ Slack : 9.747
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Minimum Pulse Width 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 15.368
+Slack : 15.369
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 9.908
+Slack : 9.959
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 12.823
+Slack : 13.494
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 0.247
+Slack : 0.253
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
@@ -55,15 +55,15 @@ Slack : 9.709
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Minimum Pulse Width 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 15.368
+Slack : 15.369
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 11.857
+Slack : 11.977
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 13.638
+Slack : 14.098
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
