@@ -368,16 +368,16 @@ qint32 QUsbDevice::stopBulkTransfer(void)
     return rc;
 }
 
-// Return the current value of the bulk transfer stream success counter
-quint32 QUsbDevice::getSuccessCounter(void)
+// Return the current value of the bulk transfer packet counter
+quint32 QUsbDevice::getPacketCounter(void)
 {
-    return mUsbBulkTransfer->getSuccessCounter();
+    return mUsbBulkTransfer->getPacketCounter();
 }
 
-// Return the current value of the bulk transfer stream failure counter
-quint32 QUsbDevice::getFailureCounter(void)
+// Return the current value of the bulk transfer packet size
+quint32 QUsbDevice::getPacketSize(void)
 {
-    return mUsbBulkTransfer->getFailureCounter();
+    return mUsbBulkTransfer->getPacketSize();
 }
 
 // Return the current bulk transfer stream performance value
@@ -387,13 +387,19 @@ quint32 QUsbDevice::getTransferPerformance(void)
 }
 
 // Return the current bulk transfer disk write failure count
-quint32 QUsbDevice::getDiskFailureCounter(void)
+quint32 QUsbDevice::getTestFailureCounter(void)
 {
-    return mUsbBulkTransfer->getDiskFailureCounter();
+    return mUsbBulkTransfer->getTestFailureCounter();
 }
 
 // Return the current number of available disk buffers
 quint32 QUsbDevice::getAvailableDiskBuffers(void)
 {
     return mUsbBulkTransfer->getAvailableDiskBuffers();
+}
+
+// Return the total number of available disk buffers
+quint32 QUsbDevice::getNumberOfDiskBuffers(void)
+{
+    return mUsbBulkTransfer->getNumberOfDiskBuffers();
 }

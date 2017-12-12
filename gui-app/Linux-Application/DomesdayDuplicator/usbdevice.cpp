@@ -172,16 +172,16 @@ void usbDevice::stopBulkRead(void)
     domDupDevice->stopBulkTransfer();
 }
 
-// Return the current value of the bulk transfer stream success counter
-quint32 usbDevice::getSuccessCounter(void)
+// Return the current value of the bulk transfer packet counter
+quint32 usbDevice::getPacketCounter(void)
 {
-    return domDupDevice->getSuccessCounter();
+    return domDupDevice->getPacketCounter();
 }
 
-// Return the current value of the bulk transfer stream failure counter
-quint32 usbDevice::getFailureCounter(void)
+// Return the current value of the bulk transfer packet size
+quint32 usbDevice::getPacketSize(void)
 {
-    return domDupDevice->getFailureCounter();
+    return domDupDevice->getPacketSize();
 }
 
 // Return the current bulk transfer stream performance value
@@ -190,14 +190,20 @@ quint32 usbDevice::getTransferPerformance(void)
     return domDupDevice->getTransferPerformance();
 }
 
-// Return the current value of the bulk transfer stream disk write failure counter
-quint32 usbDevice::getDiskFailureCounter(void)
+// Return the current bulk transfer disk write failure count
+quint32 usbDevice::getTestFailureCounter(void)
 {
-    return domDupDevice->getDiskFailureCounter();
+    return domDupDevice->getTestFailureCounter();
 }
 
 // Return the current number of available disk buffers
 quint32 usbDevice::getAvailableDiskBuffers(void)
 {
     return domDupDevice->getAvailableDiskBuffers();
+}
+
+// Return the total number of available disk buffers
+quint32 usbDevice::getNumberOfDiskBuffers(void)
+{
+    return domDupDevice->getNumberOfDiskBuffers();
 }
