@@ -28,13 +28,13 @@ static int hotplugCallback(libusb_context *ctx,
     emit manager->deviceInserted(device_list);
 
   } else if (LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT == event) {
-    if (handle) {
-      // Remove from list
-      dev.vid = desc.idVendor;
-      dev.pid = desc.idProduct;
-      device_list.append(dev);
-      emit manager->deviceRemoved(device_list);
+    // Remove from list
+    dev.vid = desc.idVendor;
+    dev.pid = desc.idProduct;
+    device_list.append(dev);
+    emit manager->deviceRemoved(device_list);
 
+    if (handle) {
       libusb_close(handle);
       handle = NULL;
       return 0;

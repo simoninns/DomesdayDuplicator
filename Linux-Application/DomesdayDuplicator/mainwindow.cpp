@@ -87,11 +87,25 @@ MainWindow::~MainWindow()
 void MainWindow::usbStatusChanged(bool usbStatus)
 {
     if (usbStatus) {
+        qDebug() << "MainWindow::usbStatusChanged(): USB device is connected";
         status->setText(tr("Connected"));
-        ui->transferPushButton->setEnabled(true);
-        ui->testModeCheckBox->setEnabled(true);
+
+        // Enable transfer if there is a filename selected
+        if (!fileName.isEmpty()) {
+            ui->transferPushButton->setEnabled(true);
+            ui->testModeCheckBox->setEnabled(true);
+            ui->testModeCheckBox->setChecked(false);
+        }
     } else {
+        qDebug() << "MainWindow::usbStatusChanged(): USB device is not connected";
         status->setText(tr("Domesday Duplicator USB device not connected"));
+
+        // Are we mid-capture?
+        if (captureFlag) {
+            qDebug() << "MainWindow::usbStatusChanged(): USB device removed during capture.  Attempting to clean up";
+            this->stopTransfer();
+        }
+
         ui->transferPushButton->setEnabled(false);
         ui->testModeCheckBox->setEnabled(false);
     }
@@ -123,8 +137,12 @@ void MainWindow::on_actionSave_As_triggered()
     } else {
         // File name specified
         qDebug() << "MainWindow::on_actionSave_As_triggered(): Save as filename = " << fileName;
-        ui->transferPushButton->setEnabled(true);
-        ui->testModeCheckBox->setEnabled(true);
+
+        // Enable the capture control buttons (if a USB device is connected)
+        if (domDupUsbDevice->isConnected()) {
+            ui->transferPushButton->setEnabled(true);
+            ui->testModeCheckBox->setEnabled(true);
+        }
     }
 }
 
@@ -176,7 +194,6 @@ void MainWindow::startTransfer(void)
             ui->testModeCheckBox->setEnabled(false);
 
             // Configure and open the USB device
-            domDupUsbDevice->setupDevice();
             responseFlag = domDupUsbDevice->openDevice();
 
             if (responseFlag) {
@@ -266,12 +283,10 @@ void MainWindow::on_testModeCheckBox_toggled(bool checked)
             } else {
                 // Could not open device
                 qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode on - could not open USB device";
-                ui->testModeCheckBox->setChecked(false);
             }
         } else {
             // Device no longer connected
             qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode on - USB device not connected";
-            ui->testModeCheckBox->setChecked(false);
         }
     } else {
         // Test mode off
@@ -292,12 +307,10 @@ void MainWindow::on_testModeCheckBox_toggled(bool checked)
             } else {
                 // Could not open device
                 qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode off - could not open USB device";
-                ui->testModeCheckBox->setChecked(true);
             }
         } else {
             // Device no longer connected
             qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode off - USB device not connected";
-            ui->testModeCheckBox->setChecked(true);
         }
     }
 }
