@@ -184,7 +184,7 @@ int main(void)
 	gpioConfig.driveLowEn = CyFalse;
 	gpioConfig.driveHighEn = CyFalse;
 	gpioConfig.inputEn = CyTrue;
-	gpioConfig.intrMode = CY_U3P_GPIO_INTR_BOTH_EDGE;
+	gpioConfig.intrMode = CY_U3P_GPIO_INTR_POS_EDGE;
 
 	status = CyU3PGpioSetSimpleConfig(21, &gpioConfig);
 	if (status != CY_U3P_SUCCESS) {
@@ -211,7 +211,7 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware - Build 0054\r\n");
+    CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware - Build 0056\r\n");
     CyU3PDebugPrint(1, "(c)2017 Simon Inns - http://www.domesday86.com\r\n\r\n");
     CyU3PDebugPrint(1, "domDupThreadInitialise(): Debug console initialised\r\n");
 
@@ -247,7 +247,7 @@ void domDupThreadInitialise(uint32_t input)
         	// Ensure we only output the debug once per capture
         	if (!bufferErrorDisplayFlag) {
         		bufferErrorDisplayFlag = CyTrue;
-        		CyU3PDebugPrint(4, "domDupThreadInitialise(): FPGA has flagged a buffer error!\r\n");
+        		CyU3PDebugPrint(4, "domDupThreadInitialise(): bufferError flagged by FPGA\r\n");
         	}
         }
     }
@@ -674,6 +674,7 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 			}
 
 			// ACK the request
+			isHandled = CyTrue;
 			CyU3PUsbAckSetup();
 		}
     }
@@ -757,8 +758,6 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
         break;
 
     default:
-    	// Unknown/unhandled USB event received
-    	CyU3PDebugPrint(8, "domDupUSBEventCB(): Unhandled USB event received\r\n");
         break;
     }
 }

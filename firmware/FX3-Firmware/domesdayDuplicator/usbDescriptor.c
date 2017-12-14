@@ -28,16 +28,16 @@
 #include "domesdayDuplicator.h"
 
 // VID and PID definition (Domesday Duplicator 0x1D50 / 0x603B)
-//#define VID_H	0x1D
-//#define VID_L	0x50
-//#define PID_H	0x60
-//#define PID_L	0x3B
+#define VID_H	0x1D
+#define VID_L	0x50
+#define PID_H	0x60
+#define PID_L	0x3B
 
 // VID and PID definition (Cypress FX3 default 0x04B4 / 0x00F1 - useful for testing)
-#define VID_H	0x04
-#define VID_L	0xB4
-#define PID_H	0x00
-#define PID_L	0xF1
+//#define VID_H	0x04
+//#define VID_L	0xB4
+//#define PID_H	0x00
+//#define PID_L	0xF1
 
 // Standard device descriptor for USB 3.0
 const uint8_t USB30DeviceDscr[] __attribute__ ((aligned (32))) = {
