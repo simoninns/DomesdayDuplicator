@@ -30,15 +30,20 @@
 // Construct object and connect hot-plug signals
 usbDevice::usbDevice(QObject *parent) : QObject(parent)
 {
+    // Set up the device
+    this->setupDevice();
+
+    // Connect the device hotplug signals
     QObject::connect(&mUsbManager, SIGNAL(deviceInserted(QtUsb::FilterList)),
         this, SLOT(onDevInserted(QtUsb::FilterList)));
     QObject::connect(&mUsbManager, SIGNAL(deviceRemoved(QtUsb::FilterList)), this,
         SLOT(onDevRemoved(QtUsb::FilterList)));
 
-    qDebug("Monitoring for USB device insertion and removal events...");
+    qDebug("usbDevice::usbDevice(): USB device object created (monitoring for insert/remove)");
 }
 
 usbDevice::~usbDevice() {
+    qDebug() << "usbDevice::~usbDevice(): USB device object destroyed";
 }
 
 // Function returns true if a Domesday Duplicator USB device is connected
