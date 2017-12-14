@@ -180,6 +180,8 @@ void MainWindow::startTransfer(void)
             responseFlag = domDupUsbDevice->openDevice();
 
             if (responseFlag) {
+                qDebug() << "MainWindow::startTransfer(): USB device opened";
+
                 // Send start transfer vendor specific USB command
                 domDupUsbDevice->sendVendorSpecificCommand(0xB5, 1);
 

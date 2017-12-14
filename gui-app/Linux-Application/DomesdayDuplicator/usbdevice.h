@@ -38,12 +38,12 @@ const quint8 USB_PIPE_OUT = 0x01;       // Bulk input endpoint for commands
 const quint16 USB_TIMEOUT_MSEC = 300;   // USB timeout in microseconds
 
 // VID and PID of the Domesday Duplicator USB device
-//#define VID 0x1D50
-//#define PID 0x603B
+#define VID 0x1D50
+#define PID 0x603B
 
 // VID and PID of the Cypress FX3 USB device (useful for testing)
-#define VID 0x04B4
-#define PID 0x00F1
+//#define VID 0x04B4
+//#define PID 0x00F1
 
 class usbDevice : public QObject
 {

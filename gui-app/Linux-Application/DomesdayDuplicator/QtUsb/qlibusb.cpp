@@ -326,16 +326,14 @@ qint32 QUsbDevice::sendControlTransfer(
     // Check that the device is not closed
     if (!mDevHandle || !mConnected) return -1;
 
-    if (mDebug) {
-        qDebug() << "Sending control transfer to device";
-    }
-
     if (wLength > 0) {
         // Transfer with data
+        if (mDebug) qDebug() << "QUsbDevice::sendControlTransfer(): Sending control transfer (with data) to device";
         rc = libusb_control_transfer(mDevHandle, bmRequestType, bRequest, wValue,
             wIndex, (uchar*)data->data(), wLength, timeout);
     } else {
         // Transfer without data
+        if (mDebug) qDebug() << "QUsbDevice::sendControlTransfer(): Sending control transfer (without data) to device";
         rc = libusb_control_transfer(mDevHandle, bmRequestType, bRequest, wValue,
             wIndex, NULL, 0, timeout);
     }
