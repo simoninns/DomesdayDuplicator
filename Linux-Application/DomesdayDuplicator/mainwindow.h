@@ -41,6 +41,7 @@
 #include "serialportselectdialog.h"
 #include "playercontroldialog.h"
 #include "aboutdialog.h"
+#include "lvdpcontrol.h"
 
 namespace Ui {
 class MainWindow;
@@ -74,6 +75,8 @@ private slots:
     void on_actionSelect_player_COM_port_triggered();
     void on_actionShow_player_control_triggered();
 
+    void serialPortStatusChange(void);
+
 private:
     Ui::MainWindow *ui;
 
@@ -84,11 +87,11 @@ private:
     QTimer* captureTimer;
     QString fileName;
 
-    QSerialPort *lvdpSerialPort;
-
     aboutDialog *aboutDomDup;
     serialPortSelectDialog *lvdpSerialPortSelect;
     playerControlDialog *lvdpPlayerControl;
+
+    lvdpControl *playerControl;
 };
 
 #endif // MAINWINDOW_H

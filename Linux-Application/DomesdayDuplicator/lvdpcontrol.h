@@ -1,6 +1,6 @@
 /************************************************************************
 
-    playercontroldialog.cpp
+    lvdpcontrol.h
 
     QT GUI Capture application for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
@@ -25,17 +25,41 @@
 
 ************************************************************************/
 
-#include "playercontroldialog.h"
-#include "ui_playercontroldialog.h"
+#ifndef LVDPCONTROL_H
+#define LVDPCONTROL_H
 
-playerControlDialog::playerControlDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::playerControlDialog)
-{
-    ui->setupUi(this);
-}
+#include <QApplication>
+#include <QtSerialPort/QSerialPort>
+#include <QDebug>
 
-playerControlDialog::~playerControlDialog()
+class lvdpControl : public QObject
 {
-    delete ui;
-}
+public:
+    lvdpControl();
+
+    bool connectPlayer(QString portName, qint16 baudRate);
+    void disconnectPlayer(void);
+    bool isConnected(void);
+
+private slots:
+    void handleError(QSerialPort::SerialPortError error);
+
+private:
+    struct Settings {
+        QString name;
+        QSerialPort::BaudRate baudRate;
+        QSerialPort::DataBits dataBits;
+        QSerialPort::Parity parity;
+        QSerialPort::StopBits stopBits;
+        QSerialPort::FlowControl flowControl;
+        bool connected;
+    };
+
+    Settings currentSettings;
+    QSerialPort *lvdpSerialPort;
+
+    void writeData(const QByteArray &data);
+    void readData();
+};
+
+#endif // LVDPCONTROL_H
