@@ -374,6 +374,7 @@ void MainWindow::serialPortStatusChange(void)
         // Connect to the player
         if (playerControl->connectPlayer(lvdpSerialPortSelect->getPortName(), lvdpSerialPortSelect->getBaudRate())) {
             qDebug() << "MainWindow::serialPortStatusChange(): Player connected successfully";
+            playerControl->serialWrite("?X\r");
         } else {
             qDebug() << "MainWindow::serialPortStatusChange(): Could not connect to player";
         }

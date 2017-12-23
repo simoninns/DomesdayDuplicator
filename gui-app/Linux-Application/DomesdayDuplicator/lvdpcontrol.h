@@ -31,6 +31,8 @@
 #include <QApplication>
 #include <QtSerialPort/QSerialPort>
 #include <QDebug>
+#include <QTimer>
+#include <QTimerEvent>
 
 class lvdpControl : public QObject
 {
@@ -40,9 +42,12 @@ public:
     bool connectPlayer(QString portName, qint16 baudRate);
     void disconnectPlayer(void);
     bool isConnected(void);
+    void serialWrite(QString command);
 
 private slots:
     void handleError(QSerialPort::SerialPortError error);
+    void serialReadReady(void);
+    void handleTimeout(void);
 
 private:
     struct Settings {
@@ -57,9 +62,9 @@ private:
 
     Settings currentSettings;
     QSerialPort *lvdpSerialPort;
+    QTimer *timeoutTimer;
 
-    void writeData(const QByteArray &data);
-    void readData();
+    QByteArray receivedData;
 };
 
 #endif // LVDPCONTROL_H
