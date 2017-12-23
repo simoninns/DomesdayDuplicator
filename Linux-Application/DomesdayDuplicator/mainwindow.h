@@ -35,11 +35,19 @@
 #include <QMessageBox>
 #include <QTimer>
 #include <QFileDialog>
+#include <QtSerialPort/QSerialPort>
+
 #include "usbdevice.h"
+#include "serialportselectdialog.h"
+#include "playercontroldialog.h"
+#include "aboutdialog.h"
 
 namespace Ui {
 class MainWindow;
 }
+
+class playerControlDialog;
+class serialPortSelectDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -63,6 +71,8 @@ private slots:
     void updateCaptureInfo(void);
 
     void on_testModeCheckBox_toggled(bool checked);
+    void on_actionSelect_player_COM_port_triggered();
+    void on_actionShow_player_control_triggered();
 
 private:
     Ui::MainWindow *ui;
@@ -73,6 +83,12 @@ private:
 
     QTimer* captureTimer;
     QString fileName;
+
+    QSerialPort *lvdpSerialPort;
+
+    aboutDialog *aboutDomDup;
+    serialPortSelectDialog *lvdpSerialPortSelect;
+    playerControlDialog *lvdpPlayerControl;
 };
 
 #endif // MAINWINDOW_H

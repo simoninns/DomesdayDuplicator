@@ -25,10 +25,8 @@
 
 ************************************************************************/
 
-
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "usbdevice.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -38,6 +36,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Set up the USB device object
     domDupUsbDevice = new usbDevice;
+
+    // Define the serial port for LVDP communication
+    lvdpSerialPort = new QSerialPort(this);
 
     // Set the capture flag to false (not capturing)
     captureFlag = false;
@@ -76,10 +77,26 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Disable the test mode checkbox until a USB device is connected
     ui->testModeCheckBox->setEnabled(false);
+
+    // Create the about dialogue
+    aboutDomDup = new aboutDialog(this);
+
+    // Create the LVDP serial settings dialogue
+    lvdpSerialPortSelect = new serialPortSelectDialog(this);
+
+    // Create the LVDP control dialogue
+    lvdpPlayerControl = new playerControlDialog(this);
+
+    // Connect the serial port signals to catch errors
+    //connect(lvdpSerialPort, static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error), this, &MainWindow::handleError);
+
+    // Connect the serial read and write signals to the main window
+    //connect(lvdpSerialPort, &QSerialPort::readyRead, this, &MainWindow::readData);
 }
 
 MainWindow::~MainWindow()
 {
+    // Delete the UI
     delete ui;
 }
 
@@ -114,8 +131,8 @@ void MainWindow::usbStatusChanged(bool usbStatus)
 // Menu option "About" triggered
 void MainWindow::on_actionAbout_triggered()
 {
-    // Show about dialogue
-    QMessageBox::about(this, tr("About"), tr("Domesday Duplicator USB Capture Application\r\r(c)2017 Simon Inns"));
+    // Show about about dialogue
+    aboutDomDup->show();
 }
 
 // Menu option "Save As" triggered
@@ -339,6 +356,14 @@ void MainWindow::updateCaptureInfo(void)
     ui->testModeFailLabel->setText(QString::number(domDupUsbDevice->getTestFailureCounter()));
 }
 
+// Menu->PIC->Select player COM port triggered
+void MainWindow::on_actionSelect_player_COM_port_triggered()
+{
+    lvdpSerialPortSelect->show();
+}
 
-
-
+// Menu->PIC->Show player control dialogue triggered
+void MainWindow::on_actionShow_player_control_triggered()
+{
+    lvdpPlayerControl->show();
+}
