@@ -1,3 +1,30 @@
+/************************************************************************
+
+    serialportselectdialog.cpp
+
+    QT GUI Capture application for Domesday Duplicator
+    DomesdayDuplicator - LaserDisc RF sampler
+    Copyright (C) 2017 Simon Inns
+
+    This file is part of Domesday Duplicator.
+
+    Domesday Duplicator is free software: you can redistribute it and/or
+    modify it under the terms of the GNU General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Email: simon.inns@gmail.com
+
+************************************************************************/
+
 #include "serialportselectdialog.h"
 #include "ui_serialportselectdialog.h"
 
@@ -10,11 +37,7 @@ serialPortSelectDialog::serialPortSelectDialog(QWidget *parent) :
     // Flag that the serial port is not configured and set defaults
     currentSettings.configured = false;
     currentSettings.name = QString(tr("None"));
-    currentSettings.baudRate = QSerialPort::Baud1200;
-    currentSettings.dataBits = QSerialPort::Data8;
-    currentSettings.parity = QSerialPort::NoParity;
-    currentSettings.stopBits = QSerialPort::OneStop;
-    currentSettings.flowControl = QSerialPort::NoFlowControl;
+    currentSettings.baudRate = 1200;
 
     // Populate the port information
     fillPortsInfo();
@@ -25,10 +48,22 @@ serialPortSelectDialog::~serialPortSelectDialog()
     delete ui;
 }
 
-// Return the current serial port settings
-serialPortSelectDialog::Settings serialPortSelectDialog::settings() const
+// Return the current serial port baud rate setting
+qint16 serialPortSelectDialog::getBaudRate(void)
 {
-    return currentSettings;
+    return currentSettings.baudRate;
+}
+
+// Return the current serial port baud rate setting
+QString serialPortSelectDialog::getPortName(void)
+{
+    return currentSettings.name;
+}
+
+// Return the current configuration status
+bool serialPortSelectDialog::isConfigured(void)
+{
+    return currentSettings.configured;
 }
 
 // Populate the combo box with the available serial ports
@@ -51,19 +86,19 @@ void serialPortSelectDialog::fillPortsInfo()
     ui->serialPortSelectComboBox->setCurrentIndex(ui->serialPortSelectComboBox->findData(currentSettings.name));
 
     // Configure the BPS radio buttons
-    if (currentSettings.baudRate == QSerialPort::Baud1200) {
+    if (currentSettings.baudRate == 1200) {
         ui->bps1200RadioButton->setChecked(true);
         ui->bps2400RadioButton->setChecked(false);
         ui->bps9600RadioButton->setChecked(false);
     }
 
-    if (currentSettings.baudRate == QSerialPort::Baud2400) {
+    if (currentSettings.baudRate == 2400) {
         ui->bps1200RadioButton->setChecked(false);
         ui->bps2400RadioButton->setChecked(true);
         ui->bps9600RadioButton->setChecked(false);
     }
 
-    if (currentSettings.baudRate == QSerialPort::Baud9600) {
+    if (currentSettings.baudRate == 9600) {
         ui->bps1200RadioButton->setChecked(false);
         ui->bps2400RadioButton->setChecked(false);
         ui->bps9600RadioButton->setChecked(true);
@@ -81,19 +116,15 @@ void serialPortSelectDialog::updateSettings()
         qDebug() << "serialPortSelectDialog::updateSettings(): Serial port not configured";
     } else {
         currentSettings.name = ui->serialPortSelectComboBox->currentText();
-        if (ui->bps1200RadioButton->isChecked()) currentSettings.baudRate = QSerialPort::Baud1200;
-        if (ui->bps2400RadioButton->isChecked()) currentSettings.baudRate = QSerialPort::Baud2400;
-        if (ui->bps9600RadioButton->isChecked()) currentSettings.baudRate = QSerialPort::Baud9600;
-        currentSettings.dataBits = QSerialPort::Data8;
-        currentSettings.parity = QSerialPort::NoParity;
-        currentSettings.stopBits = QSerialPort::OneStop;
-        currentSettings.flowControl = QSerialPort::NoFlowControl;
+        if (ui->bps1200RadioButton->isChecked()) currentSettings.baudRate = 1200;
+        if (ui->bps2400RadioButton->isChecked()) currentSettings.baudRate = 2400;
+        if (ui->bps9600RadioButton->isChecked()) currentSettings.baudRate = 9600;
         currentSettings.configured = true;
         qDebug() << "serialPortSelectDialog::updateSettings(): Serial port configured";
-
-        // Emit a signal indicating that the serial configuration has changed
-        emit serialPortChanged();
     }
+
+    // Emit a signal indicating that the serial configuration has changed
+    emit serialPortChanged();
 }
 
 // Function called when user accepts serial configuration

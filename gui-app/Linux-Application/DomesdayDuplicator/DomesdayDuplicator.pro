@@ -36,7 +36,8 @@ SOURCES += \
     QtUsb/qusbbulktransfer.cpp \
     playercontroldialog.cpp \
     serialportselectdialog.cpp \
-    aboutdialog.cpp
+    aboutdialog.cpp \
+    lvdpcontrol.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -51,7 +52,8 @@ HEADERS += \
     QtUsb/qusbbulktransfer.h \
     playercontroldialog.h \
     serialportselectdialog.h \
-    aboutdialog.h
+    aboutdialog.h \
+    lvdpcontrol.h
 
 FORMS += \
         mainwindow.ui \

@@ -37,8 +37,8 @@ MainWindow::MainWindow(QWidget *parent) :
     // Set up the USB device object
     domDupUsbDevice = new usbDevice;
 
-    // Define the serial port for LVDP communication
-    lvdpSerialPort = new QSerialPort(this);
+    // Set up the LVDP control communication
+    playerControl = new lvdpControl;
 
     // Set the capture flag to false (not capturing)
     captureFlag = false;
@@ -87,11 +87,8 @@ MainWindow::MainWindow(QWidget *parent) :
     // Create the LVDP control dialogue
     lvdpPlayerControl = new playerControlDialog(this);
 
-    // Connect the serial port signals to catch errors
-    //connect(lvdpSerialPort, static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error), this, &MainWindow::handleError);
-
-    // Connect the serial read and write signals to the main window
-    //connect(lvdpSerialPort, &QSerialPort::readyRead, this, &MainWindow::readData);
+    // Connect to the serial port configured signal
+    connect(lvdpSerialPortSelect, SIGNAL(serialPortChanged()), this, SLOT(serialPortStatusChange()));
 }
 
 MainWindow::~MainWindow()
@@ -348,7 +345,7 @@ void MainWindow::updateCaptureInfo(void)
     qreal transferPerformance = domDupUsbDevice->getTransferPerformance() / 1024;
     ui->transferSpeedLabel->setText(QString::number(transferPerformance, 'f', 0) + tr(" MBytes/sec"));
 
-    // Display the available number of disk buffers (as a percentage)
+    // Display the available numbplayerControler of disk buffers (as a percentage)
     quint32 bufferAvailablity = (100 / domDupUsbDevice->getNumberOfDiskBuffers()) * domDupUsbDevice->getAvailableDiskBuffers();
     ui->diskBufferProgressBar->setValue(bufferAvailablity);
 
@@ -366,4 +363,22 @@ void MainWindow::on_actionSelect_player_COM_port_triggered()
 void MainWindow::on_actionShow_player_control_triggered()
 {
     lvdpPlayerControl->show();
+}
+
+// Called when the serial port selection dialogue signals that the serial configuration has changed
+void MainWindow::serialPortStatusChange(void)
+{
+    qDebug() << "MainWindow::serialPortStatusChange(): Serial port configuration changed";
+
+    if(lvdpSerialPortSelect->isConfigured()) {
+        // Connect to the player
+        if (playerControl->connectPlayer(lvdpSerialPortSelect->getPortName(), lvdpSerialPortSelect->getBaudRate())) {
+            qDebug() << "MainWindow::serialPortStatusChange(): Player connected successfully";
+        } else {
+            qDebug() << "MainWindow::serialPortStatusChange(): Could not connect to player";
+        }
+    } else {
+        // Ensure the player is disconnected
+        playerControl->disconnectPlayer();
+    }
 }
