@@ -6,7 +6,7 @@
 
 QT       += core gui
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets serialport
 
 TARGET = DomesdayDuplicator
 TEMPLATE = app
@@ -33,7 +33,10 @@ SOURCES += \
     QtUsb/qlibusb.cpp \
     QtUsb/qusbmanager.cpp \
     usbdevice.cpp \
-    QtUsb/qusbbulktransfer.cpp
+    QtUsb/qusbbulktransfer.cpp \
+    playercontroldialog.cpp \
+    serialportselectdialog.cpp \
+    aboutdialog.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -45,7 +48,13 @@ HEADERS += \
     QtUsb/qusb_types.h \
     QtUsb/qusbmanager.h \
     usbdevice.h \
-    QtUsb/qusbbulktransfer.h
+    QtUsb/qusbbulktransfer.h \
+    playercontroldialog.h \
+    serialportselectdialog.h \
+    aboutdialog.h
 
 FORMS += \
-        mainwindow.ui
+        mainwindow.ui \
+    playercontroldialog.ui \
+    serialportselectdialog.ui \
+    aboutdialog.ui

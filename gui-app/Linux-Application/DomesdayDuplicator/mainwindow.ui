@@ -94,8 +94,8 @@
       <rect>
        <x>10</x>
        <y>20</y>
-       <width>81</width>
-       <height>16</height>
+       <width>91</width>
+       <height>20</height>
       </rect>
      </property>
      <property name="text">
@@ -108,10 +108,10 @@
     <widget class="QLabel" name="capturedDataLabel">
      <property name="geometry">
       <rect>
-       <x>100</x>
+       <x>110</x>
        <y>20</y>
-       <width>161</width>
-       <height>16</height>
+       <width>151</width>
+       <height>20</height>
       </rect>
      </property>
      <property name="text">
@@ -123,8 +123,8 @@
       <rect>
        <x>0</x>
        <y>40</y>
-       <width>91</width>
-       <height>16</height>
+       <width>101</width>
+       <height>20</height>
       </rect>
      </property>
      <property name="text">
@@ -137,10 +137,10 @@
     <widget class="QLabel" name="transferSpeedLabel">
      <property name="geometry">
       <rect>
-       <x>100</x>
+       <x>110</x>
        <y>40</y>
        <width>141</width>
-       <height>16</height>
+       <height>20</height>
       </rect>
      </property>
      <property name="text">
@@ -191,7 +191,7 @@
       <rect>
        <x>9</x>
        <y>19</y>
-       <width>121</width>
+       <width>161</width>
        <height>21</height>
       </rect>
      </property>
@@ -204,7 +204,7 @@
       <rect>
        <x>10</x>
        <y>40</y>
-       <width>81</width>
+       <width>101</width>
        <height>20</height>
       </rect>
      </property>
@@ -218,9 +218,9 @@
     <widget class="QLabel" name="testModeFailLabel">
      <property name="geometry">
       <rect>
-       <x>100</x>
+       <x>110</x>
        <y>40</y>
-       <width>161</width>
+       <width>151</width>
        <height>20</height>
       </rect>
      </property>
@@ -236,7 +236,7 @@
      <x>0</x>
      <y>0</y>
      <width>291</width>
-     <height>17</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -253,7 +253,15 @@
     </property>
     <addaction name="actionAbout"/>
    </widget>
+   <widget class="QMenu" name="menuPIC">
+    <property name="title">
+     <string>PIC</string>
+    </property>
+    <addaction name="actionShow_player_control"/>
+    <addaction name="actionSelect_player_COM_port"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuPIC"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -270,6 +278,16 @@
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
+   </property>
+  </action>
+  <action name="actionShow_player_control">
+   <property name="text">
+    <string>Show player control</string>
+   </property>
+  </action>
+  <action name="actionSelect_player_COM_port">
+   <property name="text">
+    <string>Select player COM port</string>
    </property>
   </action>
  </widget>
