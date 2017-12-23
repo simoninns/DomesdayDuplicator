@@ -32,11 +32,17 @@ lvdpControl::lvdpControl()
     // Define the serial port for LVDP communication
     lvdpSerialPort = new QSerialPort;
 
+    // Define the timer for timeout handling
+    timeoutTimer = new QTimer;
+
     // Connect the serial port signals to catch errors
     connect(lvdpSerialPort, static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error), this, &lvdpControl::handleError);
 
-    // Connect the serial read and write signals to the main window
-    //connect(lvdpSerialPort, &QSerialPort::readyRead, this, &MainWindow::readData);
+    // Connect the serial read signals to the readyRead handler
+    connect(lvdpSerialPort, &QSerialPort::readyRead, this, &lvdpControl::serialReadReady);
+
+    // Connect the timeout timer to the timeout handler
+    connect(timeoutTimer, &QTimer::timeout, this, &lvdpControl::handleTimeout);
 }
 
 // Connect to the player
@@ -95,6 +101,14 @@ void lvdpControl::handleError(QSerialPort::SerialPortError error)
         currentSettings.connected = false;
         qDebug() << "lvdpControl::handleError(): Serial port resource error! Closed connection to player";
     }
+
+    // Read error from serial port
+    if (error == QSerialPort::ReadError) {
+        // If the serial port is open, close it
+        if (lvdpSerialPort->isOpen()) lvdpSerialPort->close();
+        currentSettings.connected = false;
+        qDebug() << "lvdpControl::handleError(): Serial port read error! Closed connection to player";
+    }
 }
 
 // Return the current connection status
@@ -104,14 +118,46 @@ bool lvdpControl::isConnected(void)
 }
 
 // Function to write console data to the serial port
-void lvdpControl::writeData(const QByteArray &data)
+void lvdpControl::serialWrite(QString command)
 {
+    // Clear the receive buffer
+    receivedData.clear();
+
+    // Convert command to QByteArray (note: 20 characters maximum)
+    QByteArray data = command.toUtf8().left(20);
+
+    // Write the data to the serial port
+    qDebug() << "lvdpControl::serialWrite(): Sending command:" << command;
     lvdpSerialPort->write(data);
+
+    // Start the timeout timer
+    timeoutTimer->start(2000); // 2 seconds
+
 }
 
 // Function to write serial data to the console
-void lvdpControl::readData()
+void lvdpControl::serialReadReady(void)
 {
-    // Read all available data from the serial port
-    QByteArray data = lvdpSerialPort->readAll();
+    // Handle the timeout timer
+    timeoutTimer->stop();
+
+    // Read all available data from the serial port and append to the receive buffer
+    receivedData.append(lvdpSerialPort->readAll());
+
+    // Look for the end of response terminator (CR)
+    if (receivedData.contains('\r')) {
+        // Receive complete, stop timer
+        timeoutTimer->stop();
+
+        qDebug() << "lvdpControl::serialReadReady(): Received:" << receivedData;
+    }
+}
+
+// Function to handle read timeout
+void lvdpControl::handleTimeout(void)
+{
+    // Handle the timeout timer
+    timeoutTimer->stop();
+
+    qDebug() << "lvdpControl::handleTimeout(): Read operation timed out!";
 }
