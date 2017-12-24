@@ -102,3 +102,46 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
         ui->statusInfoLabel->setText("No player connected");
     }
 }
+
+// Play button has been clicked
+void playerControlDialog::on_playPushButton_clicked()
+{
+    emit playerControlEvent(event_playClicked);
+}
+
+// Stop button has been clicked
+void playerControlDialog::on_stopPushButton_clicked()
+{
+    emit playerControlEvent(event_stopClicked);
+}
+
+// Step forwards button has been clicked
+void playerControlDialog::on_stepForwardsPushButton_clicked()
+{
+    emit playerControlEvent(event_stepForwardsClicked);
+}
+
+// Step backwards button has been clicked
+void playerControlDialog::on_stepBackwardsPushButton_clicked()
+{
+    emit playerControlEvent(event_stepBackwardsClicked);
+}
+
+// Scan forwards button has been clicked
+void playerControlDialog::on_scanForwardsPushButton_clicked()
+{
+    emit playerControlEvent(event_scanForwardsClicked);
+}
+
+// Scan backwards button has been clicked
+void playerControlDialog::on_scanBackwardsPushButton_clicked()
+{
+    emit playerControlEvent(event_scanBackwardsClicked);
+}
+
+// Lock physical controls check box has been toggled
+void playerControlDialog::on_lockControlsCheckBox_toggled(bool checked)
+{
+    if (checked) emit playerControlEvent(event_keyLockOnClicked);
+    else emit playerControlEvent(event_keyLockOffClicked);
+}
