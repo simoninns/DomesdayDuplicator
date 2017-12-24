@@ -29,6 +29,7 @@
 #define PLAYERCONTROLDIALOG_H
 
 #include <QDialog>
+#include <QDebug>
 
 namespace Ui {
 class playerControlDialog;
@@ -44,6 +45,31 @@ public:
 
     void updatePlayerControlInfo(bool isConnected, bool isCav, quint32 frameNumber,
                                  quint32 timeCode, bool isPlaying);
+
+    // Define the possible player control events
+    enum PlayerControlEvents {
+        event_playClicked,
+        event_pauseClicked,
+        event_stopClicked,
+        event_stepForwardsClicked,
+        event_stepBackwardsClicked,
+        event_scanForwardsClicked,
+        event_scanBackwardsClicked,
+        event_keyLockOnClicked,
+        event_keyLockOffClicked
+    };
+
+signals:
+    void playerControlEvent(playerControlDialog::PlayerControlEvents);
+
+private slots:
+    void on_playPushButton_clicked();
+    void on_stopPushButton_clicked();
+    void on_stepForwardsPushButton_clicked();
+    void on_stepBackwardsPushButton_clicked();
+    void on_scanForwardsPushButton_clicked();
+    void on_scanBackwardsPushButton_clicked();
+    void on_lockControlsCheckBox_toggled(bool checked);
 
 private:
     Ui::playerControlDialog *ui;

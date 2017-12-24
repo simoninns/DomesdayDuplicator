@@ -34,12 +34,26 @@
 #include <QTimer>
 #include <QTimerEvent>
 #include <QtConcurrent/QtConcurrent>
+#include <QQueue>
 
 class lvdpControl : public QObject
 {
 public:
     lvdpControl();
     ~lvdpControl();
+
+    // Define the possible player commands
+    enum PlayerCommands {
+        command_play,
+        command_pause,
+        command_stop,
+        command_stepForwards,
+        command_stepBackwards,
+        command_scanForwards,
+        command_scanBackwards,
+        command_keyLockOn,
+        command_keyLockOff
+    };
 
     void stopStateMachine(void);
 
@@ -52,6 +66,8 @@ public:
     bool isCav(void);
     quint32 currentFrameNumber(void);
     quint32 currentTimeCode(void);
+
+    void command(PlayerCommands command);
 };
 
 #endif // LVDPCONTROL_H

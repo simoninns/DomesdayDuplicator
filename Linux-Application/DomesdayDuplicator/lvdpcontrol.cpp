@@ -38,6 +38,7 @@ struct Stimuli {
     bool isPlaying;
     qint32 frameNumber;
     qint32 timeCode;
+    QQueue<lvdpControl::PlayerCommands> commandQueue;
 };
 
 static Stimuli currentStimuli;
@@ -64,7 +65,13 @@ static States smPlayingState(void);
 static States smSerialErrorState(void);
 
 // Serial communication functions
-static QString sendSerialCommand(QString commandString);
+static QString sendSerialCommand(QString commandString, quint64 timeoutMsecs);
+
+// Time-out definitions for serial communications
+// 1 second for quick commands (for example status checks)
+// 20 seconds for long commands (play, stop, eject, etc.)
+#define TOUT_SHORT 1000
+#define TOUT_LONG 20000
 
 lvdpControl::lvdpControl()
 {
@@ -109,6 +116,7 @@ void lvdpControl::serialConfigured(QString portName, qint16 baudRate)
     currentStimuli.serialConfigured = true;
     currentStimuli.deviceConnected = false;
     currentStimuli.isPlaying = false;
+    currentStimuli.commandQueue.empty();
 }
 
 // Tell the state-machine that the serial port is unconfigured
@@ -118,6 +126,7 @@ void lvdpControl::serialUnconfigured(void)
     currentStimuli.serialConfigured = false;
     currentStimuli.deviceConnected = false;
     currentStimuli.isPlaying = false;
+    currentStimuli.commandQueue.empty();
 }
 
 // Ask if a player is connected
@@ -138,7 +147,7 @@ bool lvdpControl::isCav(void)
     return currentStimuli.isCav;
 }
 
-// Ask for the current frame number
+// Ask for the current frame number (CAV discs only)
 quint32 lvdpControl::currentFrameNumber(void)
 {
     if (currentStimuli.isCav) return currentStimuli.frameNumber;
@@ -147,12 +156,27 @@ quint32 lvdpControl::currentFrameNumber(void)
     return 0;
 }
 
+// Ask for the current time code (CLV discs only)
 quint32 lvdpControl::currentTimeCode(void)
 {
     if (!currentStimuli.isCav) return currentStimuli.timeCode;
 
     // Not a CLV disc... return 0
     return 0;
+}
+
+// Send a command to the player
+void lvdpControl::command(PlayerCommands command)
+{
+    // Ensure player is connected
+    if (!isConnected()) {
+        qDebug() << "lvdpControl::command(): Player is not connected";
+        return;
+    }
+
+    // Add command to the command queue
+    qDebug() << "lvdpControl::command(): Adding pending command to the command queue";
+    currentStimuli.commandQueue.enqueue(command);
 }
 
 // Player communication state machine thread ------------------------------------------------------------
@@ -171,6 +195,7 @@ void stateMachine(void)
         // Transition the state machine
         currentState = nextState;
 
+        // State machine process
         switch(currentState) {
             case state_disconnected:
                 nextState = smDisconnectedState();
@@ -195,6 +220,60 @@ void stateMachine(void)
             default:
                 qDebug() << "stateMachine(): State machine in invalid state!";
                 nextState = state_disconnected;
+        }
+
+        // Are there pending commands in the command queue?
+        if(!currentStimuli.commandQueue.isEmpty()) {
+            // Queue is not empty
+
+            // Is device connected?
+            if (currentStimuli.deviceConnected) {
+                // Pop the next command from the queue
+                lvdpControl::PlayerCommands currentCommand = currentStimuli.commandQueue.dequeue();
+
+                // Device connected, send command
+                switch(currentCommand) {
+                    case lvdpControl::PlayerCommands::command_play:
+                        sendSerialCommand("PL\r", TOUT_LONG); // Play command
+                        break;
+
+                    case lvdpControl::PlayerCommands::command_pause:
+                        sendSerialCommand("PA\r", TOUT_LONG); // Pause command
+                        break;
+
+                    case lvdpControl::PlayerCommands::command_stop:
+                        sendSerialCommand("RJ\r", TOUT_LONG); // Reject command
+                        break;
+
+                    case lvdpControl::PlayerCommands::command_stepForwards:
+                        sendSerialCommand("SF\r", TOUT_LONG); // Step forwards command
+                        break;
+
+                    case lvdpControl::PlayerCommands::command_stepBackwards:
+                        sendSerialCommand("SR\r", TOUT_LONG); // Step backwards command
+                        break;
+
+                    case lvdpControl::PlayerCommands::command_scanForwards:
+                        sendSerialCommand("NF\r", TOUT_LONG); // Scan forwards command
+                        break;
+
+                    case lvdpControl::PlayerCommands::command_scanBackwards:
+                        sendSerialCommand("NR\r", TOUT_LONG); // Scan backwards command
+                        break;
+
+                    case lvdpControl::PlayerCommands::command_keyLockOn:
+                        sendSerialCommand("1KL\r", TOUT_SHORT); // Key lock on command
+                        break;
+
+                    case lvdpControl::PlayerCommands::command_keyLockOff:
+                        sendSerialCommand("0KL\r", TOUT_SHORT); // Key lock off command
+                        break;
+
+                    default:
+                        // Drop the pending invalid command
+                        qDebug() << "stateMachine(): Dequeued command was invalid";
+                }
+            }
         }
     }
 
@@ -262,7 +341,7 @@ States smConnectingState(void)
     // In this state we verify that we can communicate with the player
     // and that it is the correct type of player
     QString response;
-    response = sendSerialCommand("?X\r"); // Identify Pioneer player command
+    response = sendSerialCommand("?X\r", TOUT_SHORT); // Identify Pioneer player command
 
     // Check for response
     if (response.isEmpty()) {
@@ -301,7 +380,7 @@ States smStoppedState(void)
 
     // Player active mode request (what are you doing?)
     QString response;
-    response = sendSerialCommand("?P\r");
+    response = sendSerialCommand("?P\r", TOUT_SHORT);
 
     // Check for response
     if (response.isEmpty()) {
@@ -349,7 +428,7 @@ States smStoppedState(void)
 
     // If we are playing; get the details of the disc (CAV or CLV?)
     if (nextState == state_playing) {
-        response = sendSerialCommand("?D\r"); // Disc status request
+        response = sendSerialCommand("?D\r", TOUT_SHORT); // Disc status request
 
         // Check for response
         if (response.isEmpty()) {
@@ -390,7 +469,7 @@ States smPlayingState(void)
 
     // Player active mode request (what are you doing?)
     QString response;
-    response = sendSerialCommand("?P\r");
+    response = sendSerialCommand("?P\r", TOUT_SHORT);
 
     // Check for response
     if (response.isEmpty()) {
@@ -440,7 +519,7 @@ States smPlayingState(void)
     if (nextState == state_playing) {
         if (currentStimuli.isCav) {
             // Disc is CAV - get frame number
-            response = sendSerialCommand("?F\r"); // Frame number request
+            response = sendSerialCommand("?F\r", TOUT_SHORT); // Frame number request
 
             // Check for response
             if (response.isEmpty()) {
@@ -454,7 +533,7 @@ States smPlayingState(void)
             //qDebug() << "smPlayingState(): Frame:" << currentStimuli.frameNumber;
         } else {
             // Disc is CLV - get time code
-            response = sendSerialCommand("?F\r"); // Time code request
+            response = sendSerialCommand("?F\r", TOUT_SHORT); // Time code request
 
             // Check for response
             if (response.isEmpty()) {
@@ -491,7 +570,7 @@ States smSerialErrorState(void)
 }
 
 // Serial port interaction functions -----------------------------------------------------------
-QString sendSerialCommand(QString commandString)
+QString sendSerialCommand(QString commandString, quint64 timeoutMsecs)
 {
     QString response;
 
@@ -521,7 +600,7 @@ QString sendSerialCommand(QString commandString)
         }
 
         // Check for timeout
-        if ((serialTimer.elapsed() >= 1000) && (!commandComplete)) {
+        if ((serialTimer.elapsed() >= timeoutMsecs) && (!commandComplete)) {
             commandTimeout = true;
             commandComplete = true;
             qDebug() << "sendSerialCommand(): Command timed out!";

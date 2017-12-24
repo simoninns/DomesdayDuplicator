@@ -96,6 +96,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Start updating the player control information
     updateTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
+
+    // Connect PIC control events to the handler
+    connect(lvdpPlayerControl, SIGNAL(playerControlEvent(playerControlDialog::PlayerControlEvents)), this,
+            SLOT(handlePlayerControlEvent(playerControlDialog::PlayerControlEvents)));
 }
 
 MainWindow::~MainWindow()
@@ -400,4 +404,50 @@ void MainWindow::updatePlayerControlInfo(void)
                 playerControl->currentTimeCode(),
                 playerControl->isPlaying()
                 );
+}
+
+// Called by a player control event (from the PIC controls)
+void MainWindow::handlePlayerControlEvent(playerControlDialog::PlayerControlEvents controlEvent)
+{
+    // Determine the event and process
+    switch(controlEvent) {
+        case playerControlDialog::PlayerControlEvents::event_playClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_play);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_pauseClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_pause);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_stopClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_stop);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_stepForwardsClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_stepForwards);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_stepBackwardsClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_stepBackwards);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_scanForwardsClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_scanForwards);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_scanBackwardsClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_scanBackwards);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_keyLockOnClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_keyLockOn);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_keyLockOffClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff);
+        break;
+
+        default:
+            qDebug() << "MainWindow::handlePlayerControlEvent(): Unknown event received!";
+    }
 }
