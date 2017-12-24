@@ -27,137 +27,511 @@
 
 #include "lvdpcontrol.h"
 
+static QSerialPort *lvdpSerialPort;
+
+struct Stimuli {
+    QString portName;
+    qint16 baudRate;
+    bool serialConfigured;
+    bool deviceConnected;
+    bool isCav;
+    bool isPlaying;
+    qint32 frameNumber;
+    qint32 timeCode;
+};
+
+static Stimuli currentStimuli;
+
+// Define the possible state-machine states
+enum States {
+    state_disconnected,
+    state_connecting,
+    state_stopped,
+    state_playing,
+    state_serialError
+};
+
+static bool stateMachineStopping;
+static bool stateMachineRunning;
+
+static void stateMachine(void);
+
+// State machine state handlers
+static States smDisconnectedState(void);
+static States smConnectingState(void);
+static States smStoppedState(void);
+static States smPlayingState(void);
+static States smSerialErrorState(void);
+
+// Serial communication functions
+static QString sendSerialCommand(QString commandString);
+
 lvdpControl::lvdpControl()
 {
-    // Define the serial port for LVDP communication
-    lvdpSerialPort = new QSerialPort;
+    // Set the stimuli to default
+    currentStimuli.serialConfigured = false;
+    currentStimuli.deviceConnected = false;
+    currentStimuli.isCav = false;
+    currentStimuli.isPlaying = false;
+    currentStimuli.frameNumber = 0;
+    currentStimuli.timeCode = 0;
 
-    // Define the timer for timeout handling
-    timeoutTimer = new QTimer;
-
-    // Connect the serial port signals to catch errors
-    connect(lvdpSerialPort, static_cast<void (QSerialPort::*)(QSerialPort::SerialPortError)>(&QSerialPort::error), this, &lvdpControl::handleError);
-
-    // Connect the serial read signals to the readyRead handler
-    connect(lvdpSerialPort, &QSerialPort::readyRead, this, &lvdpControl::serialReadReady);
-
-    // Connect the timeout timer to the timeout handler
-    connect(timeoutTimer, &QTimer::timeout, this, &lvdpControl::handleTimeout);
+    // Start the player communication state machine
+    stateMachineStopping = false;
+    stateMachineRunning = true;
+    QFuture<void> future = QtConcurrent::run(stateMachine);
 }
 
-// Connect to the player
-bool lvdpControl::connectPlayer(QString portName, qint16 baudRate)
+lvdpControl::~lvdpControl()
 {
-    bool connectSuccessful = false;
-
-    // If the serial port is open, close it
-    if (lvdpSerialPort->isOpen()) lvdpSerialPort->close();
-    currentSettings.connected = false;
-
-    // Verify that the baud rate is valid
-    if (baudRate != 1200 && baudRate != 2400 && baudRate != 9600)
-        return connectSuccessful; // return false
-
-    // Configure the serial port
-    lvdpSerialPort->setPortName(portName); // Set the device name
-
-    if (baudRate == 1200) lvdpSerialPort->setBaudRate(QSerialPort::Baud1200);
-    if (baudRate == 2400) lvdpSerialPort->setBaudRate(QSerialPort::Baud2400);
-    if (baudRate == 9600) lvdpSerialPort->setBaudRate(QSerialPort::Baud9600);
-
-    lvdpSerialPort->setDataBits(QSerialPort::Data8);
-    lvdpSerialPort->setParity(QSerialPort::NoParity);
-    lvdpSerialPort->setStopBits(QSerialPort::OneStop);
-    lvdpSerialPort->setFlowControl(QSerialPort::NoFlowControl);
-
-    if (lvdpSerialPort->open(QIODevice::ReadWrite)) {
-        qDebug() << "lvdpControl::lvdpConnect(): Serial port opened successfully";
-        connectSuccessful = true;
-        currentSettings.connected = true;
-    } else {
-        qDebug() << "lvdpControl::lvdpConnect(): Unable to open serial port!";
-    }
-
-    return connectSuccessful;
+    stopStateMachine();
 }
 
-// Ensure the player is disconnected
-void lvdpControl::disconnectPlayer(void)
+// Stop the running state machine
+void lvdpControl::stopStateMachine(void)
 {
-    // If the serial port is open, close it
-    if (lvdpSerialPort->isOpen()) lvdpSerialPort->close();
-    currentSettings.connected = false;
+    // Stop the player communication state machine
+    stateMachineStopping = true;
 
-    qDebug() << "lvdpControl::disconnectPlayer(): Player disconnected";
+    qDebug() << "lvdpControl::stopStateMachine(): Waiting for state machine to stop";
+    while(stateMachineRunning);
+    qDebug() << "lvdpControl::stopStateMachine(): State machine has stopped";
 }
 
-// Handle an error signal from the serial port
-void lvdpControl::handleError(QSerialPort::SerialPortError error)
+// Functions to interact with the state machine ---------------------------------------------------
+
+// Tell the state-machine that the serial port has been configured
+void lvdpControl::serialConfigured(QString portName, qint16 baudRate)
 {
-    // If we receive a critical error from the serial port, close it cleanly
-    if (error == QSerialPort::ResourceError) {
-        // If the serial port is open, close it
-        if (lvdpSerialPort->isOpen()) lvdpSerialPort->close();
-        currentSettings.connected = false;
-        qDebug() << "lvdpControl::handleError(): Serial port resource error! Closed connection to player";
-    }
-
-    // Read error from serial port
-    if (error == QSerialPort::ReadError) {
-        // If the serial port is open, close it
-        if (lvdpSerialPort->isOpen()) lvdpSerialPort->close();
-        currentSettings.connected = false;
-        qDebug() << "lvdpControl::handleError(): Serial port read error! Closed connection to player";
-    }
+    qDebug() << "lvdpControl::serialConfigured(): Invoked";
+    currentStimuli.portName = portName;
+    currentStimuli.baudRate = baudRate;
+    currentStimuli.serialConfigured = true;
+    currentStimuli.deviceConnected = false;
+    currentStimuli.isPlaying = false;
 }
 
-// Return the current connection status
+// Tell the state-machine that the serial port is unconfigured
+void lvdpControl::serialUnconfigured(void)
+{
+    qDebug() << "lvdpControl::serialUnconfigured(): Invoked";
+    currentStimuli.serialConfigured = false;
+    currentStimuli.deviceConnected = false;
+    currentStimuli.isPlaying = false;
+}
+
+// Ask if a player is connected
 bool lvdpControl::isConnected(void)
 {
-    return currentSettings.connected;
+    return currentStimuli.deviceConnected;
 }
 
-// Function to write console data to the serial port
-void lvdpControl::serialWrite(QString command)
+// Ask if a disc is playing
+bool lvdpControl::isPlaying(void)
 {
-    // Clear the receive buffer
-    receivedData.clear();
+    return currentStimuli.isPlaying;
+}
+
+// Ask if the disc is CAV
+bool lvdpControl::isCav(void)
+{
+    return currentStimuli.isCav;
+}
+
+// Ask for the current frame number
+quint32 lvdpControl::currentFrameNumber(void)
+{
+    if (currentStimuli.isCav) return currentStimuli.frameNumber;
+
+    // Not a CAV disc... return 0
+    return 0;
+}
+
+quint32 lvdpControl::currentTimeCode(void)
+{
+    if (!currentStimuli.isCav) return currentStimuli.timeCode;
+
+    // Not a CLV disc... return 0
+    return 0;
+}
+
+// Player communication state machine thread ------------------------------------------------------------
+void stateMachine(void)
+{
+    lvdpSerialPort = new QSerialPort();
+
+    // Variables to track the current and next states
+    States currentState = state_disconnected;
+    States nextState = currentState;
+
+    // Process the state machine until stopped
+    qDebug() << "stateMachine(): State machine starting";
+
+    while(!stateMachineStopping) {
+        // Transition the state machine
+        currentState = nextState;
+
+        switch(currentState) {
+            case state_disconnected:
+                nextState = smDisconnectedState();
+                break;
+
+            case state_connecting:
+                nextState = smConnectingState();
+                break;
+
+            case state_stopped:
+                nextState = smStoppedState();
+                break;
+
+            case state_playing:
+                nextState = smPlayingState();
+                break;
+
+            case state_serialError:
+                nextState = smSerialErrorState();
+                break;
+
+            default:
+                qDebug() << "stateMachine(): State machine in invalid state!";
+                nextState = state_disconnected;
+        }
+    }
+
+    // State machine has stopped
+    qDebug() << "stateMachine(): State machine stopped";
+    stateMachineRunning = false;
+    currentState = state_disconnected;
+}
+
+// State machine state handlers -------------------------------------------------------------------
+States smDisconnectedState(void)
+{
+    States nextState = state_disconnected;
+
+    currentStimuli.deviceConnected = false;
+
+    // Has the serial port been configured?
+    if (currentStimuli.serialConfigured) {
+        qDebug() << "smDisconnectedState(): Serial port is flagged as configured";
+        // If the serial port is open, close it
+        if (lvdpSerialPort->isOpen()) lvdpSerialPort->close();
+
+        // Verify that the baud rate is valid
+        if (currentStimuli.baudRate != 1200 && currentStimuli.baudRate != 2400 && currentStimuli.baudRate != 9600) {
+            qDebug() << "smDisconnectedState(): Invalid baud rate" << currentStimuli.baudRate;
+            currentStimuli.serialConfigured = false;
+            return state_disconnected;
+        } else {
+            qDebug() << "smDisconnectedState(): Baud rate is" << currentStimuli.baudRate;
+        }
+
+        // Configure the serial port
+        lvdpSerialPort->setPortName(currentStimuli.portName);
+        qDebug() << "smDisconnectedState(): Serial port name is" << currentStimuli.portName;
+
+        if (currentStimuli.baudRate == 1200) lvdpSerialPort->setBaudRate(QSerialPort::Baud1200);
+        if (currentStimuli.baudRate == 2400) lvdpSerialPort->setBaudRate(QSerialPort::Baud2400);
+        if (currentStimuli.baudRate == 9600) lvdpSerialPort->setBaudRate(QSerialPort::Baud9600);
+
+        lvdpSerialPort->setDataBits(QSerialPort::Data8);
+        lvdpSerialPort->setParity(QSerialPort::NoParity);
+        lvdpSerialPort->setStopBits(QSerialPort::OneStop);
+        lvdpSerialPort->setFlowControl(QSerialPort::NoFlowControl);
+
+        if (lvdpSerialPort->open(QIODevice::ReadWrite)) {
+            qDebug() << "smDisconnectedState(): Serial port opened successfully";
+            // Transition to the connecting state
+            nextState = state_connecting;
+        } else {
+            qDebug() << "smDisconnectedState(): Unable to open serial port!";
+            // Stay disconnected
+            currentStimuli.serialConfigured = false;
+            nextState = state_disconnected;
+        }
+    }
+
+    // Return the next state
+    return nextState;
+}
+
+States smConnectingState(void)
+{
+    States nextState = state_disconnected;
+
+    // In this state we verify that we can communicate with the player
+    // and that it is the correct type of player
+    QString response;
+    response = sendSerialCommand("?X\r"); // Identify Pioneer player command
+
+    // Check for response
+    if (response.isEmpty()) {
+        qDebug() << "smConnectingState(): No response from player";
+        nextState = state_serialError;
+        return nextState;
+    }
+
+    // Check the response
+    if (response.contains("P1515")) {
+        // Player identity correct
+        qDebug() << "smConnectingState(): Player ID is P1515xx";
+        currentStimuli.deviceConnected = true; // Flag that valid player is connected
+        nextState = state_stopped;
+    } else {
+        // Player identify incorrect
+        qDebug() << "smConnectingState(): Player ID is unknown - " << response;
+        nextState = state_serialError;
+    }
+
+    return nextState;
+}
+
+States smStoppedState(void)
+{
+    States nextState = state_stopped;
+
+    // Flag that the player is stopped
+    currentStimuli.isPlaying = false;
+
+    // Check if player is still connected
+    if (!currentStimuli.deviceConnected) {
+        nextState = state_disconnected;
+        return nextState;
+    }
+
+    // Player active mode request (what are you doing?)
+    QString response;
+    response = sendSerialCommand("?P\r");
+
+    // Check for response
+    if (response.isEmpty()) {
+        qDebug() << "smStoppedState(): No response from player";
+        nextState = state_serialError;
+        return nextState;
+    }
+
+    // Process response
+    if (response.contains("P00")) {
+        // P00 = Door openconvert quint16 to qstring
+        nextState = state_stopped;
+    } else if (response.contains("P01")) {
+        // P01 = Park
+        nextState = state_stopped;
+    } else if (response.contains("P02")) {
+        // P02 = Set up (preparing to play)
+        nextState = state_stopped;
+    } else if (response.contains("P03")) {
+        // P03 = Disc unloading
+        nextState = state_stopped;
+    } else if (response.contains("P04")) {
+        // P04 = Play
+        nextState = state_playing;
+    } else if (response.contains("P05")) {
+        // P05 = Still (picture displayed as still)
+        nextState = state_playing;
+    } else if (response.contains("P06")) {
+        // P06 = Pause (paused without picture display)
+        nextState = state_playing;
+    } else if (response.contains("P07")) {
+        // P07 = Search
+        nextState = state_playing;
+    } else if (response.contains("P08")) {
+        // P08 = Scan
+        nextState = state_playing;
+    } else if (response.contains("P09")) {
+        // P09 = Multi-speed play back
+        nextState = state_playing;
+    } else {
+        // Unknown response
+        qDebug() << "smPlayingState(): Unknown response from player to ?P - " << response;
+        nextState = state_stopped;
+    }
+
+    // If we are playing; get the details of the disc (CAV or CLV?)
+    if (nextState == state_playing) {
+        response = sendSerialCommand("?D\r"); // Disc status request
+
+        // Check for response
+        if (response.isEmpty()) {
+            qDebug() << "smStoppedState(): No response from player";
+            nextState = state_serialError;
+            return nextState;
+        }
+
+        // Process the response
+        if (response.at(1) == '0') {
+            qDebug() << "smStoppedState(): Disc is CAV";
+            currentStimuli.isCav = true;
+        } else if (response.at(1) == '1') {
+            qDebug() << "smStoppedState(): Disc is CLV";
+            currentStimuli.isCav = false;
+        } else {
+            qDebug() << "smStoppedState(): Unknown disc type";
+            nextState = state_serialError;
+            return nextState;
+        }
+    }
+
+    return nextState;
+}
+
+States smPlayingState(void)
+{
+    States nextState = state_disconnected;
+
+    // Flag that the player is playing
+    currentStimuli.isPlaying = true;
+
+    // Check if player is still connected
+    if (!currentStimuli.deviceConnected) {
+        nextState = state_disconnected;
+        return nextState;
+    }
+
+    // Player active mode request (what are you doing?)
+    QString response;
+    response = sendSerialCommand("?P\r");
+
+    // Check for response
+    if (response.isEmpty()) {
+        qDebug() << "smPlayingState(): No response from player";
+        nextState = state_serialError;
+        return nextState;
+    }
+
+    // Process response
+    if (response.contains("P00")) {
+        // P00 = Door open
+        nextState = state_stopped;
+    } else if (response.contains("P01")) {
+        // P01 = Park
+        nextState = state_stopped;
+    } else if (response.contains("P02")) {
+        // P02 = Set up (preparing to play)
+        nextState = state_stopped;
+    } else if (response.contains("P03")) {
+        // P03 = Disc unloading
+        nextState = state_stopped;
+    } else if (response.contains("P04")) {
+        // P04 = Play
+        nextState = state_playing;
+    } else if (response.contains("P05")) {
+        // P05 = Still (picture displayed as still)
+        nextState = state_playing;
+    } else if (response.contains("P06")) {
+        // P06 = Pause (paused without picture display)
+        nextState = state_playing;
+    } else if (response.contains("P07")) {
+        // P07 = Search
+        nextState = state_playing;
+    } else if (response.contains("P08")) {
+        // P08 = Scan
+        nextState = state_playing;
+    } else if (response.contains("P09")) {
+        // P09 = Multi-speed play back
+        nextState = state_playing;
+    } else {
+        // Unknown response
+        qDebug() << "smPlayingState(): Unknown response from player to ?P -" << response;
+        nextState = state_playing;
+    }
+
+    // If we are playing; get the current picture position
+    if (nextState == state_playing) {
+        if (currentStimuli.isCav) {
+            // Disc is CAV - get frame number
+            response = sendSerialCommand("?F\r"); // Frame number request
+
+            // Check for response
+            if (response.isEmpty()) {
+                qDebug() << "smPlayingState(): No response from player";
+                nextState = state_serialError;
+                return nextState;
+            }
+
+            // Process the response (5 digit frame number)
+            currentStimuli.frameNumber = response.left(5).toUInt();
+            //qDebug() << "smPlayingState(): Frame:" << currentStimuli.frameNumber;
+        } else {
+            // Disc is CLV - get time code
+            response = sendSerialCommand("?F\r"); // Time code request
+
+            // Check for response
+            if (response.isEmpty()) {
+                qDebug() << "smPlayingState(): No response from player";
+                nextState = state_serialError;
+                return nextState;
+            }
+
+            // Process the response (7-digit time code number HMMSSFF)
+            currentStimuli.timeCode = response.left(7).toUInt();
+            //qDebug() << "smPlayingState(): Time code:" << currentStimuli.timeCode;
+        }
+    }
+
+    return nextState;
+}
+
+States smSerialErrorState(void)
+{
+    States nextState = state_disconnected;
+
+    // Something went wrong with the serial communication
+    // Here we attempt to clean up and return to the disconnected
+    // state
+
+    // If the serial port is open, close it
+    if (lvdpSerialPort->isOpen()) lvdpSerialPort->close();
+    currentStimuli.serialConfigured = false;
+    currentStimuli.deviceConnected = false;
+
+    qDebug() << "smSerialErrorState(): In serial error state; closed serial port";
+
+    return nextState;
+}
+
+// Serial port interaction functions -----------------------------------------------------------
+QString sendSerialCommand(QString commandString)
+{
+    QString response;
 
     // Convert command to QByteArray (note: 20 characters maximum)
-    QByteArray data = command.toUtf8().left(20);
+    QByteArray data = commandString.toUtf8().left(20);
 
     // Write the data to the serial port
-    qDebug() << "lvdpControl::serialWrite(): Sending command:" << command;
+    //qDebug() << "sendSerialCommand(): Sending command:" << data;
     lvdpSerialPort->write(data);
 
     // Start the timeout timer
-    timeoutTimer->start(2000); // 2 seconds
+    QElapsedTimer serialTimer;
+    serialTimer.start();
 
-}
+    bool commandComplete = false;
+    bool commandTimeout = false;
+    while (!commandComplete) {
+        // Get any pending serial responses
+        if (lvdpSerialPort->waitForReadyRead(100)) {
+            response.append(lvdpSerialPort->readAll());
 
-// Function to write serial data to the console
-void lvdpControl::serialReadReady(void)
-{
-    // Handle the timeout timer
-    timeoutTimer->stop();
+            // Check for command response terminator (CR)
+            if (response.contains('\r')) {
+                commandComplete = true;
+                //qDebug() << "sendSerialCommand(): Received response:" << response;
+            }
+        }
 
-    // Read all available data from the serial port and append to the receive buffer
-    receivedData.append(lvdpSerialPort->readAll());
-
-    // Look for the end of response terminator (CR)
-    if (receivedData.contains('\r')) {
-        // Receive complete, stop timer
-        timeoutTimer->stop();
-
-        qDebug() << "lvdpControl::serialReadReady(): Received:" << receivedData;
+        // Check for timeout
+        if ((serialTimer.elapsed() >= 1000) && (!commandComplete)) {
+            commandTimeout = true;
+            commandComplete = true;
+            qDebug() << "sendSerialCommand(): Command timed out!";
+        }
     }
+
+    // If the command timed out, clear the response buffer
+    if (commandTimeout) response.clear();
+
+    // Return the response
+    return response;
 }
 
-// Function to handle read timeout
-void lvdpControl::handleTimeout(void)
-{
-    // Handle the timeout timer
-    timeoutTimer->stop();
-
-    qDebug() << "lvdpControl::handleTimeout(): Read operation timed out!";
-}

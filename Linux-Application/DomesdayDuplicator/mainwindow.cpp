@@ -72,6 +72,10 @@ MainWindow::MainWindow(QWidget *parent) :
     captureTimer = new QTimer(this);
     connect(captureTimer, SIGNAL(timeout()), this, SLOT(updateCaptureInfo()));
 
+    // Set up a timer for updated the player control information
+    updateTimer = new QTimer(this);
+    connect(updateTimer, SIGNAL(timeout()), this, SLOT(updatePlayerControlInfo()));
+
     // Disable the start transfer button (until a destination file name is supplied)
     ui->transferPushButton->setEnabled(false);
 
@@ -89,10 +93,16 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Connect to the serial port configured signal
     connect(lvdpSerialPortSelect, SIGNAL(serialPortChanged()), this, SLOT(serialPortStatusChange()));
+
+    // Start updating the player control information
+    updateTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
 }
 
 MainWindow::~MainWindow()
 {
+    // Stop the player control
+    playerControl->stopStateMachine();
+
     // Delete the UI
     delete ui;
 }
@@ -372,14 +382,22 @@ void MainWindow::serialPortStatusChange(void)
 
     if(lvdpSerialPortSelect->isConfigured()) {
         // Connect to the player
-        if (playerControl->connectPlayer(lvdpSerialPortSelect->getPortName(), lvdpSerialPortSelect->getBaudRate())) {
-            qDebug() << "MainWindow::serialPortStatusChange(): Player connected successfully";
-            playerControl->serialWrite("?X\r");
-        } else {
-            qDebug() << "MainWindow::serialPortStatusChange(): Could not connect to player";
-        }
+        playerControl->serialConfigured(lvdpSerialPortSelect->getPortName(), lvdpSerialPortSelect->getBaudRate());
     } else {
         // Ensure the player is disconnected
-        playerControl->disconnectPlayer();
+        playerControl->serialUnconfigured();
     }
+}
+
+// Called by the player control information update timer
+void MainWindow::updatePlayerControlInfo(void)
+{
+    //qDebug() << "MainWindow::updatePlayerControlInfo(): Updating";
+    lvdpPlayerControl->updatePlayerControlInfo(
+                playerControl->isConnected(),
+                playerControl->isCav(),
+                playerControl->currentFrameNumber(),
+                playerControl->currentTimeCode(),
+                playerControl->isPlaying()
+                );
 }

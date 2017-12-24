@@ -76,6 +76,7 @@ private slots:
     void on_actionShow_player_control_triggered();
 
     void serialPortStatusChange(void);
+    void updatePlayerControlInfo(void);
 
 private:
     Ui::MainWindow *ui;
@@ -91,6 +92,7 @@ private:
     serialPortSelectDialog *lvdpSerialPortSelect;
     playerControlDialog *lvdpPlayerControl;
 
+    QTimer* updateTimer;
     lvdpControl *playerControl;
 };
 

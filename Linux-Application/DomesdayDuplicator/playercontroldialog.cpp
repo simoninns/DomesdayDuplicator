@@ -33,9 +33,72 @@ playerControlDialog::playerControlDialog(QWidget *parent) :
     ui(new Ui::playerControlDialog)
 {
     ui->setupUi(this);
+
+    // Set up default player information values
+    ui->discTypeInfoLabel->setText("N/A");
+    ui->positionInfoLabel->setText("N/A");
+    ui->statusInfoLabel->setText("Disconnected");
 }
 
 playerControlDialog::~playerControlDialog()
 {
     delete ui;
+}
+
+// Update the player information
+void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, quint32 frameNumber,
+                                                  quint32 timeCode, bool isPlaying)
+{
+    // Is a player connected?
+    if (isConnected) {
+        if (isPlaying) {
+            // Playing
+            ui->statusInfoLabel->setText("Playing");
+
+            if (isCav) {
+                // CAV disc
+                ui->discTypeInfoLabel->setText("CAV");
+
+                // Convert frame number and display
+                QString frameNumberString;
+                frameNumberString.sprintf("%05d", frameNumber);
+                ui->positionInfoLabel->setText(frameNumberString);
+            } else {
+                // CLV disc
+                ui->discTypeInfoLabel->setText("CLV");
+
+                // Convert time-code and display
+                QString timeCodeString;
+                QString hourString;
+                QString minuteString;
+                QString secondString;
+                //QString frameString;
+
+                // Get the full 7 character time-code string
+                timeCodeString.sprintf("%07d", timeCode);
+
+                hourString = timeCodeString.left(1);
+                minuteString = timeCodeString.left(3).right(2);
+                secondString = timeCodeString.left(5).right(2);
+                //frameString = timeCodeString.left(7).right(2);
+                //ui->positionInfoLabel->setText("0" + hourString + ":" + minuteString + ":"
+                //                               + secondString + ":" + frameString);
+
+                // Display time-code (without frame number)
+                ui->positionInfoLabel->setText("0" + hourString + ":" + minuteString + ":"
+                                               + secondString);
+            }
+        } else {
+            // Stopped
+            ui->statusInfoLabel->setText("Stopped");
+            ui->discTypeInfoLabel->setText("N/A");
+            ui->positionInfoLabel->setText("N/A");
+        }
+
+    } else {
+        // No player connected
+        ui->discTypeInfoLabel->setText("N/A");
+        ui->positionInfoLabel->setText("N/A");
+        ui->statusInfoLabel->setText("No player connected");
+    }
 }
