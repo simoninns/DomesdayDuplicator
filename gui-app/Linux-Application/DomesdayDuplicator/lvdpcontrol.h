@@ -52,7 +52,9 @@ public:
         command_scanForwards,
         command_scanBackwards,
         command_keyLockOn,
-        command_keyLockOff
+        command_keyLockOff,
+        command_goto,
+        command_captureTo
     };
 
     void stopStateMachine(void);
@@ -67,7 +69,11 @@ public:
     quint32 currentFrameNumber(void);
     quint32 currentTimeCode(void);
 
-    void command(PlayerCommands command);
+    void command(PlayerCommands command, quint32 start, quint32 end);
+
+signals:
+    void startCapture(void);
+    void stopCapture(void);
 };
 
 #endif // LVDPCONTROL_H

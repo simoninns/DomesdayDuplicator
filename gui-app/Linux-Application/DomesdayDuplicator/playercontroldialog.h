@@ -56,11 +56,13 @@ public:
         event_scanForwardsClicked,
         event_scanBackwardsClicked,
         event_keyLockOnClicked,
-        event_keyLockOffClicked
+        event_keyLockOffClicked,
+        event_gotoClicked,
+        event_captureToClicked
     };
 
 signals:
-    void playerControlEvent(playerControlDialog::PlayerControlEvents);
+    void playerControlEvent(playerControlDialog::PlayerControlEvents, quint32, quint32);
 
 private slots:
     void on_playPushButton_clicked();
@@ -70,6 +72,12 @@ private slots:
     void on_scanForwardsPushButton_clicked();
     void on_scanBackwardsPushButton_clicked();
     void on_lockControlsCheckBox_toggled(bool checked);
+    void on_goToPushButton_clicked();
+    void on_captureToPushButton_clicked();
+
+    void on_startPositionLineEdit_returnPressed();
+
+    void on_endPositionLineEdit_returnPressed();
 
 private:
     Ui::playerControlDialog *ui;

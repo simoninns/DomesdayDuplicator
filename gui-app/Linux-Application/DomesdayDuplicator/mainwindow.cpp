@@ -98,8 +98,8 @@ MainWindow::MainWindow(QWidget *parent) :
     updateTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
 
     // Connect PIC control events to the handler
-    connect(lvdpPlayerControl, SIGNAL(playerControlEvent(playerControlDialog::PlayerControlEvents)), this,
-            SLOT(handlePlayerControlEvent(playerControlDialog::PlayerControlEvents)));
+    connect(lvdpPlayerControl, SIGNAL(playerControlEvent(playerControlDialog::PlayerControlEvents, quint32, quint32)), this,
+            SLOT(handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32, quint32)));
 }
 
 MainWindow::~MainWindow()
@@ -407,44 +407,53 @@ void MainWindow::updatePlayerControlInfo(void)
 }
 
 // Called by a player control event (from the PIC controls)
-void MainWindow::handlePlayerControlEvent(playerControlDialog::PlayerControlEvents controlEvent)
+void MainWindow::handlePlayerControlEvent(playerControlDialog::PlayerControlEvents controlEvent,
+                                          quint32 start, quint32 end)
 {
     // Determine the event and process
     switch(controlEvent) {
         case playerControlDialog::PlayerControlEvents::event_playClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_play);
+        playerControl->command(lvdpControl::PlayerCommands::command_play, 0, 0);
         break;
 
         case playerControlDialog::PlayerControlEvents::event_pauseClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_pause);
+        playerControl->command(lvdpControl::PlayerCommands::command_pause, 0, 0);
         break;
 
         case playerControlDialog::PlayerControlEvents::event_stopClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_stop);
+        playerControl->command(lvdpControl::PlayerCommands::command_stop, 0, 0);
         break;
 
         case playerControlDialog::PlayerControlEvents::event_stepForwardsClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_stepForwards);
+        playerControl->command(lvdpControl::PlayerCommands::command_stepForwards, 0, 0);
         break;
 
         case playerControlDialog::PlayerControlEvents::event_stepBackwardsClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_stepBackwards);
+        playerControl->command(lvdpControl::PlayerCommands::command_stepBackwards, 0, 0);
         break;
 
         case playerControlDialog::PlayerControlEvents::event_scanForwardsClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_scanForwards);
+        playerControl->command(lvdpControl::PlayerCommands::command_scanForwards, 0, 0);
         break;
 
         case playerControlDialog::PlayerControlEvents::event_scanBackwardsClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_scanBackwards);
+        playerControl->command(lvdpControl::PlayerCommands::command_scanBackwards, 0, 0);
         break;
 
         case playerControlDialog::PlayerControlEvents::event_keyLockOnClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_keyLockOn);
+        playerControl->command(lvdpControl::PlayerCommands::command_keyLockOn, 0, 0);
         break;
 
         case playerControlDialog::PlayerControlEvents::event_keyLockOffClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff);
+        playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0, 0);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_gotoClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_goto, start, 0);
+        break;
+
+        case playerControlDialog::PlayerControlEvents::event_captureToClicked:
+        playerControl->command(lvdpControl::PlayerCommands::command_captureTo, start, end);
         break;
 
         default:
