@@ -175,7 +175,6 @@ void lvdpControl::command(PlayerCommands command)
     }
 
     // Add command to the command queue
-    qDebug() << "lvdpControl::command(): Adding pending command to the command queue";
     currentStimuli.commandQueue.enqueue(command);
 }
 
@@ -234,44 +233,53 @@ void stateMachine(void)
                 // Device connected, send command
                 switch(currentCommand) {
                     case lvdpControl::PlayerCommands::command_play:
+                        qDebug() << "stateMachine(): Sending play command";
                         sendSerialCommand("PL\r", TOUT_LONG); // Play command
                         break;
 
                     case lvdpControl::PlayerCommands::command_pause:
+                        qDebug() << "stateMachine(): Sending pause command";
                         sendSerialCommand("PA\r", TOUT_LONG); // Pause command
                         break;
 
                     case lvdpControl::PlayerCommands::command_stop:
+                        qDebug() << "stateMachine(): Sending reject command";
                         sendSerialCommand("RJ\r", TOUT_LONG); // Reject command
                         break;
 
                     case lvdpControl::PlayerCommands::command_stepForwards:
-                        sendSerialCommand("SF\r", TOUT_LONG); // Step forwards command
+                        qDebug() << "stateMachine(): Sending step forwards command";
+                        sendSerialCommand("SF\r", TOUT_SHORT); // Step forwards command
                         break;
 
                     case lvdpControl::PlayerCommands::command_stepBackwards:
-                        sendSerialCommand("SR\r", TOUT_LONG); // Step backwards command
+                        qDebug() << "stateMachine(): Sending step backwards command";
+                        sendSerialCommand("SR\r", TOUT_SHORT); // Step backwards command
                         break;
 
                     case lvdpControl::PlayerCommands::command_scanForwards:
+                        qDebug() << "stateMachine(): Sending scan forward command";
                         sendSerialCommand("NF\r", TOUT_LONG); // Scan forwards command
                         break;
 
                     case lvdpControl::PlayerCommands::command_scanBackwards:
+                        qDebug() << "stateMachine(): Sending scan backwards command";
                         sendSerialCommand("NR\r", TOUT_LONG); // Scan backwards command
                         break;
 
                     case lvdpControl::PlayerCommands::command_keyLockOn:
+                        qDebug() << "stateMachine(): Sending key lock on command";
                         sendSerialCommand("1KL\r", TOUT_SHORT); // Key lock on command
                         break;
 
                     case lvdpControl::PlayerCommands::command_keyLockOff:
+                        qDebug() << "stateMachine(): Sending key lock off command";
                         sendSerialCommand("0KL\r", TOUT_SHORT); // Key lock off command
                         break;
 
                     default:
                         // Drop the pending invalid command
-                        qDebug() << "stateMachine(): Dequeued command was invalid";
+                        qDebug() << "stateMachine(): Dequeued command was invalid!";
                 }
             }
         }
