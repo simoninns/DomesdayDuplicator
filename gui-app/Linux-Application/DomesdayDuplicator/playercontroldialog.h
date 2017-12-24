@@ -42,6 +42,9 @@ public:
     explicit playerControlDialog(QWidget *parent = 0);
     ~playerControlDialog();
 
+    void updatePlayerControlInfo(bool isConnected, bool isCav, quint32 frameNumber,
+                                 quint32 timeCode, bool isPlaying);
+
 private:
     Ui::playerControlDialog *ui;
 };

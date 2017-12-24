@@ -33,38 +33,25 @@
 #include <QDebug>
 #include <QTimer>
 #include <QTimerEvent>
+#include <QtConcurrent/QtConcurrent>
 
 class lvdpControl : public QObject
 {
 public:
     lvdpControl();
+    ~lvdpControl();
 
-    bool connectPlayer(QString portName, qint16 baudRate);
-    void disconnectPlayer(void);
+    void stopStateMachine(void);
+
+    // Functions to interact with the state machine
+    void serialConfigured(QString portName, qint16 baudRate);
+    void serialUnconfigured(void);
+
     bool isConnected(void);
-    void serialWrite(QString command);
-
-private slots:
-    void handleError(QSerialPort::SerialPortError error);
-    void serialReadReady(void);
-    void handleTimeout(void);
-
-private:
-    struct Settings {
-        QString name;
-        QSerialPort::BaudRate baudRate;
-        QSerialPort::DataBits dataBits;
-        QSerialPort::Parity parity;
-        QSerialPort::StopBits stopBits;
-        QSerialPort::FlowControl flowControl;
-        bool connected;
-    };
-
-    Settings currentSettings;
-    QSerialPort *lvdpSerialPort;
-    QTimer *timeoutTimer;
-
-    QByteArray receivedData;
+    bool isPlaying(void);
+    bool isCav(void);
+    quint32 currentFrameNumber(void);
+    quint32 currentTimeCode(void);
 };
 
 #endif // LVDPCONTROL_H

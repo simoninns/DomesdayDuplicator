@@ -37,7 +37,7 @@ serialPortSelectDialog::serialPortSelectDialog(QWidget *parent) :
     // Flag that the serial port is not configured and set defaults
     currentSettings.configured = false;
     currentSettings.name = QString(tr("None"));
-    currentSettings.baudRate = 1200;
+    currentSettings.baudRate = 9600;
 
     // Populate the port information
     fillPortsInfo();
