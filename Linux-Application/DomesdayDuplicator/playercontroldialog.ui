@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>303</width>
-    <height>351</height>
+    <height>381</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>320</y>
+     <y>350</y>
      <width>151</width>
      <height>20</height>
     </rect>
@@ -50,6 +50,9 @@
     <property name="text">
      <string>Stop</string>
     </property>
+    <property name="autoDefault">
+     <bool>false</bool>
+    </property>
    </widget>
    <widget class="QPushButton" name="scanBackwardsPushButton">
     <property name="geometry">
@@ -62,6 +65,9 @@
     </property>
     <property name="text">
      <string>Scan &lt;</string>
+    </property>
+    <property name="autoDefault">
+     <bool>false</bool>
     </property>
    </widget>
    <widget class="QPushButton" name="stepBackwardsPushButton">
@@ -76,6 +82,9 @@
     <property name="text">
      <string>Step &lt;</string>
     </property>
+    <property name="autoDefault">
+     <bool>false</bool>
+    </property>
    </widget>
    <widget class="QPushButton" name="scanForwardsPushButton">
     <property name="geometry">
@@ -88,6 +97,9 @@
     </property>
     <property name="text">
      <string>Scan &gt;</string>
+    </property>
+    <property name="autoDefault">
+     <bool>false</bool>
     </property>
    </widget>
    <widget class="QPushButton" name="stepForwardsPushButton">
@@ -102,6 +114,9 @@
     <property name="text">
      <string>Step &gt;</string>
     </property>
+    <property name="autoDefault">
+     <bool>false</bool>
+    </property>
    </widget>
    <widget class="QPushButton" name="playPushButton">
     <property name="geometry">
@@ -115,6 +130,9 @@
     <property name="text">
      <string>Play</string>
     </property>
+    <property name="autoDefault">
+     <bool>false</bool>
+    </property>
    </widget>
   </widget>
   <widget class="QGroupBox" name="captureControlsGroupBox">
@@ -123,11 +141,11 @@
      <x>10</x>
      <y>220</y>
      <width>281</width>
-     <height>91</height>
+     <height>121</height>
     </rect>
    </property>
    <property name="title">
-    <string>Capture controls:</string>
+    <string>CAV Capture controls:</string>
    </property>
    <widget class="QLabel" name="endLabel">
     <property name="geometry">
@@ -154,6 +172,9 @@
       <height>22</height>
      </rect>
     </property>
+    <property name="focusPolicy">
+     <enum>Qt::ClickFocus</enum>
+    </property>
    </widget>
    <widget class="QPushButton" name="captureToPushButton">
     <property name="geometry">
@@ -166,6 +187,9 @@
     </property>
     <property name="text">
      <string>Capture to</string>
+    </property>
+    <property name="autoDefault">
+     <bool>false</bool>
     </property>
    </widget>
    <widget class="QLineEdit" name="endPositionLineEdit">
@@ -190,6 +214,9 @@
     <property name="text">
      <string>Go to</string>
     </property>
+    <property name="autoDefault">
+     <bool>false</bool>
+    </property>
    </widget>
    <widget class="QLabel" name="startLabel">
     <property name="geometry">
@@ -207,19 +234,19 @@
      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
     </property>
    </widget>
-  </widget>
-  <widget class="QDialogButtonBox" name="buttonBox">
-   <property name="geometry">
-    <rect>
-     <x>210</x>
-     <y>320</y>
-     <width>81</width>
-     <height>21</height>
-    </rect>
-   </property>
-   <property name="standardButtons">
-    <set>QDialogButtonBox::Close</set>
-   </property>
+   <widget class="QCheckBox" name="leadInCheckBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>90</y>
+      <width>251</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Capture lead-in (when start is frame 0)</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QGroupBox" name="playerInformationGroupBox">
    <property name="geometry">
@@ -323,22 +350,5 @@
   </widget>
  </widget>
  <resources/>
- <connections>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>rejected()</signal>
-   <receiver>playerControlDialog</receiver>
-   <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>250</x>
-     <y>330</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>151</x>
-     <y>175</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

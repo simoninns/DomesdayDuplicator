@@ -38,6 +38,14 @@ playerControlDialog::playerControlDialog(QWidget *parent) :
     ui->discTypeInfoLabel->setText("N/A");
     ui->positionInfoLabel->setText("N/A");
     ui->statusInfoLabel->setText("Disconnected");
+
+    // Limit frame number entry QLineEdit fields to number only
+    ui->startPositionLineEdit->setValidator( new QIntValidator(0, 60000, this) );
+    ui->endPositionLineEdit->setValidator( new QIntValidator(0, 60000, this) );
+
+    // Default the line edit fields
+    ui->startPositionLineEdit->setText("0");
+    ui->endPositionLineEdit->setText("0");
 }
 
 playerControlDialog::~playerControlDialog()
@@ -106,42 +114,73 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
 // Play button has been clicked
 void playerControlDialog::on_playPushButton_clicked()
 {
-    emit playerControlEvent(event_playClicked);
+    emit playerControlEvent(event_playClicked, 0, 0);
 }
 
 // Stop button has been clicked
 void playerControlDialog::on_stopPushButton_clicked()
 {
-    emit playerControlEvent(event_stopClicked);
+    emit playerControlEvent(event_stopClicked, 0, 0);
 }
 
 // Step forwards button has been clicked
 void playerControlDialog::on_stepForwardsPushButton_clicked()
 {
-    emit playerControlEvent(event_stepForwardsClicked);
+    emit playerControlEvent(event_stepForwardsClicked, 0, 0);
 }
 
 // Step backwards button has been clicked
 void playerControlDialog::on_stepBackwardsPushButton_clicked()
 {
-    emit playerControlEvent(event_stepBackwardsClicked);
+    emit playerControlEvent(event_stepBackwardsClicked, 0, 0);
 }
 
 // Scan forwards button has been clicked
 void playerControlDialog::on_scanForwardsPushButton_clicked()
 {
-    emit playerControlEvent(event_scanForwardsClicked);
+    emit playerControlEvent(event_scanForwardsClicked, 0, 0);
 }
 
 // Scan backwards button has been clicked
 void playerControlDialog::on_scanBackwardsPushButton_clicked()
 {
-    emit playerControlEvent(event_scanBackwardsClicked);
+    emit playerControlEvent(event_scanBackwardsClicked, 0, 0);
 }
 
 // Lock physical controls check box has been toggled
 void playerControlDialog::on_lockControlsCheckBox_toggled(bool checked)
 {
-    if (checked) emit playerControlEvent(event_keyLockOnClicked);
-    else emit playerControlEvent(event_keyLockOffClicked);
+    if (checked) emit playerControlEvent(event_keyLockOnClicked, 0, 0);
+    else emit playerControlEvent(event_keyLockOffClicked, 0, 0);
+}
+
+// Go to button pressed
+void playerControlDialog::on_goToPushButton_clicked()
+{
+    // Get the start position
+    quint32 start = ui->startPositionLineEdit->text().toUInt();
+    emit playerControlEvent(event_gotoClicked, start, 0);
+}
+
+// User hit return in go to position entry field
+void playerControlDialog::on_startPositionLineEdit_returnPressed()
+{
+    on_goToPushButton_clicked();
+}
+
+// Capture to button pressed
+void playerControlDialog::on_captureToPushButton_clicked()
+{
+    // Get the start and end positions
+    quint32 start = ui->startPositionLineEdit->text().toUInt();
+    quint32 end = ui->endPositionLineEdit->text().toUInt();
+
+    // Only emit the command if the end is beyond the start
+    if (start < end) emit playerControlEvent(event_captureToClicked, start, end);
+}
+
+// User hit return in capture to position entry field
+void playerControlDialog::on_endPositionLineEdit_returnPressed()
+{
+    on_captureToPushButton_clicked();
 }

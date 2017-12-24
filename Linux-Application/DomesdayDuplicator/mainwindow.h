@@ -78,7 +78,7 @@ private slots:
     void serialPortStatusChange(void);
     void updatePlayerControlInfo(void);
 
-    void handlePlayerControlEvent(playerControlDialog::PlayerControlEvents);
+    void handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32, quint32);
 
 private:
     Ui::MainWindow *ui;
