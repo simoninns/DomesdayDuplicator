@@ -41,6 +41,7 @@ struct Stimuli {
     qint32 timeCode;
     QQueue<lvdpControl::PlayerCommands> commandQueue;
     QQueue<quint32> parameterQueue;
+    quint32 discLength;
 };
 
 static Stimuli currentStimuli;
@@ -87,6 +88,7 @@ lvdpControl::lvdpControl()
     currentStimuli.isPaused = false;
     currentStimuli.frameNumber = 0;
     currentStimuli.timeCode = 0;
+    currentStimuli.discLength = 0;
 
     // Start the player communication state machine
     stateMachineStopping = false;
@@ -124,6 +126,7 @@ void lvdpControl::serialConfigured(QString portName, qint16 baudRate)
     currentStimuli.isPaused = false;
     currentStimuli.commandQueue.empty();
     currentStimuli.parameterQueue.empty();
+    currentStimuli.discLength = 0;
 }
 
 // Tell the state-machine that the serial port is unconfigured
@@ -136,6 +139,7 @@ void lvdpControl::serialUnconfigured(void)
     currentStimuli.isPaused = false;
     currentStimuli.commandQueue.empty();
     currentStimuli.parameterQueue.empty();
+    currentStimuli.discLength = 0;
 }
 
 // Ask if a player is connected
@@ -178,6 +182,12 @@ quint32 lvdpControl::currentTimeCode(void)
 
     // Not a CLV disc... return 0
     return 0;
+}
+
+// Ask for the current disc length
+quint32 lvdpControl::getDiscLength(void)
+{
+    return currentStimuli.discLength;
 }
 
 // Send a command to the player
@@ -312,6 +322,37 @@ void stateMachine(void)
                             QString command;
                             command.sprintf("FR%dSE\r", currentCommandParameter);
                             sendSerialCommand(command, TOUT_LONG); // Frame seek command
+                        }
+                        break;
+
+                   case lvdpControl::PlayerCommands::command_resetDiscLength:
+                        // Reset the disc length
+                        currentStimuli.discLength = 0;
+                        break;
+
+                    case lvdpControl::PlayerCommands::command_getDiscLength:
+                        // Reset the disc length
+                        currentStimuli.discLength = 0;
+
+                        // Ensure that the player is playing or paused
+                        if (currentStimuli.isPlaying || currentStimuli.isPaused) {
+                            sendSerialCommand("FR60000SE\r", TOUT_LONG); // Frame seek to impossible frame number
+
+                            if (currentStimuli.isCav) {
+                                // Disc is CAV - get frame number
+                                QString response;
+                                response = sendSerialCommand("?F\r", TOUT_SHORT); // Frame number request
+
+                                // Process the response (5 digit frame number)
+                                currentStimuli.discLength = response.left(5).toUInt();
+                            } else {
+                                // Disc is CLV - get time code
+                                QString response;
+                                response = sendSerialCommand("?F\r", TOUT_SHORT); // Time code request
+
+                                // Process the response (7-digit time code number HMMSSFF)
+                                currentStimuli.discLength = response.left(7).toUInt();
+                            }
                         }
                         break;
 
@@ -467,9 +508,12 @@ States smStoppedState(void)
     } else if (response.contains("P09")) {
         // P09 = Multi-speed play back
         nextState = state_playing;
+    } else if (response.contains("PA5")) {
+        // PA5 = Undocumented response, sent at end of disc it seems?
+        nextState = state_stopped;
     } else {
         // Unknown response
-        qDebug() << "smPlayingState(): Unknown response from player to ?P - " << response;
+        qDebug() << "smStoppedState(): Unknown response from player to ?P - " << response;
         nextState = state_stopped;
     }
 
@@ -557,6 +601,9 @@ States smPlayingState(void)
     } else if (response.contains("P09")) {
         // P09 = Multi-speed play back
         nextState = state_playing;
+    } else if (response.contains("PA5")) {
+        // PA5 = Undocumented response, sent at end of disc it seems?
+        nextState = state_stopped;
     } else {
         // Unknown response
         qDebug() << "smPlayingState(): Unknown response from player to ?P -" << response;
@@ -655,6 +702,9 @@ States smPausedState(void)
     } else if (response.contains("P09")) {
         // P09 = Multi-speed play back
         nextState = state_playing;
+    } else if (response.contains("PA5")) {
+        // PA5 = Undocumented response, sent at end of disc it seems?
+        nextState = state_stopped;
     } else {
         // Unknown response
         qDebug() << "smPausedState(): Unknown response from player to ?P -" << response;

@@ -81,8 +81,11 @@ private slots:
     void handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32);
 
     void on_cavLeadInCheckBox_toggled(bool checked);
-
     void on_clvLeadInCheckBox_toggled(bool checked);
+
+    void cavPicPoll(void);
+
+    void on_cavCapturePushButton_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -100,6 +103,31 @@ private:
 
     QTimer* updateTimer;
     lvdpControl *playerControl;
+
+    // CAV PIC capture state-machine
+    // Define the possible state-machine states
+    enum CavPicStates {
+        state_idle,
+        state_startPlayer,
+        state_waitForPlay,
+        state_determineDiscLength,
+        state_waitForDetermineDiscLength,
+        state_seekToFrame,
+        state_waitForSeek,
+        state_startCapture,
+        state_waitForStartCapture,
+        state_waitForEndFrame,
+        state_stopCapture,
+        state_error
+    };
+
+    CavPicStates cavPicCurrentState;
+    CavPicStates cavPicNextState;
+    bool cavPicCaptureActive;
+    QTimer* cavPicPollTimer;
+
+    // CLV PIC capture state-machine
+    // TODO
 };
 
 #endif // MAINWINDOW_H

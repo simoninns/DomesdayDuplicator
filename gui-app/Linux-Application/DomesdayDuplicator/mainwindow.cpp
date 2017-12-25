@@ -101,19 +101,25 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(lvdpSerialPortSelect, SIGNAL(serialPortChanged()), this, SLOT(serialPortStatusChange()));
 
     // Start updating the player control information
-    updateTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
+    updateTimer->start(100); // Update 10 times a second
 
     // Connect PIC control events to the handler
     connect(lvdpPlayerControl, SIGNAL(playerControlEvent(playerControlDialog::PlayerControlEvents, quint32)), this,
             SLOT(handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32)));
 
     // Set the default frame numbers for the CAV PIC capture
-    ui->startFrameLineEdit->setText("0");
-    ui->endFrameLineEdit->setText("0");
+    ui->startFrameLineEdit->setText("1");
+    ui->endFrameLineEdit->setText("2");
 
     // Disable the PIC capture options (only available if a player is connected)
     ui->cavIntegratedCaptureGroupBox->setEnabled(false);
     ui->clvIntegratedCaptureGroupBox->setEnabled(false);
+
+    // Set up the PIC capture state-machines
+    cavPicCaptureActive = false;
+    cavPicPollTimer = new QTimer(this);
+    connect(cavPicPollTimer, SIGNAL(timeout()), this, SLOT(cavPicPoll()));
+    cavPicPollTimer->start(50); // Update 20 times a second
 }
 
 MainWindow::~MainWindow()
@@ -527,4 +533,170 @@ void MainWindow::on_clvLeadInCheckBox_toggled(bool checked)
     } else {
         ui->startTimeCodeTimeEdit->setEnabled(true);
     }
+}
+
+// CAV PIC capture state-machine
+void MainWindow::cavPicPoll(void)
+{
+    // Transition state if required
+    cavPicCurrentState = cavPicNextState;
+
+    // Get the start and end frame positions
+    quint32 startFrame = ui->startFrameLineEdit->text().toUInt();
+    quint32 endFrame = ui->endFrameLineEdit->text().toUInt();
+
+    switch (cavPicCurrentState) {
+        case state_idle:
+            ui->cavPicStatus->setText("Idle");
+
+            // Wait for the flag then transition from idle
+            if (cavPicCaptureActive) cavPicNextState = state_startPlayer;
+            else cavPicNextState = state_idle;
+            break;
+
+        case state_startPlayer:
+            ui->cavPicStatus->setText("Starting player");
+
+            // Lock the physical player controls for safety
+            playerControl->command(lvdpControl::PlayerCommands::command_keyLockOn, 0);
+            lvdpPlayerControl->lockAllPlayerControls();
+
+            // Send the play command if the player isn't already started
+            if (!playerControl->isPlaying() && !playerControl->isPaused() ) {
+                playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
+            }
+
+            cavPicNextState = state_waitForPlay;
+            break;
+
+        case state_waitForPlay:
+            ui->cavPicStatus->setText("Waiting for disc");
+
+            if (playerControl->isPlaying() || playerControl->isPaused()) {
+                if (playerControl->isCav()) {
+                    cavPicNextState = state_determineDiscLength;
+                } else {
+                    // Disc is not CAV - error
+                    cavPicNextState = state_error;
+                }
+            }
+
+            break;
+
+        case state_determineDiscLength:
+            ui->cavPicStatus->setText("Determining disc length");
+            playerControl->command(lvdpControl::PlayerCommands::command_resetDiscLength, 0);
+            playerControl->command(lvdpControl::PlayerCommands::command_getDiscLength, 0);
+
+            cavPicNextState = state_waitForDetermineDiscLength;
+
+            break;
+
+        case state_waitForDetermineDiscLength:
+            ui->cavPicStatus->setText("Waiting for disc length");
+            if (playerControl->getDiscLength() != 0) {
+                qDebug() << "MainWindow::cavPicPoll(): Disc length is" << playerControl->getDiscLength() << "frames";
+                cavPicNextState = state_seekToFrame;
+            }
+            break;
+
+        case state_seekToFrame:
+            ui->cavPicStatus->setText("Seeking for start frame");
+
+            // Verify that the startFrame is valid
+            if (startFrame == 0) startFrame = 1;
+            if (playerControl->getDiscLength() < startFrame) startFrame = playerControl->getDiscLength() - 1;
+
+            // Send the seek command
+            qDebug() << "MainWindow::cavPicPoll(): Requesting start frame" << startFrame;
+            playerControl->command(lvdpControl::PlayerCommands::command_seek, startFrame);
+            cavPicNextState = state_waitForSeek;
+            break;
+
+        case state_waitForSeek:
+            ui->cavPicStatus->setText("Waiting for start frame");
+
+            // Verify that the startFrame is valid
+            if (startFrame == 0) startFrame = 1;
+            if (playerControl->getDiscLength() < startFrame) startFrame = playerControl->getDiscLength() - 1;
+
+            // Get the seek position and pause
+            if (startFrame == playerControl->currentFrameNumber()) {
+                cavPicNextState = state_startCapture;
+            }
+
+            break;
+
+        case state_startCapture:
+            ui->cavPicStatus->setText("Starting capture");
+
+            // Verify that the end frame is valid
+            if (endFrame > playerControl->getDiscLength()) endFrame = playerControl->getDiscLength();
+
+            qDebug() << "MainWindow::cavPicPoll(): Waiting for end frame" << endFrame;
+
+            // Start the capture
+
+            // Play the disc
+            playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
+
+            cavPicNextState = state_waitForStartCapture;
+            break;
+
+        case state_waitForStartCapture:
+            ui->cavPicStatus->setText("Waiting for start capture");
+            // Don't start waiting for the end frame unless the player is playing
+            if (playerControl->isPlaying()) cavPicNextState = state_waitForEndFrame;
+            break;
+
+        case state_waitForEndFrame:
+            ui->cavPicStatus->setText("Waiting for end frame");
+
+            // Verify that the end frame is valid
+            if (endFrame > playerControl->getDiscLength()) endFrame = playerControl->getDiscLength();
+
+            // Check if the frame number is exceeded
+            if (playerControl->currentFrameNumber() >= endFrame)
+                cavPicNextState = state_stopCapture;
+
+            // Attempting to read past the last frame can cause the player
+            // to stop...  ensure we are still playing
+            if (!playerControl->isPlaying())
+                cavPicNextState = state_stopCapture;
+            break;
+
+        case state_stopCapture:
+            ui->cavPicStatus->setText("Stopping capture");
+
+            // Stop the capture
+
+            // Stop the player (if still playing)
+            if (playerControl->isPlaying()) playerControl->command(lvdpControl::PlayerCommands::command_pause, 0);
+
+            // Unlock the physical player controls
+            playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
+            lvdpPlayerControl->unlockAllPlayerControls();
+
+            cavPicNextState = state_idle;
+            cavPicCaptureActive = false;
+            break;
+
+        case state_error:
+            ui->cavPicStatus->setText("Error");
+
+            // Unlock the physical player controls
+            playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
+            lvdpPlayerControl->unlockAllPlayerControls();
+
+            cavPicNextState = state_idle;
+            cavPicCaptureActive = false;
+            break;
+    }
+}
+
+// CAV PIC capture button clicked
+void MainWindow::on_cavCapturePushButton_clicked()
+{
+    // Start the CAV PIC capture
+    cavPicCaptureActive = true;
 }

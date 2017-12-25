@@ -56,6 +56,9 @@ playerControlDialog::playerControlDialog(QWidget *parent) :
     ui->scanForwardsPushButton->setEnabled(false);
     ui->stepForwardsPushButton->setEnabled(false);
     ui->stepBackwardsPushButton->setEnabled(false);
+
+    // Default to unlocked
+    allControlsLocked = false;
 }
 
 playerControlDialog::~playerControlDialog()
@@ -79,12 +82,25 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
                 ui->discTypeInfoLabel->setText("CAV");
 
                 // Enable the CAV controls
-                ui->cavControlsGroupBox->setEnabled(true);
-                ui->clvControlsGroupBox->setEnabled(false);
-                ui->scanBackwardsPushButton->setEnabled(true);
-                ui->scanForwardsPushButton->setEnabled(true);
-                ui->stepForwardsPushButton->setEnabled(true);
-                ui->stepBackwardsPushButton->setEnabled(true);
+                if (!allControlsLocked) {
+                    ui->playerControlsGroupBox->setEnabled(true);
+                    ui->cavControlsGroupBox->setEnabled(true);
+                    ui->clvControlsGroupBox->setEnabled(false);
+                    ui->scanBackwardsPushButton->setEnabled(true);
+                    ui->scanForwardsPushButton->setEnabled(true);
+                    ui->stepForwardsPushButton->setEnabled(true);
+                    ui->stepBackwardsPushButton->setEnabled(true);
+                    ui->lockControlsCheckBox->setEnabled(true);
+                } else {
+                    ui->playerControlsGroupBox->setEnabled(false);
+                    ui->cavControlsGroupBox->setEnabled(false);
+                    ui->clvControlsGroupBox->setEnabled(false);
+                    ui->scanBackwardsPushButton->setEnabled(false);
+                    ui->scanForwardsPushButton->setEnabled(false);
+                    ui->stepForwardsPushButton->setEnabled(false);
+                    ui->stepBackwardsPushButton->setEnabled(false);
+                    ui->lockControlsCheckBox->setEnabled(false);
+                }
 
                 // Convert frame number and display
                 QString frameNumberString;
@@ -95,12 +111,25 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
                 ui->discTypeInfoLabel->setText("CLV");
 
                 // Enable the CLV controls
-                ui->cavControlsGroupBox->setEnabled(false);
-                ui->clvControlsGroupBox->setEnabled(true);
-                ui->scanBackwardsPushButton->setEnabled(true);
-                ui->scanForwardsPushButton->setEnabled(true);
-                ui->stepForwardsPushButton->setEnabled(false);
-                ui->stepBackwardsPushButton->setEnabled(false);
+                if (!allControlsLocked) {
+                    ui->playerControlsGroupBox->setEnabled(true);
+                    ui->cavControlsGroupBox->setEnabled(false);
+                    ui->clvControlsGroupBox->setEnabled(true);
+                    ui->scanBackwardsPushButton->setEnabled(true);
+                    ui->scanForwardsPushButton->setEnabled(true);
+                    ui->stepForwardsPushButton->setEnabled(false);
+                    ui->stepBackwardsPushButton->setEnabled(false);
+                    ui->lockControlsCheckBox->setEnabled(true);
+                } else {
+                    ui->playerControlsGroupBox->setEnabled(false);
+                    ui->cavControlsGroupBox->setEnabled(false);
+                    ui->clvControlsGroupBox->setEnabled(false);
+                    ui->scanBackwardsPushButton->setEnabled(false);
+                    ui->scanForwardsPushButton->setEnabled(false);
+                    ui->stepForwardsPushButton->setEnabled(false);
+                    ui->stepBackwardsPushButton->setEnabled(false);
+                    ui->lockControlsCheckBox->setEnabled(false);
+                }
 
                 // Convert time-code and display
                 QString timeCodeString;
@@ -127,12 +156,26 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
             ui->discTypeInfoLabel->setText("N/A");
             ui->positionInfoLabel->setText("N/A");
 
-            ui->cavControlsGroupBox->setEnabled(false);
-            ui->clvControlsGroupBox->setEnabled(false);
-            ui->scanBackwardsPushButton->setEnabled(false);
-            ui->scanForwardsPushButton->setEnabled(false);
-            ui->stepForwardsPushButton->setEnabled(false);
-            ui->stepBackwardsPushButton->setEnabled(false);
+            if (!allControlsLocked) {
+                ui->playerControlsGroupBox->setEnabled(true);
+                ui->cavControlsGroupBox->setEnabled(false);
+                ui->clvControlsGroupBox->setEnabled(false);
+                ui->scanBackwardsPushButton->setEnabled(false);
+                ui->scanForwardsPushButton->setEnabled(false);
+                ui->stepForwardsPushButton->setEnabled(false);
+                ui->stepBackwardsPushButton->setEnabled(false);
+                ui->lockControlsCheckBox->setEnabled(true);
+            } else {
+                ui->playerControlsGroupBox->setEnabled(false);
+                ui->cavControlsGroupBox->setEnabled(false);
+                ui->clvControlsGroupBox->setEnabled(false);
+                ui->scanBackwardsPushButton->setEnabled(false);
+                ui->scanForwardsPushButton->setEnabled(false);
+                ui->stepForwardsPushButton->setEnabled(false);
+                ui->stepBackwardsPushButton->setEnabled(false);
+                ui->lockControlsCheckBox->setEnabled(false);
+            }
+
         }
 
     } else {
@@ -140,7 +183,28 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
         ui->discTypeInfoLabel->setText("N/A");
         ui->positionInfoLabel->setText("N/A");
         ui->statusInfoLabel->setText("No player connected");
+
+        ui->playerControlsGroupBox->setEnabled(false);
+        ui->cavControlsGroupBox->setEnabled(false);
+        ui->clvControlsGroupBox->setEnabled(false);
+        ui->scanBackwardsPushButton->setEnabled(false);
+        ui->scanForwardsPushButton->setEnabled(false);
+        ui->stepForwardsPushButton->setEnabled(false);
+        ui->stepBackwardsPushButton->setEnabled(false);
+        ui->lockControlsCheckBox->setEnabled(false);
     }
+}
+
+// Lock all controls
+void playerControlDialog::lockAllPlayerControls(void)
+{
+    allControlsLocked = true;
+}
+
+// Unlock all controls
+void playerControlDialog::unlockAllPlayerControls(void)
+{
+    allControlsLocked = false;
 }
 
 // Play button has been clicked

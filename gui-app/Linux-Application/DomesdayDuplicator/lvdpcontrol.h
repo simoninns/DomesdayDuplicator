@@ -53,7 +53,9 @@ public:
         command_scanBackwards,
         command_keyLockOn,
         command_keyLockOff,
-        command_seek
+        command_seek,
+        command_resetDiscLength,
+        command_getDiscLength
     };
 
     void stopStateMachine(void);
@@ -68,6 +70,7 @@ public:
     bool isCav(void);
     quint32 currentFrameNumber(void);
     quint32 currentTimeCode(void);
+    quint32 getDiscLength(void);
 
     void command(PlayerCommands command, quint32 parameter);
 
