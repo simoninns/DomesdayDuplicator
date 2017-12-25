@@ -10,6 +10,24 @@
     <height>391</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>303</width>
+    <height>391</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>303</width>
+    <height>391</height>
+   </size>
+  </property>
   <property name="windowTitle">
    <string>Player Integrated Capture</string>
   </property>
@@ -342,7 +360,7 @@
      </time>
     </property>
     <property name="currentSection">
-     <enum>QDateTimeEdit::MinuteSection</enum>
+     <enum>QDateTimeEdit::HourSection</enum>
     </property>
     <property name="displayFormat">
      <string>HH:mm:ss</string>
