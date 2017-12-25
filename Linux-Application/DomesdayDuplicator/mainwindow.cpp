@@ -53,10 +53,14 @@ MainWindow::MainWindow(QWidget *parent) :
         status->setText(tr("Connected"));
         ui->transferPushButton->setEnabled(true);
         ui->testModeCheckBox->setEnabled(true);
+        ui->cavCapturePushButton->setEnabled(true);
+        ui->clvCapturePushButton->setEnabled(true);
     } else {
         status->setText(tr("Domesday Duplicator USB device not connected"));
         ui->transferPushButton->setEnabled(false);
         ui->testModeCheckBox->setEnabled(false);
+        ui->cavCapturePushButton->setEnabled(false);
+        ui->clvCapturePushButton->setEnabled(false);
     }
 
     // Connect to the usb device's signals to show insertion/removal events
@@ -76,8 +80,10 @@ MainWindow::MainWindow(QWidget *parent) :
     updateTimer = new QTimer(this);
     connect(updateTimer, SIGNAL(timeout()), this, SLOT(updatePlayerControlInfo()));
 
-    // Disable the start transfer button (until a destination file name is supplied)
+    // Disable the start transfer buttons (until a destination file name is supplied)
     ui->transferPushButton->setEnabled(false);
+    ui->cavCapturePushButton->setEnabled(false);
+    ui->clvCapturePushButton->setEnabled(false);
 
     // Disable the test mode checkbox until a USB device is connected
     ui->testModeCheckBox->setEnabled(false);
@@ -100,6 +106,14 @@ MainWindow::MainWindow(QWidget *parent) :
     // Connect PIC control events to the handler
     connect(lvdpPlayerControl, SIGNAL(playerControlEvent(playerControlDialog::PlayerControlEvents, quint32)), this,
             SLOT(handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32)));
+
+    // Set the default frame numbers for the CAV PIC capture
+    ui->startFrameLineEdit->setText("0");
+    ui->endFrameLineEdit->setText("0");
+
+    // Disable the PIC capture options (only available if a player is connected)
+    ui->cavIntegratedCaptureGroupBox->setEnabled(false);
+    ui->clvIntegratedCaptureGroupBox->setEnabled(false);
 }
 
 MainWindow::~MainWindow()
@@ -121,6 +135,8 @@ void MainWindow::usbStatusChanged(bool usbStatus)
         // Enable transfer if there is a filename selected
         if (!fileName.isEmpty()) {
             ui->transferPushButton->setEnabled(true);
+            ui->cavCapturePushButton->setEnabled(true);
+            ui->clvCapturePushButton->setEnabled(true);
             ui->testModeCheckBox->setEnabled(true);
             ui->testModeCheckBox->setChecked(false);
         }
@@ -135,6 +151,8 @@ void MainWindow::usbStatusChanged(bool usbStatus)
         }
 
         ui->transferPushButton->setEnabled(false);
+        ui->cavCapturePushButton->setEnabled(false);
+        ui->clvCapturePushButton->setEnabled(false);
         ui->testModeCheckBox->setEnabled(false);
     }
 }
@@ -161,6 +179,8 @@ void MainWindow::on_actionSave_As_triggered()
         // No file name was specified
         qDebug() << "MainWindow::on_actionSave_As_triggered(): User did not supply a file name";
         ui->transferPushButton->setEnabled(false);
+        ui->cavCapturePushButton->setEnabled(false);
+        ui->clvCapturePushButton->setEnabled(false);
         ui->testModeCheckBox->setEnabled(false);
     } else {
         // File name specified
@@ -169,6 +189,8 @@ void MainWindow::on_actionSave_As_triggered()
         // Enable the capture control buttons (if a USB device is connected)
         if (domDupUsbDevice->isConnected()) {
             ui->transferPushButton->setEnabled(true);
+            ui->cavCapturePushButton->setEnabled(true);
+            ui->clvCapturePushButton->setEnabled(true);
             ui->testModeCheckBox->setEnabled(true);
         }
     }
@@ -405,6 +427,29 @@ void MainWindow::updatePlayerControlInfo(void)
                 playerControl->isPlaying(),
                 playerControl->isPaused()
                 );
+
+    if (playerControl->isConnected()) {
+        // If we are paused or playing, then we known the disc type
+        // otherwise it's up to the user to pick the right one
+        if (playerControl->isPaused() || playerControl->isPlaying()) {
+            if (playerControl->isCav()) {
+                ui->cavIntegratedCaptureGroupBox->setEnabled(true);
+                ui->clvIntegratedCaptureGroupBox->setEnabled(false);
+            } else {
+                ui->cavIntegratedCaptureGroupBox->setEnabled(false);
+                ui->clvIntegratedCaptureGroupBox->setEnabled(true);
+            }
+        } else {
+            // No disc is detected, enable both options
+            ui->cavIntegratedCaptureGroupBox->setEnabled(true);
+            ui->clvIntegratedCaptureGroupBox->setEnabled(true);
+        }
+    } else {
+        // Disable the PIC capture options (only available if a player is connected)
+        ui->cavIntegratedCaptureGroupBox->setEnabled(false);
+        ui->clvIntegratedCaptureGroupBox->setEnabled(false);
+    }
+
 }
 
 // Called by a player control event (from the PIC controls)
@@ -455,5 +500,31 @@ void MainWindow::handlePlayerControlEvent(playerControlDialog::PlayerControlEven
 
         default:
             qDebug() << "MainWindow::handlePlayerControlEvent(): Unknown event received!";
+    }
+}
+
+// CAV capture from lead-in check box toggled
+void MainWindow::on_cavLeadInCheckBox_toggled(bool checked)
+{
+    if (checked) {
+        // If checked, user cannot specify the start frame number
+        ui->startFrameLineEdit->setText("0");
+        ui->startFrameLineEdit->setEnabled(false);
+    } else {
+        ui->startFrameLineEdit->setEnabled(true);
+    }
+}
+
+// CLV capture from lead-in check box toggled
+void MainWindow::on_clvLeadInCheckBox_toggled(bool checked)
+{
+    if (checked) {
+        // If checked, user cannot specify the start time-code
+        QTime startTimecode;
+        startTimecode.setHMS(0, 0, 0, 0);
+        ui->startTimeCodeTimeEdit->setTime(startTimecode);
+        ui->startTimeCodeTimeEdit->setEnabled(false);
+    } else {
+        ui->startTimeCodeTimeEdit->setEnabled(true);
     }
 }

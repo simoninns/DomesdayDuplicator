@@ -80,6 +80,10 @@ private slots:
 
     void handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32);
 
+    void on_cavLeadInCheckBox_toggled(bool checked);
+
+    void on_clvLeadInCheckBox_toggled(bool checked);
+
 private:
     Ui::MainWindow *ui;
 
