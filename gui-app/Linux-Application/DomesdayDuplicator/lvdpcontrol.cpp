@@ -42,6 +42,7 @@ struct Stimuli {
     QQueue<lvdpControl::PlayerCommands> commandQueue;
     QQueue<quint32> parameterQueue;
     quint32 discLength;
+    bool lastCommandError;
 };
 
 static Stimuli currentStimuli;
@@ -89,6 +90,7 @@ lvdpControl::lvdpControl()
     currentStimuli.frameNumber = 0;
     currentStimuli.timeCode = 0;
     currentStimuli.discLength = 0;
+    currentStimuli.lastCommandError = false;
 
     // Start the player communication state machine
     stateMachineStopping = false;
@@ -127,6 +129,7 @@ void lvdpControl::serialConfigured(QString portName, qint16 baudRate)
     currentStimuli.commandQueue.empty();
     currentStimuli.parameterQueue.empty();
     currentStimuli.discLength = 0;
+    currentStimuli.lastCommandError = false;
 }
 
 // Tell the state-machine that the serial port is unconfigured
@@ -140,6 +143,7 @@ void lvdpControl::serialUnconfigured(void)
     currentStimuli.commandQueue.empty();
     currentStimuli.parameterQueue.empty();
     currentStimuli.discLength = 0;
+    currentStimuli.lastCommandError = false;
 }
 
 // Ask if a player is connected
@@ -188,6 +192,15 @@ quint32 lvdpControl::currentTimeCode(void)
 quint32 lvdpControl::getDiscLength(void)
 {
     return currentStimuli.discLength;
+}
+
+// Ask if the last command resulted in an error response
+bool lvdpControl::isLastCommandError(void)
+{
+    // Clear the flag once it's returned.
+    bool returnValue = currentStimuli.lastCommandError;
+    currentStimuli.lastCommandError = false;
+    return returnValue;
 }
 
 // Send a command to the player
@@ -792,6 +805,13 @@ QString sendSerialCommand(QString commandString, quint64 timeoutMsecs)
             if (response.contains('\r')) {
                 commandComplete = true;
                 //qDebug() << "sendSerialCommand(): Received response:" << response;
+
+                // Check for command error
+                if (response.left(1) == 'E') {
+                    // Error response received
+                    currentStimuli.lastCommandError = true;
+                    qDebug() << "sendSerialCommand(): Received error response from player:" << response;
+                }
             }
         }
 
@@ -799,6 +819,7 @@ QString sendSerialCommand(QString commandString, quint64 timeoutMsecs)
         if ((serialTimer.elapsed() >= (qint64)timeoutMsecs) && (!commandComplete)) {
             commandTimeout = true;
             commandComplete = true;
+            currentStimuli.lastCommandError = true; // Flag as error
             qDebug() << "sendSerialCommand(): Command timed out!";
         }
     }
