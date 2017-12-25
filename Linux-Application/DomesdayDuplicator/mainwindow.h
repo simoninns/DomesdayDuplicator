@@ -112,6 +112,7 @@ private:
         state_waitForPlay,
         state_determineDiscLength,
         state_waitForDetermineDiscLength,
+        state_stopPlayer,
         state_seekToFrame,
         state_waitForSeek,
         state_startCapture,

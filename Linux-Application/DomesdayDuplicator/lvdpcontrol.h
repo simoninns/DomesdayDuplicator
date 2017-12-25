@@ -71,6 +71,7 @@ public:
     quint32 currentFrameNumber(void);
     quint32 currentTimeCode(void);
     quint32 getDiscLength(void);
+    bool isLastCommandError(void);
 
     void command(PlayerCommands command, quint32 parameter);
 

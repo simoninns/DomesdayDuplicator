@@ -545,6 +545,9 @@ void MainWindow::cavPicPoll(void)
     quint32 startFrame = ui->startFrameLineEdit->text().toUInt();
     quint32 endFrame = ui->endFrameLineEdit->text().toUInt();
 
+    // Get the capture lead-in flag
+    bool captureLeadInFlag = ui->cavLeadInCheckBox->checkState();
+
     switch (cavPicCurrentState) {
         case state_idle:
             ui->cavPicStatus->setText("Idle");
@@ -581,6 +584,12 @@ void MainWindow::cavPicPoll(void)
                 }
             }
 
+            // Check for player command errors
+            if (playerControl->isLastCommandError()) {
+                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
+                cavPicNextState = state_error;
+            }
+
             break;
 
         case state_determineDiscLength:
@@ -596,7 +605,35 @@ void MainWindow::cavPicPoll(void)
             ui->cavPicStatus->setText("Waiting for disc length");
             if (playerControl->getDiscLength() != 0) {
                 qDebug() << "MainWindow::cavPicPoll(): Disc length is" << playerControl->getDiscLength() << "frames";
-                cavPicNextState = state_seekToFrame;
+
+                // Is lead-in capture required?
+                if (captureLeadInFlag) {
+                    qDebug() << "MainWindow::cavPicPoll(): Capture lead-in requested";
+
+                    // In order to capture lead-in we have to first stop the disc
+                    // and then start the capture before sending the play command
+                    playerControl->command(lvdpControl::PlayerCommands::command_stop, 0);
+                    cavPicNextState = state_stopPlayer;
+                } else {
+                    // Lead-in not required, start from frame
+                    cavPicNextState = state_seekToFrame;
+                }
+            }
+
+            // Check for player command errors
+            if (playerControl->isLastCommandError()) {
+                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
+                cavPicNextState = state_error;
+            }
+            break;
+
+        case state_stopPlayer:
+            ui->cavPicStatus->setText("Waiting for disc to stop");
+            if (!playerControl->isPlaying() && !playerControl->isPaused()) {
+                // Player has stopped - start the transfer and start playing
+                startTransfer();
+                playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
+                cavPicNextState = state_waitForStartCapture;
             }
             break;
 
@@ -625,6 +662,12 @@ void MainWindow::cavPicPoll(void)
                 cavPicNextState = state_startCapture;
             }
 
+            // Check for player command errors
+            if (playerControl->isLastCommandError()) {
+                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
+                cavPicNextState = state_error;
+            }
+
             break;
 
         case state_startCapture:
@@ -636,6 +679,7 @@ void MainWindow::cavPicPoll(void)
             qDebug() << "MainWindow::cavPicPoll(): Waiting for end frame" << endFrame;
 
             // Start the capture
+            startTransfer();
 
             // Play the disc
             playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
@@ -644,9 +688,15 @@ void MainWindow::cavPicPoll(void)
             break;
 
         case state_waitForStartCapture:
-            ui->cavPicStatus->setText("Waiting for start capture");
+            ui->cavPicStatus->setText("Waiting for disc playing");
             // Don't start waiting for the end frame unless the player is playing
             if (playerControl->isPlaying()) cavPicNextState = state_waitForEndFrame;
+
+            // Check for player command errors
+            if (playerControl->isLastCommandError()) {
+                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
+                cavPicNextState = state_error;
+            }
             break;
 
         case state_waitForEndFrame:
@@ -663,12 +713,19 @@ void MainWindow::cavPicPoll(void)
             // to stop...  ensure we are still playing
             if (!playerControl->isPlaying())
                 cavPicNextState = state_stopCapture;
+
+            // Check for player command errors
+            if (playerControl->isLastCommandError()) {
+                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
+                cavPicNextState = state_error;
+            }
             break;
 
         case state_stopCapture:
             ui->cavPicStatus->setText("Stopping capture");
 
             // Stop the capture
+            stopTransfer();
 
             // Stop the player (if still playing)
             if (playerControl->isPlaying()) playerControl->command(lvdpControl::PlayerCommands::command_pause, 0);
@@ -684,6 +741,9 @@ void MainWindow::cavPicPoll(void)
         case state_error:
             ui->cavPicStatus->setText("Error");
 
+            // Stop any pending capture
+            stopTransfer();
+
             // Unlock the physical player controls
             playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
             lvdpPlayerControl->unlockAllPlayerControls();
@@ -697,6 +757,9 @@ void MainWindow::cavPicPoll(void)
 // CAV PIC capture button clicked
 void MainWindow::on_cavCapturePushButton_clicked()
 {
+    // Ensure any command errors are cleared
+    playerControl->isLastCommandError();
+
     // Start the CAV PIC capture
     cavPicCaptureActive = true;
 }
