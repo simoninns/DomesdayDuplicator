@@ -60,6 +60,9 @@ public:
         event_seekClicked
     };
 
+    void lockAllPlayerControls(void);
+    void unlockAllPlayerControls(void);
+
 signals:
     void playerControlEvent(playerControlDialog::PlayerControlEvents, quint32);
 
@@ -77,6 +80,8 @@ private slots:
 
 private:
     Ui::playerControlDialog *ui;
+
+    bool allControlsLocked;
 };
 
 #endif // PLAYERCONTROLDIALOG_H
