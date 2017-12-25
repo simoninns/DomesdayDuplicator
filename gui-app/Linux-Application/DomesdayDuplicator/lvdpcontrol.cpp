@@ -36,18 +36,14 @@ struct Stimuli {
     bool deviceConnected;
     bool isCav;
     bool isPlaying;
+    bool isPaused;
     qint32 frameNumber;
     qint32 timeCode;
     QQueue<lvdpControl::PlayerCommands> commandQueue;
-    QQueue<quint32> commandQueueStart;
-    QQueue<quint32> commandQueueEnd;
-    qint32 stopMarker;
+    QQueue<quint32> parameterQueue;
 };
 
 static Stimuli currentStimuli;
-
-// Stop marker 'default' (must be higher than maximum possible CAV frame number
-#define STOP_MARKER_DEFAULT 60000
 
 // Define the possible state-machine states
 enum States {
@@ -55,6 +51,7 @@ enum States {
     state_connecting,
     state_stopped,
     state_playing,
+    state_paused,
     state_serialError
 };
 
@@ -68,6 +65,7 @@ static States smDisconnectedState(void);
 static States smConnectingState(void);
 static States smStoppedState(void);
 static States smPlayingState(void);
+static States smPausedState(void);
 static States smSerialErrorState(void);
 
 // Serial communication functions
@@ -77,7 +75,7 @@ static QString sendSerialCommand(QString commandString, quint64 timeoutMsecs);
 // 1 second for quick commands (for example status checks)
 // 20 seconds for long commands (play, stop, eject, etc.)
 #define TOUT_SHORT 1000
-#define TOUT_LONG 20000
+#define TOUT_LONG 30000
 
 lvdpControl::lvdpControl()
 {
@@ -86,9 +84,9 @@ lvdpControl::lvdpControl()
     currentStimuli.deviceConnected = false;
     currentStimuli.isCav = false;
     currentStimuli.isPlaying = false;
+    currentStimuli.isPaused = false;
     currentStimuli.frameNumber = 0;
     currentStimuli.timeCode = 0;
-    currentStimuli.stopMarker = STOP_MARKER_DEFAULT;
 
     // Start the player communication state machine
     stateMachineStopping = false;
@@ -123,10 +121,9 @@ void lvdpControl::serialConfigured(QString portName, qint16 baudRate)
     currentStimuli.serialConfigured = true;
     currentStimuli.deviceConnected = false;
     currentStimuli.isPlaying = false;
+    currentStimuli.isPaused = false;
     currentStimuli.commandQueue.empty();
-    currentStimuli.commandQueueStart.empty();
-    currentStimuli.commandQueueEnd.empty();
-    currentStimuli.stopMarker = STOP_MARKER_DEFAULT;
+    currentStimuli.parameterQueue.empty();
 }
 
 // Tell the state-machine that the serial port is unconfigured
@@ -136,10 +133,9 @@ void lvdpControl::serialUnconfigured(void)
     currentStimuli.serialConfigured = false;
     currentStimuli.deviceConnected = false;
     currentStimuli.isPlaying = false;
+    currentStimuli.isPaused = false;
     currentStimuli.commandQueue.empty();
-    currentStimuli.commandQueueStart.empty();
-    currentStimuli.commandQueueEnd.empty();
-    currentStimuli.stopMarker = STOP_MARKER_DEFAULT;
+    currentStimuli.parameterQueue.empty();
 }
 
 // Ask if a player is connected
@@ -152,6 +148,12 @@ bool lvdpControl::isConnected(void)
 bool lvdpControl::isPlaying(void)
 {
     return currentStimuli.isPlaying;
+}
+
+// Ask if a disc is paused
+bool lvdpControl::isPaused(void)
+{
+    return currentStimuli.isPaused;
 }
 
 // Ask if the disc is CAV
@@ -179,7 +181,7 @@ quint32 lvdpControl::currentTimeCode(void)
 }
 
 // Send a command to the player
-void lvdpControl::command(PlayerCommands command, quint32 start, quint32 end)
+void lvdpControl::command(PlayerCommands command, quint32 parameter)
 {
     // Ensure player is connected
     if (!isConnected()) {
@@ -189,13 +191,13 @@ void lvdpControl::command(PlayerCommands command, quint32 start, quint32 end)
 
     // Add command to the command queue
     currentStimuli.commandQueue.enqueue(command);
-    currentStimuli.commandQueueStart.enqueue(start);
-    currentStimuli.commandQueueEnd.enqueue(end);
+    currentStimuli.parameterQueue.enqueue(parameter);
 }
 
 // Player communication state machine thread ------------------------------------------------------------
 void stateMachine(void)
 {
+    // Create the serial port object
     lvdpSerialPort = new QSerialPort();
 
     // Variables to track the current and next states
@@ -206,21 +208,6 @@ void stateMachine(void)
     qDebug() << "stateMachine(): State machine starting";
 
     while(!stateMachineStopping) {
-        // Check the stop marker
-        if ((currentStimuli.isCav) && (currentStimuli.frameNumber >= currentStimuli.stopMarker)) {
-            // Stop marker has been exceeded - signal to stop capturing
-            // HOW HOW HOW?
-
-            // Pause the player
-            qDebug() << "stateMachine(): Stop marker exceeded";
-            currentStimuli.commandQueue.enqueue(lvdpControl::PlayerCommands::command_pause);
-            currentStimuli.commandQueueStart.enqueue(0);
-            currentStimuli.commandQueueEnd.enqueue(0);
-
-            // Clear the stop marker
-            currentStimuli.stopMarker = STOP_MARKER_DEFAULT;
-        }
-
         // Transition the state machine
         currentState = nextState;
 
@@ -242,6 +229,10 @@ void stateMachine(void)
                 nextState = smPlayingState();
                 break;
 
+            case state_paused:
+                nextState = smPausedState();
+                break;
+
             case state_serialError:
                 nextState = smSerialErrorState();
                 break;
@@ -259,14 +250,7 @@ void stateMachine(void)
             if (currentStimuli.deviceConnected) {
                 // Pop the next command from the queue
                 lvdpControl::PlayerCommands currentCommand = currentStimuli.commandQueue.dequeue();
-                quint32 currentCommandStart = currentStimuli.commandQueueStart.dequeue();
-                quint32 currentCommandEnd = currentStimuli.commandQueueEnd.dequeue();
-
-                // Note: The stop marker is cleared if any command is received
-                if (currentStimuli.stopMarker != STOP_MARKER_DEFAULT) {
-                    qDebug() << "stateMachine(): Clearing the stop marker!";
-                    currentStimuli.stopMarker = STOP_MARKER_DEFAULT;
-                };
+                quint32 currentCommandParameter = currentStimuli.parameterQueue.dequeue();
 
                 // Device connected, send command
                 switch(currentCommand) {
@@ -315,76 +299,20 @@ void stateMachine(void)
                         sendSerialCommand("0KL\r", TOUT_SHORT); // Key lock off command
                         break;
 
-                    case lvdpControl::PlayerCommands::command_goto:
+                    case lvdpControl::PlayerCommands::command_seek:
                         if (currentStimuli.isCav) {
-                            qDebug() << "stateMachine(): Sending goto command with start =" << currentCommandStart;
+                            qDebug() << "stateMachine(): Sending seek command with start =" << currentCommandParameter;
 
                             QString command;
-                            command.sprintf("FR%dSE\r", currentCommandStart);
+                            command.sprintf("FR%dSE\r", currentCommandParameter);
                             sendSerialCommand(command, TOUT_LONG); // Frame seek command
                         } else {
-                            qDebug() << "stateMachine(): Cannot goto... CLV disc";
-                        }
-                        break;
-
-                    case lvdpControl::PlayerCommands::command_captureTo:
-                        if (currentStimuli.isCav) {
-                            qDebug() << "stateMachine(): Sending capture to command with start =" << currentCommandStart <<
-                                        "and end =" << currentCommandEnd;
+                            qDebug() << "stateMachine(): Sending seek command with time-code =" << currentCommandParameter;
 
                             QString command;
-
-                            // First we seek to the end frame and check the frame number
-                            // if the frame number isn't equal to the end frame number then the
-                            // target end frame number is greater than the number of available frames
-                            // on the disc and must be lowered (otherwise the stop marker
-                            // will not function)
-                            qDebug() << "smPlayingState(): Verifying end frame is in range...";
-                            command.sprintf("FR%dSE\r", currentCommandEnd);
+                            command.sprintf("FR%dSE\r", currentCommandParameter);
                             sendSerialCommand(command, TOUT_LONG); // Frame seek command
-
-                            // Fire off a custom 'get frame number' command
-                            QString response = sendSerialCommand("?F\r", TOUT_SHORT); // Frame number request
-
-                            // Check for response
-                            if (response.isEmpty()) {
-                                qDebug() << "smPlayingState(): No response from player when checking end frame number";
-                            } else {
-                                // Process the response (5 digit frame number)
-                                quint32 frameNumber = response.left(5).toUInt();
-
-                                if (currentCommandEnd > frameNumber) {
-                                    currentCommandEnd = frameNumber;
-                                    qDebug() << "smPlayingState(): End frame number too high.  Set to" << currentCommandEnd;
-                                }
-
-                                // IF WE WANT TO CAPTURE THE LEAD IN (AND THE START FRAME IS 0) THEN
-                                // WE SHOULD STOP THE PLAYER COMPLETELY AND CAPTURE FROM THE PLAY COMMAND
-                                // THIS NEEDS TO BE FIXED HERE
-
-                                // Seek to the start frame
-                                command.sprintf("FR%dSE\r", currentCommandStart);
-                                sendSerialCommand(command, TOUT_LONG); // Frame seek command
-
-                                // Signal to start capturing
-                                // HOW HOW HOW?
-
-                                // MIGHT BE A GOOD IDEA TO SLEEP AS STARTING THE CAPTURE TAKES
-                                // A BIT OF TIME - OR SOLVE THIS A SMARTER WAY?
-
-                                // Start the playback
-                                sendSerialCommand("PL\r", TOUT_LONG); // Play command
-
-                                // Assign the stop marker
-                                currentStimuli.stopMarker = currentCommandEnd;
-
-                                // Ensure the frame number is correct, or we could be over the stop marker
-                                currentStimuli.frameNumber = currentCommandStart;
-                            }
-                        } else {
-                            qDebug() << "stateMachine(): Cannot capture to... CLV disc";
                         }
-
                         break;
 
                     default:
@@ -489,6 +417,7 @@ States smStoppedState(void)
 
     // Flag that the player is stopped
     currentStimuli.isPlaying = false;
+    currentStimuli.isPaused = false;
 
     // Check if player is still connected
     if (!currentStimuli.deviceConnected) {
@@ -509,7 +438,7 @@ States smStoppedState(void)
 
     // Process response
     if (response.contains("P00")) {
-        // P00 = Door openconvert quint16 to qstring
+        // P00 = Door open
         nextState = state_stopped;
     } else if (response.contains("P01")) {
         // P01 = Park
@@ -525,10 +454,10 @@ States smStoppedState(void)
         nextState = state_playing;
     } else if (response.contains("P05")) {
         // P05 = Still (picture displayed as still)
-        nextState = state_playing;
+        nextState = state_paused;
     } else if (response.contains("P06")) {
         // P06 = Pause (paused without picture display)
-        nextState = state_playing;
+        nextState = state_paused;
     } else if (response.contains("P07")) {
         // P07 = Search
         nextState = state_playing;
@@ -544,8 +473,8 @@ States smStoppedState(void)
         nextState = state_stopped;
     }
 
-    // If we are playing; get the details of the disc (CAV or CLV?)
-    if (nextState == state_playing) {
+    // If we are playing or paused; get the details of the disc (CAV or CLV?)
+    if (nextState == state_playing || nextState == state_paused) {
         response = sendSerialCommand("?D\r", TOUT_SHORT); // Disc status request
 
         // Check for response
@@ -578,6 +507,7 @@ States smPlayingState(void)
 
     // Flag that the player is playing
     currentStimuli.isPlaying = true;
+    currentStimuli.isPaused = false;
 
     // Check if player is still connected
     if (!currentStimuli.deviceConnected) {
@@ -614,10 +544,10 @@ States smPlayingState(void)
         nextState = state_playing;
     } else if (response.contains("P05")) {
         // P05 = Still (picture displayed as still)
-        nextState = state_playing;
+        nextState = state_paused;
     } else if (response.contains("P06")) {
         // P06 = Pause (paused without picture display)
-        nextState = state_playing;
+        nextState = state_paused;
     } else if (response.contains("P07")) {
         // P07 = Search
         nextState = state_playing;
@@ -633,8 +563,8 @@ States smPlayingState(void)
         nextState = state_playing;
     }
 
-    // If we are playing; get the current picture position
-    if (nextState == state_playing) {
+    // If we are playing or paused; get the current picture position
+    if (nextState == state_playing || nextState == state_paused) {
         if (currentStimuli.isCav) {
             // Disc is CAV - get frame number
             response = sendSerialCommand("?F\r", TOUT_SHORT); // Frame number request
@@ -663,6 +593,104 @@ States smPlayingState(void)
             // Process the response (7-digit time code number HMMSSFF)
             currentStimuli.timeCode = response.left(7).toUInt();
             //qDebug() << "smPlayingState(): Time code:" << currentStimuli.timeCode;
+        }
+    }
+
+    return nextState;
+}
+
+States smPausedState(void)
+{
+    States nextState = state_disconnected;
+
+    // Flag that the player is paused
+    currentStimuli.isPlaying = false;
+    currentStimuli.isPaused = true;
+
+    // Check if player is still connected
+    if (!currentStimuli.deviceConnected) {
+        nextState = state_disconnected;
+        return nextState;
+    }
+
+    // Player active mode request (what are you doing?)
+    QString response;
+    response = sendSerialCommand("?P\r", TOUT_SHORT);
+
+    // Check for response
+    if (response.isEmpty()) {
+        qDebug() << "smPausedState(): No response from player";
+        nextState = state_serialError;
+        return nextState;
+    }
+
+    // Process response
+    if (response.contains("P00")) {
+        // P00 = Door open
+        nextState = state_stopped;
+    } else if (response.contains("P01")) {
+        // P01 = Park
+        nextState = state_stopped;
+    } else if (response.contains("P02")) {
+        // P02 = Set up (preparing to play)
+        nextState = state_stopped;
+    } else if (response.contains("P03")) {
+        // P03 = Disc unloading
+        nextState = state_stopped;
+    } else if (response.contains("P04")) {
+        // P04 = Play
+        nextState = state_playing;
+    } else if (response.contains("P05")) {
+        // P05 = Still (picture displayed as still)
+        nextState = state_paused;
+    } else if (response.contains("P06")) {
+        // P06 = Pause (paused without picture display)
+        nextState = state_paused;
+    } else if (response.contains("P07")) {
+        // P07 = Search
+        nextState = state_playing;
+    } else if (response.contains("P08")) {
+        // P08 = Scan
+        nextState = state_playing;
+    } else if (response.contains("P09")) {
+        // P09 = Multi-speed play back
+        nextState = state_playing;
+    } else {
+        // Unknown response
+        qDebug() << "smPausedState(): Unknown response from player to ?P -" << response;
+        nextState = state_playing;
+    }
+
+    // If we are playing or paused; get the current picture position
+    if (nextState == state_playing || nextState == state_paused) {
+        if (currentStimuli.isCav) {
+            // Disc is CAV - get frame number
+            response = sendSerialCommand("?F\r", TOUT_SHORT); // Frame number request
+
+            // Check for response
+            if (response.isEmpty()) {
+                qDebug() << "smPausedState(): No response from player";
+                nextState = state_serialError;
+                return nextState;
+            }
+
+            // Process the response (5 digit frame number)
+            currentStimuli.frameNumber = response.left(5).toUInt();
+            //qDebug() << "smPausedState(): Frame:" << currentStimuli.frameNumber;
+        } else {
+            // Disc is CLV - get time code
+            response = sendSerialCommand("?F\r", TOUT_SHORT); // Time code request
+
+            // Check for response
+            if (response.isEmpty()) {
+                qDebug() << "smPausedState(): No response from player";
+                nextState = state_serialError;
+                return nextState;
+            }
+
+            // Process the response (7-digit time code number HMMSSFF)
+            currentStimuli.timeCode = response.left(7).toUInt();
+            //qDebug() << "smPausedState(): Time code:" << currentStimuli.timeCode;
         }
     }
 
