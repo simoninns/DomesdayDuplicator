@@ -53,8 +53,7 @@ public:
         command_scanBackwards,
         command_keyLockOn,
         command_keyLockOff,
-        command_goto,
-        command_captureTo
+        command_seek
     };
 
     void stopStateMachine(void);
@@ -65,11 +64,12 @@ public:
 
     bool isConnected(void);
     bool isPlaying(void);
+    bool isPaused(void);
     bool isCav(void);
     quint32 currentFrameNumber(void);
     quint32 currentTimeCode(void);
 
-    void command(PlayerCommands command, quint32 start, quint32 end);
+    void command(PlayerCommands command, quint32 parameter);
 
 signals:
     void startCapture(void);

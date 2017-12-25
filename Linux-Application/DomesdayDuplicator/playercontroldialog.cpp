@@ -40,12 +40,22 @@ playerControlDialog::playerControlDialog(QWidget *parent) :
     ui->statusInfoLabel->setText("Disconnected");
 
     // Limit frame number entry QLineEdit fields to number only
-    ui->startPositionLineEdit->setValidator( new QIntValidator(0, 60000, this) );
-    ui->endPositionLineEdit->setValidator( new QIntValidator(0, 60000, this) );
+    ui->seekPositionLineEdit->setValidator( new QIntValidator(0, 60000, this) );
 
     // Default the line edit fields
-    ui->startPositionLineEdit->setText("0");
-    ui->endPositionLineEdit->setText("0");
+    ui->seekPositionLineEdit->setText("0");
+
+    // Disable the CAV controls groupbox
+    ui->cavControlsGroupBox->setEnabled(false);
+
+    // Disable the CLV controls groupbox
+    ui->clvControlsGroupBox->setEnabled(false);
+
+    // Disable the unavailable controls
+    ui->scanBackwardsPushButton->setEnabled(false);
+    ui->scanForwardsPushButton->setEnabled(false);
+    ui->stepForwardsPushButton->setEnabled(false);
+    ui->stepBackwardsPushButton->setEnabled(false);
 }
 
 playerControlDialog::~playerControlDialog()
@@ -55,17 +65,26 @@ playerControlDialog::~playerControlDialog()
 
 // Update the player information
 void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, quint32 frameNumber,
-                                                  quint32 timeCode, bool isPlaying)
+                                                  quint32 timeCode, bool isPlaying, bool isPaused)
 {
     // Is a player connected?
     if (isConnected) {
-        if (isPlaying) {
+        if (isPlaying || isPaused) {
             // Playing
-            ui->statusInfoLabel->setText("Playing");
+            if (isPlaying) ui->statusInfoLabel->setText("Playing");
+            else ui->statusInfoLabel->setText("Paused");
 
             if (isCav) {
                 // CAV disc
                 ui->discTypeInfoLabel->setText("CAV");
+
+                // Enable the CAV controls
+                ui->cavControlsGroupBox->setEnabled(true);
+                ui->clvControlsGroupBox->setEnabled(false);
+                ui->scanBackwardsPushButton->setEnabled(true);
+                ui->scanForwardsPushButton->setEnabled(true);
+                ui->stepForwardsPushButton->setEnabled(true);
+                ui->stepBackwardsPushButton->setEnabled(true);
 
                 // Convert frame number and display
                 QString frameNumberString;
@@ -74,6 +93,14 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
             } else {
                 // CLV disc
                 ui->discTypeInfoLabel->setText("CLV");
+
+                // Enable the CLV controls
+                ui->cavControlsGroupBox->setEnabled(false);
+                ui->clvControlsGroupBox->setEnabled(true);
+                ui->scanBackwardsPushButton->setEnabled(true);
+                ui->scanForwardsPushButton->setEnabled(true);
+                ui->stepForwardsPushButton->setEnabled(false);
+                ui->stepBackwardsPushButton->setEnabled(false);
 
                 // Convert time-code and display
                 QString timeCodeString;
@@ -85,12 +112,10 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
                 // Get the full 7 character time-code string
                 timeCodeString.sprintf("%07d", timeCode);
 
+                // Split up the time-code
                 hourString = timeCodeString.left(1);
                 minuteString = timeCodeString.left(3).right(2);
                 secondString = timeCodeString.left(5).right(2);
-                //frameString = timeCodeString.left(7).right(2);
-                //ui->positionInfoLabel->setText("0" + hourString + ":" + minuteString + ":"
-                //                               + secondString + ":" + frameString);
 
                 // Display time-code (without frame number)
                 ui->positionInfoLabel->setText("0" + hourString + ":" + minuteString + ":"
@@ -101,6 +126,13 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
             ui->statusInfoLabel->setText("Stopped");
             ui->discTypeInfoLabel->setText("N/A");
             ui->positionInfoLabel->setText("N/A");
+
+            ui->cavControlsGroupBox->setEnabled(false);
+            ui->clvControlsGroupBox->setEnabled(false);
+            ui->scanBackwardsPushButton->setEnabled(false);
+            ui->scanForwardsPushButton->setEnabled(false);
+            ui->stepForwardsPushButton->setEnabled(false);
+            ui->stepBackwardsPushButton->setEnabled(false);
         }
 
     } else {
@@ -114,73 +146,71 @@ void playerControlDialog::updatePlayerControlInfo(bool isConnected, bool isCav, 
 // Play button has been clicked
 void playerControlDialog::on_playPushButton_clicked()
 {
-    emit playerControlEvent(event_playClicked, 0, 0);
+    emit playerControlEvent(event_playClicked, 0);
 }
 
 // Stop button has been clicked
 void playerControlDialog::on_stopPushButton_clicked()
 {
-    emit playerControlEvent(event_stopClicked, 0, 0);
+    emit playerControlEvent(event_stopClicked, 0);
 }
 
 // Step forwards button has been clicked
 void playerControlDialog::on_stepForwardsPushButton_clicked()
 {
-    emit playerControlEvent(event_stepForwardsClicked, 0, 0);
+    emit playerControlEvent(event_stepForwardsClicked, 0);
 }
 
 // Step backwards button has been clicked
 void playerControlDialog::on_stepBackwardsPushButton_clicked()
 {
-    emit playerControlEvent(event_stepBackwardsClicked, 0, 0);
+    emit playerControlEvent(event_stepBackwardsClicked, 0);
 }
 
 // Scan forwards button has been clicked
 void playerControlDialog::on_scanForwardsPushButton_clicked()
 {
-    emit playerControlEvent(event_scanForwardsClicked, 0, 0);
+    emit playerControlEvent(event_scanForwardsClicked, 0);
 }
 
 // Scan backwards button has been clicked
 void playerControlDialog::on_scanBackwardsPushButton_clicked()
 {
-    emit playerControlEvent(event_scanBackwardsClicked, 0, 0);
+    emit playerControlEvent(event_scanBackwardsClicked, 0);
 }
 
 // Lock physical controls check box has been toggled
 void playerControlDialog::on_lockControlsCheckBox_toggled(bool checked)
 {
-    if (checked) emit playerControlEvent(event_keyLockOnClicked, 0, 0);
-    else emit playerControlEvent(event_keyLockOffClicked, 0, 0);
+    if (checked) emit playerControlEvent(event_keyLockOnClicked, 0);
+    else emit playerControlEvent(event_keyLockOffClicked, 0);
 }
 
-// Go to button pressed
-void playerControlDialog::on_goToPushButton_clicked()
+// User hit return in CAV seek position entry field
+void playerControlDialog::on_seekPositionLineEdit_returnPressed()
 {
-    // Get the start position
-    quint32 start = ui->startPositionLineEdit->text().toUInt();
-    emit playerControlEvent(event_gotoClicked, start, 0);
+    on_seekPushButton_clicked();
 }
 
-// User hit return in go to position entry field
-void playerControlDialog::on_startPositionLineEdit_returnPressed()
+// CAV Seek push button clicked
+void playerControlDialog::on_seekPushButton_clicked()
 {
-    on_goToPushButton_clicked();
+    // Get the seek position
+    quint32 start = ui->seekPositionLineEdit->text().toUInt();
+    emit playerControlEvent(event_seekClicked, start);
 }
 
-// Capture to button pressed
-void playerControlDialog::on_captureToPushButton_clicked()
+// CLV time seek button clicked
+void playerControlDialog::on_timeSeekPushButton_clicked()
 {
-    // Get the start and end positions
-    quint32 start = ui->startPositionLineEdit->text().toUInt();
-    quint32 end = ui->endPositionLineEdit->text().toUInt();
+    // Create a formatted 7-character string of the time-code
+    QString timeCode;
+    timeCode.sprintf("%01d%02d%02d00", ui->timeSeektimeEdit->time().hour(),
+                     ui->timeSeektimeEdit->time().minute(),
+                     ui->timeSeektimeEdit->time().second());
 
-    // Only emit the command if the end is beyond the start
-    if (start < end) emit playerControlEvent(event_captureToClicked, start, end);
+    // Convert the time-code to an integer and signal the event
+    emit playerControlEvent(event_seekClicked, timeCode.toUInt());
 }
 
-// User hit return in capture to position entry field
-void playerControlDialog::on_endPositionLineEdit_returnPressed()
-{
-    on_captureToPushButton_clicked();
-}
+

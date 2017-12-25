@@ -44,7 +44,7 @@ public:
     ~playerControlDialog();
 
     void updatePlayerControlInfo(bool isConnected, bool isCav, quint32 frameNumber,
-                                 quint32 timeCode, bool isPlaying);
+                                 quint32 timeCode, bool isPlaying, bool isPaused);
 
     // Define the possible player control events
     enum PlayerControlEvents {
@@ -57,12 +57,11 @@ public:
         event_scanBackwardsClicked,
         event_keyLockOnClicked,
         event_keyLockOffClicked,
-        event_gotoClicked,
-        event_captureToClicked
+        event_seekClicked
     };
 
 signals:
-    void playerControlEvent(playerControlDialog::PlayerControlEvents, quint32, quint32);
+    void playerControlEvent(playerControlDialog::PlayerControlEvents, quint32);
 
 private slots:
     void on_playPushButton_clicked();
@@ -72,12 +71,9 @@ private slots:
     void on_scanForwardsPushButton_clicked();
     void on_scanBackwardsPushButton_clicked();
     void on_lockControlsCheckBox_toggled(bool checked);
-    void on_goToPushButton_clicked();
-    void on_captureToPushButton_clicked();
-
-    void on_startPositionLineEdit_returnPressed();
-
-    void on_endPositionLineEdit_returnPressed();
+    void on_seekPositionLineEdit_returnPressed();
+    void on_seekPushButton_clicked();
+    void on_timeSeekPushButton_clicked();
 
 private:
     Ui::playerControlDialog *ui;

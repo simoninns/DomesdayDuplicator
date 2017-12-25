@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>303</width>
-    <height>381</height>
+    <height>391</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>350</y>
+     <y>360</y>
      <width>151</width>
      <height>20</height>
     </rect>
@@ -135,35 +135,19 @@
     </property>
    </widget>
   </widget>
-  <widget class="QGroupBox" name="captureControlsGroupBox">
+  <widget class="QGroupBox" name="cavControlsGroupBox">
    <property name="geometry">
     <rect>
      <x>10</x>
      <y>220</y>
      <width>281</width>
-     <height>121</height>
+     <height>61</height>
     </rect>
    </property>
    <property name="title">
-    <string>CAV Capture controls:</string>
+    <string>CAV controls:</string>
    </property>
-   <widget class="QLabel" name="endLabel">
-    <property name="geometry">
-     <rect>
-      <x>20</x>
-      <y>60</y>
-      <width>41</width>
-      <height>20</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>End:</string>
-    </property>
-    <property name="alignment">
-     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="startPositionLineEdit">
+   <widget class="QLineEdit" name="seekPositionLineEdit">
     <property name="geometry">
      <rect>
       <x>70</x>
@@ -176,33 +160,7 @@
      <enum>Qt::ClickFocus</enum>
     </property>
    </widget>
-   <widget class="QPushButton" name="captureToPushButton">
-    <property name="geometry">
-     <rect>
-      <x>190</x>
-      <y>60</y>
-      <width>80</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Capture to</string>
-    </property>
-    <property name="autoDefault">
-     <bool>false</bool>
-    </property>
-   </widget>
-   <widget class="QLineEdit" name="endPositionLineEdit">
-    <property name="geometry">
-     <rect>
-      <x>70</x>
-      <y>60</y>
-      <width>113</width>
-      <height>22</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="goToPushButton">
+   <widget class="QPushButton" name="seekPushButton">
     <property name="geometry">
      <rect>
       <x>190</x>
@@ -212,13 +170,13 @@
      </rect>
     </property>
     <property name="text">
-     <string>Go to</string>
+     <string>Seek</string>
     </property>
     <property name="autoDefault">
      <bool>false</bool>
     </property>
    </widget>
-   <widget class="QLabel" name="startLabel">
+   <widget class="QLabel" name="seekLabel">
     <property name="geometry">
      <rect>
       <x>20</x>
@@ -228,23 +186,10 @@
      </rect>
     </property>
     <property name="text">
-     <string>Start:</string>
+     <string>Frame:</string>
     </property>
     <property name="alignment">
      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-    </property>
-   </widget>
-   <widget class="QCheckBox" name="leadInCheckBox">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>90</y>
-      <width>251</width>
-      <height>20</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Capture lead-in (when start is frame 0)</string>
     </property>
    </widget>
   </widget>
@@ -345,6 +290,101 @@
     </property>
     <property name="text">
      <string>TextLabel</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QGroupBox" name="clvControlsGroupBox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>290</y>
+     <width>281</width>
+     <height>61</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>CLV controls:</string>
+   </property>
+   <widget class="QTimeEdit" name="timeSeektimeEdit">
+    <property name="geometry">
+     <rect>
+      <x>70</x>
+      <y>30</y>
+      <width>111</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="dateTime">
+     <datetime>
+      <hour>0</hour>
+      <minute>0</minute>
+      <second>0</second>
+      <year>1999</year>
+      <month>12</month>
+      <day>20</day>
+     </datetime>
+    </property>
+    <property name="maximumDateTime">
+     <datetime>
+      <hour>1</hour>
+      <minute>59</minute>
+      <second>59</second>
+      <year>1999</year>
+      <month>12</month>
+      <day>20</day>
+     </datetime>
+    </property>
+    <property name="minimumTime">
+     <time>
+      <hour>0</hour>
+      <minute>0</minute>
+      <second>0</second>
+     </time>
+    </property>
+    <property name="currentSection">
+     <enum>QDateTimeEdit::MinuteSection</enum>
+    </property>
+    <property name="displayFormat">
+     <string>HH:mm:ss</string>
+    </property>
+    <property name="timeSpec">
+     <enum>Qt::LocalTime</enum>
+    </property>
+    <property name="time">
+     <time>
+      <hour>0</hour>
+      <minute>0</minute>
+      <second>0</second>
+     </time>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="timeSeekPushButton">
+    <property name="geometry">
+     <rect>
+      <x>190</x>
+      <y>30</y>
+      <width>80</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Seek</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="timeSeeklabel">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>30</y>
+      <width>41</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Time:</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
     </property>
    </widget>
   </widget>
