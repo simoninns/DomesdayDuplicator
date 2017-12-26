@@ -354,6 +354,9 @@ qint32 QUsbDevice::startBulkTransfer(bool testMode, QString fileName)
     mUsbBulkTransfer->setup(mCtx, mDevHandle, mConfig.readEp, testMode, fileName);
     mUsbBulkTransfer->start();
 
+    // Wait for the transfer to start
+    while(!mUsbBulkTransfer->isTransferRunning());
+
     return rc;
 }
 
