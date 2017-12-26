@@ -141,7 +141,6 @@ void QUsbBulkTransfer::bulkTransferStop(void)
 {
     // Set flag to cause transferring to stop (handled by transfer run() and bulkTransferCallback())
     stopUsbTransfers = true;
-    stopDiskTransfers = true;
 }
 
 void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, bool testMode, QString fileName)
@@ -408,9 +407,6 @@ static void processDiskBuffers(void)
             outputFile->write((const char *)diskDataBuffers[nextDiskBufferToWrite],
                               (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER));
 
-            // Simulate a write
-            QThread::msleep(50); // 50 milliseconds
-
             // Free the disk buffer
             diskBufferStatus[nextDiskBufferToWrite] = false;
 
@@ -564,7 +560,7 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     }
 
     // Update the transfer size for the whole bulk transfer so far
-    statistics.transferSize += transfer->length;
+    if (bufferFlushComplete) statistics.transferSize += transfer->length;
 
     // Reduce the number of requests in-flight.
     transfersInFlight--;
