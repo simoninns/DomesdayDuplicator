@@ -45,6 +45,7 @@ public:
     // Define the possible player commands
     enum PlayerCommands {
         command_play,
+        command_still,
         command_pause,
         command_stop,
         command_stepForwards,
