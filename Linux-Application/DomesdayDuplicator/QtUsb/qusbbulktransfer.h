@@ -50,6 +50,7 @@ public:
     quint32 getTestFailureCounter(void);
     quint32 getAvailableDiskBuffers(void);
     quint32 getNumberOfDiskBuffers(void);
+    bool isTransferRunning(void);
 
 signals:
 

@@ -69,6 +69,9 @@ struct statisticsStruct {
 };
 static statisticsStruct statistics;
 
+// Flag to show if transfer is in progress
+bool transferRunning;
+
 // Notes:
 //
 // The ADC generates data at a rate of around 64Mbytes/sec
@@ -126,6 +129,7 @@ QUsbBulkTransfer::QUsbBulkTransfer(void)
 {
     stopUsbTransfers = false;
     stopDiskTransfers = false;
+    transferRunning = false;
     qDebug() << "QUsbBulkTransfer::QUsbBulkTransfer(): Called";
 }
 
@@ -164,6 +168,11 @@ void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHand
     captureFileName = fileName;
 }
 
+// Return true if transfer is running
+bool QUsbBulkTransfer::isTransferRunning(void) {
+    return transferRunning;
+}
+
 void QUsbBulkTransfer::run()
 {
     // These variables are referenced by the callback and must remain valid
@@ -191,6 +200,7 @@ void QUsbBulkTransfer::run()
     gettimeofday(&statistics.startTimestamp, NULL);
 
     // Reset transfer variables
+    transferRunning = false;
     transfersInFlight = 0;      // Number of transfers that are in progress (global)
     requestSize = REQUEST_SIZE; // Request size (number of packets)
     packetSize = PACKET_SIZE;   // Maximum packet size for the endpoint (in bytes)
@@ -587,6 +597,9 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         statistics.transferSize = 0;
         statistics.startTimestamp = endTimestamp;
     }
+
+    // If the buffer flush is complete, flag the transfer as running
+    if (bufferFlushComplete) transferRunning = true;
 
     // Write received data to disk (unless we are performing a buffer flush)
     if (bufferFlushComplete) {
