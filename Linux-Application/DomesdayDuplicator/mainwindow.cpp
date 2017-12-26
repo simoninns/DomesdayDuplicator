@@ -122,11 +122,13 @@ MainWindow::MainWindow(QWidget *parent) :
     clvPicNextState = clvPicCurrentState;
 
     cavPicCaptureActive = false;
+    cavPicCaptureAbort = false;
     cavPicPollTimer = new QTimer(this);
     connect(cavPicPollTimer, SIGNAL(timeout()), this, SLOT(cavPicPoll()));
     cavPicPollTimer->start(50); // Update 20 times a second
 
     clvPicCaptureActive = false;
+    clvPicCaptureAbort = false;
     clvPicPollTimer = new QTimer(this);
     connect(clvPicPollTimer, SIGNAL(timeout()), this, SLOT(clvPicPoll()));
     clvPicPollTimer->start(50); // Update 20 times a second
@@ -742,6 +744,12 @@ void MainWindow::cavPicPoll(void)
                 qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
                 cavPicNextState = cavState_error;
             }
+
+            // Check for abort capture flag
+            if (cavPicCaptureAbort) {
+                qDebug() << "MainWindow::cavPicPoll(): Abort capture flag is set - stopping capture";
+                cavPicNextState = cavState_stopCapture;
+            }
             break;
 
         case cavState_stopCapture:
@@ -756,6 +764,7 @@ void MainWindow::cavPicPoll(void)
             // Unlock the physical player controls
             playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
             lvdpPlayerControl->unlockAllPlayerControls();
+            ui->cavCapturePushButton->setText("Capture");
 
             cavPicNextState = cavState_idle;
             cavPicCaptureActive = false;
@@ -770,6 +779,7 @@ void MainWindow::cavPicPoll(void)
             // Unlock the physical player controls
             playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
             lvdpPlayerControl->unlockAllPlayerControls();
+            ui->cavCapturePushButton->setText("Capture");
 
             cavPicNextState = cavState_idle;
             cavPicCaptureActive = false;
@@ -975,6 +985,12 @@ void MainWindow::clvPicPoll(void)
                 qDebug() << "MainWindow::clvPicPoll(): Player command error flagged - aborting";
                 clvPicNextState = clvState_error;
             }
+
+            // Check for abort capture flag
+            if (clvPicCaptureAbort) {
+                qDebug() << "MainWindow::clvPicPoll(): Abort capture flag is set - stopping capture";
+                clvPicNextState = clvState_stopCapture;
+            }
             break;
 
         case clvState_stopCapture:
@@ -989,6 +1005,7 @@ void MainWindow::clvPicPoll(void)
             // Unlock the physical player controls
             playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
             lvdpPlayerControl->unlockAllPlayerControls();
+            ui->clvCapturePushButton->setText("Capture");
 
             clvPicNextState = clvState_idle;
             clvPicCaptureActive = false;
@@ -1003,6 +1020,7 @@ void MainWindow::clvPicPoll(void)
             // Unlock the physical player controls
             playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
             lvdpPlayerControl->unlockAllPlayerControls();
+            ui->clvCapturePushButton->setText("Capture");
 
             clvPicNextState = clvState_idle;
             clvPicCaptureActive = false;
@@ -1016,10 +1034,19 @@ void MainWindow::on_cavCapturePushButton_clicked()
     // Ensure any command errors are cleared
     playerControl->isLastCommandError();
 
-    // Start the CAV PIC capture
+    // Make sure the CLV PIC capture is not running
     if (!clvPicCaptureActive) {
-        qDebug() << "MainWindow::on_cavCapturePushButton_clicked(): Starting CAV PIC capture";
-        cavPicCaptureActive = true;
+        if (!cavPicCaptureActive) {
+            // CAV capture not running... start it
+            qDebug() << "MainWindow::on_cavCapturePushButton_clicked(): Starting CAV PIC capture";
+            cavPicCaptureAbort = false;
+            cavPicCaptureActive = true;
+            ui->cavCapturePushButton->setText("Abort");
+        } else {
+            // CAV capture is running... abort
+            qDebug() << "MainWindow::on_cavCapturePushButton_clicked(): Aborting CAV PIC capture";
+            cavPicCaptureAbort = true;
+        }
     } else {
         qDebug() << "MainWindow::on_cavCapturePushButton_clicked(): Error - CLV PIC capture in progress";
     }
@@ -1031,10 +1058,19 @@ void MainWindow::on_clvCapturePushButton_clicked()
     // Ensure any command errors are cleared
     playerControl->isLastCommandError();
 
-    // Start the CLV PIC capture
+    // Make sure the CAV PIC capture is not running
     if (!cavPicCaptureActive) {
-        qDebug() << "MainWindow::on_clvCapturePushButton_clicked(): Starting CLV PIC capture";
-        clvPicCaptureActive = true;
+        if (!clvPicCaptureActive) {
+            // CAV capture not running... start it
+            qDebug() << "MainWindow::on_clvCapturePushButton_clicked(): Starting CLV PIC capture";
+            clvPicCaptureAbort = false;
+            clvPicCaptureActive = true;
+            ui->clvCapturePushButton->setText("Abort");
+        } else {
+            // CAV capture is running... abort
+            qDebug() << "MainWindow::on_clvCapturePushButton_clicked(): Aborting CLV PIC capture";
+            clvPicCaptureAbort = true;
+        }
     } else {
         qDebug() << "MainWindow::on_clvCapturePushButton_clicked(): Error - CAV PIC capture in progress";
     }

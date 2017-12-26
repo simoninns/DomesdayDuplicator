@@ -99,19 +99,19 @@ bool transferRunning;
 //   (16 * 16384) = 256Kbytes
 //
 // Size of transfer queue =
-//   (256Kbytes) * 16 = 4Mbytes
+//   (128Kbytes) * 16 = 2Mbytes
 //
 // Size of each disk buffer =
-//   4MBytes * 32 = 128Mbytes
+//   2MBytes * 16 = 32Mbytes
 //
 // Total size of disk buffers =
-//   128Mbytes * 4 = 512Mbytes
+//   32Mbytes * 4 = 128Mbytes
 //
 #define REQUEST_SIZE 16
 #define PACKET_SIZE 16384
 #define QUEUE_DEPTH 16
+#define QUEUE_BUFFERS_PER_DISK_BUFFER 16
 #define NUMBER_OF_DISK_BUFFERS 4
-#define QUEUE_BUFFERS_PER_DISK_BUFFER 32
 
 // FPGA test mode status flag
 static bool testModeFlag;
