@@ -127,6 +127,7 @@ private:
     CavPicStates cavPicCurrentState;
     CavPicStates cavPicNextState;
     bool cavPicCaptureActive;
+    bool cavPicCaptureAbort;
     QTimer* cavPicPollTimer;
 
     // CLV PIC capture state-machine
@@ -150,6 +151,7 @@ private:
     ClvPicStates clvPicCurrentState;
     ClvPicStates clvPicNextState;
     bool clvPicCaptureActive;
+    bool clvPicCaptureAbort;
     QTimer* clvPicPollTimer;
 };
 
