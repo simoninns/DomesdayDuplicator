@@ -84,8 +84,10 @@ private slots:
     void on_clvLeadInCheckBox_toggled(bool checked);
 
     void cavPicPoll(void);
+    void clvPicPoll(void);
 
     void on_cavCapturePushButton_clicked();
+    void on_clvCapturePushButton_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -107,19 +109,19 @@ private:
     // CAV PIC capture state-machine
     // Define the possible state-machine states
     enum CavPicStates {
-        state_idle,
-        state_startPlayer,
-        state_waitForPlay,
-        state_determineDiscLength,
-        state_waitForDetermineDiscLength,
-        state_stopPlayer,
-        state_seekToFrame,
-        state_waitForSeek,
-        state_startCapture,
-        state_waitForStartCapture,
-        state_waitForEndFrame,
-        state_stopCapture,
-        state_error
+        cavState_idle,
+        cavState_startPlayer,
+        cavState_waitForPlay,
+        cavState_determineDiscLength,
+        cavState_waitForDetermineDiscLength,
+        cavState_stopPlayer,
+        cavState_seekToFrame,
+        cavState_waitForSeek,
+        cavState_startCapture,
+        cavState_waitForStartCapture,
+        cavState_waitForEndFrame,
+        cavState_stopCapture,
+        cavState_error
     };
 
     CavPicStates cavPicCurrentState;
@@ -128,7 +130,27 @@ private:
     QTimer* cavPicPollTimer;
 
     // CLV PIC capture state-machine
-    // TODO
+    // Define the possible state-machine states
+    enum ClvPicStates {
+        clvState_idle,
+        clvState_startPlayer,
+        clvState_waitForPlay,
+        clvState_determineDiscLength,
+        clvState_waitForDetermineDiscLength,
+        clvState_stopPlayer,
+        clvState_seekToFrame,
+        clvState_waitForSeek,
+        clvState_startCapture,
+        clvState_waitForStartCapture,
+        clvState_waitForEndFrame,
+        clvState_stopCapture,
+        clvState_error
+    };
+
+    ClvPicStates clvPicCurrentState;
+    ClvPicStates clvPicNextState;
+    bool clvPicCaptureActive;
+    QTimer* clvPicPollTimer;
 };
 
 #endif // MAINWINDOW_H

@@ -282,9 +282,14 @@ void stateMachine(void)
                         sendSerialCommand("PL\r", TOUT_LONG); // Play command
                         break;
 
+                    case lvdpControl::PlayerCommands::command_still:
+                        qDebug() << "stateMachine(): Sending still command";
+                        sendSerialCommand("ST\r", TOUT_LONG); // Still frame command
+                        break;
+
                     case lvdpControl::PlayerCommands::command_pause:
                         qDebug() << "stateMachine(): Sending pause command";
-                        sendSerialCommand("ST\r", TOUT_LONG); // Pause (still frame) command
+                        sendSerialCommand("PA\r", TOUT_LONG); // Pause command
                         break;
 
                     case lvdpControl::PlayerCommands::command_stop:
@@ -349,7 +354,10 @@ void stateMachine(void)
 
                         // Ensure that the player is playing or paused
                         if (currentStimuli.isPlaying || currentStimuli.isPaused) {
-                            sendSerialCommand("FR60000SE\r", TOUT_LONG); // Frame seek to impossible frame number
+                            if (currentStimuli.isCav)
+                                sendSerialCommand("FR60000SE\r", TOUT_LONG); // Frame seek to impossible frame number
+                            else
+                                sendSerialCommand("FR1595900SE\r", TOUT_LONG); // Frame seek to impossible time-code frame number
 
                             if (currentStimuli.isCav) {
                                 // Disc is CAV - get frame number
