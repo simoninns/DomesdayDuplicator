@@ -1,2 +1,1 @@
-Warning (10268): Verilog HDL information at dataGenerator.v(75): always construct contains both blocking and non-blocking assignments File: /home/sdi/Development/DomesdayDuplicator/DE0-NANO/DomesdayDuplicator/dataGenerator.v Line: 75
-Warning (10268): Verilog HDL information at fx3StateMachine.v(69): always construct contains both blocking and non-blocking assignments File: /home/sdi/Development/DomesdayDuplicator/DE0-NANO/DomesdayDuplicator/fx3StateMachine.v Line: 69
+Warning (10268): Verilog HDL information at dataGenerator.v(84): always construct contains both blocking and non-blocking assignments File: /home/sdi/Development/DomesdayDuplicator/DE0-NANO/DomesdayDuplicator/dataGenerator.v Line: 84
