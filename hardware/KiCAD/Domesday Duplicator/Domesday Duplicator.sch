@@ -42,10 +42,10 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 4
 Title "Domesday Duplicator"
-Date "2017-11-21"
-Rev "2.1"
-Comp "http://www.domesday86.com"
-Comment1 "(c)2017 Simon Inns"
+Date "2018-04-15"
+Rev "2.2"
+Comp "https://www.domesday86.com"
+Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
 Comment3 ""
 Comment4 ""
@@ -110,7 +110,7 @@ U 1 1 59D13A5F
 P 8800 5100
 F 0 "J1" H 8400 4000 60  0000 C CNN
 F 1 "DE0-Nano_GPIO0" H 8700 6200 60  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 8800 5100 60  0001 C CNN
+F 2 "Socket_Strips:Socket_Strip_Straight_2x20_Pitch2.54mm" H 8800 5100 60  0001 C CNN
 F 3 "" H 8800 5100 60  0001 C CNN
 	1    8800 5100
 	1    0    0    -1  
@@ -366,7 +366,7 @@ U 1 1 59D2B222
 P 8800 2200
 F 0 "J2" H 8400 1100 60  0000 C CNN
 F 1 "DE0-Nano_GPIO1" H 8700 3300 60  0000 C CNN
-F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 8800 2200 60  0001 C CNN
+F 2 "Socket_Strips:Socket_Strip_Straight_2x20_Pitch2.54mm" H 8800 2200 60  0001 C CNN
 F 3 "" H 8800 2200 60  0001 C CNN
 	1    8800 2200
 	1    0    0    -1  

@@ -42,10 +42,10 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 3 4
 Title "Domesday Duplicator"
-Date "2017-11-21"
-Rev "2.1"
-Comp "http://www.domesday86.com"
-Comment1 "(c)2017 Simon Inns"
+Date "2018-04-15"
+Rev "2.2"
+Comp "https://www.domesday86.com"
+Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
 Comment3 ""
 Comment4 ""
@@ -85,41 +85,41 @@ Text HLabel 7800 3900 2    60   Input ~ 0
 CLK
 Text HLabel 5300 2600 0    60   Input ~ 0
 IN
-Text HLabel 2400 3000 0    60   Output ~ 0
+Text HLabel 1750 3000 0    60   Output ~ 0
 REFT
-Text HLabel 2400 3100 0    60   Output ~ 0
+Text HLabel 1750 3100 0    60   Output ~ 0
 REFB
 $Comp
 L GND #PWR09
 U 1 1 59D20208
-P 6450 4350
-F 0 "#PWR09" H 6450 4100 50  0001 C CNN
-F 1 "GND" H 6450 4200 50  0000 C CNN
-F 2 "" H 6450 4350 50  0001 C CNN
-F 3 "" H 6450 4350 50  0001 C CNN
-	1    6450 4350
+P 6450 4900
+F 0 "#PWR09" H 6450 4650 50  0001 C CNN
+F 1 "GND" H 6450 4750 50  0000 C CNN
+F 2 "" H 6450 4900 50  0001 C CNN
+F 3 "" H 6450 4900 50  0001 C CNN
+	1    6450 4900
 	1    0    0    -1  
 $EndComp
 $Comp
 L C C12
 U 1 1 59D2039F
-P 2900 3750
-F 0 "C12" H 2925 3850 50  0000 L CNN
-F 1 "100nF" H 2925 3650 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 2938 3600 50  0001 C CNN
-F 3 "" H 2900 3750 50  0001 C CNN
-	1    2900 3750
+P 2350 3750
+F 0 "C12" H 2375 3850 50  0000 L CNN
+F 1 "100nF" H 2375 3650 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 2388 3600 50  0001 C CNN
+F 3 "" H 2350 3750 50  0001 C CNN
+	1    2350 3750
 	1    0    0    -1  
 $EndComp
 $Comp
 L C C18
 U 1 1 59D204E6
-P 3750 3750
-F 0 "C18" H 3775 3850 50  0000 L CNN
-F 1 "100nF" H 3775 3650 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 3788 3600 50  0001 C CNN
-F 3 "" H 3750 3750 50  0001 C CNN
-	1    3750 3750
+P 3100 4150
+F 0 "C18" H 3125 4250 50  0000 L CNN
+F 1 "100nF" H 3125 4050 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 3138 4000 50  0001 C CNN
+F 3 "" H 3100 4150 50  0001 C CNN
+	1    3100 4150
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -128,7 +128,7 @@ U 1 1 59D20637
 P 850 3750
 F 0 "C1" H 875 3850 50  0000 L CNN
 F 1 "100nF" H 875 3650 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 888 3600 50  0001 C CNN
+F 2 "Capacitors_SMD:C_0805" H 888 3600 50  0001 C CNN
 F 3 "" H 850 3750 50  0001 C CNN
 	1    850  3750
 	1    0    0    -1  
@@ -136,12 +136,12 @@ $EndComp
 $Comp
 L C C6
 U 1 1 59D20660
-P 1750 3750
-F 0 "C6" H 1775 3850 50  0000 L CNN
-F 1 "100nF" H 1775 3650 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 1788 3600 50  0001 C CNN
-F 3 "" H 1750 3750 50  0001 C CNN
-	1    1750 3750
+P 1600 4150
+F 0 "C6" H 1625 4250 50  0000 L CNN
+F 1 "100nF" H 1625 4050 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 1638 4000 50  0001 C CNN
+F 3 "" H 1600 4150 50  0001 C CNN
+	1    1600 4150
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -150,7 +150,7 @@ U 1 1 59D2068E
 P 1150 3750
 F 0 "C2" H 1175 3850 50  0000 L CNN
 F 1 "2.2uF Tant" H 1175 3650 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Hand" H 1188 3600 50  0001 C CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 1188 3600 50  0001 C CNN
 F 3 "" H 1150 3750 50  0001 C CNN
 	1    1150 3750
 	1    0    0    -1  
@@ -158,12 +158,12 @@ $EndComp
 $Comp
 L CP C9
 U 1 1 59D206C2
-P 2050 3750
-F 0 "C9" H 2075 3850 50  0000 L CNN
-F 1 "2.2uF Tant" H 2075 3650 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Hand" H 2088 3600 50  0001 C CNN
-F 3 "" H 2050 3750 50  0001 C CNN
-	1    2050 3750
+P 1900 4150
+F 0 "C9" H 1925 4250 50  0000 L CNN
+F 1 "2.2uF Tant" H 1925 4050 50  0000 L CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 1938 4000 50  0001 C CNN
+F 3 "" H 1900 4150 50  0001 C CNN
+	1    1900 4150
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -196,7 +196,7 @@ U 1 1 59D20E77
 P 1850 1450
 F 0 "C7" H 1875 1550 50  0000 L CNN
 F 1 "100nF" H 1875 1350 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 1888 1300 50  0001 C CNN
+F 2 "Capacitors_SMD:C_0805" H 1888 1300 50  0001 C CNN
 F 3 "" H 1850 1450 50  0001 C CNN
 	1    1850 1450
 	1    0    0    -1  
@@ -218,7 +218,7 @@ U 1 1 59D2108F
 P 3100 1450
 F 0 "C14" H 3125 1550 50  0000 L CNN
 F 1 "100nF" H 3125 1350 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 3138 1300 50  0001 C CNN
+F 2 "Capacitors_SMD:C_0805" H 3138 1300 50  0001 C CNN
 F 3 "" H 3100 1450 50  0001 C CNN
 	1    3100 1450
 	1    0    0    -1  
@@ -306,7 +306,7 @@ U 1 1 59D254D7
 P 1300 6850
 F 0 "C3" H 1325 6950 50  0000 L CNN
 F 1 "100nF" H 1325 6750 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 1338 6700 50  0001 C CNN
+F 2 "Capacitors_SMD:C_0805" H 1338 6700 50  0001 C CNN
 F 3 "" H 1300 6850 50  0001 C CNN
 	1    1300 6850
 	1    0    0    -1  
@@ -317,7 +317,7 @@ U 1 1 59D2553A
 P 1600 6850
 F 0 "C5" H 1625 6950 50  0000 L CNN
 F 1 "100nF" H 1625 6750 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 1638 6700 50  0001 C CNN
+F 2 "Capacitors_SMD:C_0805" H 1638 6700 50  0001 C CNN
 F 3 "" H 1600 6850 50  0001 C CNN
 	1    1600 6850
 	1    0    0    -1  
@@ -328,7 +328,7 @@ U 1 1 59D25584
 P 2600 6850
 F 0 "C10" H 2625 6950 50  0000 L CNN
 F 1 "100nF" H 2625 6750 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 2638 6700 50  0001 C CNN
+F 2 "Capacitors_SMD:C_0805" H 2638 6700 50  0001 C CNN
 F 3 "" H 2600 6850 50  0001 C CNN
 	1    2600 6850
 	1    0    0    -1  
@@ -438,7 +438,7 @@ U 1 1 59FB07A0
 P 2900 6850
 F 0 "C13" H 2925 6950 50  0000 L CNN
 F 1 "100nF" H 2925 6750 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 2938 6700 50  0001 C CNN
+F 2 "Capacitors_SMD:C_0805" H 2938 6700 50  0001 C CNN
 F 3 "" H 2900 6850 50  0001 C CNN
 	1    2900 6850
 	1    0    0    -1  
@@ -449,7 +449,7 @@ U 1 1 59FB07F6
 P 3200 6850
 F 0 "C16" H 3225 6950 50  0000 L CNN
 F 1 "100nF" H 3225 6750 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 3238 6700 50  0001 C CNN
+F 2 "Capacitors_SMD:C_0805" H 3238 6700 50  0001 C CNN
 F 3 "" H 3200 6850 50  0001 C CNN
 	1    3200 6850
 	1    0    0    -1  
@@ -465,47 +465,36 @@ NoConn ~ 10350 3950
 NoConn ~ 10350 3850
 NoConn ~ 10350 3750
 $Comp
-L CP C15
-U 1 1 59FB4859
-P 3200 3750
-F 0 "C15" H 3225 3850 50  0000 L CNN
-F 1 "2.2uF Tant" H 3225 3650 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Hand" H 3238 3600 50  0001 C CNN
-F 3 "" H 3200 3750 50  0001 C CNN
-	1    3200 3750
-	1    0    0    -1  
-$EndComp
-$Comp
 L CP C19
 U 1 1 59FB495D
-P 4050 3750
-F 0 "C19" H 4075 3850 50  0000 L CNN
-F 1 "2.2uF Tant" H 4075 3650 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Hand" H 4088 3600 50  0001 C CNN
-F 3 "" H 4050 3750 50  0001 C CNN
-	1    4050 3750
+P 3400 4150
+F 0 "C19" H 3425 4250 50  0000 L CNN
+F 1 "2.2uF Tant" H 3425 4050 50  0000 L CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 3438 4000 50  0001 C CNN
+F 3 "" H 3400 4150 50  0001 C CNN
+	1    3400 4150
 	1    0    0    -1  
 $EndComp
 $Comp
 L C C20
 U 1 1 59FB49CA
-P 4600 3750
-F 0 "C20" H 4625 3850 50  0000 L CNN
-F 1 "100nF" H 4625 3650 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805_HandSoldering" H 4638 3600 50  0001 C CNN
-F 3 "" H 4600 3750 50  0001 C CNN
-	1    4600 3750
+P 3850 3750
+F 0 "C20" H 3875 3850 50  0000 L CNN
+F 1 "100nF" H 3875 3650 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 3888 3600 50  0001 C CNN
+F 3 "" H 3850 3750 50  0001 C CNN
+	1    3850 3750
 	1    0    0    -1  
 $EndComp
 $Comp
 L CP C21
 U 1 1 59FB4A44
-P 4900 3750
-F 0 "C21" H 4925 3850 50  0000 L CNN
-F 1 "2.2uF Tant" H 4925 3650 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Hand" H 4938 3600 50  0001 C CNN
-F 3 "" H 4900 3750 50  0001 C CNN
-	1    4900 3750
+P 4150 3750
+F 0 "C21" H 4175 3850 50  0000 L CNN
+F 1 "2.2uF Tant" H 4175 3650 50  0000 L CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 4188 3600 50  0001 C CNN
+F 3 "" H 4150 3750 50  0001 C CNN
+	1    4150 3750
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -514,7 +503,7 @@ U 1 1 59FB568E
 P 1950 6850
 F 0 "C8" H 1975 6950 50  0000 L CNN
 F 1 "2.2uF Tant" H 1975 6750 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Hand" H 1988 6700 50  0001 C CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 1988 6700 50  0001 C CNN
 F 3 "" H 1950 6850 50  0001 C CNN
 	1    1950 6850
 	1    0    0    -1  
@@ -525,7 +514,7 @@ U 1 1 59FB5740
 P 3550 6850
 F 0 "C17" H 3575 6950 50  0000 L CNN
 F 1 "2.2uF Tant" H 3575 6750 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Hand" H 3588 6700 50  0001 C CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 3588 6700 50  0001 C CNN
 F 3 "" H 3550 6850 50  0001 C CNN
 	1    3550 6850
 	1    0    0    -1  
@@ -546,36 +535,36 @@ $EndComp
 Wire Wire Line
 	5300 2600 5700 2600
 Wire Wire Line
-	2400 3000 5700 3000
+	1750 3000 5700 3000
 Wire Wire Line
-	2400 3100 5700 3100
+	1750 3100 5700 3100
 Wire Wire Line
 	6500 2300 6500 2200
 Wire Wire Line
 	5450 2200 6600 2200
 Connection ~ 6600 2200
 Wire Wire Line
-	6450 4200 6450 4350
+	6450 4200 6450 4900
 Wire Wire Line
-	6650 4250 6650 4200
+	6650 4650 6650 4200
 Wire Wire Line
-	7500 4250 850  4250
-Connection ~ 6450 4250
+	7500 4650 850  4650
+Connection ~ 6450 4650
 Wire Wire Line
-	6550 4200 6550 4250
-Connection ~ 6550 4250
+	6550 4200 6550 4650
+Connection ~ 6550 4650
 Wire Wire Line
 	7400 3700 7500 3700
 Wire Wire Line
-	7500 3700 7500 4250
-Connection ~ 6650 4250
+	7500 3700 7500 4650
+Connection ~ 6650 4650
 Wire Wire Line
 	7400 3800 7500 3800
 Connection ~ 7500 3800
 Wire Wire Line
 	5700 3600 5550 3600
 Wire Wire Line
-	5550 3600 5550 4250
+	5550 3600 5550 4650
 Wire Wire Line
 	5700 3700 5450 3700
 Wire Wire Line
@@ -586,33 +575,33 @@ Wire Wire Line
 Wire Wire Line
 	6350 2050 6350 2300
 Wire Wire Line
-	2900 2700 2900 3600
-Connection ~ 5550 4250
+	2350 2700 2350 3600
+Connection ~ 5550 4650
 Wire Wire Line
 	850  3300 5700 3300
 Wire Wire Line
 	850  3300 850  3600
 Wire Wire Line
-	1750 3400 5700 3400
+	1600 3400 5700 3400
 Wire Wire Line
-	1750 3400 1750 3600
+	1600 3400 1600 4000
 Wire Wire Line
 	1150 3600 1150 3300
 Connection ~ 1150 3300
 Wire Wire Line
-	2050 3600 2050 3400
-Connection ~ 2050 3400
+	1900 4000 1900 3400
+Connection ~ 1900 3400
 Wire Wire Line
-	850  4250 850  3900
+	850  4650 850  3900
 Wire Wire Line
-	1150 3900 1150 4250
-Connection ~ 1150 4250
+	1150 3900 1150 4650
+Connection ~ 1150 4650
 Wire Wire Line
-	1750 3900 1750 4250
-Connection ~ 1750 4250
+	1600 4300 1600 4650
+Connection ~ 1600 4650
 Wire Wire Line
-	2050 3900 2050 4250
-Connection ~ 2050 4250
+	1900 4300 1900 4650
+Connection ~ 1900 4650
 Wire Wire Line
 	1600 1600 1600 1700
 Wire Wire Line
@@ -786,37 +775,34 @@ Wire Wire Line
 Connection ~ 9650 4850
 Connection ~ 8850 4550
 Wire Wire Line
-	2900 3900 2900 4250
-Connection ~ 2900 4250
+	2350 3900 2350 4650
+Connection ~ 2350 4650
 Wire Wire Line
-	2900 2700 5700 2700
+	2350 2700 5700 2700
 Wire Wire Line
-	3200 3900 3200 4250
-Connection ~ 3200 4250
+	3100 2400 3100 4000
+Connection ~ 3100 3000
 Wire Wire Line
-	3750 3600 3750 3000
-Connection ~ 3750 3000
+	3400 4000 3400 3000
+Connection ~ 3400 3000
 Wire Wire Line
-	4050 3600 4050 3000
-Connection ~ 4050 3000
+	3850 3600 3850 3100
+Connection ~ 3850 3100
 Wire Wire Line
-	4600 3600 4600 3100
-Connection ~ 4600 3100
+	4150 2400 4150 3600
+Connection ~ 4150 3100
 Wire Wire Line
-	4900 3600 4900 3100
-Connection ~ 4900 3100
+	3100 4300 3100 4650
+Connection ~ 3100 4650
 Wire Wire Line
-	3750 3900 3750 4250
-Connection ~ 3750 4250
+	3400 4300 3400 4650
+Connection ~ 3400 4650
 Wire Wire Line
-	4050 3900 4050 4250
-Connection ~ 4050 4250
+	3850 3900 3850 4650
+Connection ~ 3850 4650
 Wire Wire Line
-	4600 3900 4600 4250
-Connection ~ 4600 4250
-Wire Wire Line
-	4900 3900 4900 4250
-Connection ~ 4900 4250
+	4150 3900 4150 4650
+Connection ~ 4150 4650
 Wire Wire Line
 	1950 6600 1950 6700
 Connection ~ 1600 6600
@@ -832,16 +818,91 @@ Connection ~ 3200 7100
 Wire Wire Line
 	7400 3900 7800 3900
 Wire Wire Line
-	3200 3600 3200 2700
-Connection ~ 3200 2700
-Wire Wire Line
-	5700 2800 5550 2800
-Wire Wire Line
-	5550 2800 5550 2700
-Connection ~ 5550 2700
-Wire Wire Line
 	1950 900  1950 1000
 Wire Wire Line
 	1950 1000 1600 1000
 Connection ~ 1600 1000
+$Comp
+L C C27
+U 1 1 5AD362E1
+P 4600 4150
+F 0 "C27" H 4625 4250 50  0000 L CNN
+F 1 "100nF" H 4625 4050 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 4638 4000 50  0001 C CNN
+F 3 "" H 4600 4150 50  0001 C CNN
+	1    4600 4150
+	1    0    0    -1  
+$EndComp
+$Comp
+L CP C28
+U 1 1 5AD36376
+P 4900 4150
+F 0 "C28" H 4925 4250 50  0000 L CNN
+F 1 "2.2uF Tant" H 4925 4050 50  0000 L CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 4938 4000 50  0001 C CNN
+F 3 "" H 4900 4150 50  0001 C CNN
+	1    4900 4150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4000 2800 5700 2800
+Wire Wire Line
+	4600 2800 4600 4000
+Wire Wire Line
+	4900 4000 4900 2800
+Connection ~ 4900 2800
+Wire Wire Line
+	4600 4300 4600 4650
+Connection ~ 4600 4650
+Wire Wire Line
+	4900 4300 4900 4650
+Connection ~ 4900 4650
+$Comp
+L R R7
+U 1 1 5AD36B4D
+P 3350 2400
+F 0 "R7" V 3430 2400 50  0000 C CNN
+F 1 "1K62" V 3350 2400 50  0000 C CNN
+F 2 "Resistors_SMD:R_0805" V 3280 2400 50  0001 C CNN
+F 3 "" H 3350 2400 50  0001 C CNN
+	1    3350 2400
+	0    1    1    0   
+$EndComp
+$Comp
+L R R8
+U 1 1 5AD36C19
+P 3850 2400
+F 0 "R8" V 3930 2400 50  0000 C CNN
+F 1 "1K62" V 3850 2400 50  0000 C CNN
+F 2 "Resistors_SMD:R_0805" V 3780 2400 50  0001 C CNN
+F 3 "" H 3850 2400 50  0001 C CNN
+	1    3850 2400
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	3200 2400 3100 2400
+Wire Wire Line
+	4000 2400 4150 2400
+Wire Wire Line
+	3500 2400 3700 2400
+Wire Wire Line
+	3600 2400 3600 2800
+Connection ~ 3600 2700
+Connection ~ 3600 2400
+$Comp
+L R R9
+U 1 1 5AD42C1F
+P 3850 2800
+F 0 "R9" V 3930 2800 50  0000 C CNN
+F 1 "NF" V 3850 2800 50  0000 C CNN
+F 2 "Resistors_SMD:R_0805" V 3780 2800 50  0001 C CNN
+F 3 "" H 3850 2800 50  0001 C CNN
+	1    3850 2800
+	0    1    1    0   
+$EndComp
+Connection ~ 4600 2800
+Wire Wire Line
+	3600 2800 3700 2800
+Text Notes 3750 1950 0    60   ~ 0
+Note: R7 and R8 are fitted, R9 is not fitted\nFor ~IN~ to CM configuration remove R7 and R8\nand use 0R in R9
 $EndSCHEMATC
