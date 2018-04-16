@@ -465,17 +465,6 @@ NoConn ~ 10350 3950
 NoConn ~ 10350 3850
 NoConn ~ 10350 3750
 $Comp
-L CP C15
-U 1 1 59FB4859
-P 2650 3750
-F 0 "C15" H 2675 3850 50  0000 L CNN
-F 1 "2.2uF Tant" H 2675 3650 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 2688 3600 50  0001 C CNN
-F 3 "" H 2650 3750 50  0001 C CNN
-	1    2650 3750
-	1    0    0    -1  
-$EndComp
-$Comp
 L CP C19
 U 1 1 59FB495D
 P 3400 4150
@@ -791,9 +780,6 @@ Connection ~ 2350 4650
 Wire Wire Line
 	2350 2700 5700 2700
 Wire Wire Line
-	2650 3900 2650 4650
-Connection ~ 2650 4650
-Wire Wire Line
 	3100 2400 3100 4000
 Connection ~ 3100 3000
 Wire Wire Line
@@ -832,9 +818,6 @@ Connection ~ 3200 7100
 Wire Wire Line
 	7400 3900 7800 3900
 Wire Wire Line
-	2650 3600 2650 2700
-Connection ~ 2650 2700
-Wire Wire Line
 	1950 900  1950 1000
 Wire Wire Line
 	1950 1000 1600 1000
@@ -862,7 +845,7 @@ F 3 "" H 4900 4150 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5700 2800 4600 2800
+	4000 2800 5700 2800
 Wire Wire Line
 	4600 2800 4600 4000
 Wire Wire Line
@@ -903,7 +886,23 @@ Wire Wire Line
 Wire Wire Line
 	3500 2400 3700 2400
 Wire Wire Line
-	3600 2400 3600 2700
+	3600 2400 3600 2800
 Connection ~ 3600 2700
 Connection ~ 3600 2400
+$Comp
+L R R9
+U 1 1 5AD42C1F
+P 3850 2800
+F 0 "R9" V 3930 2800 50  0000 C CNN
+F 1 "NF" V 3850 2800 50  0000 C CNN
+F 2 "Resistors_SMD:R_0805" V 3780 2800 50  0001 C CNN
+F 3 "" H 3850 2800 50  0001 C CNN
+	1    3850 2800
+	0    1    1    0   
+$EndComp
+Connection ~ 4600 2800
+Wire Wire Line
+	3600 2800 3700 2800
+Text Notes 3750 1950 0    60   ~ 0
+Note: R7 and R8 are fitted, R9 is not fitted\nFor ~IN~ to CM configuration remove R7 and R8\nand use 0R in R9
 $EndSCHEMATC
