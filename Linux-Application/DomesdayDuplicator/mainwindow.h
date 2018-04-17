@@ -4,7 +4,7 @@
 
     QT GUI Capture application for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2017 Simon Inns
+    Copyright (C) 2018 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -93,7 +93,8 @@ private:
     Ui::MainWindow *ui;
 
     usbDevice *domDupUsbDevice;
-    QLabel *status;
+    QLabel *usbStatusLabel;
+    QLabel *serialStatusLabel;
     bool captureFlag;
 
     QTimer* captureTimer;

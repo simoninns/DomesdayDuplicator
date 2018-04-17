@@ -4,7 +4,7 @@
 
     QT GUI Capture application for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2017 Simon Inns
+    Copyright (C) 2018 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -47,21 +47,29 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->transferPushButton->setText(tr("Start capturing"));
 
     // Add some default status text to show the state of the USB device
-    status = new QLabel;
-    ui->statusBar->addWidget(status);
+    usbStatusLabel = new QLabel;
+    ui->statusBar->addWidget(usbStatusLabel);
     if (domDupUsbDevice->isConnected()) {
-        status->setText(tr("Connected"));
+        usbStatusLabel->setText(tr("USB: Connected"));
         ui->transferPushButton->setEnabled(true);
         ui->testModeCheckBox->setEnabled(true);
         ui->cavCapturePushButton->setEnabled(true);
         ui->clvCapturePushButton->setEnabled(true);
     } else {
-        status->setText(tr("Domesday Duplicator USB device not connected"));
+        usbStatusLabel->setText(tr("USB: Not Connected"));
         ui->transferPushButton->setEnabled(false);
         ui->testModeCheckBox->setEnabled(false);
         ui->cavCapturePushButton->setEnabled(false);
         ui->clvCapturePushButton->setEnabled(false);
     }
+
+    // Add status text to show the state of the PIC serial connection
+    serialStatusLabel = new QLabel;
+    ui->statusBar->addWidget(serialStatusLabel);
+    serialStatusLabel->setText(tr("PIC: Not Connected"));
+
+    // Set up the user note label
+    ui->userNoteLabel->setText(tr("No target file selected"));
 
     // Connect to the usb device's signals to show insertion/removal events
     connect(domDupUsbDevice, SIGNAL(statusChanged(bool)), SLOT(usbStatusChanged(bool)));
@@ -148,7 +156,7 @@ void MainWindow::usbStatusChanged(bool usbStatus)
 {
     if (usbStatus) {
         qDebug() << "MainWindow::usbStatusChanged(): USB device is connected";
-        status->setText(tr("Connected"));
+        usbStatusLabel->setText(tr("USB: Connected"));
 
         // Enable transfer if there is a filename selected
         if (!fileName.isEmpty()) {
@@ -157,10 +165,13 @@ void MainWindow::usbStatusChanged(bool usbStatus)
             ui->clvCapturePushButton->setEnabled(true);
             ui->testModeCheckBox->setEnabled(true);
             ui->testModeCheckBox->setChecked(false);
+            ui->userNoteLabel->setText(tr("Ready to capture"));
+        } else {
+            ui->userNoteLabel->setText(tr("No target file selected"));
         }
     } else {
         qDebug() << "MainWindow::usbStatusChanged(): USB device is not connected";
-        status->setText(tr("Domesday Duplicator USB device not connected"));
+        usbStatusLabel->setText(tr("USB: Not Connected"));
 
         // Are we mid-capture?
         if (captureFlag) {
@@ -172,6 +183,7 @@ void MainWindow::usbStatusChanged(bool usbStatus)
         ui->cavCapturePushButton->setEnabled(false);
         ui->clvCapturePushButton->setEnabled(false);
         ui->testModeCheckBox->setEnabled(false);
+        ui->userNoteLabel->setText(tr(""));
     }
 }
 
@@ -200,6 +212,7 @@ void MainWindow::on_actionSave_As_triggered()
         ui->cavCapturePushButton->setEnabled(false);
         ui->clvCapturePushButton->setEnabled(false);
         ui->testModeCheckBox->setEnabled(false);
+        ui->userNoteLabel->setText(tr("No target file selected"));
     } else {
         // File name specified
         qDebug() << "MainWindow::on_actionSave_As_triggered(): Save as filename = " << fileName;
@@ -210,6 +223,7 @@ void MainWindow::on_actionSave_As_triggered()
             ui->cavCapturePushButton->setEnabled(true);
             ui->clvCapturePushButton->setEnabled(true);
             ui->testModeCheckBox->setEnabled(true);
+            ui->userNoteLabel->setText(tr("Ready to capture"));
         }
     }
 }
@@ -447,6 +461,7 @@ void MainWindow::updatePlayerControlInfo(void)
                 );
 
     if (playerControl->isConnected()) {
+        serialStatusLabel->setText(tr("PIC: Connected"));
         // If we are paused or playing, then we known the disc type
         // otherwise it's up to the user to pick the right one
         if (playerControl->isPaused() || playerControl->isPlaying()) {
@@ -466,6 +481,7 @@ void MainWindow::updatePlayerControlInfo(void)
         // Disable the PIC capture options (only available if a player is connected)
         ui->cavIntegratedCaptureGroupBox->setEnabled(false);
         ui->clvIntegratedCaptureGroupBox->setEnabled(false);
+        serialStatusLabel->setText(tr("PIC: Not Connected"));
     }
 
 }
