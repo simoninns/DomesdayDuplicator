@@ -60,3 +60,6 @@ FORMS += \
     playercontroldialog.ui \
     serialportselectdialog.ui \
     aboutdialog.ui
+
+RESOURCES += \
+    images.qrc
