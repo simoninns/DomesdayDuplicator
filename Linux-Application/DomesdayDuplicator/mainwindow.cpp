@@ -69,7 +69,7 @@ MainWindow::MainWindow(QWidget *parent) :
     captureTimer = new QTimer(this);
     connect(captureTimer, SIGNAL(timeout()), this, SLOT(updateCaptureInfo()));
 
-    // Set up a timer for updated the player control information
+    // Set up a timer for updating the player control information
     updateTimer = new QTimer(this);
     connect(updateTimer, SIGNAL(timeout()), this, SLOT(updatePlayerControlInfo()));
 
@@ -77,9 +77,6 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->transferPushButton->setEnabled(false);
     ui->cavCapturePushButton->setEnabled(false);
     ui->clvCapturePushButton->setEnabled(false);
-
-    // Disable the test mode checkbox until a USB device is connected
-    ui->testModeCheckBox->setEnabled(false);
 
     // Create the about dialogue
     aboutDomDup = new aboutDialog(this);
@@ -149,8 +146,6 @@ void MainWindow::usbStatusChanged(bool usbStatus)
             ui->transferPushButton->setText(tr("Start Capture"));
             ui->cavCapturePushButton->setEnabled(true);
             ui->clvCapturePushButton->setEnabled(true);
-            ui->testModeCheckBox->setEnabled(true);
-            ui->testModeCheckBox->setChecked(false);
         } else {
             ui->transferPushButton->setText(tr("No Target File"));
         }
@@ -168,7 +163,41 @@ void MainWindow::usbStatusChanged(bool usbStatus)
         ui->transferPushButton->setText(tr("No USB Device"));
         ui->cavCapturePushButton->setEnabled(false);
         ui->clvCapturePushButton->setEnabled(false);
-        ui->testModeCheckBox->setEnabled(false);
+    }
+}
+
+// Update the USB device configuration based on the GUI settings
+void MainWindow::updateUsbDeviceConfiguration()
+{
+    quint16 configurationFlags = 0;
+
+    // Set up the configuration flags (simple binary flag byte)
+    if (ui->testModeCheckBox->isChecked()) configurationFlags += 1;     // Bit 0: Set = Test mode
+    if (ui->palRadioButton->isChecked()) configurationFlags += 2;       // Bit 1: Set = PAL sampling (unset = NTSC)
+    if (ui->dcOffsetCheckBox->isChecked()) configurationFlags += 4;     // Bit 2: Set = DC compensation on
+
+    // Output debug
+    qDebug() << "MainWindow::updateUsbDeviceConfiguration(): Sending vendor specific USB command (configuration).  Flags are =" << configurationFlags;
+
+    // Verify that the USB device is still connected
+    if (domDupUsbDevice->isConnected()) {
+        // Configure and open the USB device
+        domDupUsbDevice->setupDevice();
+
+        // Open the USB device
+        if (domDupUsbDevice->openDevice()) {
+            // Send configuration vendor specific USB command
+            domDupUsbDevice->sendVendorSpecificCommand(0xB6, configurationFlags);
+
+            // Close the USB device
+            domDupUsbDevice->closeDevice();
+        } else {
+            // Could not open device
+            qDebug() << "MainWindow::updateUsbDeviceConfiguration(): Cannot send configure command - could not open USB device";
+        }
+    } else {
+        // Device no longer connected
+        qDebug() << "MainWindow::updateUsbDeviceConfiguration(): Cannot send configure command - USB device not connected";
     }
 }
 
@@ -197,7 +226,6 @@ void MainWindow::on_actionSave_As_triggered()
         ui->transferPushButton->setText(tr("No Target File"));
         ui->cavCapturePushButton->setEnabled(false);
         ui->clvCapturePushButton->setEnabled(false);
-        ui->testModeCheckBox->setEnabled(false);
     } else {
         // File name specified
         qDebug() << "MainWindow::on_actionSave_As_triggered(): Save as filename = " << fileName;
@@ -208,7 +236,6 @@ void MainWindow::on_actionSave_As_triggered()
             ui->transferPushButton->setText(tr("Start Capture"));
             ui->cavCapturePushButton->setEnabled(true);
             ui->clvCapturePushButton->setEnabled(true);
-            ui->testModeCheckBox->setEnabled(true);
         }
     }
 }
@@ -256,9 +283,6 @@ void MainWindow::startTransfer(void)
 
             // Update the transfer button text
             ui->transferPushButton->setText(tr("Stop Capture"));
-
-            // Disable the test mode check box
-            ui->testModeCheckBox->setEnabled(false);
 
             // Configure and open the USB device
             responseFlag = domDupUsbDevice->openDevice();
@@ -316,9 +340,6 @@ void MainWindow::stopTransfer(void)
         // Update the transfer button text
         ui->transferPushButton->setText(tr("Start Capture"));
 
-        // Enable the test mode check box
-        ui->testModeCheckBox->setEnabled(true);
-
         // Enable the transfer button
         ui->transferPushButton->setEnabled(true);
     } else {
@@ -329,57 +350,37 @@ void MainWindow::stopTransfer(void)
 // Test mode check box toggled
 void MainWindow::on_testModeCheckBox_toggled(bool checked)
 {
-    bool responseFlag = false;
+    qDebug() << "MainWindow::on_testModeCheckBox_toggled():" << checked;
 
-    if (checked) {
-        // Test mode on
-        qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Test mode data generation on";
+    // Update the USB configuration
+    updateUsbDeviceConfiguration();
+}
 
-        // Verify that the USB device is still connected
-        if (domDupUsbDevice->isConnected()) {
-            // Configure and open the USB device
-            domDupUsbDevice->setupDevice();
-            responseFlag = domDupUsbDevice->openDevice();
+// NTSC Sample speed radio button toggled
+void MainWindow::on_ntscRadioButton_toggled(bool checked)
+{
+    qDebug() << "MainWindow::on_ntscRadioButton_toggled():" << checked;
 
-            if (responseFlag) {
-                // Send test mode on vendor specific USB command
-                domDupUsbDevice->sendVendorSpecificCommand(0xB6, 1);
+    // Update the USB configuration
+    updateUsbDeviceConfiguration();
+}
 
-                // Close the USB device
-                domDupUsbDevice->closeDevice();
-            } else {
-                // Could not open device
-                qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode on - could not open USB device";
-            }
-        } else {
-            // Device no longer connected
-            qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode on - USB device not connected";
-        }
-    } else {
-        // Test mode off
-        qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Test mode data generation off";
+// PAL Sample speed radio button toggled
+void MainWindow::on_palRadioButton_toggled(bool checked)
+{
+    qDebug() << "MainWindow::on_palRadioButton_toggled():" << checked;
 
-        // Verify that the USB device is still connected
-        if (domDupUsbDevice->isConnected()) {
-            // Configure and open the USB device
-            domDupUsbDevice->setupDevice();
-            responseFlag = domDupUsbDevice->openDevice();
+    // We do not update the USB configuration here as it is triggered by the
+    // NTSC radio button in the same group.
+}
 
-            if (responseFlag) {
-                // Send test mode off vendor specific USB command
-                domDupUsbDevice->sendVendorSpecificCommand(0xB6, 0);
+// DC offset compensation check box toggled
+void MainWindow::on_dcOffsetCheckBox_toggled(bool checked)
+{
+    qDebug() << "MainWindow::on_dcOffsetCheckBox_toggled():" << checked;
 
-                // Close the USB device
-                domDupUsbDevice->closeDevice();
-            } else {
-                // Could not open device
-                qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode off - could not open USB device";
-            }
-        } else {
-            // Device no longer connected
-            qDebug() << "MainWindow::on_testModeCheckBox_toggled(): Cannot set test mode off - USB device not connected";
-        }
-    }
+    // Update the USB configuration
+    updateUsbDeviceConfiguration();
 }
 
 // Update the capture information in the main window
@@ -1076,3 +1077,5 @@ void MainWindow::on_clvCapturePushButton_clicked()
         qDebug() << "MainWindow::on_clvCapturePushButton_clicked(): Error - CAV PIC capture in progress";
     }
 }
+
+

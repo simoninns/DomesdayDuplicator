@@ -124,6 +124,7 @@ void serialPortSelectDialog::updateSettings()
     }
 
     // Emit a signal indicating that the serial configuration has changed
+    qDebug() << "serialPortSelectDialog::updateSettings(): Emitting serial port changed signal";
     emit serialPortChanged();
 }
 
