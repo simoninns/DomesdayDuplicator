@@ -44,32 +44,17 @@ MainWindow::MainWindow(QWidget *parent) :
     captureFlag = false;
 
     // Set up the transfer button
-    ui->transferPushButton->setText(tr("Start capturing"));
+    ui->transferPushButton->setText(tr("Initialising"));
 
     // Add some default status text to show the state of the USB device
     usbStatusLabel = new QLabel;
     ui->statusBar->addWidget(usbStatusLabel);
-    if (domDupUsbDevice->isConnected()) {
-        usbStatusLabel->setText(tr("USB: Connected"));
-        ui->transferPushButton->setEnabled(true);
-        ui->testModeCheckBox->setEnabled(true);
-        ui->cavCapturePushButton->setEnabled(true);
-        ui->clvCapturePushButton->setEnabled(true);
-    } else {
-        usbStatusLabel->setText(tr("USB: Not Connected"));
-        ui->transferPushButton->setEnabled(false);
-        ui->testModeCheckBox->setEnabled(false);
-        ui->cavCapturePushButton->setEnabled(false);
-        ui->clvCapturePushButton->setEnabled(false);
-    }
+    usbStatusChanged(domDupUsbDevice->isConnected());
 
     // Add status text to show the state of the PIC serial connection
     serialStatusLabel = new QLabel;
     ui->statusBar->addWidget(serialStatusLabel);
     serialStatusLabel->setText(tr("PIC: Not Connected"));
-
-    // Set up the user note label
-    ui->userNoteLabel->setText(tr("No target file selected"));
 
     // Connect to the usb device's signals to show insertion/removal events
     connect(domDupUsbDevice, SIGNAL(statusChanged(bool)), SLOT(usbStatusChanged(bool)));
@@ -161,13 +146,13 @@ void MainWindow::usbStatusChanged(bool usbStatus)
         // Enable transfer if there is a filename selected
         if (!fileName.isEmpty()) {
             ui->transferPushButton->setEnabled(true);
+            ui->transferPushButton->setText(tr("Start Capture"));
             ui->cavCapturePushButton->setEnabled(true);
             ui->clvCapturePushButton->setEnabled(true);
             ui->testModeCheckBox->setEnabled(true);
             ui->testModeCheckBox->setChecked(false);
-            ui->userNoteLabel->setText(tr("Ready to capture"));
         } else {
-            ui->userNoteLabel->setText(tr("No target file selected"));
+            ui->transferPushButton->setText(tr("No Target File"));
         }
     } else {
         qDebug() << "MainWindow::usbStatusChanged(): USB device is not connected";
@@ -180,10 +165,10 @@ void MainWindow::usbStatusChanged(bool usbStatus)
         }
 
         ui->transferPushButton->setEnabled(false);
+        ui->transferPushButton->setText(tr("No USB Device"));
         ui->cavCapturePushButton->setEnabled(false);
         ui->clvCapturePushButton->setEnabled(false);
         ui->testModeCheckBox->setEnabled(false);
-        ui->userNoteLabel->setText(tr(""));
     }
 }
 
@@ -209,10 +194,10 @@ void MainWindow::on_actionSave_As_triggered()
         // No file name was specified
         qDebug() << "MainWindow::on_actionSave_As_triggered(): User did not supply a file name";
         ui->transferPushButton->setEnabled(false);
+        ui->transferPushButton->setText(tr("No Target File"));
         ui->cavCapturePushButton->setEnabled(false);
         ui->clvCapturePushButton->setEnabled(false);
         ui->testModeCheckBox->setEnabled(false);
-        ui->userNoteLabel->setText(tr("No target file selected"));
     } else {
         // File name specified
         qDebug() << "MainWindow::on_actionSave_As_triggered(): Save as filename = " << fileName;
@@ -220,10 +205,10 @@ void MainWindow::on_actionSave_As_triggered()
         // Enable the capture control buttons (if a USB device is connected)
         if (domDupUsbDevice->isConnected()) {
             ui->transferPushButton->setEnabled(true);
+            ui->transferPushButton->setText(tr("Start Capture"));
             ui->cavCapturePushButton->setEnabled(true);
             ui->clvCapturePushButton->setEnabled(true);
             ui->testModeCheckBox->setEnabled(true);
-            ui->userNoteLabel->setText(tr("Ready to capture"));
         }
     }
 }
@@ -270,7 +255,7 @@ void MainWindow::startTransfer(void)
             captureFlag = true;
 
             // Update the transfer button text
-            ui->transferPushButton->setText(tr("Stop capturing"));
+            ui->transferPushButton->setText(tr("Stop Capture"));
 
             // Disable the test mode check box
             ui->testModeCheckBox->setEnabled(false);
@@ -293,7 +278,7 @@ void MainWindow::startTransfer(void)
                 // Could not open USB device
                 qDebug() << "MainWindow::startTransfer(): Cannot start transfer - Opening USB device failed";
                 captureFlag = false;
-                ui->transferPushButton->setText(tr("Start capturing"));
+                ui->transferPushButton->setText(tr("Start Capture"));
             }
         } else {
             // Cannot start transfer; USB device not detected
@@ -329,7 +314,7 @@ void MainWindow::stopTransfer(void)
         domDupUsbDevice->closeDevice();
 
         // Update the transfer button text
-        ui->transferPushButton->setText(tr("Start capturing"));
+        ui->transferPushButton->setText(tr("Start Capture"));
 
         // Enable the test mode check box
         ui->testModeCheckBox->setEnabled(true);
