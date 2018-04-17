@@ -451,7 +451,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>10</y>
+      <y>40</y>
       <width>201</width>
       <height>41</height>
      </rect>
@@ -488,22 +488,6 @@
      <pixmap resource="images.qrc">:/logos/Graphics/Domesday Duplicator logo colour 150px.png</pixmap>
     </property>
    </widget>
-   <widget class="QLabel" name="userNoteLabel">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>50</y>
-      <width>201</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Label for notes</string>
-    </property>
-    <property name="alignment">
-     <set>Qt::AlignCenter</set>
-    </property>
-   </widget>
    <zorder>captureGroupBox</zorder>
    <zorder>diskGroupBox</zorder>
    <zorder>testModeGroupBox</zorder>
@@ -511,7 +495,6 @@
    <zorder>clvIntegratedCaptureGroupBox</zorder>
    <zorder>logo</zorder>
    <zorder>transferPushButton</zorder>
-   <zorder>userNoteLabel</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
