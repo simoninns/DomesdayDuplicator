@@ -70,6 +70,7 @@ private slots:
     void startTransfer(void);
     void stopTransfer(void);
     void updateCaptureInfo(void);
+    void updateUsbDeviceConfiguration(void);
 
     void on_testModeCheckBox_toggled(bool checked);
     void on_actionSelect_player_COM_port_triggered();
@@ -88,6 +89,12 @@ private slots:
 
     void on_cavCapturePushButton_clicked();
     void on_clvCapturePushButton_clicked();
+
+    void on_ntscRadioButton_toggled(bool checked);
+
+    void on_palRadioButton_toggled(bool checked);
+
+    void on_dcOffsetCheckBox_toggled(bool checked);
 
 private:
     Ui::MainWindow *ui;
