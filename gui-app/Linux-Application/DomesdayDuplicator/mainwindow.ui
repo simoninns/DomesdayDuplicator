@@ -28,6 +28,11 @@
     <height>430</height>
    </size>
   </property>
+  <property name="font">
+   <font>
+    <pointsize>10</pointsize>
+   </font>
+  </property>
   <property name="windowTitle">
    <string>Domesday Duplicator</string>
   </property>
