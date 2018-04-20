@@ -360,6 +360,9 @@ void MainWindow::startTransfer(void)
     if (captureFlag == false) {
         qDebug() << "MainWindow::startTransfer(): Starting transfer";
 
+        // Ensure the device's configuration matches the GUI
+        updateUsbDeviceConfiguration();
+
         // Verify that the USB device is still connected
         if (domDupUsbDevice->isConnected()) {
             // Set the capture flag
@@ -439,6 +442,9 @@ void MainWindow::on_cavCapturePushButton_clicked()
     // Make sure the CLV PIC capture is not running
     if (!clvPicCaptureActive) {
         if (!cavPicCaptureActive) {
+            // Ensure the device's configuration matches the GUI
+            updateUsbDeviceConfiguration();
+
             // CAV capture not running... start it
             qDebug() << "MainWindow::on_cavCapturePushButton_clicked(): Starting CAV PIC capture";
             cavPicCaptureAbort = false;
@@ -463,6 +469,9 @@ void MainWindow::on_clvCapturePushButton_clicked()
     // Make sure the CAV PIC capture is not running
     if (!cavPicCaptureActive) {
         if (!clvPicCaptureActive) {
+            // Ensure the device's configuration matches the GUI
+            updateUsbDeviceConfiguration();
+
             // CAV capture not running... start it
             qDebug() << "MainWindow::on_clvCapturePushButton_clicked(): Starting CLV PIC capture";
             clvPicCaptureAbort = false;
@@ -541,6 +550,10 @@ void MainWindow::updatePlayerControlInfo(void)
         serialStatusLabel->setText(tr("PIC: Not Connected"));
     }
 
+    // Check for serial communication failure (from LVDP state-machine)
+    if (playerControl->isLastCommandError())
+        showError(tr("PIC Communication error"),
+                  tr("Unable to communicate with the LaserDisc player via the serial connection"));
 }
 
 // Called by a player control event (from the PIC controls)
