@@ -11,14 +11,15 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets serialport
 TARGET = DomesdayDuplicator
 TEMPLATE = app
 
-# Set the compiler optimisation
-# remove possible other optimization flags
+# Set the compiler optimisation -
+# and remove possible other optimization flags
 QMAKE_CXXFLAGS_RELEASE -= -O
 QMAKE_CXXFLAGS_RELEASE -= -O1
-QMAKE_CXXFLAGS_RELEASE -= -O2
+#QMAKE_CXXFLAGS_RELEASE -= -O2
+QMAKE_CXXFLAGS_RELEASE -= -O3
 
-# add the desired -O3 if not present
-QMAKE_CXXFLAGS_RELEASE *= -O3
+# Add the desired optimisation flag if not present
+QMAKE_CXXFLAGS_RELEASE *= -O2
 
 # Ensure we use the correct C++ standard
 QMAKE_CXXFLAGS_RELEASE *= -std=gnu++11

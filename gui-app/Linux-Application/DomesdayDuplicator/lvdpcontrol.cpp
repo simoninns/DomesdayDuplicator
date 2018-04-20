@@ -57,8 +57,8 @@ enum States {
     state_serialError
 };
 
-static bool stateMachineStopping;
-static bool stateMachineRunning;
+static volatile bool stateMachineStopping;
+static volatile bool stateMachineRunning;
 
 static void stateMachine(void);
 
@@ -234,11 +234,16 @@ void stateMachine(void)
         // Transition the state machine
         currentState = nextState;
 
+        // Sleep for a little on each loop to conserve CPU
+        QThread::msleep(20);
+
         // State machine process
         switch(currentState) {
             case state_disconnected:
                 nextState = smDisconnectedState();
-                QThread::msleep(100); // Don't loop to fast when idle...
+
+                // Sleep more in the disconnected state
+                QThread::msleep(100);
                 break;
 
             case state_connecting:
@@ -247,6 +252,9 @@ void stateMachine(void)
 
             case state_stopped:
                 nextState = smStoppedState();
+
+                // Sleep more in the stopped state
+                QThread::msleep(100);
                 break;
 
             case state_playing:
@@ -255,6 +263,9 @@ void stateMachine(void)
 
             case state_paused:
                 nextState = smPausedState();
+
+                // Sleep more in the paused state
+                QThread::msleep(100);
                 break;
 
             case state_serialError:
