@@ -238,6 +238,7 @@ void stateMachine(void)
         switch(currentState) {
             case state_disconnected:
                 nextState = smDisconnectedState();
+                QThread::msleep(100); // Don't loop to fast when idle...
                 break;
 
             case state_connecting:

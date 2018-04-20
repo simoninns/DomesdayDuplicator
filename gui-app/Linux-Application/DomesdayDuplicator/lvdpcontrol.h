@@ -75,10 +75,6 @@ public:
     bool isLastCommandError(void);
 
     void command(PlayerCommands command, quint32 parameter);
-
-signals:
-    void startCapture(void);
-    void stopCapture(void);
 };
 
 #endif // LVDPCONTROL_H

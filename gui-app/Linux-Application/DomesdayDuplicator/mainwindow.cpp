@@ -49,7 +49,7 @@ MainWindow::MainWindow(QWidget *parent) :
     // Add some default status text to show the state of the USB device
     usbStatusLabel = new QLabel;
     ui->statusBar->addWidget(usbStatusLabel);
-    usbStatusChanged();
+    usbStatusChanged(false);
 
     // Add status text to show the state of the PIC serial connection
     serialStatusLabel = new QLabel;
@@ -57,7 +57,7 @@ MainWindow::MainWindow(QWidget *parent) :
     serialStatusLabel->setText(tr("PIC: Not Connected"));
 
     // Connect to the usb device's signals to show insertion/removal events
-    connect(domDupUsbDevice, SIGNAL(statusChanged(bool)), SLOT(usbStatusChanged()));
+    connect(domDupUsbDevice, SIGNAL(statusChanged(bool)), SLOT(usbStatusChanged(bool)));
 
     // Set up the text labels
     ui->capturedDataLabel->setText(tr("0"));
@@ -172,10 +172,18 @@ void MainWindow::updateGui()
     }
 }
 
-// Update the USB device status based on signals from the USB detection
-void MainWindow::usbStatusChanged()
+// Display an error message to the user
+void MainWindow::showError(QString errorTitle, QString errorMessage)
 {
-    qDebug() << "MainWindow::usbStatusChanged(): Called";
+    QMessageBox::warning(this, errorTitle,
+        errorMessage,
+        QMessageBox::Ok);
+}
+
+// Update the USB device status based on signals from the USB detection
+void MainWindow::usbStatusChanged(bool statusFlag)
+{
+    qDebug() << "MainWindow::usbStatusChanged(): Called with statusFlag =" << statusFlag;
     updateGui();
 }
 
@@ -194,9 +202,6 @@ void MainWindow::updateUsbDeviceConfiguration()
 
     // Verify that the USB device is still connected
     if (domDupUsbDevice->isConnected()) {
-        // Configure and open the USB device
-        domDupUsbDevice->setupDevice();
-
         // Open the USB device
         if (domDupUsbDevice->openDevice()) {
             // Send configuration vendor specific USB command
@@ -207,10 +212,12 @@ void MainWindow::updateUsbDeviceConfiguration()
         } else {
             // Could not open device
             qDebug() << "MainWindow::updateUsbDeviceConfiguration(): Cannot send configure command - could not open USB device";
+            showError(tr("USB Communication error"), tr("Could not open the USB device"));
         }
     } else {
         // Device no longer connected
         qDebug() << "MainWindow::updateUsbDeviceConfiguration(): Cannot send configure command - USB device not connected";
+        showError(tr("USB Communication error"), tr("USB device is not connected"));
     }
 }
 
@@ -346,6 +353,7 @@ void MainWindow::startTransfer(void)
     // Ensure we have a file name
     if (fileName.isEmpty()) {
         qDebug() << "MainWindow::startTransfer(): No file name specified, cannot start transfer";
+        showError(tr("Capture error"), tr("No target file is specified. Cannot start transfer"));
         return;
     }
 
@@ -377,12 +385,14 @@ void MainWindow::startTransfer(void)
             } else {
                 // Could not open USB device
                 qDebug() << "MainWindow::startTransfer(): Cannot start transfer - Opening USB device failed";
+                showError(tr("USB Communication error"), tr("Could not open the USB device"));
                 captureFlag = false;
                 updateGui();
             }
         } else {
             // Cannot start transfer; USB device not detected
             qDebug() << "MainWindow::startTransfer(): Cannot start transfer - USB device not connected";
+            showError(tr("USB Communication error"), tr("USB device is not connected"));
         }
     } else {
         qDebug() << "MainWindow::startTransfer(): Called, but transfer is already in progress";
@@ -833,6 +843,7 @@ void MainWindow::cavPicPoll(void)
             playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
             lvdpPlayerControl->unlockAllPlayerControls();
             ui->cavCapturePushButton->setText("Capture");
+            showError(tr("USB Communication error"), tr("USB device is not connected"));
 
             cavPicNextState = cavState_idle;
             cavPicCaptureActive = false;

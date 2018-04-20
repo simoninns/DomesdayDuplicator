@@ -59,10 +59,11 @@ public:
     ~MainWindow();
 
 public slots:
-    void usbStatusChanged();
+    void usbStatusChanged(bool statusFlag);
 
 private slots:
     void updateGui();
+    void showError(QString errorTitle, QString errorMessage);
 
     void on_actionAbout_triggered();
     void on_actionSave_As_triggered();
@@ -77,26 +78,20 @@ private slots:
     void on_testModeCheckBox_toggled(bool checked);
     void on_actionSelect_player_COM_port_triggered();
     void on_actionShow_player_control_triggered();
+    void on_cavLeadInCheckBox_toggled(bool checked);
+    void on_clvLeadInCheckBox_toggled(bool checked);
+    void on_cavCapturePushButton_clicked();
+    void on_clvCapturePushButton_clicked();
+    void on_ntscRadioButton_toggled(bool checked);
+    void on_palRadioButton_toggled(bool checked);
+    void on_dcOffsetCheckBox_toggled(bool checked);
 
     void serialPortStatusChange(void);
     void updatePlayerControlInfo(void);
-
     void handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32);
-
-    void on_cavLeadInCheckBox_toggled(bool checked);
-    void on_clvLeadInCheckBox_toggled(bool checked);
 
     void cavPicPoll(void);
     void clvPicPoll(void);
-
-    void on_cavCapturePushButton_clicked();
-    void on_clvCapturePushButton_clicked();
-
-    void on_ntscRadioButton_toggled(bool checked);
-
-    void on_palRadioButton_toggled(bool checked);
-
-    void on_dcOffsetCheckBox_toggled(bool checked);
 
 private:
     Ui::MainWindow *ui;

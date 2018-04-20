@@ -151,7 +151,7 @@ void QUsbDevice::close() {
 
   if (mDevHandle && mConnected) {
     // stop any further write attempts whilst we close down
-    qDebug("Closing USB connection...");
+    qDebug("QUsbDevice::close(): Closing USB connection...");
 
     QBaseUsbDevice::close();
 

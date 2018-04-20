@@ -40,6 +40,17 @@ usbDevice::usbDevice(QObject *parent) : QObject(parent)
         SLOT(onDevRemoved(QtUsb::FilterList)));
 
     qDebug("usbDevice::usbDevice(): USB device object created (monitoring for insert/remove)");
+
+    // Perform initial check for USB device
+    domDupFilter.vid = VID;
+    domDupFilter.pid = PID;
+    if (mUsbManager.isPresent(domDupFilter)) {
+        qDebug("usbDevice::usbDevice(): USB device is present");
+        deviceConnected = true;
+    } else {
+        qDebug("usbDevice::usbDevice(): USB device is not present");
+        deviceConnected = false;
+    }
 }
 
 usbDevice::~usbDevice() {
@@ -49,25 +60,8 @@ usbDevice::~usbDevice() {
 // Function returns true if a Domesday Duplicator USB device is connected
 bool usbDevice::isConnected(void)
 {
-    bool deviceStatus = false;
-    QtUsb::DeviceFilter mFilter;
-    qDebug() << "usbDevice::isConnected(): Checking for USB device";
-
-    // Configure the device filter
-    mFilter.vid = VID;
-    mFilter.pid = PID;
-
-    if (mUsbManager.isPresent(mFilter)) {
-        // Device present
-        deviceStatus = true;
-        qDebug() << "usbDevice::isConnected(): Device connected";
-    } else {
-        // Device not present
-        deviceStatus = false;
-        qDebug() << "usbDevice::isConnected(): Device not connected";
-    }
-
-    return deviceStatus;
+    qDebug() << "usbDevice::isConnected(): Connected status is" << deviceConnected;
+    return deviceConnected;
 }
 
 // Function to handle device insertion
@@ -81,6 +75,7 @@ void usbDevice::onDevInserted(QtUsb::FilterList list)
         // Check for the Domesday Duplicator device
         if (f.vid == VID && f.pid == PID) {
             qDebug() << "usbDevice::onDevInserted(): Domesday Duplicator USB device inserted";
+            deviceConnected = true;
             emit statusChanged(true); // Send a signal
         }
     }
@@ -97,6 +92,7 @@ void usbDevice::onDevRemoved(QtUsb::FilterList list)
         // Check for the Domesday Duplicator device
         if (f.vid == VID && f.pid == PID) {
             qDebug() << "usbDevice::onDevRemoved(): Domesday Duplicator USB device removed";
+            deviceConnected = false;
             emit statusChanged(false); // Send a signal
         }
     }
@@ -118,6 +114,8 @@ void usbDevice::setupDevice(void)
     domDupConfig.interface = 0;
     domDupConfig.readEp = 0x81;
     domDupConfig.writeEp = 0x81;
+
+    deviceConnected = false;
 }
 
 // Function to open the device for IO
