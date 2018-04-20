@@ -11,6 +11,19 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets serialport
 TARGET = DomesdayDuplicator
 TEMPLATE = app
 
+# Set the compiler optimisation
+# remove possible other optimization flags
+QMAKE_CXXFLAGS_RELEASE -= -O
+QMAKE_CXXFLAGS_RELEASE -= -O1
+QMAKE_CXXFLAGS_RELEASE -= -O2
+
+# add the desired -O3 if not present
+QMAKE_CXXFLAGS_RELEASE *= -O3
+
+# Ensure we use the correct C++ standard
+QMAKE_CXXFLAGS_RELEASE *= -std=gnu++11
+QMAKE_CXXFLAGS_DEBUG *= -std=gnu++11
+
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which has been marked as deprecated (the exact warnings
 # depend on your compiler). Please consult the documentation of the

@@ -816,7 +816,7 @@ QString sendSerialCommand(QString commandString, quint64 timeoutMsecs)
                 //qDebug() << "sendSerialCommand(): Received response:" << response;
 
                 // Check for command error
-                if (response.left(1) == 'E') {
+                if (response.left(1) == QString("E")) {
                     // Error response received
                     currentStimuli.lastCommandError = true;
                     qDebug() << "sendSerialCommand(): Received error response from player:" << response;
