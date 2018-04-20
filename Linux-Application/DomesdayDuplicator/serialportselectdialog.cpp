@@ -137,7 +137,7 @@ void serialPortSelectDialog::on_buttonBox_accepted()
 
 void serialPortSelectDialog::showEvent(QShowEvent *e)
 {
-    qDebug() << "serialPortSelectDialog::showEvent(): Event triggered";
+    qDebug() << "serialPortSelectDialog::showEvent(): Event triggered" << e;
 
     // Update the available serial ports
     fillPortsInfo();

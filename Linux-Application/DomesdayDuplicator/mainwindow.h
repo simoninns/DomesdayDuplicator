@@ -59,9 +59,11 @@ public:
     ~MainWindow();
 
 public slots:
-    void usbStatusChanged(bool usbStatus);
+    void usbStatusChanged();
 
 private slots:
+    void updateGui();
+
     void on_actionAbout_triggered();
     void on_actionSave_As_triggered();
     void on_actionQuit_triggered();
