@@ -72,7 +72,7 @@ public:
     quint32 getNumberOfDiskBuffers(void);
 
 signals:
-    void statusChanged(bool status);
+    void statusChanged(bool);
 
 public slots:
     void onDevInserted(QtUsb::FilterList list);
@@ -80,11 +80,12 @@ public slots:
 
 private:
     QUsbManager mUsbManager;
-    //QUsbBulkTransfer* mUsbBulkTransfer;
     QUsbDevice* domDupDevice;
 
     QtUsb::DeviceFilter domDupFilter;
     QtUsb::DeviceConfig domDupConfig;
+
+    bool deviceConnected;
 
 };
 
