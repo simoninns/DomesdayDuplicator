@@ -1,10 +1,10 @@
 /************************************************************************
 	
-	DomesdayDuplicator.v
+	Domesday Duplicator.v
 	Top-level module
 	
-	DomesdayDuplicator - LaserDisc RF sampler
-	Copyright (C) 2017 Simon Inns
+	Domesday Duplicator - LaserDisc RF sampler
+	Copyright (C) 2018 Simon Inns
 	
 	This file is part of Domesday Duplicator.
 	
@@ -34,7 +34,7 @@ module DomesdayDuplicator(
 
 // FX3 Hardware mapping begins ------------------------------------------------
 
-// Generic pin-mapping for FX3 (DomDupBoard revision 2_0)
+// Generic pin-mapping for FX3 (DomDupBoard revisions 2_0 to 2_2)
 wire [15:0] fx3_databus;	// 32-bit databus (only 16-bits used)
 wire [12:0] fx3_control;	// 13-bit control bus
 wire fx3_clock;				// FX3 GPIF Clock
@@ -77,32 +77,42 @@ assign GPIO1[02] = fx3_databus[15];
 // FX3 Clock physical mapping
 assign GPIO1[31] = fx3_clock; // FX3 GPIO_16
 
-// 13-bit control bus physical mapping
+// 13-bit control bus physical mapping (outputs)
 assign GPIO1[27] = fx3_control[00]; // FX3 CTL_00 GPIO_17 (output)
+assign GPIO1[21] = fx3_control[03];	// FX3 CTL_03 GPIO_20 (output)
+assign GPIO1[19] = fx3_control[04];	// FX3 CTL_04 GPIO_21 (output)
+assign GPIO1[05] = fx3_control[11];	// FX3 CTL_11 GPIO_28 (output)
+assign GPIO1[03] = fx3_control[12];	// FX3 CTL_12 GPIO_29 (output)
+
+// 13-bit control bus physical mapping (inputs)
 assign fx3_control[01] = GPIO1[25];	// FX3 CTL_01 GPIO_18
 assign fx3_control[02] = GPIO1[23];	// FX3 CTL_02 GPIO_19
-assign fx3_control[03] = GPIO1[21];	// FX3 CTL_03 GPIO_20
-assign GPIO1[19] = fx3_control[04];	// FX3 CTL_04 GPIO_21 (output)
 assign fx3_control[05] = GPIO1[17];	// FX3 CTL_05 GPIO_22
 assign fx3_control[06] = GPIO1[15];	// FX3 CTL_06 GPIO_23
 assign fx3_control[07] = GPIO1[13];	// FX3 CTL_07 GPIO_24
 assign fx3_control[08] = GPIO1[11];	// FX3 CTL_08 GPIO_25
 assign fx3_control[09] = GPIO1[09];	// FX3 CTL_09 GPIO_26
 assign fx3_control[10] = GPIO1[07];	// FX3 CTL_10 GPIO_27
-assign fx3_control[11] = GPIO1[05];	// FX3 CTL_11 GPIO_28
-assign fx3_control[12] = GPIO1[03];	// FX3 CTL_12 GPIO_29
 
 // FX3 Signal mapping:
 //
 // CLK					GPIO16		PCLK		Output	- Data clock
-// dataAvailable		GPIO_17		CTL_00	Output	- FPGA signals if data is available for reading
-// bufferError			GPIO_21		CTL_04	Output	- FPGA signals buffering error
 // Databus				GPIO0:15					Output	- Databus
+// dataAvailable		GPIO_17		CTL_00	Output	- FPGA signals if data is available for reading
 // nReset				GPIO_27		CTL_10	Input		- FX3 signals (not) reset condition
 // collectData			GPIO_19		CTL_02	Input		- FX3 signals data collection on/off
 // readData				GPIO_18		CTL_01	Input		- FX3 signals it is reading from the databus
-// testMode				GPIO_20		CTL_03	Input		- FX3 signals test mode on/off
 
+// input0				GPIO_20		CTL_03	Output	- Buffer error flag from FPGA
+// input1				GPIO_21		CTL_04	Output	- Unused
+// input2				GPIO_28		CTL_11	Output	- Unused
+// input3				GPIO_29		CTL_12	Output	- Unused
+
+// outputE0				GPIO_22		CTL_05	Input		- FX3 Configuration bit 0 (Test mode off/on)
+// outputD0				GPIO_23		CTL_06	Input		- FX3 Configuration bit 1 (NTSC sampling/PAL sampling)
+// outputD1				GPIO_24		CTL_07	Input		- FX3 Configuration bit 2 (DC offset compensation off/on)
+// outputD2				GPIO_25		CTL_08	Input		- FX3 Configuration bit 3 (Unused)
+// outputD3				GPIO_26		CTL_09	Input		- FX3 Configuration bit 4 (Unused)
 
 // Wire definitions for FX3 GPIO mapping
 wire fx3_nReset;
@@ -113,14 +123,23 @@ wire fx3_testMode;
 wire fx3_bufferError;
 
 // Signal outputs to FX3
-assign fx3_control[00] = fx3_dataAvailable;
-assign fx3_control[04] = fx3_bufferError;
+assign fx3_control[00] 		= fx3_dataAvailable;
+assign fx3_control[03] 		= fx3_bufferError;
+//assign fx3_control[04]	= fx3_unusedInput1;
+//assign fx3_control[11]	= fx3_unusedInput2;
+//assign fx3_control[12]	= fx3_unusedInput3;
 
 // Signal inputs from FX3
 assign fx3_nReset      = fx3_control[10];
 assign fx3_collectData = fx3_control[02];
 assign fx3_readData    = fx3_control[01];
-assign fx3_testMode    = fx3_control[03];
+
+// Signal inputs from FX3 (configuration bits)
+assign fx3_testMode    		= fx3_control[05];
+assign fx3_samplingMode    = fx3_control[06];
+assign fx3_dcOffsetMode 	= fx3_control[07];
+//assign fx3_configBit3		= fx3_control[07];
+//assign fx3_configBit4 	= fx3_control[07];
 
 // FX3 Hardware mapping ends --------------------------------------------------
 
@@ -128,7 +147,6 @@ assign fx3_testMode    = fx3_control[03];
 // ADC Hardware mapping begins ------------------------------------------------
 
 wire [9:0]adcData;
-wire adc_clock;
 
 // 10-bit databus from ADC
 assign adcData[0] = GPIO0[32];
@@ -143,7 +161,8 @@ assign adcData[8] = GPIO0[24];
 assign adcData[9] = GPIO0[23];
 
 // ADC clock output
-assign GPIO0[33] = adc_clock;
+// Select the correct sampling clock based on the configuration
+assign GPIO0[33] = (fx3_samplingMode) ? PalAdc_clock : NtscAdc_clock;
 
 // ADC Hardware mapping ends --------------------------------------------------
 
@@ -151,17 +170,33 @@ assign GPIO0[33] = adc_clock;
 // Application logic begins ---------------------------------------------------
 
 
-// PLL Function (clock generation) --------------------------------------------
-//
-// fx3_clock is 64 MHz (also used as system clock)
-// adc_clock is 32 MHz
+// PLL Functions (clock generation) --------------------------------------------
+
+// Generate 80 MHz FX3/FPGA system clock from the 50 MHz physical clock
 IPpllGenerator IPpllGenerator0 (
 	// Inputs
 	.inclk0(CLOCK_50),
 	
 	// Outputs
-	.c0(fx3_clock),	// 64 MHz clock
-	.c1(adc_clock)		// 32 MHz clock
+	.c0(fx3_clock)		// 80 MHz system clock
+);
+
+// Generate 28.63632 MHz NTSC sampling clock from the 50 MHz physical clock
+ntscPll ntscPll0 (
+	// Inputs
+	.inclk0(CLOCK_50),
+	
+	// Outputs
+	.c0(NtscAdc_clock)		// 28.63632 MHz NTSC sampling clock (actual 28.636364 MHz)
+);
+
+// Generate 35.46895 MHz PAL sampling clock from the 50 MHz physical clock
+palPll palPll0 (
+	// Inputs
+	.inclk0(CLOCK_50),
+	
+	// Outputs
+	.c0(PalAdc_clock)		// 35.46895 MHz PAL sampling clock (actual 35.470085 MHz)
 );
 
 wire fx3isReading;
@@ -170,11 +205,14 @@ wire fx3isReading;
 dataGenerator dataGenerator0 (
 	// Inputs
 	.nReset(fx3_nReset),						// Not reset
-	.adcClk(adc_clock),						// Data collection clock (ADC)
+	.NtscAdcClk(NtscAdc_clock),			// Data collection clock (NTSC ADC)
+	.PalAdcClk(PalAdc_clock),				// Data collection clock (PAL ADC)
 	.fx3Clk(fx3_clock),						// Data output clock (FX3)
 	.collectData(fx3_collectData),		// Collect data (ADC data is discarded if 0)
 	.readData(fx3isReading),				// 1 = FX3 is reading data
 	.testMode(fx3_testMode),				// 1 = Test mode on
+	.samplingMode(fx3_samplingMode),		// 1 = PAL, 0 = NTSC
+	.dcOffsetComp(fx3_dcOffsetMode),		// 1 = compensation on, 0 = compensation off
 	.adcData(adcData),						// ADC data bus input
 	
 	// Outputs
