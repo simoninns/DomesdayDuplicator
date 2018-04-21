@@ -3,8 +3,8 @@
 	convertTenToSixteenBits.v
 	ADC data conversion module
 	
-	DomesdayDuplicator - LaserDisc RF sampler
-	Copyright (C) 2017 Simon Inns
+	Domesday Duplicator - LaserDisc RF sampler
+	Copyright (C) 2018 Simon Inns
 	
 	This file is part of Domesday Duplicator.
 	
