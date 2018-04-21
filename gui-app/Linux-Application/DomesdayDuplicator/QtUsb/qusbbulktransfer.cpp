@@ -38,11 +38,11 @@ static void testDiskBuffer(quint32 diskBufferNumber);
 // transfer callback
 
 // Private variables used to control the transfer callbacks
-static quint32 transfersInFlight;       // Number of transfers that are in progress
-static bool stopUsbTransfers;           // USB transfer stop flag
-static bool stopDiskTransfers;          // Disk transfer stop flag
-static bool diskTransferRunning;        // Disk transfers running flag
-static bool bufferFlushComplete;        // Flag for initial FIFO 'buffer flush'
+static volatile quint32 transfersInFlight;       // Number of transfers that are in progress
+static volatile bool stopUsbTransfers;           // USB transfer stop flag
+static volatile bool stopDiskTransfers;          // Disk transfer stop flag
+static volatile bool diskTransferRunning;        // Disk transfers running flag
+static volatile bool bufferFlushComplete;        // Flag for initial FIFO 'buffer flush'
 
 // Note: The 'buffer flush' functionality throws away the data from the first queue
 // of USB transfers.  This is required as the FPGA FIFO will overflow before data
@@ -70,7 +70,7 @@ struct statisticsStruct {
 static statisticsStruct statistics;
 
 // Flag to show if transfer is in progress
-bool transferRunning;
+volatile bool transferRunning;
 
 // Notes:
 //
@@ -114,13 +114,13 @@ bool transferRunning;
 #define NUMBER_OF_DISK_BUFFERS 4
 
 // FPGA test mode status flag
-static bool testModeFlag;
+static volatile bool testModeFlag;
 
 // Disk buffer variables
 static unsigned char **diskDataBuffers = NULL; // List of disk data buffers
-static quint32 numberOfDiskBuffers;
-static quint32 queueBuffersPerDiskBuffer;
-static bool diskBufferStatus[NUMBER_OF_DISK_BUFFERS];
+static volatile quint32 numberOfDiskBuffers;
+static volatile quint32 queueBuffersPerDiskBuffer;
+static volatile bool diskBufferStatus[NUMBER_OF_DISK_BUFFERS];
 
 // Disk IO
 static QFile* outputFile;

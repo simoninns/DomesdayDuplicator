@@ -4,7 +4,7 @@
 
     QT GUI Capture application for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2017 Simon Inns
+    Copyright (C) 2018 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -124,6 +124,7 @@ void serialPortSelectDialog::updateSettings()
     }
 
     // Emit a signal indicating that the serial configuration has changed
+    qDebug() << "serialPortSelectDialog::updateSettings(): Emitting serial port changed signal";
     emit serialPortChanged();
 }
 
@@ -136,7 +137,7 @@ void serialPortSelectDialog::on_buttonBox_accepted()
 
 void serialPortSelectDialog::showEvent(QShowEvent *e)
 {
-    qDebug() << "serialPortSelectDialog::showEvent(): Event triggered";
+    qDebug() << "serialPortSelectDialog::showEvent(): Event triggered" << e;
 
     // Update the available serial ports
     fillPortsInfo();

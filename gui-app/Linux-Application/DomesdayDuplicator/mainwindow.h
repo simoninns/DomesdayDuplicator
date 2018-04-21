@@ -4,7 +4,7 @@
 
     QT GUI Capture application for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2017 Simon Inns
+    Copyright (C) 2018 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -59,9 +59,12 @@ public:
     ~MainWindow();
 
 public slots:
-    void usbStatusChanged(bool usbStatus);
+    void usbStatusChanged(bool statusFlag);
 
 private slots:
+    void updateGui();
+    void showError(QString errorTitle, QString errorMessage);
+
     void on_actionAbout_triggered();
     void on_actionSave_As_triggered();
     void on_actionQuit_triggered();
@@ -70,30 +73,32 @@ private slots:
     void startTransfer(void);
     void stopTransfer(void);
     void updateCaptureInfo(void);
+    void updateUsbDeviceConfiguration(void);
 
     void on_testModeCheckBox_toggled(bool checked);
     void on_actionSelect_player_COM_port_triggered();
     void on_actionShow_player_control_triggered();
+    void on_cavLeadInCheckBox_toggled(bool checked);
+    void on_clvLeadInCheckBox_toggled(bool checked);
+    void on_cavCapturePushButton_clicked();
+    void on_clvCapturePushButton_clicked();
+    void on_ntscRadioButton_toggled(bool checked);
+    void on_palRadioButton_toggled(bool checked);
+    void on_dcOffsetCheckBox_toggled(bool checked);
 
     void serialPortStatusChange(void);
     void updatePlayerControlInfo(void);
-
     void handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32);
-
-    void on_cavLeadInCheckBox_toggled(bool checked);
-    void on_clvLeadInCheckBox_toggled(bool checked);
 
     void cavPicPoll(void);
     void clvPicPoll(void);
-
-    void on_cavCapturePushButton_clicked();
-    void on_clvCapturePushButton_clicked();
 
 private:
     Ui::MainWindow *ui;
 
     usbDevice *domDupUsbDevice;
-    QLabel *status;
+    QLabel *usbStatusLabel;
+    QLabel *serialStatusLabel;
     bool captureFlag;
 
     QTimer* captureTimer;
