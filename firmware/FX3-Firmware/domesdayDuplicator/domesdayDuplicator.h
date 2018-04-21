@@ -4,7 +4,7 @@
 
 	FX3 Firmware main functions
 	DomesdayDuplicator - LaserDisc RF sampler
-	Copyright (C) 2017 Simon Inns
+	Copyright (C) 2018 Simon Inns
 
 	This file is part of Domesday Duplicator.
 
