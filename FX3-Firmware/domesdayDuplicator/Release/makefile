@@ -35,7 +35,7 @@ all: domesdayDuplicator.elf secondary-outputs
 domesdayDuplicator.elf: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross ARM C Linker'
-	arm-none-eabi-gcc -mcpu=arm926ej-s -mthumb -O0 -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -Wall  -g3 -T "/home/sdi/Cypress/cyfx3sdk/fw_build/fx3_fw/fx3.ld" -nostartfiles -Xlinker --gc-sections -L"/home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_debug" -Wl,-Map,"domesdayDuplicator.map" -Wl,-d -Wl,--no-wchar-size-warning -Wl,--entry,CyU3PFirmwareEntry -o "domesdayDuplicator.elf" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-none-eabi-gcc -mcpu=arm926ej-s -mthumb -O3 -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -Wall  -g -T "/home/sdi/Cypress/cyfx3sdk/fw_build/fx3_fw/fx3.ld" -nostartfiles -Xlinker --gc-sections -L"/home/sdi/Cypress/cyfx3sdk/fw_lib/1_3_3/fx3_release" -Wl,-Map,"domesdayDuplicator.map" -Wl,-d -Wl,--no-wchar-size-warning -Wl,--entry,CyU3PFirmwareEntry -o "domesdayDuplicator.elf" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 	$(MAKE) --no-print-directory post-build

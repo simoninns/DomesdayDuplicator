@@ -4,7 +4,7 @@
 
 	FX3 Firmware main functions
 	DomesdayDuplicator - LaserDisc RF sampler
-	Copyright (C) 2017 Simon Inns
+	Copyright (C) 2018 Simon Inns
 
 	This file is part of Domesday Duplicator.
 
@@ -48,8 +48,15 @@ CyU3PDmaMultiChannel glDmaMultiChHandle; // DMA multi-channel handle
 CyBool_t glIsApplnActive = CyFalse; // Application active/ready flag
 CyBool_t glForceLinkU2 = CyFalse; // Force U2 flag
 
-volatile CyBool_t bufferErrorFlag = CyFalse; // Buffer over/under-run error flag
-CyBool_t bufferErrorDisplayFlag = CyFalse; // Buffer over/under-run error display flag
+volatile CyBool_t input0Flag = CyFalse; // Input 0 set flag
+volatile CyBool_t input1Flag = CyFalse; // Input 1 set flag
+volatile CyBool_t input2Flag = CyFalse; // Input 2 set flag
+volatile CyBool_t input3Flag = CyFalse; // Input 3 set flag
+
+CyBool_t input0HandledFlag = CyFalse; // Input 0 set condition handled flag
+CyBool_t input1HandledFlag = CyFalse; // Input 1 set condition handled flag
+CyBool_t input2HandledFlag = CyFalse; // Input 2 set condition handled flag
+CyBool_t input3HandledFlag = CyFalse; // Input 3 set condition handled flag
 
 volatile CyBool_t dataCollectionFlag = CyFalse; // Flag to show if the host application is collecting data
 
@@ -124,22 +131,6 @@ int main(void)
 		goto handleFatalError;
 	}
 
-	// Claim GPIO27 from the GPIF Interface (nRESET signal)
-	status = CyU3PDeviceGpioOverride(27, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Bring the FPGA out of reset by driving nRESET/GPIO27 high
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyTrue;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(27, &gpioConfig);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
 	// Claim GPIO19 from the GPIF Interface (collectData signal)
 	status = CyU3PDeviceGpioOverride(19, CyTrue);
 	if (status != CY_U3P_SUCCESS) {
@@ -156,29 +147,50 @@ int main(void)
 		goto handleFatalError;
 	}
 
-	// Claim GPIO20 from the GPIF Interface (testMode signal)
+	// Claim GPIO27 from the GPIF Interface (nRESET signal)
+	status = CyU3PDeviceGpioOverride(27, CyTrue);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Bring the FPGA out of reset by driving nRESET/GPIO27 high
+	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+	gpioConfig.outValue = CyTrue;
+	gpioConfig.driveLowEn = CyTrue;
+	gpioConfig.driveHighEn = CyTrue;
+	status = CyU3PGpioSetSimpleConfig(27, &gpioConfig);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Generic input signals from FPGA (GPIO 20, 21, 28 and 29) -------------------------------------------------------
+
+	// Claim GPIO20 from the GPIF Interface (input0)
 	status = CyU3PDeviceGpioOverride(20, CyTrue);
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
 	}
 
-	// Put the FPGA in not test mode by driving GPIO20 low
+	// Configure as input
 	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
+	gpioConfig.outValue = CyTrue;
+	gpioConfig.driveLowEn = CyFalse;
+	gpioConfig.driveHighEn = CyFalse;
+	gpioConfig.inputEn = CyTrue;
+	gpioConfig.intrMode = CY_U3P_GPIO_INTR_POS_EDGE;
+
 	status = CyU3PGpioSetSimpleConfig(20, &gpioConfig);
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
 	}
 
-	// Claim GPIO21 from the GPIF Interface (bufferError signal)
+	// Claim GPIO21 from the GPIF Interface (input1)
 	status = CyU3PDeviceGpioOverride(21, CyTrue);
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
 	}
 
-	// Configure GPIO21 as an input (bufferError signal)
+	// Configure as input
 	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
 	gpioConfig.outValue = CyTrue;
 	gpioConfig.driveLowEn = CyFalse;
@@ -191,7 +203,128 @@ int main(void)
 		goto handleFatalError;
 	}
 
-    // Initialise the RTOS kernel
+	// Claim GPIO28 from the GPIF Interface (input2)
+	status = CyU3PDeviceGpioOverride(28, CyTrue);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Configure as input
+	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+	gpioConfig.outValue = CyTrue;
+	gpioConfig.driveLowEn = CyFalse;
+	gpioConfig.driveHighEn = CyFalse;
+	gpioConfig.inputEn = CyTrue;
+	gpioConfig.intrMode = CY_U3P_GPIO_INTR_POS_EDGE;
+
+	status = CyU3PGpioSetSimpleConfig(28, &gpioConfig);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Claim GPIO29 from the GPIF Interface (input3)
+	status = CyU3PDeviceGpioOverride(29, CyTrue);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Configure as input
+	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+	gpioConfig.outValue = CyTrue;
+	gpioConfig.driveLowEn = CyFalse;
+	gpioConfig.driveHighEn = CyFalse;
+	gpioConfig.inputEn = CyTrue;
+	gpioConfig.intrMode = CY_U3P_GPIO_INTR_POS_EDGE;
+
+	status = CyU3PGpioSetSimpleConfig(29, &gpioConfig);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Generic output signals to FPGA (GPIO 22 (early), 23 (delayed), -------------------------------------------------
+	// 24 (delayed), 25 (delayed), 26 (delayed))
+
+	// Claim GPIO22 from the GPIF Interface (outputE0)
+	status = CyU3PDeviceGpioOverride(22, CyTrue);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Drive pin low
+	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+	gpioConfig.outValue = CyFalse;
+	gpioConfig.driveLowEn = CyTrue;
+	gpioConfig.driveHighEn = CyTrue;
+	status = CyU3PGpioSetSimpleConfig(22, &gpioConfig);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Claim GPIO23 from the GPIF Interface (outputD0)
+	status = CyU3PDeviceGpioOverride(23, CyTrue);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Drive pin low
+	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+	gpioConfig.outValue = CyFalse;
+	gpioConfig.driveLowEn = CyTrue;
+	gpioConfig.driveHighEn = CyTrue;
+	status = CyU3PGpioSetSimpleConfig(23, &gpioConfig);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Claim GPIO24 from the GPIF Interface (outputD1)
+	status = CyU3PDeviceGpioOverride(24, CyTrue);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Drive pin low
+	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+	gpioConfig.outValue = CyFalse;
+	gpioConfig.driveLowEn = CyTrue;
+	gpioConfig.driveHighEn = CyTrue;
+	status = CyU3PGpioSetSimpleConfig(24, &gpioConfig);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Claim GPIO25 from the GPIF Interface (outputD2)
+	status = CyU3PDeviceGpioOverride(25, CyTrue);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Drive pin low
+	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+	gpioConfig.outValue = CyFalse;
+	gpioConfig.driveLowEn = CyTrue;
+	gpioConfig.driveHighEn = CyTrue;
+	status = CyU3PGpioSetSimpleConfig(25, &gpioConfig);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Claim GPIO26 from the GPIF Interface (outputD3)
+	status = CyU3PDeviceGpioOverride(26, CyTrue);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+	// Drive pin low
+	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
+	gpioConfig.outValue = CyFalse;
+	gpioConfig.driveLowEn = CyTrue;
+	gpioConfig.driveHighEn = CyTrue;
+	status = CyU3PGpioSetSimpleConfig(26, &gpioConfig);
+	if (status != CY_U3P_SUCCESS) {
+		goto handleFatalError;
+	}
+
+    // Initialise the RTOS kernel -------------------------------------------------------------------------------------
     CyU3PKernelEntry();
 
     return 0;
@@ -211,8 +344,8 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware - Build 0056\r\n");
-    CyU3PDebugPrint(1, "(c)2017 Simon Inns - http://www.domesday86.com\r\n\r\n");
+    CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware - Build 0061\r\n");
+    CyU3PDebugPrint(1, "(c)2018 Simon Inns - https://www.domesday86.com\r\n\r\n");
     CyU3PDebugPrint(1, "domDupThreadInitialise(): Debug console initialised\r\n");
 
     // Initialise the application
@@ -242,14 +375,41 @@ void domDupThreadInitialise(uint32_t input)
             }
         }
 
-        // Process the buffer error flag (generate via GPIO interrupt)
-        if (bufferErrorFlag) {
-        	// Ensure we only output the debug once per capture
-        	if (!bufferErrorDisplayFlag) {
-        		bufferErrorDisplayFlag = CyTrue;
-        		CyU3PDebugPrint(4, "domDupThreadInitialise(): bufferError flagged by FPGA\r\n");
+        // Process the input0 flag (generated via GPIO interrupt)
+        if (input0Flag) {
+        	// Ensure we only output the debug once
+        	if (!input0HandledFlag) {
+        		input0HandledFlag = CyTrue;
+        		CyU3PDebugPrint(4, "domDupThreadInitialise(): input0 set by the FPGA\r\n");
         	}
         }
+
+        // Process the input1 flag (generated via GPIO interrupt)
+		if (input1Flag) {
+			// Ensure we only output the debug once
+			if (!input1HandledFlag) {
+				input1HandledFlag = CyTrue;
+				CyU3PDebugPrint(4, "domDupThreadInitialise(): input1 set by the FPGA\r\n");
+			}
+		}
+
+		// Process the input2 flag (generated via GPIO interrupt)
+		if (input2Flag) {
+			// Ensure we only output the debug once
+			if (!input2HandledFlag) {
+				input2HandledFlag = CyTrue;
+				CyU3PDebugPrint(4, "domDupThreadInitialise(): input2 set by the FPGA\r\n");
+			}
+		}
+
+		// Process the input3 flag (generated via GPIO interrupt)
+		if (input3Flag) {
+			// Ensure we only output the debug once
+			if (!input3HandledFlag) {
+				input3HandledFlag = CyTrue;
+				CyU3PDebugPrint(4, "domDupThreadInitialise(): input3 set by the FPGA\r\n");
+			}
+		}
     }
 }
 
@@ -636,9 +796,15 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: Start data collection\r\n");
 					CyU3PGpioSetValue(19, CyTrue); // collectData GPIO high
 
-					// Clear the FPGA buffer error flag
-					bufferErrorFlag = CyFalse;
-					bufferErrorDisplayFlag = CyFalse;
+					// Clear the input flags
+					input0Flag = CyFalse;
+					input1Flag = CyFalse;
+					input2Flag = CyFalse;
+					input3Flag = CyFalse;
+					input0HandledFlag = CyFalse;
+					input1HandledFlag = CyFalse;
+					input2HandledFlag = CyFalse;
+					input3HandledFlag = CyFalse;
 
 					// Flag that the host is collecting data
 					dataCollectionFlag = CyTrue;
@@ -652,24 +818,67 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 					// Flag that the host is not collecting data
 					dataCollectionFlag = CyFalse;
 
-					// Clear the FPGA buffer error flag
-					bufferErrorFlag = CyFalse;
-					bufferErrorDisplayFlag = CyFalse;
+					// Clear the input flags
+					input0Flag = CyFalse;
+					input1Flag = CyFalse;
+					input2Flag = CyFalse;
+					input3Flag = CyFalse;
+					input0HandledFlag = CyFalse;
+					input1HandledFlag = CyFalse;
+					input2HandledFlag = CyFalse;
+					input3HandledFlag = CyFalse;
 				}
 			}
 
-			// Handle vendor request for test mode
+			// Handle vendor request for configuration 0xB6
+			//
+			// The passed wValue is interpreted as a bit flag and causes
+			// GPIOs 22 to 26 to be set according to bits 0-4 (bits 5 to 7
+			// are ignored).
 			if (bRequest == 0xB6) {
-				if (wValue == 0) {
-					// Signal FPGA with test mode off
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: Test mode off\r\n");
-					CyU3PGpioSetValue(20, CyFalse); // testMode GPIO low
+				// Check bit 0 (GPIO 22)
+				if ((wValue & 0x01) != 0) {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 0 = GPIO22 High\r\n");
+					CyU3PGpioSetValue(22, CyTrue); // GPIO high
+				} else {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 0 = GPIO22 Low\r\n");
+					CyU3PGpioSetValue(22, CyFalse); // GPIO Low
 				}
 
-				if (wValue == 1) {
-					// Signal FPGA with test mode on
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: Test mode on\r\n");
-					CyU3PGpioSetValue(20, CyTrue); // testMode GPIO high
+				// Check bit 1 (GPIO 23)
+				if ((wValue & 0x02) != 0) {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 1 = GPIO23 High\r\n");
+					CyU3PGpioSetValue(23, CyTrue); // GPIO high
+				} else {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 1 = GPIO23 Low\r\n");
+					CyU3PGpioSetValue(23, CyFalse); // GPIO Low
+				}
+
+				// Check bit 2 (GPIO 24)
+				if ((wValue & 0x04) != 0) {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 2 = GPIO24 High\r\n");
+					CyU3PGpioSetValue(24, CyTrue); // GPIO high
+				} else {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 2 = GPIO24 Low\r\n");
+					CyU3PGpioSetValue(24, CyFalse); // GPIO Low
+				}
+
+				// Check bit 3 (GPIO 25)
+				if ((wValue & 0x08) != 0) {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 3 = GPIO25 High\r\n");
+					CyU3PGpioSetValue(25, CyTrue); // GPIO high
+				} else {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 3 = GPIO25 Low\r\n");
+					CyU3PGpioSetValue(25, CyFalse); // GPIO Low
+				}
+
+				// Check bit 4 (GPIO 26)
+				if ((wValue & 0x10) != 0) {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 4 = GPIO26 High\r\n");
+					CyU3PGpioSetValue(26, CyTrue); // GPIO high
+				} else {
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 4 = GPIO26 Low\r\n");
+					CyU3PGpioSetValue(26, CyFalse); // GPIO Low
 				}
 			}
 
@@ -780,12 +989,36 @@ void gpioInterruptCallback(uint8_t gpioTriggerPin)
     // Get the status of the pin (that caused the interrupt)
     apiReturnStatus = CyU3PGpioGetValue(gpioTriggerPin, &gpioValue);
     if (apiReturnStatus == CY_U3P_SUCCESS) {
-        // GPIO21 is the FPGA error flag
+    	// Generic input signals from FPGA (GPIO 20, 21, 28 and 29)
+        if (gpioTriggerPin == 20) {
+        	if (gpioValue == CyTrue) {
+        		if (dataCollectionFlag) input0Flag = CyTrue;
+        	} else {
+        		input0Flag = CyFalse;
+        	}
+        }
+
         if (gpioTriggerPin == 21) {
         	if (gpioValue == CyTrue) {
-        		if (dataCollectionFlag) bufferErrorFlag = CyTrue;
+        		if (dataCollectionFlag) input1Flag = CyTrue;
         	} else {
-        		bufferErrorFlag = CyFalse;
+        		input1Flag = CyFalse;
+        	}
+        }
+
+        if (gpioTriggerPin == 28) {
+        	if (gpioValue == CyTrue) {
+        		if (dataCollectionFlag) input2Flag = CyTrue;
+        	} else {
+        		input2Flag = CyFalse;
+        	}
+        }
+
+        if (gpioTriggerPin == 29) {
+        	if (gpioValue == CyTrue) {
+        		if (dataCollectionFlag) input3Flag = CyTrue;
+        	} else {
+        		input3Flag = CyFalse;
         	}
         }
     }
