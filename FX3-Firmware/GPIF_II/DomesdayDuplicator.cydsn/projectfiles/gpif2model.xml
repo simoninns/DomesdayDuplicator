@@ -47,21 +47,63 @@
       <Polarity>ActiveHigh</Polarity>
     </Signal>
     <Signal ElementId="OUTPUT3" SignalType="Output" SpecialFunction="None">
-      <DisplayName>testMode</DisplayName>
-      <GPIOPinNumber>GPIO_20</GPIOPinNumber>
+      <DisplayName>outputE0</DisplayName>
+      <GPIOPinNumber>GPIO_22</GPIOPinNumber>
       <IntialValue>Low</IntialValue>
       <Polarity>ActiveHigh</Polarity>
       <Delay>Alpha</Delay>
       <AssetionType>Assert</AssetionType>
     </Signal>
     <Signal ElementId="INPUT1" SignalType="Input" SpecialFunction="None">
-      <DisplayName>bufferError</DisplayName>
-      <GPIOPinNumber>GPIO_21</GPIOPinNumber>
+      <DisplayName>input0</DisplayName>
+      <GPIOPinNumber>GPIO_20</GPIOPinNumber>
       <Polarity>ActiveHigh</Polarity>
     </Signal>
     <Signal ElementId="INPUT2" SignalType="Input" SpecialFunction="None">
-      <DisplayName>GPIO_22_CTL05</DisplayName>
-      <GPIOPinNumber>GPIO_22</GPIOPinNumber>
+      <DisplayName>input1</DisplayName>
+      <GPIOPinNumber>GPIO_21</GPIOPinNumber>
+      <Polarity>ActiveHigh</Polarity>
+    </Signal>
+    <Signal ElementId="OUTPUT4" SignalType="Output" SpecialFunction="None">
+      <DisplayName>outputD0</DisplayName>
+      <GPIOPinNumber>GPIO_23</GPIOPinNumber>
+      <IntialValue>Low</IntialValue>
+      <Polarity>ActiveHigh</Polarity>
+      <Delay>Beta</Delay>
+      <AssetionType>Assert</AssetionType>
+    </Signal>
+    <Signal ElementId="OUTPUT5" SignalType="Output" SpecialFunction="None">
+      <DisplayName>outputD1</DisplayName>
+      <GPIOPinNumber>GPIO_24</GPIOPinNumber>
+      <IntialValue>Low</IntialValue>
+      <Polarity>ActiveHigh</Polarity>
+      <Delay>Beta</Delay>
+      <AssetionType>Assert</AssetionType>
+    </Signal>
+    <Signal ElementId="OUTPUT6" SignalType="Output" SpecialFunction="None">
+      <DisplayName>outputD2</DisplayName>
+      <GPIOPinNumber>GPIO_25</GPIOPinNumber>
+      <IntialValue>Low</IntialValue>
+      <Polarity>ActiveHigh</Polarity>
+      <Delay>Beta</Delay>
+      <AssetionType>Assert</AssetionType>
+    </Signal>
+    <Signal ElementId="OUTPUT7" SignalType="Output" SpecialFunction="None">
+      <DisplayName>outputD3</DisplayName>
+      <GPIOPinNumber>GPIO_26</GPIOPinNumber>
+      <IntialValue>Low</IntialValue>
+      <Polarity>ActiveHigh</Polarity>
+      <Delay>Beta</Delay>
+      <AssetionType>Assert</AssetionType>
+    </Signal>
+    <Signal ElementId="INPUT3" SignalType="Input" SpecialFunction="None">
+      <DisplayName>input2</DisplayName>
+      <GPIOPinNumber>GPIO_28</GPIOPinNumber>
+      <Polarity>ActiveHigh</Polarity>
+    </Signal>
+    <Signal ElementId="INPUT4" SignalType="Input" SpecialFunction="None">
+      <DisplayName>input3</DisplayName>
+      <GPIOPinNumber>GPIO_29</GPIOPinNumber>
       <Polarity>ActiveHigh</Polarity>
     </Signal>
   </Signals>

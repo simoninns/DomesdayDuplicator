@@ -4,7 +4,7 @@
 
     QT GUI Capture application for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2017 Simon Inns
+    Copyright (C) 2018 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -75,10 +75,6 @@ public:
     bool isLastCommandError(void);
 
     void command(PlayerCommands command, quint32 parameter);
-
-signals:
-    void startCapture(void);
-    void stopCapture(void);
 };
 
 #endif // LVDPCONTROL_H

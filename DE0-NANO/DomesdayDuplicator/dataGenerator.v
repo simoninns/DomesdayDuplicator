@@ -3,8 +3,8 @@
 	dataGeneration.v
 	Data generation module
 	
-	DomesdayDuplicator - LaserDisc RF sampler
-	Copyright (C) 2017 Simon Inns
+	Domesday Duplicator - LaserDisc RF sampler
+	Copyright (C) 2018 Simon Inns
 	
 	This file is part of Domesday Duplicator.
 	
@@ -26,17 +26,23 @@
 
 module dataGenerator (
 	input nReset,
-	input adcClk,
+	input NtscAdcClk,
+	input PalAdcClk,
 	input fx3Clk,
 	input collectData,
 	input readData,
 	input testMode,
+	input samplingMode,
+	input dcOffsetComp,
 	input [9:0] adcData,
 	
 	output bufferError,
 	output dataAvailable,
 	output [15:0] dataOut
 );
+
+// Select the correct sampling clock based on the configuration
+assign samplingClock = (samplingMode) ? PalAdcClk : NtscAdcClk;
 
 // Convert the 10-bit unsigned data from the FIFO
 // to 16-bit signed data ready for the FX3 data bus
@@ -64,7 +70,7 @@ IPfifo IPfifo0 (
 	.data(adcDataRead),		// [9:0] data in
 	.rdclk(fx3Clk),			// FX3 clock
 	.rdreq(readData),			// Read request
-	.wrclk(adcClk),			// ADC clock
+	.wrclk(!samplingClock),	// ADC clock (negative edge)
 	.wrreq(collectData),		// Write request
 	
 	.q(fifoDataOut),			// [9:0] Data output
@@ -81,7 +87,7 @@ reg [9:0] testData;
 reg [9:0] adcDataRead;
 
 // Collect data on the negative edge of the ADC clock
-always @ (negedge adcClk, negedge nReset) begin
+always @ (negedge samplingClock, negedge nReset) begin
 	if (!nReset) begin
 		testData = 10'd0;
 	end else begin
@@ -95,8 +101,13 @@ always @ (negedge adcClk, negedge nReset) begin
 				adcDataRead = testData;
 			end else begin
 				// We are in normal mode, use the ADC data bus
-				// Note: Here we correct the DC offset (see project notes for details)
-				adcDataRead = adcData - 10'd65;;
+				if (dcOffsetComp) begin
+					// Note: Here we correct the DC offset (see project notes for details)
+					// Only required for revision 2_0 Domesday Duplicator boards
+					adcDataRead = adcData - 10'd65;;
+				end else begin
+					adcDataRead = adcData;
+				end
 			end
 		end
 	end

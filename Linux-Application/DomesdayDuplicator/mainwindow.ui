@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>720</width>
-    <height>350</height>
+    <height>430</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,89 +19,31 @@
   <property name="minimumSize">
    <size>
     <width>720</width>
-    <height>350</height>
+    <height>430</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>720</width>
-    <height>400</height>
+    <height>430</height>
    </size>
+  </property>
+  <property name="font">
+   <font>
+    <pointsize>10</pointsize>
+   </font>
   </property>
   <property name="windowTitle">
    <string>Domesday Duplicator</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <widget class="QWidget" name="horizontalLayoutWidget">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>260</y>
-      <width>341</width>
-      <height>41</height>
-     </rect>
-    </property>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <property name="sizeConstraint">
-      <enum>QLayout::SetDefaultConstraint</enum>
-     </property>
-     <item>
-      <spacer name="horizontalSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::MinimumExpanding</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="transferPushButton">
-       <property name="enabled">
-        <bool>false</bool>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Dynamic Text</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer_2">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeType">
-        <enum>QSizePolicy::MinimumExpanding</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </widget>
    <widget class="QGroupBox" name="captureGroupBox">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>10</y>
+      <y>90</y>
       <width>341</width>
-      <height>61</height>
+      <height>131</height>
      </rect>
     </property>
     <property name="title">
@@ -165,24 +107,11 @@
       <string>TextLabel</string>
      </property>
     </widget>
-   </widget>
-   <widget class="QGroupBox" name="diskGroupBox">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>80</y>
-      <width>341</width>
-      <height>61</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string>Disk buffer status:</string>
-    </property>
     <widget class="QProgressBar" name="diskBufferProgressBar">
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>30</y>
+       <y>100</y>
        <width>321</width>
        <height>21</height>
       </rect>
@@ -191,37 +120,50 @@
       <number>24</number>
      </property>
     </widget>
+    <widget class="QLabel" name="label">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>80</y>
+       <width>111</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Disc buffer status:</string>
+     </property>
+    </widget>
    </widget>
-   <widget class="QGroupBox" name="testModeGroupBox">
+   <widget class="QGroupBox" name="optionsGroupBox">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>150</y>
+      <x>370</x>
+      <y>90</y>
       <width>341</width>
-      <height>61</height>
+      <height>131</height>
      </rect>
     </property>
     <property name="title">
-     <string>Test data generation:</string>
+     <string>Capture options:</string>
     </property>
     <widget class="QCheckBox" name="testModeCheckBox">
      <property name="geometry">
       <rect>
-       <x>9</x>
-       <y>19</y>
-       <width>161</width>
+       <x>10</x>
+       <y>80</y>
+       <width>321</width>
        <height>21</height>
       </rect>
      </property>
      <property name="text">
-      <string>Generate test data</string>
+      <string>Test data generation (development only)</string>
      </property>
     </widget>
     <widget class="QLabel" name="staticLabel3">
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>40</y>
+       <y>100</y>
        <width>101</width>
        <height>20</height>
       </rect>
@@ -237,8 +179,8 @@
      <property name="geometry">
       <rect>
        <x>110</x>
-       <y>40</y>
-       <width>151</width>
+       <y>100</y>
+       <width>221</width>
        <height>20</height>
       </rect>
      </property>
@@ -246,12 +188,54 @@
       <string>TextLabel</string>
      </property>
     </widget>
+    <widget class="QRadioButton" name="ntscRadioButton">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>321</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>NTSC Capture (28.8 MSPS)</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="palRadioButton">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>40</y>
+       <width>321</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>PAL Capture (35.5 MSPS)</string>
+     </property>
+    </widget>
+    <widget class="QCheckBox" name="dcOffsetCheckBox">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>60</y>
+       <width>321</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>DC Offset compensation (Board 2_0 only)</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QGroupBox" name="cavIntegratedCaptureGroupBox">
     <property name="geometry">
      <rect>
-      <x>370</x>
-      <y>10</y>
+      <x>10</x>
+      <y>240</y>
       <width>341</width>
       <height>141</height>
      </rect>
@@ -371,7 +355,7 @@
     <property name="geometry">
      <rect>
       <x>370</x>
-      <y>160</y>
+      <y>240</y>
       <width>341</width>
       <height>141</height>
      </rect>
@@ -507,6 +491,56 @@
      </property>
     </widget>
    </widget>
+   <widget class="QPushButton" name="transferPushButton">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>40</y>
+      <width>201</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="minimumSize">
+     <size>
+      <width>10</width>
+      <height>10</height>
+     </size>
+    </property>
+    <property name="text">
+     <string>Dynamic Text</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="logo">
+    <property name="geometry">
+     <rect>
+      <x>550</x>
+      <y>10</y>
+      <width>161</width>
+      <height>81</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="pixmap">
+     <pixmap resource="images.qrc">:/logos/Graphics/Domesday Duplicator logo colour 150px.png</pixmap>
+    </property>
+   </widget>
+   <zorder>captureGroupBox</zorder>
+   <zorder>optionsGroupBox</zorder>
+   <zorder>cavIntegratedCaptureGroupBox</zorder>
+   <zorder>clvIntegratedCaptureGroupBox</zorder>
+   <zorder>logo</zorder>
+   <zorder>transferPushButton</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -574,6 +608,8 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <resources/>
+ <resources>
+  <include location="images.qrc"/>
+ </resources>
  <connections/>
 </ui>
