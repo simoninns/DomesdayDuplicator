@@ -43,7 +43,7 @@ encoding utf-8
 Sheet 3 4
 Title "Domesday Duplicator"
 Date "2018-04-15"
-Rev "2.2"
+Rev "2.2.1"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -862,7 +862,7 @@ L R R7
 U 1 1 5AD36B4D
 P 3350 2400
 F 0 "R7" V 3430 2400 50  0000 C CNN
-F 1 "1K62" V 3350 2400 50  0000 C CNN
+F 1 "1K" V 3350 2400 50  0000 C CNN
 F 2 "Resistors_SMD:R_0805" V 3280 2400 50  0001 C CNN
 F 3 "" H 3350 2400 50  0001 C CNN
 	1    3350 2400
@@ -873,7 +873,7 @@ L R R8
 U 1 1 5AD36C19
 P 3850 2400
 F 0 "R8" V 3930 2400 50  0000 C CNN
-F 1 "1K62" V 3850 2400 50  0000 C CNN
+F 1 "1K2" V 3850 2400 50  0000 C CNN
 F 2 "Resistors_SMD:R_0805" V 3780 2400 50  0001 C CNN
 F 3 "" H 3850 2400 50  0001 C CNN
 	1    3850 2400
@@ -905,4 +905,21 @@ Wire Wire Line
 	3600 2800 3700 2800
 Text Notes 3750 1950 0    60   ~ 0
 Note: R7 and R8 are fitted, R9 is not fitted\nFor ~IN~ to CM configuration remove R7 and R8\nand use 0R in R9
+$Comp
+L CP C15
+U 1 1 5AE09781
+P 2650 3750
+F 0 "C15" H 2675 3850 50  0000 L CNN
+F 1 "2.2uF Tant" H 2675 3650 50  0000 L CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 2688 3600 50  0001 C CNN
+F 3 "" H 2650 3750 50  0001 C CNN
+	1    2650 3750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2650 3900 2650 4650
+Connection ~ 2650 4650
+Wire Wire Line
+	2650 3600 2650 2700
+Connection ~ 2650 2700
 $EndSCHEMATC

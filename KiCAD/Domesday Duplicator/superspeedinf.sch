@@ -43,7 +43,7 @@ encoding utf-8
 Sheet 2 4
 Title "Domesday Duplicator"
 Date "2018-04-15"
-Rev "2.2"
+Rev "2.2.1"
 Comp "http://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
