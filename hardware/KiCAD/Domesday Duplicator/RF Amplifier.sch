@@ -42,8 +42,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 4 4
 Title "Domesday Duplicator"
-Date "2018-04-15"
-Rev "2.2.1"
+Date "2018-04-26"
+Rev "2.2.2"
 Comp "http://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -88,7 +88,7 @@ L R R2
 U 1 1 59D27C9C
 P 4900 3100
 F 0 "R2" V 4980 3100 50  0000 C CNN
-F 1 "1K62" V 4900 3100 50  0000 C CNN
+F 1 "1K2" V 4900 3100 50  0000 C CNN
 F 2 "Resistors_SMD:R_0805" V 4830 3100 50  0001 C CNN
 F 3 "" H 4900 3100 50  0001 C CNN
 	1    4900 3100
@@ -99,7 +99,7 @@ L R R3
 U 1 1 59D27D22
 P 4900 3600
 F 0 "R3" V 4980 3600 50  0000 C CNN
-F 1 "1K62" V 4900 3600 50  0000 C CNN
+F 1 "1K2" V 4900 3600 50  0000 C CNN
 F 2 "Resistors_SMD:R_0805" V 4830 3600 50  0001 C CNN
 F 3 "" H 4900 3600 50  0001 C CNN
 	1    4900 3600
