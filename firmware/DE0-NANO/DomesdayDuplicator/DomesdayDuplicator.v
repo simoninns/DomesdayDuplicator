@@ -162,7 +162,7 @@ assign adcData[9] = GPIO0[23];
 
 // ADC clock output
 // Select the correct sampling clock based on the configuration
-assign GPIO0[33] = (fx3_samplingMode) ? PalAdc_clock : NtscAdc_clock;
+assign GPIO0[33] = adc_clock;
 
 // ADC Hardware mapping ends --------------------------------------------------
 
@@ -178,25 +178,8 @@ IPpllGenerator IPpllGenerator0 (
 	.inclk0(CLOCK_50),
 	
 	// Outputs
-	.c0(fx3_clock)		// 80 MHz system clock
-);
-
-// Generate 28.63632 MHz NTSC sampling clock from the 50 MHz physical clock
-ntscPll ntscPll0 (
-	// Inputs
-	.inclk0(CLOCK_50),
-	
-	// Outputs
-	.c0(NtscAdc_clock)		// 28.63632 MHz NTSC sampling clock (actual 28.636364 MHz)
-);
-
-// Generate 35.46895 MHz PAL sampling clock from the 50 MHz physical clock
-palPll palPll0 (
-	// Inputs
-	.inclk0(CLOCK_50),
-	
-	// Outputs
-	.c0(PalAdc_clock)		// 35.46895 MHz PAL sampling clock (actual 35.470085 MHz)
+	.c0(fx3_clock),		// 80 MHz system clock
+	.c1(adc_clock)		// 40 MHz ADC clock (180 degree phase shift from c1)
 );
 
 wire fx3isReading;
@@ -205,13 +188,11 @@ wire fx3isReading;
 dataGenerator dataGenerator0 (
 	// Inputs
 	.nReset(fx3_nReset),						// Not reset
-	.NtscAdcClk(NtscAdc_clock),			// Data collection clock (NTSC ADC)
-	.PalAdcClk(PalAdc_clock),				// Data collection clock (PAL ADC)
-	.fx3Clk(fx3_clock),						// Data output clock (FX3)
+	.adc_clock(adc_clock),					// ADC clock
+	.fx3_clock(fx3_clock),					// FX3 clock
 	.collectData(fx3_collectData),		// Collect data (ADC data is discarded if 0)
 	.readData(fx3isReading),				// 1 = FX3 is reading data
 	.testMode(fx3_testMode),				// 1 = Test mode on
-	.samplingMode(fx3_samplingMode),		// 1 = PAL, 0 = NTSC
 	.dcOffsetComp(fx3_dcOffsetMode),		// 1 = compensation on, 0 = compensation off
 	.adcData(adcData),						// ADC data bus input
 	
@@ -225,7 +206,7 @@ dataGenerator dataGenerator0 (
 fx3StateMachine fx3StateMachine0 (
 	// Inputs
 	.nReset(fx3_nReset),						// Not reset
-	.inclk(fx3_clock),						// Input clock
+	.fx3_clock(fx3_clock),						// Input clock
 	.readData(fx3_readData),				// FX3 is about to start sampling the databus
 	
 	// Output
