@@ -3,23 +3,23 @@ TimeQuest Timing Analyzer Summary
 ------------------------------------------------------------
 
 Type  : Slow 1200mV 85C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 6.115
+Slack : 6.034
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 9.352
+Slack : 10.036
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 0.250
+Slack : 0.273
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 0.358
+Slack : 0.342
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Minimum Pulse Width 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 5.997
+Slack : 5.996
 TNS   : 0.000
 
 Type  : Slow 1200mV 85C Model Minimum Pulse Width 'CLOCK_50'
@@ -31,15 +31,15 @@ Slack : 12.243
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 6.763
+Slack : 6.682
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 9.672
+Slack : 10.294
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 0.244
+Slack : 0.270
 TNS   : 0.000
 
 Type  : Slow 1200mV 0C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
@@ -59,19 +59,19 @@ Slack : 12.243
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 8.779
+Slack : 8.740
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Setup 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 10.501
+Slack : 10.931
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[1]'
-Slack : 0.118
+Slack : 0.128
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Hold 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
-Slack : 0.182
+Slack : 0.177
 TNS   : 0.000
 
 Type  : Fast 1200mV 0C Model Minimum Pulse Width 'IPpllGenerator0|altpll_component|auto_generated|pll1|clk[0]'
