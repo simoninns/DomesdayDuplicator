@@ -637,8 +637,8 @@ void MainWindow::cavPicPoll(void)
     cavPicCurrentState = cavPicNextState;
 
     // Get the start and end frame positions
-    quint32 startFrame = ui->startFrameLineEdit->text().toUInt();
-    quint32 endFrame = ui->endFrameLineEdit->text().toUInt();
+    qint32 startFrame = (qint32)(ui->startFrameLineEdit->text().toUInt());
+    qint32 endFrame = (qint32)(ui->endFrameLineEdit->text().toUInt());
 
     // Get the capture lead-in flag
     bool captureLeadInFlag = ui->cavLeadInCheckBox->checkState();
@@ -650,13 +650,13 @@ void MainWindow::cavPicPoll(void)
             // Wait for the flag then transition from idle
             if (cavPicCaptureActive) {
                 // Sanity check the frame values
-                if (startFrame <= 0) {
-                    qDebug() << "MainWindow::cavPicPoll(): Error: Start frame is 0 or less! Aborting capture.";
+                if (startFrame < 0) {
+                    qDebug() << "MainWindow::cavPicPoll(): Error: Start frame is negative! Aborting capture.";
                     cavPicCaptureActive = false;
                 }
 
-                if (endFrame <= 0) {
-                    qDebug() << "MainWindow::cavPicPoll(): Error: Start frame is 0 or less! Aborting capture.";
+                if (endFrame < 0) {
+                    qDebug() << "MainWindow::cavPicPoll(): Error: End frame is negative! Aborting capture.";
                     cavPicCaptureActive = false;
                 }
 
