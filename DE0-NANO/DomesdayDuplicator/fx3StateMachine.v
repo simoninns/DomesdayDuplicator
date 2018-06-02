@@ -26,7 +26,7 @@
 
 module fx3StateMachine (
 	input nReset,
-	input inclk,
+	input fx3_clock,
 	input readData,
 	
 	output fx3isReading
@@ -42,7 +42,7 @@ parameter [3:0] state_waitForRequest	= 4'd01;
 parameter [3:0] state_sendPacket			= 4'd02;
 
 // Set state to state_idle on reset - or assign the next state
-always @(posedge inclk, negedge nReset) begin
+always @(posedge fx3_clock, negedge nReset) begin
 	if(!nReset) begin 
 		sm_currentState <= state_waitForRequest;
 	end else begin
@@ -54,7 +54,7 @@ end
 // on the clock edge
 reg readData_flag;
 
-always @(posedge inclk, negedge nReset) begin
+always @(posedge fx3_clock, negedge nReset) begin
 	if(!nReset) begin 
 		readData_flag <= 1'b0;
 	end else begin
@@ -66,7 +66,7 @@ end
 // Here we should send 8192 words to the FX3
 reg [15:0] wordCounter;
 
-always @(posedge inclk, negedge nReset) begin
+always @(posedge fx3_clock, negedge nReset) begin
 	if (!nReset) begin
 		wordCounter = 16'd0;
 	end else begin
