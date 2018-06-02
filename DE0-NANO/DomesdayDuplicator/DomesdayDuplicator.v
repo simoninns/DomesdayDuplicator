@@ -176,14 +176,14 @@ assign GPIO0[33] = adc_clock;
 
 // PLL Functions (clock generation) --------------------------------------------
 
-// Generate 80 MHz FX3/FPGA system clock from the 50 MHz physical clock
+// Generate 60 MHz FX3/FPGA system clock from the 50 MHz physical clock
 IPpllGenerator IPpllGenerator0 (
 	// Inputs
 	.inclk0(CLOCK_50),
 	
 	// Outputs
-	.c0(fx3_clock),	// 80 MHz system clock
-	.c1(adc_clock)		// 40 MHz ADC clock (requires 180 degree phase shift from c0)
+	.c0(fx3_clock),	// 60 MHz system clock
+	.c1(adc_clock)		// 40 MHz ADC clock
 );
 
 wire fx3isReading;
