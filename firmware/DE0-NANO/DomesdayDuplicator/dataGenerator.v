@@ -63,9 +63,9 @@ wire [9:0] fifoDataOut;
 
 IPfifo IPfifo0 (
 	.data(adcDataRead),		// [9:0] data in
-	.rdclk(fx3_clock),			// FX3 clock
+	.rdclk(fx3_clock),		// FX3 clock
 	.rdreq(readData),			// Read request
-	.wrclk(adc_clock),		// ADC clock (negative edge)
+	.wrclk(adc_clock),		// ADC clock (negative edge - 180 degree phase shift from FX3)
 	.wrreq(collectData),		// Write request
 	
 	.q(fifoDataOut),			// [9:0] Data output
