@@ -99,7 +99,8 @@ always @ (negedge adc_clock, negedge nReset) begin
 				if (dcOffsetComp) begin
 					// Note: Here we correct the DC offset (see project notes for details)
 					// Only required for revision 2_0 Domesday Duplicator boards
-					adcDataRead = adcData - 10'd84;;
+					// If the sample rate changes, this affects the offset. -84 is for 40MSPS
+					adcDataRead = adcData - 10'd84;
 				end else begin
 					adcDataRead = adcData;
 				end
