@@ -65,7 +65,7 @@ IPfifo IPfifo0 (
 	.data(adcDataRead),		// [9:0] data in
 	.rdclk(fx3_clock),		// FX3 clock
 	.rdreq(readData),			// Read request
-	.wrclk(adc_clock),		// ADC clock (negative edge - 180 degree phase shift from FX3)
+	.wrclk(adc_clock),		// ADC clock
 	.wrreq(collectData),		// Write request
 	
 	.q(fifoDataOut),			// [9:0] Data output
@@ -79,9 +79,15 @@ assign dataAvailable = (fifoUsedWords > 16'd8191) ? 1'b1 : 1'b0;
 
 // Register to store test data value
 reg [9:0] testData;
-reg [9:0] adcDataRead;
+wire [9:0] adcDataRead;
 
-// Collect data on the negative edge of the ADC clock
+// If we are in test-mode use test data
+// If dc offset compensation is on, subtract the offset
+// Otherwise use the actual ADC data
+assign adcDataRead = testMode ? testData : (dcOffsetComp ? adcData - 10'd84 : adcData);
+
+// Generate the test data on the negative edge of the sampling
+// clock (so it has the same timing as the real ADC)
 always @ (negedge adc_clock, negedge nReset) begin
 	if (!nReset) begin
 		testData = 10'd0;
@@ -89,22 +95,6 @@ always @ (negedge adc_clock, negedge nReset) begin
 		if (collectData) begin
 			// Test mode data generation
 			testData = testData + 10'd1;
-			
-			// Select the data source
-			if (testMode) begin
-				// We are in test mode, use the test data
-				adcDataRead = testData;
-			end else begin
-				// We are in normal mode, use the ADC data bus
-				if (dcOffsetComp) begin
-					// Note: Here we correct the DC offset (see project notes for details)
-					// Only required for revision 2_0 Domesday Duplicator boards
-					// If the sample rate changes, this affects the offset. -84 is for 40MSPS
-					adcDataRead = adcData - 10'd84;
-				end else begin
-					adcDataRead = adcData;
-				end
-			end
 		end
 	end
 end
