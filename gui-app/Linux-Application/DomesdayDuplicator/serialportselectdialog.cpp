@@ -89,18 +89,28 @@ void serialPortSelectDialog::fillPortsInfo()
     if (currentSettings.baudRate == 1200) {
         ui->bps1200RadioButton->setChecked(true);
         ui->bps2400RadioButton->setChecked(false);
+        ui->bps4800RadioButton->setChecked(false);
         ui->bps9600RadioButton->setChecked(false);
     }
 
     if (currentSettings.baudRate == 2400) {
         ui->bps1200RadioButton->setChecked(false);
         ui->bps2400RadioButton->setChecked(true);
+        ui->bps4800RadioButton->setChecked(false);
+        ui->bps9600RadioButton->setChecked(false);
+    }
+
+    if (currentSettings.baudRate == 4800) {
+        ui->bps1200RadioButton->setChecked(false);
+        ui->bps2400RadioButton->setChecked(false);
+        ui->bps4800RadioButton->setChecked(true);
         ui->bps9600RadioButton->setChecked(false);
     }
 
     if (currentSettings.baudRate == 9600) {
         ui->bps1200RadioButton->setChecked(false);
         ui->bps2400RadioButton->setChecked(false);
+        ui->bps4800RadioButton->setChecked(false);
         ui->bps9600RadioButton->setChecked(true);
     }
 }
@@ -118,6 +128,7 @@ void serialPortSelectDialog::updateSettings()
         currentSettings.name = ui->serialPortSelectComboBox->currentText();
         if (ui->bps1200RadioButton->isChecked()) currentSettings.baudRate = 1200;
         if (ui->bps2400RadioButton->isChecked()) currentSettings.baudRate = 2400;
+        if (ui->bps4800RadioButton->isChecked()) currentSettings.baudRate = 4800;
         if (ui->bps9600RadioButton->isChecked()) currentSettings.baudRate = 9600;
         currentSettings.configured = true;
         qDebug() << "serialPortSelectDialog::updateSettings(): Serial port configured";

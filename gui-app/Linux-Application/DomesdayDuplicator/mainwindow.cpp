@@ -194,7 +194,7 @@ void MainWindow::updateUsbDeviceConfiguration()
 
     // Set up the configuration flags (simple binary flag byte)
     if (ui->testModeCheckBox->isChecked()) configurationFlags += 1;     // Bit 0: Set = Test mode
-    if (ui->palRadioButton->isChecked()) configurationFlags += 2;       // Bit 1: Set = PAL sampling (unset = NTSC)
+    // Bit 1: Unused
     if (ui->dcOffsetCheckBox->isChecked()) configurationFlags += 4;     // Bit 2: Set = DC compensation on
 
     // Output debug
@@ -290,24 +290,6 @@ void MainWindow::on_testModeCheckBox_toggled(bool checked)
     updateUsbDeviceConfiguration();
 }
 
-// NTSC Sample speed radio button toggled
-void MainWindow::on_ntscRadioButton_toggled(bool checked)
-{
-    qDebug() << "MainWindow::on_ntscRadioButton_toggled():" << checked;
-
-    // Update the USB configuration
-    updateUsbDeviceConfiguration();
-}
-
-// PAL Sample speed radio button toggled
-void MainWindow::on_palRadioButton_toggled(bool checked)
-{
-    qDebug() << "MainWindow::on_palRadioButton_toggled():" << checked;
-
-    // We do not update the USB configuration here as it is triggered by the
-    // NTSC radio button in the same group.
-}
-
 // DC offset compensation check box toggled
 void MainWindow::on_dcOffsetCheckBox_toggled(bool checked)
 {
@@ -341,6 +323,18 @@ void MainWindow::on_clvLeadInCheckBox_toggled(bool checked)
     } else {
         ui->startTimeCodeTimeEdit->setEnabled(true);
     }
+}
+
+// Unused
+void MainWindow::on_palRadioButton_toggled(bool checked)
+{
+    qDebug() << "MainWindow::on_palRadioButton_toggled():" << checked;
+}
+
+// Unused
+void MainWindow::on_ntscRadioButton_toggled(bool checked)
+{
+    qDebug() << "MainWindow::on_ntscRadioButton_toggled():" << checked;
 }
 
 // Start or stop sample transfer --------------------------------------------------------------------------------------

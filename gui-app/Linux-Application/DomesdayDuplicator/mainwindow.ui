@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>720</width>
-    <height>430</height>
+    <height>410</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,13 +19,13 @@
   <property name="minimumSize">
    <size>
     <width>720</width>
-    <height>430</height>
+    <height>410</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>720</width>
-    <height>430</height>
+    <height>410</height>
    </size>
   </property>
   <property name="font">
@@ -43,7 +43,7 @@
       <x>10</x>
       <y>90</y>
       <width>341</width>
-      <height>131</height>
+      <height>121</height>
      </rect>
     </property>
     <property name="title">
@@ -111,7 +111,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>100</y>
+       <y>90</y>
        <width>321</width>
        <height>21</height>
       </rect>
@@ -124,7 +124,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>80</y>
+       <y>70</y>
        <width>111</width>
        <height>16</height>
       </rect>
@@ -140,7 +140,7 @@
       <x>370</x>
       <y>90</y>
       <width>341</width>
-      <height>131</height>
+      <height>121</height>
      </rect>
     </property>
     <property name="title">
@@ -150,7 +150,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>80</y>
+       <y>70</y>
        <width>321</width>
        <height>21</height>
       </rect>
@@ -163,7 +163,7 @@
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>100</y>
+       <y>90</y>
        <width>101</width>
        <height>20</height>
       </rect>
@@ -179,7 +179,7 @@
      <property name="geometry">
       <rect>
        <x>110</x>
-       <y>100</y>
+       <y>90</y>
        <width>221</width>
        <height>20</height>
       </rect>
@@ -188,40 +188,11 @@
       <string>TextLabel</string>
      </property>
     </widget>
-    <widget class="QRadioButton" name="ntscRadioButton">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>321</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>NTSC Capture (28.8 MSPS)</string>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
-     </property>
-    </widget>
-    <widget class="QRadioButton" name="palRadioButton">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>40</y>
-       <width>321</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>PAL Capture (35.5 MSPS)</string>
-     </property>
-    </widget>
     <widget class="QCheckBox" name="dcOffsetCheckBox">
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>60</y>
+       <y>50</y>
        <width>321</width>
        <height>20</height>
       </rect>
@@ -230,12 +201,25 @@
       <string>DC Offset compensation (Board 2_0 only)</string>
      </property>
     </widget>
+    <widget class="QLabel" name="statucLabel4">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>21</y>
+       <width>321</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Capturing at 40 MSPS</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QGroupBox" name="cavIntegratedCaptureGroupBox">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>240</y>
+      <y>220</y>
       <width>341</width>
       <height>141</height>
      </rect>
@@ -355,7 +339,7 @@
     <property name="geometry">
      <rect>
       <x>370</x>
-      <y>240</y>
+      <y>220</y>
       <width>341</width>
       <height>141</height>
      </rect>

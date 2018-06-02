@@ -471,13 +471,18 @@ States smConnectingState(void)
     }
 
     // Check the response
-    if (response.contains("P1515")) {
+    if (response.contains("P1515") || response.contains("P1537")) {
         // Player identity correct
-        qDebug() << "smConnectingState(): Player ID is P1515xx";
-        currentStimuli.deviceConnected = true; // Flag that valid player is connected
+
+        // Show identified player type in the debug
+        if (response.contains("P1515")) qDebug() << "smConnectingState(): Player ID is P1515xx - Pioneer LD-V4300D";
+        if (response.contains("P1537")) qDebug() << "smConnectingState(): Player ID is P1537xx - Pioneer CLD-V2800";
+
+        // Flag that valid player is connected
+        currentStimuli.deviceConnected = true;
         nextState = state_stopped;
     } else {
-        // Player identify incorrect
+        // Player identity unknown!
         qDebug() << "smConnectingState(): Player ID is unknown - " << response;
         nextState = state_serialError;
     }
