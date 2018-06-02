@@ -51,7 +51,7 @@ always @(posedge fx3_clock, negedge nReset) begin
 end
 
 // Ensure that the readData signal is only read
-// on the clock edge
+// on the FX3 clock edge
 reg readData_flag;
 
 always @(posedge fx3_clock, negedge nReset) begin
