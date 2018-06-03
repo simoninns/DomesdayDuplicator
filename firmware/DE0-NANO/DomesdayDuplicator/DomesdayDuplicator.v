@@ -109,7 +109,7 @@ assign fx3_control[10] = GPIO1[07];	// FX3 CTL_10 GPIO_27
 // input3				GPIO_29		CTL_12	Output	- Unused
 
 // outputE0				GPIO_22		CTL_05	Input		- FX3 Configuration bit 0 (Test mode off/on)
-// outputD0				GPIO_23		CTL_06	Input		- FX3 Configuration bit 1 (NTSC sampling/PAL sampling)
+// outputD0				GPIO_23		CTL_06	Input		- FX3 Configuration bit 1 (Unused)
 // outputD1				GPIO_24		CTL_07	Input		- FX3 Configuration bit 2 (DC offset compensation off/on)
 // outputD2				GPIO_25		CTL_08	Input		- FX3 Configuration bit 3 (Unused)
 // outputD3				GPIO_26		CTL_09	Input		- FX3 Configuration bit 4 (Unused)
@@ -119,15 +119,18 @@ wire fx3_nReset;
 wire fx3_dataAvailable;
 wire fx3_collectData;
 wire fx3_readData;
-wire fx3_testMode;
 wire fx3_bufferError;
+wire fx3_testMode;
+wire fx3_dcOffsetMode;
 
 // Signal outputs to FX3
 assign fx3_control[00] 		= fx3_dataAvailable;
 assign fx3_control[03] 		= fx3_bufferError;
-//assign fx3_control[04]	= fx3_unusedInput1;
-//assign fx3_control[11]	= fx3_unusedInput2;
-//assign fx3_control[12]	= fx3_unusedInput3;
+
+// These are currently unused, but must have a defined value
+assign fx3_control[04]	= 0;
+assign fx3_control[11]	= 0;
+assign fx3_control[12]	= 0;
 
 // Signal inputs from FX3
 assign fx3_nReset      = fx3_control[10];
@@ -136,7 +139,7 @@ assign fx3_readData    = fx3_control[01];
 
 // Signal inputs from FX3 (configuration bits)
 assign fx3_testMode    		= fx3_control[05];
-assign fx3_samplingMode    = fx3_control[06];
+//assign fx3_configBit1    = fx3_control[06];
 assign fx3_dcOffsetMode 	= fx3_control[07];
 //assign fx3_configBit3		= fx3_control[07];
 //assign fx3_configBit4 	= fx3_control[07];
@@ -162,7 +165,8 @@ assign adcData[9] = GPIO0[23];
 
 // ADC clock output
 // Select the correct sampling clock based on the configuration
-assign GPIO0[33] = (fx3_samplingMode) ? PalAdc_clock : NtscAdc_clock;
+wire adc_clock;
+assign GPIO0[33] = adc_clock;
 
 // ADC Hardware mapping ends --------------------------------------------------
 
@@ -172,31 +176,14 @@ assign GPIO0[33] = (fx3_samplingMode) ? PalAdc_clock : NtscAdc_clock;
 
 // PLL Functions (clock generation) --------------------------------------------
 
-// Generate 80 MHz FX3/FPGA system clock from the 50 MHz physical clock
+// Generate 60 MHz FX3/FPGA system clock from the 50 MHz physical clock
 IPpllGenerator IPpllGenerator0 (
 	// Inputs
 	.inclk0(CLOCK_50),
 	
 	// Outputs
-	.c0(fx3_clock)		// 80 MHz system clock
-);
-
-// Generate 28.63632 MHz NTSC sampling clock from the 50 MHz physical clock
-ntscPll ntscPll0 (
-	// Inputs
-	.inclk0(CLOCK_50),
-	
-	// Outputs
-	.c0(NtscAdc_clock)		// 28.63632 MHz NTSC sampling clock (actual 28.636364 MHz)
-);
-
-// Generate 35.46895 MHz PAL sampling clock from the 50 MHz physical clock
-palPll palPll0 (
-	// Inputs
-	.inclk0(CLOCK_50),
-	
-	// Outputs
-	.c0(PalAdc_clock)		// 35.46895 MHz PAL sampling clock (actual 35.470085 MHz)
+	.c0(fx3_clock),	// 60 MHz system clock
+	.c1(adc_clock)		// 40 MHz ADC clock
 );
 
 wire fx3isReading;
@@ -205,13 +192,11 @@ wire fx3isReading;
 dataGenerator dataGenerator0 (
 	// Inputs
 	.nReset(fx3_nReset),						// Not reset
-	.NtscAdcClk(NtscAdc_clock),			// Data collection clock (NTSC ADC)
-	.PalAdcClk(PalAdc_clock),				// Data collection clock (PAL ADC)
-	.fx3Clk(fx3_clock),						// Data output clock (FX3)
+	.adc_clock(adc_clock),					// ADC clock
+	.fx3_clock(fx3_clock),					// FX3 clock
 	.collectData(fx3_collectData),		// Collect data (ADC data is discarded if 0)
 	.readData(fx3isReading),				// 1 = FX3 is reading data
 	.testMode(fx3_testMode),				// 1 = Test mode on
-	.samplingMode(fx3_samplingMode),		// 1 = PAL, 0 = NTSC
 	.dcOffsetComp(fx3_dcOffsetMode),		// 1 = compensation on, 0 = compensation off
 	.adcData(adcData),						// ADC data bus input
 	
@@ -225,7 +210,7 @@ dataGenerator dataGenerator0 (
 fx3StateMachine fx3StateMachine0 (
 	// Inputs
 	.nReset(fx3_nReset),						// Not reset
-	.inclk(fx3_clock),						// Input clock
+	.fx3_clock(fx3_clock),					// FX3 clock
 	.readData(fx3_readData),				// FX3 is about to start sampling the databus
 	
 	// Output
