@@ -2,23 +2,23 @@
 
 ## Synopsis
 
-The Domesday Duplicator is a USB3 based DAQ capable of up to 40 million samples per second acquisition of analogue RF data.
+The Domesday Duplicator is a USB3 based DAQ capable of 40 million samples per second acquisition of analogue RF data.
 
 The hardware is a USB3 based 10-bit analogue to digital converter designed to allow the backup of Domesday AIV LaserDiscs (as well as generic laserdiscs) through the direct sampling of the RF data from the optical head (laser) of a LaserDisc player.
 
 The hardware/software solution is designed to act as a sampling front-end to the ld-decode (software decode of laserdiscs) project https://github.com/happycube/ld-decode and replaces the generic TV capture card to provide high-frequency sampling with 4 times the sample resolution.
 
-This project is currently work-in-progress and should be considered beta (current GitHub builds may not work at all).
+This project is currently work-in-progress and should be considered beta (until the decoding is proven modifications may be needed to the capture set-up).
 
 Please see http://www.domesday86.com/?page_id=978 for detailed documentation on the Domesday Duplicator and overall information about the Domesday86 project.
 
 There are 3 main components that make up the Domesday Duplicator:
 
-A custom ADC board based around the Texas Instruments ADS825 10-Bit, 40MHz Sampling analogue to digital converter.  This board contains an RF amplifier and conditioner (to amplify the output from the laserdisc player RF tap and condition it for the single-ended ADC chip) as well as headers for both the DE0-Nano FPGA development board and Cypress FX3 SuperSpeed Explorer board.  RF input is physically provided by a BNC connector.
+A custom ADC board based around the Texas Instruments ADS825 10-Bit, 40MSPS analogue to digital converter.  This board contains an RF amplifier and conditioner (to amplify the output from the laserdisc player RF tap and condition it for the single-ended ADC chip) as well as headers for both the DE0-Nano FPGA development board and Cypress FX3 SuperSpeed Explorer board.  RF input is physically provided by a BNC connector.
 
-Terasic DE0-Nano FPGA development board – The DE0-Nano is a low-cost FPGA development board containing an Altera Cyclone IV FPGA.  The DE0-Nano is used to process the raw 10-bit ADC data stream and provides FIFO buffering (towards the FX3) and sample conversion from unsigned 10-bit to scaled 16-bit signed data.  The FPGA provides a dual-clock FIFO; receiving ADC data at a maximum of 40 MSPS (million samples per second) and transmitting the data to the FX3 at a maximum of 50 MSPS.  This is to ensure that no data is lost during sustained transfers (as RF sampling of a disc can take more than 40 minutes).
+Terasic DE0-Nano FPGA development board - The DE0-Nano is a low-cost FPGA development board containing an Altera Cyclone IV FPGA.  The DE0-Nano is used to process the raw 10-bit ADC data stream and provides FIFO buffering (towards the FX3) and sample conversion from unsigned 10-bit to scaled 16-bit signed data.  The FPGA provides a dual-clock FIFO; receiving ADC data at a maximum of 40 MSPS (million samples per second) and transmitting the data to the FX3 at a maximum of 60 MSPS.  This is to ensure that no data is lost during sustained transfers (as RF sampling of a disc can take more than 40 minutes).
 
-Cypress FX3 SuperSpeed Explorer board – The FX3 is a low-cost USB3 development board from Cypress.  The FX3 is used to buffer data from the FPGA and provide it to a host computer using USB3.  USB3 is required for this application due to the high-data bandwidth necessary for high-speed/high-resolution sampling.
+Cypress FX3 SuperSpeed Explorer board - The FX3 is a low-cost USB3 development board from Cypress.  The FX3 is used to buffer data from the FPGA and provide it to a host computer using USB3.  USB3 is required for this application due to the high-data bandwidth necessary for high-speed/high-resolution sampling.
 
 ## Motivation
 
