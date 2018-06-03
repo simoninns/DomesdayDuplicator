@@ -417,7 +417,7 @@ States smDisconnectedState(void)
         if (lvdpSerialPort->isOpen()) lvdpSerialPort->close();
 
         // Verify that the baud rate is valid
-        if (currentStimuli.baudRate != 1200 && currentStimuli.baudRate != 2400 && currentStimuli.baudRate != 9600) {
+        if (currentStimuli.baudRate != 1200 && currentStimuli.baudRate != 2400 && currentStimuli.baudRate != 4800 && currentStimuli.baudRate != 9600) {
             qDebug() << "smDisconnectedState(): Invalid baud rate" << currentStimuli.baudRate;
             currentStimuli.serialConfigured = false;
             return state_disconnected;
@@ -431,6 +431,7 @@ States smDisconnectedState(void)
 
         if (currentStimuli.baudRate == 1200) lvdpSerialPort->setBaudRate(QSerialPort::Baud1200);
         if (currentStimuli.baudRate == 2400) lvdpSerialPort->setBaudRate(QSerialPort::Baud2400);
+        if (currentStimuli.baudRate == 4800) lvdpSerialPort->setBaudRate(QSerialPort::Baud4800);
         if (currentStimuli.baudRate == 9600) lvdpSerialPort->setBaudRate(QSerialPort::Baud9600);
 
         lvdpSerialPort->setDataBits(QSerialPort::Data8);
@@ -471,13 +472,18 @@ States smConnectingState(void)
     }
 
     // Check the response
-    if (response.contains("P1515")) {
+    if (response.contains("P1515") || response.contains("P1537")) {
         // Player identity correct
-        qDebug() << "smConnectingState(): Player ID is P1515xx";
-        currentStimuli.deviceConnected = true; // Flag that valid player is connected
+
+        // Show identified player type in the debug
+        if (response.contains("P1515")) qDebug() << "smConnectingState(): Player ID is P1515xx - Pioneer LD-V4300D";
+        if (response.contains("P1537")) qDebug() << "smConnectingState(): Player ID is P1537xx - Pioneer CLD-V2800";
+
+        // Flag that valid player is connected
+        currentStimuli.deviceConnected = true;
         nextState = state_stopped;
     } else {
-        // Player identify incorrect
+        // Player identity unknown!
         qDebug() << "smConnectingState(): Player ID is unknown - " << response;
         nextState = state_serialError;
     }

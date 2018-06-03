@@ -194,7 +194,7 @@ void MainWindow::updateUsbDeviceConfiguration()
 
     // Set up the configuration flags (simple binary flag byte)
     if (ui->testModeCheckBox->isChecked()) configurationFlags += 1;     // Bit 0: Set = Test mode
-    if (ui->palRadioButton->isChecked()) configurationFlags += 2;       // Bit 1: Set = PAL sampling (unset = NTSC)
+    // Bit 1: Unused
     if (ui->dcOffsetCheckBox->isChecked()) configurationFlags += 4;     // Bit 2: Set = DC compensation on
 
     // Output debug
@@ -290,24 +290,6 @@ void MainWindow::on_testModeCheckBox_toggled(bool checked)
     updateUsbDeviceConfiguration();
 }
 
-// NTSC Sample speed radio button toggled
-void MainWindow::on_ntscRadioButton_toggled(bool checked)
-{
-    qDebug() << "MainWindow::on_ntscRadioButton_toggled():" << checked;
-
-    // Update the USB configuration
-    updateUsbDeviceConfiguration();
-}
-
-// PAL Sample speed radio button toggled
-void MainWindow::on_palRadioButton_toggled(bool checked)
-{
-    qDebug() << "MainWindow::on_palRadioButton_toggled():" << checked;
-
-    // We do not update the USB configuration here as it is triggered by the
-    // NTSC radio button in the same group.
-}
-
 // DC offset compensation check box toggled
 void MainWindow::on_dcOffsetCheckBox_toggled(bool checked)
 {
@@ -341,6 +323,18 @@ void MainWindow::on_clvLeadInCheckBox_toggled(bool checked)
     } else {
         ui->startTimeCodeTimeEdit->setEnabled(true);
     }
+}
+
+// Unused
+void MainWindow::on_palRadioButton_toggled(bool checked)
+{
+    qDebug() << "MainWindow::on_palRadioButton_toggled():" << checked;
+}
+
+// Unused
+void MainWindow::on_ntscRadioButton_toggled(bool checked)
+{
+    qDebug() << "MainWindow::on_ntscRadioButton_toggled():" << checked;
 }
 
 // Start or stop sample transfer --------------------------------------------------------------------------------------
@@ -643,8 +637,8 @@ void MainWindow::cavPicPoll(void)
     cavPicCurrentState = cavPicNextState;
 
     // Get the start and end frame positions
-    quint32 startFrame = ui->startFrameLineEdit->text().toUInt();
-    quint32 endFrame = ui->endFrameLineEdit->text().toUInt();
+    qint32 startFrame = (qint32)(ui->startFrameLineEdit->text().toUInt());
+    qint32 endFrame = (qint32)(ui->endFrameLineEdit->text().toUInt());
 
     // Get the capture lead-in flag
     bool captureLeadInFlag = ui->cavLeadInCheckBox->checkState();
@@ -654,7 +648,40 @@ void MainWindow::cavPicPoll(void)
             ui->cavPicStatus->setText("Idle");
 
             // Wait for the flag then transition from idle
-            if (cavPicCaptureActive) cavPicNextState = cavState_startPlayer;
+            if (cavPicCaptureActive) {
+                // Sanity check the frame values
+                if (startFrame < 0) {
+                    qDebug() << "MainWindow::cavPicPoll(): Error: Start frame is negative! Aborting capture.";
+                    cavPicCaptureActive = false;
+                }
+
+                if (endFrame < 0) {
+                    qDebug() << "MainWindow::cavPicPoll(): Error: End frame is negative! Aborting capture.";
+                    cavPicCaptureActive = false;
+                }
+
+                if (startFrame > endFrame) {
+                    qDebug() << "MainWindow::cavPicPoll(): Error: Start frame is greater than end frame! Aborting capture.";
+                    cavPicCaptureActive = false;
+                }
+
+                if (startFrame > 60000) {
+                    qDebug() << "MainWindow::cavPicPoll(): Error: Start frame is greater than 60,000! Aborting capture.";
+                    qDebug() << "MainWindow::cavPicPoll(): Start frame field =" << ui->startFrameLineEdit->text();
+                    cavPicCaptureActive = false;
+                }
+
+                if (endFrame > 60000) {
+                    qDebug() << "MainWindow::cavPicPoll(): Error: End frame is greater than 60,000! Aborting capture.";
+                    qDebug() << "MainWindow::cavPicPoll(): End frame field =" << ui->endFrameLineEdit->text();
+                    cavPicCaptureActive = false;
+                }
+
+
+                // If no errors were detected, start the player
+                if (cavPicCaptureActive) cavPicNextState = cavState_startPlayer;
+                else ui->cavCapturePushButton->setText("Capture"); // If there was an error, reset the capture button text
+            }
             else cavPicNextState = cavState_idle;
             break;
 
@@ -812,8 +839,22 @@ void MainWindow::cavPicPoll(void)
 
             // Attempting to read past the last frame can cause the player
             // to stop...  ensure we are still playing
-            if (!playerControl->isPlaying())
-                cavPicNextState = cavState_stopCapture;
+            if (!playerControl->isPlaying()) {
+                qDebug() << "MainWindow::cavPicPoll(): Player is no longer playing...";
+
+                // This can be caused by either exceeding the last frame on the disc or by
+                // a frame that contains a pause command.  If we are paused, restart the
+                // playback (as the LD-V4300D has no command to override automatic
+                // pausing during playback
+                if (playerControl->isPaused() && (playerControl->currentFrameNumber() < endFrame)) {
+                    qDebug() << "MainWindow::cavPicPoll(): Player was paused due to frame pause command in frame number" << playerControl->currentFrameNumber() <<"- Reissuing play command...";
+                    playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
+                    cavPicNextState = cavState_waitForStartCapture;
+                } else {
+                    // Transition to the stopped state
+                    cavPicNextState = cavState_stopCapture;
+                }
+            }
 
             // Check for player command errors
             if (playerControl->isLastCommandError()) {
@@ -835,7 +876,9 @@ void MainWindow::cavPicPoll(void)
             stopTransfer();
 
             // Put the player in still frame (if still playing)
-            if (playerControl->isPlaying()) playerControl->command(lvdpControl::PlayerCommands::command_still, 0);
+            // Note: the LD-V4300D reports an error if we try this at the end of the disc...
+            if (playerControl->isPlaying() && (playerControl->currentFrameNumber() != playerControl->getDiscLength()))
+                playerControl->command(lvdpControl::PlayerCommands::command_still, 0);
 
             // Unlock the physical player controls
             playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
