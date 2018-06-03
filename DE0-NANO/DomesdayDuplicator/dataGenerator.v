@@ -26,13 +26,11 @@
 
 module dataGenerator (
 	input nReset,
-	input NtscAdcClk,
-	input PalAdcClk,
-	input fx3Clk,
+	input adc_clock,
+	input fx3_clock,
 	input collectData,
 	input readData,
 	input testMode,
-	input samplingMode,
 	input dcOffsetComp,
 	input [9:0] adcData,
 	
@@ -41,14 +39,11 @@ module dataGenerator (
 	output [15:0] dataOut
 );
 
-// Select the correct sampling clock based on the configuration
-assign samplingClock = (samplingMode) ? PalAdcClk : NtscAdcClk;
-
 // Convert the 10-bit unsigned data from the FIFO
 // to 16-bit signed data ready for the FX3 data bus
 convertTenToSixteenBits convertTenToSixteenBits0 (
 	.nReset(nReset),
-	.inclk(fx3Clk),
+	.inclk(fx3_clock),
 	.inputData(fifoDataOut),
 	
 	.outputData(dataOut)
@@ -68,9 +63,9 @@ wire [9:0] fifoDataOut;
 
 IPfifo IPfifo0 (
 	.data(adcDataRead),		// [9:0] data in
-	.rdclk(fx3Clk),			// FX3 clock
+	.rdclk(fx3_clock),		// FX3 clock
 	.rdreq(readData),			// Read request
-	.wrclk(!samplingClock),	// ADC clock (negative edge)
+	.wrclk(adc_clock),		// ADC clock
 	.wrreq(collectData),		// Write request
 	
 	.q(fifoDataOut),			// [9:0] Data output
@@ -84,31 +79,23 @@ assign dataAvailable = (fifoUsedWords > 16'd8191) ? 1'b1 : 1'b0;
 
 // Register to store test data value
 reg [9:0] testData;
-reg [9:0] adcDataRead;
+wire [9:0] adcDataRead;
 
-// Collect data on the negative edge of the ADC clock
-always @ (negedge samplingClock, negedge nReset) begin
+// If we are in test-mode use test data
+// If dc offset compensation is on, subtract the offset (unless the
+// ADC data is lower than the offset compensation)
+// Otherwise use the actual ADC data
+assign adcDataRead = testMode ? testData : (dcOffsetComp ? (adcData > 10'd83 ? adcData - 10'd84 : 10'd0) : adcData);
+
+// Generate the test data on the negative edge of the sampling
+// clock (so it has the same timing as the real ADC)
+always @ (negedge adc_clock, negedge nReset) begin
 	if (!nReset) begin
 		testData = 10'd0;
 	end else begin
 		if (collectData) begin
 			// Test mode data generation
 			testData = testData + 10'd1;
-			
-			// Select the data source
-			if (testMode) begin
-				// We are in test mode, use the test data
-				adcDataRead = testData;
-			end else begin
-				// We are in normal mode, use the ADC data bus
-				if (dcOffsetComp) begin
-					// Note: Here we correct the DC offset (see project notes for details)
-					// Only required for revision 2_0 Domesday Duplicator boards
-					adcDataRead = adcData - 10'd65;;
-				end else begin
-					adcDataRead = adcData;
-				end
-			end
 		end
 	end
 end
@@ -122,7 +109,7 @@ wire rdFull;
 reg bufferError_flag;
 assign bufferError = bufferError_flag;
 
-always @ (posedge fx3Clk, negedge nReset) begin
+always @ (posedge fx3_clock, negedge nReset) begin
 	if (!nReset) begin
 		bufferError_flag = 1'b0;
 	end else begin
