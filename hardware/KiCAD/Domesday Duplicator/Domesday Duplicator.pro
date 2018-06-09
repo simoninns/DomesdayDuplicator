@@ -1,4 +1,4 @@
-update=26/04/2018 08:04:55
+update=09/06/2018 10:26:28
 version=1
 last_client=kicad
 [pcbnew]
@@ -68,7 +68,7 @@ LibName36=bnc_rosenberger
 [schematic_editor]
 version=1
 PageLayoutDescrFile=
-PlotDirectoryName=../PDF/
+PlotDirectoryName=PDF/
 SubpartIdSeparator=0
 SubpartFirstId=65
 NetFmtName=Pcbnew
