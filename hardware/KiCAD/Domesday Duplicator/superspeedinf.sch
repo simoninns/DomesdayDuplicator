@@ -111,11 +111,8 @@ NoConn ~ 3150 3050
 NoConn ~ 3150 3150
 NoConn ~ 3150 3250
 NoConn ~ 3150 3350
-NoConn ~ 3150 3750
-NoConn ~ 3150 3850
 NoConn ~ 3150 3950
 NoConn ~ 3150 4050
-NoConn ~ 3150 4150
 NoConn ~ 3150 4350
 NoConn ~ 3150 4450
 NoConn ~ 3150 4550
@@ -217,10 +214,6 @@ Wire Wire Line
 	8650 4550 9000 4550
 Wire Wire Line
 	8650 4650 9000 4650
-Text HLabel 9000 4750 2    60   Output ~ 0
-SCL
-Text HLabel 6650 4750 0    60   BiDi ~ 0
-SDA
 Text HLabel 6650 4350 0    60   BiDi ~ 0
 CTL0
 Text HLabel 6650 4250 0    60   BiDi ~ 0
@@ -277,10 +270,6 @@ Wire Wire Line
 	6650 4350 7050 4350
 Wire Wire Line
 	7050 4550 6650 4550
-Wire Wire Line
-	7050 4750 6650 4750
-Wire Wire Line
-	8650 4750 9000 4750
 NoConn ~ 7050 3050
 Wire Wire Line
 	7050 4450 6850 4450
@@ -388,4 +377,18 @@ $EndComp
 Wire Wire Line
 	6000 5000 6000 5250
 Connection ~ 6000 5250
+Text HLabel 2700 3750 0    60   Output ~ 0
+SPI_MOSI
+Text HLabel 2700 3850 0    60   Input ~ 0
+SPI_MISO
+Text HLabel 2700 4150 0    60   Output ~ 0
+SPI_SCK
+Wire Wire Line
+	2700 3750 3150 3750
+Wire Wire Line
+	2700 3850 3150 3850
+Wire Wire Line
+	2700 4150 3150 4150
+NoConn ~ 8650 4750
+NoConn ~ 7050 4750
 $EndSCHEMATC
