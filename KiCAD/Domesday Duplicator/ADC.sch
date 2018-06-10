@@ -35,6 +35,74 @@ LIBS:opa690
 LIBS:gpifii_j7
 LIBS:gpifii_j6
 LIBS:bnc_rosenberger
+LIBS:74xgxx
+LIBS:ac-dc
+LIBS:actel
+LIBS:allegro
+LIBS:Altera
+LIBS:analog_devices
+LIBS:battery_management
+LIBS:bbd
+LIBS:bosch
+LIBS:brooktre
+LIBS:cmos_ieee
+LIBS:dc-dc
+LIBS:diode
+LIBS:elec-unifil
+LIBS:ESD_Protection
+LIBS:ftdi
+LIBS:gennum
+LIBS:graphic
+LIBS:graphic_symbols
+LIBS:hc11
+LIBS:infineon
+LIBS:intersil
+LIBS:ir
+LIBS:Lattice
+LIBS:leds
+LIBS:LEM
+LIBS:logic_programmable
+LIBS:logo
+LIBS:maxim
+LIBS:mechanical
+LIBS:microchip_dspic33dsc
+LIBS:microchip_pic10mcu
+LIBS:microchip_pic12mcu
+LIBS:microchip_pic16mcu
+LIBS:microchip_pic18mcu
+LIBS:microchip_pic24mcu
+LIBS:microchip_pic32mcu
+LIBS:modules
+LIBS:motor_drivers
+LIBS:motors
+LIBS:msp430
+LIBS:nordicsemi
+LIBS:nxp
+LIBS:nxp_armmcu
+LIBS:onsemi
+LIBS:Oscillators
+LIBS:Power_Management
+LIBS:powerint
+LIBS:pspice
+LIBS:references
+LIBS:relays
+LIBS:rfcom
+LIBS:RFSolutions
+LIBS:sensors
+LIBS:silabs
+LIBS:stm8
+LIBS:stm32
+LIBS:supertex
+LIBS:switches
+LIBS:transf
+LIBS:triac_thyristor
+LIBS:ttl_ieee
+LIBS:video
+LIBS:wiznet
+LIBS:Worldsemi
+LIBS:Xicor
+LIBS:zetex
+LIBS:Zilog
 LIBS:Domesday Duplicator-cache
 EELAYER 25 0
 EELAYER END
@@ -42,8 +110,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 3 5
 Title "Domesday Duplicator"
-Date "2018-06-09"
-Rev "3.0"
+Date "2018-06-10"
+Rev "2.3"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -90,10 +158,10 @@ REFT
 Text HLabel 1750 2900 0    60   Output ~ 0
 REFB
 $Comp
-L GND #PWR302
+L GND #PWR09
 U 1 1 59D20208
 P 6450 4700
-F 0 "#PWR302" H 6450 4450 50  0001 C CNN
+F 0 "#PWR09" H 6450 4450 50  0001 C CNN
 F 1 "GND" H 6450 4550 50  0000 C CNN
 F 2 "" H 6450 4700 50  0001 C CNN
 F 3 "" H 6450 4700 50  0001 C CNN
@@ -167,10 +235,10 @@ F 3 "" H 1900 3950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +5VA #PWR303
+L +5VA #PWR010
 U 1 1 59D21562
 P 6600 1850
-F 0 "#PWR303" H 6600 1700 50  0001 C CNN
+F 0 "#PWR010" H 6600 1700 50  0001 C CNN
 F 1 "+5VA" H 6600 1990 50  0000 C CNN
 F 2 "" H 6600 1850 50  0001 C CNN
 F 3 "" H 6600 1850 50  0001 C CNN
@@ -178,10 +246,10 @@ F 3 "" H 6600 1850 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3VA #PWR301
+L +3.3VA #PWR011
 U 1 1 59D22575
 P 6350 1850
-F 0 "#PWR301" H 6350 1700 50  0001 C CNN
+F 0 "#PWR011" H 6350 1700 50  0001 C CNN
 F 1 "+3.3VA" H 6350 1990 50  0000 C CNN
 F 2 "" H 6350 1850 50  0001 C CNN
 F 3 "" H 6350 1850 50  0001 C CNN
@@ -222,10 +290,10 @@ F 3 "" H 9650 5950 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR305
+L GND #PWR012
 U 1 1 59D255CD
 P 8350 6300
-F 0 "#PWR305" H 8350 6050 50  0001 C CNN
+F 0 "#PWR012" H 8350 6050 50  0001 C CNN
 F 1 "GND" H 8350 6150 50  0000 C CNN
 F 2 "" H 8350 6300 50  0001 C CNN
 F 3 "" H 8350 6300 50  0001 C CNN
@@ -233,10 +301,10 @@ F 3 "" H 8350 6300 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +5VA #PWR304
+L +5VA #PWR013
 U 1 1 59D2560B
 P 8350 5600
-F 0 "#PWR304" H 8350 5450 50  0001 C CNN
+F 0 "#PWR013" H 8350 5450 50  0001 C CNN
 F 1 "+5VA" H 8350 5740 50  0000 C CNN
 F 2 "" H 8350 5600 50  0001 C CNN
 F 3 "" H 8350 5600 50  0001 C CNN
@@ -244,10 +312,10 @@ F 3 "" H 8350 5600 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3VA #PWR310
+L +3.3VA #PWR014
 U 1 1 59D25649
 P 9650 5600
-F 0 "#PWR310" H 9650 5450 50  0001 C CNN
+F 0 "#PWR014" H 9650 5450 50  0001 C CNN
 F 1 "+3.3VA" H 9650 5740 50  0000 C CNN
 F 2 "" H 9650 5600 50  0001 C CNN
 F 3 "" H 9650 5600 50  0001 C CNN
@@ -277,10 +345,10 @@ F 3 "" H 9650 3850 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3VA #PWR306
+L +3.3VA #PWR015
 U 1 1 59FAF37C
 P 9650 1000
-F 0 "#PWR306" H 9650 850 50  0001 C CNN
+F 0 "#PWR015" H 9650 850 50  0001 C CNN
 F 1 "+3.3VA" H 9650 1140 50  0000 C CNN
 F 2 "" H 9650 1000 50  0001 C CNN
 F 3 "" H 9650 1000 50  0001 C CNN
@@ -288,10 +356,10 @@ F 3 "" H 9650 1000 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +3.3VA #PWR308
+L +3.3VA #PWR016
 U 1 1 59FAF3C0
 P 9650 3050
-F 0 "#PWR308" H 9650 2900 50  0001 C CNN
+F 0 "#PWR016" H 9650 2900 50  0001 C CNN
 F 1 "+3.3VA" H 9650 3190 50  0000 C CNN
 F 2 "" H 9650 3050 50  0001 C CNN
 F 3 "" H 9650 3050 50  0001 C CNN
@@ -299,10 +367,10 @@ F 3 "" H 9650 3050 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR309
+L GND #PWR017
 U 1 1 59FAF404
 P 9650 4900
-F 0 "#PWR309" H 9650 4650 50  0001 C CNN
+F 0 "#PWR017" H 9650 4650 50  0001 C CNN
 F 1 "GND" H 9650 4750 50  0000 C CNN
 F 2 "" H 9650 4900 50  0001 C CNN
 F 3 "" H 9650 4900 50  0001 C CNN
@@ -310,10 +378,10 @@ F 3 "" H 9650 4900 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR307
+L GND #PWR018
 U 1 1 59FAF448
 P 9650 2600
-F 0 "#PWR307" H 9650 2350 50  0001 C CNN
+F 0 "#PWR018" H 9650 2350 50  0001 C CNN
 F 1 "GND" H 9650 2450 50  0000 C CNN
 F 2 "" H 9650 2600 50  0001 C CNN
 F 3 "" H 9650 2600 50  0001 C CNN
@@ -342,11 +410,6 @@ F 3 "" H 10250 5950 50  0001 C CNN
 	1    10250 5950
 	1    0    0    -1  
 $EndComp
-NoConn ~ 8950 3550
-NoConn ~ 8950 3650
-NoConn ~ 8950 3750
-NoConn ~ 8950 3850
-NoConn ~ 8950 3950
 NoConn ~ 10350 3950
 NoConn ~ 10350 3850
 NoConn ~ 10350 3750
@@ -407,7 +470,6 @@ F 3 "" H 10600 5950 50  0001 C CNN
 	1    10600 5950
 	1    0    0    -1  
 $EndComp
-NoConn ~ 8950 4050
 NoConn ~ 10350 4050
 Wire Wire Line
 	5300 2400 5700 2400
@@ -743,4 +805,22 @@ Wire Wire Line
 	3600 2500 3600 2200
 Wire Wire Line
 	4600 2600 5700 2600
+Wire Wire Line
+	8950 3550 8850 3550
+Connection ~ 8850 3550
+Wire Wire Line
+	8950 3650 8850 3650
+Connection ~ 8850 3650
+Wire Wire Line
+	8950 3750 8850 3750
+Connection ~ 8850 3750
+Wire Wire Line
+	8950 3850 8850 3850
+Connection ~ 8850 3850
+Wire Wire Line
+	8950 3950 8850 3950
+Connection ~ 8850 3950
+Wire Wire Line
+	8950 4050 8850 4050
+Connection ~ 8850 4050
 $EndSCHEMATC

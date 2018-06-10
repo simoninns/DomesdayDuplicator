@@ -35,6 +35,74 @@ LIBS:opa690
 LIBS:gpifii_j7
 LIBS:gpifii_j6
 LIBS:bnc_rosenberger
+LIBS:74xgxx
+LIBS:ac-dc
+LIBS:actel
+LIBS:allegro
+LIBS:Altera
+LIBS:analog_devices
+LIBS:battery_management
+LIBS:bbd
+LIBS:bosch
+LIBS:brooktre
+LIBS:cmos_ieee
+LIBS:dc-dc
+LIBS:diode
+LIBS:elec-unifil
+LIBS:ESD_Protection
+LIBS:ftdi
+LIBS:gennum
+LIBS:graphic
+LIBS:graphic_symbols
+LIBS:hc11
+LIBS:infineon
+LIBS:intersil
+LIBS:ir
+LIBS:Lattice
+LIBS:leds
+LIBS:LEM
+LIBS:logic_programmable
+LIBS:logo
+LIBS:maxim
+LIBS:mechanical
+LIBS:microchip_dspic33dsc
+LIBS:microchip_pic10mcu
+LIBS:microchip_pic12mcu
+LIBS:microchip_pic16mcu
+LIBS:microchip_pic18mcu
+LIBS:microchip_pic24mcu
+LIBS:microchip_pic32mcu
+LIBS:modules
+LIBS:motor_drivers
+LIBS:motors
+LIBS:msp430
+LIBS:nordicsemi
+LIBS:nxp
+LIBS:nxp_armmcu
+LIBS:onsemi
+LIBS:Oscillators
+LIBS:Power_Management
+LIBS:powerint
+LIBS:pspice
+LIBS:references
+LIBS:relays
+LIBS:rfcom
+LIBS:RFSolutions
+LIBS:sensors
+LIBS:silabs
+LIBS:stm8
+LIBS:stm32
+LIBS:supertex
+LIBS:switches
+LIBS:transf
+LIBS:triac_thyristor
+LIBS:ttl_ieee
+LIBS:video
+LIBS:wiznet
+LIBS:Worldsemi
+LIBS:Xicor
+LIBS:zetex
+LIBS:Zilog
 LIBS:Domesday Duplicator-cache
 EELAYER 25 0
 EELAYER END
@@ -42,8 +110,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 4 5
 Title "Domesday Duplicator"
-Date "2018-06-09"
-Rev "3.0"
+Date "2018-06-10"
+Rev "2.3"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -102,7 +170,7 @@ L R R405
 U 1 1 59D27FB9
 P 4650 4050
 F 0 "R405" V 4730 4050 50  0000 C CNN
-F 1 "220R" V 4650 4050 50  0000 C CNN
+F 1 "200R" V 4650 4050 50  0000 C CNN
 F 2 "Resistors_SMD:R_0805" V 4580 4050 50  0001 C CNN
 F 3 "" H 4650 4050 50  0001 C CNN
 	1    4650 4050
@@ -140,9 +208,9 @@ Wire Wire Line
 	5550 3800 4650 3800
 Connection ~ 4650 3800
 Wire Wire Line
-	5850 3800 6050 3800
+	6050 3800 5850 3800
 Wire Wire Line
-	6050 3800 6050 3200
+	6050 2850 6050 3800
 Wire Wire Line
 	5550 2900 5550 2600
 Wire Wire Line
@@ -150,10 +218,10 @@ Wire Wire Line
 Wire Wire Line
 	5350 2450 5350 2800
 $Comp
-L +5VA #PWR401
+L +5VA #PWR019
 U 1 1 59D2836E
 P 5350 2450
-F 0 "#PWR401" H 5350 2300 50  0001 C CNN
+F 0 "#PWR019" H 5350 2300 50  0001 C CNN
 F 1 "+5VA" H 5350 2590 50  0000 C CNN
 F 2 "" H 5350 2450 50  0001 C CNN
 F 3 "" H 5350 2450 50  0001 C CNN
@@ -162,10 +230,10 @@ F 3 "" H 5350 2450 50  0001 C CNN
 $EndComp
 Connection ~ 5350 2600
 $Comp
-L GND #PWR402
+L GND #PWR020
 U 1 1 59D283BC
 P 5350 4850
-F 0 "#PWR402" H 5350 4600 50  0001 C CNN
+F 0 "#PWR020" H 5350 4600 50  0001 C CNN
 F 1 "GND" H 5350 4700 50  0000 C CNN
 F 2 "" H 5350 4850 50  0001 C CNN
 F 3 "" H 5350 4850 50  0001 C CNN
@@ -205,10 +273,10 @@ F 3 "" H 10650 5800 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L +5VA #PWR403
+L +5VA #PWR021
 U 1 1 59D287B5
 P 10150 5450
-F 0 "#PWR403" H 10150 5300 50  0001 C CNN
+F 0 "#PWR021" H 10150 5300 50  0001 C CNN
 F 1 "+5VA" H 10150 5590 50  0000 C CNN
 F 2 "" H 10150 5450 50  0001 C CNN
 F 3 "" H 10150 5450 50  0001 C CNN
@@ -216,10 +284,10 @@ F 3 "" H 10150 5450 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR404
+L GND #PWR022
 U 1 1 59D287E7
 P 10150 6150
-F 0 "#PWR404" H 10150 5900 50  0001 C CNN
+F 0 "#PWR022" H 10150 5900 50  0001 C CNN
 F 1 "GND" H 10150 6000 50  0000 C CNN
 F 2 "" H 10150 6150 50  0001 C CNN
 F 3 "" H 10150 6150 50  0001 C CNN
@@ -299,7 +367,7 @@ F 3 "" H 4500 3050 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 Wire Wire Line
-	3700 3150 3700 3050
+	3700 2850 3700 3150
 Connection ~ 3700 3050
 Wire Wire Line
 	3700 3450 3700 4700
@@ -326,7 +394,7 @@ U 1 1 5B1B7A50
 P 7250 3200
 F 0 "L401" V 7200 3200 50  0000 C CNN
 F 1 "680nH" V 7325 3200 50  0000 C CNN
-F 2 "" H 7250 3200 50  0001 C CNN
+F 2 "Inductors_SMD:L_0805" H 7250 3200 50  0001 C CNN
 F 3 "" H 7250 3200 50  0001 C CNN
 	1    7250 3200
 	0    1    1    0   
@@ -337,7 +405,7 @@ U 1 1 5B1B7ADD
 P 7750 3200
 F 0 "L402" V 7700 3200 50  0000 C CNN
 F 1 "580nH" V 7825 3200 50  0000 C CNN
-F 2 "" H 7750 3200 50  0001 C CNN
+F 2 "Inductors_SMD:L_0805" H 7750 3200 50  0001 C CNN
 F 3 "" H 7750 3200 50  0001 C CNN
 	1    7750 3200
 	0    1    1    0   
@@ -345,34 +413,34 @@ $EndComp
 $Comp
 L C C403
 U 1 1 5B1B7B48
-P 7000 3450
-F 0 "C403" H 7025 3550 50  0000 L CNN
-F 1 "330pF" H 7025 3350 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805" H 7038 3300 50  0001 C CNN
-F 3 "" H 7000 3450 50  0001 C CNN
-	1    7000 3450
+P 7000 3500
+F 0 "C403" H 7025 3600 50  0000 L CNN
+F 1 "330pF" H 7025 3400 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 7038 3350 50  0001 C CNN
+F 3 "" H 7000 3500 50  0001 C CNN
+	1    7000 3500
 	1    0    0    -1  
 $EndComp
 $Comp
 L C C405
 U 1 1 5B1B7BCA
-P 7500 3450
-F 0 "C405" H 7525 3550 50  0000 L CNN
-F 1 "470pF" H 7525 3350 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805" H 7538 3300 50  0001 C CNN
-F 3 "" H 7500 3450 50  0001 C CNN
-	1    7500 3450
+P 7500 3500
+F 0 "C405" H 7525 3600 50  0000 L CNN
+F 1 "470pF" H 7525 3400 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 7538 3350 50  0001 C CNN
+F 3 "" H 7500 3500 50  0001 C CNN
+	1    7500 3500
 	1    0    0    -1  
 $EndComp
 $Comp
 L C C407
 U 1 1 5B1B7C52
-P 8000 3450
-F 0 "C407" H 8025 3550 50  0000 L CNN
-F 1 "270pF" H 8025 3350 50  0000 L CNN
-F 2 "Capacitors_SMD:C_0805" H 8038 3300 50  0001 C CNN
-F 3 "" H 8000 3450 50  0001 C CNN
-	1    8000 3450
+P 8000 3500
+F 0 "C407" H 8025 3600 50  0000 L CNN
+F 1 "270pF" H 8025 3400 50  0000 L CNN
+F 2 "Capacitors_SMD:C_0805" H 8038 3350 50  0001 C CNN
+F 3 "" H 8000 3500 50  0001 C CNN
+	1    8000 3500
 	1    0    0    -1  
 $EndComp
 $Comp
@@ -398,16 +466,16 @@ F 3 "" H 7750 2950 50  0001 C CNN
 	0    -1   -1   0   
 $EndComp
 Wire Wire Line
-	7000 3600 7000 3700
+	7000 3650 7000 3750
 Wire Wire Line
-	7000 3700 8000 3700
+	7000 3750 8000 3750
 Wire Wire Line
-	8000 3700 8000 3600
+	8000 3750 8000 3650
 Wire Wire Line
-	7500 4700 7500 3600
-Connection ~ 7500 3700
+	7500 4700 7500 3650
+Connection ~ 7500 3750
 Wire Wire Line
-	7000 2950 7000 3300
+	7000 2950 7000 3350
 Wire Wire Line
 	6900 3200 7100 3200
 Wire Wire Line
@@ -416,12 +484,12 @@ Connection ~ 7000 3200
 Wire Wire Line
 	7400 3200 7600 3200
 Wire Wire Line
-	7500 2950 7500 3300
+	7500 2950 7500 3350
 Connection ~ 7500 3200
 Wire Wire Line
 	7900 3200 8100 3200
 Wire Wire Line
-	8000 2950 8000 3300
+	8000 2950 8000 3350
 Wire Wire Line
 	7900 2950 8000 2950
 Connection ~ 8000 3200
@@ -452,7 +520,51 @@ Wire Notes Line
 Text Notes 7800 4200 0    60   ~ 0
 Filter capacitor\ntolerance 5%
 Text Notes 6500 2550 0    60   ~ 0
-Elliptic filter
-Text Notes 2700 5900 0    60   ~ 0
-Note: The cable terminating resistor should\ntake into account the parallel resistance of\nthe dividing network:\n\n1000 / 2 = 500 Ohms\n\nRtotal = R1×R2/(R1+R2)\n(500 x 56) / (500 + 56) = 50.36 Ohms\n
+2N Elliptic filter (14 MHz low-pass)
+Text Notes 3000 5950 0    60   ~ 0
+Note:\nThe cable terminating resistor should\ntake into account the parallel resistance of\nthe dividing network:\n\n1000 / 2 = 500 Ohms\n\nRtotal = R1×R2/(R1+R2)\n(500 x 56) / (500 + 56) = 50.36 Ohms\n
+Text Notes 2500 3950 0    60   ~ 0
+50 Ohm impedance\nRF input
+$Comp
+L TEST TP401
+U 1 1 5B1D41F6
+P 3700 2850
+F 0 "TP401" H 3700 3150 50  0000 C BNN
+F 1 "RFin_Test" H 3700 3100 50  0000 C CNN
+F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 3700 2850 50  0001 C CNN
+F 3 "" H 3700 2850 50  0001 C CNN
+	1    3700 2850
+	1    0    0    -1  
+$EndComp
+$Comp
+L TEST TP402
+U 1 1 5B1D42CC
+P 6050 2850
+F 0 "TP402" H 6050 3150 50  0000 C BNN
+F 1 "Gain_Test" H 6050 3100 50  0000 C CNN
+F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 6050 2850 50  0001 C CNN
+F 3 "" H 6050 2850 50  0001 C CNN
+	1    6050 2850
+	1    0    0    -1  
+$EndComp
+$Comp
+L TEST TP403
+U 1 1 5B1D4381
+P 8800 2850
+F 0 "TP403" H 8800 3150 50  0000 C BNN
+F 1 "RFout_Test" H 8800 3100 50  0000 C CNN
+F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 8800 2850 50  0001 C CNN
+F 3 "" H 8800 2850 50  0001 C CNN
+	1    8800 2850
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8800 2850 8800 3200
+Connection ~ 8800 3200
+Text Notes 5400 4000 0    60   ~ 0
+Gain setting 'A'
+Text Notes 4500 4350 1    60   ~ 0
+Gain setting 'B'
+Text Notes 5600 5550 0    60   ~ 0
+Note:\nThere are two gain setting resistors A and\nB.  These must be 200-1500R.  Please see\nproject notes for details about value \nselection
 $EndSCHEMATC

@@ -35,6 +35,74 @@ LIBS:opa690
 LIBS:gpifii_j7
 LIBS:gpifii_j6
 LIBS:bnc_rosenberger
+LIBS:74xgxx
+LIBS:ac-dc
+LIBS:actel
+LIBS:allegro
+LIBS:Altera
+LIBS:analog_devices
+LIBS:battery_management
+LIBS:bbd
+LIBS:bosch
+LIBS:brooktre
+LIBS:cmos_ieee
+LIBS:dc-dc
+LIBS:diode
+LIBS:elec-unifil
+LIBS:ESD_Protection
+LIBS:ftdi
+LIBS:gennum
+LIBS:graphic
+LIBS:graphic_symbols
+LIBS:hc11
+LIBS:infineon
+LIBS:intersil
+LIBS:ir
+LIBS:Lattice
+LIBS:leds
+LIBS:LEM
+LIBS:logic_programmable
+LIBS:logo
+LIBS:maxim
+LIBS:mechanical
+LIBS:microchip_dspic33dsc
+LIBS:microchip_pic10mcu
+LIBS:microchip_pic12mcu
+LIBS:microchip_pic16mcu
+LIBS:microchip_pic18mcu
+LIBS:microchip_pic24mcu
+LIBS:microchip_pic32mcu
+LIBS:modules
+LIBS:motor_drivers
+LIBS:motors
+LIBS:msp430
+LIBS:nordicsemi
+LIBS:nxp
+LIBS:nxp_armmcu
+LIBS:onsemi
+LIBS:Oscillators
+LIBS:Power_Management
+LIBS:powerint
+LIBS:pspice
+LIBS:references
+LIBS:relays
+LIBS:rfcom
+LIBS:RFSolutions
+LIBS:sensors
+LIBS:silabs
+LIBS:stm8
+LIBS:stm32
+LIBS:supertex
+LIBS:switches
+LIBS:transf
+LIBS:triac_thyristor
+LIBS:ttl_ieee
+LIBS:video
+LIBS:wiznet
+LIBS:Worldsemi
+LIBS:Xicor
+LIBS:zetex
+LIBS:Zilog
 LIBS:Domesday Duplicator-cache
 EELAYER 25 0
 EELAYER END
@@ -42,8 +110,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 5
 Title "Domesday Duplicator"
-Date "2018-06-09"
-Rev "3.0"
+Date "2018-06-10"
+Rev "2.3"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -94,10 +162,10 @@ Wire Wire Line
 	3150 4750 2950 4750
 Connection ~ 2950 4750
 $Comp
-L GND #PWR201
+L GND #PWR05
 U 1 1 59D0EAAC
 P 2950 5400
-F 0 "#PWR201" H 2950 5150 50  0001 C CNN
+F 0 "#PWR05" H 2950 5150 50  0001 C CNN
 F 1 "GND" H 2950 5250 50  0000 C CNN
 F 2 "" H 2950 5400 50  0001 C CNN
 F 3 "" H 2950 5400 50  0001 C CNN
@@ -111,12 +179,10 @@ NoConn ~ 3150 3050
 NoConn ~ 3150 3150
 NoConn ~ 3150 3250
 NoConn ~ 3150 3350
-NoConn ~ 3150 3950
 NoConn ~ 3150 4050
 NoConn ~ 3150 4350
 NoConn ~ 3150 4450
 NoConn ~ 3150 4550
-NoConn ~ 3150 4650
 Wire Wire Line
 	3150 3550 2950 3550
 Connection ~ 2950 3550
@@ -139,10 +205,10 @@ Wire Wire Line
 Wire Wire Line
 	8850 2950 8650 2950
 $Comp
-L +5V #PWR202
+L +5V #PWR06
 U 1 1 59D0EC1B
 P 6850 2300
-F 0 "#PWR202" H 6850 2150 50  0001 C CNN
+F 0 "#PWR06" H 6850 2150 50  0001 C CNN
 F 1 "+5V" H 6850 2440 50  0000 C CNN
 F 2 "" H 6850 2300 50  0001 C CNN
 F 3 "" H 6850 2300 50  0001 C CNN
@@ -348,10 +414,10 @@ Wire Wire Line
 Wire Wire Line
 	5000 4650 5350 4650
 $Comp
-L PWR_FLAG #FLG202
+L PWR_FLAG #FLG07
 U 1 1 5A0C2855
 P 7300 2250
-F 0 "#FLG202" H 7300 2325 50  0001 C CNN
+F 0 "#FLG07" H 7300 2325 50  0001 C CNN
 F 1 "PWR_FLAG" H 7300 2400 50  0000 C CNN
 F 2 "" H 7300 2250 50  0001 C CNN
 F 3 "" H 7300 2250 50  0001 C CNN
@@ -364,10 +430,10 @@ Connection ~ 7300 2450
 Text Notes 7600 2350 0    60   ~ 0
 Power is supplied from the VBUS of\nthe USB3 connection, so we flag the\nsupply point here
 $Comp
-L PWR_FLAG #FLG201
+L PWR_FLAG #FLG08
 U 1 1 5A0C2E66
 P 6000 5000
-F 0 "#FLG201" H 6000 5075 50  0001 C CNN
+F 0 "#FLG08" H 6000 5075 50  0001 C CNN
 F 1 "PWR_FLAG" H 6000 5150 50  0000 C CNN
 F 2 "" H 6000 5000 50  0001 C CNN
 F 3 "" H 6000 5000 50  0001 C CNN
@@ -377,18 +443,87 @@ $EndComp
 Wire Wire Line
 	6000 5000 6000 5250
 Connection ~ 6000 5250
-Text HLabel 2700 3750 0    60   Output ~ 0
-SPI_MOSI
-Text HLabel 2700 3850 0    60   Input ~ 0
-SPI_MISO
-Text HLabel 2700 4150 0    60   Output ~ 0
-SPI_SCK
+NoConn ~ 3150 3950
+$Comp
+L TEST TP201
+U 1 1 5B1D61D8
+P 2550 3750
+F 0 "TP201" H 2550 4050 50  0000 C BNN
+F 1 "MOSI" H 2550 4000 50  0000 C CNN
+F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 2550 3750 50  0001 C CNN
+F 3 "" H 2550 3750 50  0001 C CNN
+	1    2550 3750
+	0    -1   -1   0   
+$EndComp
+$Comp
+L TEST TP202
+U 1 1 5B1D6282
+P 2550 3950
+F 0 "TP202" H 2550 4250 50  0000 C BNN
+F 1 "MISO" H 2550 4200 50  0000 C CNN
+F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 2550 3950 50  0001 C CNN
+F 3 "" H 2550 3950 50  0001 C CNN
+	1    2550 3950
+	0    -1   -1   0   
+$EndComp
+$Comp
+L TEST TP203
+U 1 1 5B1D62B0
+P 2550 4150
+F 0 "TP203" H 2550 4450 50  0000 C BNN
+F 1 "SCK" H 2550 4400 50  0000 C CNN
+F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 2550 4150 50  0001 C CNN
+F 3 "" H 2550 4150 50  0001 C CNN
+	1    2550 4150
+	0    -1   -1   0   
+$EndComp
+$Comp
+L TEST TP204
+U 1 1 5B1D62E3
+P 2550 4650
+F 0 "TP204" H 2550 4950 50  0000 C BNN
+F 1 "I2C_CLK" H 2550 4900 50  0000 C CNN
+F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 2550 4650 50  0001 C CNN
+F 3 "" H 2550 4650 50  0001 C CNN
+	1    2550 4650
+	0    -1   -1   0   
+$EndComp
 Wire Wire Line
-	2700 3750 3150 3750
+	3150 3750 2550 3750
 Wire Wire Line
-	2700 3850 3150 3850
+	3150 3850 2700 3850
 Wire Wire Line
-	2700 4150 3150 4150
-NoConn ~ 8650 4750
-NoConn ~ 7050 4750
+	2700 3850 2700 3950
+Wire Wire Line
+	2700 3950 2550 3950
+Wire Wire Line
+	3150 4150 2550 4150
+Wire Wire Line
+	3150 4650 2550 4650
+$Comp
+L TEST TP205
+U 1 1 5B1D64ED
+P 6700 4750
+F 0 "TP205" H 6700 5050 50  0000 C BNN
+F 1 "SDA" H 6700 5000 50  0000 C CNN
+F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 6700 4750 50  0001 C CNN
+F 3 "" H 6700 4750 50  0001 C CNN
+	1    6700 4750
+	0    -1   -1   0   
+$EndComp
+$Comp
+L TEST TP206
+U 1 1 5B1D656C
+P 9250 4750
+F 0 "TP206" H 9250 5050 50  0000 C BNN
+F 1 "SCL" H 9250 5000 50  0000 C CNN
+F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 9250 4750 50  0001 C CNN
+F 3 "" H 9250 4750 50  0001 C CNN
+	1    9250 4750
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	6700 4750 7050 4750
+Wire Wire Line
+	8650 4750 9250 4750
 $EndSCHEMATC
