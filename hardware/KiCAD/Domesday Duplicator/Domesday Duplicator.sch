@@ -35,6 +35,74 @@ LIBS:opa690
 LIBS:gpifii_j7
 LIBS:gpifii_j6
 LIBS:bnc_rosenberger
+LIBS:74xgxx
+LIBS:ac-dc
+LIBS:actel
+LIBS:allegro
+LIBS:Altera
+LIBS:analog_devices
+LIBS:battery_management
+LIBS:bbd
+LIBS:bosch
+LIBS:brooktre
+LIBS:cmos_ieee
+LIBS:dc-dc
+LIBS:diode
+LIBS:elec-unifil
+LIBS:ESD_Protection
+LIBS:ftdi
+LIBS:gennum
+LIBS:graphic
+LIBS:graphic_symbols
+LIBS:hc11
+LIBS:infineon
+LIBS:intersil
+LIBS:ir
+LIBS:Lattice
+LIBS:leds
+LIBS:LEM
+LIBS:logic_programmable
+LIBS:logo
+LIBS:maxim
+LIBS:mechanical
+LIBS:microchip_dspic33dsc
+LIBS:microchip_pic10mcu
+LIBS:microchip_pic12mcu
+LIBS:microchip_pic16mcu
+LIBS:microchip_pic18mcu
+LIBS:microchip_pic24mcu
+LIBS:microchip_pic32mcu
+LIBS:modules
+LIBS:motor_drivers
+LIBS:motors
+LIBS:msp430
+LIBS:nordicsemi
+LIBS:nxp
+LIBS:nxp_armmcu
+LIBS:onsemi
+LIBS:Oscillators
+LIBS:Power_Management
+LIBS:powerint
+LIBS:pspice
+LIBS:references
+LIBS:relays
+LIBS:rfcom
+LIBS:RFSolutions
+LIBS:sensors
+LIBS:silabs
+LIBS:stm8
+LIBS:stm32
+LIBS:supertex
+LIBS:switches
+LIBS:transf
+LIBS:triac_thyristor
+LIBS:ttl_ieee
+LIBS:video
+LIBS:wiznet
+LIBS:Worldsemi
+LIBS:Xicor
+LIBS:zetex
+LIBS:Zilog
 LIBS:Domesday Duplicator-cache
 EELAYER 25 0
 EELAYER END
@@ -42,8 +110,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 5
 Title "Domesday Duplicator"
-Date "2018-06-09"
-Rev "3.0"
+Date "2018-06-10"
+Rev "2.3"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -101,9 +169,6 @@ F44 "DATA28" B R 3750 5850 60
 F45 "DATA29" B R 3750 5950 60 
 F46 "DATA30" B R 3750 6050 60 
 F47 "DATA31" B R 3750 6150 60 
-F48 "SPI_MOSI" O L 2850 4600 60 
-F49 "SPI_MISO" I L 2850 4700 60 
-F50 "SPI_SCK" O L 2850 4800 60 
 $EndSheet
 $Comp
 L DE0-Nano_GPIO J102
@@ -180,10 +245,10 @@ Wire Wire Line
 	9600 1600 9600 3200
 Connection ~ 9600 2500
 $Comp
-L GND #PWR104
+L GND #PWR01
 U 1 1 59D160F9
 P 9600 3200
-F 0 "#PWR104" H 9600 2950 50  0001 C CNN
+F 0 "#PWR01" H 9600 2950 50  0001 C CNN
 F 1 "GND" H 9600 3050 50  0000 C CNN
 F 2 "" H 9600 3200 50  0001 C CNN
 F 3 "" H 9600 3200 50  0001 C CNN
@@ -395,10 +460,10 @@ ADC_DATA9
 Wire Wire Line
 	9550 4500 9550 6100
 $Comp
-L +5V #PWR101
+L +5V #PWR02
 U 1 1 59D2E5E1
 P 7800 3750
-F 0 "#PWR101" H 7800 3600 50  0001 C CNN
+F 0 "#PWR02" H 7800 3600 50  0001 C CNN
 F 1 "+5V" H 7800 3890 50  0000 C CNN
 F 2 "" H 7800 3750 50  0001 C CNN
 F 3 "" H 7800 3750 50  0001 C CNN
@@ -406,10 +471,10 @@ F 3 "" H 7800 3750 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GND #PWR103
+L GND #PWR03
 U 1 1 59D2E990
 P 9550 6100
-F 0 "#PWR103" H 9550 5850 50  0001 C CNN
+F 0 "#PWR03" H 9550 5850 50  0001 C CNN
 F 1 "GND" H 9550 5950 50  0000 C CNN
 F 2 "" H 9550 6100 50  0001 C CNN
 F 3 "" H 9550 6100 50  0001 C CNN
@@ -466,10 +531,10 @@ Wire Wire Line
 Wire Wire Line
 	3700 2150 3850 2150
 $Comp
-L +5V #PWR102
+L +5V #PWR04
 U 1 1 59D16023
 P 7950 900
-F 0 "#PWR102" H 7950 750 50  0001 C CNN
+F 0 "#PWR04" H 7950 750 50  0001 C CNN
 F 1 "+5V" H 7950 1040 50  0000 C CNN
 F 2 "" H 7950 900 50  0001 C CNN
 F 3 "" H 7950 900 50  0001 C CNN
@@ -723,7 +788,6 @@ U 5B1B9700
 F0 "Power Supply" 60
 F1 "Power Supply.sch" 60
 $EndSheet
-NoConn ~ 2850 4600
-NoConn ~ 2850 4700
-NoConn ~ 2850 4800
+Text Notes 800  7450 0    60   ~ 0
+Note:\nAll resistors 1% tolerance.\nAll capacitors 10% tolerance.\nUnless otherwise noted
 $EndSCHEMATC
