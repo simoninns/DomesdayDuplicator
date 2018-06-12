@@ -110,8 +110,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 4 5
 Title "Domesday Duplicator"
-Date "2018-06-10"
-Rev "2.3"
+Date "2018-06-12"
+Rev "3.0"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -204,8 +204,6 @@ F 3 "" H 5150 3900 50  0001 C CNN
 	1    5150 3900
 	0    -1   -1   0   
 $EndComp
-Wire Wire Line
-	6200 2650 6200 4200
 Wire Wire Line
 	5550 2700 5550 2400
 Wire Wire Line
@@ -510,31 +508,6 @@ Note:\nThe cable terminating resistor should\ntake into account the parallel res
 Text Notes 2850 2450 0    60   ~ 0
 50 Ohm impedance\nRF input
 $Comp
-L TEST TP401
-U 1 1 5B1D42CC
-P 6200 2650
-F 0 "TP401" H 6200 2950 50  0000 C BNN
-F 1 "Gain_Test" H 6200 2900 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 6200 2650 50  0001 C CNN
-F 3 "" H 6200 2650 50  0001 C CNN
-	1    6200 2650
-	1    0    0    -1  
-$EndComp
-$Comp
-L TEST TP402
-U 1 1 5B1D4381
-P 8800 2650
-F 0 "TP402" H 8800 2950 50  0000 C BNN
-F 1 "RFout_Test" H 8800 2900 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 8800 2650 50  0001 C CNN
-F 3 "" H 8800 2650 50  0001 C CNN
-	1    8800 2650
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	8800 2650 8800 3000
-Connection ~ 8800 3000
-$Comp
 L SW_DIP_x04 SW401
 U 1 1 5B1E81E3
 P 5800 4100
@@ -575,10 +548,10 @@ $EndComp
 Wire Wire Line
 	6200 4200 6100 4200
 Wire Wire Line
-	6100 4100 6200 4100
+	6200 4100 6100 4100
 Connection ~ 6200 4100
 Wire Wire Line
-	6100 4000 6200 4000
+	6200 4000 6100 4000
 Connection ~ 6200 4000
 Wire Wire Line
 	6100 3900 6200 3900
@@ -663,4 +636,6 @@ F 3 "" H 4650 4950 50  0001 C CNN
 $EndComp
 Wire Wire Line
 	4650 4950 4650 4850
+Wire Wire Line
+	6200 3000 6200 4200
 $EndSCHEMATC

@@ -110,8 +110,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 5 5
 Title "Domesday Duplicator - Power Supply"
-Date "2018-06-10"
-Rev "2.3"
+Date "2018-06-12"
+Rev "3.0"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -248,8 +248,6 @@ Wire Wire Line
 Wire Wire Line
 	5000 3700 6000 3700
 Wire Wire Line
-	6600 3700 7600 3700
-Wire Wire Line
 	7300 3600 7300 3800
 Wire Wire Line
 	6800 3800 6800 3700
@@ -265,47 +263,7 @@ Wire Wire Line
 	4550 3700 4550 3600
 Wire Wire Line
 	5550 3500 5550 3250
-Wire Wire Line
-	5100 3500 5550 3500
 Connection ~ 5300 3500
-$Comp
-L TEST TP501
-U 1 1 5B1D6A1F
-P 5100 3400
-F 0 "TP501" H 5100 3700 50  0000 C BNN
-F 1 "5V" H 5100 3650 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 5100 3400 50  0001 C CNN
-F 3 "" H 5100 3400 50  0001 C CNN
-	1    5100 3400
-	1    0    0    -1  
-$EndComp
-$Comp
-L TEST TP503
-U 1 1 5B1D6A51
-P 7600 3700
-F 0 "TP503" H 7600 4000 50  0000 C BNN
-F 1 "3V3" H 7600 3950 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 7600 3700 50  0001 C CNN
-F 3 "" H 7600 3700 50  0001 C CNN
-	1    7600 3700
-	1    0    0    -1  
-$EndComp
-$Comp
-L TEST TP502
-U 1 1 5B1D6A8D
-P 6550 4300
-F 0 "TP502" H 6550 4600 50  0000 C BNN
-F 1 "GND" H 6550 4550 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 6550 4300 50  0001 C CNN
-F 3 "" H 6550 4300 50  0001 C CNN
-	1    6550 4300
-	-1   0    0    1   
-$EndComp
-Wire Wire Line
-	6550 4300 6550 4200
-Connection ~ 6550 4200
-Wire Wire Line
-	5100 3400 5100 3500
 $Comp
 L LM1117-3.3 U501
 U 1 1 5B1D87AA
@@ -317,4 +275,8 @@ F 3 "" H 6300 3700 50  0001 C CNN
 	1    6300 3700
 	1    0    0    -1  
 $EndComp
+Wire Wire Line
+	6600 3700 7300 3700
+Wire Wire Line
+	5550 3500 5300 3500
 $EndSCHEMATC

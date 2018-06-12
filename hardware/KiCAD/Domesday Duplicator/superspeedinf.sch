@@ -110,8 +110,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 5
 Title "Domesday Duplicator"
-Date "2018-06-10"
-Rev "2.3"
+Date "2018-06-12"
+Rev "3.0"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -179,7 +179,6 @@ NoConn ~ 3150 3050
 NoConn ~ 3150 3150
 NoConn ~ 3150 3250
 NoConn ~ 3150 3350
-NoConn ~ 3150 4050
 NoConn ~ 3150 4350
 NoConn ~ 3150 4450
 NoConn ~ 3150 4550
@@ -444,86 +443,13 @@ Wire Wire Line
 	6000 5000 6000 5250
 Connection ~ 6000 5250
 NoConn ~ 3150 3950
-$Comp
-L TEST TP201
-U 1 1 5B1D61D8
-P 2550 3750
-F 0 "TP201" H 2550 4050 50  0000 C BNN
-F 1 "MOSI" H 2550 4000 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 2550 3750 50  0001 C CNN
-F 3 "" H 2550 3750 50  0001 C CNN
-	1    2550 3750
-	0    -1   -1   0   
-$EndComp
-$Comp
-L TEST TP202
-U 1 1 5B1D6282
-P 2550 3950
-F 0 "TP202" H 2550 4250 50  0000 C BNN
-F 1 "MISO" H 2550 4200 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 2550 3950 50  0001 C CNN
-F 3 "" H 2550 3950 50  0001 C CNN
-	1    2550 3950
-	0    -1   -1   0   
-$EndComp
-$Comp
-L TEST TP203
-U 1 1 5B1D62B0
-P 2550 4150
-F 0 "TP203" H 2550 4450 50  0000 C BNN
-F 1 "SCK" H 2550 4400 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 2550 4150 50  0001 C CNN
-F 3 "" H 2550 4150 50  0001 C CNN
-	1    2550 4150
-	0    -1   -1   0   
-$EndComp
-$Comp
-L TEST TP204
-U 1 1 5B1D62E3
-P 2550 4650
-F 0 "TP204" H 2550 4950 50  0000 C BNN
-F 1 "I2C_CLK" H 2550 4900 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 2550 4650 50  0001 C CNN
-F 3 "" H 2550 4650 50  0001 C CNN
-	1    2550 4650
-	0    -1   -1   0   
-$EndComp
+NoConn ~ 3150 3750
+NoConn ~ 3150 3850
+NoConn ~ 3150 4650
+NoConn ~ 7050 4750
+NoConn ~ 8650 4750
+NoConn ~ 3150 4150
 Wire Wire Line
-	3150 3750 2550 3750
-Wire Wire Line
-	3150 3850 2700 3850
-Wire Wire Line
-	2700 3850 2700 3950
-Wire Wire Line
-	2700 3950 2550 3950
-Wire Wire Line
-	3150 4150 2550 4150
-Wire Wire Line
-	3150 4650 2550 4650
-$Comp
-L TEST TP205
-U 1 1 5B1D64ED
-P 6700 4750
-F 0 "TP205" H 6700 5050 50  0000 C BNN
-F 1 "SDA" H 6700 5000 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 6700 4750 50  0001 C CNN
-F 3 "" H 6700 4750 50  0001 C CNN
-	1    6700 4750
-	0    -1   -1   0   
-$EndComp
-$Comp
-L TEST TP206
-U 1 1 5B1D656C
-P 9250 4750
-F 0 "TP206" H 9250 5050 50  0000 C BNN
-F 1 "SCL" H 9250 5000 50  0000 C CNN
-F 2 "Connectors_TestPoints:Test_Point_Pad_1.5x1.5mm" H 9250 4750 50  0001 C CNN
-F 3 "" H 9250 4750 50  0001 C CNN
-	1    9250 4750
-	0    1    1    0   
-$EndComp
-Wire Wire Line
-	6700 4750 7050 4750
-Wire Wire Line
-	8650 4750 9250 4750
+	3150 4050 2950 4050
+Connection ~ 2950 4050
 $EndSCHEMATC
