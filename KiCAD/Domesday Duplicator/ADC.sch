@@ -109,7 +109,7 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 3 5
-Title "Domesday Duplicator"
+Title "Domesday Duplicator - ADC"
 Date "2018-06-12"
 Rev "3.0"
 Comp "https://www.domesday86.com"
