@@ -109,7 +109,7 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 5
-Title "Domesday Duplicator"
+Title "Domesday Duplicator - Cypress Superspeed Interface"
 Date "2018-06-12"
 Rev "3.0"
 Comp "https://www.domesday86.com"
