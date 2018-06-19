@@ -35,26 +35,94 @@ LIBS:opa690
 LIBS:gpifii_j7
 LIBS:gpifii_j6
 LIBS:bnc_rosenberger
+LIBS:74xgxx
+LIBS:ac-dc
+LIBS:actel
+LIBS:allegro
+LIBS:Altera
+LIBS:analog_devices
+LIBS:battery_management
+LIBS:bbd
+LIBS:bosch
+LIBS:brooktre
+LIBS:cmos_ieee
+LIBS:dc-dc
+LIBS:diode
+LIBS:elec-unifil
+LIBS:ESD_Protection
+LIBS:ftdi
+LIBS:gennum
+LIBS:graphic
+LIBS:graphic_symbols
+LIBS:hc11
+LIBS:infineon
+LIBS:intersil
+LIBS:ir
+LIBS:Lattice
+LIBS:leds
+LIBS:LEM
+LIBS:logic_programmable
+LIBS:logo
+LIBS:maxim
+LIBS:mechanical
+LIBS:microchip_dspic33dsc
+LIBS:microchip_pic10mcu
+LIBS:microchip_pic12mcu
+LIBS:microchip_pic16mcu
+LIBS:microchip_pic18mcu
+LIBS:microchip_pic24mcu
+LIBS:microchip_pic32mcu
+LIBS:modules
+LIBS:motor_drivers
+LIBS:motors
+LIBS:msp430
+LIBS:nordicsemi
+LIBS:nxp
+LIBS:nxp_armmcu
+LIBS:onsemi
+LIBS:Oscillators
+LIBS:Power_Management
+LIBS:powerint
+LIBS:pspice
+LIBS:references
+LIBS:relays
+LIBS:rfcom
+LIBS:RFSolutions
+LIBS:sensors
+LIBS:silabs
+LIBS:stm8
+LIBS:stm32
+LIBS:supertex
+LIBS:switches
+LIBS:transf
+LIBS:triac_thyristor
+LIBS:ttl_ieee
+LIBS:video
+LIBS:wiznet
+LIBS:Worldsemi
+LIBS:Xicor
+LIBS:zetex
+LIBS:Zilog
 LIBS:Domesday Duplicator-cache
 EELAYER 25 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
-Sheet 2 4
-Title "Domesday Duplicator"
-Date "2018-04-26"
-Rev "2.2.2"
-Comp "http://www.domesday86.com"
+Sheet 2 5
+Title "Domesday Duplicator - Cypress Superspeed Interface"
+Date "2018-06-19"
+Rev "3.0.1"
+Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
 Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L GPIFII_J6 J4
+L GPIFII_J6 J202
 U 1 1 59D0E982
 P 7850 3750
-F 0 "J4" H 7300 4800 60  0000 C CNN
+F 0 "J202" H 7300 4800 60  0000 C CNN
 F 1 "GPIFII_J6" H 7450 2600 60  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 7850 3750 60  0001 C CNN
 F 3 "" H 7850 3750 60  0001 C CNN
@@ -62,10 +130,10 @@ F 3 "" H 7850 3750 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L GPIFII_J7 J3
+L GPIFII_J7 J201
 U 1 1 59D0E9C8
 P 4100 3750
-F 0 "J3" H 3400 4800 60  0000 C CNN
+F 0 "J201" H 3400 4800 60  0000 C CNN
 F 1 "GPIFII_J7" H 3550 2600 60  0000 C CNN
 F 2 "Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm" H 4100 3750 60  0001 C CNN
 F 3 "" H 4100 3750 60  0001 C CNN
@@ -111,15 +179,9 @@ NoConn ~ 3150 3050
 NoConn ~ 3150 3150
 NoConn ~ 3150 3250
 NoConn ~ 3150 3350
-NoConn ~ 3150 3750
-NoConn ~ 3150 3850
-NoConn ~ 3150 3950
-NoConn ~ 3150 4050
-NoConn ~ 3150 4150
 NoConn ~ 3150 4350
 NoConn ~ 3150 4450
 NoConn ~ 3150 4550
-NoConn ~ 3150 4650
 Wire Wire Line
 	3150 3550 2950 3550
 Connection ~ 2950 3550
@@ -217,10 +279,6 @@ Wire Wire Line
 	8650 4550 9000 4550
 Wire Wire Line
 	8650 4650 9000 4650
-Text HLabel 9000 4750 2    60   Output ~ 0
-SCL
-Text HLabel 6650 4750 0    60   BiDi ~ 0
-SDA
 Text HLabel 6650 4350 0    60   BiDi ~ 0
 CTL0
 Text HLabel 6650 4250 0    60   BiDi ~ 0
@@ -277,10 +335,6 @@ Wire Wire Line
 	6650 4350 7050 4350
 Wire Wire Line
 	7050 4550 6650 4550
-Wire Wire Line
-	7050 4750 6650 4750
-Wire Wire Line
-	8650 4750 9000 4750
 NoConn ~ 7050 3050
 Wire Wire Line
 	7050 4450 6850 4450
@@ -388,4 +442,14 @@ $EndComp
 Wire Wire Line
 	6000 5000 6000 5250
 Connection ~ 6000 5250
+NoConn ~ 3150 3950
+NoConn ~ 3150 3750
+NoConn ~ 3150 3850
+NoConn ~ 3150 4650
+NoConn ~ 7050 4750
+NoConn ~ 8650 4750
+NoConn ~ 3150 4150
+Wire Wire Line
+	3150 4050 2950 4050
+Connection ~ 2950 4050
 $EndSCHEMATC
