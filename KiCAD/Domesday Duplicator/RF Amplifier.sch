@@ -110,8 +110,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 4 5
 Title "Domesday Duplicator - RF Amplifier"
-Date "2018-06-12"
-Rev "3.0"
+Date "2018-06-19"
+Rev "3.0.1"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -386,7 +386,7 @@ L L L402
 U 1 1 5B1B7ADD
 P 7750 3000
 F 0 "L402" V 7700 3000 50  0000 C CNN
-F 1 "580nH" V 7825 3000 50  0000 C CNN
+F 1 "560nH" V 7825 3000 50  0000 C CNN
 F 2 "Inductors_SMD:L_0805" H 7750 3000 50  0001 C CNN
 F 3 "" H 7750 3000 50  0001 C CNN
 	1    7750 3000

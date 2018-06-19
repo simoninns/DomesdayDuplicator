@@ -110,8 +110,8 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 5 5
 Title "Domesday Duplicator - Power Supply"
-Date "2018-06-12"
-Rev "3.0"
+Date "2018-06-19"
+Rev "3.0.1"
 Comp "https://www.domesday86.com"
 Comment1 "(c)2018 Simon Inns"
 Comment2 "License: Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)"
@@ -124,7 +124,7 @@ U 1 1 5B1B9C94
 P 5300 3950
 F 0 "C501" H 5325 4050 50  0000 L CNN
 F 1 "10uF TANT" H 5325 3850 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 5338 3800 50  0001 C CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-B_EIA-3528-21_Reflow" H 5338 3800 50  0001 C CNN
 F 3 "" H 5300 3950 50  0001 C CNN
 	1    5300 3950
 	1    0    0    -1  
@@ -146,7 +146,7 @@ U 1 1 5B1B9CA2
 P 6800 3950
 F 0 "C503" H 6825 4050 50  0000 L CNN
 F 1 "10uF TANT" H 6825 3850 50  0000 L CNN
-F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-A_EIA-3216-18_Reflow" H 6838 3800 50  0001 C CNN
+F 2 "Capacitors_Tantalum_SMD:CP_Tantalum_Case-B_EIA-3528-21_Reflow" H 6838 3800 50  0001 C CNN
 F 3 "" H 6800 3950 50  0001 C CNN
 	1    6800 3950
 	1    0    0    -1  
