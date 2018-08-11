@@ -34,7 +34,7 @@ module DomesdayDuplicator(
 
 // FX3 Hardware mapping begins ------------------------------------------------
 
-// Generic pin-mapping for FX3 (DomDupBoard revisions 2_0 to 2_2)
+// Generic pin-mapping for FX3 (DomDupBoard revisions 2_0 to 3_0)
 wire [15:0] fx3_databus;	// 32-bit databus (only 16-bits used)
 wire [12:0] fx3_control;	// 13-bit control bus
 wire fx3_clock;				// FX3 GPIF Clock
@@ -110,7 +110,7 @@ assign fx3_control[10] = GPIO1[07];	// FX3 CTL_10 GPIO_27
 
 // outputE0				GPIO_22		CTL_05	Input		- FX3 Configuration bit 0 (Test mode off/on)
 // outputD0				GPIO_23		CTL_06	Input		- FX3 Configuration bit 1 (Unused)
-// outputD1				GPIO_24		CTL_07	Input		- FX3 Configuration bit 2 (DC offset compensation off/on)
+// outputD1				GPIO_24		CTL_07	Input		- FX3 Configuration bit 2 (Unused)
 // outputD2				GPIO_25		CTL_08	Input		- FX3 Configuration bit 3 (Unused)
 // outputD3				GPIO_26		CTL_09	Input		- FX3 Configuration bit 4 (Unused)
 
@@ -121,7 +121,6 @@ wire fx3_collectData;
 wire fx3_readData;
 wire fx3_bufferError;
 wire fx3_testMode;
-wire fx3_dcOffsetMode;
 
 // Signal outputs to FX3
 assign fx3_control[00] 		= fx3_dataAvailable;
@@ -140,7 +139,7 @@ assign fx3_readData    = fx3_control[01];
 // Signal inputs from FX3 (configuration bits)
 assign fx3_testMode    		= fx3_control[05];
 //assign fx3_configBit1    = fx3_control[06];
-assign fx3_dcOffsetMode 	= fx3_control[07];
+//assign fx3_configBit2 	= fx3_control[07];
 //assign fx3_configBit3		= fx3_control[07];
 //assign fx3_configBit4 	= fx3_control[07];
 
@@ -149,19 +148,19 @@ assign fx3_dcOffsetMode 	= fx3_control[07];
 
 // ADC Hardware mapping begins ------------------------------------------------
 
-wire [9:0]adcData;
+wire [9:0]adc_databus;
 
 // 10-bit databus from ADC
-assign adcData[0] = GPIO0[32];
-assign adcData[1] = GPIO0[31];
-assign adcData[2] = GPIO0[30];
-assign adcData[3] = GPIO0[29];
-assign adcData[4] = GPIO0[28];
-assign adcData[5] = GPIO0[27];
-assign adcData[6] = GPIO0[26];
-assign adcData[7] = GPIO0[25];
-assign adcData[8] = GPIO0[24];
-assign adcData[9] = GPIO0[23];
+assign adc_databus[0] = GPIO0[32];
+assign adc_databus[1] = GPIO0[31];
+assign adc_databus[2] = GPIO0[30];
+assign adc_databus[3] = GPIO0[29];
+assign adc_databus[4] = GPIO0[28];
+assign adc_databus[5] = GPIO0[27];
+assign adc_databus[6] = GPIO0[26];
+assign adc_databus[7] = GPIO0[25];
+assign adc_databus[8] = GPIO0[24];
+assign adc_databus[9] = GPIO0[23];
 
 // ADC clock output
 // Select the correct sampling clock based on the configuration
@@ -186,7 +185,7 @@ IPpllGenerator IPpllGenerator0 (
 	.c1(adc_clock)		// 40 MHz ADC clock
 );
 
-wire fx3isReading;
+wire fx3_isReading;
 
 // Data generation logic -----------------------------------------------------
 dataGenerator dataGenerator0 (
@@ -195,10 +194,9 @@ dataGenerator dataGenerator0 (
 	.adc_clock(adc_clock),					// ADC clock
 	.fx3_clock(fx3_clock),					// FX3 clock
 	.collectData(fx3_collectData),		// Collect data (ADC data is discarded if 0)
-	.readData(fx3isReading),				// 1 = FX3 is reading data
+	.readData(fx3_isReading),				// 1 = FX3 is reading data
 	.testMode(fx3_testMode),				// 1 = Test mode on
-	.dcOffsetComp(fx3_dcOffsetMode),		// 1 = compensation on, 0 = compensation off
-	.adcData(adcData),						// ADC data bus input
+	.adcData(adc_databus),					// ADC data bus input
 	
 	// Outputs
 	.bufferError(fx3_bufferError),		// Set if a FIFO buffer error occurs
@@ -214,7 +212,7 @@ fx3StateMachine fx3StateMachine0 (
 	.readData(fx3_readData),				// FX3 is about to start sampling the databus
 	
 	// Output
-	.fx3isReading(fx3isReading)			// Flag to indicate FX3 is sampling the databus
+	.fx3isReading(fx3_isReading)			// Flag to indicate FX3 is sampling the databus
 );
 
 endmodule
