@@ -465,7 +465,7 @@ void MainWindow::on_clvCapturePushButton_clicked()
 void MainWindow::updateCaptureInfo(void)
 {
     // Calculate and display the current amount of captured data (in MBytes)
-    qreal capturedData = (qreal)(domDupUsbDevice->getPacketCounter() * domDupUsbDevice->getPacketSize()) / 1024;
+    qreal capturedData = static_cast<qreal>(domDupUsbDevice->getPacketCounter() * domDupUsbDevice->getPacketSize()) / 1024;
 
     if (capturedData < 1024) ui->capturedDataLabel->setText(QString::number(capturedData, 'f', 0) + tr(" MBytes"));
     else {
@@ -479,7 +479,7 @@ void MainWindow::updateCaptureInfo(void)
 
     // Display the available number of disk buffers (as a percentage)
     quint32 bufferAvailablity = (100 / domDupUsbDevice->getNumberOfDiskBuffers()) * domDupUsbDevice->getAvailableDiskBuffers();
-    ui->diskBufferProgressBar->setValue(bufferAvailablity);
+    ui->diskBufferProgressBar->setValue(static_cast<int>(bufferAvailablity));
 }
 
 // Called by the player control information update timer
@@ -489,8 +489,8 @@ void MainWindow::updatePlayerControlInfo(void)
     lvdpPlayerControl->updatePlayerControlInfo(
                 playerControl->isConnected(),
                 playerControl->isCav(),
-                playerControl->currentFrameNumber(),
-                playerControl->currentTimeCode(),
+                static_cast<quint32>(playerControl->currentFrameNumber()),
+                static_cast<quint32>(playerControl->currentTimeCode()),
                 playerControl->isPlaying(),
                 playerControl->isPaused()
                 );
@@ -583,9 +583,6 @@ void MainWindow::handlePlayerControlEvent(playerControlDialog::PlayerControlEven
         case playerControlDialog::PlayerControlEvents::event_seekClicked:
         playerControl->command(lvdpControl::PlayerCommands::command_seek, parameter);
         break;
-
-        default:
-            qDebug() << "MainWindow::handlePlayerControlEvent(): Unknown event received!";
     }
 }
 
@@ -612,8 +609,8 @@ void MainWindow::cavPicPoll(void)
     cavPicCurrentState = cavPicNextState;
 
     // Get the start and end frame positions
-    qint32 startFrame = (qint32)(ui->startFrameLineEdit->text().toUInt());
-    qint32 endFrame = (qint32)(ui->endFrameLineEdit->text().toUInt());
+    qint32 startFrame = static_cast<qint32>(ui->startFrameLineEdit->text().toUInt());
+    qint32 endFrame = static_cast<qint32>(ui->endFrameLineEdit->text().toUInt());
 
     // Get the capture lead-in flag
     bool captureLeadInFlag = ui->cavLeadInCheckBox->checkState();
@@ -749,7 +746,7 @@ void MainWindow::cavPicPoll(void)
 
             // Send the seek command
             qDebug() << "MainWindow::cavPicPoll(): Requesting start frame" << startFrame;
-            playerControl->command(lvdpControl::PlayerCommands::command_seek, startFrame);
+            playerControl->command(lvdpControl::PlayerCommands::command_seek, static_cast<quint32>(startFrame));
             cavPicNextState = cavState_waitForSeek;
             break;
 
@@ -1007,7 +1004,7 @@ void MainWindow::clvPicPoll(void)
 
             // Send the seek command
             qDebug() << "MainWindow::clvPicPoll(): Requesting start frame" << startFrame;
-            playerControl->command(lvdpControl::PlayerCommands::command_seek, startFrame);
+            playerControl->command(lvdpControl::PlayerCommands::command_seek, static_cast<quint32>(startFrame));
             clvPicNextState = clvState_waitForSeek;
             break;
 
