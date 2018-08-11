@@ -31,7 +31,6 @@ module dataGenerator (
 	input collectData,
 	input readData,
 	input testMode,
-	input dcOffsetComp,
 	input [9:0] adcData,
 	
 	output bufferError,
@@ -81,11 +80,9 @@ assign dataAvailable = (fifoUsedWords > 16'd8191) ? 1'b1 : 1'b0;
 reg [9:0] testData;
 wire [9:0] adcDataRead;
 
-// If we are in test-mode use test data
-// If dc offset compensation is on, subtract the offset (unless the
-// ADC data is lower than the offset compensation)
-// Otherwise use the actual ADC data
-assign adcDataRead = testMode ? testData : (dcOffsetComp ? (adcData > 10'd83 ? adcData - 10'd84 : 10'd0) : adcData);
+// If we are in test-mode use test data,
+// otherwise use the actual ADC data
+assign adcDataRead = testMode ? testData : adcData;
 
 // Generate the test data on the negative edge of the sampling
 // clock (so it has the same timing as the real ADC)
