@@ -346,12 +346,12 @@ qint32 QUsbDevice::sendControlTransfer(
 }
 
 // Start a bulk transfer stream
-qint32 QUsbDevice::startBulkTransfer(bool testMode, QString fileName)
+qint32 QUsbDevice::startBulkTransfer(QString fileName)
 {
     qint32 rc = 1; // Response code
     qDebug() << "QUsbDevice::startBulkTransfer(): Called";
     mUsbBulkTransfer = new QUsbBulkTransfer;
-    mUsbBulkTransfer->setup(mCtx, mDevHandle, mConfig.readEp, testMode, fileName);
+    mUsbBulkTransfer->setup(mCtx, mDevHandle, mConfig.readEp, fileName);
     mUsbBulkTransfer->start();
 
     // Wait for the transfer to start
@@ -385,12 +385,6 @@ quint32 QUsbDevice::getPacketSize(void)
 quint32 QUsbDevice::getTransferPerformance(void)
 {
     return mUsbBulkTransfer->getTransferPerformance();
-}
-
-// Return the current bulk transfer disk write failure count
-quint32 QUsbDevice::getTestFailureCounter(void)
-{
-    return mUsbBulkTransfer->getTestFailureCounter();
 }
 
 // Return the current number of available disk buffers

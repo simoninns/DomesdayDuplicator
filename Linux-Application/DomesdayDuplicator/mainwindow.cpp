@@ -63,7 +63,6 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->capturedDataLabel->setText(tr("0"));
     ui->transferSpeedLabel->setText(tr("0"));
     ui->diskBufferProgressBar->setValue(0);
-    ui->testModeFailLabel->setText(tr("0"));
 
     // Set up a timer for updating capture results
     captureTimer = new QTimer(this);
@@ -195,7 +194,7 @@ void MainWindow::updateUsbDeviceConfiguration()
     // Set up the configuration flags (simple binary flag byte)
     if (ui->testModeCheckBox->isChecked()) configurationFlags += 1;     // Bit 0: Set = Test mode
     // Bit 1: Unused
-    if (ui->dcOffsetCheckBox->isChecked()) configurationFlags += 4;     // Bit 2: Set = DC compensation on
+    // Bit 2: Unused
 
     // Output debug
     qDebug() << "MainWindow::updateUsbDeviceConfiguration(): Sending vendor specific USB command (configuration).  Flags are =" << configurationFlags;
@@ -235,10 +234,10 @@ void MainWindow::on_actionSave_As_triggered()
 {
     if (fileName.isEmpty()) {
         // No previous file name selected.  Fill in the default location and file name
-        fileName = QFileDialog::getSaveFileName(this, tr("Save RF capture as"), QDir::homePath()+tr("/rfcapture.raw"), tr("RAW Files (*.raw)"));
+        fileName = QFileDialog::getSaveFileName(this, tr("Save LaserDisc sample as"), QDir::homePath()+tr("/ldsample.lds"), tr("LDS Files (*.lds)"));
     } else {
         // Previous file name selected, fill it in again
-        fileName = QFileDialog::getSaveFileName(this, tr("Save RF capture as"), fileName, tr("RAW Files (*.raw)"));
+        fileName = QFileDialog::getSaveFileName(this, tr("Save LaserDisc sample as"), fileName, tr("LDS Files (*.lds)"));
     }
 
     // Update the GUI
@@ -290,15 +289,6 @@ void MainWindow::on_testModeCheckBox_toggled(bool checked)
     updateUsbDeviceConfiguration();
 }
 
-// DC offset compensation check box toggled
-void MainWindow::on_dcOffsetCheckBox_toggled(bool checked)
-{
-    qDebug() << "MainWindow::on_dcOffsetCheckBox_toggled():" << checked;
-
-    // Update the USB configuration
-    updateUsbDeviceConfiguration();
-}
-
 // CAV capture from lead-in check box toggled
 void MainWindow::on_cavLeadInCheckBox_toggled(bool checked)
 {
@@ -323,18 +313,6 @@ void MainWindow::on_clvLeadInCheckBox_toggled(bool checked)
     } else {
         ui->startTimeCodeTimeEdit->setEnabled(true);
     }
-}
-
-// Unused
-void MainWindow::on_palRadioButton_toggled(bool checked)
-{
-    qDebug() << "MainWindow::on_palRadioButton_toggled():" << checked;
-}
-
-// Unused
-void MainWindow::on_ntscRadioButton_toggled(bool checked)
-{
-    qDebug() << "MainWindow::on_ntscRadioButton_toggled():" << checked;
 }
 
 // Start or stop sample transfer --------------------------------------------------------------------------------------
@@ -375,7 +353,7 @@ void MainWindow::startTransfer(void)
                 domDupUsbDevice->sendVendorSpecificCommand(0xB5, 1);
 
                 // Start the transfer (pass test mode on/off state)
-                domDupUsbDevice->startBulkRead(ui->testModeCheckBox->isChecked(), fileName);
+                domDupUsbDevice->startBulkRead(fileName);
 
                 // Start a timer to display the transfer information
                 captureTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
@@ -499,12 +477,9 @@ void MainWindow::updateCaptureInfo(void)
     qreal transferPerformance = domDupUsbDevice->getTransferPerformance() / 1024;
     ui->transferSpeedLabel->setText(QString::number(transferPerformance, 'f', 0) + tr(" MBytes/sec"));
 
-    // Display the available numbplayerControler of disk buffers (as a percentage)
+    // Display the available number of disk buffers (as a percentage)
     quint32 bufferAvailablity = (100 / domDupUsbDevice->getNumberOfDiskBuffers()) * domDupUsbDevice->getAvailableDiskBuffers();
     ui->diskBufferProgressBar->setValue(bufferAvailablity);
-
-    // Display the number of test mode failures
-    ui->testModeFailLabel->setText(QString::number(domDupUsbDevice->getTestFailureCounter()));
 }
 
 // Called by the player control information update timer
@@ -545,9 +520,9 @@ void MainWindow::updatePlayerControlInfo(void)
     }
 
     // Check for serial communication failure (from LVDP state-machine)
-    if (playerControl->isLastCommandError())
+    if (playerControl->isErrorState())
         showError(tr("PIC Communication error"),
-                  tr("Unable to communicate with the LaserDisc player via the serial connection"));
+                  tr("Serial communication with the LVDP has encountered an error!"));
 }
 
 // Called by a player control event (from the PIC controls)
@@ -922,14 +897,14 @@ void MainWindow::clvPicPoll(void)
                      ui->startTimeCodeTimeEdit->time().second());
 
     // Convert the start time-code to an integer
-    quint32 startFrame = timeCode.toUInt();
+    qint32 startFrame = timeCode.toInt();
 
     timeCode.sprintf("%01d%02d%02d00", ui->endTimeCodeTimeEdit->time().hour(),
                      ui->endTimeCodeTimeEdit->time().minute(),
                      ui->endTimeCodeTimeEdit->time().second());
 
     // Convert the end time-code to an integer
-    quint32 endFrame = timeCode.toUInt();
+    qint32 endFrame = timeCode.toInt();
 
     // Get the capture lead-in flag
     bool captureLeadInFlag = ui->clvLeadInCheckBox->checkState();
