@@ -41,8 +41,10 @@ struct Stimuli {
     qint32 timeCode;
     QQueue<lvdpControl::PlayerCommands> commandQueue;
     QQueue<quint32> parameterQueue;
-    quint32 discLength;
+    qint32 discLength;
     bool lastCommandError;
+    qint32 connectionAttempts;
+    bool errorState;
 };
 
 static Stimuli currentStimuli;
@@ -91,6 +93,8 @@ lvdpControl::lvdpControl()
     currentStimuli.timeCode = 0;
     currentStimuli.discLength = 0;
     currentStimuli.lastCommandError = false;
+    currentStimuli.connectionAttempts = 0;
+    currentStimuli.errorState = false;
 
     // Start the player communication state machine
     stateMachineStopping = false;
@@ -130,6 +134,8 @@ void lvdpControl::serialConfigured(QString portName, qint16 baudRate)
     currentStimuli.parameterQueue.empty();
     currentStimuli.discLength = 0;
     currentStimuli.lastCommandError = false;
+    currentStimuli.connectionAttempts = 0;
+    currentStimuli.errorState = false;
 }
 
 // Tell the state-machine that the serial port is unconfigured
@@ -144,6 +150,7 @@ void lvdpControl::serialUnconfigured(void)
     currentStimuli.parameterQueue.empty();
     currentStimuli.discLength = 0;
     currentStimuli.lastCommandError = false;
+    currentStimuli.connectionAttempts = 0;
 }
 
 // Ask if a player is connected
@@ -171,7 +178,7 @@ bool lvdpControl::isCav(void)
 }
 
 // Ask for the current frame number (CAV discs only)
-quint32 lvdpControl::currentFrameNumber(void)
+qint32 lvdpControl::currentFrameNumber(void)
 {
     if (currentStimuli.isCav) return currentStimuli.frameNumber;
 
@@ -180,7 +187,7 @@ quint32 lvdpControl::currentFrameNumber(void)
 }
 
 // Ask for the current time code (CLV discs only)
-quint32 lvdpControl::currentTimeCode(void)
+qint32 lvdpControl::currentTimeCode(void)
 {
     if (!currentStimuli.isCav) return currentStimuli.timeCode;
 
@@ -189,7 +196,7 @@ quint32 lvdpControl::currentTimeCode(void)
 }
 
 // Ask for the current disc length
-quint32 lvdpControl::getDiscLength(void)
+qint32 lvdpControl::getDiscLength(void)
 {
     return currentStimuli.discLength;
 }
@@ -200,6 +207,14 @@ bool lvdpControl::isLastCommandError(void)
     // Clear the flag once it's returned.
     bool returnValue = currentStimuli.lastCommandError;
     currentStimuli.lastCommandError = false;
+    return returnValue;
+}
+
+bool lvdpControl::isErrorState(void)
+{
+    // Clear the flag once it's returned.
+    bool returnValue = currentStimuli.errorState;
+    currentStimuli.errorState = false;
     return returnValue;
 }
 
@@ -467,8 +482,17 @@ States smConnectingState(void)
     // Check for response
     if (response.isEmpty()) {
         qDebug() << "smConnectingState(): No response from player";
-        nextState = state_serialError;
-        return nextState;
+
+        if (currentStimuli.connectionAttempts < 5) {
+            currentStimuli.connectionAttempts++;
+            qDebug() << "smConnectingState(): Retrying communication with player, attempt " << currentStimuli.connectionAttempts;
+            nextState = state_connecting;
+            return nextState;
+        } else {
+            qDebug() << "smConnectingState(): Could not get any response from player - connection failed";
+            nextState = state_serialError;
+            return nextState;
+        }
     }
 
     // Check the response
@@ -485,7 +509,15 @@ States smConnectingState(void)
     } else {
         // Player identity unknown!
         qDebug() << "smConnectingState(): Player ID is unknown - " << response;
-        nextState = state_serialError;
+
+        if (currentStimuli.connectionAttempts < 5) {
+            currentStimuli.connectionAttempts++;
+            qDebug() << "smConnectingState(): Retrying player ID determination, attempt " << currentStimuli.connectionAttempts;
+            nextState = state_connecting;
+        } else {
+            qDebug() << "smConnectingState(): Could not determine player ID - connection failed";
+            nextState = state_serialError;
+        }
     }
 
     return nextState;
@@ -798,6 +830,9 @@ States smSerialErrorState(void)
     if (lvdpSerialPort->isOpen()) lvdpSerialPort->close();
     currentStimuli.serialConfigured = false;
     currentStimuli.deviceConnected = false;
+
+    // Flag the error state
+    currentStimuli.errorState = true;
 
     qDebug() << "smSerialErrorState(): In serial error state; closed serial port";
 

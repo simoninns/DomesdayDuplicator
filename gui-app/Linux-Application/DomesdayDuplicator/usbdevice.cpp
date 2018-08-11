@@ -162,10 +162,10 @@ void usbDevice::sendVendorSpecificCommand(quint16 command, quint16 value)
 }
 
 // Start a bulk read (continuously transfers data until stopped)
-void usbDevice::startBulkRead(bool testMode, QString fileName)
+void usbDevice::startBulkRead(QString fileName)
 {
     // Start the bulk transfer
-    domDupDevice->startBulkTransfer(testMode, fileName);
+    domDupDevice->startBulkTransfer(fileName);
 }
 
 // Stop a bulk read
@@ -191,12 +191,6 @@ quint32 usbDevice::getPacketSize(void)
 quint32 usbDevice::getTransferPerformance(void)
 {
     return domDupDevice->getTransferPerformance();
-}
-
-// Return the current bulk transfer disk write failure count
-quint32 usbDevice::getTestFailureCounter(void)
-{
-    return domDupDevice->getTestFailureCounter();
 }
 
 // Return the current number of available disk buffers

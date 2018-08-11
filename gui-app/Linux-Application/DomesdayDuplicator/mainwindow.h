@@ -82,9 +82,6 @@ private slots:
     void on_clvLeadInCheckBox_toggled(bool checked);
     void on_cavCapturePushButton_clicked();
     void on_clvCapturePushButton_clicked();
-    void on_ntscRadioButton_toggled(bool checked);
-    void on_palRadioButton_toggled(bool checked);
-    void on_dcOffsetCheckBox_toggled(bool checked);
 
     void serialPortStatusChange(void);
     void updatePlayerControlInfo(void);
