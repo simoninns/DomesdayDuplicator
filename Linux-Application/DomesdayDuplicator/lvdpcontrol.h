@@ -69,10 +69,11 @@ public:
     bool isPlaying(void);
     bool isPaused(void);
     bool isCav(void);
-    quint32 currentFrameNumber(void);
-    quint32 currentTimeCode(void);
-    quint32 getDiscLength(void);
+    qint32 currentFrameNumber(void);
+    qint32 currentTimeCode(void);
+    qint32 getDiscLength(void);
     bool isLastCommandError(void);
+    bool isErrorState(void);
 
     void command(PlayerCommands command, quint32 parameter);
 };

@@ -83,4 +83,14 @@ sch2HdlBatchFile
 *.xst
 *.xwbt
 
+*.done
+*.fit.smsg
+*.fit.summary
+*.jdi
+*.map.summary
+*.pin
+*.sld
+*.sof
+*.sta.summary
+*.qws
 

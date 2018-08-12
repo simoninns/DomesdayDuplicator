@@ -61,13 +61,12 @@ public:
 
     void sendVendorSpecificCommand(quint16 command, quint16 value);
 
-    void startBulkRead(bool testMode, QString fileName);
+    void startBulkRead(QString fileName);
     void stopBulkRead(void);
 
     quint32 getPacketCounter(void);
     quint32 getPacketSize(void);
     quint32 getTransferPerformance(void);
-    quint32 getTestFailureCounter(void);
     quint32 getAvailableDiskBuffers(void);
     quint32 getNumberOfDiskBuffers(void);
 
