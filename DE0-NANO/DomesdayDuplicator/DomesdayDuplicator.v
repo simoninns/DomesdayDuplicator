@@ -173,9 +173,9 @@ assign GPIO0[33] = adc_clock;
 // Application logic begins ---------------------------------------------------
 
 
-// PLL Functions (clock generation) --------------------------------------------
-
-// Generate 60 MHz FX3/FPGA system clock from the 50 MHz physical clock
+// PLL clock generation
+// Generate 60 MHz FX3/FPGA system clock from the 50 MHz physical clock and
+// 40 MHz sampling clock
 IPpllGenerator IPpllGenerator0 (
 	// Inputs
 	.inclk0(CLOCK_50),
@@ -186,25 +186,48 @@ IPpllGenerator IPpllGenerator0 (
 );
 
 wire fx3_isReading;
+wire [9:0] dataGeneratorOut;
 
-// Data generation logic -----------------------------------------------------
+// Generate 10-bit data either from the ADC or the test data generator
 dataGenerator dataGenerator0 (
 	// Inputs
+	.nReset(fx3_nReset),				// Not reset
+	.clock(adc_clock),				// ADC clock
+	.adc_databus(adc_databus),		// 10-bit ADC databus
+	.testModeFlag(fx3_testMode),	// 1 = Test mode on
+	
+	// Outputs
+	.dataOut(dataGeneratorOut)		// 10-bit data out
+);
+
+// FIFO buffer
+wire [9:0] output_databus;
+
+buffer buffer0 (
+	// Inputs
 	.nReset(fx3_nReset),						// Not reset
-	.adc_clock(adc_clock),					// ADC clock
-	.fx3_clock(fx3_clock),					// FX3 clock
+	.inputClock(adc_clock),					// ADC clock
+	.outputClock(fx3_clock),				// FX3 clock
 	.collectData(fx3_collectData),		// Collect data (ADC data is discarded if 0)
 	.readData(fx3_isReading),				// 1 = FX3 is reading data
-	.testMode(fx3_testMode),				// 1 = Test mode on
-	.adcData(adc_databus),					// ADC data bus input
+	.dataIn(dataGeneratorOut),				// 10-bit ADC data bus input
 	
 	// Outputs
 	.bufferError(fx3_bufferError),		// Set if a FIFO buffer error occurs
 	.dataAvailable(fx3_dataAvailable),	// Set if FIFO buffer contains at least 8192 words of data
-	.dataOut(fx3_databus)					// 16-bit data output
+	.dataOut(output_databus)				// 10-bit data output
 );
 
-// FX3 GPIF state-machine logic ----------------------------------------------
+// 10-bit unsigned to 16-bit signed data conversion
+convertTenToSixteenBits convertTenToSixteenBits0 (
+	.nReset(fx3_nReset),
+	.inclk(fx3_clock),
+	.inputData(output_databus),
+	
+	.outputData(fx3_databus)
+);
+
+// FX3 GPIF state-machine logic
 fx3StateMachine fx3StateMachine0 (
 	// Inputs
 	.nReset(fx3_nReset),						// Not reset
