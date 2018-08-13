@@ -206,15 +206,15 @@ wire [9:0] output_databus;
 buffer buffer0 (
 	// Inputs
 	.nReset(fx3_nReset),						// Not reset
-	.inputClock(adc_clock),					// ADC clock
-	.outputClock(fx3_clock),				// FX3 clock
-	.collectData(fx3_collectData),		// Collect data (ADC data is discarded if 0)
-	.readData(fx3_isReading),				// 1 = FX3 is reading data
+	.writeClock(adc_clock),					// ADC clock
+	.readClock(fx3_clock),				// FX3 clock
+	.isWriting(fx3_collectData),			// Collect data (ADC data is discarded if 0)
+	.isReading(fx3_isReading),				// 1 = FX3 is reading data
 	.dataIn(dataGeneratorOut),				// 10-bit ADC data bus input
 	
 	// Outputs
-	.bufferError(fx3_bufferError),		// Set if a FIFO buffer error occurs
-	.dataAvailable(fx3_dataAvailable),	// Set if FIFO buffer contains at least 8192 words of data
+	.bufferOverflow(fx3_bufferError),	// Set if a buffer overflow occurs
+	.dataAvailable(fx3_dataAvailable),	// Set if buffer contains at least 8192 words of data
 	.dataOut(output_databus)				// 10-bit data output
 );
 
