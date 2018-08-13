@@ -47,6 +47,8 @@ reg currentWriteBuffer; // 0 = write to ping buffer read from pong,
 // Define various buffer signals and values
 
 // Buffer signals (write clock sync'd)
+wire pingAsyncClear_wr;
+wire pongAsyncClear_wr;
 wire pingEmptyFlag_wr;
 wire pongEmptyFlag_wr;
 wire [13:0] pingUsedWords_wr;
@@ -64,7 +66,7 @@ wire [9:0] pongDataOut;
 
 // Define the ping buffer (0) - 8192 10-bit words
 IPfifo pingBuffer (
-	.aclr(1'b0),						// Sync'd with write clock
+	.aclr(pingAsyncClear_wr),
 	.data(pingDataIn),				// 10-bit [9:0]
 	.rdclk(readClock),
 	.rdreq(pingReadRequest),
@@ -79,7 +81,7 @@ IPfifo pingBuffer (
 
 // Define the pong buffer (1) - 8192 10-bit words
 IPfifo pongBuffer (
-	.aclr(1'b0),						// Sync'd with write clock
+	.aclr(pongAsyncClear_wr),
 	.data(pongDataIn),				// 10-bit [9:0]
 	.rdclk(readClock),
 	.rdreq(pongReadRequest),
@@ -117,6 +119,11 @@ assign pongReadRequest = currentWriteBuffer ? 1'b0 : isReading;
 assign pingWriteRequest = currentWriteBuffer ? 1'b0 : isWriting;
 assign pongWriteRequest = currentWriteBuffer ? isWriting : 1'b0;
 
+// Define registers for the async clear flags and map to registers
+reg pingAsyncClear_reg;
+reg pongAsyncClear_reg;
+assign pingAsyncClear_wr = pingAsyncClear_reg;
+assign pongAsyncClear_wr = pongAsyncClear_reg;
 
 // FIFO Write-side logic (controls switching between ping and pong buffers)
 always @ (posedge writeClock, negedge nReset) begin
@@ -135,13 +142,22 @@ always @ (posedge writeClock, negedge nReset) begin
 		if (currentWriteBuffer) begin
 			// Current write buffer is pong
 			
+			// Is the pong buffer nearly full?
+			if (pongUsedWords_wr == bufferSize - 1) begin
+				// Check that the ping buffer has been emptied...
+				if (!pingEmptyFlag_wr) begin
+					// Flag an overflow error
+					bufferOverflow <= 1'b1;
+					
+					// Set the ping buffer async clear (empty the ping buffer)
+					pingAsyncClear_reg <= 1'b1;
+				end
+			end
+			
 			// Is the pong buffer full?
 			if (pongUsedWords_wr == bufferSize) begin
-				// Check the ping buffer is empty before switching
-				if (!pingEmptyFlag_wr) begin
-					// Overflow has occurred
-					bufferOverflow <= 1'b1;
-				end
+				// Reset the ping buffer async clear
+				pingAsyncClear_reg <= 1'b0;
 				
 				// Switch to the ping buffer
 				currentWriteBuffer <= 1'b0;
@@ -149,14 +165,23 @@ always @ (posedge writeClock, negedge nReset) begin
 		end else begin
 			// Current write buffer is ping
 			
+			// Is the ping buffer nearly full?
+			if (pingUsedWords_wr == bufferSize - 1) begin
+				// Check that the pong buffer has been emptied...
+				if (!pongEmptyFlag_wr) begin
+					// Flag an overflow error
+					bufferOverflow <= 1'b1;
+					
+					// Set the pong buffer async clear (empty the pong buffer)
+					pongAsyncClear_reg <= 1'b1;
+				end
+			end
+			
 			// Is the ping buffer full?
 			if (pingUsedWords_wr == bufferSize) begin
-				// Check the pong buffer is empty before switching
-				if (!pongEmptyFlag_wr) begin
-					// Overflow has occurred
-					bufferOverflow <= 1'b1;
-				end
-			
+				// Reset the pong buffer async clear
+				pongAsyncClear_reg <= 1'b0;
+
 				// Switch to the pong buffer
 				currentWriteBuffer <= 1'b1;
 			end
