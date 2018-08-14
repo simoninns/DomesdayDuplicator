@@ -37,8 +37,8 @@ module buffer (
 	output [9:0] dataOut
 );
 
-// FIFO buffer size in words (buffer is 8192 words)
-localparam bufferSize = 14'd8192;
+// FIFO buffer size in words
+localparam bufferSize = 14'd8191; // 0 - 8191 = 8192 words
 
 // "Ping-pong" buffer storing 8192 10-bit words per buffer
 reg currentWriteBuffer; // 0 = write to ping buffer read from pong,
@@ -143,7 +143,7 @@ always @ (posedge writeClock, negedge nReset) begin
 			// Current write buffer is pong
 			
 			// Is the pong buffer nearly full?
-			if (pongUsedWords_wr == bufferSize - 1) begin
+			if (pongUsedWords_wr == bufferSize - 2) begin
 				// Check that the ping buffer has been emptied...
 				if (!pingEmptyFlag_wr) begin
 					// Flag an overflow error
@@ -154,8 +154,8 @@ always @ (posedge writeClock, negedge nReset) begin
 				end
 			end
 			
-			// Is the pong buffer full?
-			if (pongUsedWords_wr == bufferSize) begin
+			// Is the pong buffer 1 word from full?
+			if (pongUsedWords_wr == bufferSize - 1) begin
 				// Reset the ping buffer async clear
 				pingAsyncClear_reg <= 1'b0;
 				
@@ -166,7 +166,7 @@ always @ (posedge writeClock, negedge nReset) begin
 			// Current write buffer is ping
 			
 			// Is the ping buffer nearly full?
-			if (pingUsedWords_wr == bufferSize - 1) begin
+			if (pingUsedWords_wr == bufferSize - 2) begin
 				// Check that the pong buffer has been emptied...
 				if (!pongEmptyFlag_wr) begin
 					// Flag an overflow error
@@ -177,8 +177,8 @@ always @ (posedge writeClock, negedge nReset) begin
 				end
 			end
 			
-			// Is the ping buffer full?
-			if (pingUsedWords_wr == bufferSize) begin
+			// Is the ping buffer 1 word from full?
+			if (pingUsedWords_wr == bufferSize - 1) begin
 				// Reset the pong buffer async clear
 				pongAsyncClear_reg <= 1'b0;
 
