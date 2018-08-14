@@ -125,19 +125,17 @@ reg pongAsyncClear_reg;
 assign pingAsyncClear_wr = pingAsyncClear_reg;
 assign pongAsyncClear_wr = pongAsyncClear_reg;
 
+// Register to track activation of the overflow flag (0-1024 10-bit)
+reg [9:0] bufferOverflowHold;
+
 // FIFO Write-side logic (controls switching between ping and pong buffers)
 always @ (posedge writeClock, negedge nReset) begin
 	if (!nReset) begin
-		// On reset default to the ping buffer and clear the buffers
+		// Clear all on reset
 		currentWriteBuffer <= 1'b0;
 		bufferOverflow <= 1'b0;
+		bufferOverflowHold <= 10'd0;
 	end else begin
-		// If we're not writing, clear the buffer overflow flag
-		if (!isWriting) begin
-			// Reset the flags
-			bufferOverflow <= 1'b0;
-		end
-	
 		// Which buffer is being written to?
 		if (currentWriteBuffer) begin
 			// Current write buffer is pong
@@ -184,6 +182,19 @@ always @ (posedge writeClock, negedge nReset) begin
 
 				// Switch to the pong buffer
 				currentWriteBuffer <= 1'b1;
+			end
+		end
+	
+		// Track and clear the buffer overflow flag
+		// Note: This holds the error signal high
+		// for 1000 write clock cycles
+		if (bufferOverflow == 1'b1) begin
+			// Increment the hold counter
+			bufferOverflowHold <= bufferOverflowHold + 10'd1;
+			
+			// If the hold clock-cycles is exceeded, clear the flag
+			if (bufferOverflowHold > 10'd1000) begin
+				bufferOverflow <= 1'b0;
 			end
 		end
 	end
