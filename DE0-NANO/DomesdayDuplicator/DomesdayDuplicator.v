@@ -201,13 +201,11 @@ dataGenerator dataGenerator0 (
 );
 
 // FIFO buffer
-wire [9:0] output_databus;
-
 buffer buffer0 (
 	// Inputs
 	.nReset(fx3_nReset),						// Not reset
 	.writeClock(adc_clock),					// ADC clock
-	.readClock(fx3_clock),				// FX3 clock
+	.readClock(fx3_clock),					// FX3 clock
 	.isWriting(fx3_collectData),			// Collect data (ADC data is discarded if 0)
 	.isReading(fx3_isReading),				// 1 = FX3 is reading data
 	.dataIn(dataGeneratorOut),				// 10-bit ADC data bus input
@@ -215,16 +213,7 @@ buffer buffer0 (
 	// Outputs
 	.bufferOverflow(fx3_bufferError),	// Set if a buffer overflow occurs
 	.dataAvailable(fx3_dataAvailable),	// Set if buffer contains at least 8192 words of data
-	.dataOut(output_databus)				// 10-bit data output
-);
-
-// 10-bit unsigned to 16-bit signed data conversion
-convertTenToSixteenBits convertTenToSixteenBits0 (
-	.nReset(fx3_nReset),
-	.inclk(fx3_clock),
-	.inputData(output_databus),
-	
-	.outputData(fx3_databus)
+	.dataOut_16bit(fx3_databus)			// 16-bit data output
 );
 
 // FX3 GPIF state-machine logic
