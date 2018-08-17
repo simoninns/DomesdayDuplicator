@@ -60,14 +60,16 @@ struct transferUserDataStruct {
 
 // Private variables used to report statistics about the transfer process
 struct statisticsStruct {
-    quint32 packetCount;           // Number of successful transfers
+    quint32 packetCount;            // Number of successful transfers
     quint32 transferPerformance;    // Performance in Kilobytes per second
     quint32 transferSize;           // Size of data transfers performed so far
+    unsigned char _padding[4];      // Required to avoid compiler warning
     struct timeval startTimestamp;  // Data transfer start time stamp.
 };
 static statisticsStruct statistics;
 
 // Flag to show if transfer is in progress
+extern volatile bool transferRunning; // Gets rid of gcc
 volatile bool transferRunning;
 
 // Notes:
@@ -112,12 +114,12 @@ volatile bool transferRunning;
 #define NUMBER_OF_DISK_BUFFERS 4
 
 // Disk buffer variables
-static unsigned char **diskDataBuffers = NULL; // List of disk data buffers
+static unsigned char **diskDataBuffers = nullptr; // List of disk data buffers
 static volatile quint32 numberOfDiskBuffers;
 static volatile quint32 queueBuffersPerDiskBuffer;
 static volatile bool diskBufferStatus[NUMBER_OF_DISK_BUFFERS];
 
-static unsigned char *temporaryDiskBuffer = NULL; // Temporary disk data buffer
+static unsigned char *temporaryDiskBuffer = nullptr; // Temporary disk data buffer
 
 // Disk IO
 static QFile* outputFile;
@@ -167,15 +169,15 @@ void QUsbBulkTransfer::run()
 {
     // These variables are referenced by the callback and must remain valid
     // until the transfer is complete
-    struct libusb_transfer **usbTransfers = NULL;           // List of transfer structures
-    unsigned char **usbDataBuffers = NULL;                  // List of USB data buffers
-    transferUserDataStruct transferUserData[queueDepth];    // Transfer user data
+    struct libusb_transfer **usbTransfers = nullptr;        // List of transfer structures
+    unsigned char **usbDataBuffers = nullptr;               // List of USB data buffers
+    transferUserDataStruct transferUserData[QUEUE_DEPTH];   // Transfer user data
 
     int transferReturnStatus = 0; // Status return from libUSB
     qDebug() << "usbBulkTransfer::run(): Started";
 
     // Check for validity of the device handle
-    if (libUsbDeviceHandle == NULL) {
+    if (libUsbDeviceHandle == nullptr) {
         qDebug() << "QUsbBulkTransfer::run(): Invalid device handle";
         return;
     }
@@ -186,7 +188,7 @@ void QUsbBulkTransfer::run()
     statistics.packetCount = 0;
     statistics.transferSize = 0;
     statistics.transferPerformance = 0;
-    gettimeofday(&statistics.startTimestamp, NULL);
+    gettimeofday(&statistics.startTimestamp, nullptr);
 
     // Reset transfer variables
     transferRunning = false;
@@ -198,17 +200,17 @@ void QUsbBulkTransfer::run()
     // Allocate buffers and transfer structures for USB->PC communication
     bool allocFail = false;
 
-    usbDataBuffers = (unsigned char **)calloc (queueDepth, sizeof (unsigned char *));
-    usbTransfers   = (struct libusb_transfer **)calloc (queueDepth, sizeof (struct libusb_transfer *));
+    usbDataBuffers = static_cast<unsigned char **>(calloc (queueDepth, sizeof (unsigned char *)));
+    usbTransfers   = static_cast<struct libusb_transfer **>(calloc (queueDepth, sizeof (struct libusb_transfer *)));
 
-    if ((usbDataBuffers != NULL) && (usbTransfers != NULL)) {
+    if ((usbDataBuffers != nullptr) && (usbTransfers != nullptr)) {
 
         for (unsigned int i = 0; i < queueDepth; i++) {
 
-            usbDataBuffers[i] = (unsigned char *)malloc (requestSize * packetSize);
+            usbDataBuffers[i] = static_cast<unsigned char *>(malloc (requestSize * packetSize));
             usbTransfers[i]   = libusb_alloc_transfer(0);
 
-            if ((usbDataBuffers[i] == NULL) || (usbTransfers[i] == NULL)) {
+            if ((usbDataBuffers[i] == nullptr) || (usbTransfers[i] == nullptr)) {
                 allocFail = true;
                 break;
             }
@@ -251,7 +253,7 @@ void QUsbBulkTransfer::run()
         usbTransfers[currentTransferNumber]->flags = LIBUSB_TRANSFER_SHORT_NOT_OK;
 
         libusb_fill_bulk_transfer(usbTransfers[currentTransferNumber], libUsbDeviceHandle, libUsbEndPoint,
-            usbDataBuffers[currentTransferNumber], (requestSize * packetSize), bulkTransferCallback, &transferUserData[currentTransferNumber], 5000);
+            usbDataBuffers[currentTransferNumber], static_cast<int>(requestSize * packetSize), bulkTransferCallback, &transferUserData[currentTransferNumber], 5000);
     }
 
     // Submit the transfers
@@ -311,23 +313,23 @@ void QUsbBulkTransfer::run()
 void QUsbBulkTransfer::freeUsbTransferBuffers(unsigned char **dataBuffers, struct libusb_transfer **transfers)
 {
     // Free up any allocated transfer structures
-    if (transfers != NULL) {
+    if (transfers != nullptr) {
         for (quint32 i = 0; i < queueDepth; i++) {
-            if (transfers[i] != NULL) {
+            if (transfers[i] != nullptr) {
                 libusb_free_transfer(transfers[i]);
             }
-            transfers[i] = NULL;
+            transfers[i] = nullptr;
         }
         free (transfers);
     }
 
     // Free up any allocated data buffers
-    if (dataBuffers != NULL) {
+    if (dataBuffers != nullptr) {
         for (quint32 i = 0; i < queueDepth; i++) {
-            if (dataBuffers[i] != NULL) {
+            if (dataBuffers[i] != nullptr) {
                 free(dataBuffers[i]);
             }
-            dataBuffers[i] = NULL;
+            dataBuffers[i] = nullptr;
         }
         free(dataBuffers);
     }
@@ -346,14 +348,14 @@ void QUsbBulkTransfer::allocateDiskBuffers(void)
     queueBuffersPerDiskBuffer = QUEUE_BUFFERS_PER_DISK_BUFFER;
     numberOfDiskBuffers = NUMBER_OF_DISK_BUFFERS;
 
-    diskDataBuffers = (unsigned char **)calloc(numberOfDiskBuffers, sizeof (unsigned char *));
-    if (diskDataBuffers != NULL) {
+    diskDataBuffers = static_cast<unsigned char **>(calloc(numberOfDiskBuffers, sizeof (unsigned char *)));
+    if (diskDataBuffers != nullptr) {
         for (quint32 i = 0; i < numberOfDiskBuffers; i++) {
 
-            diskDataBuffers[i] = (unsigned char *)malloc(queueSize * queueBuffersPerDiskBuffer);
+            diskDataBuffers[i] = static_cast<unsigned char *>(malloc(queueSize * queueBuffersPerDiskBuffer));
             diskBufferStatus[i] = false; // Status = Not writing
 
-            if (diskDataBuffers[i] == NULL) {
+            if (diskDataBuffers[i] == nullptr) {
                 allocFail = true;
                 break;
             }
@@ -364,9 +366,9 @@ void QUsbBulkTransfer::allocateDiskBuffers(void)
 
     // Allocate the temporary disk buffer for data translation
     // temporaryDiskBuffer
-    temporaryDiskBuffer = (unsigned char *)malloc(queueSize * queueBuffersPerDiskBuffer);
+    temporaryDiskBuffer = static_cast<unsigned char *>(malloc(queueSize * queueBuffersPerDiskBuffer));
 
-    if (temporaryDiskBuffer == NULL) {
+    if (temporaryDiskBuffer == nullptr) {
         allocFail = true;
     }
 
@@ -382,20 +384,20 @@ void QUsbBulkTransfer::allocateDiskBuffers(void)
 void QUsbBulkTransfer::freeDiskBuffers(void)
 {
     // Free up any allocated disk buffers
-    if (diskDataBuffers != NULL) {
+    if (diskDataBuffers != nullptr) {
         for (quint32 i = 0; i < numberOfDiskBuffers; i++) {
-            if (diskDataBuffers[i] != NULL) {
+            if (diskDataBuffers[i] != nullptr) {
                 free(diskDataBuffers[i]);
                 diskBufferStatus[i] = false;
             }
-            diskDataBuffers[i] = NULL;
+            diskDataBuffers[i] = nullptr;
         }
         free(diskDataBuffers);
     }
 
     // Free up the temporary disk buffer
     free(temporaryDiskBuffer);
-    temporaryDiskBuffer = NULL;
+    temporaryDiskBuffer = nullptr;
 }
 
 static void processDiskBuffers(void)
@@ -420,16 +422,16 @@ static void processDiskBuffers(void)
                 originalValue += diskDataBuffers[nextDiskBufferToWrite][tempPointer+1] * 256;
 
                 // Sign and scale the data to 16-bits
-                int signedValue = (int)originalValue - 512;
+                int signedValue = static_cast<int>(originalValue - 512);
                 signedValue = signedValue * 64;
 
-                temporaryDiskBuffer[tempPointer] = (unsigned char)(signedValue & 0x00FF);
-                temporaryDiskBuffer[tempPointer+1] = (unsigned char)((signedValue & 0xFF00) >> 8);
+                temporaryDiskBuffer[tempPointer] = static_cast<unsigned char>(signedValue & 0x00FF);
+                temporaryDiskBuffer[tempPointer+1] = static_cast<unsigned char>((signedValue & 0xFF00) >> 8);
             }
 
             // Write the disk buffer to disk
             //qDebug() << "processDiskBuffers(): Writing disk buffer" << nextDiskBufferToWrite;
-            outputFile->write((const char *)temporaryDiskBuffer,
+            outputFile->write(reinterpret_cast<const char *>(temporaryDiskBuffer),
                               (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER));
 
             // Free the disk buffer
@@ -455,7 +457,7 @@ static void processDiskBuffers(void)
 // Return the current value of the bulk transfer packet counter
 quint32 QUsbBulkTransfer::getPacketCounter(void)
 {
-    return (quint32)statistics.packetCount;
+    return static_cast<quint32>(statistics.packetCount);
 }
 
 // Return the current value of the bulk transfer packet size
@@ -468,7 +470,7 @@ quint32 QUsbBulkTransfer::getPacketSize(void)
 // Return the current bulk transfer stream performance value in KBytes/sec
 quint32 QUsbBulkTransfer::getTransferPerformance(void)
 {
-    return (quint32)statistics.transferPerformance;
+    return static_cast<quint32>(statistics.transferPerformance);
 }
 
 // Return the current number of available disk buffers
@@ -533,13 +535,13 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     }
 
     // Update the transfer size for the whole bulk transfer so far
-    if (bufferFlushComplete) statistics.transferSize += transfer->length;
+    if (bufferFlushComplete) statistics.transferSize += static_cast<unsigned int>(transfer->length);
 
     // Reduce the number of requests in-flight.
     transfersInFlight--;
 
     // Extract the user data
-    transferUserDataStruct *transferUserData = (transferUserDataStruct *)transfer->user_data;
+    transferUserDataStruct *transferUserData = static_cast<transferUserDataStruct *>(transfer->user_data);
     quint32 transferNumber = transferUserData->transferNumber;
     quint32 maximumTransferNumber = transferUserData->maximumTransferNumber;
     quint32 queueNumber = transferUserData->queueNumber;
@@ -550,13 +552,13 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         // Calculate the transfer statistics (just for user feedback)
         struct timeval endTimestamp;
 
-        gettimeofday (&endTimestamp, NULL);
-        elapsedTime = ((endTimestamp.tv_sec - statistics.startTimestamp.tv_sec) * 1000000 +
-            (endTimestamp.tv_usec - statistics.startTimestamp.tv_usec));
+        gettimeofday (&endTimestamp, nullptr);
+        elapsedTime = static_cast<unsigned int>(((endTimestamp.tv_sec - statistics.startTimestamp.tv_sec) * 1000000 +
+            (endTimestamp.tv_usec - statistics.startTimestamp.tv_usec)));
 
         // Calculate the performance in Kbytes per second
-        performance = (((double)statistics.transferSize / 1024) / ((double)elapsedTime / 1000000));
-        statistics.transferPerformance = (unsigned int)performance;
+        performance = ((static_cast<double>(statistics.transferSize) / 1024) / (static_cast<double>(elapsedTime) / 1000000));
+        statistics.transferPerformance = static_cast<unsigned int>(performance);
         statistics.transferSize = 0;
         statistics.startTimestamp = endTimestamp;
     }
@@ -575,9 +577,9 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         // ((queue number * (queue length * transfer length)) + (transfer number * transfer length))
         // ((queueNumber * (QUEUE_DEPTH * transfer->length)) + (transferNumber * transfer->length))
         memcpy(diskDataBuffers[diskBufferNumber]
-              + ((queueNumber * (QUEUE_DEPTH * transfer->length))
-              + (transferNumber * transfer->length)),
-              transfer->buffer, transfer->length);
+              + ((queueNumber * (QUEUE_DEPTH * static_cast<unsigned int>(transfer->length)))
+              + (transferNumber * static_cast<unsigned int>(transfer->length))),
+              transfer->buffer, static_cast<unsigned int>(transfer->length));
 
         // Target the next transfer to the next queue
         queueNumber++;

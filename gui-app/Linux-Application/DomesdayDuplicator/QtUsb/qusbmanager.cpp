@@ -6,7 +6,7 @@ static int hotplugCallback(libusb_context *ctx,
                            libusb_hotplug_event event,
                            void *user_data) {
 
-  static libusb_device_handle *handle = NULL;
+  static libusb_device_handle *handle = nullptr;
   struct libusb_device_descriptor desc;
   int rc;
   (void)ctx;
@@ -36,7 +36,7 @@ static int hotplugCallback(libusb_context *ctx,
 
     if (handle) {
       libusb_close(handle);
-      handle = NULL;
+      handle = nullptr;
       return 0;
     }
   } else {
@@ -151,7 +151,7 @@ QtUsb::DeviceStatus QUsbManager::openDevice(QUsbDevice *dev,
                                             const QtUsb::DeviceFilter &filter,
                                             const QtUsb::DeviceConfig &config) {
 
-  if (dev == NULL)
+  if (dev == nullptr)
     return QtUsb::devicePgmError;
   dev->setConfig(config);
   dev->setFilter(filter);
@@ -165,7 +165,7 @@ QtUsb::DeviceStatus QUsbManager::openDevice(QUsbDevice *dev,
 
 QtUsb::DeviceStatus QUsbManager::closeDevice(QUsbDevice *dev) {
 
-  if (dev != NULL) {
+  if (dev != nullptr) {
     int pos = mUsedDeviceList.indexOf(dev);
     mUsedDeviceList.removeAt(pos);
     dev->close();
@@ -209,7 +209,7 @@ void QUsbManager::run() {
   QtUsb::FilterList list;
   while (!mStop) {
     if (mHasHotplug) {
-      libusb_handle_events_completed(mCtx, NULL);
+      libusb_handle_events_completed(mCtx, nullptr);
     } else {
       list = QUsbDevice::getAvailableDevices();
       this->monitorDevices(list);

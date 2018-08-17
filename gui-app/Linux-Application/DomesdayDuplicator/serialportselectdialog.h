@@ -42,7 +42,7 @@ class serialPortSelectDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit serialPortSelectDialog(QWidget *parent = 0);
+    explicit serialPortSelectDialog(QWidget *parent = nullptr);
     ~serialPortSelectDialog();
     virtual void showEvent(QShowEvent *);
 
