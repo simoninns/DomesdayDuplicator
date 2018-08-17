@@ -40,7 +40,7 @@ class playerControlDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit playerControlDialog(QWidget *parent = 0);
+    explicit playerControlDialog(QWidget *parent = nullptr);
     ~playerControlDialog();
 
     void updatePlayerControlInfo(bool isConnected, bool isCav, quint32 frameNumber,

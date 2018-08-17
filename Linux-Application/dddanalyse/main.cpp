@@ -110,10 +110,15 @@ int main(int argc, char *argv[])
 //                QCoreApplication::translate("main", "file"));
 //    parser.addOption(targetSampleFileOption);
 
-    // Option to select test data verification mode (-t)
-//    QCommandLineOption testDataModeOption(QStringList() << "t" << "test-data",
-//                                     QCoreApplication::translate("main", "Test data verification mode"));
-//    parser.addOption(testDataModeOption);
+    // Option to select 16-bit test data verification mode (-s)
+    QCommandLineOption test16bitDataModeOption(QStringList() << "s" << "16-bit-test-data",
+                                     QCoreApplication::translate("main", "16-bit test data verification mode"));
+    parser.addOption(test16bitDataModeOption);
+
+    // Option to select 16-bit test data verification mode (-t)
+    QCommandLineOption test10bitDataModeOption(QStringList() << "t" << "10-bit-test-data",
+                                     QCoreApplication::translate("main", "10-bit test data verification mode"));
+    parser.addOption(test10bitDataModeOption);
 
     // Process the command line arguments given by the user
     parser.process(app);
@@ -122,7 +127,8 @@ int main(int argc, char *argv[])
     bool isDebugOn = parser.isSet(showDebugOption);
     QString sourceSampleFileName = parser.value(sourceSampleFileOption);
     //QString targetSampleFileName = parser.value(targetSampleFileOption);
-    //bool isTestDataMode = parser.isSet(testDataModeOption);
+    bool isTest16bitDataMode = parser.isSet(test16bitDataModeOption);
+    bool isTest10bitDataMode = parser.isSet(test10bitDataModeOption);
 
     // Process the command line options
     if (isDebugOn) showDebug = true;
@@ -130,8 +136,11 @@ int main(int argc, char *argv[])
     // Contruct the TBC object
     DddAnalyse dddAnalyse;
 
-    // Set the input sample rate
-    //if (isTestDataMode) dddAnalyse.setTestDataMode();
+    // Select 16-bit test data mode?
+    if (isTest16bitDataMode) dddAnalyse.setTest16bitDataMode();
+
+    // Select 10-bit test data mode?
+    if (isTest10bitDataMode) dddAnalyse.setTest10bitDataMode();
 
     // Set the source video file name
     if (!sourceSampleFileName.isEmpty()) dddAnalyse.setSourceSampleFileName(sourceSampleFileName);
