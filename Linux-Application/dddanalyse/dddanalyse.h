@@ -39,21 +39,41 @@ class DddAnalyse
 public:
     DddAnalyse();
 
+    // Public methods
     bool processSample(void);
     void setSourceSampleFileName(QString filename);
     void setTargetSampleFileName(QString filename);
-    void setTestDataMode(void);
+    void setTest16bitDataMode(void);
+    void setTest10bitDataMode(void);
 
 private:
     // Filenames for the source and target sample files
     QString sourceSampleFilename;
     QString targetSampleFilename;
 
-    // Test data mode flag
-    bool testDataMode;
+    // Test data mode flags
+    bool test16bitDataMode;
+    bool test10bitDataMode;
 
     // Source file handle
     QFile *sourceSampleFileHandle;
+
+    // Variables for tracking the source sample file
+    qint32 totalNumberOfWordsRead;
+    qint32 locationOfBufferStart;
+    bool dataAvailable;
+
+    // Create a buffer for the source sample data (16-bit signed words)
+    QVector<qint16> sourceSampleBuffer_int;
+    QVector<quint16> sourceSampleBuffer_uint;
+    qint32 sourceSampleBufferMaximumSize;
+
+    // Private methods
+    void verify16bitTestData(void);
+    void verify10bitTestData(void);
+    bool openSourceSampleFile(void);
+    void closeSourceSampleFile(void);
+    qint32 appendSourceSampleData(void);
 };
 
 #endif // DDDANALYSE_H
