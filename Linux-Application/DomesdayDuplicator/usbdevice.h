@@ -49,7 +49,7 @@ class usbDevice : public QObject
 {
     Q_OBJECT
 public:
-    explicit usbDevice(QObject *parent = 0);
+    explicit usbDevice(QObject *parent = nullptr);
     ~usbDevice(void);
     bool isConnected(void);
 

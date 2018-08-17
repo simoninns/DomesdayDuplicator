@@ -25,7 +25,7 @@ QString QBaseUsbDevice::getSpeedString() {
 }
 
 qint32 QBaseUsbDevice::write(const QByteArray &buf) {
-  return this->write(&buf, buf.size());
+  return this->write(&buf, static_cast<quint32>(buf.size()));
 }
 
 qint32 QBaseUsbDevice::read(QByteArray *buf) { return this->read(buf, 4096); }
