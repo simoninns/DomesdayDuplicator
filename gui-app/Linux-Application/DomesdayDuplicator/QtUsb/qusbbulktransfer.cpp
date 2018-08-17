@@ -117,6 +117,8 @@ static volatile quint32 numberOfDiskBuffers;
 static volatile quint32 queueBuffersPerDiskBuffer;
 static volatile bool diskBufferStatus[NUMBER_OF_DISK_BUFFERS];
 
+static unsigned char *temporaryDiskBuffer = NULL; // Temporary disk data buffer
+
 // Disk IO
 static QFile* outputFile;
 
@@ -360,6 +362,14 @@ void QUsbBulkTransfer::allocateDiskBuffers(void)
         allocFail = true;
     }
 
+    // Allocate the temporary disk buffer for data translation
+    // temporaryDiskBuffer
+    temporaryDiskBuffer = (unsigned char *)malloc(queueSize * queueBuffersPerDiskBuffer);
+
+    if (temporaryDiskBuffer == NULL) {
+        allocFail = true;
+    }
+
     // Check if all memory allocations have succeeded
     if (allocFail) {
         qDebug() << "QUsbBulkTransfer::allocateDiskBuffers(): Could not allocate required disk buffers";
@@ -382,6 +392,10 @@ void QUsbBulkTransfer::freeDiskBuffers(void)
         }
         free(diskDataBuffers);
     }
+
+    // Free up the temporary disk buffer
+    free(temporaryDiskBuffer);
+    temporaryDiskBuffer = NULL;
 }
 
 static void processDiskBuffers(void)
@@ -396,9 +410,26 @@ static void processDiskBuffers(void)
     do {
         // Is the next disk buffer to write ready?
         if (diskBufferStatus[nextDiskBufferToWrite] == true) {
+            // Translate the data in the disk buffer to scaled 16-bit signed data
+            for (unsigned int tempPointer = 0;
+                 tempPointer < (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER);
+                 tempPointer += 2) {
+
+                // Get the original 10-bit unsigned value from the disk data buffer
+                unsigned int originalValue = diskDataBuffers[nextDiskBufferToWrite][tempPointer];
+                originalValue += diskDataBuffers[nextDiskBufferToWrite][tempPointer+1] * 256;
+
+                // Sign and scale the data to 16-bits
+                int signedValue = (int)originalValue - 512;
+                signedValue = signedValue * 64;
+
+                temporaryDiskBuffer[tempPointer] = (unsigned char)(signedValue & 0x00FF);
+                temporaryDiskBuffer[tempPointer+1] = (unsigned char)((signedValue & 0xFF00) >> 8);
+            }
+
             // Write the disk buffer to disk
             //qDebug() << "processDiskBuffers(): Writing disk buffer" << nextDiskBufferToWrite;
-            outputFile->write((const char *)diskDataBuffers[nextDiskBufferToWrite],
+            outputFile->write((const char *)temporaryDiskBuffer,
                               (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER));
 
             // Free the disk buffer
