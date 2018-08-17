@@ -344,7 +344,7 @@ void domDupThreadInitialise(uint32_t input)
 
     // Initialise the debug console
     domDupDebugInit();
-    CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware - Build 0061\r\n");
+    CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware - Build 0062\r\n");
     CyU3PDebugPrint(1, "(c)2018 Simon Inns - https://www.domesday86.com\r\n\r\n");
     CyU3PDebugPrint(1, "domDupThreadInitialise(): Debug console initialised\r\n");
 
@@ -380,7 +380,7 @@ void domDupThreadInitialise(uint32_t input)
         	// Ensure we only output the debug once
         	if (!input0HandledFlag) {
         		input0HandledFlag = CyTrue;
-        		CyU3PDebugPrint(4, "domDupThreadInitialise(): input0 set by the FPGA\r\n");
+        		CyU3PDebugPrint(4, "Main application loop: input0 pin set by the FPGA\r\n");
         	}
         }
 
@@ -389,7 +389,7 @@ void domDupThreadInitialise(uint32_t input)
 			// Ensure we only output the debug once
 			if (!input1HandledFlag) {
 				input1HandledFlag = CyTrue;
-				CyU3PDebugPrint(4, "domDupThreadInitialise(): input1 set by the FPGA\r\n");
+				CyU3PDebugPrint(4, "Main application loop: input1 pin set by the FPGA\r\n");
 			}
 		}
 
@@ -398,7 +398,7 @@ void domDupThreadInitialise(uint32_t input)
 			// Ensure we only output the debug once
 			if (!input2HandledFlag) {
 				input2HandledFlag = CyTrue;
-				CyU3PDebugPrint(4, "domDupThreadInitialise(): input2 set by the FPGA\r\n");
+				CyU3PDebugPrint(4, "Main application loop: input2 pin set by the FPGA\r\n");
 			}
 		}
 
@@ -407,7 +407,7 @@ void domDupThreadInitialise(uint32_t input)
 			// Ensure we only output the debug once
 			if (!input3HandledFlag) {
 				input3HandledFlag = CyTrue;
-				CyU3PDebugPrint(4, "domDupThreadInitialise(): input3 set by the FPGA\r\n");
+				CyU3PDebugPrint(4, "Main application loop: input3 pin set by the FPGA\r\n");
 			}
 		}
     }
@@ -793,7 +793,7 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 			if (bRequest == 0xB5) {
 				if (wValue == 1) {
 					// Start collection request from USB host
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: Start data collection\r\n");
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: START data collection\r\n");
 					CyU3PGpioSetValue(19, CyTrue); // collectData GPIO high
 
 					// Clear the input flags
@@ -812,7 +812,7 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 
 				if (wValue == 0) {
 					// Stop collection request from USB host
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: Stop data collection\r\n");
+					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: STOP data collection\r\n");
 					CyU3PGpioSetValue(19, CyFalse); // collectData GPIO low
 
 					// Flag that the host is not collecting data
