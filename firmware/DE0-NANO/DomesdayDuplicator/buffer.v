@@ -34,10 +34,19 @@ module buffer (
 	
 	output reg bufferOverflow,
 	output reg dataAvailable,
-	output [9:0] dataOut
+	output [15:0] dataOut_16bit
 );
 
+// Convert 10 bit data out to 16-bit (unsigned and unscaled)
+wire [9:0] dataOut_10bit;
+assign dataOut_16bit[9:0] = dataOut_10bit;
+assign dataOut_16bit[15:10] = 6'b0;
+
 // FIFO buffer size in words
+// Note: The size of this buffer must match the buffer size used
+// by the FX3 (which is set to 8192 16-bit words per buffer) as this
+// must match the size of the USB3 end-point which is 16Kbytes
+//
 localparam bufferSize = 14'd8191; // 0 - 8191 = 8192 words
 
 // "Ping-pong" buffer storing 8192 10-bit words per buffer
@@ -61,8 +70,8 @@ wire [13:0] pingUsedWords_rd;
 wire [13:0] pongUsedWords_rd;
 
 // Data out buses
-wire [9:0] pingDataOut;
-wire [9:0] pongDataOut;
+wire [9:0] pingdataOut_10bit;
+wire [9:0] pongdataOut_10bit;
 
 // Define the ping buffer (0) - 8192 10-bit words
 IPfifo pingBuffer (
@@ -72,7 +81,7 @@ IPfifo pingBuffer (
 	.rdreq(pingReadRequest),
 	.wrclk(writeClock),
 	.wrreq(pingWriteRequest),
-	.q(pingDataOut),					// 10-bit [9:0]
+	.q(pingdataOut_10bit),			// 10-bit [9:0]
 	.rdempty(pingEmptyFlag_rd),
 	.rdusedw(pingUsedWords_rd),	// 14-bit [13:0]
 	.wrempty(pingEmptyFlag_wr),
@@ -87,7 +96,7 @@ IPfifo pongBuffer (
 	.rdreq(pongReadRequest),
 	.wrclk(writeClock),
 	.wrreq(pongWriteRequest),
-	.q(pongDataOut),					// 10-bit [9:0]
+	.q(pongdataOut_10bit),			// 10-bit [9:0]
 	.rdempty(pongEmptyFlag_rd),
 	.rdusedw(pongUsedWords_rd),	// 14-bit [13:0]
 	.wrempty(pongEmptyFlag_wr),
@@ -108,8 +117,8 @@ wire pongWriteRequest;
 assign pingDataIn = currentWriteBuffer ? 10'b0 : dataIn;
 assign pongDataIn = currentWriteBuffer ? dataIn : 10'b0; 
 
-// if current write buffer = ping the dataOut = pong buffer else dataOut = pingBuffer
-assign dataOut = currentWriteBuffer ? pingDataOut : pongDataOut; 
+// if current write buffer = ping the dataOut_10bit = pong buffer else dataOut_10bit = pingBuffer
+assign dataOut_10bit = currentWriteBuffer ? pingdataOut_10bit : pongdataOut_10bit; 
 
 // If current write buffer = ping then read from pong else read from ping
 assign pingReadRequest = currentWriteBuffer ? isReading : 1'b0;
