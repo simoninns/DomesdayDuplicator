@@ -93,4 +93,5 @@ sch2HdlBatchFile
 *.sof
 *.sta.summary
 *.qws
+*.jic
 
