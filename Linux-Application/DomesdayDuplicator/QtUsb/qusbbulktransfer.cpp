@@ -529,6 +529,10 @@ quint32 QUsbBulkTransfer::getPacketCounter(void)
 quint32 QUsbBulkTransfer::getPacketSize(void)
 {
     // Returns current packet size in KBytes
+    if (isDataFormat10bit) {
+        // If the data format is 10 bit, we have to account for the reduction in size
+        return (REQUEST_SIZE * ((PACKET_SIZE / 5) * 4)) / 1024;
+    }
     return (REQUEST_SIZE * PACKET_SIZE) / 1024;
 }
 
