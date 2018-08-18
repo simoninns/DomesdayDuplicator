@@ -33,16 +33,15 @@ DddAnalyse::DddAnalyse()
     // Set default configuration
     setSourceSampleFileName(""); // Default is stdin
     setTargetSampleFileName(""); // Default is stdout
-    test16bitDataMode = false;
     test10bitDataMode = false;
 
     // Initialise source sample tracking
-    totalNumberOfWordsRead = 0;
+    totalNumberOfBytesRead = 0;
     locationOfBufferStart = 0;
     dataAvailable = true;
 
-    // Set the maximum buffer sizes (in words)
-    sourceSampleBufferMaximumSize = 8192;
+    // Set the maximum buffer sizes (in bytes)
+    sourceSampleBufferMaximumSize = 10240;
 }
 
 // Public methods -------------------------------------------------------------
@@ -53,73 +52,49 @@ DddAnalyse::DddAnalyse()
 //      True on success, false on failure
 bool DddAnalyse::processSample(void)
 {
-    // Open the source sample file
-    if (!openSourceSampleFile()) {
-        // Opening source sample file failed
-        return false;
-    }
-
+    // Test 10-bit test-data for errors?
     if (test10bitDataMode) {
+        // Open the source sample file
+        if (!openSourceSampleFile()) {
+            // Opening source sample file failed
+            return false;
+        }
+
         // Verify the 10-bit source sample
         verify10bitTestData();
-    } else if (test16bitDataMode) {
-        // Verify the 16-bit signed source sample
-        verify16bitTestData();
+
+        // Close the source sample file
+        closeSourceSampleFile();
     }
 
-    // Close the source sample file
-    closeSourceSampleFile();
+    // Convert 10-bit data to int16?
+    if (convertToInt16Mode) {
+        // Open the source sample file
+        if (!openSourceSampleFile()) {
+            // Opening source sample file failed
+            return false;
+        }
+
+        // Open the target sample file
+        if (!openTargetSampleFile()) {
+            // Opening target sample file failed
+            return false;
+        }
+
+        // Convert the sample
+        convert10BitToInt16();
+
+        // Close the source sample file
+        closeSourceSampleFile();
+
+        // Close the target sample file
+        closeSourceSampleFile();
+    }
 
     qDebug() << "Processing completed";
 
     // Exit with success
     return true;
-}
-
-void DddAnalyse::verify16bitTestData(void)
-{
-    // Show some information to the user
-    std::cout << "dddanalyse - Analysing 16-bit test data sample..." << std::endl;
-
-    // Process the source sample file
-    qint32 currentValue = 0;
-    bool firstRun = true;
-    bool inError = false;
-
-    while (dataAvailable && !inError) {
-        // Read data from the source sample file into the buffer
-        appendSourceSampleData();
-
-        // Process the buffer
-
-        for (qint32 pointer = 0; pointer < sourceSampleBuffer_int.size(); pointer++) {
-            // First run?
-            if (firstRun) {
-                currentValue = sourceSampleBuffer_int[pointer];
-                firstRun = false;
-                std::cout << "Initial value at byte " << locationOfBufferStart + pointer << " is " << currentValue << std::endl;
-            } else {
-                // Increment the current expected value
-                currentValue += 64; // Value is in 10 bit increments scaled to 16 bits
-
-                // Range check the current value
-                if (currentValue == 32768) currentValue = -32768;
-
-                // Check the buffer against the expected value
-                if (currentValue != sourceSampleBuffer_int[pointer]) {
-                    // Test data is not correct!
-                    std::cout << "ERROR! Expected: " << currentValue << " got " << sourceSampleBuffer_int[pointer] << " at byte position " << locationOfBufferStart + pointer << std::endl;
-                    inError = true;
-                    break;
-                }
-            }
-        }
-
-        // Remove the processed words from the buffer
-        sourceSampleBuffer_int.resize(0);
-    }
-
-    std::cout << "Test data analysis complete." << std::endl;
 }
 
 void DddAnalyse::verify10bitTestData(void)
@@ -132,58 +107,43 @@ void DddAnalyse::verify10bitTestData(void)
     bool firstRun = true;
     bool inError = false;
 
+    QVector<quint16> tenBitBuffer;
+    tenBitBuffer.resize(4);
+
     while (dataAvailable && !inError) {
         // Read data from the source sample file into the buffer
         appendSourceSampleData();
 
         // Process the buffer
 
-        // For 10-bit data we have to process 5 words at a time
-        for (qint32 pointer = 0; pointer < sourceSampleBuffer_uint.size(); pointer += 5) {
-            // Unpack the 5 16-bit words into 8 10-bit values
-            QVector<quint16> tenBitBuffer;
-            tenBitBuffer.resize(8);
+        // For 10-bit data we have to process 5 bytes at a time
+        for (qint32 pointer = 0; pointer < sourceSampleBuffer_byte.size(); pointer += 5) {
+            // Unpack the 5 bytes into 4x 10-bit values
 
-            // Unpacking algorithm is as follows:
+            // Original
+            // 0: xxxx xx00 0000 0000
+            // 1: xxxx xx11 1111 1111
+            // 2: xxxx xx22 2222 2222
+            // 3: xxxx xx33 3333 3333
             //
-            //              111111                                  111111
-            //              54321098 76543210                       54321098 76543210
-            //
-            // (value0 & 0b 11111111 11000000) >> 06
-            // (value0 & 0b 00000000 00111111) << 04 + (value1 & 0b 11110000 00000000) >> 12
-            // (value1 & 0b 00001111 11111100) >> 02
-            // (value1 & 0b 00000000 00000011) << 08 + (value2 & 0b 11111111 00000000) >> 08
-            // (value2 & 0b 00000000 11111111) << 02 + (value3 & 0b 11000000 00000000) >> 14
-            // (value3 & 0b 00111111 11110000) >> 04
-            // (value3 & 0b 00000000 00001111) << 06 + (value4 & 0b 11111100 00000000) >> 10
-            // (value4 & 0b 00000011 11111111)
-            //
-            // ...or in hex:
-            //
-            // ((value0 & 0xFFC0) >> 06)
-            // ((value0 & 0x003F) << 04) + ((value1 & 0xF000) >> 12)
-            //  (value1 & 0x0FFC) >> 02
-            // ((value1 & 0x0003) << 08) + ((value2 & 0xFF00) >> 08)
-            // ((value2 & 0x00FF) << 02) + ((value3 & 0xC000) >> 14)
-            //  (value3 & 0x3FF0) >> 04
-            // ((value3 & 0x000F) << 06) + ((value4 & 0xFC00) >> 10)
-            //  (value4 & 0x03FF)
+            // Packed:
+            // 0: 0000 0000 0011 1111
+            // 2: 1111 2222 2222 2233
+            // 4: 3333 3333
 
-            // and now in C++...
-            tenBitBuffer[0] = ((sourceSampleBuffer_uint[0 + pointer] & 0xFFC0) >> 6);
-            tenBitBuffer[1] = static_cast<quint16>(((sourceSampleBuffer_uint[0 + pointer] & 0x003F) << 4))
-                    + ((sourceSampleBuffer_uint[1 + pointer] & 0xF000) >> 12);
-            tenBitBuffer[2] =  (sourceSampleBuffer_uint[1 + pointer] & 0x0FFC) >> 2;
-            tenBitBuffer[3] = static_cast<quint16>(((sourceSampleBuffer_uint[1 + pointer] & 0x0003) << 8))
-                    + ((sourceSampleBuffer_uint[2 + pointer] & 0xFF00) >>  8);
-            tenBitBuffer[4] = static_cast<quint16>(((sourceSampleBuffer_uint[2 + pointer] & 0x00FF) << 2))
-                    + ((sourceSampleBuffer_uint[3 + pointer] & 0xC000) >> 14);
-            tenBitBuffer[5] =  (sourceSampleBuffer_uint[3 + pointer] & 0x3FF0) >> 4;
-            tenBitBuffer[6] = static_cast<quint16>(((sourceSampleBuffer_uint[3 + pointer] & 0x000F) << 6))
-                    + ((sourceSampleBuffer_uint[4 + pointer] & 0xFC00) >> 10);
-            tenBitBuffer[7] =  (sourceSampleBuffer_uint[4 + pointer] & 0x03FF);
+            tenBitBuffer[0]  = static_cast<quint16>(static_cast<quint16>(sourceSampleBuffer_byte[pointer + 0]) << 2);
+            tenBitBuffer[0] += static_cast<quint16>(sourceSampleBuffer_byte[pointer + 1] & 0xC0) >> 6;
 
-            for (qint32 tenBitPointer = 0; tenBitPointer < 8; tenBitPointer++) {
+            tenBitBuffer[1]  = static_cast<quint16>(static_cast<quint16>(sourceSampleBuffer_byte[pointer + 1] & 0x3F) << 4);
+            tenBitBuffer[1] += static_cast<quint16>(sourceSampleBuffer_byte[pointer + 2] & 0xF0) >> 4;
+
+            tenBitBuffer[2]  = static_cast<quint16>(static_cast<quint16>(sourceSampleBuffer_byte[pointer + 2] & 0x0F) << 6);
+            tenBitBuffer[2] += static_cast<quint16>(sourceSampleBuffer_byte[pointer + 3] & 0xFC) >> 2;
+
+            tenBitBuffer[3]  = static_cast<quint16>(static_cast<quint16>(sourceSampleBuffer_byte[pointer + 3] & 0x03) << 8);
+            tenBitBuffer[3] += static_cast<quint16>(sourceSampleBuffer_byte[pointer + 4]);
+
+            for (qint32 tenBitPointer = 0; tenBitPointer < 4; tenBitPointer++) {
                 // First run?
                 if (firstRun) {
                     currentValue = tenBitBuffer[tenBitPointer];
@@ -212,20 +172,83 @@ void DddAnalyse::verify10bitTestData(void)
         }
 
         // Remove the processed words from the buffer
-        sourceSampleBuffer_int.resize(0);
+        sourceSampleBuffer_byte.resize(0);
     }
 
-    std::cout << "Test data analysis complete." << std::endl;
+    if (!inError) std::cout << "Test data analysis completed successfully." << std::endl;
+    else std::cout << "Test data analysis found data errors." << std::endl;
+}
+
+// Convert 10-bit sample to scaled 16-bit signed integer sample
+void DddAnalyse::convert10BitToInt16(void)
+{
+    // Show some information to the user
+    std::cout << "dddanalyse - Converting 10-bit data sample into int16..." << std::endl;
+
+    while (dataAvailable) {
+        // Read data from the source sample file into the buffer
+        appendSourceSampleData();
+
+        // Calculate the require target buffer size
+        targetSampleBuffer_int16.resize((sourceSampleBuffer_byte.size() / 5) * 4);
+        qint32 targetBufferPointer = 0;
+
+        // Process the buffer
+        // For 10-bit data we have to process 5 bytes at a time
+        for (qint32 pointer = 0; pointer < sourceSampleBuffer_byte.size(); pointer += 5) {
+            // Unpack the 5 bytes into 4x 10-bit values
+
+            // Original
+            // 0: xxxx xx00 0000 0000
+            // 1: xxxx xx11 1111 1111
+            // 2: xxxx xx22 2222 2222
+            // 3: xxxx xx33 3333 3333
+            //
+            // Packed:
+            // 0: 0000 0000 0011 1111
+            // 2: 1111 2222 2222 2233
+            // 4: 3333 3333
+
+            targetSampleBuffer_int16[targetBufferPointer + 0]  = static_cast<qint16>(static_cast<quint16>(sourceSampleBuffer_byte[pointer + 0]) << 2);
+            targetSampleBuffer_int16[targetBufferPointer + 0] += static_cast<qint16>(sourceSampleBuffer_byte[pointer + 1] & 0xC0) >> 6;
+
+            targetSampleBuffer_int16[targetBufferPointer + 1]  = static_cast<qint16>(static_cast<quint16>(sourceSampleBuffer_byte[pointer + 1] & 0x3F) << 4);
+            targetSampleBuffer_int16[targetBufferPointer + 1] += static_cast<qint16>(sourceSampleBuffer_byte[pointer + 2] & 0xF0) >> 4;
+
+            targetSampleBuffer_int16[targetBufferPointer + 2]  = static_cast<qint16>(static_cast<quint16>(sourceSampleBuffer_byte[pointer + 2] & 0x0F) << 6);
+            targetSampleBuffer_int16[targetBufferPointer + 2] += static_cast<qint16>(sourceSampleBuffer_byte[pointer + 3] & 0xFC) >> 2;
+
+            targetSampleBuffer_int16[targetBufferPointer + 3]  = static_cast<qint16>(static_cast<quint16>(sourceSampleBuffer_byte[pointer + 3] & 0x03) << 8);
+            targetSampleBuffer_int16[targetBufferPointer + 3] += static_cast<qint16>(sourceSampleBuffer_byte[pointer + 4]);
+
+            // Scale the data
+            targetSampleBuffer_int16[targetBufferPointer + 0] = (targetSampleBuffer_int16[targetBufferPointer + 0] - 512) * 64;
+            targetSampleBuffer_int16[targetBufferPointer + 1] = (targetSampleBuffer_int16[targetBufferPointer + 1] - 512) * 64;
+            targetSampleBuffer_int16[targetBufferPointer + 2] = (targetSampleBuffer_int16[targetBufferPointer + 2] - 512) * 64;
+            targetSampleBuffer_int16[targetBufferPointer + 3] = (targetSampleBuffer_int16[targetBufferPointer + 3] - 512) * 64;
+
+            // Increment the target buffer pointer
+            targetBufferPointer += 4;
+        }
+
+        // Save the target buffer to the target file
+        saveTargetSampleData();
+
+        // Remove the processed words from the buffer
+        sourceSampleBuffer_byte.resize(0);
+    }
+
+    std::cout << "Sample data conversion completed successfully." << std::endl;
 }
 
 // Open the source sample file
 bool DddAnalyse::openSourceSampleFile(void)
 {
     // Open the source sample file
-    // Do we have a file name for the source video file?
+    // Do we have a file name for the source sample file?
     if (sourceSampleFilename.isEmpty()) {
-        // No source video file name was specified, using stdin instead
-        qDebug() << "No source video filename was provided, using stdin";
+        // No source sample file name was specified, using stdin instead
+        qDebug() << "No source sample filename was provided, using stdin";
         sourceSampleFileHandle = new QFile;
         if (!sourceSampleFileHandle->open(stdin, QIODevice::ReadOnly)) {
             // Failed to open stdin
@@ -241,11 +264,11 @@ bool DddAnalyse::openSourceSampleFile(void)
             qDebug() << "Could not open " << sourceSampleFilename << "as source sample file";
             return false;
         }
-        qDebug() << "Source sample file is" << sourceSampleFilename;
+        qDebug() << "Source sample file is" << sourceSampleFilename << "and is" << sourceSampleFileHandle->size() << "bytes in length";
     }
 
     // Initialise source sample tracking
-    totalNumberOfWordsRead = 0;
+    totalNumberOfBytesRead = 0;
     locationOfBufferStart = 0;
     dataAvailable = true;
 
@@ -257,7 +280,7 @@ bool DddAnalyse::openSourceSampleFile(void)
 void DddAnalyse::closeSourceSampleFile(void)
 {
     // Close the source sample file
-    // Is a source video file open?
+    // Is a source sample file open?
     if (sourceSampleFileHandle != nullptr) {
             sourceSampleFileHandle->close();
     }
@@ -269,63 +292,107 @@ void DddAnalyse::closeSourceSampleFile(void)
     dataAvailable = false;
 }
 
+// Open the target sample file
+bool DddAnalyse::openTargetSampleFile(void)
+{
+    // Open the target sample file
+    // Do we have a file name for the target sample file?
+    if (targetSampleFilename.isEmpty()) {
+        // No target sample file name was specified, using stdin instead
+        qDebug() << "No target sample filename was provided, using stdout";
+        targetSampleFileHandle = new QFile;
+        if (!targetSampleFileHandle->open(stdout, QIODevice::WriteOnly)) {
+            // Failed to open stdout
+            qWarning() << "Could not open stdout as target sample file";
+            return false;
+        }
+        qInfo() << "Writing sample data to stdout";
+    } else {
+        // Open target sample file for writing
+        targetSampleFileHandle = new QFile(targetSampleFilename);
+        if (!targetSampleFileHandle->open(QIODevice::WriteOnly)) {
+            // Failed to open target sample file
+            qDebug() << "Could not open " << targetSampleFilename << "as target sample file";
+            return false;
+        }
+        qDebug() << "Target sample file is" << targetSampleFilename;
+    }
+
+    // Exit with success
+    return true;
+}
+
+// Close the target sample file
+void DddAnalyse::closeTargetSampleFile(void)
+{
+    // Close the target sample file
+    // Is a target sample file open?
+    if (targetSampleFileHandle != nullptr) {
+            targetSampleFileHandle->close();
+    }
+
+    // Clear the file handle pointer
+    targetSampleFileHandle = nullptr;
+}
+
 // Read data from the source sample - amount of data specified in words
 // returns the number of words read
-qint32 DddAnalyse::appendSourceSampleData(void)
+void DddAnalyse::appendSourceSampleData(void)
 {
     // Store the original size of the buffer
-    qint32 originalBufferSize = sourceSampleBuffer_int.size();
+    qint64 originalBufferSize = sourceSampleBuffer_byte.size();
 
     // How many buffer elements do we need to make it full?
-    qint64 requiredWords = sourceSampleBufferMaximumSize - originalBufferSize;
+    qint64 requiredBytes = sourceSampleBufferMaximumSize - originalBufferSize;
 
     // Range check...
-    if (requiredWords == 0) {
+    if (requiredBytes == 0) {
         qDebug() << "Append source sample data was called, but the buffer was already full";
-        return 0;
+        return;
     }
 
     // Resize the buffer to the maximum size allowed
-    if (test16bitDataMode) sourceSampleBuffer_int.resize(sourceSampleBufferMaximumSize);
-    else sourceSampleBuffer_uint.resize(sourceSampleBufferMaximumSize);
+    sourceSampleBuffer_byte.resize(sourceSampleBufferMaximumSize);
 
-    // Attempt to read enough words to fill the buffer
-    qint32 numberOfWordsReceived = 0;
+    // Attempt to read enough bytes to fill the buffer
     qint64 receivedBytes = 0;
 
-    qDebug() << "Requesting" << requiredWords << "words from source sample file";
     do {
-        if (test16bitDataMode) {
-            receivedBytes = sourceSampleFileHandle->read(reinterpret_cast<char *>(sourceSampleBuffer_int.data()) +
-                                                     (originalBufferSize * static_cast<qint64>(sizeof(quint16))),
-                                                     (requiredWords * static_cast<qint64>(sizeof(quint16))));
-        } else {
-            receivedBytes = sourceSampleFileHandle->read(reinterpret_cast<char *>(sourceSampleBuffer_uint.data()) +
-                                                     (originalBufferSize * static_cast<qint64>(sizeof(quint16))),
-                                                     (requiredWords * static_cast<qint64>(sizeof(quint16))));
-        }
+        receivedBytes = sourceSampleFileHandle->read(reinterpret_cast<char *>(sourceSampleBuffer_byte.data()) +
+                                                     originalBufferSize,
+                                                     requiredBytes
+                                                     );
+    } while (receivedBytes != 0 && receivedBytes < requiredBytes);
+    //qDebug() << "Received" << receivedBytes << "bytes from source sample file";
 
-        // Calculate the received number of words
-        numberOfWordsReceived += (receivedBytes / static_cast<qint32>(sizeof(quint16)));
-    } while (receivedBytes != 0 && numberOfWordsReceived < requiredWords);
-    qDebug() << "Received" << numberOfWordsReceived << "elements from source video file";
-
-    totalNumberOfWordsRead += numberOfWordsReceived;
-    if (test16bitDataMode) locationOfBufferStart = totalNumberOfWordsRead - sourceSampleBuffer_int.size();
-    else locationOfBufferStart = totalNumberOfWordsRead - sourceSampleBuffer_uint.size();
+    totalNumberOfBytesRead += receivedBytes;
+    locationOfBufferStart = totalNumberOfBytesRead - sourceSampleBuffer_byte.size();
 
     // Did we run out of source data?
-    if (numberOfWordsReceived < requiredWords) {
-        qDebug() << "Reached the end of the source sample file before receiving the required number of words";
+    if (receivedBytes < requiredBytes) {
+        if (receivedBytes == 0) {
+            qDebug() << "Reached the end of the source sample file";
+        } else {
+            qDebug() << "Reached the end of the source sample file before receiving the required number of bytes";
+            qDebug() << "Received bytes =" << receivedBytes << " and required bytes =" << requiredBytes;
+        }
 
         // Resize the buffer correctly
-        if (test16bitDataMode) sourceSampleBuffer_int.resize(originalBufferSize + numberOfWordsReceived);
-        else sourceSampleBuffer_uint.resize(originalBufferSize + numberOfWordsReceived);
+        sourceSampleBuffer_byte.resize(static_cast<qint32>(originalBufferSize + receivedBytes));
         dataAvailable = false;
-        return numberOfWordsReceived;
+        return;
     }
+}
 
-    return true;
+// Save data from the target sample buffer to the target sample file
+void DddAnalyse::saveTargetSampleData(void)
+{
+    qint64 writeResult = 0;
+    targetSampleFileHandle->write(reinterpret_cast<char *>(targetSampleBuffer_int16.data()),
+                                  targetSampleBuffer_int16.size() * static_cast<qint32>(sizeof(qint16))
+                                  );
+
+    if (writeResult == -1) qDebug() << "Writing to target sample file failed!";
 }
 
 //  Get and set methods -------------------------------------------------------
@@ -344,17 +411,14 @@ void DddAnalyse::setTargetSampleFileName(QString filename)
     targetSampleFilename = filename;
 }
 
-// Select 16-bit test data mode
-void DddAnalyse::setTest16bitDataMode(void)
-{
-    test16bitDataMode = true;
-    test10bitDataMode = false;
-}
-
 // Select 10-bit test data mode
 void DddAnalyse::setTest10bitDataMode(void)
 {
     test10bitDataMode = true;
-    test16bitDataMode = false;
 }
 
+// Select convert 10-bit to int16 mode
+void DddAnalyse::setConvertToInt16Mode(void)
+{
+    convertToInt16Mode = true;
+}

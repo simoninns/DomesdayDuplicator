@@ -81,7 +81,7 @@ public slots:
       quint16                wLength,
       quint16                timeout);
 
-  qint32 startBulkTransfer(QString fileName);
+  qint32 startBulkTransfer(QString fileName, bool isTenBit);
   qint32 stopBulkTransfer(void);
 
   quint32 getPacketCounter(void);
