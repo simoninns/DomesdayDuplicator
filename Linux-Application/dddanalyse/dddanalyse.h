@@ -43,37 +43,43 @@ public:
     bool processSample(void);
     void setSourceSampleFileName(QString filename);
     void setTargetSampleFileName(QString filename);
-    void setTest16bitDataMode(void);
     void setTest10bitDataMode(void);
+    void setConvertToInt16Mode(void);
 
 private:
     // Filenames for the source and target sample files
     QString sourceSampleFilename;
     QString targetSampleFilename;
 
-    // Test data mode flags
-    bool test16bitDataMode;
+    // Mode flags
     bool test10bitDataMode;
+    bool convertToInt16Mode;
 
     // Source file handle
     QFile *sourceSampleFileHandle;
+    QFile *targetSampleFileHandle;
 
     // Variables for tracking the source sample file
-    qint32 totalNumberOfWordsRead;
-    qint32 locationOfBufferStart;
+    qint64 totalNumberOfBytesRead;
+    qint64 locationOfBufferStart;
     bool dataAvailable;
 
-    // Create a buffer for the source sample data (16-bit signed words)
-    QVector<qint16> sourceSampleBuffer_int;
-    QVector<quint16> sourceSampleBuffer_uint;
+    // Create a buffer for the source sample data (bytes)
+    QVector<quint8> sourceSampleBuffer_byte;
     qint32 sourceSampleBufferMaximumSize;
 
+    // Create a buffer for the target sample data (int16)
+    QVector<qint16> targetSampleBuffer_int16;
+
     // Private methods
-    void verify16bitTestData(void);
     void verify10bitTestData(void);
+    void convert10BitToInt16(void);
     bool openSourceSampleFile(void);
     void closeSourceSampleFile(void);
-    qint32 appendSourceSampleData(void);
+    bool openTargetSampleFile(void);
+    void closeTargetSampleFile(void);
+    void appendSourceSampleData(void);
+    void saveTargetSampleData(void);
 };
 
 #endif // DDDANALYSE_H

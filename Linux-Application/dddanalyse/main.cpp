@@ -105,20 +105,20 @@ int main(int argc, char *argv[])
     parser.addOption(sourceSampleFileOption);
 
     // Option to specify output sample file (-o)
-//    QCommandLineOption targetSampleFileOption(QStringList() << "o" << "target-sample-file",
-//                QCoreApplication::translate("main", "Specify output RF sample file"),
-//                QCoreApplication::translate("main", "file"));
-//    parser.addOption(targetSampleFileOption);
+    QCommandLineOption targetSampleFileOption(QStringList() << "o" << "target-sample-file",
+                QCoreApplication::translate("main", "Specify output RF sample file"),
+                QCoreApplication::translate("main", "file"));
+    parser.addOption(targetSampleFileOption);
 
-    // Option to select 16-bit test data verification mode (-s)
-    QCommandLineOption test16bitDataModeOption(QStringList() << "s" << "16-bit-test-data",
-                                     QCoreApplication::translate("main", "16-bit test data verification mode"));
-    parser.addOption(test16bitDataModeOption);
-
-    // Option to select 16-bit test data verification mode (-t)
+    // Option to select 10-bit test data verification mode (-t)
     QCommandLineOption test10bitDataModeOption(QStringList() << "t" << "10-bit-test-data",
                                      QCoreApplication::translate("main", "10-bit test data verification mode"));
     parser.addOption(test10bitDataModeOption);
+
+    // Option to convert 10-bit data to 16-bit signed scaled data (-c)
+    QCommandLineOption convertToInt16Option(QStringList() << "c" << "convert-to-int16",
+                                     QCoreApplication::translate("main", "Convert 10-bit data file to int16"));
+    parser.addOption(convertToInt16Option);
 
     // Process the command line arguments given by the user
     parser.process(app);
@@ -126,9 +126,9 @@ int main(int argc, char *argv[])
     // Get the configured settings from the parser
     bool isDebugOn = parser.isSet(showDebugOption);
     QString sourceSampleFileName = parser.value(sourceSampleFileOption);
-    //QString targetSampleFileName = parser.value(targetSampleFileOption);
-    bool isTest16bitDataMode = parser.isSet(test16bitDataModeOption);
+    QString targetSampleFileName = parser.value(targetSampleFileOption);
     bool isTest10bitDataMode = parser.isSet(test10bitDataModeOption);
+    bool isConvertToInt16Mode = parser.isSet(convertToInt16Option);
 
     // Process the command line options
     if (isDebugOn) showDebug = true;
@@ -136,17 +136,17 @@ int main(int argc, char *argv[])
     // Contruct the TBC object
     DddAnalyse dddAnalyse;
 
-    // Select 16-bit test data mode?
-    if (isTest16bitDataMode) dddAnalyse.setTest16bitDataMode();
-
     // Select 10-bit test data mode?
     if (isTest10bitDataMode) dddAnalyse.setTest10bitDataMode();
+
+    // Select 10-bit to int16 conversion mode?
+    if (isConvertToInt16Mode) dddAnalyse.setConvertToInt16Mode();
 
     // Set the source video file name
     if (!sourceSampleFileName.isEmpty()) dddAnalyse.setSourceSampleFileName(sourceSampleFileName);
 
     // Set the target video file name
-    //if (!targetSampleFileName.isEmpty()) dddAnalyse.setTargetSampleFileName(targetSampleFileName);
+    if (!targetSampleFileName.isEmpty()) dddAnalyse.setTargetSampleFileName(targetSampleFileName);
 
     // Process the sample file
     dddAnalyse.processSample();

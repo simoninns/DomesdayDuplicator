@@ -90,6 +90,10 @@ private slots:
     void cavPicPoll(void);
     void clvPicPoll(void);
 
+    void on_tenBitRadioButton_clicked();
+
+    void on_sixteenBitRadioButton_clicked();
+
 private:
     Ui::MainWindow *ui;
 
@@ -155,6 +159,9 @@ private:
     bool clvPicCaptureActive;
     bool clvPicCaptureAbort;
     QTimer* clvPicPollTimer;
+
+    // Data format
+    bool isTenBit;
 };
 
 #endif // MAINWINDOW_H

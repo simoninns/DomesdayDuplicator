@@ -121,6 +121,9 @@ MainWindow::MainWindow(QWidget *parent) :
     clvPicPollTimer = new QTimer(this);
     connect(clvPicPollTimer, SIGNAL(timeout()), this, SLOT(clvPicPoll()));
     clvPicPollTimer->start(50); // Update 20 times a second
+
+    // Set the default data format to 10-bit
+    isTenBit = true;
 }
 
 MainWindow::~MainWindow()
@@ -132,7 +135,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-// Update the GUI
+// Update the GUI (called when the USB device connectivity changes)
 void MainWindow::updateGui()
 {
     // Is a USB device connected?
@@ -315,6 +318,24 @@ void MainWindow::on_clvLeadInCheckBox_toggled(bool checked)
     }
 }
 
+// Data format radio button (10 bit) clicked
+void MainWindow::on_tenBitRadioButton_clicked()
+{
+    if (ui->tenBitRadioButton->isChecked()) isTenBit = true; else isTenBit = false;
+
+    if (isTenBit) qDebug() << "MainWindow::on_tenBitRadioButton_clicked(): 10-bit data format selected";
+    else qDebug() << "MainWindow::on_tenBitRadioButton_clicked(): 16-bit data format selected";
+}
+
+// Data format radio button (16 bit) clicked
+void MainWindow::on_sixteenBitRadioButton_clicked()
+{
+    if (ui->sixteenBitRadioButton->isChecked()) isTenBit = false; else isTenBit = true;
+
+    if (isTenBit) qDebug() << "MainWindow::on_sixteenBitRadioButton_clicked(): 10-bit data format selected";
+    else qDebug() << "MainWindow::on_sixteenBitRadioButton_clicked(): 16-bit data format selected";
+}
+
 // Start or stop sample transfer --------------------------------------------------------------------------------------
 
 // Start USB capture transfer
@@ -343,6 +364,13 @@ void MainWindow::startTransfer(void)
             // Update the transfer button text
             ui->transferPushButton->setText(tr("Stop Capture"));
 
+            // Disable the data format radio buttons
+            ui->tenBitRadioButton->setEnabled(false);
+            ui->sixteenBitRadioButton->setEnabled(false);
+
+            // Disable the test data check-box
+            ui->testModeCheckBox->setEnabled(false);
+
             // Configure and open the USB device
             responseFlag = domDupUsbDevice->openDevice();
 
@@ -353,7 +381,7 @@ void MainWindow::startTransfer(void)
                 domDupUsbDevice->sendVendorSpecificCommand(0xB5, 1);
 
                 // Start the transfer (pass test mode on/off state)
-                domDupUsbDevice->startBulkRead(fileName);
+                domDupUsbDevice->startBulkRead(fileName, isTenBit);
 
                 // Start a timer to display the transfer information
                 captureTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
@@ -400,6 +428,13 @@ void MainWindow::stopTransfer(void)
 
         // Update the GUI
         updateGui();
+
+        // Enable the data format radio buttons
+        ui->tenBitRadioButton->setEnabled(true);
+        ui->sixteenBitRadioButton->setEnabled(true);
+
+        // Enable the test data check-box
+        ui->testModeCheckBox->setEnabled(true);
     } else {
         qDebug() << "MainWindow::stopTransfer(): Called, but transfer is not in progress";
     }
@@ -1119,5 +1154,4 @@ void MainWindow::clvPicPoll(void)
             break;
     }
 }
-
 

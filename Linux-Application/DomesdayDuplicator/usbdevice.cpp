@@ -162,10 +162,10 @@ void usbDevice::sendVendorSpecificCommand(quint16 command, quint16 value)
 }
 
 // Start a bulk read (continuously transfers data until stopped)
-void usbDevice::startBulkRead(QString fileName)
+void usbDevice::startBulkRead(QString fileName, bool isTenBit)
 {
     // Start the bulk transfer
-    domDupDevice->startBulkTransfer(fileName);
+    domDupDevice->startBulkTransfer(fileName, isTenBit);
 }
 
 // Stop a bulk read

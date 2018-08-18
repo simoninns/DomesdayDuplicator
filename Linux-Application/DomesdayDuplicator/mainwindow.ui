@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>720</width>
-    <height>490</height>
+    <height>495</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,13 +19,13 @@
   <property name="minimumSize">
    <size>
     <width>720</width>
-    <height>490</height>
+    <height>495</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>720</width>
-    <height>490</height>
+    <height>495</height>
    </size>
   </property>
   <property name="font">
@@ -140,7 +140,7 @@
       <x>10</x>
       <y>370</y>
       <width>341</width>
-      <height>51</height>
+      <height>71</height>
      </rect>
     </property>
     <property name="title">
@@ -464,12 +464,55 @@
      <pixmap resource="images.qrc">:/logos/Graphics/Domesday Duplicator logo colour 150px.png</pixmap>
     </property>
    </widget>
+   <widget class="QGroupBox" name="groupBox">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>370</y>
+      <width>341</width>
+      <height>71</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Data format:</string>
+    </property>
+    <widget class="QRadioButton" name="tenBitRadioButton">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>321</width>
+       <height>22</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>10-bit packed data (recommended)</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="sixteenBitRadioButton">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>40</y>
+       <width>321</width>
+       <height>22</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>16-bit signed scaled data</string>
+     </property>
+    </widget>
+   </widget>
    <zorder>captureGroupBox</zorder>
    <zorder>optionsGroupBox</zorder>
    <zorder>cavIntegratedCaptureGroupBox</zorder>
    <zorder>clvIntegratedCaptureGroupBox</zorder>
    <zorder>logo</zorder>
    <zorder>transferPushButton</zorder>
+   <zorder>groupBox</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -477,7 +520,7 @@
      <x>0</x>
      <y>0</y>
      <width>720</width>
-     <height>19</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

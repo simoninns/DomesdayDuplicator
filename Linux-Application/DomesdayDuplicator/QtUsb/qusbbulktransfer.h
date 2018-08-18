@@ -42,7 +42,7 @@ class QUsbBulkTransfer : public QThread {
 public:
     QUsbBulkTransfer(void);
     ~QUsbBulkTransfer(void);
-    void setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, QString fileName);
+    void setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, QString fileName, bool isTenBit);
 
     quint32 getPacketCounter(void);
     quint32 getPacketSize(void);
@@ -69,9 +69,9 @@ protected:
     libusb_device_handle* libUsbDeviceHandle;
     quint8 libUsbEndPoint;
 
-    quint32 requestSize; // Request size in number of packets
-    quint32 packetSize;  // Maximum packet size for the endpoint
-    quint32 queueDepth;  // Maximum number of queued transfers allowed
+    quint32 requestSize;    // Request size in number of packets
+    quint32 packetSize;     // Maximum packet size for the endpoint
+    quint32 queueDepth;     // Maximum number of queued transfers allowed
 
     QString captureFileName; // Capture file name
 };
