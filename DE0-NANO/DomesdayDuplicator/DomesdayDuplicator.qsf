@@ -75,8 +75,8 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO0[30]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO0[31]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO0[32]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO0[33]
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO0_IN[0]
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO0_IN[1]
+#set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO0_IN[0]
+#set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO0_IN[1]
 set_location_assignment PIN_D3 -to GPIO0[0]
 set_location_assignment PIN_C3 -to GPIO0[1]
 set_location_assignment PIN_A2 -to GPIO0[2]
@@ -111,8 +111,8 @@ set_location_assignment PIN_A12 -to GPIO0[30]
 set_location_assignment PIN_D11 -to GPIO0[31]
 set_location_assignment PIN_D12 -to GPIO0[32]
 set_location_assignment PIN_B12 -to GPIO0[33]
-set_location_assignment PIN_A8 -to GPIO0_IN[0]
-set_location_assignment PIN_B8 -to GPIO0_IN[1]
+#set_location_assignment PIN_A8 -to GPIO0_IN[0]
+#set_location_assignment PIN_B8 -to GPIO0_IN[1]
 
 #============================================================
 # GPIO_1, GPIO_1 connect to GPIO Default
@@ -151,8 +151,8 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[30]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[31]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[32]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[33]
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1_IN[0]
-set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1_IN[1]
+#set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1_IN[0]
+#set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1_IN[1]
 set_location_assignment PIN_F13 -to GPIO1[0]
 set_location_assignment PIN_T15 -to GPIO1[1]
 set_location_assignment PIN_T14 -to GPIO1[2]
@@ -187,8 +187,8 @@ set_location_assignment PIN_J16 -to GPIO1[30]
 set_location_assignment PIN_K15 -to GPIO1[31]
 set_location_assignment PIN_J13 -to GPIO1[32]
 set_location_assignment PIN_J14 -to GPIO1[33]
-set_location_assignment PIN_T9 -to GPIO1_IN[0]
-set_location_assignment PIN_R9 -to GPIO1_IN[1]
+#set_location_assignment PIN_T9 -to GPIO1_IN[0]
+#set_location_assignment PIN_R9 -to GPIO1_IN[1]
 
 #============================================================
 # End of pin assignments by Terasic System Builder
@@ -213,4 +213,5 @@ set_global_assignment -name CDF_FILE DomesdayDuplicator_write_sof.cdf
 set_global_assignment -name CDF_FILE DomesdayDuplicator_write_jic.cdf
 
 set_global_assignment -name VERILOG_FILE statusLED.v
+
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
