@@ -346,12 +346,12 @@ qint32 QUsbDevice::sendControlTransfer(
 }
 
 // Start a bulk transfer stream
-qint32 QUsbDevice::startBulkTransfer(QString fileName)
+qint32 QUsbDevice::startBulkTransfer(QString fileName, bool isTenBit)
 {
     qint32 rc = 1; // Response code
     qDebug() << "QUsbDevice::startBulkTransfer(): Called";
     mUsbBulkTransfer = new QUsbBulkTransfer;
-    mUsbBulkTransfer->setup(mCtx, mDevHandle, mConfig.readEp, fileName);
+    mUsbBulkTransfer->setup(mCtx, mDevHandle, mConfig.readEp, fileName, isTenBit);
     mUsbBulkTransfer->start();
 
     // Wait for the transfer to start

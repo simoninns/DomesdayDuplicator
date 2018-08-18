@@ -61,7 +61,7 @@ public:
 
     void sendVendorSpecificCommand(quint16 command, quint16 value);
 
-    void startBulkRead(QString fileName);
+    void startBulkRead(QString fileName, bool isTenBit);
     void stopBulkRead(void);
 
     quint32 getPacketCounter(void);

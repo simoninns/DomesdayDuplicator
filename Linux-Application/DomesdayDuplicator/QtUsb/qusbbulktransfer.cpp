@@ -72,6 +72,9 @@ static statisticsStruct statistics;
 extern volatile bool transferRunning; // Gets rid of gcc
 volatile bool transferRunning;
 
+// Flag to show current data format
+static volatile bool isDataFormat10bit; // True = 10-bit, false 16-bit
+
 // Notes:
 //
 // The ADC generates data at a rate of around 64Mbytes/sec
@@ -146,7 +149,7 @@ void QUsbBulkTransfer::bulkTransferStop(void)
     stopUsbTransfers = true;
 }
 
-void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, QString fileName)
+void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHandle, quint8 endPoint, QString fileName, bool isTenBit)
 {
     // Store the libUSB information locally
     libUsbContext = mCtx;
@@ -158,6 +161,9 @@ void QUsbBulkTransfer::setup(libusb_context* mCtx, libusb_device_handle* devHand
 
     // Set the capture file name
     captureFileName = fileName;
+
+    // Set the data format
+    isDataFormat10bit = isTenBit;
 }
 
 // Return true if transfer is running
@@ -412,27 +418,86 @@ static void processDiskBuffers(void)
     do {
         // Is the next disk buffer to write ready?
         if (diskBufferStatus[nextDiskBufferToWrite] == true) {
-            // Translate the data in the disk buffer to scaled 16-bit signed data
-            for (unsigned int tempPointer = 0;
-                 tempPointer < (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER);
-                 tempPointer += 2) {
+            // Is data format 10-bit packed?
+            if (isDataFormat10bit) {
+                // Translate the data in the disk buffer to packed 10-bit unsigned data
+                unsigned int tempPointer = 0;
+                for (unsigned int diskPointer = 0;
+                     diskPointer < (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER);
+                     diskPointer += 8) {
 
-                // Get the original 10-bit unsigned value from the disk data buffer
-                unsigned int originalValue = diskDataBuffers[nextDiskBufferToWrite][tempPointer];
-                originalValue += diskDataBuffers[nextDiskBufferToWrite][tempPointer+1] * 256;
+                    // Pack 4 16-bit word values into 5 bytes
+                    //
+                    // Original
+                    // 0: xxxx xx00 0000 0000
+                    // 1: xxxx xx11 1111 1111
+                    // 2: xxxx xx22 2222 2222
+                    // 3: xxxx xx33 3333 3333
+                    //
+                    // Packed:
+                    // 0: 0000 0000 0011 1111
+                    // 2: 1111 2222 2222 2233
+                    // 4: 3333 3333
 
-                // Sign and scale the data to 16-bits
-                int signedValue = static_cast<int>(originalValue - 512);
-                signedValue = signedValue * 64;
+                    // Get the original 4 16-bit words
+                    unsigned int originalWords[4];
+                    originalWords[0]  = diskDataBuffers[nextDiskBufferToWrite][diskPointer + 0];
+                    originalWords[0] += diskDataBuffers[nextDiskBufferToWrite][diskPointer + 1] * 256;
+                    originalWords[1]  = diskDataBuffers[nextDiskBufferToWrite][diskPointer + 2];
+                    originalWords[1] += diskDataBuffers[nextDiskBufferToWrite][diskPointer + 3] * 256;
+                    originalWords[2]  = diskDataBuffers[nextDiskBufferToWrite][diskPointer + 4];
+                    originalWords[2] += diskDataBuffers[nextDiskBufferToWrite][diskPointer + 5] * 256;
+                    originalWords[3]  = diskDataBuffers[nextDiskBufferToWrite][diskPointer + 6];
+                    originalWords[3] += diskDataBuffers[nextDiskBufferToWrite][diskPointer + 7] * 256;
 
-                temporaryDiskBuffer[tempPointer] = static_cast<unsigned char>(signedValue & 0x00FF);
-                temporaryDiskBuffer[tempPointer+1] = static_cast<unsigned char>((signedValue & 0xFF00) >> 8);
+                    // Convert into 5 bytes of packed 10-bit data
+                    //temporaryDiskBuffer[tempPointer + 0]  = (originalWords[0] & 0b 0000 0011 1111 1100) >> 2;
+                    //temporaryDiskBuffer[tempPointer + 1]  = (originalWords[0] & 0b 0000 0000 0000 0011) << 6;
+                    //temporaryDiskBuffer[tempPointer + 1] += (originalWords[1] & 0b 0000 0011 1111 0000) >> 4;
+                    //temporaryDiskBuffer[tempPointer + 2]  = (originalWords[1] & 0b 0000 0000 0000 1111) << 4;
+                    //temporaryDiskBuffer[tempPointer + 2] += (originalWords[2] & 0b 0000 0011 1100 0000) >> 6;
+                    //temporaryDiskBuffer[tempPointer + 3]  = (originalWords[2] & 0b 0000 0000 0011 1111) << 2;
+                    //temporaryDiskBuffer[tempPointer + 3] += (originalWords[3] & 0b 0000 0011 0000 0000) >> 8;
+                    //temporaryDiskBuffer[tempPointer + 4]  = (originalWords[3] & 0b 0000 0000 1111 1111);
+
+                    temporaryDiskBuffer[tempPointer + 0]  = static_cast<unsigned char>((originalWords[0] & 0x03FC) >> 2);
+                    temporaryDiskBuffer[tempPointer + 1]  = static_cast<unsigned char>((originalWords[0] & 0x0003) << 6);
+                    temporaryDiskBuffer[tempPointer + 1] += static_cast<unsigned char>((originalWords[1] & 0x03F0) >> 4);
+                    temporaryDiskBuffer[tempPointer + 2]  = static_cast<unsigned char>((originalWords[1] & 0x000F) << 4);
+                    temporaryDiskBuffer[tempPointer + 2] += static_cast<unsigned char>((originalWords[2] & 0x03C0) >> 6);
+                    temporaryDiskBuffer[tempPointer + 3]  = static_cast<unsigned char>((originalWords[2] & 0x003F) << 2);
+                    temporaryDiskBuffer[tempPointer + 3] += static_cast<unsigned char>((originalWords[3] & 0x0300) >> 8);
+                    temporaryDiskBuffer[tempPointer + 4]  = static_cast<unsigned char>((originalWords[3] & 0x00FF));
+
+                    // Increment the pointer to the temporary buffer
+                    tempPointer += 5;
+                }
+
+                // Write the temporary disk buffer to disk
+                outputFile->write(reinterpret_cast<const char *>(temporaryDiskBuffer), tempPointer);
+            } else {
+                // Translate the data in the disk buffer to scaled 16-bit signed data
+                for (unsigned int tempPointer = 0;
+                     tempPointer < (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER);
+                     tempPointer += 2) {
+
+                    // Get the original 10-bit unsigned value from the disk data buffer
+                    unsigned int originalValue = diskDataBuffers[nextDiskBufferToWrite][tempPointer];
+                    originalValue += diskDataBuffers[nextDiskBufferToWrite][tempPointer+1] * 256;
+
+                    // Sign and scale the data to 16-bits
+                    int signedValue = static_cast<int>(originalValue - 512);
+                    signedValue = signedValue * 64;
+
+                    temporaryDiskBuffer[tempPointer] = static_cast<unsigned char>(signedValue & 0x00FF);
+                    temporaryDiskBuffer[tempPointer+1] = static_cast<unsigned char>((signedValue & 0xFF00) >> 8);
+                }
+
+                // Write the disk buffer to disk
+                //qDebug() << "processDiskBuffers(): Writing disk buffer" << nextDiskBufferToWrite;
+                outputFile->write(reinterpret_cast<const char *>(temporaryDiskBuffer),
+                                  (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER));
             }
-
-            // Write the disk buffer to disk
-            //qDebug() << "processDiskBuffers(): Writing disk buffer" << nextDiskBufferToWrite;
-            outputFile->write(reinterpret_cast<const char *>(temporaryDiskBuffer),
-                              (((REQUEST_SIZE * PACKET_SIZE) * QUEUE_DEPTH) * QUEUE_BUFFERS_PER_DISK_BUFFER));
 
             // Free the disk buffer
             diskBufferStatus[nextDiskBufferToWrite] = false;
