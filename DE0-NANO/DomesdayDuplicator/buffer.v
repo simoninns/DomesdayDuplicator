@@ -140,10 +140,12 @@ reg [9:0] bufferOverflowHold;
 // FIFO Write-side logic (controls switching between ping and pong buffers)
 always @ (posedge writeClock, negedge nReset) begin
 	if (!nReset) begin
-		// Clear all on reset
+		// Clear all registers on reset
 		currentWriteBuffer <= 1'b0;
 		bufferOverflow <= 1'b0;
 		bufferOverflowHold <= 10'd0;
+		pingAsyncClear_reg <= 1'b0;
+		pongAsyncClear_reg <= 1'b0;
 	end else begin
 		// Which buffer is being written to?
 		if (currentWriteBuffer) begin

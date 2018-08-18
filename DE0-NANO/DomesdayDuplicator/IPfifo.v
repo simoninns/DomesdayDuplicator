@@ -103,12 +103,12 @@ module IPfifo (
 		dcfifo_component.lpm_width = 10,
 		dcfifo_component.lpm_widthu = 14,
 		dcfifo_component.overflow_checking = "ON",
-		dcfifo_component.rdsync_delaypipe = 3,
+		dcfifo_component.rdsync_delaypipe = 4,
 		dcfifo_component.read_aclr_synch = "OFF",
 		dcfifo_component.underflow_checking = "ON",
 		dcfifo_component.use_eab = "ON",
 		dcfifo_component.write_aclr_synch = "ON",
-		dcfifo_component.wrsync_delaypipe = 3;
+		dcfifo_component.wrsync_delaypipe = 4;
 
 
 endmodule
@@ -157,12 +157,12 @@ endmodule
 // Retrieval info: CONSTANT: LPM_WIDTH NUMERIC "10"
 // Retrieval info: CONSTANT: LPM_WIDTHU NUMERIC "14"
 // Retrieval info: CONSTANT: OVERFLOW_CHECKING STRING "ON"
-// Retrieval info: CONSTANT: RDSYNC_DELAYPIPE NUMERIC "3"
+// Retrieval info: CONSTANT: RDSYNC_DELAYPIPE NUMERIC "4"
 // Retrieval info: CONSTANT: READ_ACLR_SYNCH STRING "OFF"
 // Retrieval info: CONSTANT: UNDERFLOW_CHECKING STRING "ON"
 // Retrieval info: CONSTANT: USE_EAB STRING "ON"
 // Retrieval info: CONSTANT: WRITE_ACLR_SYNCH STRING "ON"
-// Retrieval info: CONSTANT: WRSYNC_DELAYPIPE NUMERIC "3"
+// Retrieval info: CONSTANT: WRSYNC_DELAYPIPE NUMERIC "4"
 // Retrieval info: USED_PORT: aclr 0 0 0 0 INPUT GND "aclr"
 // Retrieval info: USED_PORT: data 0 0 10 0 INPUT NODEFVAL "data[9..0]"
 // Retrieval info: USED_PORT: q 0 0 10 0 OUTPUT NODEFVAL "q[9..0]"
