@@ -29,7 +29,8 @@ module DomesdayDuplicator(
 	inout [33:0] GPIO0,
 	input [01:0] GPIO0_IN,
 	inout [33:0] GPIO1,
-	input [01:0] GPIO1_IN
+	input [01:0] GPIO1_IN,
+	output [7:0] LED
 );
 
 // FX3 Hardware mapping begins ------------------------------------------------
@@ -225,6 +226,16 @@ fx3StateMachine fx3StateMachine0 (
 	
 	// Output
 	.fx3isReading(fx3_isReading)			// Flag to indicate FX3 is sampling the databus
+);
+
+// Status LED control
+statusLED statusLED0 (
+	// Inputs
+	.nReset(fx3_nReset),
+	.clock(fx3_clock),
+	
+	// Outputs
+	.leds(LED)
 );
 
 endmodule
