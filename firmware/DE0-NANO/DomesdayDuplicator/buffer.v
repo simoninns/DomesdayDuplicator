@@ -70,8 +70,8 @@ wire [13:0] pingUsedWords_rd;
 wire [13:0] pongUsedWords_rd;
 
 // Data out buses
-wire [9:0] pingdataOut_10bit;
-wire [9:0] pongdataOut_10bit;
+wire [9:0] pingdataOut;
+wire [9:0] pongdataOut;
 
 // Define the ping buffer (0) - 8192 10-bit words
 IPfifo pingBuffer (
@@ -81,7 +81,7 @@ IPfifo pingBuffer (
 	.rdreq(pingReadRequest),
 	.wrclk(writeClock),
 	.wrreq(pingWriteRequest),
-	.q(pingdataOut_10bit),			// 10-bit [9:0]
+	.q(pingdataOut),					// 10-bit [9:0]
 	.rdempty(pingEmptyFlag_rd),
 	.rdusedw(pingUsedWords_rd),	// 14-bit [13:0]
 	.wrempty(pingEmptyFlag_wr),
@@ -96,7 +96,7 @@ IPfifo pongBuffer (
 	.rdreq(pongReadRequest),
 	.wrclk(writeClock),
 	.wrreq(pongWriteRequest),
-	.q(pongdataOut_10bit),			// 10-bit [9:0]
+	.q(pongdataOut),					// 10-bit [9:0]
 	.rdempty(pongEmptyFlag_rd),
 	.rdusedw(pongUsedWords_rd),	// 14-bit [13:0]
 	.wrempty(pongEmptyFlag_wr),
@@ -114,11 +114,11 @@ wire pongWriteRequest;
 
 // if current write buffer = ping then send data to ping buffer
 // else send data to pong buffer
-assign pingDataIn = currentWriteBuffer ? 10'b0 : dataIn;
-assign pongDataIn = currentWriteBuffer ? dataIn : 10'b0; 
+assign pingDataIn = currentWriteBuffer ? 10'd0 : dataIn;
+assign pongDataIn = currentWriteBuffer ? dataIn : 10'd0; 
 
 // if current write buffer = ping the dataOut_10bit = pong buffer else dataOut_10bit = pingBuffer
-assign dataOut_10bit = currentWriteBuffer ? pingdataOut_10bit : pongdataOut_10bit; 
+assign dataOut_10bit = currentWriteBuffer ? pingdataOut : pongdataOut; 
 
 // If current write buffer = ping then read from pong else read from ping
 assign pingReadRequest = currentWriteBuffer ? isReading : 1'b0;
@@ -129,10 +129,13 @@ assign pingWriteRequest = currentWriteBuffer ? 1'b0 : isWriting;
 assign pongWriteRequest = currentWriteBuffer ? isWriting : 1'b0;
 
 // Define registers for the async clear flags and map to registers
+// Note: the async clear flag can cause the empty flag to glitch when
+// asserted, so we have to sync it with the nReset signal to avoid
+// issues on reset.
 reg pingAsyncClear_reg;
 reg pongAsyncClear_reg;
-assign pingAsyncClear_wr = pingAsyncClear_reg;
-assign pongAsyncClear_wr = pongAsyncClear_reg;
+assign pingAsyncClear_wr = pingAsyncClear_reg | !nReset;
+assign pongAsyncClear_wr = pongAsyncClear_reg | !nReset;
 
 // Register to track activation of the overflow flag (0-1024 10-bit)
 reg [9:0] bufferOverflowHold;
@@ -225,26 +228,26 @@ always @ (posedge readClock, negedge nReset) begin
 		if (currentWriteBuffer) begin
 			// Reading from ping buffer
 			
-			// Is the ping buffer empty?
-			if (pingEmptyFlag_rd) begin
-				dataAvailable <= 1'b0;
-			end
-			
 			// Is the ping buffer full?
 			if (pingUsedWords_rd == bufferSize) begin
 				dataAvailable <= 1'b1;
+			end else begin
+				// Is the ping buffer empty?
+				if (pingEmptyFlag_rd) begin
+					dataAvailable <= 1'b0;
+				end
 			end
 		end else begin
 			// Reading from pong buffer
 			
-			// Is the pong buffer empty?
-			if (pongEmptyFlag_rd) begin
-				dataAvailable <= 1'b0;
-			end
-			
 			// Is the pong buffer full?
 			if (pongUsedWords_rd == bufferSize) begin
 				dataAvailable <= 1'b1;
+			end else begin
+				// Is the pong buffer empty?
+				if (pongEmptyFlag_rd) begin
+					dataAvailable <= 1'b0;
+				end
 			end
 		end
 	end
