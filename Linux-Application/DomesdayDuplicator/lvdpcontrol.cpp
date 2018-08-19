@@ -37,14 +37,17 @@ struct Stimuli {
     bool isCav;
     bool isPlaying;
     bool isPaused;
+    unsigned char _padding0[1];      // Required to avoid compiler warning
     qint32 frameNumber;
     qint32 timeCode;
     QQueue<lvdpControl::PlayerCommands> commandQueue;
     QQueue<quint32> parameterQueue;
     qint32 discLength;
     bool lastCommandError;
+    unsigned char _padding1[3];      // Required to avoid compiler warning
     qint32 connectionAttempts;
     bool errorState;
+    unsigned char _padding2[3];      // Required to avoid compiler warning
 };
 
 static Stimuli currentStimuli;
@@ -286,10 +289,6 @@ void stateMachine(void)
             case state_serialError:
                 nextState = smSerialErrorState();
                 break;
-
-            default:
-                qDebug() << "stateMachine(): State machine in invalid state!";
-                nextState = state_disconnected;
         }
 
         // Are there pending commands in the command queue?
@@ -392,21 +391,17 @@ void stateMachine(void)
                                 response = sendSerialCommand("?F\r", TOUT_SHORT); // Frame number request
 
                                 // Process the response (5 digit frame number)
-                                currentStimuli.discLength = response.left(5).toUInt();
+                                currentStimuli.discLength = static_cast<int>(response.left(5).toUInt());
                             } else {
                                 // Disc is CLV - get time code
                                 QString response;
                                 response = sendSerialCommand("?F\r", TOUT_SHORT); // Time code request
 
                                 // Process the response (7-digit time code number HMMSSFF)
-                                currentStimuli.discLength = response.left(7).toUInt();
+                                currentStimuli.discLength = static_cast<int>(response.left(7).toUInt());
                             }
                         }
                         break;
-
-                    default:
-                        // Drop the pending invalid command
-                        qDebug() << "stateMachine(): Dequeued command was invalid!";
                 }
             }
         }
@@ -695,7 +690,7 @@ States smPlayingState(void)
             }
 
             // Process the response (5 digit frame number)
-            currentStimuli.frameNumber = response.left(5).toUInt();
+            currentStimuli.frameNumber = static_cast<int>(response.left(5).toUInt());
             //qDebug() << "smPlayingState(): Frame:" << currentStimuli.frameNumber;
         } else {
             // Disc is CLV - get time code
@@ -709,7 +704,7 @@ States smPlayingState(void)
             }
 
             // Process the response (7-digit time code number HMMSSFF)
-            currentStimuli.timeCode = response.left(7).toUInt();
+            currentStimuli.timeCode = static_cast<int>(response.left(7).toUInt());
             //qDebug() << "smPlayingState(): Time code:" << currentStimuli.timeCode;
         }
     }
@@ -796,7 +791,7 @@ States smPausedState(void)
             }
 
             // Process the response (5 digit frame number)
-            currentStimuli.frameNumber = response.left(5).toUInt();
+            currentStimuli.frameNumber = static_cast<int>(response.left(5).toUInt());
             //qDebug() << "smPausedState(): Frame:" << currentStimuli.frameNumber;
         } else {
             // Disc is CLV - get time code
@@ -810,7 +805,7 @@ States smPausedState(void)
             }
 
             // Process the response (7-digit time code number HMMSSFF)
-            currentStimuli.timeCode = response.left(7).toUInt();
+            currentStimuli.timeCode = static_cast<int>(response.left(7).toUInt());
             //qDebug() << "smPausedState(): Time code:" << currentStimuli.timeCode;
         }
     }
@@ -843,12 +838,19 @@ States smSerialErrorState(void)
 QString sendSerialCommand(QString commandString, quint64 timeoutMsecs)
 {
     QString response;
+    bool showResponse = false;
 
     // Convert command to QByteArray (note: 20 characters maximum)
     QByteArray data = commandString.toUtf8().left(20);
 
+    // Filter the polling commands from debug
+    if ((QString::compare(commandString.toUtf8().left(20), "?P\r")) &&
+            (QString::compare(commandString.toUtf8().left(20), "?F\r"))) {
+        qDebug() << "sendSerialCommand(): Sending command:" << commandString.toUtf8().left(20);
+        showResponse = true;
+    }
+
     // Write the data to the serial port
-    //qDebug() << "sendSerialCommand(): Sending command:" << data;
     lvdpSerialPort->write(data);
 
     // Start the timeout timer
@@ -865,7 +867,7 @@ QString sendSerialCommand(QString commandString, quint64 timeoutMsecs)
             // Check for command response terminator (CR)
             if (response.contains('\r')) {
                 commandComplete = true;
-                //qDebug() << "sendSerialCommand(): Received response:" << response;
+                if (showResponse) qDebug() << "sendSerialCommand(): Received response:" << response;
 
                 // Check for command error
                 if (response.left(1) == QString("E")) {
@@ -877,7 +879,7 @@ QString sendSerialCommand(QString commandString, quint64 timeoutMsecs)
         }
 
         // Check for timeout
-        if ((serialTimer.elapsed() >= (qint64)timeoutMsecs) && (!commandComplete)) {
+        if ((serialTimer.elapsed() >= static_cast<qint64>(timeoutMsecs)) && (!commandComplete)) {
             commandTimeout = true;
             commandComplete = true;
             currentStimuli.lastCommandError = true; // Flag as error
