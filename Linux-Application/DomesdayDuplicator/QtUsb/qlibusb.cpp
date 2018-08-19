@@ -75,7 +75,7 @@ qint32 QUsbDevice::open() {
         rc = libusb_open(dev, &mDevHandle);
         if (rc == 0) break;
         else {
-          qWarning("Failed to open device: %s", libusb_strerror((enum libusb_error)rc));
+          qWarning("Failed to open device: %s", libusb_strerror(static_cast<enum libusb_error>(rc)));
         }
       }
     }
@@ -173,7 +173,7 @@ void QUsbDevice::setDebug(bool enable) {
 
 void QUsbDevice::printUsbError(int error_code)
 {
-    qWarning("libusb Error: %s", libusb_strerror((enum libusb_error)error_code));
+    qWarning("libusb Error: %s", libusb_strerror(static_cast<enum libusb_error>(error_code)));
 }
 
 void QUsbDevice::flush() {
@@ -181,7 +181,7 @@ void QUsbDevice::flush() {
   qint32 read_bytes;
 
   buf.resize(4096);
-  libusb_bulk_transfer(mDevHandle, mConfig.readEp, (uchar*)(buf.data()), 4096,
+  libusb_bulk_transfer(mDevHandle, mConfig.readEp, reinterpret_cast<uchar*>(buf.data()), 4096,
                        &read_bytes, 25);
 }
 
@@ -204,26 +204,26 @@ qint32 QUsbDevice::read(QByteArray* buf, quint32 len) {
     if (mDebug) qDebug("Read cache empty");
 
   /* Fetch from buffer first */
-  if (len <= (quint32)mReadBuffer.size() && !mReadBuffer.isEmpty()) {
+  if (len <= static_cast<quint32>(mReadBuffer.size()) && !mReadBuffer.isEmpty()) {
     if (mDebug) qDebug("Reading %d bytes from cache", mReadBuffer.size());
-    *buf = mReadBuffer.mid(0, len);
-    mReadBuffer.remove(0, len);
-    return len;
+    *buf = mReadBuffer.mid(0, static_cast<int>(len));
+    mReadBuffer.remove(0, static_cast<int>(len));
+    return static_cast<qint32>(len);
   }
 
   /* Copy what's in the read buffer */
-  len -= mReadBuffer.size();
+  len -= static_cast<uint>(mReadBuffer.size());
   *buf = mReadBuffer;
   mReadBuffer.clear();
-  mReadBuffer.resize(mReadBufferSize);
+  mReadBuffer.resize(static_cast<int>(mReadBufferSize));
 
   /* Wait till we have at least the required data */
   timer.start();
   rc = LIBUSB_SUCCESS;
-  while (timer.elapsed() < mTimeout && (qint32)len - read_total > 0) {
+  while (timer.elapsed() < mTimeout && static_cast<qint32>(len) - read_total > 0) {
     rc = libusb_bulk_transfer(mDevHandle, mConfig.readEp,
-                              (uchar*)(mReadBuffer.data() + read_total),
-                              mReadBufferSize, &read_bytes, 10);
+                              reinterpret_cast<uchar*>(mReadBuffer.data() + read_total),
+                              static_cast<int>(mReadBufferSize), &read_bytes, 10);
     read_total += read_bytes;
     if (rc == LIBUSB_ERROR_PIPE) {
       libusb_clear_halt(mDevHandle, mConfig.readEp);
@@ -238,14 +238,14 @@ qint32 QUsbDevice::read(QByteArray* buf, quint32 len) {
 
   // we resize the buffer.
   mReadBuffer.resize(read_total);
-  buf->append(mReadBuffer.mid(0, len));
-  mReadBuffer.remove(0, len);
+  buf->append(mReadBuffer.mid(0, static_cast<int>(len)));
+  mReadBuffer.remove(0, static_cast<int>(len));
 
   QString datastr, s;
 
   if (mDebug) {
     for (qint32 i = 0; i < read_total; i++) {
-      datastr.append(s.sprintf("%02X:", (uchar)buf->at(i)));
+      datastr.append(s.sprintf("%02X:", static_cast<uchar>(buf->at(i))));
     }
     datastr.remove(datastr.size() - 1, 1);  // remove last colon
     qDebug("%d bytes Received: %s", read_total, datastr.toStdString().c_str());
@@ -266,13 +266,15 @@ qint32 QUsbDevice::write(const QByteArray* buf, quint32 len) {
   qint32 sent;
   QElapsedTimer timer;
 
+  rc = 0;
+
   // check it isn't closed
   if (!mDevHandle || !mConnected) return -1;
 
   if (mDebug) {
     QString cmd, s;
     for (quint32 i = 0; i < len; i++) {
-      cmd.append(s.sprintf("%02X:", (uchar)buf->at(i)));
+      cmd.append(s.sprintf("%02X:", static_cast<uchar>(buf->at(static_cast<int>(i)))));
     }
     cmd.remove(cmd.size() - 1, 1);  // remove last colon;
     qDebug() << "Sending" << len << "bytes:" << cmd;
@@ -283,9 +285,9 @@ qint32 QUsbDevice::write(const QByteArray* buf, quint32 len) {
   sent_tmp = 0;
 
   timer.start();
-  while (timer.elapsed() < mTimeout && len - sent > 0) {
+  while (timer.elapsed() < mTimeout && len - static_cast<uint>(sent) > 0) {
     rc = libusb_bulk_transfer(mDevHandle, (mConfig.writeEp),
-                              (uchar*)buf->data(), len, &sent_tmp, mTimeout);
+                              (uchar*)buf->data(), static_cast<int>(len), &sent_tmp, mTimeout);
     if (rc == LIBUSB_ERROR_PIPE) {
       libusb_clear_halt(mDevHandle, mConfig.readEp);
     }
@@ -293,7 +295,7 @@ qint32 QUsbDevice::write(const QByteArray* buf, quint32 len) {
     if (rc != LIBUSB_SUCCESS) break;
   }
 
-  if ((qint32)len != sent) {
+  if (static_cast<qint32>(len) != sent) {
     qWarning("Only sent %d out of %d", sent, len);
     return -1;
   }

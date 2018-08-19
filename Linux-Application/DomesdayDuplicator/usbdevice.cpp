@@ -151,14 +151,14 @@ void usbDevice::readFromDevice(QByteArray *buf)
 // Write data to the device
 void usbDevice::writeToDevice(QByteArray *buf)
 {
-    domDupDevice->write(buf, buf->size());
+    domDupDevice->write(buf, static_cast<quint32>(buf->size()));
 }
 
 // Send a vendor specific USB command to the device
 void usbDevice::sendVendorSpecificCommand(quint16 command, quint16 value)
 {
     // Request type fixed to 0x40 (vendor specific command with no data)
-    domDupDevice->sendControlTransfer(0x40, command, value, 0x00, nullptr, 0x00, 1000);
+    domDupDevice->sendControlTransfer(0x40, static_cast<quint8>(command), value, 0x00, nullptr, 0x00, 1000);
 }
 
 // Start a bulk read (continuously transfers data until stopped)
