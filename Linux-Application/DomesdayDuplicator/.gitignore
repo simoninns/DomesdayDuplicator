@@ -1,6 +1,10 @@
 # This file is used to ignore files which are generated
 # ----------------------------------------------------------------------------
 
+# Ignore files generated when compiled from the CLI
+DomesdayDuplicator
+moc_predefs.h
+
 !core/
 *.*#
 *.a
