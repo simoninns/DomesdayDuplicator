@@ -838,12 +838,19 @@ States smSerialErrorState(void)
 QString sendSerialCommand(QString commandString, quint64 timeoutMsecs)
 {
     QString response;
+    bool showResponse = false;
 
     // Convert command to QByteArray (note: 20 characters maximum)
     QByteArray data = commandString.toUtf8().left(20);
 
+    // Filter the polling commands from debug
+    if ((QString::compare(commandString.toUtf8().left(20), "?P\r")) &&
+            (QString::compare(commandString.toUtf8().left(20), "?F\r"))) {
+        qDebug() << "sendSerialCommand(): Sending command:" << commandString.toUtf8().left(20);
+        showResponse = true;
+    }
+
     // Write the data to the serial port
-    //qDebug() << "sendSerialCommand(): Sending command:" << data;
     lvdpSerialPort->write(data);
 
     // Start the timeout timer
@@ -860,7 +867,7 @@ QString sendSerialCommand(QString commandString, quint64 timeoutMsecs)
             // Check for command response terminator (CR)
             if (response.contains('\r')) {
                 commandComplete = true;
-                //qDebug() << "sendSerialCommand(): Received response:" << response;
+                if (showResponse) qDebug() << "sendSerialCommand(): Received response:" << response;
 
                 // Check for command error
                 if (response.left(1) == QString("E")) {
