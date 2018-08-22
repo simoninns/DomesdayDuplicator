@@ -41,6 +41,8 @@ public:
 
     bool openInputSample(QString filename);
     void closeInputSample(void);
+    bool openOutputSample(QString filename);
+    void closeOutputSample(void);
     bool saveOutputSample(QString filename, QTime startTime, QTime endTime, bool isTenBit);
 
     QString getSizeOnDisc(void);
@@ -56,6 +58,10 @@ private:
     qint64 sizeOnDisc;
     qint64 numberOfSamples;
     QFile *inputSampleFileHandle;
+    QFile *outputSampleFileHandle;
+
+    QVector<quint16> readInputSample(qint32 maximumSamples);
+    bool writeOutputSample(QVector<quint16> sampleBuffer);
 };
 
 #endif // RFSAMPLE_H

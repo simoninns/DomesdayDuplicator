@@ -35,15 +35,15 @@ RfSample::RfSample(QObject *parent) : QObject(parent)
     numberOfSamples = 0;
 }
 
-// Open a RF sample
+// Open the input RF sample
 // Returns 'true' on success
 bool RfSample::openInputSample(QString filename)
 {
-    // Open source sample file for reading
+    // Open input sample file for reading
     inputSampleFileHandle = new QFile(filename);
     if (!inputSampleFileHandle->open(QIODevice::ReadOnly)) {
-        // Failed to open source sample file
-        qDebug() << "RfSample::openInputSample(): Could not open " << filename << "as source sample file";
+        // Failed to open input sample file
+        qDebug() << "RfSample::openInputSample(): Could not open " << filename << "as input sample file";
         return false;
     }
     qDebug() << "RfSample::openInputSample(): Sample file is" << filename << "and is" << inputSampleFileHandle->size() << "bytes in length";
@@ -55,7 +55,7 @@ bool RfSample::openInputSample(QString filename)
     return true;
 }
 
-// Close a RF sample
+// Close the input RF sample
 void RfSample::closeInputSample(void)
 {
     // Is a sample file open?
@@ -68,6 +68,35 @@ void RfSample::closeInputSample(void)
     inputSampleFileHandle = nullptr;
 }
 
+// Open the output RF sample
+// Returns 'true' on success
+bool RfSample::openOutputSample(QString filename)
+{
+    // Open output sample file for writing
+    outputSampleFileHandle = new QFile(filename);
+    if (!outputSampleFileHandle->open(QIODevice::WriteOnly)) {
+        // Failed to open output sample file
+        qDebug() << "RfSample::openOutputSample(): Could not open " << filename << "as output sample file";
+        return false;
+    }
+    qDebug() << "RfSample::openOutputSample(): Sample file is" << filename;
+
+    return true;
+}
+
+// Close the output RF sample
+void RfSample::closeOutputSample(void)
+{
+    // Is a sample file open?
+    if (outputSampleFileHandle != nullptr) {
+        qDebug() << "RfSample::closeOutputSample(): Closing output sample file";
+        outputSampleFileHandle->close();
+    }
+
+    // Clear the file handle pointer
+    outputSampleFileHandle = nullptr;
+}
+
 // Save a RF sample
 bool RfSample::saveOutputSample(QString filename, QTime startTime, QTime endTime, bool isTenBit)
 {
@@ -77,6 +106,21 @@ bool RfSample::saveOutputSample(QString filename, QTime startTime, QTime endTime
 
     // To do!
 
+    return true;
+}
+
+// Read the input sample data and unpack into a quint16 vector
+QVector<quint16> RfSample::readInputSample(qint32 maximumSamples)
+{
+    QVector<quint16> sampleBuffer;
+    sampleBuffer.resize(maximumSamples);
+
+    return sampleBuffer;
+}
+
+// Write the output sample data from a quint16 vector
+bool RfSample::writeOutputSample(QVector<quint16> sampleBuffer)
+{
     return true;
 }
 
