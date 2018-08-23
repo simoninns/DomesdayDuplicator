@@ -38,17 +38,14 @@ class RfSample : public QObject
     Q_OBJECT
 public:
     explicit RfSample(QObject *parent = nullptr);
-
-    bool openInputSample(QString filename);
-    void closeInputSample(void);
-    bool openOutputSample(QString filename);
-    void closeOutputSample(void);
-    bool saveOutputSample(QString filename, QTime startTime, QTime endTime, bool isTenBit);
+    bool getInputSampleDetails(QString inputFilename, bool isTenBit);
+    bool saveOutputSample(QString inputFilename, QString outputFilename, QTime startTime, QTime endTime, bool isOutputTenBit);
 
     QString getSizeOnDisc(void);
     qint64 getNumberOfSamples(void);
     qint32 getDurationSeconds(void);
     QString getDurationString(void);
+    bool getInputFileFormat(void);
 
 signals:
 
@@ -59,11 +56,20 @@ private:
     qint64 numberOfSamples;
     QFile *inputSampleFileHandle;
     QFile *outputSampleFileHandle;
+    bool isInputFileTenBit;
+
+    bool openInputSample(QString filename);
+    void closeInputSample(void);
+    bool openOutputSample(QString filename);
+    void closeOutputSample(void);
 
     QVector<quint16> readInputSample(qint32 maximumSamples);
     bool writeOutputSample(QVector<quint16> sampleBuffer, bool isTenBit);
+
     qint32 samplesToTenBitBytes(qint32 numberOfSamples);
     qint32 tenBitBytesToSamples(qint32 numberOfBytes);
+    qint32 samplesToSixteenBitBytes(qint32 numberOfSamples);
+    qint32 sixteenBitBytesToSamples(qint32 numberOfBytes);
 };
 
 #endif // RFSAMPLE_H

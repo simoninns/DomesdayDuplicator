@@ -42,7 +42,7 @@ MainWindow::MainWindow(QWidget *parent) :
     rfSample = new RfSample(this);
 
     // Perform no file loaded actions
-    noFileLoaded();
+    noInputFileSpecified();
 }
 
 MainWindow::~MainWindow()
@@ -53,41 +53,44 @@ MainWindow::~MainWindow()
 // GUI Update functions -----------------------------------------------------------------------------------------------
 
 // Actions on file not loaded
-void MainWindow::noFileLoaded(void)
+void MainWindow::noInputFileSpecified(void)
 {
     // Menu options
-    ui->actionOpen_File->setEnabled(true);
-    ui->actionSave_As->setEnabled(false);
+    ui->actionOpen_10_bit_File->setEnabled(true);
+    ui->actionOpen_16_bit_File->setEnabled(true);
+    ui->actionSave_As_10_bit->setEnabled(false);
+    ui->actionSave_As_16_bit->setEnabled(false);
 
     // Input file options
     ui->filenameLineEdit->setText(tr("No file loaded"));
     ui->numberOfSamplesLabel->setText(tr("0"));
     ui->sizeOnDiscLabel->setText(tr("0"));
     ui->durationLabel->setText(tr("00:00:00"));
+    ui->dataFormatLabel->setText(tr("Unknown"));
 
     // Output file options
-    ui->tenBitRadioButton->setEnabled(false);
-    ui->sixteenBitRadioButton->setEnabled(false);
     ui->startTimeEdit->setEnabled(false);
     ui->endTimeEdit->setEnabled(false);
 }
 
 // Actions on file loaded
-void MainWindow::fileLoaded(void)
+void MainWindow::inputFileSpecified(void)
 {
     // Menu options
-    ui->actionOpen_File->setEnabled(true);
-    ui->actionSave_As->setEnabled(true);
+    ui->actionOpen_10_bit_File->setEnabled(true);
+    ui->actionOpen_16_bit_File->setEnabled(true);
+    ui->actionSave_As_10_bit->setEnabled(true);
+    ui->actionSave_As_16_bit->setEnabled(true);
 
     // Input file options
     ui->filenameLineEdit->setText(inputFilename);
     ui->numberOfSamplesLabel->setText(QString::number(rfSample->getNumberOfSamples()));
     ui->sizeOnDiscLabel->setText(rfSample->getSizeOnDisc());
     ui->durationLabel->setText(rfSample->getDurationString());
+    if (rfSample->getInputFileFormat()) ui->dataFormatLabel->setText(tr("10-bit packed data sample"));
+    else ui->dataFormatLabel->setText(tr("16-bit scaled data sample"));
 
     // Output file options
-    ui->tenBitRadioButton->setEnabled(true);
-    ui->sixteenBitRadioButton->setEnabled(true);
     ui->startTimeEdit->setEnabled(true);
     ui->endTimeEdit->setEnabled(true);
 
@@ -98,50 +101,77 @@ void MainWindow::fileLoaded(void)
 
 // Menu bar action functions ------------------------------------------------------------------------------------------
 
-// Menu bar - Open File triggered
-void MainWindow::on_actionOpen_File_triggered()
+// Menu bar - Open 10-bit file triggered
+void MainWindow::on_actionOpen_10_bit_File_triggered()
 {
     inputFilename = QFileDialog::getOpenFileName(this,
-            tr("Open LaserDisc RF Sample"), "",
+            tr("Open 10-bit packed LaserDisc RF sample"), "",
             tr("LaserDisc Sample (*.lds);;All Files (*)"));
 
     // Was a filename specified?
     if (!inputFilename.isEmpty()) {
-        // Attempt to load the file
-        if (rfSample->openInputSample(inputFilename)) {
+        // Get the 10-bit sample details
+        if (rfSample->getInputSampleDetails(inputFilename, true)) {
             // Update the GUI (success)
-            fileLoaded();
+            inputFileSpecified();
         } else {
             // Update the GUI (failure)
-            noFileLoaded();
+            noInputFileSpecified();
         }
     }
 }
 
-// Menu bar - Save As triggered
-void MainWindow::on_actionSave_As_triggered()
+// Menu bar - Open 16-bit file triggered
+void MainWindow::on_actionOpen_16_bit_File_triggered()
+{
+    inputFilename = QFileDialog::getOpenFileName(this,
+            tr("Open 16-bit signed raw data sample"), "",
+            tr("Raw Data Sample (*.raw);;All Files (*)"));
+
+    // Was a filename specified?
+    if (!inputFilename.isEmpty()) {
+        // Get the 16-bit sample details
+        if (rfSample->getInputSampleDetails(inputFilename, false)) {
+            // Update the GUI (success)
+            inputFileSpecified();
+        } else {
+            // Update the GUI (failure)
+            noInputFileSpecified();
+        }
+    }
+}
+
+// Menu bar - Save As 10-bit file triggered
+void MainWindow::on_actionSave_As_10_bit_triggered()
 {
     outputFilename = QFileDialog::getSaveFileName(this,
-            tr("Save LaserDisc RF Sample"), "",
+            tr("Save 10-bit packed LaserDisc RF sample"), "",
             tr("LaserDisc Sample .lds (*.lds);;All Files (*)"));
 
     // Was a filename specified?
     if (!outputFilename.isEmpty()) {
-        // Get the file format (10/16-bit)
-        bool isTenBit = true;
-        if (ui->sixteenBitRadioButton->isChecked()) isTenBit = false;
+        // Attempt to save the file as 10-bit
+        rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), true);
+    }
+}
 
-        // Attempt to save the file
-        rfSample->saveOutputSample(outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), isTenBit);
+// Menu bar - Save As 16-bit file triggered
+void MainWindow::on_actionSave_As_16_bit_triggered()
+{
+    outputFilename = QFileDialog::getSaveFileName(this,
+            tr("Save 16-bit signed raw data sample"), "",
+            tr("Raw Data Sample (*.raw);;All Files (*)"));
+
+    // Was a filename specified?
+    if (!outputFilename.isEmpty()) {
+        // Attempt to save the file as 16-bit
+        rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), false);
     }
 }
 
 // Menu bar - Quit triggered
 void MainWindow::on_actionQuit_triggered()
 {
-    // Close the RF sample if open
-    rfSample->closeInputSample();
-
     // Quit the application
     qApp->quit();
 }
@@ -170,3 +200,4 @@ void MainWindow::on_endTimeEdit_userTimeChanged(const QTime &endTime)
     if (endTime.operator>(QTime(0,0).addSecs(rfSample->getDurationSeconds())))
         ui->endTimeEdit->setTime(QTime(0,0).addSecs(rfSample->getDurationSeconds()));
 }
+
