@@ -30,9 +30,11 @@
 
 #include <QMainWindow>
 #include <QFileDialog>
+#include <QThread>
 
 #include "about.h"
 #include "rfsample.h"
+#include "fileconverter.h"
 
 namespace Ui {
 class MainWindow;
@@ -66,6 +68,7 @@ private:
     QString inputFilename;
     QString outputFilename;
     About *aboutDialogue;
+    FileConverter fileConverter;
     RfSample *rfSample;
 };
 

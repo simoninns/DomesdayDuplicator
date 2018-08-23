@@ -28,7 +28,7 @@
 
 #include "rfsample.h"
 
-RfSample::RfSample(QObject *parent) : QObject(parent)
+RfSample::RfSample(void)
 {
     // Set default object values
     sizeOnDisc = 0;

@@ -26,12 +26,14 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
     about.cpp \
-    rfsample.cpp
+    rfsample.cpp \
+    fileconverter.cpp
 
 HEADERS += \
         mainwindow.h \
     about.h \
-    rfsample.h
+    rfsample.h \
+    fileconverter.h
 
 FORMS += \
         mainwindow.ui \

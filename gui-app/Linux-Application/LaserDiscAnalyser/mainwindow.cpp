@@ -39,7 +39,7 @@ MainWindow::MainWindow(QWidget *parent) :
     aboutDialogue = new About(this);
 
     // Create the RF sample object
-    rfSample = new RfSample(this);
+    rfSample = new RfSample();
 
     // Perform no file loaded actions
     noInputFileSpecified();
@@ -47,6 +47,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    // Delete the file converter thread
+    fileConverter.deleteLater();
+
     delete ui;
 }
 
@@ -151,7 +154,8 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
     // Was a filename specified?
     if (!outputFilename.isEmpty()) {
         // Attempt to save the file as 10-bit
-        rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), true);
+        //rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), true);
+        fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), rfSample->getInputFileFormat(), true);
     }
 }
 
@@ -165,7 +169,8 @@ void MainWindow::on_actionSave_As_16_bit_triggered()
     // Was a filename specified?
     if (!outputFilename.isEmpty()) {
         // Attempt to save the file as 16-bit
-        rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), false);
+        //rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), false);
+        fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), rfSample->getInputFileFormat(), false);
     }
 }
 
