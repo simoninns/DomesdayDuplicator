@@ -1,6 +1,6 @@
 /************************************************************************
 
-    rfsample.h
+    fileconverter.h
 
     RF Sample analyser for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
@@ -25,51 +25,52 @@
 
 ************************************************************************/
 
-#ifndef RFSAMPLE_H
-#define RFSAMPLE_H
+#ifndef FILECONVERTER_H
+#define FILECONVERTER_H
 
 #include <QObject>
+#include <QThread>
+#include <QMutex>
+#include <QWaitCondition>
+#include <QString>
+#include <QTime>
 #include <QFile>
 #include <QDebug>
-#include <QDateTime>
 
-class RfSample
+#include "rfsample.h"
+
+class FileConverter : public QThread
 {
+    Q_OBJECT
 
 public:
-    RfSample(void);
-    bool getInputSampleDetails(QString inputFilename, bool isTenBit);
-    bool saveOutputSample(QString inputFilename, QString outputFilename, QTime startTime, QTime endTime, bool isOutputTenBit);
+    explicit FileConverter(QObject *parent = nullptr);
+    ~FileConverter() override;
 
-    QString getSizeOnDisc(void);
-    qint64 getNumberOfSamples(void);
-    qint32 getDurationSeconds(void);
-    QString getDurationString(void);
-    bool getInputFileFormat(void);
+    void convertInputFileToOutputFile(QString inputFilename, QString outputFilename,
+                                      QTime startTime, QTime endTime,
+                                      bool isInputTenBit, bool isOutputTenBit);
 
 signals:
 
-public slots:
+protected:
+    void run() override;
 
 private:
-    qint64 sizeOnDisc;
-    qint64 numberOfSamples;
+    QMutex mutex;
+    QWaitCondition condition;
+    bool restart;
+    bool abort;
+
     QFile *inputSampleFileHandle;
     QFile *outputSampleFileHandle;
-    bool isInputFileTenBit;
 
-    bool openInputSample(QString filename);
-    void closeInputSample(void);
-    bool openOutputSample(QString filename);
-    void closeOutputSample(void);
-
-    QVector<quint16> readInputSample(qint32 maximumSamples);
-    bool writeOutputSample(QVector<quint16> sampleBuffer, bool isTenBit);
-
-    qint32 samplesToTenBitBytes(qint32 numberOfSamples);
-    qint32 tenBitBytesToSamples(qint32 numberOfBytes);
-    qint32 samplesToSixteenBitBytes(qint32 numberOfSamples);
-    qint32 sixteenBitBytesToSamples(qint32 numberOfBytes);
+    QString inputFilename;
+    QString outputFilename;
+    bool isInputTenBit;
+    bool isOutputTenBit;
+    QTime startTime;
+    QTime endTime;
 };
 
-#endif // RFSAMPLE_H
+#endif // FILECONVERTER_H
