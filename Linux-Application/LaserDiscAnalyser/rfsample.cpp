@@ -100,11 +100,43 @@ void RfSample::closeOutputSample(void)
 // Save a RF sample
 bool RfSample::saveOutputSample(QString filename, QTime startTime, QTime endTime, bool isTenBit)
 {
+    // Note: TO-DO - Save according to start and end time parameters
+    // Thread the save process with progess indication
+
     qDebug() << "RfSample::saveOutputSample(): Saving output file as " << filename;
     if (isTenBit) qDebug() << "RfSample::saveOutputSample(): Saving in 10-bit format";
     else qDebug() << "RfSample::saveOutputSample(): Saving in 16-bit format";
 
-    // To do!
+    // Open the output sample file
+    if (!openOutputSample(filename)) {
+        // Opening output sample failed!
+        qDebug() << "RfSample::saveOutputSample(): Could not open output sample file!";
+        return false;
+    }
+
+    // Define a sample buffer for the transfer of data
+    QVector<quint16> sampleBuffer;
+
+    qint64 remainingSamples = numberOfSamples;
+    bool isDataAvailable = true;
+    while (isDataAvailable) {
+        // Read the input sample
+        qDebug() << remainingSamples << "samples to be processed";
+        sampleBuffer = readInputSample(10240000);
+        remainingSamples -= sampleBuffer.size();
+
+        // Did we get data?
+        if (sampleBuffer.size() > 0) {
+            // Write the input sample data to the output sample
+            writeOutputSample(sampleBuffer, isTenBit);
+        } else {
+            // No sample data left
+            isDataAvailable = false;
+        }
+    }
+
+    // Close the output sample file
+    closeOutputSample();
 
     return true;
 }
@@ -112,16 +144,175 @@ bool RfSample::saveOutputSample(QString filename, QTime startTime, QTime endTime
 // Read the input sample data and unpack into a quint16 vector
 QVector<quint16> RfSample::readInputSample(qint32 maximumSamples)
 {
+    // Only set this to true if you want huge amounts of debug from this method.
+    bool fullDebug = false;
+
+    // Prepare the sample buffer (which stores the unpacked 10-bit data
     QVector<quint16> sampleBuffer;
     sampleBuffer.resize(maximumSamples);
+    if (fullDebug) qDebug() << "RfSample::readInputSample(): Requesting" << maximumSamples << "samples from input file";
+
+    // Prepare the packed sample buffer (which stores the packed 10-bit data byte stream)
+    // There are 4 10-bit samples per 5 bytes of data (5 * 8 = 40 bits)
+    QVector<quint8> packedSampleBuffer;
+    packedSampleBuffer.resize(samplesToTenBitBytes(maximumSamples));
+    if (fullDebug) qDebug() << "RfSample::readInputSample(): Requesting" << samplesToTenBitBytes(maximumSamples) << "bytes from input file";
+
+    // Read the input sample file into the packed sample buffer
+    qint64 totalReceivedBytes = 0;
+    qint64 receivedBytes = 0;
+    do {
+        receivedBytes = inputSampleFileHandle->read(reinterpret_cast<char *>(packedSampleBuffer.data()),
+                                                    samplesToTenBitBytes(maximumSamples));
+        if (receivedBytes > 0) totalReceivedBytes += receivedBytes;
+    } while (receivedBytes > 0 && totalReceivedBytes < samplesToTenBitBytes(maximumSamples));
+    if (fullDebug) qDebug() << "RfSample::readInputSample(): Got a total of" << totalReceivedBytes << "bytes from input file";
+
+    // Did we run out of sample data before filling the buffer?
+    if (receivedBytes == 0) {
+        // End of file was reached before filling buffer - adjust maximum
+        if (fullDebug) qDebug() << "RfSample::readInputSample(): Reached end of file before filling buffer";
+
+        if (totalReceivedBytes == 0) {
+            // We didn't get any data at all...
+            qDebug() << "RfSample::readInputSample(): Zero data received - nothing to do";
+            sampleBuffer.resize(0);
+            return sampleBuffer;
+        }
+
+        // Adjust buffers according to the received number of samples
+        packedSampleBuffer.resize(static_cast<qint32>(totalReceivedBytes));
+        sampleBuffer.resize(tenBitBytesToSamples(packedSampleBuffer.size()));
+    }
+
+    // Unpack the packed sample buffer into the sample buffer
+    // Process the buffer 5 bytes at a time
+    qint32 sampleBufferPointer = 0;
+
+    if (fullDebug) {
+        qDebug() << "RfSample::readInputSample(): Unpacking sample data...";
+        qDebug() << "RfSample::readInputSample(): PackedSampleBuffer size (qint8) =" << packedSampleBuffer.size();
+        qDebug() << "RfSample::readInputSample(): sampleBuffer size (quint16) =" << sampleBuffer.size();
+    }
+    for (qint32 bytePointer = 0; bytePointer < packedSampleBuffer.size(); bytePointer += 5) {
+        // Unpack the 5 bytes into 4x 10-bit values (stored in 16-bit unsigned vector)
+
+        // Unpacked:                 Packed:
+        // 0: xxxx xx00 0000 0000    0: 0000 0000 0011 1111
+        // 1: xxxx xx11 1111 1111    2: 1111 2222 2222 2233
+        // 2: xxxx xx22 2222 2222    4: 3333 3333
+        // 3: xxxx xx33 3333 3333
+
+        sampleBuffer[sampleBufferPointer + 0]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 0]) << 2);
+        sampleBuffer[sampleBufferPointer + 0] += static_cast<quint16>(packedSampleBuffer[bytePointer + 1] & 0xC0) >> 6;
+
+        sampleBuffer[sampleBufferPointer + 1]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 1] & 0x3F) << 4);
+        sampleBuffer[sampleBufferPointer + 1] += static_cast<quint16>(packedSampleBuffer[bytePointer + 2] & 0xF0) >> 4;
+
+        sampleBuffer[sampleBufferPointer + 2]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 2] & 0x0F) << 6);
+        sampleBuffer[sampleBufferPointer + 2] += static_cast<quint16>(packedSampleBuffer[bytePointer + 3] & 0xFC) >> 2;
+
+        sampleBuffer[sampleBufferPointer + 3]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 3] & 0x03) << 8);
+        sampleBuffer[sampleBufferPointer + 3] += static_cast<quint16>(packedSampleBuffer[bytePointer + 4]);
+
+        // Increment the sample buffer pointer
+        sampleBufferPointer += 4;
+    }
 
     return sampleBuffer;
 }
 
 // Write the output sample data from a quint16 vector
-bool RfSample::writeOutputSample(QVector<quint16> sampleBuffer)
+bool RfSample::writeOutputSample(QVector<quint16> sampleBuffer, bool isTenBit)
 {
+    // Only set this to true if you want huge amounts of debug from this method.
+    bool fullDebug = false;
+
+    if (isTenBit) {
+        // Prepare the packed sample buffer (which stores the packed 10-bit data byte stream)
+        QVector<quint8> packedSampleBuffer;
+        packedSampleBuffer.resize(samplesToTenBitBytes(sampleBuffer.size()));
+        qint32 packedSampleBufferPointer = 0;
+        if (fullDebug) qDebug() << "RfSample::writeOutputSample(): Writing " << sampleBuffer.size() <<
+                    "samples to 10-bit output sample file as" << packedSampleBuffer.size() << "bytes";
+
+        // Pack the data 4 samples at a time
+        //
+        // Unpacked:                 Packed:
+        // 0: xxxx xx00 0000 0000    0: 0000 0000 0011 1111
+        // 1: xxxx xx11 1111 1111    2: 1111 2222 2222 2233
+        // 2: xxxx xx22 2222 2222    4: 3333 3333
+        // 3: xxxx xx33 3333 3333
+
+        for (qint32 samplePointer = 0; samplePointer < sampleBuffer.size(); samplePointer += 4) {
+            packedSampleBuffer[packedSampleBufferPointer + 0]  = static_cast<quint8>((sampleBuffer[samplePointer + 0] & 0x03FC) >> 2);
+            packedSampleBuffer[packedSampleBufferPointer + 1]  = static_cast<quint8>((sampleBuffer[samplePointer + 0] & 0x0003) << 6);
+            packedSampleBuffer[packedSampleBufferPointer + 1] += static_cast<quint8>((sampleBuffer[samplePointer + 1] & 0x03F0) >> 4);
+            packedSampleBuffer[packedSampleBufferPointer + 2]  = static_cast<quint8>((sampleBuffer[samplePointer + 1] & 0x000F) << 4);
+            packedSampleBuffer[packedSampleBufferPointer + 2] += static_cast<quint8>((sampleBuffer[samplePointer + 2] & 0x03C0) >> 6);
+            packedSampleBuffer[packedSampleBufferPointer + 3]  = static_cast<quint8>((sampleBuffer[samplePointer + 2] & 0x003F) << 2);
+            packedSampleBuffer[packedSampleBufferPointer + 3] += static_cast<quint8>((sampleBuffer[samplePointer + 3] & 0x0300) >> 8);
+            packedSampleBuffer[packedSampleBufferPointer + 4]  = static_cast<quint8>((sampleBuffer[samplePointer + 3] & 0x00FF));
+
+            // Increment the packed sample buffer pointer
+            packedSampleBufferPointer += 5;
+        }
+
+        // Write the packed data to the output sample file
+        qint64 writeResult = 0;
+        writeResult = outputSampleFileHandle->write(reinterpret_cast<char *>(packedSampleBuffer.data()),
+                                      packedSampleBuffer.size()
+                                      );
+
+        if (writeResult == -1) {
+            qDebug() << "RfSample::writeOutputSample(): Writing to 10-bit output sample file failed!";
+            return false;
+        }
+    } else {
+        // Write output sample as 16-bit scaled data
+        QVector<qint16> scaledSampleData;
+        scaledSampleData.resize(sampleBuffer.size());
+        if (fullDebug) qDebug() << "RfSample::writeOutputSample(): Writing " << sampleBuffer.size() <<
+                    "samples to 16-bit output sample file as" << scaledSampleData.size() * 2 << "bytes";
+
+
+        // Convert sample data
+        for (qint32 samplePointer = 0; samplePointer < sampleBuffer.size(); samplePointer++) {
+            // -512 from 10-bit data to move centre-point to 0 and then *64 to scale to 16-bit
+            scaledSampleData[samplePointer] = static_cast<qint16>(sampleBuffer[samplePointer] - 512) * 64;
+        }
+
+        // Write the scaled data to the output sample file
+        qint64 writeResult = 0;
+        writeResult = outputSampleFileHandle->write(reinterpret_cast<char *>(scaledSampleData.data()),
+                                      scaledSampleData.size() * static_cast<qint32>(sizeof(qint16))
+                                      );
+
+        if (writeResult == -1) {
+            qDebug() << "RfSample::writeOutputSample(): Writing to 16-bit output sample file failed!";
+            return false;
+        }
+    }
+
+    // Return successfully
     return true;
+}
+
+// This function takes a number of samples and returns the number
+// of bytes required to store the same number of samples as 10-bit
+// packed values
+qint32 RfSample::samplesToTenBitBytes(qint32 numberOfSamples)
+{
+    // Every 4 samples requires 5 bytes
+    return (numberOfSamples / 4) * 5;
+}
+
+// This function takes a number of bytes and returns the number
+// of samples it represents (after 10-bit unpacking)
+qint32 RfSample::tenBitBytesToSamples(qint32 numberOfBytes)
+{
+    // Every 5 bytes equals 4 samples
+    return (numberOfBytes / 5) * 4;
 }
 
 // Get and set methods ------------------------------------------------------------------------------------------------
