@@ -47,8 +47,10 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_actionOpen_File_triggered();
-    void on_actionSave_As_triggered();
+    void on_actionOpen_10_bit_File_triggered();
+    void on_actionOpen_16_bit_File_triggered();
+    void on_actionSave_As_10_bit_triggered();
+    void on_actionSave_As_16_bit_triggered();
     void on_actionQuit_triggered();
     void on_actionAbout_triggered();
 
@@ -58,8 +60,8 @@ private slots:
 private:
     Ui::MainWindow *ui;
 
-    void noFileLoaded(void);
-    void fileLoaded(void);
+    void noInputFileSpecified(void);
+    void inputFileSpecified(void);
 
     QString inputFilename;
     QString outputFilename;
