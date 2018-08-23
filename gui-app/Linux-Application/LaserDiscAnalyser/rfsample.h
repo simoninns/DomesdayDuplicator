@@ -61,7 +61,9 @@ private:
     QFile *outputSampleFileHandle;
 
     QVector<quint16> readInputSample(qint32 maximumSamples);
-    bool writeOutputSample(QVector<quint16> sampleBuffer);
+    bool writeOutputSample(QVector<quint16> sampleBuffer, bool isTenBit);
+    qint32 samplesToTenBitBytes(qint32 numberOfSamples);
+    qint32 tenBitBytesToSamples(qint32 numberOfBytes);
 };
 
 #endif // RFSAMPLE_H
