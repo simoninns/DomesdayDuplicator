@@ -155,13 +155,21 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
 
     // Was a filename specified?
     if (!outputFilename.isEmpty()) {
-        // Save the file as 10-bit
-        progressDialog->setPercentage(0);
-        progressDialog->setText(tr("Saving sample as 10-bit data..."));
-        fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
-                                                   ui->startTimeEdit->time(), ui->endTimeEdit->time(),
-                                                   rfSample->getInputFileFormat(), true);
-        progressDialog->show();
+        // Is the output filename different from the input filename?
+        if (inputFilename != outputFilename) {
+            // Save the file as 10-bit
+            progressDialog->setPercentage(0);
+            progressDialog->setText(tr("Saving sample as 10-bit data..."));
+            fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
+                                                       ui->startTimeEdit->time(), ui->endTimeEdit->time(),
+                                                       rfSample->getInputFileFormat(), true);
+            progressDialog->show();
+        } else {
+            // Show an error
+            QMessageBox messageBox;
+            messageBox.critical(this, "Error","Input and output files cannot be the same!");
+            messageBox.setFixedSize(500, 200);
+        }
     }
 }
 
@@ -175,14 +183,20 @@ void MainWindow::on_actionSave_As_16_bit_triggered()
 
     // Was a filename specified?
     if (!outputFilename.isEmpty()) {
-        // Attempt to save the file as 16-bit
-        //rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), false);
-        progressDialog->setPercentage(0);
-        progressDialog->setText(tr("Saving sample as 16-bit data..."));
-        fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
-                                                   ui->startTimeEdit->time(), ui->endTimeEdit->time(),
-                                                   rfSample->getInputFileFormat(), false);
-        progressDialog->show();
+        if (inputFilename != outputFilename) {
+            // Attempt to save the file as 16-bit
+            progressDialog->setPercentage(0);
+            progressDialog->setText(tr("Saving sample as 16-bit data..."));
+            fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
+                                                       ui->startTimeEdit->time(), ui->endTimeEdit->time(),
+                                                       rfSample->getInputFileFormat(), false);
+            progressDialog->show();
+        } else {
+            // Show an error
+            QMessageBox messageBox;
+            messageBox.critical(this, "Error","Input and output files cannot be the same!");
+            messageBox.setFixedSize(500, 200);
+        }
     }
 }
 
