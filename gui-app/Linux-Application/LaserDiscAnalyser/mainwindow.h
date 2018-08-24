@@ -61,6 +61,9 @@ private slots:
     void on_startTimeEdit_userTimeChanged(const QTime &startTime);
     void on_endTimeEdit_userTimeChanged(const QTime &endTime);
 
+    void percentageProcessedSignalHandler(qint32 percentage);
+    void completedSignalHandler(void);
+
 private:
     Ui::MainWindow *ui;
 

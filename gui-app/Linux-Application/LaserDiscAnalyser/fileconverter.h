@@ -54,6 +54,8 @@ public:
     void quit();
 
 signals:
+    void percentageProcessed(qint32);
+    void completed(void);
 
 protected:
     void run() override;
