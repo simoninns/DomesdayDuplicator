@@ -51,6 +51,8 @@ public:
                                       QTime startTime, QTime endTime,
                                       bool isInputTenBit, bool isOutputTenBit);
 
+    void quit();
+
 signals:
 
 protected:

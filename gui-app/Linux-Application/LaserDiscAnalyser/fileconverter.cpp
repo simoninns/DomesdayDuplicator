@@ -43,6 +43,8 @@ FileConverter::~FileConverter()
     wait();
 }
 
+// Convert input file to output file.  This thread wrapper passes the parameters
+// to the object and restarts the run() function
 void FileConverter::convertInputFileToOutputFile(QString inputFilename, QString outputFilename,
                                                  QTime startTime, QTime endTime,
                                                  bool isInputTenBit, bool isOutputTenBit)
@@ -68,12 +70,14 @@ void FileConverter::convertInputFileToOutputFile(QString inputFilename, QString 
     }
 }
 
+// Primary processing loop for the thread
 void FileConverter::run()
 {
+    qDebug() << "FileConverter::run(): Thread running";
     // Define an rfSample object to handle the file conversion
     RfSample rfSample;
 
-    forever {
+    while(!abort) {
         // Get all the required parameters for the conversion
         mutex.lock();
         QString inputFilename = this->inputFilename;
@@ -93,8 +97,16 @@ void FileConverter::run()
 
         // Sleep the thread until we are restarted
         mutex.lock();
-        if (!restart) condition.wait(&mutex);
+        if (!restart && !abort) condition.wait(&mutex);
         restart = false;
         mutex.unlock();
     }
+    qDebug() << "FileConverter::run(): Thread aborted";
+}
+
+// Function sets the abort flag (which terminates the run() loop if in progress
+void FileConverter::quit()
+{
+    qDebug() << "FileConverter::quit(): Setting thread abort flag";
+    abort = true;
 }
