@@ -146,6 +146,7 @@ void MainWindow::on_actionOpen_16_bit_File_triggered()
 }
 
 // Menu bar - Save As 10-bit file triggered
+// TODO: check input and output files are not the same!
 void MainWindow::on_actionSave_As_10_bit_triggered()
 {
     outputFilename = QFileDialog::getSaveFileName(this,
@@ -157,12 +158,15 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
         // Save the file as 10-bit
         progressDialog->setPercentage(0);
         progressDialog->setText(tr("Saving sample as 10-bit data..."));
-        fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), rfSample->getInputFileFormat(), true);
+        fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
+                                                   ui->startTimeEdit->time(), ui->endTimeEdit->time(),
+                                                   rfSample->getInputFileFormat(), true);
         progressDialog->show();
     }
 }
 
 // Menu bar - Save As 16-bit file triggered
+// TODO: check input and output files are not the same!
 void MainWindow::on_actionSave_As_16_bit_triggered()
 {
     outputFilename = QFileDialog::getSaveFileName(this,
@@ -175,7 +179,9 @@ void MainWindow::on_actionSave_As_16_bit_triggered()
         //rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), false);
         progressDialog->setPercentage(0);
         progressDialog->setText(tr("Saving sample as 16-bit data..."));
-        fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), rfSample->getInputFileFormat(), false);
+        fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
+                                                   ui->startTimeEdit->time(), ui->endTimeEdit->time(),
+                                                   rfSample->getInputFileFormat(), false);
         progressDialog->show();
     }
 }

@@ -39,7 +39,6 @@ class RfSample
 public:
     RfSample(void);
     bool getInputSampleDetails(QString inputFilename, bool isTenBit);
-    bool saveOutputSample(QString inputFilename, QString outputFilename, QTime startTime, QTime endTime, bool isOutputTenBit);
 
     QString getSizeOnDisc(void);
     qint64 getNumberOfSamples(void);
@@ -54,17 +53,7 @@ public slots:
 private:
     qint64 sizeOnDisc;
     qint64 numberOfSamples;
-    QFile *inputSampleFileHandle;
-    QFile *outputSampleFileHandle;
     bool isInputFileTenBit;
-
-    bool openInputSample(QString filename);
-    void closeInputSample(void);
-    bool openOutputSample(QString filename);
-    void closeOutputSample(void);
-
-    QVector<quint16> readInputSample(qint32 maximumSamples);
-    bool writeOutputSample(QVector<quint16> sampleBuffer, bool isTenBit);
 
     qint32 samplesToTenBitBytes(qint32 numberOfSamples);
     qint32 tenBitBytesToSamples(qint32 numberOfBytes);
