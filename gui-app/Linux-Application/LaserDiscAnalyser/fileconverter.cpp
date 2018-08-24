@@ -93,9 +93,16 @@ void FileConverter::run()
 
         // Process the conversion until completed
         bool notComplete = true;
+        qreal percentageCompleteReal = 0;
+        qint32 percentageComplete = 0;
+
         while (notComplete) {
             notComplete = convertSampleProcess();
-            qDebug() << "FileConverter::run(): Processed samples =" << numberOfSampleProcessedTs;
+
+            // Calculate the completion percentage
+            percentageCompleteReal = (100 / static_cast<qreal>(numberOfSamplesInInputFileTs)) * static_cast<qreal>(numberOfSampleProcessedTs);
+            percentageComplete = static_cast<qint32>(percentageCompleteReal);
+            qDebug() << "FileConverter::run():" << percentageComplete << "% processed";
         }
 
         // Stop the sample conversion
@@ -165,7 +172,7 @@ bool FileConverter::convertSampleProcess(void)
     // Read the input sample
     sampleBuffer = readInputSample(10240000, isInputTenBitTs);
     numberOfSampleProcessedTs += sampleBuffer.size();
-    qDebug() << "FileConverter::convertSampleProcess():" << numberOfSampleProcessedTs << "processed of" << numberOfSamplesInInputFileTs;
+    //qDebug() << "FileConverter::convertSampleProcess():" << numberOfSampleProcessedTs << "processed of" << numberOfSamplesInInputFileTs;
 
     // Did we get data?
     if (sampleBuffer.size() > 0) {

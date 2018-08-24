@@ -31,6 +31,7 @@
 #include <QMainWindow>
 #include <QFileDialog>
 #include <QThread>
+#include <QMessageBox>
 
 #include "about.h"
 #include "rfsample.h"
