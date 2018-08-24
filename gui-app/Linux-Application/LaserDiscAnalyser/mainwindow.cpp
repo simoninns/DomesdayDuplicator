@@ -113,7 +113,8 @@ void MainWindow::inputFileSpecified(void)
 void MainWindow::on_actionOpen_10_bit_File_triggered()
 {
     inputFilename = QFileDialog::getOpenFileName(this,
-            tr("Open 10-bit packed LaserDisc RF sample"), "",
+            tr("Open 10-bit packed LaserDisc RF sample"),
+            QDir::homePath()+tr("/ldsample.lds"),
             tr("LaserDisc Sample (*.lds);;All Files (*)"));
 
     // Was a filename specified?
@@ -133,7 +134,8 @@ void MainWindow::on_actionOpen_10_bit_File_triggered()
 void MainWindow::on_actionOpen_16_bit_File_triggered()
 {
     inputFilename = QFileDialog::getOpenFileName(this,
-            tr("Open 16-bit signed raw data sample"), "",
+            tr("Open 16-bit signed raw data sample"),
+            QDir::homePath()+tr("/ldsample.raw"),
             tr("Raw Data Sample (*.raw);;All Files (*)"));
 
     // Was a filename specified?
@@ -154,7 +156,8 @@ void MainWindow::on_actionOpen_16_bit_File_triggered()
 void MainWindow::on_actionSave_As_10_bit_triggered()
 {
     outputFilename = QFileDialog::getSaveFileName(this,
-            tr("Save 10-bit packed LaserDisc RF sample"), "",
+            tr("Save 10-bit packed LaserDisc RF sample"),
+            QDir::homePath()+tr("/ldsample_out.lds"),
             tr("LaserDisc Sample .lds (*.lds);;All Files (*)"));
 
     // Was a filename specified?
@@ -163,7 +166,7 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
         if (inputFilename != outputFilename) {
             // Save the file as 10-bit
             progressDialog->setPercentage(0);
-            progressDialog->setText(tr("Saving sample as 10-bit data..."));
+            progressDialog->setText(tr("Saving sample as 10-bit packed data..."));
             fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
                                                        ui->startTimeEdit->time(), ui->endTimeEdit->time(),
                                                        rfSample->getInputFileFormat(), true);
@@ -182,7 +185,8 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
 void MainWindow::on_actionSave_As_16_bit_triggered()
 {
     outputFilename = QFileDialog::getSaveFileName(this,
-            tr("Save 16-bit signed raw data sample"), "",
+            tr("Save 16-bit signed raw data sample"),
+            QDir::homePath()+tr("/ldsample_out.raw"),
             tr("Raw Data Sample (*.raw);;All Files (*)"));
 
     // Was a filename specified?
@@ -190,7 +194,7 @@ void MainWindow::on_actionSave_As_16_bit_triggered()
         if (inputFilename != outputFilename) {
             // Attempt to save the file as 16-bit
             progressDialog->setPercentage(0);
-            progressDialog->setText(tr("Saving sample as 16-bit data..."));
+            progressDialog->setText(tr("Saving sample as 16-bit signed data..."));
             fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
                                                        ui->startTimeEdit->time(), ui->endTimeEdit->time(),
                                                        rfSample->getInputFileFormat(), false);
