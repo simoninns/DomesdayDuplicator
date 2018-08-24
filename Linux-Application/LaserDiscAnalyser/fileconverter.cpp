@@ -102,6 +102,7 @@ void FileConverter::run()
                 percentageCompleteReal = (100 / static_cast<qreal>(samplesToConvertTs)) * static_cast<qreal>(numberOfSampleProcessedTs);
                 percentageComplete = static_cast<qint32>(percentageCompleteReal);
                 //qDebug() << "FileConverter::run():" << percentageComplete << "% processed";
+                //qDebug() << "FileConverter::run(): Processed" << numberOfSampleProcessedTs << "of" << samplesToConvertTs;
 
                 // Emit a signal showing the progress
                 emit percentageProcessed(percentageComplete);
@@ -211,6 +212,13 @@ bool FileConverter::convertSampleProcess(void)
         writeOutputSample(sampleBuffer, isOutputTenBitTs);
     } else {
         // No sample data left, return false
+        qDebug() << "FileConverter::convertSampleProcess(): No more data to convert";
+        return false;
+    }
+
+    // Have we finished processing all the samples?
+    if (numberOfSampleProcessedTs >= samplesToConvertTs) {
+        qDebug() << "FileConverter::convertSampleProcess():" << numberOfSampleProcessedTs << "of" << samplesToConvertTs << "converted. Done.";
         return false;
     }
 
@@ -295,9 +303,10 @@ QVector<quint16> FileConverter::readInputSample(qint32 maximumSamples, bool isTe
 
     // If the remaining samples to be processed is less than the maximum buffer
     // allowed, set the maximum to the number of remaining samples.
-    if ((numberOfSampleProcessedTs + maximumSamples) > endSampleTs) {
+    if ((numberOfSampleProcessedTs + maximumSamples) >= samplesToConvertTs) {
         // Request the remaining samples only
-        maximumSamples = static_cast<qint32>(endSampleTs - numberOfSampleProcessedTs);
+        maximumSamples = static_cast<qint32>(samplesToConvertTs - numberOfSampleProcessedTs);
+        qDebug() << "FileConverter::readInputSample(): Reducing input buffer size as there are only" << maximumSamples << "left to process";
     }
 
     // Request the maximum allowed
