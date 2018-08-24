@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Create the UI dialogues
     aboutDialogue = new About(this);
+    progressDialog = new ProgressDialog(this);
 
     // Create the RF sample object
     rfSample = new RfSample();
@@ -153,9 +154,11 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
 
     // Was a filename specified?
     if (!outputFilename.isEmpty()) {
-        // Attempt to save the file as 10-bit
-        //rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), true);
+        // Save the file as 10-bit
+        progressDialog->setPercentage(0);
+        progressDialog->setText(tr("Saving sample as 10-bit data..."));
         fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), rfSample->getInputFileFormat(), true);
+        progressDialog->show();
     }
 }
 
@@ -170,13 +173,19 @@ void MainWindow::on_actionSave_As_16_bit_triggered()
     if (!outputFilename.isEmpty()) {
         // Attempt to save the file as 16-bit
         //rfSample->saveOutputSample(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), false);
+        progressDialog->setPercentage(0);
+        progressDialog->setText(tr("Saving sample as 16-bit data..."));
         fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(), rfSample->getInputFileFormat(), false);
+        progressDialog->show();
     }
 }
 
 // Menu bar - Quit triggered
 void MainWindow::on_actionQuit_triggered()
 {
+    // Stop the file converter thread
+    fileConverter.quit();
+
     // Quit the application
     qApp->quit();
 }

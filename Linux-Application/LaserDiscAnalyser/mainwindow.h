@@ -35,6 +35,7 @@
 #include "about.h"
 #include "rfsample.h"
 #include "fileconverter.h"
+#include "progressdialog.h"
 
 namespace Ui {
 class MainWindow;
@@ -68,6 +69,7 @@ private:
     QString inputFilename;
     QString outputFilename;
     About *aboutDialogue;
+    ProgressDialog *progressDialog;
     FileConverter fileConverter;
     RfSample *rfSample;
 };

@@ -27,17 +27,20 @@ SOURCES += \
         mainwindow.cpp \
     about.cpp \
     rfsample.cpp \
-    fileconverter.cpp
+    fileconverter.cpp \
+    progressdialog.cpp
 
 HEADERS += \
         mainwindow.h \
     about.h \
     rfsample.h \
-    fileconverter.h
+    fileconverter.h \
+    progressdialog.h
 
 FORMS += \
         mainwindow.ui \
-    about.ui
+    about.ui \
+    progressdialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
