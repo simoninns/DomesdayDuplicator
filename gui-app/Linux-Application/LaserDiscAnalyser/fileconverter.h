@@ -59,20 +59,48 @@ protected:
     void run() override;
 
 private:
+    // Thread control
     QMutex mutex;
     QWaitCondition condition;
     bool restart;
     bool abort;
 
-    QFile *inputSampleFileHandle;
-    QFile *outputSampleFileHandle;
-
+    // Externally settable variables
     QString inputFilename;
     QString outputFilename;
     bool isInputTenBit;
     bool isOutputTenBit;
     QTime startTime;
     QTime endTime;
+
+    // Thread-safe variables
+    QFile *inputSampleFileHandleTs;
+    QFile *outputSampleFileHandleTs;
+    QString inputFilenameTs;
+    QString outputFilenameTs;
+    bool isInputTenBitTs;
+    bool isOutputTenBitTs;
+    QTime startTimeTs;
+    QTime endTimeTs;
+    qint64 sizeOnDiscTs;
+    qint64 numberOfSamplesInInputFileTs;
+    qint64 numberOfSampleProcessedTs;
+
+    bool convertSampleStart(void);
+    bool convertSampleProcess(void);
+    void convertSampleStop(void);
+
+    bool openInputSample(QString filename);
+    void closeInputSample(void);
+    bool openOutputSample(QString filename);
+    void closeOutputSample(void);
+    QVector<quint16> readInputSample(qint32 maximumSamples, bool isTenbit);
+    bool writeOutputSample(QVector<quint16> sampleBuffer, bool isTenBit);
+
+    qint32 samplesToTenBitBytes(qint32 numberOfSamples);
+    qint32 tenBitBytesToSamples(qint32 numberOfBytes);
+    qint32 samplesToSixteenBitBytes(qint32 numberOfSamples);
+    qint32 sixteenBitBytesToSamples(qint32 numberOfBytes);
 };
 
 #endif // FILECONVERTER_H
