@@ -88,6 +88,10 @@ private:
     qint64 numberOfSamplesInInputFileTs;
     qint64 numberOfSampleProcessedTs;
 
+    qint64 startSampleTs;
+    qint64 endSampleTs;
+    qint64 samplesToConvertTs;
+
     bool convertSampleStart(void);
     bool convertSampleProcess(void);
     void convertSampleStop(void);
@@ -99,10 +103,10 @@ private:
     QVector<quint16> readInputSample(qint32 maximumSamples, bool isTenbit);
     bool writeOutputSample(QVector<quint16> sampleBuffer, bool isTenBit);
 
-    qint32 samplesToTenBitBytes(qint32 numberOfSamples);
-    qint32 tenBitBytesToSamples(qint32 numberOfBytes);
-    qint32 samplesToSixteenBitBytes(qint32 numberOfSamples);
-    qint32 sixteenBitBytesToSamples(qint32 numberOfBytes);
+    qint64 samplesToTenBitBytes(qint64 numberOfSamples);
+    qint64 tenBitBytesToSamples(qint64 numberOfBytes);
+    qint64 samplesToSixteenBitBytes(qint64 numberOfSamples);
+    qint64 sixteenBitBytesToSamples(qint64 numberOfBytes);
 };
 
 #endif // FILECONVERTER_H

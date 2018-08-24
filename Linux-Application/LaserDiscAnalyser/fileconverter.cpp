@@ -99,7 +99,7 @@ void FileConverter::run()
                 notComplete = convertSampleProcess();
 
                 // Calculate the completion percentage
-                percentageCompleteReal = (100 / static_cast<qreal>(numberOfSamplesInInputFileTs)) * static_cast<qreal>(numberOfSampleProcessedTs);
+                percentageCompleteReal = (100 / static_cast<qreal>(samplesToConvertTs)) * static_cast<qreal>(numberOfSampleProcessedTs);
                 percentageComplete = static_cast<qint32>(percentageCompleteReal);
                 //qDebug() << "FileConverter::run():" << percentageComplete << "% processed";
 
@@ -165,6 +165,32 @@ bool FileConverter::convertSampleStart(void)
     // Reset the processed sample counter
     numberOfSampleProcessedTs = 0;
 
+    // Calculate the start and end samples based on the QTime parameters and a sample
+    // rate of 40,000,000 samples per second
+    qint32 durationSeconds = static_cast<qint32>(numberOfSamplesInInputFileTs / 40000000);
+    qint32 startSeconds = QTime(0, 0, 0).secsTo(startTimeTs);
+    qint32 endSeconds = QTime(0, 0, 0).secsTo(endTimeTs);
+
+    startSampleTs = static_cast<qint64>(startSeconds) * 40000000;
+    endSampleTs = static_cast<qint64>(endSeconds) * 40000000;
+
+    // If the endSeconds is the same as the durationSeconds, set the end sample
+    // to the total number of samples in the input file (to prevent clipping due
+    // to rounding errors)
+    if (endSeconds == durationSeconds) endSampleTs = numberOfSamplesInInputFileTs;
+    samplesToConvertTs = endSampleTs - startSampleTs;
+
+    qDebug() << "FileConverter::convertSampleStart(): startSeconds =" << startSeconds <<
+                "endSeconds =" << endSeconds << "total seconds =" << endSeconds - startSeconds;
+    qDebug() << "FileConverter::convertSampleStart(): startSample =" << startSampleTs <<
+                "endSample =" << endSampleTs << "samples to convert =" << samplesToConvertTs;
+
+    // Move the file position to the start sample
+    if (startSampleTs != 0) {
+        if (isInputTenBitTs) inputSampleFileHandleTs->seek(samplesToTenBitBytes(startSampleTs));
+        else inputSampleFileHandleTs->seek(samplesToSixteenBitBytes(startSampleTs));
+    }
+
     // Return success
     return true;
 }
@@ -178,7 +204,6 @@ bool FileConverter::convertSampleProcess(void)
     // Read the input sample
     sampleBuffer = readInputSample(102400, isInputTenBitTs);
     numberOfSampleProcessedTs += sampleBuffer.size();
-    //qDebug() << "FileConverter::convertSampleProcess():" << numberOfSampleProcessedTs << "processed of" << numberOfSamplesInInputFileTs;
 
     // Did we get data?
     if (sampleBuffer.size() > 0) {
@@ -267,7 +292,17 @@ QVector<quint16> FileConverter::readInputSample(qint32 maximumSamples, bool isTe
 
     // Prepare the sample buffer (which stores the unpacked 10-bit data)
     QVector<quint16> sampleBuffer;
+
+    // If the remaining samples to be processed is less than the maximum buffer
+    // allowed, set the maximum to the number of remaining samples.
+    if ((numberOfSampleProcessedTs + maximumSamples) > endSampleTs) {
+        // Request the remaining samples only
+        maximumSamples = static_cast<qint32>(endSampleTs - numberOfSampleProcessedTs);
+    }
+
+    // Request the maximum allowed
     sampleBuffer.resize(maximumSamples);
+
     if (fullDebug) qDebug() << "FileConverter::readInputSample(): Requesting" << maximumSamples << "samples from input file";
 
     // Is the input data 10-bit or 16-bit?
@@ -275,7 +310,7 @@ QVector<quint16> FileConverter::readInputSample(qint32 maximumSamples, bool isTe
         // Prepare the packed sample buffer (which stores the packed 10-bit data byte stream)
         // There are 4 10-bit samples per 5 bytes of data (5 * 8 = 40 bits)
         QVector<quint8> packedSampleBuffer;
-        packedSampleBuffer.resize(samplesToTenBitBytes(maximumSamples));
+        packedSampleBuffer.resize(static_cast<qint32>(samplesToTenBitBytes(maximumSamples)));
         if (fullDebug) qDebug() << "FileConverter::readInputSample(): Requesting" << samplesToTenBitBytes(maximumSamples) << "bytes from input file";
 
         // Read the input sample file into the packed sample buffer
@@ -302,7 +337,7 @@ QVector<quint16> FileConverter::readInputSample(qint32 maximumSamples, bool isTe
 
             // Adjust buffers according to the received number of samples
             packedSampleBuffer.resize(static_cast<qint32>(totalReceivedBytes));
-            sampleBuffer.resize(tenBitBytesToSamples(packedSampleBuffer.size()));
+            sampleBuffer.resize(static_cast<qint32>(tenBitBytesToSamples(packedSampleBuffer.size())));
         }
 
         // Unpack the packed sample buffer into the sample buffer
@@ -367,7 +402,7 @@ QVector<quint16> FileConverter::readInputSample(qint32 maximumSamples, bool isTe
             }
 
             // Adjust buffers according to the received number of samples
-            signedSampleBuffer.resize(sixteenBitBytesToSamples(static_cast<qint32>(totalReceivedBytes)));
+            signedSampleBuffer.resize(static_cast<qint32>(sixteenBitBytesToSamples(static_cast<qint32>(totalReceivedBytes))));
             sampleBuffer.resize(signedSampleBuffer.size());
         }
 
@@ -376,7 +411,8 @@ QVector<quint16> FileConverter::readInputSample(qint32 maximumSamples, bool isTe
             qDebug() << "FileConverter::readInputSample(): Converting 16-bit sample data...";
         }
         for (qint32 samplePointer = 0; samplePointer < signedSampleBuffer.size(); samplePointer++) {
-            sampleBuffer[samplePointer] = (signedSampleBuffer[samplePointer] / 64) + 512;
+            sampleBuffer[samplePointer] = static_cast<quint16>((signedSampleBuffer[samplePointer] / 64) + 512);
+
         }
     }
 
@@ -392,7 +428,7 @@ bool FileConverter::writeOutputSample(QVector<quint16> sampleBuffer, bool isTenB
     if (isTenBit) {
         // Prepare the packed sample buffer (which stores the packed 10-bit data byte stream)
         QVector<quint8> packedSampleBuffer;
-        packedSampleBuffer.resize(samplesToTenBitBytes(sampleBuffer.size()));
+        packedSampleBuffer.resize(static_cast<qint32>(samplesToTenBitBytes(sampleBuffer.size())));
         qint32 packedSampleBufferPointer = 0;
         if (fullDebug) qDebug() << "FileConverter::writeOutputSample(): Writing " << sampleBuffer.size() <<
                     "samples to 10-bit output sample file as" << packedSampleBuffer.size() << "bytes";
@@ -464,7 +500,7 @@ bool FileConverter::writeOutputSample(QVector<quint16> sampleBuffer, bool isTenB
 // This function takes a number of samples and returns the number
 // of bytes required to store the same number of samples as 10-bit
 // packed values
-qint32 FileConverter::samplesToTenBitBytes(qint32 numberOfSamples)
+qint64 FileConverter::samplesToTenBitBytes(qint64 numberOfSamples)
 {
     // Every 4 samples requires 5 bytes
     return (numberOfSamples / 4) * 5;
@@ -472,7 +508,7 @@ qint32 FileConverter::samplesToTenBitBytes(qint32 numberOfSamples)
 
 // This function takes a number of bytes and returns the number
 // of samples it represents (after 10-bit unpacking)
-qint32 FileConverter::tenBitBytesToSamples(qint32 numberOfBytes)
+qint64 FileConverter::tenBitBytesToSamples(qint64 numberOfBytes)
 {
     // Every 5 bytes equals 4 samples
     return (numberOfBytes / 5) * 4;
@@ -480,7 +516,7 @@ qint32 FileConverter::tenBitBytesToSamples(qint32 numberOfBytes)
 
 // This function takes a number of samples and returns the number
 // of bytes it represents (as 16-bit words)
-qint32 FileConverter::samplesToSixteenBitBytes(qint32 numberOfSamples)
+qint64 FileConverter::samplesToSixteenBitBytes(qint64 numberOfSamples)
 {
     // Every sample requires 2 bytes
     return numberOfSamples * 2;
@@ -488,7 +524,7 @@ qint32 FileConverter::samplesToSixteenBitBytes(qint32 numberOfSamples)
 
 // This function takes a number of bytes and returns the number
 // of 16-bit samples it represents
-qint32 FileConverter::sixteenBitBytesToSamples(qint32 numberOfBytes)
+qint64 FileConverter::sixteenBitBytesToSamples(qint64 numberOfBytes)
 {
     // Every 2 bytes equals 1 sample
     return numberOfBytes / 2;
