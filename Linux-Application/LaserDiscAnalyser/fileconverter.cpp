@@ -89,24 +89,30 @@ void FileConverter::run()
         mutex.unlock();
 
         // Start the sample conversion
-        convertSampleStart();
+        if (convertSampleStart()) {
+            // Process the conversion until completed
+            bool notComplete = true;
+            qreal percentageCompleteReal = 0;
+            qint32 percentageComplete = 0;
 
-        // Process the conversion until completed
-        bool notComplete = true;
-        qreal percentageCompleteReal = 0;
-        qint32 percentageComplete = 0;
+            while (notComplete) {
+                notComplete = convertSampleProcess();
 
-        while (notComplete) {
-            notComplete = convertSampleProcess();
+                // Calculate the completion percentage
+                percentageCompleteReal = (100 / static_cast<qreal>(numberOfSamplesInInputFileTs)) * static_cast<qreal>(numberOfSampleProcessedTs);
+                percentageComplete = static_cast<qint32>(percentageCompleteReal);
+                //qDebug() << "FileConverter::run():" << percentageComplete << "% processed";
 
-            // Calculate the completion percentage
-            percentageCompleteReal = (100 / static_cast<qreal>(numberOfSamplesInInputFileTs)) * static_cast<qreal>(numberOfSampleProcessedTs);
-            percentageComplete = static_cast<qint32>(percentageCompleteReal);
-            qDebug() << "FileConverter::run():" << percentageComplete << "% processed";
+                // Emit a signal showing the progress
+                emit percentageProcessed(percentageComplete);
+            }
+
+            // Stop the sample conversion
+            convertSampleStop();
         }
 
-        // Stop the sample conversion
-        convertSampleStop();
+        // Emit a signal showing the conversion is complete
+        emit completed();
 
         // Sleep the thread until we are restarted
         mutex.lock();
@@ -170,7 +176,7 @@ bool FileConverter::convertSampleProcess(void)
     QVector<quint16> sampleBuffer;
 
     // Read the input sample
-    sampleBuffer = readInputSample(10240000, isInputTenBitTs);
+    sampleBuffer = readInputSample(102400, isInputTenBitTs);
     numberOfSampleProcessedTs += sampleBuffer.size();
     //qDebug() << "FileConverter::convertSampleProcess():" << numberOfSampleProcessedTs << "processed of" << numberOfSamplesInInputFileTs;
 

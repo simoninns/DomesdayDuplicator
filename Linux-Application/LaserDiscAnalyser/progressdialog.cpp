@@ -27,3 +27,9 @@ void ProgressDialog::setText(QString message)
 {
     ui->processingLabel->setText(message);
 }
+
+void ProgressDialog::closeEvent(QCloseEvent *event)
+{
+    qDebug() << "ProgressDialog::closeEvent(): User attempted to close progress dialogue - ignoring";
+    event->ignore();
+}

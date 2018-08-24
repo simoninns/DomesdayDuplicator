@@ -42,6 +42,10 @@ MainWindow::MainWindow(QWidget *parent) :
     // Create the RF sample object
     rfSample = new RfSample();
 
+    // Connect to the signals from the file converter thread
+    connect(&fileConverter, &FileConverter::percentageProcessed, this, &MainWindow::percentageProcessedSignalHandler);
+    connect(&fileConverter, &FileConverter::completed, this, &MainWindow::completedSignalHandler);
+
     // Perform no file loaded actions
     noInputFileSpecified();
 }
@@ -113,7 +117,7 @@ void MainWindow::on_actionOpen_10_bit_File_triggered()
             tr("LaserDisc Sample (*.lds);;All Files (*)"));
 
     // Was a filename specified?
-    if (!inputFilename.isEmpty()) {
+    if (!inputFilename.isEmpty() && !inputFilename.isNull()) {
         // Get the 10-bit sample details
         if (rfSample->getInputSampleDetails(inputFilename, true)) {
             // Update the GUI (success)
@@ -122,7 +126,7 @@ void MainWindow::on_actionOpen_10_bit_File_triggered()
             // Update the GUI (failure)
             noInputFileSpecified();
         }
-    }
+    } else noInputFileSpecified();
 }
 
 // Menu bar - Open 16-bit file triggered
@@ -133,7 +137,7 @@ void MainWindow::on_actionOpen_16_bit_File_triggered()
             tr("Raw Data Sample (*.raw);;All Files (*)"));
 
     // Was a filename specified?
-    if (!inputFilename.isEmpty()) {
+    if (!inputFilename.isEmpty() && !inputFilename.isNull()) {
         // Get the 16-bit sample details
         if (rfSample->getInputSampleDetails(inputFilename, false)) {
             // Update the GUI (success)
@@ -142,7 +146,7 @@ void MainWindow::on_actionOpen_16_bit_File_triggered()
             // Update the GUI (failure)
             noInputFileSpecified();
         }
-    }
+    } else noInputFileSpecified();
 }
 
 // Menu bar - Save As 10-bit file triggered
@@ -154,7 +158,7 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
             tr("LaserDisc Sample .lds (*.lds);;All Files (*)"));
 
     // Was a filename specified?
-    if (!outputFilename.isEmpty()) {
+    if (!outputFilename.isEmpty() && !outputFilename.isNull()) {
         // Is the output filename different from the input filename?
         if (inputFilename != outputFilename) {
             // Save the file as 10-bit
@@ -163,7 +167,7 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
             fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
                                                        ui->startTimeEdit->time(), ui->endTimeEdit->time(),
                                                        rfSample->getInputFileFormat(), true);
-            progressDialog->show();
+            progressDialog->exec(); // Exec causes the main window to be disabled
         } else {
             // Show an error
             QMessageBox messageBox;
@@ -182,7 +186,7 @@ void MainWindow::on_actionSave_As_16_bit_triggered()
             tr("Raw Data Sample (*.raw);;All Files (*)"));
 
     // Was a filename specified?
-    if (!outputFilename.isEmpty()) {
+    if (!outputFilename.isEmpty() && !outputFilename.isNull()) {
         if (inputFilename != outputFilename) {
             // Attempt to save the file as 16-bit
             progressDialog->setPercentage(0);
@@ -190,7 +194,7 @@ void MainWindow::on_actionSave_As_16_bit_triggered()
             fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
                                                        ui->startTimeEdit->time(), ui->endTimeEdit->time(),
                                                        rfSample->getInputFileFormat(), false);
-            progressDialog->show();
+            progressDialog->exec(); // Exec causes the main window to be disabled
         } else {
             // Show an error
             QMessageBox messageBox;
@@ -235,3 +239,18 @@ void MainWindow::on_endTimeEdit_userTimeChanged(const QTime &endTime)
         ui->endTimeEdit->setTime(QTime(0,0).addSecs(rfSample->getDurationSeconds()));
 }
 
+// Signal handlers ----------------------------------------------------------------------------------------------------
+
+// Handle the percentage processed signal sent by the file converter thread
+void MainWindow::percentageProcessedSignalHandler(qint32 percentage)
+{
+    // Update the process dialogue
+    progressDialog->setPercentage(percentage);
+}
+
+// Handle the conversion completed signal sent by the file converter thread
+void MainWindow::completedSignalHandler(void)
+{
+    // Hide the process dialogue (re-enables main window)
+    progressDialog->hide();
+}
