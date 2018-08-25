@@ -156,6 +156,11 @@ void MainWindow::on_actionOpen_10_bit_File_triggered()
                 noInputFileSpecified();
             }
         } else {
+            // Show an error
+            QMessageBox messageBox;
+            messageBox.critical(this, "Error","Could not open input sample file!");
+            messageBox.setFixedSize(500, 200);
+
             // Update the GUI (failure)
             noInputFileSpecified();
         }
@@ -189,6 +194,11 @@ void MainWindow::on_actionOpen_16_bit_File_triggered()
                 noInputFileSpecified();
             }
         } else {
+            // Show an error
+            QMessageBox messageBox;
+            messageBox.critical(this, "Error","Could not open input sample file!");
+            messageBox.setFixedSize(500, 200);
+
             // Update the GUI (failure)
             noInputFileSpecified();
         }
