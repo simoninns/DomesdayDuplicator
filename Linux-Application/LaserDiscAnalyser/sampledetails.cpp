@@ -1,6 +1,6 @@
 /************************************************************************
 
-    rfsample.cpp
+    sampledetails.cpp
 
     RF Sample analyser for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
@@ -25,9 +25,9 @@
 
 ************************************************************************/
 
-#include "rfsample.h"
+#include "sampledetails.h"
 
-RfSample::RfSample(void)
+SampleDetails::SampleDetails(void)
 {
     // Set default object values
     sizeOnDisc = 0;
@@ -39,13 +39,13 @@ RfSample::RfSample(void)
 
 // Get the details of the input sample file
 // Returns 'true' on success
-bool RfSample::getInputSampleDetails(QString inputFilename, bool isTenBit)
+bool SampleDetails::getInputSampleDetails(QString inputFilename, bool isTenBit)
 {
     QFile inputSampleFileHandle(inputFilename);
 
     if (!inputSampleFileHandle.open(QIODevice::ReadOnly)) {
         // Failed to open input sample file
-        qDebug() << "RfSample::getInputSampleDetails(): Could not open " << inputFilename << "as input sample file";
+        qDebug() << "SampleDetails::getInputSampleDetails(): Could not open " << inputFilename << "as input sample file";
         return false;
     }
 
@@ -60,7 +60,7 @@ bool RfSample::getInputSampleDetails(QString inputFilename, bool isTenBit)
     // Close the input sample file
     inputSampleFileHandle.close();
 
-    qDebug() << "RfSample::getInputSampleDetails(): Sample file is" << inputFilename <<
+    qDebug() << "SampleDetails::getInputSampleDetails(): Sample file is" << inputFilename <<
                 "containing" << numberOfSamples << "samples and is" << sizeOnDisc << "bytes";
 
 
@@ -72,7 +72,7 @@ bool RfSample::getInputSampleDetails(QString inputFilename, bool isTenBit)
 
 // Get the size of the sample file on disc and return as a
 // readable string
-QString RfSample::getSizeOnDisc(void)
+QString SampleDetails::getSizeOnDisc(void)
 {
     QString sizeText;
 
@@ -88,21 +88,21 @@ QString RfSample::getSizeOnDisc(void)
 }
 
 // Get the number of samples contained in the sample file
-qint64 RfSample::getNumberOfSamples(void)
+qint64 SampleDetails::getNumberOfSamples(void)
 {
     return numberOfSamples;
 }
 
 // Get the approximate duration of the sample file and
 // return it as the number of seconds
-qint32 RfSample::getDurationSeconds(void)
+qint32 SampleDetails::getDurationSeconds(void)
 {
     return static_cast<qint32>(numberOfSamples / 40000000);
 }
 
 // Get the approximate duration of the sample file and
 // return it as a time string "hh:mm:ss"
-QString RfSample::getDurationString(void)
+QString SampleDetails::getDurationString(void)
 {
     // Number of samples / 40 MSPS sampling rate
     qint64 duration = numberOfSamples / 40000000;
@@ -113,7 +113,7 @@ QString RfSample::getDurationString(void)
 
 // Get the input file format, returns true if 10-bit
 // and false if 16-bit
-bool RfSample::getInputFileFormat(void)
+bool SampleDetails::getInputFileFormat(void)
 {
     return isInputFileTenBit;
 }

@@ -34,7 +34,7 @@
 #include <QMessageBox>
 
 #include "about.h"
-#include "rfsample.h"
+#include "sampledetails.h"
 #include "fileconverter.h"
 #include "progressdialog.h"
 
@@ -76,7 +76,7 @@ private:
     About *aboutDialogue;
     ProgressDialog *progressDialog;
     FileConverter fileConverter;
-    RfSample *rfSample;
+    SampleDetails *sampleDetails;
 };
 
 #endif // MAINWINDOW_H

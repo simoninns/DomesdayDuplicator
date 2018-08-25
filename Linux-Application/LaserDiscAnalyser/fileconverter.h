@@ -37,7 +37,7 @@
 #include <QFile>
 #include <QDebug>
 
-#include "rfsample.h"
+#include "sampledetails.h"
 
 class FileConverter : public QThread
 {
