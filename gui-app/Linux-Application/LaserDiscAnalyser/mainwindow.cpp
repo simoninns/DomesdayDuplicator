@@ -37,17 +37,25 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Create the UI dialogues
     aboutDialogue = new About(this);
-    progressDialog = new ProgressDialog(this);
+    conversionProgressDialog = new ProgressDialog(this);
+    analyseTestDataProgressDialog = new ProgressDialog(this);
 
     // Create the RF sample object
     sampleDetails = new SampleDetails();
 
     // Connect to the signals from the file converter thread
-    connect(&fileConverter, &FileConverter::percentageProcessed, this, &MainWindow::percentageProcessedSignalHandler);
-    connect(&fileConverter, &FileConverter::completed, this, &MainWindow::completedSignalHandler);
+    connect(&fileConverter, &FileConverter::percentageProcessed, this, &MainWindow::conversionPercentageProcessedSignalHandler);
+    connect(&fileConverter, &FileConverter::completed, this, &MainWindow::conversionCompletedSignalHandler);
 
     // Connect to the cancelled signal from the progress dialogue
-    connect(progressDialog, &ProgressDialog::cancelled, this, &MainWindow::cancelledSignalHandler);
+    connect(conversionProgressDialog, &ProgressDialog::cancelled, this, &MainWindow::conversionCancelledSignalHandler);
+
+    // Connect to the signals from the file converter thread
+    connect(&analyseTestData, &AnalyseTestData::percentageProcessed, this, &MainWindow::analyseTestDataPercentageProcessedSignalHandler);
+    connect(&analyseTestData, &AnalyseTestData::completed, this, &MainWindow::analyseTestDataCompletedSignalHandler);
+
+    // Connect to the cancelled signal from the progress dialogue
+    connect(analyseTestDataProgressDialog, &ProgressDialog::cancelled, this, &MainWindow::analyseTestDataCancelledSignalHandler);
 
     // Perform no file loaded actions
     noInputFileSpecified();
@@ -57,6 +65,9 @@ MainWindow::~MainWindow()
 {
     // Delete the file converter thread
     fileConverter.deleteLater();
+
+    // Delete the test data analysis thread
+    analyseTestData.deleteLater();
 
     delete ui;
 }
@@ -71,6 +82,7 @@ void MainWindow::noInputFileSpecified(void)
     ui->actionOpen_16_bit_File->setEnabled(true);
     ui->actionSave_As_10_bit->setEnabled(false);
     ui->actionSave_As_16_bit->setEnabled(false);
+    ui->actionVerify_test_data->setEnabled(false);
 
     // Input file options
     ui->filenameLineEdit->setText(tr("No file loaded"));
@@ -92,6 +104,7 @@ void MainWindow::inputFileSpecified(void)
     ui->actionOpen_16_bit_File->setEnabled(true);
     ui->actionSave_As_10_bit->setEnabled(true);
     ui->actionSave_As_16_bit->setEnabled(true);
+    ui->actionVerify_test_data->setEnabled(true);
 
     // Input file options
     ui->filenameLineEdit->setText(inputFilename);
@@ -195,12 +208,12 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
         // Is the output filename different from the input filename?
         if (inputFilename != outputFilename) {
             // Save the file as 10-bit
-            progressDialog->setPercentage(0);
-            progressDialog->setText(tr("Saving sample as 10-bit packed data..."));
+            conversionProgressDialog->setPercentage(0);
+            conversionProgressDialog->setText(tr("Saving sample as 10-bit packed data..."));
             fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
                                                        ui->startTimeEdit->time(), ui->endTimeEdit->time(),
                                                        sampleDetails->getInputFileFormat(), true);
-            progressDialog->exec(); // Exec causes the main window to be disabled
+            conversionProgressDialog->exec(); // Exec causes the main window to be disabled
         } else {
             // Show an error
             QMessageBox messageBox;
@@ -223,12 +236,12 @@ void MainWindow::on_actionSave_As_16_bit_triggered()
     if (!outputFilename.isEmpty() && !outputFilename.isNull()) {
         if (inputFilename != outputFilename) {
             // Attempt to save the file as 16-bit
-            progressDialog->setPercentage(0);
-            progressDialog->setText(tr("Saving sample as 16-bit signed data..."));
+            conversionProgressDialog->setPercentage(0);
+            conversionProgressDialog->setText(tr("Saving sample as 16-bit signed data..."));
             fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
                                                        ui->startTimeEdit->time(), ui->endTimeEdit->time(),
                                                        sampleDetails->getInputFileFormat(), false);
-            progressDialog->exec(); // Exec causes the main window to be disabled
+            conversionProgressDialog->exec(); // Exec causes the main window to be disabled
         } else {
             // Show an error
             QMessageBox messageBox;
@@ -288,25 +301,59 @@ void MainWindow::on_endTimeEdit_userTimeChanged(const QTime &endTime)
     }
 }
 
+// Menu bar - Verify test data triggered
+void MainWindow::on_actionVerify_test_data_triggered()
+{
+    // Verify the input sample test data
+    analyseTestDataProgressDialog->setPercentage(0);
+    analyseTestDataProgressDialog->setText(tr("Analysing input sample test data..."));
+    analyseTestData.analyseInputFile(inputFilename, ui->startTimeEdit->time(), ui->endTimeEdit->time(),
+                                     sampleDetails->getInputFileFormat());
+    analyseTestDataProgressDialog->exec(); // Exec causes the main window to be disabled
+}
+
 // Signal handlers ----------------------------------------------------------------------------------------------------
 
 // Handle the percentage processed signal sent by the file converter thread
-void MainWindow::percentageProcessedSignalHandler(qint32 percentage)
+void MainWindow::conversionPercentageProcessedSignalHandler(qint32 percentage)
 {
     // Update the process dialogue
-    progressDialog->setPercentage(percentage);
+    conversionProgressDialog->setPercentage(percentage);
 }
 
 // Handle the conversion completed signal sent by the file converter thread
-void MainWindow::completedSignalHandler(void)
+void MainWindow::conversionCompletedSignalHandler(void)
 {
     // Hide the process dialogue (re-enables main window)
-    progressDialog->hide();
+    conversionProgressDialog->hide();
 }
 
 // Handle the progress dialogue cancelled signal sent by the progress dialogue
-void MainWindow::cancelledSignalHandler(void)
+void MainWindow::conversionCancelledSignalHandler(void)
 {
     // Cancel the conversion in progress
     fileConverter.cancelConversion();
 }
+
+// Handle the percentage processed signal sent by the analyse test data thread
+void MainWindow::analyseTestDataPercentageProcessedSignalHandler(qint32 percentage)
+{
+    // Update the process dialogue
+    analyseTestDataProgressDialog->setPercentage(percentage);
+}
+
+// Handle the conversion completed signal sent by the file converter thread
+void MainWindow::analyseTestDataCompletedSignalHandler(void)
+{
+    // Hide the process dialogue (re-enables main window)
+    analyseTestDataProgressDialog->hide();
+}
+
+// Handle the progress dialogue cancelled signal sent by the progress dialogue
+void MainWindow::analyseTestDataCancelledSignalHandler(void)
+{
+    // Cancel the analysis in progress
+    analyseTestData.cancelAnalysis();
+}
+
+

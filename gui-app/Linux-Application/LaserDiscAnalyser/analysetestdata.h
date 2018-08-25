@@ -1,6 +1,6 @@
 /************************************************************************
 
-    fileconverter.h
+    analysetestdata.h
 
     RF Sample analyser for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
@@ -25,8 +25,8 @@
 
 ************************************************************************/
 
-#ifndef FILECONVERTER_H
-#define FILECONVERTER_H
+#ifndef ANALYSETESTDATA_H
+#define ANALYSETESTDATA_H
 
 #include <QObject>
 #include <QThread>
@@ -39,19 +39,19 @@
 
 #include "inputsample.h"
 
-class FileConverter : public QThread
+class AnalyseTestData : public QThread
 {
     Q_OBJECT
 
 public:
-    explicit FileConverter(QObject *parent = nullptr);
-    ~FileConverter() override;
+    explicit AnalyseTestData(QObject *parent = nullptr);
+    ~AnalyseTestData() override;
 
-    void convertInputFileToOutputFile(QString inputFilename, QString outputFilename,
-                                      QTime startTime, QTime endTime,
-                                      bool isInputTenBit, bool isOutputTenBit);
+    void analyseInputFile(QString inputFilename,
+                          QTime startTime, QTime endTime,
+                          bool isInputTenBit);
 
-    void cancelConversion();
+    void cancelAnalysis();
     void quit();
 
 signals:
@@ -71,35 +71,25 @@ private:
 
     // Externally settable variables
     QString inputFilename;
-    QString outputFilename;
     bool isInputTenBit;
-    bool isOutputTenBit;
     QTime startTime;
     QTime endTime;
 
     // Thread-safe variables
     InputSample *inputSample;
-    QFile *outputSampleFileHandleTs;
     QString inputFilenameTs;
-    QString outputFilenameTs;
     bool isInputTenBitTs;
-    bool isOutputTenBitTs;
     QTime startTimeTs;
     QTime endTimeTs;
     qint64 numberOfSampleProcessedTs;
 
     qint64 startSampleTs;
     qint64 endSampleTs;
-    qint64 samplesToConvertTs;
+    qint64 samplesToAnalyseTs;
 
-    bool convertSampleStart(void);
-    bool convertSampleProcess(void);
-    void convertSampleStop(void);
-
-    bool writeOutputSample(QVector<quint16> sampleBuffer, bool isTenBit);
-    bool openOutputSample(QString filename);
-    void closeOutputSample(void);
-    qint64 samplesToTenBitBytes(qint64 numberOfSamples);
+    bool analyseSampleStart(void);
+    bool analyseSampleProcess(void);
+    void analyseSampleStop(void);
 };
 
-#endif // FILECONVERTER_H
+#endif // ANALYSETESTDATA_H
