@@ -51,6 +51,7 @@ public:
                                       QTime startTime, QTime endTime,
                                       bool isInputTenBit, bool isOutputTenBit);
 
+    void cancelConversion();
     void quit();
 
 signals:
@@ -65,6 +66,7 @@ private:
     QMutex mutex;
     QWaitCondition condition;
     bool restart;
+    bool cancel;
     bool abort;
 
     // Externally settable variables

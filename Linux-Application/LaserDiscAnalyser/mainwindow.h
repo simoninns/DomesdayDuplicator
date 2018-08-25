@@ -63,6 +63,7 @@ private slots:
 
     void percentageProcessedSignalHandler(qint32 percentage);
     void completedSignalHandler(void);
+    void cancelledSignalHandler(void);
 
 private:
     Ui::MainWindow *ui;

@@ -29,8 +29,10 @@
 
 FileConverter::FileConverter(QObject *parent) : QThread(parent)
 {
-    restart = false;
-    abort = false;
+    // Thread control variables
+    restart = false; // Setting this to true starts a conversion
+    cancel = false; // Setting this to true cancels the conversion in progress
+    abort = false; // Setting this to true ends the thread process
 }
 
 FileConverter::~FileConverter()
@@ -68,6 +70,7 @@ void FileConverter::convertInputFileToOutputFile(QString inputFilename, QString 
     } else {
         // No, set the restart condition
         restart = true;
+        cancel = false;
         condition.wakeOne();
     }
 }
@@ -95,7 +98,7 @@ void FileConverter::run()
             qreal percentageCompleteReal = 0;
             qint32 percentageComplete = 0;
 
-            while (notComplete) {
+            while (notComplete && !cancel) {
                 notComplete = convertSampleProcess();
 
                 // Calculate the completion percentage
@@ -110,6 +113,10 @@ void FileConverter::run()
 
             // Stop the sample conversion
             convertSampleStop();
+
+            // Reset the cancel flag
+            if (cancel) qDebug() << "FileConverter::run(): Conversion cancelled";
+            cancel = false;
         }
 
         // Emit a signal showing the conversion is complete
@@ -124,7 +131,14 @@ void FileConverter::run()
     qDebug() << "FileConverter::run(): Thread aborted";
 }
 
-// Function sets the abort flag (which terminates the run() loop if in progress
+// Function sets the cancel flag (which terminates the conversion if in progress)
+void FileConverter::cancelConversion()
+{
+    qDebug() << "FileConverter::cancelConversion(): Setting cancel conversion flag";
+    cancel = true;
+}
+
+// Function sets the abort flag (which terminates the run() loop if in progress)
 void FileConverter::quit()
 {
     qDebug() << "FileConverter::quit(): Setting thread abort flag";
@@ -306,13 +320,15 @@ QVector<quint16> FileConverter::readInputSample(qint32 maximumSamples, bool isTe
     if ((numberOfSampleProcessedTs + maximumSamples) >= samplesToConvertTs) {
         // Request the remaining samples only
         maximumSamples = static_cast<qint32>(samplesToConvertTs - numberOfSampleProcessedTs);
-        qDebug() << "FileConverter::readInputSample(): Reducing input buffer size as there are only" << maximumSamples << "left to process";
+        qDebug() << "FileConverter::readInputSample(): Reducing input buffer size as there are only" <<
+                    maximumSamples << "samples left to process";
     }
 
     // Request the maximum allowed
     sampleBuffer.resize(maximumSamples);
 
-    if (fullDebug) qDebug() << "FileConverter::readInputSample(): Requesting" << maximumSamples << "samples from input file";
+    if (fullDebug) qDebug() << "FileConverter::readInputSample(): Requesting" <<
+                               maximumSamples << "samples from input file";
 
     // Is the input data 10-bit or 16-bit?
     if (isTenbit) {

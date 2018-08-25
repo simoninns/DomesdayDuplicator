@@ -30,6 +30,9 @@ void ProgressDialog::setText(QString message)
 
 void ProgressDialog::closeEvent(QCloseEvent *event)
 {
-    qDebug() << "ProgressDialog::closeEvent(): User attempted to close progress dialogue - ignoring";
-    event->ignore();
+    qDebug() << "ProgressDialog::closeEvent(): User close progress dialogue - sending cancelled signal";
+    emit cancelled();
+
+    // Accept the close event
+    event->accept();
 }

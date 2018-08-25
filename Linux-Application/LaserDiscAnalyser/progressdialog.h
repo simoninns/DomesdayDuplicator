@@ -22,6 +22,9 @@ public:
     void setPercentage(qint32 percentage);
     void setText(QString message);
 
+signals:
+    void cancelled(void);
+
 private:
     Ui::ProgressDialog *ui;
 };
