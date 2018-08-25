@@ -151,7 +151,7 @@ bool AnalyseTestData::analyseSampleStart(void)
     else qDebug() << "AnalyseTestData::analyseSampleStart(): Reading in 16-bit format";
 
     // Open the input sample
-    inputSample = new InputSample(this, inputFilename, isInputTenBit);
+    inputSample = new InputSample(nullptr, inputFilename, isInputTenBit);
 
     // Is the input sample valid?
     if (!inputSample->isInputSampleValid()) {
@@ -159,7 +159,7 @@ bool AnalyseTestData::analyseSampleStart(void)
         qDebug() << "AnalyseTestData::analyseSampleStart(): Could not open input sample file!";
 
         // Destroy the input sample object
-        inputSample = nullptr;
+        inputSample->deleteLater();
         return false;
     }
 
@@ -244,7 +244,7 @@ bool AnalyseTestData::analyseSampleProcess(void)
 void AnalyseTestData::analyseSampleStop(void)
 {
     // Destroy the input sample object
-    inputSample = nullptr;
+    inputSample->deleteLater();
 }
 
 // Analyse the test data for integrity

@@ -159,7 +159,7 @@ bool FileConverter::convertSampleStart(void)
     else qDebug() << "FileConverter::convertSampleStart(): Writing in 16-bit format";
 
     // Open the input sample
-    inputSample = new InputSample(this, inputFilename, isInputTenBit);
+    inputSample = new InputSample(nullptr, inputFilename, isInputTenBit);
 
     // Is the input sample valid?
     if (!inputSample->isInputSampleValid()) {
@@ -167,7 +167,7 @@ bool FileConverter::convertSampleStart(void)
         qDebug() << "AnalyseTestData::analyseSampleStart(): Could not open input sample file!";
 
         // Destroy the input sample object
-        inputSample = nullptr;
+        inputSample->deleteLater();
         return false;
     }
 
@@ -247,7 +247,7 @@ bool FileConverter::convertSampleProcess(void)
 void FileConverter::convertSampleStop(void)
 {
     // Destroy the input sample object
-    inputSample = nullptr;
+    inputSample->deleteLater();
 
     // Close the output sample file
     closeOutputSample();
