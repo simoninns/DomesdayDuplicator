@@ -327,6 +327,7 @@
     <property name="title">
      <string>Analysis</string>
     </property>
+    <addaction name="separator"/>
     <addaction name="actionVerify_test_data"/>
    </widget>
    <addaction name="menuFile"/>

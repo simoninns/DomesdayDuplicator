@@ -36,6 +36,7 @@
 #include "about.h"
 #include "sampledetails.h"
 #include "fileconverter.h"
+#include "analysetestdata.h"
 #include "progressdialog.h"
 
 namespace Ui {
@@ -57,13 +58,18 @@ private slots:
     void on_actionSave_As_16_bit_triggered();
     void on_actionQuit_triggered();
     void on_actionAbout_triggered();
+    void on_actionVerify_test_data_triggered();
 
     void on_startTimeEdit_userTimeChanged(const QTime &startTime);
     void on_endTimeEdit_userTimeChanged(const QTime &endTime);
 
-    void percentageProcessedSignalHandler(qint32 percentage);
-    void completedSignalHandler(void);
-    void cancelledSignalHandler(void);
+    void conversionPercentageProcessedSignalHandler(qint32 percentage);
+    void conversionCompletedSignalHandler(void);
+    void conversionCancelledSignalHandler(void);
+
+    void analyseTestDataPercentageProcessedSignalHandler(qint32 percentage);
+    void analyseTestDataCompletedSignalHandler(void);
+    void analyseTestDataCancelledSignalHandler(void);
 
 private:
     Ui::MainWindow *ui;
@@ -74,8 +80,10 @@ private:
     QString inputFilename;
     QString outputFilename;
     About *aboutDialogue;
-    ProgressDialog *progressDialog;
+    ProgressDialog *conversionProgressDialog;
+    ProgressDialog *analyseTestDataProgressDialog;
     FileConverter fileConverter;
+    AnalyseTestData analyseTestData;
     SampleDetails *sampleDetails;
 };
 

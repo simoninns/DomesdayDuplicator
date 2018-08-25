@@ -28,14 +28,18 @@ SOURCES += \
     about.cpp \
     fileconverter.cpp \
     progressdialog.cpp \
-    sampledetails.cpp
+    sampledetails.cpp \
+    analysetestdata.cpp \
+    inputsample.cpp
 
 HEADERS += \
         mainwindow.h \
     about.h \
     fileconverter.h \
     progressdialog.h \
-    sampledetails.h
+    sampledetails.h \
+    analysetestdata.h \
+    inputsample.h
 
 FORMS += \
         mainwindow.ui \

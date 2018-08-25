@@ -104,8 +104,8 @@ void FileConverter::run()
                 // Calculate the completion percentage
                 percentageCompleteReal = (100 / static_cast<qreal>(samplesToConvertTs)) * static_cast<qreal>(numberOfSampleProcessedTs);
                 percentageComplete = static_cast<qint32>(percentageCompleteReal);
-                //qDebug() << "FileConverter::run():" << percentageComplete << "% processed";
-                //qDebug() << "FileConverter::run(): Processed" << numberOfSampleProcessedTs << "of" << samplesToConvertTs;
+                qDebug() << "FileConverter::run(): Processed" << numberOfSampleProcessedTs << "of" <<
+                            samplesToConvertTs << "(" << percentageComplete << "%)";
 
                 // Emit a signal showing the progress
                 emit percentageProcessed(percentageComplete);
@@ -158,10 +158,16 @@ bool FileConverter::convertSampleStart(void)
     if (isOutputTenBitTs) qDebug() << "FileConverter::convertSampleStart(): Writing in 10-bit format";
     else qDebug() << "FileConverter::convertSampleStart(): Writing in 16-bit format";
 
-    // Open the input sample file
-    if (!openInputSample(inputFilenameTs)) {
+    // Open the input sample
+    inputSample = new InputSample(this, inputFilename, isInputTenBit);
+
+    // Is the input sample valid?
+    if (!inputSample->isInputSampleValid()) {
         // Opening input sample failed!
-        qDebug() << "FileConverter::convertSampleStart(): Could not open input sample file!";
+        qDebug() << "AnalyseTestData::analyseSampleStart(): Could not open input sample file!";
+
+        // Destroy the input sample object
+        inputSample = nullptr;
         return false;
     }
 
@@ -172,17 +178,12 @@ bool FileConverter::convertSampleStart(void)
         return false;
     }
 
-    // Determine the size on disc and number of samples for the input sample
-    sizeOnDiscTs = inputSampleFileHandleTs->size();
-    if (isInputTenBit) numberOfSamplesInInputFileTs = (sizeOnDiscTs / 5) * 4;
-    else numberOfSamplesInInputFileTs = sizeOnDiscTs / 2;
-
     // Reset the processed sample counter
     numberOfSampleProcessedTs = 0;
 
     // Calculate the start and end samples based on the QTime parameters and a sample
     // rate of 40,000,000 samples per second
-    qint32 durationSeconds = static_cast<qint32>(numberOfSamplesInInputFileTs / 40000000);
+    qint32 durationSeconds = static_cast<qint32>(inputSample->getNumberOfSamples() / 40000000);
     qint32 startSeconds = QTime(0, 0, 0).secsTo(startTimeTs);
     qint32 endSeconds = QTime(0, 0, 0).secsTo(endTimeTs);
 
@@ -192,7 +193,7 @@ bool FileConverter::convertSampleStart(void)
     // If the endSeconds is the same as the durationSeconds, set the end sample
     // to the total number of samples in the input file (to prevent clipping due
     // to rounding errors)
-    if (endSeconds == durationSeconds) endSampleTs = numberOfSamplesInInputFileTs;
+    if (endSeconds == durationSeconds) endSampleTs = inputSample->getNumberOfSamples();
     samplesToConvertTs = endSampleTs - startSampleTs;
 
     qDebug() << "FileConverter::convertSampleStart(): startSeconds =" << startSeconds <<
@@ -200,11 +201,8 @@ bool FileConverter::convertSampleStart(void)
     qDebug() << "FileConverter::convertSampleStart(): startSample =" << startSampleTs <<
                 "endSample =" << endSampleTs << "samples to convert =" << samplesToConvertTs;
 
-    // Move the file position to the start sample
-    if (startSampleTs != 0) {
-        if (isInputTenBitTs) inputSampleFileHandleTs->seek(samplesToTenBitBytes(startSampleTs));
-        else inputSampleFileHandleTs->seek(samplesToSixteenBitBytes(startSampleTs));
-    }
+    // Move the sample position to the start sample
+    if (startSampleTs != 0) inputSample->seek(startSampleTs);
 
     // Return success
     return true;
@@ -216,8 +214,12 @@ bool FileConverter::convertSampleProcess(void)
     // Define a sample buffer for the transfer of data
     QVector<quint16> sampleBuffer;
 
-    // Read the input sample
-    sampleBuffer = readInputSample(102400, isInputTenBitTs);
+    // Read the input sample data
+    qint32 maximumBufferSize = 102400000;
+    if ((numberOfSampleProcessedTs + maximumBufferSize) >= samplesToConvertTs)
+        maximumBufferSize = static_cast<qint32>(samplesToConvertTs - numberOfSampleProcessedTs);
+
+    sampleBuffer = inputSample->read(maximumBufferSize);
     numberOfSampleProcessedTs += sampleBuffer.size();
 
     // Did we get data?
@@ -232,7 +234,8 @@ bool FileConverter::convertSampleProcess(void)
 
     // Have we finished processing all the samples?
     if (numberOfSampleProcessedTs >= samplesToConvertTs) {
-        qDebug() << "FileConverter::convertSampleProcess():" << numberOfSampleProcessedTs << "of" << samplesToConvertTs << "converted. Done.";
+        qDebug() << "FileConverter::convertSampleProcess():" << numberOfSampleProcessedTs << "of"
+                 << samplesToConvertTs << "converted. Done.";
         return false;
     }
 
@@ -243,39 +246,11 @@ bool FileConverter::convertSampleProcess(void)
 // Close the sample files and clean up
 void FileConverter::convertSampleStop(void)
 {
-    // Close the input sample file
-    closeInputSample();
+    // Destroy the input sample object
+    inputSample = nullptr;
 
     // Close the output sample file
     closeOutputSample();
-}
-
-// Opens the input RF sample
-// Returns 'true' on success
-bool FileConverter::openInputSample(QString filename)
-{
-    // Open input sample file for reading
-    inputSampleFileHandleTs = new QFile(filename);
-    if (!inputSampleFileHandleTs->open(QIODevice::ReadOnly)) {
-        // Failed to open input sample file
-        qDebug() << "FileConverter::openinputSample(): Could not open " << filename << "as input sample file";
-        return false;
-    }
-
-    return true;
-}
-
-// Close the input RF sample
-void FileConverter::closeInputSample(void)
-{
-    // Is a sample file open?
-    if (inputSampleFileHandleTs != nullptr) {
-        qDebug() << "FileConverter::closeInputSample(): Closing input sample file";
-        inputSampleFileHandleTs->close();
-    }
-
-    // Clear the file handle pointer
-    inputSampleFileHandleTs = nullptr;
 }
 
 // Open the output RF sample
@@ -304,144 +279,6 @@ void FileConverter::closeOutputSample(void)
 
     // Clear the file handle pointer
     outputSampleFileHandleTs = nullptr;
-}
-
-// Read the input sample data and unpack into a quint16 vector
-QVector<quint16> FileConverter::readInputSample(qint32 maximumSamples, bool isTenbit)
-{
-    // Only set this to true if you want huge amounts of debug from this method.
-    bool fullDebug = false;
-
-    // Prepare the sample buffer (which stores the unpacked 10-bit data)
-    QVector<quint16> sampleBuffer;
-
-    // If the remaining samples to be processed is less than the maximum buffer
-    // allowed, set the maximum to the number of remaining samples.
-    if ((numberOfSampleProcessedTs + maximumSamples) >= samplesToConvertTs) {
-        // Request the remaining samples only
-        maximumSamples = static_cast<qint32>(samplesToConvertTs - numberOfSampleProcessedTs);
-        qDebug() << "FileConverter::readInputSample(): Reducing input buffer size as there are only" <<
-                    maximumSamples << "samples left to process";
-    }
-
-    // Request the maximum allowed
-    sampleBuffer.resize(maximumSamples);
-
-    if (fullDebug) qDebug() << "FileConverter::readInputSample(): Requesting" <<
-                               maximumSamples << "samples from input file";
-
-    // Is the input data 10-bit or 16-bit?
-    if (isTenbit) {
-        // Prepare the packed sample buffer (which stores the packed 10-bit data byte stream)
-        // There are 4 10-bit samples per 5 bytes of data (5 * 8 = 40 bits)
-        QVector<quint8> packedSampleBuffer;
-        packedSampleBuffer.resize(static_cast<qint32>(samplesToTenBitBytes(maximumSamples)));
-        if (fullDebug) qDebug() << "FileConverter::readInputSample(): Requesting" << samplesToTenBitBytes(maximumSamples) << "bytes from input file";
-
-        // Read the input sample file into the packed sample buffer
-        qint64 totalReceivedBytes = 0;
-        qint64 receivedBytes = 0;
-        do {
-            receivedBytes = inputSampleFileHandleTs->read(reinterpret_cast<char *>(packedSampleBuffer.data()),
-                                                        samplesToTenBitBytes(maximumSamples));
-            if (receivedBytes > 0) totalReceivedBytes += receivedBytes;
-        } while (receivedBytes > 0 && totalReceivedBytes < samplesToTenBitBytes(maximumSamples));
-        if (fullDebug) qDebug() << "FileConverter::readInputSample(): Got a total of" << totalReceivedBytes << "bytes from input file";
-
-        // Did we run out of sample data before filling the buffer?
-        if (receivedBytes == 0) {
-            // End of file was reached before filling buffer - adjust maximum
-            if (fullDebug) qDebug() << "FileConverter::readInputSample(): Reached end of file before filling buffer";
-
-            if (totalReceivedBytes == 0) {
-                // We didn't get any data at all...
-                qDebug() << "FileConverter::readInputSample(): Zero data received - nothing to do";
-                sampleBuffer.resize(0);
-                return sampleBuffer;
-            }
-
-            // Adjust buffers according to the received number of samples
-            packedSampleBuffer.resize(static_cast<qint32>(totalReceivedBytes));
-            sampleBuffer.resize(static_cast<qint32>(tenBitBytesToSamples(packedSampleBuffer.size())));
-        }
-
-        // Unpack the packed sample buffer into the sample buffer
-        // Process the buffer 5 bytes at a time
-        qint32 sampleBufferPointer = 0;
-
-        if (fullDebug) {
-            qDebug() << "FileConverter::readInputSample(): Unpacking 10-bit sample data...";
-            qDebug() << "FileConverter::readInputSample(): PackedSampleBuffer size (qint8) =" << packedSampleBuffer.size();
-            qDebug() << "FileConverter::readInputSample(): sampleBuffer size (quint16) =" << sampleBuffer.size();
-        }
-        for (qint32 bytePointer = 0; bytePointer < packedSampleBuffer.size(); bytePointer += 5) {
-            // Unpack the 5 bytes into 4x 10-bit values (stored in 16-bit unsigned vector)
-
-            // Unpacked:                 Packed:
-            // 0: xxxx xx00 0000 0000    0: 0000 0000 0011 1111
-            // 1: xxxx xx11 1111 1111    2: 1111 2222 2222 2233
-            // 2: xxxx xx22 2222 2222    4: 3333 3333
-            // 3: xxxx xx33 3333 3333
-
-            sampleBuffer[sampleBufferPointer + 0]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 0]) << 2);
-            sampleBuffer[sampleBufferPointer + 0] += static_cast<quint16>(packedSampleBuffer[bytePointer + 1] & 0xC0) >> 6;
-
-            sampleBuffer[sampleBufferPointer + 1]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 1] & 0x3F) << 4);
-            sampleBuffer[sampleBufferPointer + 1] += static_cast<quint16>(packedSampleBuffer[bytePointer + 2] & 0xF0) >> 4;
-
-            sampleBuffer[sampleBufferPointer + 2]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 2] & 0x0F) << 6);
-            sampleBuffer[sampleBufferPointer + 2] += static_cast<quint16>(packedSampleBuffer[bytePointer + 3] & 0xFC) >> 2;
-
-            sampleBuffer[sampleBufferPointer + 3]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 3] & 0x03) << 8);
-            sampleBuffer[sampleBufferPointer + 3] += static_cast<quint16>(packedSampleBuffer[bytePointer + 4]);
-
-            // Increment the sample buffer pointer
-            sampleBufferPointer += 4;
-        }
-    } else {
-        // Prepare the input sample buffer (which stores the signed, scaled 16-bit word stream)
-        QVector<qint16> signedSampleBuffer;
-        signedSampleBuffer.resize(maximumSamples);
-        if (fullDebug) qDebug() << "FileConverter::readInputSample(): Requesting" << samplesToSixteenBitBytes(maximumSamples) << "bytes from input file";
-
-        // Read the input sample file into the signed sample buffer
-        qint64 totalReceivedBytes = 0;
-        qint64 receivedBytes = 0;
-        do {
-            receivedBytes = inputSampleFileHandleTs->read(reinterpret_cast<char *>(signedSampleBuffer.data()),
-                                                        samplesToSixteenBitBytes(maximumSamples));
-            if (receivedBytes > 0) totalReceivedBytes += receivedBytes;
-        } while (receivedBytes > 0 && totalReceivedBytes < samplesToSixteenBitBytes(maximumSamples));
-        if (fullDebug) qDebug() << "RfSample::readInputSample(): Got a total of" << totalReceivedBytes << "bytes from input file";
-
-        // Did we run out of sample data before filling the buffer?
-        if (receivedBytes == 0) {
-            // End of file was reached before filling buffer - adjust maximum
-            if (fullDebug) qDebug() << "FileConverter::readInputSample(): Reached end of file before filling buffer";
-
-            if (totalReceivedBytes == 0) {
-                // We didn't get any data at all...
-                qDebug() << "FileConverter::readInputSample(): Zero data received - nothing to do";
-                sampleBuffer.resize(0);
-                return sampleBuffer;
-            }
-
-            // Adjust buffers according to the received number of samples
-            signedSampleBuffer.resize(static_cast<qint32>(sixteenBitBytesToSamples(static_cast<qint32>(totalReceivedBytes))));
-            sampleBuffer.resize(signedSampleBuffer.size());
-        }
-
-        // Convert the 16-bit signed samples into the sample buffer (into unsigned 10-bit values)
-        if (fullDebug) {
-            qDebug() << "FileConverter::readInputSample(): Converting 16-bit sample data...";
-        }
-        for (qint32 samplePointer = 0; samplePointer < signedSampleBuffer.size(); samplePointer++) {
-            sampleBuffer[samplePointer] = static_cast<quint16>((signedSampleBuffer[samplePointer] / 64) + 512);
-
-        }
-    }
-
-    return sampleBuffer;
 }
 
 // Write the output sample data from a quint16 vector
@@ -520,8 +357,6 @@ bool FileConverter::writeOutputSample(QVector<quint16> sampleBuffer, bool isTenB
     return true;
 }
 
-// Conversion methods to make the rest of the code a little more readable ---------------------------------------------
-
 // This function takes a number of samples and returns the number
 // of bytes required to store the same number of samples as 10-bit
 // packed values
@@ -529,28 +364,4 @@ qint64 FileConverter::samplesToTenBitBytes(qint64 numberOfSamples)
 {
     // Every 4 samples requires 5 bytes
     return (numberOfSamples / 4) * 5;
-}
-
-// This function takes a number of bytes and returns the number
-// of samples it represents (after 10-bit unpacking)
-qint64 FileConverter::tenBitBytesToSamples(qint64 numberOfBytes)
-{
-    // Every 5 bytes equals 4 samples
-    return (numberOfBytes / 5) * 4;
-}
-
-// This function takes a number of samples and returns the number
-// of bytes it represents (as 16-bit words)
-qint64 FileConverter::samplesToSixteenBitBytes(qint64 numberOfSamples)
-{
-    // Every sample requires 2 bytes
-    return numberOfSamples * 2;
-}
-
-// This function takes a number of bytes and returns the number
-// of 16-bit samples it represents
-qint64 FileConverter::sixteenBitBytesToSamples(qint64 numberOfBytes)
-{
-    // Every 2 bytes equals 1 sample
-    return numberOfBytes / 2;
 }
