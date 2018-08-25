@@ -26,16 +26,16 @@ SOURCES += \
         main.cpp \
         mainwindow.cpp \
     about.cpp \
-    rfsample.cpp \
     fileconverter.cpp \
-    progressdialog.cpp
+    progressdialog.cpp \
+    sampledetails.cpp
 
 HEADERS += \
         mainwindow.h \
     about.h \
-    rfsample.h \
     fileconverter.h \
-    progressdialog.h
+    progressdialog.h \
+    sampledetails.h
 
 FORMS += \
         mainwindow.ui \

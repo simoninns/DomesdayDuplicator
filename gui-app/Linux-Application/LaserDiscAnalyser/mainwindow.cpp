@@ -40,7 +40,7 @@ MainWindow::MainWindow(QWidget *parent) :
     progressDialog = new ProgressDialog(this);
 
     // Create the RF sample object
-    rfSample = new RfSample();
+    sampleDetails = new SampleDetails();
 
     // Connect to the signals from the file converter thread
     connect(&fileConverter, &FileConverter::percentageProcessed, this, &MainWindow::percentageProcessedSignalHandler);
@@ -95,10 +95,10 @@ void MainWindow::inputFileSpecified(void)
 
     // Input file options
     ui->filenameLineEdit->setText(inputFilename);
-    ui->numberOfSamplesLabel->setText(QString::number(rfSample->getNumberOfSamples()));
-    ui->sizeOnDiscLabel->setText(rfSample->getSizeOnDisc());
-    ui->durationLabel->setText(rfSample->getDurationString());
-    if (rfSample->getInputFileFormat()) ui->dataFormatLabel->setText(tr("10-bit packed data sample"));
+    ui->numberOfSamplesLabel->setText(QString::number(sampleDetails->getNumberOfSamples()));
+    ui->sizeOnDiscLabel->setText(sampleDetails->getSizeOnDisc());
+    ui->durationLabel->setText(sampleDetails->getDurationString());
+    if (sampleDetails->getInputFileFormat()) ui->dataFormatLabel->setText(tr("10-bit packed data sample"));
     else ui->dataFormatLabel->setText(tr("16-bit scaled data sample"));
 
     // Output file options
@@ -108,7 +108,7 @@ void MainWindow::inputFileSpecified(void)
     // Set the initial time-span for the sample (ensure the duration is a
     // minimum of 1 second.
     ui->startTimeEdit->setTime(QTime(0,0));
-    qint32 durationInSeconds = static_cast<qint32>(rfSample->getNumberOfSamples() / 40000000);
+    qint32 durationInSeconds = static_cast<qint32>(sampleDetails->getNumberOfSamples() / 40000000);
     if (durationInSeconds < 1) durationInSeconds = 1;
     ui->endTimeEdit->setTime(QTime(0,0).addSecs(durationInSeconds));
 }
@@ -126,9 +126,9 @@ void MainWindow::on_actionOpen_10_bit_File_triggered()
     // Was a filename specified?
     if (!inputFilename.isEmpty() && !inputFilename.isNull()) {
         // Get the 10-bit sample details
-        if (rfSample->getInputSampleDetails(inputFilename, true)) {
+        if (sampleDetails->getInputSampleDetails(inputFilename, true)) {
             // Ensure that the input file is not empty
-            if (rfSample->getNumberOfSamples() >= 40000000) {
+            if (sampleDetails->getNumberOfSamples() >= 40000000) {
                 // Update the GUI (success)
                 inputFileSpecified();
             } else {
@@ -159,9 +159,9 @@ void MainWindow::on_actionOpen_16_bit_File_triggered()
     // Was a filename specified?
     if (!inputFilename.isEmpty() && !inputFilename.isNull()) {
         // Get the 16-bit sample details
-        if (rfSample->getInputSampleDetails(inputFilename, false)) {
+        if (sampleDetails->getInputSampleDetails(inputFilename, false)) {
             // Ensure that the input file is not empty
-            if (rfSample->getNumberOfSamples() >= 40000000) {
+            if (sampleDetails->getNumberOfSamples() >= 40000000) {
                 // Update the GUI (success)
                 inputFileSpecified();
             } else {
@@ -199,7 +199,7 @@ void MainWindow::on_actionSave_As_10_bit_triggered()
             progressDialog->setText(tr("Saving sample as 10-bit packed data..."));
             fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
                                                        ui->startTimeEdit->time(), ui->endTimeEdit->time(),
-                                                       rfSample->getInputFileFormat(), true);
+                                                       sampleDetails->getInputFileFormat(), true);
             progressDialog->exec(); // Exec causes the main window to be disabled
         } else {
             // Show an error
@@ -227,7 +227,7 @@ void MainWindow::on_actionSave_As_16_bit_triggered()
             progressDialog->setText(tr("Saving sample as 16-bit signed data..."));
             fileConverter.convertInputFileToOutputFile(inputFilename, outputFilename,
                                                        ui->startTimeEdit->time(), ui->endTimeEdit->time(),
-                                                       rfSample->getInputFileFormat(), false);
+                                                       sampleDetails->getInputFileFormat(), false);
             progressDialog->exec(); // Exec causes the main window to be disabled
         } else {
             // Show an error
@@ -277,8 +277,8 @@ void MainWindow::on_endTimeEdit_userTimeChanged(const QTime &endTime)
     qint32 endTimeSec= QTime(0, 0, 0).secsTo(endTime);
 
     // endTime should be equal or less than the sample duration
-    if (endTimeSec > rfSample->getDurationSeconds()) {
-        ui->endTimeEdit->setTime(QTime(0, 0, 0).addSecs(rfSample->getDurationSeconds()));
+    if (endTimeSec > sampleDetails->getDurationSeconds()) {
+        ui->endTimeEdit->setTime(QTime(0, 0, 0).addSecs(sampleDetails->getDurationSeconds()));
     }
 
     // End time should be at least 1 second greater than start time

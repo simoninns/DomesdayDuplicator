@@ -1,6 +1,6 @@
 /************************************************************************
 
-    rfsample.h
+    sampledetails.h
 
     RF Sample analyser for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
@@ -25,19 +25,19 @@
 
 ************************************************************************/
 
-#ifndef RFSAMPLE_H
-#define RFSAMPLE_H
+#ifndef SAMPLEDETAILS_H
+#define SAMPLEDETAILS_H
 
 #include <QObject>
 #include <QFile>
 #include <QDebug>
 #include <QDateTime>
 
-class RfSample
+class SampleDetails
 {
 
 public:
-    RfSample(void);
+    SampleDetails(void);
     bool getInputSampleDetails(QString inputFilename, bool isTenBit);
 
     QString getSizeOnDisc(void);
