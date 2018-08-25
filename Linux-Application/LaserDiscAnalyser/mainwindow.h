@@ -70,6 +70,7 @@ private slots:
     void analyseTestDataPercentageProcessedSignalHandler(qint32 percentage);
     void analyseTestDataCompletedSignalHandler(void);
     void analyseTestDataCancelledSignalHandler(void);
+    void analyseTestDataTestFailedSignalHandler(void);
 
 private:
     Ui::MainWindow *ui;

@@ -50,9 +50,10 @@ MainWindow::MainWindow(QWidget *parent) :
     // Connect to the cancelled signal from the progress dialogue
     connect(conversionProgressDialog, &ProgressDialog::cancelled, this, &MainWindow::conversionCancelledSignalHandler);
 
-    // Connect to the signals from the file converter thread
+    // Connect to the signals from the analyse test data thread
     connect(&analyseTestData, &AnalyseTestData::percentageProcessed, this, &MainWindow::analyseTestDataPercentageProcessedSignalHandler);
     connect(&analyseTestData, &AnalyseTestData::completed, this, &MainWindow::analyseTestDataCompletedSignalHandler);
+    connect(&analyseTestData, &AnalyseTestData::testFailed, this, &MainWindow::analyseTestDataTestFailedSignalHandler);
 
     // Connect to the cancelled signal from the progress dialogue
     connect(analyseTestDataProgressDialog, &ProgressDialog::cancelled, this, &MainWindow::analyseTestDataCancelledSignalHandler);
@@ -314,6 +315,8 @@ void MainWindow::on_actionVerify_test_data_triggered()
 
 // Signal handlers ----------------------------------------------------------------------------------------------------
 
+// FileConverter class:
+
 // Handle the percentage processed signal sent by the file converter thread
 void MainWindow::conversionPercentageProcessedSignalHandler(qint32 percentage)
 {
@@ -335,18 +338,25 @@ void MainWindow::conversionCancelledSignalHandler(void)
     fileConverter.cancelConversion();
 }
 
-// Handle the percentage processed signal sent by the analyse test data thread
+// AnalyseTestData class:
+
+// Handle the percentage processed signal sent by the test data analyser thread
 void MainWindow::analyseTestDataPercentageProcessedSignalHandler(qint32 percentage)
 {
     // Update the process dialogue
     analyseTestDataProgressDialog->setPercentage(percentage);
 }
 
-// Handle the conversion completed signal sent by the file converter thread
+// Handle the conversion completed signal sent by the test data analyser thread
 void MainWindow::analyseTestDataCompletedSignalHandler(void)
 {
     // Hide the process dialogue (re-enables main window)
     analyseTestDataProgressDialog->hide();
+
+    // Show a message
+    QMessageBox messageBox;
+    messageBox.information(this, "Success","Test data check successful!");
+    messageBox.setFixedSize(500, 200);
 }
 
 // Handle the progress dialogue cancelled signal sent by the progress dialogue
@@ -356,4 +366,15 @@ void MainWindow::analyseTestDataCancelledSignalHandler(void)
     analyseTestData.cancelAnalysis();
 }
 
+// Handle the test failed signal from the test data analyser
+void MainWindow::analyseTestDataTestFailedSignalHandler(void)
+{
+    // Hide the process dialogue (re-enables main window)
+    analyseTestDataProgressDialog->hide();
+
+    // Show an error
+    QMessageBox messageBox;
+    messageBox.critical(this, "Error","Test data failed integrity check!");
+    messageBox.setFixedSize(500, 200);
+}
 

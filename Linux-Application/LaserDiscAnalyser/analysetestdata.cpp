@@ -115,8 +115,9 @@ void AnalyseTestData::run()
             cancel = false;
         }
 
-        // Emit a signal showing the analysis is complete
-        emit completed();
+        // Emit a signal showing the analysis is complete if the test was successful
+        // (otherwise the testFailed signal indicates completion)
+        if (testSuccessful) emit completed();
 
         // Sleep the thread until we are restarted
         mutex.lock();
@@ -188,6 +189,11 @@ bool AnalyseTestData::analyseSampleStart(void)
     // Move the sample position to the start sample
     if (startSampleTs != 0) inputSample->seek(startSampleTs);
 
+    // Reset the current expected value
+    currentValue = 0;
+    firstTest = true;
+    testSuccessful = true;
+
     // Return success
     return true;
 }
@@ -208,8 +214,15 @@ bool AnalyseTestData::analyseSampleProcess(void)
 
     // Did we get data?
     if (sampleBuffer.size() > 0) {
-        // TODO ANALYSE THE INPUT SAMPLE HERE
-        qDebug() << "AnalyseTestData::analyseSampleProcess(): Data analysis not implemented yet...";
+        // Test the data
+        qDebug() << "AnalyseTestData::analyseSampleProcess(): Checking data integrity...";
+        if (!analyseDataIntegrity(sampleBuffer)) {
+            // Test failed
+            emit testFailed();
+            testSuccessful = false;
+            return false;
+        }
+
     } else {
         // No sample data left, return false
         qDebug() << "AnalyseTestData::analyseSampleProcess(): No more data to analyse";
@@ -232,6 +245,34 @@ void AnalyseTestData::analyseSampleStop(void)
 {
     // Destroy the input sample object
     inputSample = nullptr;
+}
+
+// Analyse the test data for integrity
+bool AnalyseTestData::analyseDataIntegrity(QVector<quint16> sample)
+{
+    bool result = true;
+
+    for (qint32 pointer = 0; pointer < sample.size(); pointer++) {
+        // If this is the first check, get the current value
+        if (firstTest) {
+            currentValue = sample[pointer];
+            firstTest = false;
+            qDebug() << "AnalyseTestData::analyseDataIntegrity(): Initial value is" << currentValue;
+        } else {
+            if (sample[pointer] != currentValue) {
+                // Bad data
+                qDebug() << "AnalyseTestData::analyseDataIntegrity(): Bad data! Expecting" << currentValue << "got" << sample[pointer] << "instead";
+                result = false;
+                break;
+            }
+        }
+
+        // Increment the current value and range check
+        currentValue++;
+        if (currentValue == 1024) currentValue = 0;
+    }
+
+    return result;
 }
 
 
