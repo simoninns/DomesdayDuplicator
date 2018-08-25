@@ -46,6 +46,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(&fileConverter, &FileConverter::percentageProcessed, this, &MainWindow::percentageProcessedSignalHandler);
     connect(&fileConverter, &FileConverter::completed, this, &MainWindow::completedSignalHandler);
 
+    // Connect to the cancelled signal from the progress dialogue
+    connect(progressDialog, &ProgressDialog::cancelled, this, &MainWindow::cancelledSignalHandler);
+
     // Perform no file loaded actions
     noInputFileSpecified();
 }
@@ -102,9 +105,12 @@ void MainWindow::inputFileSpecified(void)
     ui->startTimeEdit->setEnabled(true);
     ui->endTimeEdit->setEnabled(true);
 
-    // Set the initial time-span for the sample
+    // Set the initial time-span for the sample (ensure the duration is a
+    // minimum of 1 second.
     ui->startTimeEdit->setTime(QTime(0,0));
-    ui->endTimeEdit->setTime(QTime(0,0).addSecs(static_cast<qint32>(rfSample->getNumberOfSamples() / 40000000)));
+    qint32 durationInSeconds = static_cast<qint32>(rfSample->getNumberOfSamples() / 40000000);
+    if (durationInSeconds < 1) durationInSeconds = 1;
+    ui->endTimeEdit->setTime(QTime(0,0).addSecs(durationInSeconds));
 }
 
 // Menu bar action functions ------------------------------------------------------------------------------------------
@@ -121,8 +127,20 @@ void MainWindow::on_actionOpen_10_bit_File_triggered()
     if (!inputFilename.isEmpty() && !inputFilename.isNull()) {
         // Get the 10-bit sample details
         if (rfSample->getInputSampleDetails(inputFilename, true)) {
-            // Update the GUI (success)
-            inputFileSpecified();
+            // Ensure that the input file is not empty
+            if (rfSample->getNumberOfSamples() >= 40000000) {
+                // Update the GUI (success)
+                inputFileSpecified();
+            } else {
+                // Input file is too short!
+
+                // Show an error
+                QMessageBox messageBox;
+                messageBox.critical(this, "Error","Input file must contain at least 1 second of data!");
+                messageBox.setFixedSize(500, 200);
+
+                noInputFileSpecified();
+            }
         } else {
             // Update the GUI (failure)
             noInputFileSpecified();
@@ -142,8 +160,20 @@ void MainWindow::on_actionOpen_16_bit_File_triggered()
     if (!inputFilename.isEmpty() && !inputFilename.isNull()) {
         // Get the 16-bit sample details
         if (rfSample->getInputSampleDetails(inputFilename, false)) {
-            // Update the GUI (success)
-            inputFileSpecified();
+            // Ensure that the input file is not empty
+            if (rfSample->getNumberOfSamples() >= 40000000) {
+                // Update the GUI (success)
+                inputFileSpecified();
+            } else {
+                // Input file is too short!
+
+                // Show an error
+                QMessageBox messageBox;
+                messageBox.critical(this, "Error","Input file must contain at least 1 second of data!");
+                messageBox.setFixedSize(500, 200);
+
+                noInputFileSpecified();
+            }
         } else {
             // Update the GUI (failure)
             noInputFileSpecified();
@@ -222,25 +252,40 @@ void MainWindow::on_actionQuit_triggered()
 void MainWindow::on_actionAbout_triggered()
 {
     // Show the about dialogue
-    aboutDialogue->show();
+    aboutDialogue->exec();
 }
 
 // User changed the sample start time
 void MainWindow::on_startTimeEdit_userTimeChanged(const QTime &startTime)
 {
-    // Ensure that startTime is never greater than end time
-    if (startTime.operator>(ui->endTimeEdit->time())) ui->startTimeEdit->setTime(ui->endTimeEdit->time());
+    // Get the start and end time in seconds
+    qint32 startTimeSec = QTime(0, 0, 0).secsTo(startTime);
+    qint32 endTimeSec= QTime(0, 0, 0).secsTo(ui->endTimeEdit->time());
+
+    // Start time should be at least 1 second less than end time
+    if (startTimeSec > endTimeSec - 1) {
+        startTimeSec = endTimeSec - 1;
+        ui->startTimeEdit->setTime(QTime(0, 0, 0).addSecs(startTimeSec));
+    }
 }
 
 // User changed the sample end time
 void MainWindow::on_endTimeEdit_userTimeChanged(const QTime &endTime)
 {
-    // Ensure that endTime is never less than start time
-    if (endTime.operator<(ui->startTimeEdit->time())) ui->endTimeEdit->setTime(ui->startTimeEdit->time());
+    // Get the start and end time in seconds
+    qint32 startTimeSec = QTime(0, 0, 0).secsTo(ui->startTimeEdit->time());
+    qint32 endTimeSec= QTime(0, 0, 0).secsTo(endTime);
 
-    // Ensure that endTime is never greater than the sample length
-    if (endTime.operator>(QTime(0,0).addSecs(rfSample->getDurationSeconds())))
-        ui->endTimeEdit->setTime(QTime(0,0).addSecs(rfSample->getDurationSeconds()));
+    // endTime should be equal or less than the sample duration
+    if (endTimeSec > rfSample->getDurationSeconds()) {
+        ui->endTimeEdit->setTime(QTime(0, 0, 0).addSecs(rfSample->getDurationSeconds()));
+    }
+
+    // End time should be at least 1 second greater than start time
+    if (endTimeSec < startTimeSec + 1) {
+        endTimeSec = startTimeSec + 1;
+        ui->endTimeEdit->setTime(QTime(0, 0, 0).addSecs(endTimeSec));
+    }
 }
 
 // Signal handlers ----------------------------------------------------------------------------------------------------
@@ -257,4 +302,11 @@ void MainWindow::completedSignalHandler(void)
 {
     // Hide the process dialogue (re-enables main window)
     progressDialog->hide();
+}
+
+// Handle the progress dialogue cancelled signal sent by the progress dialogue
+void MainWindow::cancelledSignalHandler(void)
+{
+    // Cancel the conversion in progress
+    fileConverter.cancelConversion();
 }
