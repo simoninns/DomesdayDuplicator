@@ -213,7 +213,7 @@ QVector<quint16> InputSample::read(qint32 maximumSamples)
             qDebug() << "InputSample::read(): Converting 16-bit sample data...";
         }
         for (qint32 samplePointer = 0; samplePointer < signedSampleBuffer.size(); samplePointer++) {
-            sampleBuffer[samplePointer] = (static_cast<quint16>(signedSampleBuffer[samplePointer]) >> 6) + 512;
+            sampleBuffer[samplePointer] = (static_cast<quint16>(signedSampleBuffer[samplePointer] >> 6) + 512);
         }
     }
 

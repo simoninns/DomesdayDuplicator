@@ -215,7 +215,7 @@ bool AnalyseTestData::analyseSampleProcess(void)
     // Did we get data?
     if (sampleBuffer.size() > 0) {
         // Test the data
-        qDebug() << "AnalyseTestData::analyseSampleProcess(): Checking data integrity...";
+        //qDebug() << "AnalyseTestData::analyseSampleProcess(): Checking data integrity...";
         if (!analyseDataIntegrity(sampleBuffer)) {
             // Test failed
             emit testFailed();
@@ -231,8 +231,8 @@ bool AnalyseTestData::analyseSampleProcess(void)
 
     // Have we finished processing all the samples?
     if (numberOfSampleProcessedTs >= samplesToAnalyseTs) {
-        qDebug() << "AnalyseTestData::analyseSampleProcess():" << numberOfSampleProcessedTs << "of"
-                 << samplesToAnalyseTs << "analysed. Done.";
+        //qDebug() << "AnalyseTestData::analyseSampleProcess():" << numberOfSampleProcessedTs << "of"
+        //         << samplesToAnalyseTs << "analysed. Done.";
         return false;
     }
 
@@ -251,25 +251,29 @@ void AnalyseTestData::analyseSampleStop(void)
 bool AnalyseTestData::analyseDataIntegrity(QVector<quint16> sample)
 {
     bool result = true;
+    qint32 startPointer = 0;
 
-    for (qint32 pointer = 0; pointer < sample.size(); pointer++) {
-        // If this is the first check, get the current value
-        if (firstTest) {
-            currentValue = sample[pointer];
-            firstTest = false;
-            qDebug() << "AnalyseTestData::analyseDataIntegrity(): Initial value is" << currentValue;
-        } else {
-            if (sample[pointer] != currentValue) {
-                // Bad data
-                qDebug() << "AnalyseTestData::analyseDataIntegrity(): Bad data! Expecting" << currentValue << "got" << sample[pointer] << "instead";
-                result = false;
-                break;
-            }
-        }
+    // If this is the first test, get the start test value
+    if (firstTest) {
+        currentValue = sample[0];
+        firstTest = false;
+        startPointer++;
+        //qDebug() << "AnalyseTestData::analyseDataIntegrity(): Initial value is" << currentValue;
+    }
 
+    // Test the data in the buffer
+    for (qint32 pointer = startPointer; pointer < sample.size(); pointer++) {
         // Increment the current value and range check
-        currentValue++;
-        if (currentValue == 1024) currentValue = 0;
+        if (++currentValue > 1023) currentValue = 0;
+        //qDebug() << "sample[" << pointer <<"] =" << sample[pointer] << " currentValue=" << currentValue;
+        // Check if the data is as expected
+        if (sample[pointer] != currentValue) {
+            // Bad data
+            qDebug() << "AnalyseTestData::analyseDataIntegrity(): Bad data! Expecting" << currentValue
+                     << "got" << sample[pointer] << "instead at pointer" << pointer;
+            result = false;
+            break;
+        }
     }
 
     return result;
