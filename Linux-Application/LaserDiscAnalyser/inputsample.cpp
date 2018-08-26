@@ -148,13 +148,9 @@ QVector<quint16> InputSample::read(qint32 maximumSamples)
             qDebug() << "InputSample::read(): PackedSampleBuffer size (qint8) =" << packedSampleBuffer.size();
             qDebug() << "InputSample::read(): sampleBuffer size (quint16) =" << sampleBuffer.size();
         }
-        QTime execTimer;
-        execTimer.start();
-        qint32 bytePointer;
 
         quint8 byte1, byte2, byte3;
-
-        for (bytePointer = 0; bytePointer < packedSampleBuffer.size(); bytePointer += 5) {
+        for (qint32 bytePointer = 0; bytePointer < packedSampleBuffer.size(); bytePointer += 5) {
             // Unpack the 5 bytes into 4x 10-bit values (stored in 16-bit unsigned vector)
 
             // Unpacked:                 Packed:
@@ -178,8 +174,7 @@ QVector<quint16> InputSample::read(qint32 maximumSamples)
             // Increment the sample buffer pointer
             sampleBufferPointer += 4;
         }
-        qint32 nMilliseconds = execTimer.elapsed();
-        qDebug() << "InputSample::read(): Unpacked" << bytePointer << "bytes in" << nMilliseconds << "milliseconds";
+
     } else {
         // Prepare the sample buffer (which stores the signed, scaled 16-bit word stream)
         QVector<qint16> signedSampleBuffer;
@@ -218,7 +213,7 @@ QVector<quint16> InputSample::read(qint32 maximumSamples)
             qDebug() << "InputSample::read(): Converting 16-bit sample data...";
         }
         for (qint32 samplePointer = 0; samplePointer < signedSampleBuffer.size(); samplePointer++) {
-            sampleBuffer[samplePointer] = static_cast<quint16>((signedSampleBuffer[samplePointer] / 64) + 512);
+            sampleBuffer[samplePointer] = (static_cast<quint16>(signedSampleBuffer[samplePointer]) >> 6) + 512;
         }
     }
 
