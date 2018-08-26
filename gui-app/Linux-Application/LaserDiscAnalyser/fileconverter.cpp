@@ -342,7 +342,7 @@ bool FileConverter::writeOutputSample(QVector<quint16> sampleBuffer, bool isTenB
         // Convert sample data
         for (qint32 samplePointer = 0; samplePointer < sampleBuffer.size(); samplePointer++) {
             // -512 from 10-bit data to move centre-point to 0 and then *64 to scale to 16-bit
-            scaledSampleData[samplePointer] = static_cast<qint16>(sampleBuffer[samplePointer] - 512) * 64;
+            scaledSampleData[samplePointer] = static_cast<qint16>((sampleBuffer[samplePointer] - 512) * 64);
         }
 
         // Write the scaled data to the output sample file
