@@ -43,7 +43,7 @@ InputSample::InputSample(QObject *parent, QString fileName, bool isTenBit) : QOb
 
     // Calculate the number of samples based on size and format
     if (sampleIsTenBit) numberOfSamples = tenBitBytesToSamples(sizeOnDisc);
-    else numberOfSamples = sixteenBitBytesToSamples(numberOfSamples);
+    else numberOfSamples = sixteenBitBytesToSamples(sizeOnDisc);
 }
 
 InputSample::~InputSample()
