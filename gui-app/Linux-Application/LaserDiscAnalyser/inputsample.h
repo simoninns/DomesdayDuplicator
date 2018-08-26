@@ -31,6 +31,7 @@
 #include <QObject>
 #include <QFile>
 #include <QDebug>
+#include <QTime>
 
 class InputSample : public QObject
 {
