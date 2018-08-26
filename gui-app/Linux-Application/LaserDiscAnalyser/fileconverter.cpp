@@ -303,15 +303,19 @@ bool FileConverter::writeOutputSample(QVector<quint16> sampleBuffer, bool isTenB
         // 2: xxxx xx22 2222 2222    4: 3333 3333
         // 3: xxxx xx33 3333 3333
 
+        quint16 word0, word1, word2, word3;
         for (qint32 samplePointer = 0; samplePointer < sampleBuffer.size(); samplePointer += 4) {
-            packedSampleBuffer[packedSampleBufferPointer + 0]  = static_cast<quint8>((sampleBuffer[samplePointer + 0] & 0x03FC) >> 2);
-            packedSampleBuffer[packedSampleBufferPointer + 1]  = static_cast<quint8>((sampleBuffer[samplePointer + 0] & 0x0003) << 6);
-            packedSampleBuffer[packedSampleBufferPointer + 1] += static_cast<quint8>((sampleBuffer[samplePointer + 1] & 0x03F0) >> 4);
-            packedSampleBuffer[packedSampleBufferPointer + 2]  = static_cast<quint8>((sampleBuffer[samplePointer + 1] & 0x000F) << 4);
-            packedSampleBuffer[packedSampleBufferPointer + 2] += static_cast<quint8>((sampleBuffer[samplePointer + 2] & 0x03C0) >> 6);
-            packedSampleBuffer[packedSampleBufferPointer + 3]  = static_cast<quint8>((sampleBuffer[samplePointer + 2] & 0x003F) << 2);
-            packedSampleBuffer[packedSampleBufferPointer + 3] += static_cast<quint8>((sampleBuffer[samplePointer + 3] & 0x0300) >> 8);
-            packedSampleBuffer[packedSampleBufferPointer + 4]  = static_cast<quint8>((sampleBuffer[samplePointer + 3] & 0x00FF));
+
+            word0 = sampleBuffer[samplePointer];
+            word1 = sampleBuffer[samplePointer + 1];
+            word2 = sampleBuffer[samplePointer + 2];
+            word3 = sampleBuffer[samplePointer + 3];
+
+            packedSampleBuffer[packedSampleBufferPointer + 0]  = static_cast<quint8>((word0 & 0x03FC) >> 2);
+            packedSampleBuffer[packedSampleBufferPointer + 1]  = static_cast<quint8>(((word0 & 0x0003) << 6) + ((word1 & 0x03F0) >> 4));
+            packedSampleBuffer[packedSampleBufferPointer + 2]  = static_cast<quint8>(((word1 & 0x000F) << 4) + ((word2 & 0x03C0) >> 6));
+            packedSampleBuffer[packedSampleBufferPointer + 3]  = static_cast<quint8>(((word2 & 0x003F) << 2) + ((word3 & 0x0300) >> 8));
+            packedSampleBuffer[packedSampleBufferPointer + 4]  = static_cast<quint8>(word3 & 0x00FF);
 
             // Increment the packed sample buffer pointer
             packedSampleBufferPointer += 5;
@@ -324,7 +328,7 @@ bool FileConverter::writeOutputSample(QVector<quint16> sampleBuffer, bool isTenB
                                       );
 
         if (writeResult == -1) {
-            qDebug() << "RfSample::writeOutputSample(): Writing to 10-bit output sample file failed!";
+            qDebug() << "FileConverter::writeOutputSample(): Writing to 10-bit output sample file failed!";
             return false;
         }
     } else {
@@ -338,7 +342,7 @@ bool FileConverter::writeOutputSample(QVector<quint16> sampleBuffer, bool isTenB
         // Convert sample data
         for (qint32 samplePointer = 0; samplePointer < sampleBuffer.size(); samplePointer++) {
             // -512 from 10-bit data to move centre-point to 0 and then *64 to scale to 16-bit
-            scaledSampleData[samplePointer] = static_cast<qint16>(sampleBuffer[samplePointer] - 512) * 64;
+            scaledSampleData[samplePointer] = static_cast<qint16>((sampleBuffer[samplePointer] - 512) * 64);
         }
 
         // Write the scaled data to the output sample file
