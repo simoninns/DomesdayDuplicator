@@ -43,7 +43,7 @@ InputSample::InputSample(QObject *parent, QString fileName, bool isTenBit) : QOb
 
     // Calculate the number of samples based on size and format
     if (sampleIsTenBit) numberOfSamples = tenBitBytesToSamples(sizeOnDisc);
-    else numberOfSamples = sixteenBitBytesToSamples(numberOfSamples);
+    else numberOfSamples = sixteenBitBytesToSamples(sizeOnDisc);
 }
 
 InputSample::~InputSample()
@@ -118,6 +118,7 @@ QVector<quint16> InputSample::read(qint32 maximumSamples)
             receivedBytes = sampleFileHandle->read(reinterpret_cast<char *>(packedSampleBuffer.data()),
                                                         samplesToTenBitBytes(maximumSamples));
             if (receivedBytes > 0) totalReceivedBytes += receivedBytes;
+            if (fullDebug) qDebug() << "InputSample::read(): Got" << receivedBytes << "bytes from input file";
         } while (receivedBytes > 0 && totalReceivedBytes < samplesToTenBitBytes(maximumSamples));
         if (fullDebug) qDebug() << "InputSample::read(): Got a total of" << totalReceivedBytes << "bytes from input file";
 
@@ -147,6 +148,8 @@ QVector<quint16> InputSample::read(qint32 maximumSamples)
             qDebug() << "InputSample::read(): PackedSampleBuffer size (qint8) =" << packedSampleBuffer.size();
             qDebug() << "InputSample::read(): sampleBuffer size (quint16) =" << sampleBuffer.size();
         }
+
+        quint8 byte1, byte2, byte3;
         for (qint32 bytePointer = 0; bytePointer < packedSampleBuffer.size(); bytePointer += 5) {
             // Unpack the 5 bytes into 4x 10-bit values (stored in 16-bit unsigned vector)
 
@@ -156,21 +159,22 @@ QVector<quint16> InputSample::read(qint32 maximumSamples)
             // 2: xxxx xx22 2222 2222    4: 3333 3333
             // 3: xxxx xx33 3333 3333
 
-            sampleBuffer[sampleBufferPointer + 0]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 0]) << 2);
-            sampleBuffer[sampleBufferPointer + 0] += static_cast<quint16>(packedSampleBuffer[bytePointer + 1] & 0xC0) >> 6;
+            // We copy these bytes to cut down on the slow vector accesses
+            // only for the bytes that are accessed more than once
+            byte1 = (packedSampleBuffer[bytePointer + 1]);
+            byte2 = (packedSampleBuffer[bytePointer + 2]);
+            byte3 = (packedSampleBuffer[bytePointer + 3]);
 
-            sampleBuffer[sampleBufferPointer + 1]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 1] & 0x3F) << 4);
-            sampleBuffer[sampleBufferPointer + 1] += static_cast<quint16>(packedSampleBuffer[bytePointer + 2] & 0xF0) >> 4;
-
-            sampleBuffer[sampleBufferPointer + 2]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 2] & 0x0F) << 6);
-            sampleBuffer[sampleBufferPointer + 2] += static_cast<quint16>(packedSampleBuffer[bytePointer + 3] & 0xFC) >> 2;
-
-            sampleBuffer[sampleBufferPointer + 3]  = static_cast<quint16>(static_cast<quint16>(packedSampleBuffer[bytePointer + 3] & 0x03) << 8);
-            sampleBuffer[sampleBufferPointer + 3] += static_cast<quint16>(packedSampleBuffer[bytePointer + 4]);
+            // Use multiplication instead of left-shift to avoid implicit conversion issues
+            sampleBuffer[sampleBufferPointer]  = (packedSampleBuffer[bytePointer] * 4) + ((byte1 & 0xC0) >> 6);
+            sampleBuffer[sampleBufferPointer + 1]  = ((byte1 & 0x3F) * 16) + ((byte2 & 0xF0) >> 4);
+            sampleBuffer[sampleBufferPointer + 2]  = ((byte2 & 0x0F) * 64) + ((byte3 & 0xFC) >> 2);
+            sampleBuffer[sampleBufferPointer + 3]  = ((byte3 & 0x03) * 256) + packedSampleBuffer[bytePointer + 4];
 
             // Increment the sample buffer pointer
             sampleBufferPointer += 4;
         }
+
     } else {
         // Prepare the sample buffer (which stores the signed, scaled 16-bit word stream)
         QVector<qint16> signedSampleBuffer;
@@ -209,7 +213,7 @@ QVector<quint16> InputSample::read(qint32 maximumSamples)
             qDebug() << "InputSample::read(): Converting 16-bit sample data...";
         }
         for (qint32 samplePointer = 0; samplePointer < signedSampleBuffer.size(); samplePointer++) {
-            sampleBuffer[samplePointer] = static_cast<quint16>((signedSampleBuffer[samplePointer] / 64) + 512);
+            sampleBuffer[samplePointer] = (static_cast<quint16>(signedSampleBuffer[samplePointer] >> 6) + 512);
         }
     }
 
