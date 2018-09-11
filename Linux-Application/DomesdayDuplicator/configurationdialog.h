@@ -1,8 +1,8 @@
 /************************************************************************
 
-    serialportselectdialog.h
+    configurationdialog.h
 
-    QT GUI Capture application for Domesday Duplicator
+    Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
     Copyright (C) 2018 Simon Inns
 
@@ -25,51 +25,38 @@
 
 ************************************************************************/
 
-#ifndef SERIALPORTSELECTDIALOG_H
-#define SERIALPORTSELECTDIALOG_H
+#ifndef CONFIGURATIONDIALOG_H
+#define CONFIGURATIONDIALOG_H
 
 #include <QDialog>
-#include <QDebug>
-#include <QtSerialPort/QSerialPort>
-#include <QtSerialPort/QSerialPortInfo>
+#include <QFileDialog>
+#include "configuration.h"
 
 namespace Ui {
-class serialPortSelectDialog;
+class ConfigurationDialog;
 }
 
-class serialPortSelectDialog : public QDialog
+class ConfigurationDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit serialPortSelectDialog(QWidget *parent = nullptr);
-    ~serialPortSelectDialog();
-    virtual void showEvent(QShowEvent *);
+    explicit ConfigurationDialog(QWidget *parent = nullptr);
+    ~ConfigurationDialog();
 
-    qint16 getBaudRate(void);
-    QString getPortName(void);
-    bool isConfigured(void);
+    void loadConfiguration(Configuration *configuration);
+    void saveConfiguration(Configuration *configuration);
 
 signals:
-    void serialPortChanged(void);
+    void configurationChanged(void);
 
 private slots:
+    void on_captureDirectoryPushButton_clicked();
     void on_buttonBox_accepted();
+    void on_buttonBox_rejected();
 
 private:
-    Ui::serialPortSelectDialog *ui;
-
-    struct Settings {
-        QString name;
-        qint16 baudRate;
-        bool configured;
-    };
-
-    Settings currentSettings;
-
-    void fillPortsInfo();
-    void updateSettings();
-
+    Ui::ConfigurationDialog *ui;
 };
 
-#endif // SERIALPORTSELECTDIALOG_H
+#endif // CONFIGURATIONDIALOG_H

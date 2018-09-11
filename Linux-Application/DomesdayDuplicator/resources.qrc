@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/graphics/logo">
+        <file alias="Domesday Duplicator logo">Graphics/Domesday Duplicator logo colour 250px.png</file>
+    </qresource>
+</RCC>
