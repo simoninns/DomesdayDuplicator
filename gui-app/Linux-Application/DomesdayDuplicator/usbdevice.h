@@ -2,7 +2,7 @@
 
     usbdevice.h
 
-    QT GUI Capture application for Domesday Duplicator
+    Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
     Copyright (C) 2018 Simon Inns
 
@@ -25,67 +25,46 @@
 
 ************************************************************************/
 
-
 #ifndef USBDEVICE_H
 #define USBDEVICE_H
 
 #include <QObject>
 #include <QDebug>
-#include "QtUsb/qusb.h"
+#include <QThread>
+#include <QWaitCondition>
 
-const quint8 USB_PIPE_IN = 0x81;        // Bulk output endpoint for responses
-const quint8 USB_PIPE_OUT = 0x01;       // Bulk input endpoint for commands
-const quint16 USB_TIMEOUT_MSEC = 300;   // USB timeout in microseconds
+#include <libusb-1.0/libusb.h>
 
-// VID and PID of the Domesday Duplicator USB device
-#define VID 0x1D50
-#define PID 0x603B
-
-// VID and PID of the Cypress FX3 USB device (useful for testing)
-//#define VID 0x04B4
-//#define PID 0x00F1
-
-class usbDevice : public QObject
+class UsbDevice : public QThread
 {
     Q_OBJECT
 public:
-    explicit usbDevice(QObject *parent = nullptr);
-    ~usbDevice(void);
-    bool isConnected(void);
+    explicit UsbDevice(QObject *parent = nullptr, quint16 vid = 0x1D50, quint16 pid = 0x603B);
+    ~UsbDevice() override;
 
-    void setupDevice(void);
-    bool openDevice(void);
-    bool closeDevice(void);
-    void readFromDevice(QByteArray *buf);
-    void writeToDevice(QByteArray *buf);
-
-    void sendVendorSpecificCommand(quint16 command, quint16 value);
-
-    void startBulkRead(QString fileName, bool isTenBit);
-    void stopBulkRead(void);
-
-    quint32 getPacketCounter(void);
-    quint32 getPacketSize(void);
-    quint32 getTransferPerformance(void);
-    quint32 getAvailableDiskBuffers(void);
-    quint32 getNumberOfDiskBuffers(void);
+    bool scanForDevice(void);
+    void sendConfigurationCommand(bool testMode);
 
 signals:
-    void statusChanged(bool);
+    void deviceAttached(void);
+    void deviceDetached(void);
 
 public slots:
-    void onDevInserted(QtUsb::FilterList list);
-    void onDevRemoved(QtUsb::FilterList list);
+
+protected slots:
+    void run() override;
+
+protected:
+    libusb_context *libUsbContext;
+    bool threadAbort;
 
 private:
-    QUsbManager mUsbManager;
-    QUsbDevice* domDupDevice;
+    quint16 deviceVid;
+    quint16 devicePid;
 
-    QtUsb::DeviceFilter domDupFilter;
-    QtUsb::DeviceConfig domDupConfig;
-
-    bool deviceConnected;
-
+    libusb_device_handle* open(void);
+    void close(libusb_device_handle *usbDeviceHandle);
+    bool sendVendorSpecificCommand(quint8 command, quint16 value);
 };
 
 #endif // USBDEVICE_H
