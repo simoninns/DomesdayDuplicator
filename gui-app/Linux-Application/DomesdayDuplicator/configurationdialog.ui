@@ -154,9 +154,9 @@
      </property>
     </widget>
    </widget>
-   <widget class="QWidget" name="playerIntegration">
+   <widget class="QWidget" name="playerControl">
     <attribute name="title">
-     <string>Player Integration</string>
+     <string>Player Control</string>
     </attribute>
     <widget class="QLabel" name="label_4">
      <property name="geometry">

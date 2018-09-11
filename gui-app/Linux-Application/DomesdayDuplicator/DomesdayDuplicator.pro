@@ -34,14 +34,16 @@ SOURCES += \
     configuration.cpp \
     usbdevice.cpp \
     aboutdialog.cpp \
-    configurationdialog.cpp
+    configurationdialog.cpp \
+    usbcapture.cpp
 
 HEADERS += \
         mainwindow.h \
     configuration.h \
     usbdevice.h \
     aboutdialog.h \
-    configurationdialog.h
+    configurationdialog.h \
+    usbcapture.h
 
 FORMS += \
         mainwindow.ui \

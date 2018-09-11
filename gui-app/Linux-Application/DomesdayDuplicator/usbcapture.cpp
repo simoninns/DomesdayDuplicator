@@ -1,6 +1,6 @@
 /************************************************************************
 
-    usbdevice.h
+    usbcapture.cpp
 
     Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
@@ -25,52 +25,45 @@
 
 ************************************************************************/
 
-#ifndef USBDEVICE_H
-#define USBDEVICE_H
-
-#include <QObject>
-#include <QDebug>
-#include <QThread>
-#include <QWaitCondition>
-
-#include <libusb-1.0/libusb.h>
 #include "usbcapture.h"
 
-class UsbDevice : public QThread
+UsbCapture::UsbCapture(QObject *parent, libusb_device_handle *usbDeviceHandleParam, QString filenameParam) : QThread(parent)
 {
-    Q_OBJECT
-public:
-    explicit UsbDevice(QObject *parent = nullptr, quint16 vid = 0x1D50, quint16 pid = 0x603B);
-    ~UsbDevice() override;
+    // Set the device's handle
+    usbDeviceHandle = usbDeviceHandleParam;
 
-    bool scanForDevice(void);
-    void sendConfigurationCommand(bool testMode);
+    // Store the requested file name
+    filename = filenameParam;
+}
 
-    void startCapture(QString filename);
-    void stopCapture(void);
+// Class destructor
+UsbCapture::~UsbCapture()
+{
+    // Stop the capture thread
+    threadAbort = true;
+    this->wait();
 
-signals:
-    void deviceAttached(void);
-    void deviceDetached(void);
+    // Destroy the device handle
 
-public slots:
+    // Start the capture processing thread
+    connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
+    this->start();
+}
 
-protected slots:
-    void run() override;
+// Run the capture thread
+void UsbCapture::run(void)
+{
 
-protected:
-    libusb_context *libUsbContext;
-    bool threadAbort;
+}
 
-private:
-    quint16 deviceVid;
-    quint16 devicePid;
+// Start capturing
+void UsbCapture::start(void)
+{
 
-    UsbCapture *usbCapture;
+}
 
-    libusb_device_handle* open(void);
-    void close(libusb_device_handle *usbDeviceHandle);
-    bool sendVendorSpecificCommand(quint8 command, quint16 value);
-};
+// Stop capturing
+void UsbCapture::stop(void)
+{
 
-#endif // USBDEVICE_H
+}
