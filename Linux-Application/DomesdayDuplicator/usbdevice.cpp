@@ -276,3 +276,38 @@ bool UsbDevice::sendVendorSpecificCommand(quint8 command, quint16 value)
 
     return result;
 }
+
+// Start capturing from the USB device
+void UsbDevice::startCapture(QString filename)
+{
+    qDebug() << "UsbDevice::startCapture(): Starting capture";
+
+    // Send the start capture command to the USB device
+    sendVendorSpecificCommand(0xB5, 1);
+
+    // Open the USB device
+    libusb_device_handle *usbDeviceHandle = open();
+
+    // Create the capture object
+    usbCapture = new UsbCapture(this, usbDeviceHandle, filename);
+
+    // Did we get a valid device handle?
+    if (usbDeviceHandle != nullptr) {
+        usbCapture->start();
+    }
+}
+
+// Stop capturing from the USB device
+void UsbDevice::stopCapture(void)
+{
+    qDebug() << "UsbDevice::startCapture(): Stopping capture";
+
+    // Stop the capture
+    usbCapture->stop();
+
+    // Send the stop capture command to the USB device
+    sendVendorSpecificCommand(0xB5, 0);
+
+    // Destroy the capture object
+    usbCapture->deleteLater();
+}

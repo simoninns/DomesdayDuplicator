@@ -30,6 +30,7 @@
 
 #include <QMainWindow>
 #include <QLabel>
+#include <QDate>
 
 #include "aboutdialog.h"
 #include "configurationdialog.h"
@@ -56,8 +57,8 @@ private slots:
     void on_actionExit_triggered();
     void on_actionTest_mode_toggled(bool arg1);
     void on_actionAbout_triggered();
-
     void on_actionPreferences_triggered();
+    void on_capturePushButton_clicked();
 
 private:
     Configuration *configuration;
@@ -67,6 +68,11 @@ private:
     Ui::MainWindow *ui;
     AboutDialog *aboutDialog;
     ConfigurationDialog *configurationDialog;
+
+    bool isCaptureRunning;
+
+    void updateGuiForCaptureStart(void);
+    void updateGuiForCaptureStop(void);
 };
 
 #endif // MAINWINDOW_H

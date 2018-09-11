@@ -46,6 +46,9 @@ MainWindow::MainWindow(QWidget *parent) :
     QCoreApplication::setOrganizationDomain("domesday86.com");
     QCoreApplication::setApplicationName("DomesdayDuplicator");
 
+    // Set the capture flag to not running
+    isCaptureRunning = false;
+
     // Add a label to the status bar for displaying the USB device status
     usbStatusLabel = new QLabel;
     ui->statusBar->addWidget(usbStatusLabel);
@@ -141,4 +144,53 @@ void MainWindow::on_actionPreferences_triggered()
 {
     configurationDialog->loadConfiguration(configuration);
     configurationDialog->show();
+}
+
+// Main window - capture button clicked
+void MainWindow::on_capturePushButton_clicked()
+{
+    if (!isCaptureRunning) {
+        // Start capture
+        QString captureFilename;
+
+        // Construct the capture file path and name
+        captureFilename = configuration->getCaptureDirectory() + "/RF-Sample_";
+        captureFilename += QDateTime::currentDateTime().toString("yyyy-mm-dd_hh-mm-ss");
+        captureFilename += ".lds";
+
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting capture to file:" << captureFilename;
+
+        updateGuiForCaptureStart();
+        isCaptureRunning = true;
+        usbDevice->startCapture(captureFilename);
+    } else {
+        // Stop capture
+        usbDevice->stopCapture();
+        isCaptureRunning = false;
+        updateGuiForCaptureStop();
+    }
+
+}
+
+// Update the GUI when capture starts
+void MainWindow::updateGuiForCaptureStart(void)
+{
+    // Disable functions during capture
+    ui->capturePushButton->setText(tr("Stop Capture"));
+    ui->capturePushButton->setStyleSheet("background-color: red");
+    ui->actionTest_mode->setEnabled(false);
+    ui->actionPreferences->setEnabled(false);
+
+    // Make sure the configuration dialogue is closed
+    configurationDialog->hide();
+}
+
+// Update the GUI when capture stops
+void MainWindow::updateGuiForCaptureStop(void)
+{
+    // Disable functions after capture
+    ui->capturePushButton->setText(tr("Capture"));
+    ui->capturePushButton->setStyleSheet("background-color: none");
+    ui->actionTest_mode->setEnabled(true);
+    ui->actionPreferences->setEnabled(true);
 }

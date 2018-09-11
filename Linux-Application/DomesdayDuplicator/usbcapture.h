@@ -1,6 +1,6 @@
 /************************************************************************
 
-    usbdevice.h
+    usbcapture.h
 
     Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
@@ -25,33 +25,25 @@
 
 ************************************************************************/
 
-#ifndef USBDEVICE_H
-#define USBDEVICE_H
+#ifndef USBCAPTURE_H
+#define USBCAPTURE_H
 
 #include <QObject>
-#include <QDebug>
 #include <QThread>
-#include <QWaitCondition>
 
 #include <libusb-1.0/libusb.h>
-#include "usbcapture.h"
 
-class UsbDevice : public QThread
+class UsbCapture : public QThread
 {
     Q_OBJECT
 public:
-    explicit UsbDevice(QObject *parent = nullptr, quint16 vid = 0x1D50, quint16 pid = 0x603B);
-    ~UsbDevice() override;
+    explicit UsbCapture(QObject *parent = nullptr, libusb_device_handle *usbDeviceHandleParam = nullptr, QString filenameParam = nullptr);
+    ~UsbCapture() override;
 
-    bool scanForDevice(void);
-    void sendConfigurationCommand(bool testMode);
-
-    void startCapture(QString filename);
-    void stopCapture(void);
+    void start(void);
+    void stop(void);
 
 signals:
-    void deviceAttached(void);
-    void deviceDetached(void);
 
 public slots:
 
@@ -59,18 +51,9 @@ protected slots:
     void run() override;
 
 protected:
-    libusb_context *libUsbContext;
+    libusb_device_handle *usbDeviceHandle;
+    QString filename;
     bool threadAbort;
-
-private:
-    quint16 deviceVid;
-    quint16 devicePid;
-
-    UsbCapture *usbCapture;
-
-    libusb_device_handle* open(void);
-    void close(libusb_device_handle *usbDeviceHandle);
-    bool sendVendorSpecificCommand(quint8 command, quint16 value);
 };
 
-#endif // USBDEVICE_H
+#endif // USBCAPTURE_H
