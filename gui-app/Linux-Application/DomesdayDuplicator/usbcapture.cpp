@@ -40,6 +40,9 @@ static volatile qint32 transfersInFlight = 0;
 // Flag to cancel transfers in flight
 static volatile bool transferAbort = false;
 
+// Flag to show transfer failure
+static volatile bool transferFailure = false;
+
 // Private variables used to report statistics about the transfer process
 struct statisticsStruct {
     qint32 transferCount;          // Number of successful transfers
@@ -55,6 +58,8 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
 
     // Check if the transfer has succeeded
     if ((transfer->status != LIBUSB_TRANSFER_COMPLETED) && !transferAbort) {
+        transferFailure = true;
+
         // Show the failure reason in the debug
         switch (transfer->status) {
             case LIBUSB_TRANSFER_ERROR:
@@ -135,6 +140,9 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
 
     // Reset transfer statistics
     statistics.transferCount = 0;
+
+    // Clear the transfer failure flag
+    transferFailure = false;
 }
 
 // Class destructor
@@ -174,6 +182,7 @@ void UsbCapture::run(void)
         // Check USB transfer allocation was successful
         if (usbTransfers[bufferNumber] == nullptr) {
             qDebug() << "UsbCapture::run(): LibUSB alloc failed for transfer number" << bufferNumber;
+            transferFailure = true;
         } else {
             // Set up the initial transfer requests
 
@@ -197,6 +206,7 @@ void UsbCapture::run(void)
             transfersInFlight++;
         } else {
             qDebug() << "UsbCapture::run(): Transfer launch" << transfersInFlight << "failed!";
+            transferFailure = true;
         }
     }
 
@@ -206,7 +216,7 @@ void UsbCapture::run(void)
     libusbHandleTimeout.tv_usec = 0;
 
     // Perform background tasks whilst transfers are proceeding
-    while(!transferAbort) {
+    while(!transferAbort && !transferFailure) {
         // Process libUSB events
         libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
     }
@@ -218,6 +228,12 @@ void UsbCapture::run(void)
     while(transfersInFlight > 0) {
         // Process libUSB events
         libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
+    }
+
+    // If the transfer failed, emit a notification signal to the parent object
+    if (transferFailure) {
+        qDebug() << "UsbCapture::run(): Transfer failed - emitting notification signal";
+        emit transferFailed();
     }
 
     // All done

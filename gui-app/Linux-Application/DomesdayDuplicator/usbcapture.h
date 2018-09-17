@@ -49,6 +49,7 @@ public:
     qint32 getNumberOfTransfers(void);
 
 signals:
+    void transferFailed(void);
 
 public slots:
 

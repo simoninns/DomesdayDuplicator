@@ -177,13 +177,33 @@ void MainWindow::on_capturePushButton_clicked()
 
         // Start a timer to display the capture statistics
         captureTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
+
+        // Connect to the transfer failure notification signal
+        connect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
     } else {
         // Stop capture
         usbDevice->stopCapture();
         isCaptureRunning = false;
         captureTimer->stop();
+        disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
         updateGuiForCaptureStop();
     }
+}
+
+// Transfer failed notification signal handler
+void MainWindow::transferFailedSignalHandler(void)
+{
+    // Stop capture - something has gone wrong
+    usbDevice->stopCapture();
+    isCaptureRunning = false;
+    captureTimer->stop();
+    disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
+    updateGuiForCaptureStop();
+
+    // Show an error
+    QMessageBox messageBox;
+    messageBox.critical(this, "Error","Capture has failed due to a USB error!");
+    messageBox.setFixedSize(500, 200);
 }
 
 // Update the GUI when capture starts
