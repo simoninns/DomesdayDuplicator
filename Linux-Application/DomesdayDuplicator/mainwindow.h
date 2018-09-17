@@ -32,6 +32,7 @@
 #include <QLabel>
 #include <QDate>
 #include <QTimer>
+#include <QMessageBox>
 
 #include "aboutdialog.h"
 #include "configurationdialog.h"
@@ -55,6 +56,7 @@ private slots:
     void deviceDetachedSignalHandler(void);
     void configurationChangedSignalHandler(void);
     void updateCaptureStatistics(void);
+    void transferFailedSignalHandler(void);
 
     void on_actionExit_triggered();
     void on_actionTest_mode_toggled(bool arg1);

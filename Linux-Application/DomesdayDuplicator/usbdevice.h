@@ -53,6 +53,7 @@ public:
 signals:
     void deviceAttached(void);
     void deviceDetached(void);
+    void transferFailed(void);
 
 public slots:
 
@@ -62,6 +63,9 @@ protected slots:
 protected:
     libusb_context *libUsbContext;
     bool threadAbort;
+
+private slots:
+    void transferFailedSignalHandler(void);
 
 private:
     quint16 deviceVid;

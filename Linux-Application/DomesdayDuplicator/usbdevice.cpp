@@ -306,6 +306,9 @@ void UsbDevice::startCapture(QString filename)
     } else {
         qDebug() << "UsbDevice::startCapture(): Invalid device handle... cannot start capture!";
     }
+
+    // Connect to the transfer failure notification signal
+    connect(usbCapture, &UsbCapture::transferFailed, this, &UsbDevice::transferFailedSignalHandler);
 }
 
 // Stop capturing from the USB device
@@ -319,6 +322,14 @@ void UsbDevice::stopCapture(void)
 
     // Destroy the capture object
     usbCapture->deleteLater();
+}
+
+// Transfer failed signal handler
+void UsbDevice::transferFailedSignalHandler(void)
+{
+    // Retransmit signal to parent object
+    qDebug() << "UsbDevice::transferFailedSignalHandler(): Transfer failed signal received from UsbCapture";
+    emit transferFailed();
 }
 
 // Get capture statistics
