@@ -153,6 +153,19 @@
       </rect>
      </property>
     </widget>
+    <widget class="QLabel" name="label_7">
+     <property name="geometry">
+      <rect>
+       <x>130</x>
+       <y>70</y>
+       <width>141</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Default is: 7504/24635</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="playerControl">
     <attribute name="title">

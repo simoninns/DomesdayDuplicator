@@ -31,6 +31,7 @@
 #include <QMainWindow>
 #include <QLabel>
 #include <QDate>
+#include <QTimer>
 
 #include "aboutdialog.h"
 #include "configurationdialog.h"
@@ -53,6 +54,7 @@ private slots:
     void deviceAttachedSignalHandler(void);
     void deviceDetachedSignalHandler(void);
     void configurationChangedSignalHandler(void);
+    void updateCaptureStatistics(void);
 
     void on_actionExit_triggered();
     void on_actionTest_mode_toggled(bool arg1);
@@ -70,6 +72,7 @@ private:
     ConfigurationDialog *configurationDialog;
 
     bool isCaptureRunning;
+    QTimer *captureTimer;
 
     void updateGuiForCaptureStart(void);
     void updateGuiForCaptureStop(void);
