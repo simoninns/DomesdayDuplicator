@@ -30,6 +30,9 @@
 
 #include <QObject>
 #include <QThread>
+#include <QFile>
+#include <QVector>
+#include <QDebug>
 
 #include <libusb-1.0/libusb.h>
 
@@ -37,11 +40,13 @@ class UsbCapture : public QThread
 {
     Q_OBJECT
 public:
-    explicit UsbCapture(QObject *parent = nullptr, libusb_device_handle *usbDeviceHandleParam = nullptr, QString filenameParam = nullptr);
+    explicit UsbCapture(QObject *parent = nullptr, libusb_context *libUsbContextParam = nullptr,
+                        libusb_device_handle *usbDeviceHandleParam = nullptr, QString filenameParam = nullptr);
     ~UsbCapture() override;
 
-    void start(void);
-    void stop(void);
+    void startTransfer(void);
+    void stopTransfer(void);
+    qint32 getNumberOfTransfers(void);
 
 signals:
 
@@ -51,9 +56,9 @@ protected slots:
     void run() override;
 
 protected:
+    libusb_context *libUsbContext;
     libusb_device_handle *usbDeviceHandle;
     QString filename;
-    bool threadAbort;
 };
 
 #endif // USBCAPTURE_H

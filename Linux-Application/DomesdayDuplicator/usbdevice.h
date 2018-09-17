@@ -48,6 +48,7 @@ public:
 
     void startCapture(QString filename);
     void stopCapture(void);
+    qint32 getNumberOfTransfers(void);
 
 signals:
     void deviceAttached(void);

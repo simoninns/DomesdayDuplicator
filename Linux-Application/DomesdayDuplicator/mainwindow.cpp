@@ -67,6 +67,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Since the device might already be attached, perform an initial scan for it
     usbDevice->scanForDevice();
+
+    // Set up a timer for updating capture results
+    captureTimer = new QTimer(this);
+    connect(captureTimer, SIGNAL(timeout()), this, SLOT(updateCaptureStatistics()));
 }
 
 MainWindow::~MainWindow()
@@ -110,6 +114,11 @@ void MainWindow::configurationChangedSignalHandler(void)
 
     // Save the configuration
     configurationDialog->saveConfiguration(configuration);
+}
+
+void MainWindow::updateCaptureStatistics(void)
+{
+    ui->numberOfTransfersLabel->setText(QString::number(usbDevice->getNumberOfTransfers()));
 }
 
 // GUI Triggered action handlers --------------------------------------------------------------------------------------
@@ -162,14 +171,19 @@ void MainWindow::on_capturePushButton_clicked()
 
         updateGuiForCaptureStart();
         isCaptureRunning = true;
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer";
         usbDevice->startCapture(captureFilename);
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Transfer started";
+
+        // Start a timer to display the capture statistics
+        captureTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
     } else {
         // Stop capture
         usbDevice->stopCapture();
         isCaptureRunning = false;
+        captureTimer->stop();
         updateGuiForCaptureStop();
     }
-
 }
 
 // Update the GUI when capture starts
@@ -183,6 +197,9 @@ void MainWindow::updateGuiForCaptureStart(void)
 
     // Make sure the configuration dialogue is closed
     configurationDialog->hide();
+
+    // Reset the capture statistics
+    ui->numberOfTransfersLabel->setText(tr("0"));
 }
 
 // Update the GUI when capture stops

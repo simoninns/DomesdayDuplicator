@@ -147,11 +147,16 @@ void UsbDevice::run(void)
 {
     qint32 responseCode;
 
+    // Use a 1 second timeout for the libusb_handle_events_timeout call
+    struct timeval libusbHandleTimeout;
+    libusbHandleTimeout.tv_sec  = 1;
+    libusbHandleTimeout.tv_usec = 0;
+
     // Process until the thread abort flag is set
     qDebug() << "UsbDevice::run(): libUSB event poll thread started";
     while(!threadAbort) {
         // Process the libUSB events
-        responseCode = libusb_handle_events_completed(libUsbContext, nullptr);
+        responseCode = libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
         if (responseCode < 0) {
             qDebug() << "UsbDevice::run(): libusb_handle_events returned an error!";
         }
@@ -283,31 +288,43 @@ void UsbDevice::startCapture(QString filename)
     qDebug() << "UsbDevice::startCapture(): Starting capture";
 
     // Send the start capture command to the USB device
+    qDebug() << "UsbDevice::startCapture(): Sending start capture USB vendor specific command";
     sendVendorSpecificCommand(0xB5, 1);
 
     // Open the USB device
+    qDebug() << "UsbDevice::startCapture(): Opening the capture device";
     libusb_device_handle *usbDeviceHandle = open();
 
     // Create the capture object
-    usbCapture = new UsbCapture(this, usbDeviceHandle, filename);
+    qDebug() << "UsbDevice::startCapture(): Creating the capture object";
+    usbCapture = new UsbCapture(this, libUsbContext, usbDeviceHandle, filename);
 
     // Did we get a valid device handle?
     if (usbDeviceHandle != nullptr) {
+        qDebug() << "UsbDevice::startCapture(): Starting capture process with start()";
         usbCapture->start();
+    } else {
+        qDebug() << "UsbDevice::startCapture(): Invalid device handle... cannot start capture!";
     }
 }
 
 // Stop capturing from the USB device
 void UsbDevice::stopCapture(void)
 {
-    qDebug() << "UsbDevice::startCapture(): Stopping capture";
-
-    // Stop the capture
-    usbCapture->stop();
+     // Stop the capture (closes the USB device)
+    usbCapture->stopTransfer();
 
     // Send the stop capture command to the USB device
     sendVendorSpecificCommand(0xB5, 0);
 
     // Destroy the capture object
     usbCapture->deleteLater();
+}
+
+// Get capture statistics
+qint32 UsbDevice::getNumberOfTransfers(void)
+{
+    if (usbCapture == nullptr) return 0;
+
+    return usbCapture->getNumberOfTransfers();
 }
