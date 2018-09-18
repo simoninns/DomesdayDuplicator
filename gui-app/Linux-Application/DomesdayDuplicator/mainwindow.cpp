@@ -119,6 +119,9 @@ void MainWindow::configurationChangedSignalHandler(void)
 void MainWindow::updateCaptureStatistics(void)
 {
     ui->numberOfTransfersLabel->setText(QString::number(usbDevice->getNumberOfTransfers()));
+
+    qint32 mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 32;
+    ui->numberOfDiskBuffersWrittenLabel->setText(QString::number(mbWritten) + (tr(" MBytes")));
 }
 
 // GUI Triggered action handlers --------------------------------------------------------------------------------------

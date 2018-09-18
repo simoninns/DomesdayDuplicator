@@ -339,3 +339,10 @@ qint32 UsbDevice::getNumberOfTransfers(void)
 
     return usbCapture->getNumberOfTransfers();
 }
+
+qint32 UsbDevice::getNumberOfDiskBuffersWritten(void)
+{
+    if (usbCapture == nullptr) return 0;
+
+    return usbCapture->getNumberOfDiskBuffersWritten();
+}

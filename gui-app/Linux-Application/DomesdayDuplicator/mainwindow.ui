@@ -71,6 +71,32 @@
       <string>0</string>
      </property>
     </widget>
+    <widget class="QLabel" name="label_2">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>50</y>
+       <width>81</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Disk buffers:</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="numberOfDiskBuffersWrittenLabel">
+     <property name="geometry">
+      <rect>
+       <x>97</x>
+       <y>50</y>
+       <width>131</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>0</string>
+     </property>
+    </widget>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">

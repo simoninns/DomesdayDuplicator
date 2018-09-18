@@ -49,6 +49,7 @@ public:
     void startCapture(QString filename);
     void stopCapture(void);
     qint32 getNumberOfTransfers(void);
+    qint32 getNumberOfDiskBuffersWritten(void);
 
 signals:
     void deviceAttached(void);
