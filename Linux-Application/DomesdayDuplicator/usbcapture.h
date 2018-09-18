@@ -33,6 +33,7 @@
 #include <QFile>
 #include <QVector>
 #include <QDebug>
+#include <QtConcurrent/QtConcurrent>
 
 #include <libusb-1.0/libusb.h>
 
@@ -47,6 +48,7 @@ public:
     void startTransfer(void);
     void stopTransfer(void);
     qint32 getNumberOfTransfers(void);
+    qint32 getNumberOfDiskBuffersWritten(void);
 
 signals:
     void transferFailed(void);
@@ -55,11 +57,19 @@ public slots:
 
 protected slots:
     void run() override;
+    void runDiskBuffers(void);
 
 protected:
     libusb_context *libUsbContext;
     libusb_device_handle *usbDeviceHandle;
     QString filename;
+
+private:
+    qint32 numberOfDiskBuffersWritten;
+    void writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber);
+
+    void allocateDiskBuffers(void);
+    void freeDiskBuffers(void);
 };
 
 #endif // USBCAPTURE_H
