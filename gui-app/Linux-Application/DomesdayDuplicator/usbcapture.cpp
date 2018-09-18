@@ -44,8 +44,8 @@
 
 // Structure to contain the user-data passed during transfer call-backs
 struct transferUserDataStruct {
-    qint32 diskBufferTransferNumber;         // The transfer number of the transfer (0-2047)
-    qint32 diskBufferNumber;       // The current target disk buffer number (0-3)
+    qint32 diskBufferTransferNumber;    // The transfer number of the transfer (0-2047)
+    qint32 diskBufferNumber;            // The current target disk buffer number (0-3)
 };
 
 // Global to monitor the number of in-flight transfers
@@ -85,13 +85,8 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     // Extract the user data
     transferUserDataStruct *transferUserData = static_cast<transferUserDataStruct *>(transfer->user_data);
 
-//    qDebug() << "bulkTransferCallback(): Processing transfer" <<
-//                transferUserData->diskBufferTransferNumber << "in disk buffer" << transferUserData->diskBufferNumber;
-
     // Check if the transfer has succeeded
     if ((transfer->status != LIBUSB_TRANSFER_COMPLETED) && !transferAbort) {
-        transferFailure = true;
-
         // Show the failure reason in the debug
         switch (transfer->status) {
             case LIBUSB_TRANSFER_ERROR:
@@ -128,6 +123,9 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
                 qDebug() << "bulkTransferCallback(): LIBUSB_TRANSFER - Transfer" <<
                             transferUserData->diskBufferTransferNumber << " - Unknown error";
         }
+
+        // Set the transfer failure flag
+        transferFailure = true;
     }
 
     // Reduce the number of requests in-flight.
