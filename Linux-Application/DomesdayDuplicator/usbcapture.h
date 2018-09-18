@@ -66,7 +66,7 @@ protected:
 
 private:
     qint32 numberOfDiskBuffersWritten;
-    void writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber);
+    void writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, bool is10BitData, bool isTestData);
 
     void allocateDiskBuffers(void);
     void freeDiskBuffers(void);
