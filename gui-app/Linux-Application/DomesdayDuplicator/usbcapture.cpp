@@ -395,7 +395,7 @@ void UsbCapture::runDiskBuffers(void)
             if (isDiskBufferFull[diskBufferNumber]) {
                 // Write the buffer
                 //qDebug() << "UsbCapture::runDiskBuffers(): Disk buffer" << diskBufferNumber << "processing...";
-                writeBufferToDisk(&outputFile, diskBufferNumber, false, false);
+                writeBufferToDisk(&outputFile, diskBufferNumber, true, false);
 
                 // Mark it as empty
                 isDiskBufferFull[diskBufferNumber] = false;
@@ -451,7 +451,37 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
     // Write the data in 10 or 16 bit format
     if (is10BitData) {
         // Translate the data in the disk buffer to unsigned 10-bit packed data
-        // TODO
+        quint32 conversionBufferPointer = 0;
+
+        for (qint32 diskBufferPointer = 0; diskBufferPointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); diskBufferPointer += 8) {
+            quint32 originalWords[4];
+
+            // Get the original 4 10-bit words
+            originalWords[0]  = diskBuffers[diskBufferNumber][diskBufferPointer + 0];
+            originalWords[0] += diskBuffers[diskBufferNumber][diskBufferPointer + 1] * 256;
+            originalWords[1]  = diskBuffers[diskBufferNumber][diskBufferPointer + 2];
+            originalWords[1] += diskBuffers[diskBufferNumber][diskBufferPointer + 3] * 256;
+            originalWords[2]  = diskBuffers[diskBufferNumber][diskBufferPointer + 4];
+            originalWords[2] += diskBuffers[diskBufferNumber][diskBufferPointer + 5] * 256;
+            originalWords[3]  = diskBuffers[diskBufferNumber][diskBufferPointer + 6];
+            originalWords[3] += diskBuffers[diskBufferNumber][diskBufferPointer + 7] * 256;
+
+            // Convert into 5 bytes of packed 10-bit data
+            conversionBuffer[conversionBufferPointer + 0]  = static_cast<unsigned char>((originalWords[0] & 0x03FC) >> 2);
+            conversionBuffer[conversionBufferPointer + 1]  = static_cast<unsigned char>((originalWords[0] & 0x0003) << 6);
+            conversionBuffer[conversionBufferPointer + 1] += static_cast<unsigned char>((originalWords[1] & 0x03F0) >> 4);
+            conversionBuffer[conversionBufferPointer + 2]  = static_cast<unsigned char>((originalWords[1] & 0x000F) << 4);
+            conversionBuffer[conversionBufferPointer + 2] += static_cast<unsigned char>((originalWords[2] & 0x03C0) >> 6);
+            conversionBuffer[conversionBufferPointer + 3]  = static_cast<unsigned char>((originalWords[2] & 0x003F) << 2);
+            conversionBuffer[conversionBufferPointer + 3] += static_cast<unsigned char>((originalWords[3] & 0x0300) >> 8);
+            conversionBuffer[conversionBufferPointer + 4]  = static_cast<unsigned char>((originalWords[3] & 0x00FF));
+
+            // Increment the conversion buffer pointer
+            conversionBufferPointer += 5;
+        }
+
+        // Write the conversion buffer to disk
+        outputFile->write(reinterpret_cast<const char *>(conversionBuffer), conversionBufferPointer);
     } else {
         // Translate the data in the disk buffer to scaled 16-bit signed data
         for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
@@ -467,7 +497,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
             conversionBuffer[pointer+1] = static_cast<unsigned char>((signedValue & 0xFF00) >> 8);
         }
 
-        // Write the disk buffer to disk
+        // Write the conversion buffer to disk
         outputFile->write(reinterpret_cast<const char *>(conversionBuffer), (TRANSFERSIZE * TRANSFERSPERDISKBUFFER));
     }
 }
