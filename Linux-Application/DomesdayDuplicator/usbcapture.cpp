@@ -29,12 +29,12 @@
 
 // Notes on transfer and disk buffering:
 //
-// transferSize: Each in-flight transfer returns 16 Kbytes
+// transferSize: Each in-flight transfer returns 16 Kbytes (set by the USB end-point)
 // simultaneousTransfers: There are 16 simultaneous in-flight transfers
 // transfersPerDiskBuffer: There are 2048 transfers per disk buffer
 // numberOfDiskBuffers: There are 4 disk buffers
 //
-static const qint32 transferSize = 16834;
+static const qint32 transferSize = 16384;
 static const qint32 simultaneousTransfers = 16;
 static const qint32 transfersPerDiskBuffer = 2048;
 static const qint32 numberOfDiskBuffers = 4;
@@ -49,26 +49,32 @@ struct transferUserDataStruct {
 };
 
 // Global to monitor the number of in-flight transfers
-static qint32 transfersInFlight = 0;
+static volatile qint32 transfersInFlight = 0;
 
 // Flag to cancel transfers in flight
-static bool transferAbort = false;
+static volatile bool transferAbort = false;
 
 // Flag to show transfer failure
-static bool transferFailure = false;
+static volatile bool transferFailure = false;
 
 // Private variables used to report statistics about the transfer process
 struct statisticsStruct {
     qint32 transferCount;          // Number of successful transfers
 };
-static statisticsStruct statistics;
+static volatile statisticsStruct statistics;
 
 // Set up a pointer to the disk buffers and their full flags
 static unsigned char **diskBuffers = nullptr;
-static bool isDiskBufferFull[numberOfDiskBuffers];
+static volatile bool isDiskBufferFull[numberOfDiskBuffers];
 
 // Set up a pointer to the conversion buffer
 static unsigned char *conversionBuffer;
+
+// The flush count is used to set the number of discarded transfers
+// before disk buffering starts.  It seems to be necessary to discard
+// the first set of in-flight transfers as the FX3 doesn't return
+// valid data until second set.
+static volatile qint32 flushCounter;
 
 
 // LibUSB call-back handling code -------------------------------------------------------------------------------------
@@ -130,30 +136,36 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     // Increment the total number of successful transfers
     statistics.transferCount++;
 
-    // Last transfer in the disk buffer?
-    if (transferUserData->diskBufferTransferNumber == (transfersPerDiskBuffer - 1)) {
-        // Mark the disk buffer as full
-        isDiskBufferFull[transferUserData->diskBufferNumber] = true;
-    }
-
-    // Point to the next slot for the transfer in the disk buffer
-    transferUserData->diskBufferTransferNumber += simultaneousTransfers;
-
-    // Check that the current disk buffer hasn't been exceeded
-    if (transferUserData->diskBufferTransferNumber >= transfersPerDiskBuffer) {
-        // Select the next disk buffer
-        transferUserData->diskBufferNumber++;
-        if (transferUserData->diskBufferNumber == numberOfDiskBuffers) transferUserData->diskBufferNumber = 0;
-
-        // Ensure selected disk buffer is free
-        if (isDiskBufferFull[transferUserData->diskBufferNumber]) {
-            // Buffer is full - flag an overflow error
-            qDebug() << "bulkTransferCallback(): Disk buffer overflow error!";
-            transferFailure = true;
+    // Are we flushing the buffers or writing to disk?
+    if (flushCounter >= simultaneousTransfers) {
+        // Last transfer in the disk buffer?
+        if (transferUserData->diskBufferTransferNumber == (transfersPerDiskBuffer - 1)) {
+            // Mark the disk buffer as full
+            isDiskBufferFull[transferUserData->diskBufferNumber] = true;
         }
 
-        // Wrap the transfer number back to the start of the disk buffer
-        transferUserData->diskBufferTransferNumber -= transfersPerDiskBuffer;
+        // Point to the next slot for the transfer in the disk buffer
+        transferUserData->diskBufferTransferNumber += simultaneousTransfers;
+
+        // Check that the current disk buffer hasn't been exceeded
+        if (transferUserData->diskBufferTransferNumber >= transfersPerDiskBuffer) {
+            // Select the next disk buffer
+            transferUserData->diskBufferNumber++;
+            if (transferUserData->diskBufferNumber == numberOfDiskBuffers) transferUserData->diskBufferNumber = 0;
+
+            // Ensure selected disk buffer is free
+            if (isDiskBufferFull[transferUserData->diskBufferNumber]) {
+                // Buffer is full - flag an overflow error
+                qDebug() << "bulkTransferCallback(): Disk buffer overflow error!";
+                transferFailure = true;
+            }
+
+            // Wrap the transfer number back to the start of the disk buffer
+            transferUserData->diskBufferTransferNumber -= transfersPerDiskBuffer;
+        }
+    } else {
+        // Only flushing the buffer at the moment
+        flushCounter++;
     }
 
     // If the transfer has not been aborted, resubmit the transfer to libUSB
@@ -204,6 +216,9 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
 
     // Clear the transfer failure flag
     transferFailure = false;
+
+    // Set the flush counter
+    flushCounter = 0;
 }
 
 // Class destructor
@@ -384,7 +399,7 @@ void UsbCapture::runDiskBuffers(void)
 
                 // Mark it as empty
                 isDiskBufferFull[diskBufferNumber] = false;
-
+Excellent item, well packed international delivery A+++
                 // Increment the statistics
                 numberOfDiskBuffersWritten++;
             } else {
@@ -409,11 +424,11 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
     // Translate the data in the disk buffer to scaled 16-bit signed data
     for (qint32 pointer = 0; pointer < (transferSize * transfersPerDiskBuffer); pointer += 2) {
         // Get the original 10-bit unsigned value from the disk data buffer
-        quint32 originalValue = diskBuffers[diskBufferNumber][pointer];
+        qint32 originalValue = diskBuffers[diskBufferNumber][pointer];
         originalValue += diskBuffers[diskBufferNumber][pointer+1] * 256;
 
         // Sign and scale the data to 16-bits
-        qint32 signedValue = static_cast<qint32>(originalValue - 512);
+        qint32 signedValue = originalValue - 512;
         signedValue = signedValue * 64;
 
         conversionBuffer[pointer] = static_cast<unsigned char>(signedValue & 0x00FF);
