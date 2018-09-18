@@ -205,7 +205,7 @@ void MainWindow::transferFailedSignalHandler(void)
 
     // Show an error
     QMessageBox messageBox;
-    messageBox.critical(this, "Error","Capture has failed due to a USB error!");
+    messageBox.critical(this, "Error","The data capture was not successful!");
     messageBox.setFixedSize(500, 200);
 }
 
