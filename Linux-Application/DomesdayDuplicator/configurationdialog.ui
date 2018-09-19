@@ -96,6 +96,35 @@
       <string>Browse</string>
      </property>
     </widget>
+    <widget class="QRadioButton" name="saveAsSixteenBitRadioButton">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>100</y>
+       <width>271</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Save captures as 16-bit signed scaled data</string>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="saveAsTenBitRadioButton">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>80</y>
+       <width>291</width>
+       <height>22</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Save captures as 10-bit packed unsigned data</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="usb">
     <attribute name="title">

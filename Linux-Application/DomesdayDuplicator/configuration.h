@@ -39,6 +39,27 @@ class Configuration : public QObject
 {
     Q_OBJECT
 public:
+    // Define the possible capture formats
+    enum CaptureFormat {
+        tenBitPacked,
+        sixteenBitSigned
+    };
+
+    // Define the possible serial communication speeds
+    enum SerialSpeeds {
+        bps1200,
+        bps2400,
+        bps4800,
+        bps9600
+    };
+
+    // Define the possible supported player models
+    enum PlayerModels {
+        none,               // No defined player model
+        pioneerLDV4300D,    // Pioneer LD-V4300D
+        pioneerCLDV2800     // Pioneer CLD-V2800
+    };
+
     explicit Configuration(QObject *parent = nullptr);
 
     void writeConfiguration(void);
@@ -49,10 +70,18 @@ public:
 
     void setCaptureDirectory(QString captureDirectory);
     QString getCaptureDirectory(void);
+    void setCaptureFormat(CaptureFormat captureFormat);
+    CaptureFormat getCaptureFormat(void);
     void setUsbVid(quint16 vid);
     quint16 getUsbVid(void);
     void setUsbPid(quint16 pid);
     quint16 getUsbPid(void);
+    void setSerialSpeed(SerialSpeeds serialSpeed);
+    SerialSpeeds getSerialSpeed(void);
+    void setPlayerModel(PlayerModels playerModel);
+    PlayerModels getPlayerModel(void);
+    void setSerialDevice(QString serialDevice);
+    QString getServiceDevice(void);
 
 signals:
 
@@ -65,6 +94,7 @@ private:
     // Capture, USB, PIC (player integrated capture)
     struct Capture {
         QString captureDirectory;
+        CaptureFormat captureFormat;
     };
 
     struct Usb {
@@ -74,8 +104,8 @@ private:
 
     struct Pic {
         QString serialDevice;
-        qint32 serialSpeed;
-        QString playerModel;
+        SerialSpeeds serialSpeed;
+        PlayerModels playerModel;
     };
 
     struct Settings {
@@ -84,6 +114,13 @@ private:
         Usb usb;
         Pic pic;
     } settings;
+
+    qint32 convertCaptureFormatToInt(CaptureFormat captureFormat);
+    CaptureFormat convertIntToCaptureFormat(qint32 captureInt);
+    qint32 convertSerialSpeedsToInt(SerialSpeeds serialSpeeds);
+    SerialSpeeds convertIntToSerialSpeeds(qint32 serialInt);
+    qint32 convertPlayerModelsToInt(PlayerModels playerModels);
+    PlayerModels convertIntToPlayerModels(qint32 playerInt);
 };
 
 #endif // CONFIGURATION_H
