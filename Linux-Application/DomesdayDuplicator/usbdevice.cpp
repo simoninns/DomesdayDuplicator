@@ -94,11 +94,16 @@ UsbDevice::UsbDevice(QObject *parent, quint16 vid, quint16 pid) : QThread (paren
     // Set up the libUSB event polling thread flags
     threadAbort = false;
 
+    // Set the last error string
+    lastError = tr("None");
+
     // Initialise libUSB
     responseCode = libusb_init(&libUsbContext);
     if (responseCode < 0) {
         qDebug() << "UsbDevice::UsbDevice(): Could not initialise libUSB library!";
         libusb_exit(libUsbContext);
+        lastError = tr("Could not initialise libUSB library!");
+        emit transferFailed();
         return;
     }
 
@@ -106,6 +111,8 @@ UsbDevice::UsbDevice(QObject *parent, quint16 vid, quint16 pid) : QThread (paren
     if (!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
         qDebug() << "UsbDevice::UsbDevice(): libUSB reports that this platform does not support hot-plug!";
         libusb_exit(libUsbContext);
+        lastError = tr("libUSB reports that this platform does not support hot-plug!");
+        emit transferFailed();
         return;
     }
 
@@ -116,6 +123,8 @@ UsbDevice::UsbDevice(QObject *parent, quint16 vid, quint16 pid) : QThread (paren
     if (LIBUSB_SUCCESS != responseCode) {
         qDebug() << "UsbDevice::UsbDevice(): Could not register USB device attached callback to libUSB!";
         libusb_exit(libUsbContext);
+        lastError = tr("Could not register USB device attached callback to libUSB!");
+        emit transferFailed();
         return;
     }
 
@@ -126,6 +135,8 @@ UsbDevice::UsbDevice(QObject *parent, quint16 vid, quint16 pid) : QThread (paren
     if (LIBUSB_SUCCESS != responseCode) {
         qDebug() << "UsbDevice::UsbDevice(): Could not register USB device detached callback to libUSB!";
         libusb_exit(libUsbContext);
+        lastError = tr("Could not register USB device detached callback to libUSB!");
+        emit transferFailed();
         return;
     }
 
@@ -283,7 +294,7 @@ bool UsbDevice::sendVendorSpecificCommand(quint8 command, quint16 value)
 }
 
 // Start capturing from the USB device
-void UsbDevice::startCapture(QString filename)
+void UsbDevice::startCapture(QString filename, bool isCaptureFormat10Bit)
 {
     qDebug() << "UsbDevice::startCapture(): Starting capture";
 
@@ -297,7 +308,7 @@ void UsbDevice::startCapture(QString filename)
 
     // Create the capture object
     qDebug() << "UsbDevice::startCapture(): Creating the capture object";
-    usbCapture = new UsbCapture(this, libUsbContext, usbDeviceHandle, filename);
+    usbCapture = new UsbCapture(this, libUsbContext, usbDeviceHandle, filename, isCaptureFormat10Bit);
 
     // Did we get a valid device handle?
     if (usbDeviceHandle != nullptr) {
@@ -329,6 +340,7 @@ void UsbDevice::transferFailedSignalHandler(void)
 {
     // Retransmit signal to parent object
     qDebug() << "UsbDevice::transferFailedSignalHandler(): Transfer failed signal received from UsbCapture";
+    lastError = usbCapture->getLastError();
     emit transferFailed();
 }
 
@@ -345,4 +357,10 @@ qint32 UsbDevice::getNumberOfDiskBuffersWritten(void)
     if (usbCapture == nullptr) return 0;
 
     return usbCapture->getNumberOfDiskBuffersWritten();
+}
+
+// Return the last recorded error message
+QString UsbDevice::getLastError(void)
+{
+    return lastError;
 }
