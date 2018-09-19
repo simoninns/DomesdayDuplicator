@@ -79,6 +79,7 @@ private:
     libusb_device_handle* open(void);
     void close(libusb_device_handle *usbDeviceHandle);
     bool sendVendorSpecificCommand(quint8 command, quint16 value);
+    bool pollForDevice(void);
 };
 
 #endif // USBDEVICE_H

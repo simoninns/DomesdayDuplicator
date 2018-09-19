@@ -295,10 +295,10 @@ void UsbCapture::run(void)
     // Submit the transfers via libUSB
     qDebug() << "UsbCapture::run(): Submitting the transfers";
     for (qint32 currentTransferNumber = 0; currentTransferNumber < SIMULTANEOUSTRANSFERS; currentTransferNumber++) {
-        if (libusb_submit_transfer(usbTransfers[currentTransferNumber]) == 0) {
+        if (libusb_submit_transfer(usbTransfers[currentTransferNumber]) >= 0) {
             transfersInFlight++;
         } else {
-            qDebug() << "UsbCapture::run(): Transfer launch" << transfersInFlight << "failed!";
+            qDebug() << "UsbCapture::run(): Transfer launch" << currentTransferNumber << "failed!";
             lastError = tr("Could not launch USB transfer!");
             transferFailure = true;
         }
