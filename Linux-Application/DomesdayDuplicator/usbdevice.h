@@ -64,6 +64,7 @@ protected slots:
 
 protected:
     libusb_context *libUsbContext;
+    libusb_device_handle *usbDeviceHandle;
     bool threadAbort;
 
 private slots:
@@ -76,8 +77,8 @@ private:
     UsbCapture *usbCapture;
     QString lastError;
 
-    libusb_device_handle* open(void);
-    void close(libusb_device_handle *usbDeviceHandle);
+    bool open(void);
+    void close(void);
     bool sendVendorSpecificCommand(quint8 command, quint16 value);
     bool pollForDevice(void);
 };

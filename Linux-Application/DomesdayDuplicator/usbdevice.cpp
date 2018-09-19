@@ -109,7 +109,7 @@ UsbDevice::UsbDevice(QObject *parent, quint16 vid, quint16 pid) : QThread (paren
 
     // Verify that hot-plug is supported on this platform
     if (!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
-        qDebug() << "UsbDevice::UsbDevice(): libUSB reports that this platform does not support hot-plug!";
+        qDebug() << "UsbDevice::UsbDevice(): libUSB reports that this platform does not support hot-plug - falling back to device polling instead";
     } else {
         // Register the USB device attached callback
         responseCode = libusb_hotplug_register_callback(libUsbContext, LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_NO_FLAGS,
@@ -136,7 +136,7 @@ UsbDevice::UsbDevice(QObject *parent, quint16 vid, quint16 pid) : QThread (paren
         }
     }
 
-    // Now start a thread to poll the libUSB event handler (otherwise no callbacks will happen)
+    // Now start a thread to poll for attach/detach events)
     connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
     this->start();
 }
@@ -147,6 +147,9 @@ UsbDevice::~UsbDevice()
     // Stop the libUSB event processing thread
     threadAbort = true;
     this->wait();
+
+    // Delete the libUSB context
+    libusb_exit(libUsbContext);
 }
 
 // Run the hot-plug detection thread
@@ -181,19 +184,19 @@ void UsbDevice::run(void)
         qDebug() << "UsbDevice::run(): libUSB event poll thread started (hot-plug events not supported)";
 
         while (!threadAbort) {
-            detectedAttachState = pollForDevice();
+//            detectedAttachState = pollForDevice();
 
-            if ((currentAttachState == false) & (detectedAttachState == true)) {
-                // Device attached
-                currentAttachState = true;
-                emit deviceAttached();
-            }
+//            if ((currentAttachState == false) & (detectedAttachState == true)) {
+//                // Device attached
+//                currentAttachState = true;
+//                emit deviceAttached();
+//            }
 
-            if ((currentAttachState == true) & (detectedAttachState == false)) {
-                // Device detached
-                currentAttachState = false;
-                emit deviceDetached();
-            }
+//            if ((currentAttachState == true) & (detectedAttachState == false)) {
+//                // Device detached
+//                currentAttachState = false;
+//                emit deviceDetached();
+//            }
 
             this->msleep(500);
         }
@@ -209,11 +212,11 @@ bool UsbDevice::scanForDevice(void)
 
     // Attempt to open the USB device
     // Open the USB device
-    libusb_device_handle *usbDeviceHandle = open();
+    open();
     if (usbDeviceHandle == nullptr) return false;
 
     // Device found, close it and return
-    close(usbDeviceHandle);
+    close();
     emit deviceAttached();
     return true;
 }
@@ -223,11 +226,11 @@ bool UsbDevice::pollForDevice(void)
 {
     // Attempt to open the USB device
     // Open the USB device
-    libusb_device_handle *usbDeviceHandle = open();
+    open();
     if (usbDeviceHandle == nullptr) return false;
 
     // Device found, close it and return
-    close(usbDeviceHandle);
+    close();
     return true;
 }
 
@@ -248,11 +251,12 @@ void UsbDevice::sendConfigurationCommand(bool testMode)
 }
 
 // Open the USB device
-libusb_device_handle* UsbDevice::open(void)
+bool UsbDevice::open(void)
 {
     libusb_device **usbDevices;
     libusb_device *usbDevice;
-    libusb_device_handle *usbDeviceHandle = nullptr;
+
+    usbDeviceHandle = nullptr;
 
     qint32 responseCode;
     ssize_t deviceCount;
@@ -272,7 +276,7 @@ libusb_device_handle* UsbDevice::open(void)
         struct libusb_device_descriptor deviceDescriptor;
         responseCode = libusb_get_device_descriptor(usbDevice, &deviceDescriptor);
         if (responseCode < 0) {
-            qDebug() << "UsbDevice::open(): Failed to get USB device descriptor!";
+            qDebug() << "UsbDevice::open(): Found USB devices, but couldn't get the USB device descriptors to identify them!";
             break;
         }
 
@@ -281,7 +285,7 @@ libusb_device_handle* UsbDevice::open(void)
             // Open the USB device
             responseCode = libusb_open(usbDevice, &usbDeviceHandle);
             if (responseCode < 0) {
-                qDebug() << "UsbDevice::open(): Failed to open USB device!";
+                qDebug() << "UsbDevice::open(): Found device with matching VID/PID, but attempting to open it failed!";
                 usbDeviceHandle = nullptr;
             }
 
@@ -293,11 +297,11 @@ libusb_device_handle* UsbDevice::open(void)
     // Free up the device list
     libusb_free_device_list(usbDevices, 1);
 
-    return usbDeviceHandle;
+    return true;
 }
 
 // Close the USB device
-void UsbDevice::close(libusb_device_handle *usbDeviceHandle)
+void UsbDevice::close(void)
 {
     libusb_close(usbDeviceHandle);
 }
@@ -309,7 +313,7 @@ bool UsbDevice::sendVendorSpecificCommand(quint8 command, quint16 value)
     bool result = true;
 
     // Open the USB device
-    libusb_device_handle *usbDeviceHandle = open();
+    open();
 
     // Did we get a valid device handle?
     if (usbDeviceHandle != nullptr) {
@@ -318,13 +322,15 @@ bool UsbDevice::sendVendorSpecificCommand(quint8 command, quint16 value)
                                                command, value,
                                                0, nullptr, 0, 1000);
         if (responseCode < 0) {
-            qDebug() << "UsbDevice::sendVendorSpecificCommand(): Failed to send vendor specific command to USB device";
+            qDebug() << "UsbDevice::sendVendorSpecificCommand(): libusb_control_transfer failed with" << libusb_error_name(responseCode);
             result = false;
         }
+    } else {
+        qDebug() << "UsbDevice::sendVendorSpecificCommand(): Failed to open USB device";
     }
 
     // Close the USB device
-    close(usbDeviceHandle);
+    close();
 
     return result;
 }
@@ -340,7 +346,7 @@ void UsbDevice::startCapture(QString filename, bool isCaptureFormat10Bit)
 
     // Open the USB device
     qDebug() << "UsbDevice::startCapture(): Opening the capture device";
-    libusb_device_handle *usbDeviceHandle = open();
+    open();
 
     // Create the capture object
     qDebug() << "UsbDevice::startCapture(): Creating the capture object";
