@@ -110,34 +110,30 @@ UsbDevice::UsbDevice(QObject *parent, quint16 vid, quint16 pid) : QThread (paren
     // Verify that hot-plug is supported on this platform
     if (!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
         qDebug() << "UsbDevice::UsbDevice(): libUSB reports that this platform does not support hot-plug!";
-        libusb_exit(libUsbContext);
-        lastError = tr("libUSB reports that this platform does not support hot-plug!");
-        emit transferFailed();
-        return;
-    }
+    } else {
+        // Register the USB device attached callback
+        responseCode = libusb_hotplug_register_callback(libUsbContext, LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_NO_FLAGS,
+                                                        deviceVid, devicePid, LIBUSB_HOTPLUG_MATCH_ANY, hotplug_callback_attach,
+                                                        static_cast<void*>(this), &hotplugHandle[0]);
+        if (LIBUSB_SUCCESS != responseCode) {
+            qDebug() << "UsbDevice::UsbDevice(): Could not register USB device attached callback to libUSB!";
+            libusb_exit(libUsbContext);
+            lastError = tr("Could not register USB device attached callback to libUSB!");
+            emit transferFailed();
+            return;
+        }
 
-    // Register the USB device attached callback
-    responseCode = libusb_hotplug_register_callback(libUsbContext, LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_NO_FLAGS,
-                                                    deviceVid, devicePid, LIBUSB_HOTPLUG_MATCH_ANY, hotplug_callback_attach,
-                                                    static_cast<void*>(this), &hotplugHandle[0]);
-    if (LIBUSB_SUCCESS != responseCode) {
-        qDebug() << "UsbDevice::UsbDevice(): Could not register USB device attached callback to libUSB!";
-        libusb_exit(libUsbContext);
-        lastError = tr("Could not register USB device attached callback to libUSB!");
-        emit transferFailed();
-        return;
-    }
-
-    // Register the USB device detached callback
-    responseCode = libusb_hotplug_register_callback(libUsbContext, LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT, LIBUSB_HOTPLUG_NO_FLAGS,
-                                                    deviceVid, devicePid, LIBUSB_HOTPLUG_MATCH_ANY, hotplug_callback_detach,
-                                                    static_cast<void*>(this), &hotplugHandle[1]);
-    if (LIBUSB_SUCCESS != responseCode) {
-        qDebug() << "UsbDevice::UsbDevice(): Could not register USB device detached callback to libUSB!";
-        libusb_exit(libUsbContext);
-        lastError = tr("Could not register USB device detached callback to libUSB!");
-        emit transferFailed();
-        return;
+        // Register the USB device detached callback
+        responseCode = libusb_hotplug_register_callback(libUsbContext, LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT, LIBUSB_HOTPLUG_NO_FLAGS,
+                                                        deviceVid, devicePid, LIBUSB_HOTPLUG_MATCH_ANY, hotplug_callback_detach,
+                                                        static_cast<void*>(this), &hotplugHandle[1]);
+        if (LIBUSB_SUCCESS != responseCode) {
+            qDebug() << "UsbDevice::UsbDevice(): Could not register USB device detached callback to libUSB!";
+            libusb_exit(libUsbContext);
+            lastError = tr("Could not register USB device detached callback to libUSB!");
+            emit transferFailed();
+            return;
+        }
     }
 
     // Now start a thread to poll the libUSB event handler (otherwise no callbacks will happen)
@@ -158,28 +154,55 @@ void UsbDevice::run(void)
 {
     qint32 responseCode;
 
-    // Use a 1 second timeout for the libusb_handle_events_timeout call
-    struct timeval libusbHandleTimeout;
-    libusbHandleTimeout.tv_sec  = 1;
-    libusbHandleTimeout.tv_usec = 0;
+    // If hot-plug events are supported, use them
+    if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
+        // Use a 1 second timeout for the libusb_handle_events_timeout call
+        struct timeval libusbHandleTimeout;
+        libusbHandleTimeout.tv_sec  = 1;
+        libusbHandleTimeout.tv_usec = 0;
 
-    // Process until the thread abort flag is set
-    qDebug() << "UsbDevice::run(): libUSB event poll thread started";
-    while(!threadAbort) {
-        // Process the libUSB events
-        responseCode = libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
-        if (responseCode < 0) {
-            qDebug() << "UsbDevice::run(): libusb_handle_events returned an error!";
+        // Process until the thread abort flag is set
+        qDebug() << "UsbDevice::run(): libUSB event poll thread started (using hot-plug events)";
+        while(!threadAbort) {
+            // Process the libUSB events
+            responseCode = libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
+            if (responseCode < 0) {
+                qDebug() << "UsbDevice::run(): libusb_handle_events returned an error!";
+            }
+
+            // Sleep the thread for 0.25 seconds to save CPU
+            this->msleep(250);
         }
+    } else {
+        // Hot-plug events are not supported
+        bool currentAttachState = false;
+        bool detectedAttachState = false;
 
-        // Sleep the thread for 0.25 seconds to save CPU
-        this->msleep(250);
+        qDebug() << "UsbDevice::run(): libUSB event poll thread started (hot-plug events not supported)";
+
+        while (!threadAbort) {
+            detectedAttachState = pollForDevice();
+
+            if ((currentAttachState == false) & (detectedAttachState == true)) {
+                // Device attached
+                currentAttachState = true;
+                emit deviceAttached();
+            }
+
+            if ((currentAttachState == true) & (detectedAttachState == false)) {
+                // Device detached
+                currentAttachState = false;
+                emit deviceDetached();
+            }
+
+            this->msleep(500);
+        }
     }
 
     qDebug() << "UsbDevice::run(): libUSB event poll thread stopped";
 }
 
-// Scan for the target USB device
+// Scan for the target USB device (detects device and emits signal)
 bool UsbDevice::scanForDevice(void)
 {
     qDebug() << "UsbDevice::scanForDevice(): Scanning for the USB device...";
@@ -192,6 +215,19 @@ bool UsbDevice::scanForDevice(void)
     // Device found, close it and return
     close(usbDeviceHandle);
     emit deviceAttached();
+    return true;
+}
+
+// Poll for the target USB device (just detection)
+bool UsbDevice::pollForDevice(void)
+{
+    // Attempt to open the USB device
+    // Open the USB device
+    libusb_device_handle *usbDeviceHandle = open();
+    if (usbDeviceHandle == nullptr) return false;
+
+    // Device found, close it and return
+    close(usbDeviceHandle);
     return true;
 }
 
