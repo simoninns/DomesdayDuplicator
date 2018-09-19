@@ -46,10 +46,11 @@ public:
     bool scanForDevice(void);
     void sendConfigurationCommand(bool testMode);
 
-    void startCapture(QString filename);
+    void startCapture(QString filename, bool isCaptureFormat10Bit);
     void stopCapture(void);
     qint32 getNumberOfTransfers(void);
     qint32 getNumberOfDiskBuffersWritten(void);
+    QString getLastError(void);
 
 signals:
     void deviceAttached(void);
@@ -73,6 +74,7 @@ private:
     quint16 devicePid;
 
     UsbCapture *usbCapture;
+    QString lastError;
 
     libusb_device_handle* open(void);
     void close(libusb_device_handle *usbDeviceHandle);

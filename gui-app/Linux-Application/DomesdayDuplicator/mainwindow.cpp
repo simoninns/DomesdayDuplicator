@@ -120,8 +120,12 @@ void MainWindow::updateCaptureStatistics(void)
 {
     ui->numberOfTransfersLabel->setText(QString::number(usbDevice->getNumberOfTransfers()));
 
-    qint32 mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 64;
-    ui->numberOfDiskBuffersWrittenLabel->setText(QString::number(mbWritten) + (tr(" MBytes")));
+    // Calculate the captured data based on the sample format (i.e. size on disk)
+    qint32 mbWritten = 0;
+    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 64;
+    else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40;
+
+    ui->numberOfDiskBuffersWrittenLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
 }
 
 // GUI Triggered action handlers --------------------------------------------------------------------------------------
@@ -183,7 +187,12 @@ void MainWindow::on_capturePushButton_clicked()
         updateGuiForCaptureStart();
         isCaptureRunning = true;
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer";
-        usbDevice->startCapture(captureFilename);
+        if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
+            usbDevice->startCapture(captureFilename, true);
+        } else {
+            usbDevice->startCapture(captureFilename, false);
+        }
+
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Transfer started";
 
         // Start a timer to display the capture statistics
@@ -213,7 +222,7 @@ void MainWindow::transferFailedSignalHandler(void)
 
     // Show an error
     QMessageBox messageBox;
-    messageBox.critical(this, "Error","The data capture was not successful!");
+    messageBox.critical(this, "Error", usbDevice->getLastError());
     messageBox.setFixedSize(500, 200);
 }
 

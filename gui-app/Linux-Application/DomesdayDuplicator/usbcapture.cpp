@@ -39,6 +39,10 @@
 #define TRANSFERSPERDISKBUFFER 256
 #define NUMBEROFDISKBUFFERS 4
 
+// Note:
+//
+// When saving in 16-bit format, each disk buffer represents 64 Mbytes of data
+// When saving in 10-bit format, each disk buffer represents 40 Mbytes of data
 
 // Globals required for libUSB call-back handling ---------------------------------------------------------------------
 
@@ -75,6 +79,9 @@ static unsigned char *conversionBuffer;
 // the first set of in-flight transfers as the FX3 doesn't return
 // valid data until second set.
 static volatile qint32 flushCounter;
+
+// Last error is a string used to communicate a failure reason to the GUI
+static QString lastError;
 
 
 // LibUSB call-back handling code -------------------------------------------------------------------------------------
@@ -125,6 +132,7 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         }
 
         // Set the transfer failure flag
+        lastError = "LibUSB reported a transport failure - ensure the USB device is correctly attached!";
         transferFailure = true;
     }
 
@@ -155,6 +163,7 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
             if (isDiskBufferFull[transferUserData->diskBufferNumber]) {
                 // Buffer is full - flag an overflow error
                 qDebug() << "bulkTransferCallback(): Disk buffer overflow error!";
+                lastError = "Overflow of the disk buffer (your hard-drive/computer's write speed may be too slow)!";
                 transferFailure = true;
             }
 
@@ -178,6 +187,7 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
             transfersInFlight++;
         } else {
             qDebug() << "bulkTransferCallback(): Transfer re-submission failed!";
+            lastError = "LibUSB reported that a transfer re-submission failed - ensure the USB device is correctly attached!";
             transferFailure = true;
         }
     } else {
@@ -191,7 +201,7 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
 
 UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
                        libusb_device_handle *usbDeviceHandleParam,
-                       QString filenameParam) : QThread(parent)
+                       QString filenameParam, bool isCaptureFormat10BitParam) : QThread(parent)
 {
     // Set the libUSB context
     libUsbContext = libUsbContextParam;
@@ -204,6 +214,12 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
 
     // Store the requested file name
     filename = filenameParam;
+
+    // Set the last error string
+    lastError = tr("none");
+
+    // Store the requested data format
+    isCaptureFormat10Bit = isCaptureFormat10BitParam;
 
     // Set the transfer abort flag
     transferAbort = false;
@@ -259,6 +275,7 @@ void UsbCapture::run(void)
         // Check USB transfer allocation was successful
         if (usbTransfers[transferNumber] == nullptr) {
             qDebug() << "UsbCapture::run(): LibUSB alloc failed for transfer number" << transferNumber;
+            lastError = tr("Failed to allocated required memory for transfer!");
             transferFailure = true;
         } else {
             // Set up the user-data for the initial transfers
@@ -282,6 +299,7 @@ void UsbCapture::run(void)
             transfersInFlight++;
         } else {
             qDebug() << "UsbCapture::run(): Transfer launch" << transfersInFlight << "failed!";
+            lastError = tr("Could not launch USB transfer!");
             transferFailure = true;
         }
     }
@@ -317,7 +335,8 @@ void UsbCapture::run(void)
     freeDiskBuffers();
 
     // All done
-    qDebug() << "UsbCapture::run(): Transfer complete," << statistics.transferCount << "transfers performed.";
+    qDebug() << "UsbCapture::run(): Transfer complete," << statistics.transferCount << "transfers performed with" <<
+                numberOfDiskBuffersWritten << "disk buffers written";
 }
 
 // Allocate memory for the disk buffers
@@ -336,6 +355,7 @@ void UsbCapture::allocateDiskBuffers(void)
             if (diskBuffers[bufferNumber] == nullptr) {
                 // Memory allocation has failed
                 qDebug() << "UsbCapture::allocateDiskBuffers(): Disk buffer memory allocation failed!";
+                lastError = tr("Failed to allocated required memory for disk buffers!");
                 transferFailure = true;
                 break;
             }
@@ -343,6 +363,7 @@ void UsbCapture::allocateDiskBuffers(void)
     } else {
         // Memory allocation has failed
         qDebug() << "UsbCapture::allocateDiskBuffers(): Disk buffer array allocation failed!";
+        lastError = tr("Failed to allocated required memory for disk buffers!");
         transferFailure = true;
     }
 
@@ -350,6 +371,7 @@ void UsbCapture::allocateDiskBuffers(void)
     conversionBuffer = static_cast<unsigned char *>(malloc(TRANSFERSIZE * TRANSFERSPERDISKBUFFER));
     if (conversionBuffer == nullptr) {
         qDebug() << "UsbCapture::allocateDiskBuffers(): Conversion buffer memory allocation failed!";
+        lastError = tr("Failed to allocated required memory for data conversion buffers!");
         transferFailure = true;
     }
 }
@@ -384,6 +406,7 @@ void UsbCapture::runDiskBuffers(void)
     QFile outputFile(filename);
     if(!outputFile.open(QFile::WriteOnly | QFile::Truncate)) {
         qDebug() << "UsbCapture::runDiskBuffers(): Could not open destination capture file for writing!";
+        lastError = tr("Failed to open destination file for the capture.  Ensure the destination directory is valid and that you have write permissions");
         transferFailure = true;
     }
 
@@ -393,7 +416,7 @@ void UsbCapture::runDiskBuffers(void)
             if (isDiskBufferFull[diskBufferNumber]) {
                 // Write the buffer
                 //qDebug() << "UsbCapture::runDiskBuffers(): Disk buffer" << diskBufferNumber << "processing...";
-                writeBufferToDisk(&outputFile, diskBufferNumber, true, false);
+                writeBufferToDisk(&outputFile, diskBufferNumber, false);
 
                 // Mark it as empty
                 isDiskBufferFull[diskBufferNumber] = false;
@@ -417,7 +440,7 @@ void UsbCapture::runDiskBuffers(void)
 }
 
 // Write a disk buffer to disk
-void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, bool is10BitData, bool isTestData)
+void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, bool isTestData)
 {
     // Is this test data?
     if (isTestData) {
@@ -439,6 +462,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
                 if (currentValue != originalValue) {
                     // Data error
                     qDebug() << "UsbCapture::writeBufferToDisk(): Data error! Expecting" << currentValue << "but got" << originalValue;
+                    lastError = tr("Test data verification error!");
                     transferFailure = true;
                     return;
                 }
@@ -447,7 +471,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
     }
 
     // Write the data in 10 or 16 bit format
-    if (is10BitData) {
+    if (isCaptureFormat10Bit) {
         // Translate the data in the disk buffer to unsigned 10-bit packed data
         quint32 conversionBufferPointer = 0;
 
@@ -479,7 +503,8 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
         }
 
         // Write the conversion buffer to disk
-        outputFile->write(reinterpret_cast<const char *>(conversionBuffer), conversionBufferPointer);
+        outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * conversionBufferPointer);
+        //qDebug() << "UsbCapture::writeBufferToDisk(): 10-bit - Written" << (sizeof(unsigned char) * conversionBufferPointer) << "bytes to disk";
     } else {
         // Translate the data in the disk buffer to scaled 16-bit signed data
         for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
@@ -496,7 +521,8 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
         }
 
         // Write the conversion buffer to disk
-        outputFile->write(reinterpret_cast<const char *>(conversionBuffer), (TRANSFERSIZE * TRANSFERSPERDISKBUFFER));
+        outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * (TRANSFERSIZE * TRANSFERSPERDISKBUFFER));
+        //qDebug() << "UsbCapture::writeBufferToDisk(): 16-bit - Written" << (sizeof(unsigned char) * (TRANSFERSIZE * TRANSFERSPERDISKBUFFER)) << "bytes to disk";
     }
 }
 
@@ -526,4 +552,10 @@ qint32 UsbCapture::getNumberOfTransfers(void)
 qint32 UsbCapture::getNumberOfDiskBuffersWritten(void)
 {
     return numberOfDiskBuffersWritten;
+}
+
+// Return the last error text
+QString UsbCapture::getLastError(void)
+{
+    return lastError;
 }
