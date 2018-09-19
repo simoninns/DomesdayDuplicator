@@ -295,15 +295,17 @@ void UsbCapture::run(void)
     // Submit the transfers via libUSB
     qDebug() << "UsbCapture::run(): Submitting the transfers";
     for (qint32 currentTransferNumber = 0; currentTransferNumber < SIMULTANEOUSTRANSFERS; currentTransferNumber++) {
-        if (libusb_submit_transfer(usbTransfers[currentTransferNumber]) >= 0) {
+        qint32 resultCode = libusb_submit_transfer(usbTransfers[currentTransferNumber]);
+
+        if (resultCode >= 0) {
             transfersInFlight++;
         } else {
-            qDebug() << "UsbCapture::run(): Transfer launch" << currentTransferNumber << "failed!";
-            lastError = tr("Could not launch USB transfer!");
+            qDebug() << "UsbCapture::run(): Transfer launch" << currentTransferNumber << "failed with error:" << libusb_error_name(resultCode);
+            lastError = tr("Could not launch USB transfer processes - LibUSB reports: ") + libusb_error_name(resultCode);
             transferFailure = true;
         }
     }
-    qDebug() << "UsbCapture::run():" << transfersInFlight << " simultaneous transfers launched.";
+    qDebug() << "UsbCapture::run():" << transfersInFlight << "simultaneous transfers launched.";
 
     // Use a 1 second timeout for the libusb_handle_events_timeout call
     struct timeval libusbHandleTimeout;
