@@ -139,9 +139,11 @@ void MainWindow::on_actionTest_mode_toggled(bool arg1)
     if (arg1) {
         // Turn test-mode on
         usbDevice->sendConfigurationCommand(true);
+        ui->capturePushButton->setText("Test data capture");
     } else {
         // Turn test-mode off
         usbDevice->sendConfigurationCommand(false);
+        ui->capturePushButton->setText("Capture");
     }
 }
 
@@ -166,9 +168,15 @@ void MainWindow::on_capturePushButton_clicked()
         QString captureFilename;
 
         // Construct the capture file path and name
-        captureFilename = configuration->getCaptureDirectory() + "/RF-Sample_";
-        captureFilename += QDateTime::currentDateTime().toString("yyyy-mm-dd_hh-mm-ss");
-        captureFilename += ".lds";
+
+        // Change the prefix depending on if the data is RF or test data
+        if (ui->actionTest_mode->isChecked()) captureFilename = configuration->getCaptureDirectory() + "/TestData_";
+        else captureFilename = configuration->getCaptureDirectory() + "/RF-Sample_";
+        captureFilename += QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
+
+        // Change the suffix depending on if the data is 10 or 16 bit
+        if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) captureFilename += ".lds";
+        else captureFilename += ".raw";
 
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting capture to file:" << captureFilename;
 
@@ -229,7 +237,8 @@ void MainWindow::updateGuiForCaptureStart(void)
 void MainWindow::updateGuiForCaptureStop(void)
 {
     // Disable functions after capture
-    ui->capturePushButton->setText(tr("Capture"));
+    if (ui->actionTest_mode->isChecked()) ui->capturePushButton->setText(tr("Test data capture"));
+    else ui->capturePushButton->setText(tr("Capture"));
     ui->capturePushButton->setStyleSheet("background-color: none");
     ui->actionTest_mode->setEnabled(true);
     ui->actionPreferences->setEnabled(true);

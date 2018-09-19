@@ -47,9 +47,17 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
 
     // Capture
     ui->captureDirectoryLineEdit->setText(configuration->getCaptureDirectory());
-    ui->vendorIdLineEdit->setText(QString::number(configuration->getUsbVid()));
+
+    if(configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
+        ui->saveAsTenBitRadioButton->setChecked(true);
+        ui->saveAsSixteenBitRadioButton->setChecked(false);
+    } else {
+        ui->saveAsTenBitRadioButton->setChecked(false);
+        ui->saveAsSixteenBitRadioButton->setChecked(true);
+    }
 
     // USB
+    ui->vendorIdLineEdit->setText(QString::number(configuration->getUsbVid()));
     ui->productIdLineEdit->setText(QString::number(configuration->getUsbPid()));
 
     // Player Integration
@@ -63,6 +71,9 @@ void ConfigurationDialog::saveConfiguration(Configuration *configuration)
 
     // Capture
     configuration->setCaptureDirectory(ui->captureDirectoryLineEdit->text());
+
+    if (ui->saveAsTenBitRadioButton->isChecked()) configuration->setCaptureFormat(Configuration::CaptureFormat::tenBitPacked);
+    else configuration->setCaptureFormat(Configuration::CaptureFormat::sixteenBitSigned);
 
     // USB
     configuration->setUsbVid(static_cast<quint16>(ui->vendorIdLineEdit->text().toInt()));
