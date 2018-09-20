@@ -81,7 +81,7 @@ public:
     void setPlayerModel(PlayerModels playerModel);
     PlayerModels getPlayerModel(void);
     void setSerialDevice(QString serialDevice);
-    QString getServiceDevice(void);
+    QString getSerialDevice(void);
 
 signals:
 

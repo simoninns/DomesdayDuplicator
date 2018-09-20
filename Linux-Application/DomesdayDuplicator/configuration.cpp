@@ -259,7 +259,7 @@ void Configuration::setSerialDevice(QString serialDevice)
     settings.pic.serialDevice = serialDevice;
 }
 
-QString Configuration::getServiceDevice(void)
+QString Configuration::getSerialDevice(void)
 {
     return settings.pic.serialDevice;
 }
