@@ -38,6 +38,8 @@
 #include "configurationdialog.h"
 #include "configuration.h"
 #include "usbdevice.h"
+#include "playercommunication.h"
+#include "playerremotedialog.h"
 
 namespace Ui {
 class MainWindow;
@@ -64,6 +66,8 @@ private slots:
     void on_actionPreferences_triggered();
     void on_capturePushButton_clicked();
 
+    void on_actionPlayer_remote_triggered();
+
 private:
     Configuration *configuration;
     UsbDevice *usbDevice;
@@ -72,6 +76,7 @@ private:
     Ui::MainWindow *ui;
     AboutDialog *aboutDialog;
     ConfigurationDialog *configurationDialog;
+    PlayerRemoteDialog *playerRemoteDialog;
 
     bool isCaptureRunning;
     QTimer *captureTimer;

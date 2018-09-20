@@ -41,6 +41,9 @@ MainWindow::MainWindow(QWidget *parent) :
     configurationDialog = new ConfigurationDialog(this);
     connect(configurationDialog, &ConfigurationDialog::configurationChanged, this, &MainWindow::configurationChangedSignalHandler);
 
+    // Create the player remote dialogue
+    playerRemoteDialog = new PlayerRemoteDialog(this);
+
     // Define our application (required for configuration handling)
     QCoreApplication::setOrganizationName("Domesday86");
     QCoreApplication::setOrganizationDomain("domesday86.com");
@@ -151,6 +154,12 @@ void MainWindow::on_actionTest_mode_toggled(bool arg1)
     }
 }
 
+// Menu option: View->Player remote
+void MainWindow::on_actionPlayer_remote_triggered()
+{
+    playerRemoteDialog->show();
+}
+
 // Menu option: Help->About
 void MainWindow::on_actionAbout_triggered()
 {
@@ -252,3 +261,5 @@ void MainWindow::updateGuiForCaptureStop(void)
     ui->actionTest_mode->setEnabled(true);
     ui->actionPreferences->setEnabled(true);
 }
+
+
