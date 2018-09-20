@@ -67,6 +67,8 @@ PlayerCommunication::~PlayerCommunication()
 // setOnScreenDisplay(state) - Set the on screen display on or off
 // setAudio(audioMode) - Set the audio mode (channels 1 and 2 - on or off)
 // setKeylock(bool) - Set the panel key lock on or off
+//
+// Note: All methods provided by this class are blocking.
 
 // Connect to a LaserDisc player
 bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, SerialSpeed serialSpeed)
