@@ -37,7 +37,8 @@ SOURCES += \
     configurationdialog.cpp \
     usbcapture.cpp \
     playerremotedialog.cpp \
-    playercommunication.cpp
+    playercommunication.cpp \
+    playercontrol.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -47,7 +48,8 @@ HEADERS += \
     configurationdialog.h \
     usbcapture.h \
     playerremotedialog.h \
-    playercommunication.h
+    playercommunication.h \
+    playercontrol.h
 
 FORMS += \
         mainwindow.ui \
