@@ -30,6 +30,10 @@
 
 #include <QDialog>
 #include <QFileDialog>
+#include <QtSerialPort/QSerialPort>
+#include <QtSerialPort/QSerialPortInfo>
+#include <QAbstractButton>
+
 #include "configuration.h"
 
 namespace Ui {
@@ -54,6 +58,8 @@ private slots:
     void on_captureDirectoryPushButton_clicked();
     void on_buttonBox_accepted();
     void on_buttonBox_rejected();
+
+    void on_buttonBox_clicked(QAbstractButton *button);
 
 private:
     Ui::ConfigurationDialog *ui;
