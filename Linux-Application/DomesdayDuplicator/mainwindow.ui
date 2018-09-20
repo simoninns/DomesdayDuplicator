@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>360</width>
-    <height>240</height>
+    <width>375</width>
+    <height>261</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -104,7 +104,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>360</width>
+     <width>375</width>
      <height>21</height>
     </rect>
    </property>
@@ -125,7 +125,7 @@
     <property name="title">
      <string>View</string>
     </property>
-    <addaction name="actionPlayer_control"/>
+    <addaction name="actionPlayer_remote"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -149,9 +149,9 @@
     <string>Preferences</string>
    </property>
   </action>
-  <action name="actionPlayer_control">
+  <action name="actionPlayer_remote">
    <property name="text">
-    <string>Player control</string>
+    <string>Player remote</string>
    </property>
   </action>
   <action name="actionLog_file">
