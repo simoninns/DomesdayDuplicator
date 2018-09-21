@@ -88,9 +88,9 @@ MainWindow::MainWindow(QWidget *parent) :
     // Defaults for the remote control toggle settings
     remoteDisplayState = PlayerCommunication::DisplayState::off;
     remoteAudioState = PlayerCommunication::AudioState::digitalStereo;
-    remoteMultiSpeed = 1;
-    remoteSpeed = 0;
+    remoteSpeed = 4;
     remoteChapterFrameMode = PlayerCommunication::ChapterFrameMode::chapter;
+    updatePlayerRemoteDialog();
 }
 
 MainWindow::~MainWindow()
@@ -170,6 +170,7 @@ void MainWindow::remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteBut
             playerControl->setOnScreenDisplay(PlayerCommunication::DisplayState::off);
             remoteDisplayState = PlayerCommunication::DisplayState::off;
         }
+        updatePlayerRemoteDialog();
         break;
     case PlayerRemoteDialog::RemoteButtons::rbScanRev:
         playerControl->scan(PlayerCommunication::Direction::backwards);
@@ -199,11 +200,13 @@ void MainWindow::remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteBut
         remoteSpeed--;
         if (remoteSpeed < 0) remoteSpeed = 0;
         playerControl->setSpeed(remoteSpeed);
+        updatePlayerRemoteDialog();
         break;
     case PlayerRemoteDialog::RemoteButtons::rbSpeedUp:
         remoteSpeed++;
         if (remoteSpeed > 7) remoteSpeed = 7;
         playerControl->setSpeed(remoteSpeed);
+        updatePlayerRemoteDialog();
         break;
     case PlayerRemoteDialog::RemoteButtons::rbClear:
         // Note: ignored
@@ -441,6 +444,49 @@ void MainWindow::updateGuiForCaptureStop(void)
     ui->capturePushButton->setStyleSheet("background-color: none");
     ui->actionTest_mode->setEnabled(true);
     ui->actionPreferences->setEnabled(true);
+}
+
+// Update the player remote control dialogue
+void MainWindow::updatePlayerRemoteDialog(void)
+{
+    switch(remoteDisplayState) {
+    case PlayerCommunication::DisplayState::off:
+        playerRemoteDialog->setDisplayMode(PlayerRemoteDialog::DisplayMode::displayOff);
+        break;
+    case PlayerCommunication::DisplayState::on:
+        playerRemoteDialog->setDisplayMode(PlayerRemoteDialog::DisplayMode::displayOn);
+        break;
+    case PlayerCommunication::DisplayState::unknownDisplayState:
+        playerRemoteDialog->setDisplayMode(PlayerRemoteDialog::DisplayMode::displayOff);
+        break;
+    }
+
+    switch(remoteSpeed) {
+    case 0:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiSm16);
+        break;
+    case 1:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiSm14);
+        break;
+    case 2:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiSm13);
+        break;
+    case 3:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiSm12);
+        break;
+    case 4:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiX1);
+        break;
+    case 5:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiX2);
+        break;
+    case 6:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiX3);
+        break;
+    case 7:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiX4);
+        break;
+    }
 }
 
 

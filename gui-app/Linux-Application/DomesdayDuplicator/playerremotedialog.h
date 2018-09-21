@@ -73,6 +73,32 @@ public:
         rbNine
     };
 
+    enum PositionMode {
+        pmChapter,
+        pmFrame,
+        pmTrack,
+        pmTime
+    };
+
+    enum MultiSpeed {
+        multiSm16,   // Slow-mo 1/6
+        multiSm14,   // Slow-mo 1/4
+        multiSm13,   // Slow-mo 1/3
+        multiSm12,   // Slow-mo 1/2
+        multiX1,     // x1
+        multiX2,     // x2
+        multiX3,     // x3
+        multiX4      // x4
+    };
+
+    enum DisplayMode {
+        displayOff,
+        displayOn
+    };
+
+    void setMultiSpeed(MultiSpeed multiSpeedParam);
+    void setDisplayMode(DisplayMode displayModeParam);
+
 signals:
     void remoteControlCommand(RemoteButtons button);
 
@@ -107,6 +133,12 @@ private slots:
 
 private:
     Ui::PlayerRemoteDialog *ui;
+
+    PositionMode positionMode;
+    MultiSpeed multiSpeed;
+    DisplayMode displayMode;
+
+    void updateGui(void);
 };
 
 #endif // PLAYERREMOTEDIALOG_H
