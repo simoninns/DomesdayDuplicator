@@ -32,6 +32,7 @@
 #include <QThread>
 #include <QMutex>
 #include <QWaitCondition>
+#include <QString>
 #include <QDebug>
 
 #include "playercommunication.h"
@@ -49,6 +50,9 @@ public:
             PlayerCommunication::SerialSpeed serialSpeed,
             PlayerCommunication::PlayerType playerType);
 
+    QString getPlayerStatusInformation(void);
+    QString getPlayerPositionInformation(void);
+
 signals:
     void startCapture(void);
     void stopCapture(void);
@@ -61,9 +65,14 @@ private:
     // Thread control
     QMutex mutex;
     QWaitCondition condition;
-    bool restart;
     bool reconnect;
     bool abort;
+
+    bool isPlayerConnected;
+    PlayerCommunication::PlayerState playerState;
+    PlayerCommunication::DiscType discType;
+    qint32 timeCode;
+    qint32 frameNumber;
 
     QString serialDevice;
     PlayerCommunication::SerialSpeed serialSpeed;

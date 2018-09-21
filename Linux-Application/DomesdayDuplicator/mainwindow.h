@@ -39,6 +39,7 @@
 #include "configuration.h"
 #include "usbdevice.h"
 #include "playercommunication.h"
+#include "playercontrol.h"
 #include "playerremotedialog.h"
 
 namespace Ui {
@@ -58,6 +59,7 @@ private slots:
     void deviceDetachedSignalHandler(void);
     void configurationChangedSignalHandler(void);
     void updateCaptureStatistics(void);
+    void updatePlayerControlInformation(void);
     void transferFailedSignalHandler(void);
 
     void on_actionExit_triggered();
@@ -77,12 +79,15 @@ private:
     AboutDialog *aboutDialog;
     ConfigurationDialog *configurationDialog;
     PlayerRemoteDialog *playerRemoteDialog;
+    PlayerControl *playerControl;
 
     bool isCaptureRunning;
     QTimer *captureTimer;
+    QTimer *playerControlTimer;
 
     void updateGuiForCaptureStart(void);
     void updateGuiForCaptureStop(void);
+    void startPlayerControl(void);
 };
 
 #endif // MAINWINDOW_H

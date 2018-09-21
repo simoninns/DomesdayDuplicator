@@ -34,6 +34,9 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    // Load the application's configuration settings file
+    configuration = new Configuration();
+
     // Create the about dialogue
     aboutDialog = new AboutDialog(this);
 
@@ -43,6 +46,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Create the player remote dialogue
     playerRemoteDialog = new PlayerRemoteDialog(this);
+
+    // Start the player control object
+    playerControl = new PlayerControl(this);
+    startPlayerControl();
 
     // Define our application (required for configuration handling)
     QCoreApplication::setOrganizationName("Domesday86");
@@ -60,9 +67,6 @@ MainWindow::MainWindow(QWidget *parent) :
     // Disable the capture button
     ui->capturePushButton->setEnabled(false);
 
-    // Load the application's configuration settings file
-    configuration = new Configuration();
-
     // Set up the Domesday Duplicator USB device and connect the signal handlers
     usbDevice = new UsbDevice(this, configuration->getUsbVid(), configuration->getUsbPid());
     connect(usbDevice, &UsbDevice::deviceAttached, this, &MainWindow::deviceAttachedSignalHandler);
@@ -74,6 +78,11 @@ MainWindow::MainWindow(QWidget *parent) :
     // Set up a timer for updating capture results
     captureTimer = new QTimer(this);
     connect(captureTimer, SIGNAL(timeout()), this, SLOT(updateCaptureStatistics()));
+
+    // Set up a timer for updating player control information
+    playerControlTimer = new QTimer(this);
+    connect(playerControlTimer, SIGNAL(timeout()), this, SLOT(updatePlayerControlInformation()));
+    playerControlTimer->start(100); // Update 10 times per second
 }
 
 MainWindow::~MainWindow()
@@ -117,8 +126,12 @@ void MainWindow::configurationChangedSignalHandler(void)
 
     // Save the configuration
     configurationDialog->saveConfiguration(configuration);
+
+    // Restart the player control
+    startPlayerControl();
 }
 
+// Update the capture statistics labels
 void MainWindow::updateCaptureStatistics(void)
 {
     ui->numberOfTransfersLabel->setText(QString::number(usbDevice->getNumberOfTransfers()));
@@ -129,6 +142,51 @@ void MainWindow::updateCaptureStatistics(void)
     else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40;
 
     ui->numberOfDiskBuffersWrittenLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
+}
+
+// Update the player control labels
+void MainWindow::updatePlayerControlInformation(void)
+{
+    ui->playerStatusLabel->setText(playerControl->getPlayerStatusInformation());
+    ui->playerPositionLabel->setText(playerControl->getPlayerPositionInformation());
+}
+
+void MainWindow::startPlayerControl(void)
+{
+    PlayerCommunication::SerialSpeed serialSpeed;
+    PlayerCommunication::PlayerType playerType;
+
+    // Get the configured serial speed
+    switch (configuration->getSerialSpeed()) {
+    case Configuration::bps1200: serialSpeed = PlayerCommunication::SerialSpeed::bps1200;
+        break;
+    case Configuration::bps2400: serialSpeed = PlayerCommunication::SerialSpeed::bps2400;
+        break;
+    case Configuration::bps4800: serialSpeed = PlayerCommunication::SerialSpeed::bps4800;
+        break;
+    case Configuration::bps9600: serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
+        break;
+    }
+
+    // Get the configured player type
+    qDebug() << "MainWindow::startPlayerControl(): Getting player type";
+    switch (configuration->getPlayerModel()) {
+    case Configuration::PlayerModels::none: playerType = PlayerCommunication::PlayerType::unknownPlayerType;
+        qDebug() << "MainWindow::startPlayerControl(): Warning: Player type is not configured";
+        break;
+    case Configuration::PlayerModels::pioneerLDV4300D: playerType = PlayerCommunication::PlayerType::pioneerLDV4300D;
+        break;
+    case Configuration::PlayerModels::pioneerCLDV2800: playerType = PlayerCommunication::PlayerType::pioneerCLDV2800;
+        break;
+    }
+
+    if (configuration->getSerialDevice().isEmpty())
+        qDebug() << "MainWindow::startPlayerControl(): Warning: Serial device is not configured";
+
+    // Send the configuration to the player control
+    playerControl->configurePlayerCommunication(configuration->getSerialDevice(),
+                                                    serialSpeed,
+                                                    playerType);
 }
 
 // GUI Triggered action handlers --------------------------------------------------------------------------------------

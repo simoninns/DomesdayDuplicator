@@ -42,6 +42,69 @@ public:
     explicit PlayerRemoteDialog(QWidget *parent = nullptr);
     ~PlayerRemoteDialog();
 
+    // Enumeration of available remote buttons
+    enum RemoteButtons {
+        rbReject,
+        rbPause,
+        rbPlay,
+        rbRepeat,
+        rbStepRev,
+        rbStepFwd,
+        rbDisplay,
+        rbScanRev,
+        rbScanFwd,
+        rbAudio,
+        rbSpeedDown,
+        rbSpeedUp,
+        rbClear,
+        rbMultiRev,
+        rbMultiFwd,
+        rbSearch,
+        rbChapFrame,
+        rbZero,
+        rbOne,
+        rbTwo,
+        rbThree,
+        rbFour,
+        rbFive,
+        rbSix,
+        rbSeven,
+        rbEight,
+        rbNine
+    };
+
+signals:
+    void remoteControlCommand(RemoteButtons button);
+
+private slots:
+    void on_rejectPushButton_clicked();
+    void on_pausePushButton_clicked();
+    void on_playPushButton_clicked();
+    void on_repeatPushButton_clicked();
+    void on_stepRevPushButton_clicked();
+    void on_stepFwdPushButton_clicked();
+    void on_displayPushButton_clicked();
+    void on_scanRevPushButton_clicked();
+    void on_scanFwdPushButton_clicked();
+    void on_audioPushButton_clicked();
+    void on_speedDownPushButton_clicked();
+    void on_speedUpPushButton_clicked();
+    void on_clearPushButton_clicked();
+    void on_multiRevPushButton_clicked();
+    void on_multiFwdPushButton_clicked();
+    void on_sevenPushButton_clicked();
+    void on_eightPushButton_clicked();
+    void on_ninePushButton_clicked();
+    void on_fourPushButton_clicked();
+    void on_fivePushButton_clicked();
+    void on_sixPushButton_clicked();
+    void on_onePushButton_clicked();
+    void on_twoPushButton_clicked();
+    void on_threePushButton_clicked();
+    void on_zeroPushButton_clicked();
+    void on_searchPushButton_clicked();
+    void on_chapFramePushButton_clicked();
+
 private:
     Ui::PlayerRemoteDialog *ui;
 };
