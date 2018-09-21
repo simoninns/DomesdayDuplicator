@@ -46,6 +46,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Create the player remote dialogue
     playerRemoteDialog = new PlayerRemoteDialog(this);
+    connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlCommand, this, &MainWindow::remoteControlCommandSignalHandler);
 
     // Start the player control object
     playerControl = new PlayerControl(this);
@@ -129,6 +130,95 @@ void MainWindow::configurationChangedSignalHandler(void)
 
     // Restart the player control
     startPlayerControl();
+}
+
+// Remote control command signal handler
+void MainWindow::remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteButtons button)
+{
+    // Handle the possible remote control commands
+    switch(button) {
+    case PlayerRemoteDialog::RemoteButtons::rbReject:
+        playerControl->setPlayerState(PlayerCommunication::PlayerState::stop);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbPause:
+        playerControl->setPlayerState(PlayerCommunication::PlayerState::pause);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbPlay:
+        playerControl->setPlayerState(PlayerCommunication::PlayerState::play);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbRepeat:
+        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbRepeat not implemented";
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbStepRev:
+        playerControl->step(PlayerCommunication::Direction::backwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbStepFwd:
+        playerControl->step(PlayerCommunication::Direction::forwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbDisplay:
+        // TOGGLE!
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbScanRev:
+        playerControl->scan(PlayerCommunication::Direction::backwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbScanFwd:
+        playerControl->scan(PlayerCommunication::Direction::forwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbAudio:
+        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbAudio not implemented";
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSpeedDown:
+        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbSpeedDown not implemented";
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSpeedUp:
+        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbSpeedUp not implemented";
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbClear:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbMultiRev:
+        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbMultiRev not implemented";
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbMultiFwd:
+        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbMultiFwd not implemented";
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSearch:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbChapFrame:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbZero:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbOne:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbTwo:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbThree:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbFour:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbFive:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSix:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSeven:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbEight:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbNine:
+        // Note: ignored
+        break;
+    }
 }
 
 // Update the capture statistics labels

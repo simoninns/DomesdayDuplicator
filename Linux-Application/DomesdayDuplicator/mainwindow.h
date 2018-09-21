@@ -58,6 +58,7 @@ private slots:
     void deviceAttachedSignalHandler(void);
     void deviceDetachedSignalHandler(void);
     void configurationChangedSignalHandler(void);
+    void remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteButtons button);
     void updateCaptureStatistics(void);
     void updatePlayerControlInformation(void);
     void transferFailedSignalHandler(void);
