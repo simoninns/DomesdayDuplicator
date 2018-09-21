@@ -87,15 +87,23 @@ public:
     };
 
     enum AudioState {
-        channelOneOnly,
-        channelTwoOnly,
-        bothChannels,
-        muted
+        audioOff,
+        analogCh1,
+        analogCh2,
+        analogStereo,
+        digitalCh1,
+        digitalCh2,
+        digitalStereo
     };
 
     enum KeyLockState {
         locked,
         unlocked
+    };
+
+    enum ChapterFrameMode {
+        chapter,
+        frame
     };
 
     bool connect(PlayerType playerType, QString serialDevice, SerialSpeed serialSpeed);
@@ -113,7 +121,7 @@ public:
     void setPlayerState(PlayerState playerState);
     void step(Direction direction);
     void scan(Direction direction);
-    void mutliSpeed(Direction direction, qint32 speed);
+    void multiSpeed(Direction direction);
 
     void setFramePosition(qint32 frame);
     void setTimeCodePosition(qint32 timeCode);
@@ -124,6 +132,7 @@ public:
     void setOnScreenDisplay(DisplayState displayState);
     void setAudio(AudioState audioState);
     void setKeyLock(KeyLockState keyLockState);
+    void setSpeed(qint32 speed);
 
 signals:
 

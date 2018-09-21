@@ -33,6 +33,7 @@
 #include <QMutex>
 #include <QWaitCondition>
 #include <QString>
+#include <QQueue>
 #include <QDebug>
 
 #include "playercommunication.h"
@@ -54,11 +55,27 @@ public:
     QString getPlayerPositionInformation(void);
 
     // Commands
+    enum Commands {
+        cmdSetTrayState,
+        cmdSetPlayerState,
+        cmdStep,
+        cmdScan,
+        cmdMultiSpeed,
+        cmdSetFramePosition,
+        cmdSetTimeCodePosition,
+        cmdSetStopFrame,
+        cmdSetStopTimeCode,
+        cmdSetOnScreenDisplay,
+        cmdSetAudio,
+        cmdSetKeyLock,
+        cmdSetSpeed
+    };
+
     void setTrayState(PlayerCommunication::TrayState trayState);
     void setPlayerState(PlayerCommunication::PlayerState playerState);
     void step(PlayerCommunication::Direction direction);
     void scan(PlayerCommunication::Direction direction);
-    void mutliSpeed(PlayerCommunication::Direction direction, qint32 speed);
+    void multiSpeed(PlayerCommunication::Direction direction);
     void setFramePosition(qint32 frame);
     void setTimeCodePosition(qint32 timeCode);
     void setStopFrame(qint32 frame);
@@ -66,6 +83,7 @@ public:
     void setOnScreenDisplay(PlayerCommunication::DisplayState displayState);
     void setAudio(PlayerCommunication::AudioState audioState);
     void setKeyLock(PlayerCommunication::KeyLockState keyLockState);
+    void setSpeed(qint32 speed);
 
 signals:
     void startCapture(void);
@@ -93,6 +111,26 @@ private:
     PlayerCommunication::PlayerType playerType;
 
     PlayerCommunication *playerCommunication;
+
+    // Command queue
+    QQueue<PlayerControl::Commands> commandQueue;
+    QQueue<qint32> parameterQueue;
+
+    void processCommandQueue(void);
+
+    void processSetTrayState(qint32 parameter1);
+    void processSetPlayerState(qint32 parameter1);
+    void processStep(qint32 parameter1);
+    void processScan(qint32 parameter1);
+    void processMultiSpeed(qint32 parameter1);
+    void processSetFramePosition(qint32 parameter1);
+    void processSetTimeCodePosition(qint32 parameter1);
+    void processSetStopFrame(qint32 parameter1);
+    void processSetStopTimeCode(qint32 parameter1);
+    void processSetOnScreenDisplay(qint32 parameter1);
+    void processSetAudio(qint32 parameter1);
+    void processSetKeyLock(qint32 parameter1);
+    void processSetSpeed(qint32 parameter1);
 };
 
 #endif // PLAYERCONTROL_H

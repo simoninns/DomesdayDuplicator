@@ -84,6 +84,13 @@ MainWindow::MainWindow(QWidget *parent) :
     playerControlTimer = new QTimer(this);
     connect(playerControlTimer, SIGNAL(timeout()), this, SLOT(updatePlayerControlInformation()));
     playerControlTimer->start(100); // Update 10 times per second
+
+    // Defaults for the remote control toggle settings
+    remoteDisplayState = PlayerCommunication::DisplayState::off;
+    remoteAudioState = PlayerCommunication::AudioState::digitalStereo;
+    remoteMultiSpeed = 1;
+    remoteSpeed = 0;
+    remoteChapterFrameMode = PlayerCommunication::ChapterFrameMode::chapter;
 }
 
 MainWindow::~MainWindow()
@@ -141,7 +148,7 @@ void MainWindow::remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteBut
         playerControl->setPlayerState(PlayerCommunication::PlayerState::stop);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbPause:
-        playerControl->setPlayerState(PlayerCommunication::PlayerState::pause);
+        playerControl->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbPlay:
         playerControl->setPlayerState(PlayerCommunication::PlayerState::play);
@@ -156,7 +163,13 @@ void MainWindow::remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteBut
         playerControl->step(PlayerCommunication::Direction::forwards);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbDisplay:
-        // TOGGLE!
+        if (remoteDisplayState == PlayerCommunication::DisplayState::off) {
+            playerControl->setOnScreenDisplay(PlayerCommunication::DisplayState::on);
+            remoteDisplayState = PlayerCommunication::DisplayState::on;
+        } else {
+            playerControl->setOnScreenDisplay(PlayerCommunication::DisplayState::off);
+            remoteDisplayState = PlayerCommunication::DisplayState::off;
+        }
         break;
     case PlayerRemoteDialog::RemoteButtons::rbScanRev:
         playerControl->scan(PlayerCommunication::Direction::backwards);
@@ -165,58 +178,77 @@ void MainWindow::remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteBut
         playerControl->scan(PlayerCommunication::Direction::forwards);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbAudio:
-        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbAudio not implemented";
+        // Rotate through audio options
+        if (remoteAudioState == PlayerCommunication::AudioState::audioOff)
+            remoteAudioState = PlayerCommunication::AudioState::analogCh1;
+        else if (remoteAudioState == PlayerCommunication::AudioState::analogCh1)
+            remoteAudioState = PlayerCommunication::AudioState::analogCh2;
+        else if (remoteAudioState == PlayerCommunication::AudioState::analogCh2)
+            remoteAudioState = PlayerCommunication::AudioState::analogStereo;
+        else if (remoteAudioState == PlayerCommunication::AudioState::analogStereo)
+            remoteAudioState = PlayerCommunication::AudioState::digitalCh1;
+        else if (remoteAudioState == PlayerCommunication::AudioState::digitalCh1)
+            remoteAudioState = PlayerCommunication::AudioState::digitalCh2;
+        else if (remoteAudioState == PlayerCommunication::AudioState::digitalCh2)
+            remoteAudioState = PlayerCommunication::AudioState::digitalStereo;
+        else if (remoteAudioState == PlayerCommunication::AudioState::digitalStereo)
+            remoteAudioState = PlayerCommunication::AudioState::audioOff;
+        playerControl->setAudio(remoteAudioState);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbSpeedDown:
-        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbSpeedDown not implemented";
+        remoteSpeed--;
+        if (remoteSpeed < 0) remoteSpeed = 0;
+        playerControl->setSpeed(remoteSpeed);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbSpeedUp:
-        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbSpeedUp not implemented";
+        remoteSpeed++;
+        if (remoteSpeed > 7) remoteSpeed = 7;
+        playerControl->setSpeed(remoteSpeed);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbClear:
         // Note: ignored
         break;
     case PlayerRemoteDialog::RemoteButtons::rbMultiRev:
-        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbMultiRev not implemented";
+        playerControl->multiSpeed(PlayerCommunication::Direction::backwards);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbMultiFwd:
-        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbMultiFwd not implemented";
+        playerControl->multiSpeed(PlayerCommunication::Direction::forwards);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbSearch:
-        // Note: ignored
+        // Requires interaction with remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbChapFrame:
-        // Note: ignored
+        // Requires interaction with remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbZero:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbOne:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbTwo:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbThree:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbFour:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbFive:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbSix:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbSeven:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbEight:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     case PlayerRemoteDialog::RemoteButtons::rbNine:
-        // Note: ignored
+        // Handled by the remote control dialogue
         break;
     }
 }
@@ -228,8 +260,9 @@ void MainWindow::updateCaptureStatistics(void)
 
     // Calculate the captured data based on the sample format (i.e. size on disk)
     qint32 mbWritten = 0;
-    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 64;
-    else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40;
+    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned)
+        mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 64; // 16-bit is 64MiB per buffer
+    else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40; // 10-bit is 40MiB per buffer
 
     ui->numberOfDiskBuffersWrittenLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
 }

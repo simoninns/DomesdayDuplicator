@@ -27,7 +27,12 @@
 
 #include "playercommunication.h"
 
-#define TIMEOUT 1
+// The timeout for normal commands is 5 seconds (these are commands that
+// they player usually responds to quickly, like framecode request).
+// The timeout for long commands is 30 seconds (there are commands like
+// play and open tray).
+#define N_TIMEOUT 5
+#define L_TIMEOUT 30
 
 PlayerCommunication::PlayerCommunication(QObject *parent) : QObject(parent)
 {
@@ -104,7 +109,7 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
         // Pioneer LD-V4300D connected?
         if (playerType == PlayerType::pioneerLDV4300D) {
             sendSerialCommand("?X\r");
-            QString response = getSerialResponse(TIMEOUT);
+            QString response = getSerialResponse(N_TIMEOUT);
 
             if (response.isEmpty()) {
                 //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer LD-V4300D!";
@@ -122,7 +127,7 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
         // Pioneer CLD-V2800 connected?
         if (playerType == PlayerType::pioneerCLDV2800) {
             sendSerialCommand("?X\r");
-            QString response = getSerialResponse(TIMEOUT);
+            QString response = getSerialResponse(N_TIMEOUT);
 
             if (response.isEmpty()) {
                 //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer CLD-V2800!";
@@ -158,7 +163,7 @@ void PlayerCommunication::disconnect(void)
 PlayerCommunication::TrayState PlayerCommunication::getTrayState(void)
 {
     sendSerialCommand("?P\r"); // Player active mode request
-    QString response = getSerialResponse(1);
+    QString response = getSerialResponse(N_TIMEOUT);
 
     // Process response
     if (response.contains("P00")) {
@@ -172,7 +177,7 @@ PlayerCommunication::TrayState PlayerCommunication::getTrayState(void)
 PlayerCommunication::PlayerState PlayerCommunication::getPlayerState(void)
 {
     sendSerialCommand("?P\r"); // Player active mode request
-    QString response = getSerialResponse(1);
+    QString response = getSerialResponse(N_TIMEOUT);
 
     // Process response
     if (response.contains("P00")) {
@@ -220,7 +225,7 @@ PlayerCommunication::PlayerState PlayerCommunication::getPlayerState(void)
 qint32 PlayerCommunication::getCurrentFrame(void)
 {
     sendSerialCommand("?F\r");
-    QString response = getSerialResponse(1);
+    QString response = getSerialResponse(N_TIMEOUT);
 
     qint32 frameNumber;
     if (!response.isEmpty()) frameNumber = static_cast<int>(response.left(5).toUInt());
@@ -233,7 +238,7 @@ qint32 PlayerCommunication::getCurrentFrame(void)
 qint32 PlayerCommunication::getCurrentTimeCode(void)
 {
     sendSerialCommand("?F\r");
-    QString response = getSerialResponse(1);
+    QString response = getSerialResponse(N_TIMEOUT);
 
     qint32 timeCode;
     if (!response.isEmpty()) timeCode = static_cast<int>(response.left(7).toUInt());
@@ -245,7 +250,7 @@ qint32 PlayerCommunication::getCurrentTimeCode(void)
 PlayerCommunication::DiscType PlayerCommunication::getDiscType(void)
 {
     sendSerialCommand("?D\r");
-    QString response = getSerialResponse(1);
+    QString response = getSerialResponse(N_TIMEOUT);
 
     // Check for response
     if (response.isEmpty()) {
@@ -269,7 +274,7 @@ PlayerCommunication::DiscType PlayerCommunication::getDiscType(void)
 QString PlayerCommunication::getUserCode(void)
 {
     sendSerialCommand("$Y\r");
-    return getSerialResponse(1);
+    return getSerialResponse(N_TIMEOUT);
 }
 
 qint32 PlayerCommunication::getMaximumFrameNumber(void)
@@ -293,9 +298,11 @@ void PlayerCommunication::setTrayState(TrayState trayState)
     switch(trayState) {
     case TrayState::closed:
         sendSerialCommand("CO\r"); // Open door command
+        getSerialResponse(L_TIMEOUT);
         break;
     case TrayState::open:
         sendSerialCommand("OP\r"); // Close door command
+        getSerialResponse(L_TIMEOUT);
         break;
     case TrayState::unknownTrayState:
         qDebug() << "PlayerCommunication::setTrayState(): Invoker used TrayState::unknownTrayState - ignoring";
@@ -308,15 +315,19 @@ void PlayerCommunication::setPlayerState(PlayerState playerState)
     switch(playerState) {
         case PlayerState::pause:
             sendSerialCommand("PA\r"); // Pause command
+            getSerialResponse(N_TIMEOUT);
             break;
         case PlayerState::play:
             sendSerialCommand("PL\r"); // Play command
+            getSerialResponse(L_TIMEOUT);
             break;
         case PlayerState::stillFrame:
             sendSerialCommand("ST\r"); // Still frame command
+            getSerialResponse(N_TIMEOUT);
             break;
         case PlayerState::stop:
             sendSerialCommand("RJ\r"); // Reject (stop) command
+            getSerialResponse(L_TIMEOUT);
             break;
         case PlayerState::unknownPlayerState:
             qDebug() << "PlayerCommunication::setPlayerState(): Invoker used PlayerState::unknownPlayerState - ignoring";
@@ -329,9 +340,11 @@ void PlayerCommunication::step(Direction direction)
     switch(direction) {
         case Direction::forwards:
             sendSerialCommand("SF\r");
+            getSerialResponse(N_TIMEOUT);
             break;
         case Direction::backwards:
             sendSerialCommand("SR\r");
+            getSerialResponse(N_TIMEOUT);
             break;
     }
 }
@@ -341,18 +354,27 @@ void PlayerCommunication::scan(Direction direction)
     switch(direction) {
         case Direction::forwards:
             sendSerialCommand("NF\r");
+            getSerialResponse(N_TIMEOUT);
             break;
         case Direction::backwards:
             sendSerialCommand("NR\r");
+            getSerialResponse(N_TIMEOUT);
             break;
     }
 }
 
-void PlayerCommunication::mutliSpeed(Direction direction, qint32 speed)
+void PlayerCommunication::multiSpeed(Direction direction)
 {
-    (void)direction;
-    (void)speed;
-    qDebug() << "PlayerCommunication::mutliSpeed(): Called, but function is not implemented yet";
+    switch(direction) {
+        case Direction::forwards:
+            sendSerialCommand("MF\r");
+            getSerialResponse(N_TIMEOUT);
+            break;
+        case Direction::backwards:
+            sendSerialCommand("MB\r");
+            getSerialResponse(N_TIMEOUT);
+            break;
+    }
 }
 
 void PlayerCommunication::setFramePosition(qint32 frame)
@@ -362,6 +384,7 @@ void PlayerCommunication::setFramePosition(qint32 frame)
     QString command;
     command.sprintf("FR%dSE\r", frame);
     sendSerialCommand(command); // Frame seek command
+    getSerialResponse(L_TIMEOUT);
 }
 
 void PlayerCommunication::setTimeCodePosition(qint32 timeCode)
@@ -371,6 +394,7 @@ void PlayerCommunication::setTimeCodePosition(qint32 timeCode)
     QString command;
     command.sprintf("FR%dSE\r", timeCode);
     sendSerialCommand(command); // TimeCode seek command
+    getSerialResponse(L_TIMEOUT);
 }
 
 void PlayerCommunication::setStopFrame(qint32 frame)
@@ -387,14 +411,32 @@ void PlayerCommunication::setStopTimeCode(qint32 timeCode)
 
 void PlayerCommunication::setOnScreenDisplay(DisplayState displayState)
 {
-    (void)displayState;
-    qDebug() << "PlayerCommunication::setOnScreenDisplay(): Called, but function is not implemented yet";
+    QString command;
+    if (displayState == PlayerCommunication::DisplayState::off) {
+        sendSerialCommand("0DS\r");
+        getSerialResponse(N_TIMEOUT);
+    } else {
+        sendSerialCommand("1DS\r");
+        getSerialResponse(N_TIMEOUT);
+    }
 }
 
 void PlayerCommunication::setAudio(AudioState audioState)
 {
-    (void)audioState;
-    qDebug() << "PlayerCommunication::setAudio(): Called, but function is not implemented yet";
+    qint32 parameter = 7;
+    QString command;
+
+    if (audioState == PlayerCommunication::AudioState::audioOff) parameter = 0;
+    if (audioState == PlayerCommunication::AudioState::analogCh1) parameter = 1;
+    if (audioState == PlayerCommunication::AudioState::analogCh2) parameter = 2;
+    if (audioState == PlayerCommunication::AudioState::analogStereo) parameter = 3;
+    if (audioState == PlayerCommunication::AudioState::digitalCh1) parameter = 5;
+    if (audioState == PlayerCommunication::AudioState::digitalCh2) parameter = 6;
+    if (audioState == PlayerCommunication::AudioState::digitalStereo) parameter = 7;
+
+    command.sprintf("%dAD\r", parameter);
+    sendSerialCommand(command);
+    getSerialResponse(N_TIMEOUT);
 }
 
 void PlayerCommunication::setKeyLock(KeyLockState keyLockState)
@@ -402,16 +444,29 @@ void PlayerCommunication::setKeyLock(KeyLockState keyLockState)
     switch(keyLockState) {
         case KeyLockState::locked:
             sendSerialCommand("1KL\r");
+            getSerialResponse(N_TIMEOUT);
             break;
         case KeyLockState::unlocked:
             sendSerialCommand("0KL\r");
+            getSerialResponse(N_TIMEOUT);
             break;
     }
+}
+
+void PlayerCommunication::setSpeed(qint32 speed)
+{
+    QString command;
+
+    command.sprintf("%dSP\r", speed);
+    //qDebug() << "PlayerCommunication::setSpeed(): Sending command:" << command;
+    sendSerialCommand(command);
+    getSerialResponse(N_TIMEOUT);
 }
 
 // Send a command via the serial connection
 void PlayerCommunication::sendSerialCommand(QString command)
 {
+    //qDebug() << "PlayerCommunication::sendSerialCommand(): Sending command:" << command;
     // Maximum command string length is 20 characters
     serialPort->write(command.toUtf8().left(20));
 }
