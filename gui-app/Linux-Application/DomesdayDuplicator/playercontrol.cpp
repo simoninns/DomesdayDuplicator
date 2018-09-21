@@ -217,3 +217,65 @@ QString PlayerControl::getPlayerPositionInformation(void)
 
     return playerPosition;
 }
+
+// Player command public methods --------------------------------------------------------------------------------------
+
+void PlayerControl::setTrayState(PlayerCommunication::TrayState trayState)
+{
+
+}
+
+void PlayerControl::setPlayerState(PlayerCommunication::PlayerState playerState)
+{
+
+}
+
+void PlayerControl::step(PlayerCommunication::Direction direction)
+{
+
+}
+
+void PlayerControl::scan(PlayerCommunication::Direction direction)
+{
+
+}
+
+void PlayerControl::mutliSpeed(PlayerCommunication::Direction direction, qint32 speed)
+{
+
+}
+
+void PlayerControl::setFramePosition(qint32 frame)
+{
+
+}
+
+void PlayerControl::setTimeCodePosition(qint32 timeCode)
+{
+
+}
+
+void PlayerControl::setStopFrame(qint32 frame)
+{
+
+}
+
+void PlayerControl::setStopTimeCode(qint32 timeCode)
+{
+
+}
+
+void PlayerControl::setOnScreenDisplay(PlayerCommunication::DisplayState displayState)
+{
+
+}
+
+void PlayerControl::setAudio(PlayerCommunication::AudioState audioState)
+{
+
+}
+
+void PlayerControl::setKeyLock(PlayerCommunication::KeyLockState keyLockState)
+{
+
+}

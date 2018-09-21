@@ -53,6 +53,20 @@ public:
     QString getPlayerStatusInformation(void);
     QString getPlayerPositionInformation(void);
 
+    // Commands
+    void setTrayState(PlayerCommunication::TrayState trayState);
+    void setPlayerState(PlayerCommunication::PlayerState playerState);
+    void step(PlayerCommunication::Direction direction);
+    void scan(PlayerCommunication::Direction direction);
+    void mutliSpeed(PlayerCommunication::Direction direction, qint32 speed);
+    void setFramePosition(qint32 frame);
+    void setTimeCodePosition(qint32 timeCode);
+    void setStopFrame(qint32 frame);
+    void setStopTimeCode(qint32 timeCode);
+    void setOnScreenDisplay(PlayerCommunication::DisplayState displayState);
+    void setAudio(PlayerCommunication::AudioState audioState);
+    void setKeyLock(PlayerCommunication::KeyLockState keyLockState);
+
 signals:
     void startCapture(void);
     void stopCapture(void);
