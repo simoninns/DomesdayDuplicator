@@ -80,7 +80,7 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
 
     // Configure the serial port object
     serialPort->setPortName(serialDevice);
-    qDebug() << "PlayerCommunication::connect(): Serial port name is" << serialDevice;
+    //qDebug() << "PlayerCommunication::connect(): Serial port name is" << serialDevice;
 
     if (serialSpeed == SerialSpeed::bps1200) serialPort->setBaudRate(QSerialPort::Baud1200);
     if (serialSpeed == SerialSpeed::bps2400) serialPort->setBaudRate(QSerialPort::Baud2400);
@@ -93,11 +93,11 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
     serialPort->setFlowControl(QSerialPort::NoFlowControl);
 
     if (!serialPort->open(QIODevice::ReadWrite)) {
-        qDebug() << "PlayerCommunication::connect(): Unable to open serial port!";
+        //qDebug() << "PlayerCommunication::connect(): Unable to open serial port!";
         return false;
     }
 
-    qDebug() << "PlayerCommunication::connect(): Serial port opened successfully";
+    //qDebug() << "PlayerCommunication::connect(): Serial port opened successfully";
 
     // Attempt 5 times to connect to the player
     for (qint32 connectionAttempts = 0; connectionAttempts < 5; connectionAttempts++) {
@@ -107,11 +107,11 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
             QString response = getSerialResponse(TIMEOUT);
 
             if (response.isEmpty()) {
-                qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer LD-V4300D!";
+                //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer LD-V4300D!";
             }
 
             if (!response.contains("P1515")) {
-                qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
+                //qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
             } else {
                 qDebug() << "PlayerCommunication::connect(): Pioneer LD-V4300D connected";
                 connectionSuccessful = true;
@@ -125,11 +125,11 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
             QString response = getSerialResponse(TIMEOUT);
 
             if (response.isEmpty()) {
-                qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer CLD-V2800!";
+                //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer CLD-V2800!";
             }
 
             if (!response.contains("P1537")) {
-                qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
+                //qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
             } else {
                 qDebug() << "PlayerCommunication::connect(): Pioneer CLD-V2800 connected";
                 connectionSuccessful = true;
@@ -140,7 +140,7 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
 
     // Did the connection fail?
     if (!connectionSuccessful) {
-        qDebug() << "PlayerCommunication::connect(): Could not connect to LaserDisc player";
+        //qDebug() << "PlayerCommunication::connect(): Could not connect to LaserDisc player";
         serialPort->close();
         return false;
     }
@@ -210,25 +210,36 @@ PlayerCommunication::PlayerState PlayerCommunication::getPlayerState(void)
         return PlayerState::play;
     } else {
         // Unknown response
-        qDebug() << "smStoppedState(): Unknown response from player to ?P - " << response;
+        qDebug() << "PlayerCommunication::getPlayerState(): Unknown response from player to ?P - " << response;
     }
 
     return PlayerState::unknownPlayerState;
 }
 
+// Return the current frame or -1 if communication fails
 qint32 PlayerCommunication::getCurrentFrame(void)
 {
     sendSerialCommand("?F\r");
     QString response = getSerialResponse(1);
 
-    return static_cast<int>(response.left(5).toUInt());
+    qint32 frameNumber;
+    if (!response.isEmpty()) frameNumber = static_cast<int>(response.left(5).toUInt());
+    else frameNumber = -1;
+
+    return frameNumber;
 }
 
+// Return the current timeCode or -1 if communication fails
 qint32 PlayerCommunication::getCurrentTimeCode(void)
 {
     sendSerialCommand("?F\r");
     QString response = getSerialResponse(1);
-    return static_cast<int>(response.left(7).toUInt());
+
+    qint32 timeCode;
+    if (!response.isEmpty()) timeCode = static_cast<int>(response.left(7).toUInt());
+    else timeCode = -1;
+
+    return timeCode;
 }
 
 PlayerCommunication::DiscType PlayerCommunication::getDiscType(void)
@@ -244,14 +255,14 @@ PlayerCommunication::DiscType PlayerCommunication::getDiscType(void)
 
     // Process the response
     if (response.at(1) == '0') {
-        qDebug() << "PlayerCommunication::getDiscType(): Disc is CAV";
+        //qDebug() << "PlayerCommunication::getDiscType(): Disc is CAV";
         return DiscType::CAV;
     } else if (response.at(1) == '1') {
-        qDebug() << "PlayerCommunication::getDiscType(): Disc is CLV";
+        //qDebug() << "PlayerCommunication::getDiscType(): Disc is CLV";
         return DiscType::CLV;
     }
 
-    qDebug() << "PlayerCommunication::getDiscType(): Unknown disc type";
+    //qDebug() << "PlayerCommunication::getDiscType(): Unknown disc type";
     return DiscType::unknownDiscType;
 }
 
@@ -429,7 +440,7 @@ QString PlayerCommunication::getSerialResponse(qint32 timeoutInSeconds)
         if ((responseTimer.elapsed() >= static_cast<qint64>(timeoutInSeconds * 1000)) && (!responseComplete)) {
             responseTimedOut = true;
             responseComplete = true;
-            qDebug() << "PlayerCommunication::getSerialResponse(): Serial response timed out!";
+            //qDebug() << "PlayerCommunication::getSerialResponse(): Serial response timed out!";
         }
     }
 

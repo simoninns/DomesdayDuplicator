@@ -50,6 +50,7 @@ public:
     };
 
     enum PlayerType {
+        unknownPlayerType,
         pioneerLDV4300D,    // Pioneer LD-V4300D
         pioneerCLDV2800     // Pioneer CLD-V2800
     };
