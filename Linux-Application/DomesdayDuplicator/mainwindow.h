@@ -89,13 +89,13 @@ private:
     // Remote control states
     PlayerCommunication::DisplayState remoteDisplayState;
     PlayerCommunication::AudioState remoteAudioState;
-    qint32 remoteMultiSpeed;
     qint32 remoteSpeed;
     PlayerCommunication::ChapterFrameMode remoteChapterFrameMode;
 
     void updateGuiForCaptureStart(void);
     void updateGuiForCaptureStop(void);
     void startPlayerControl(void);
+    void updatePlayerRemoteDialog(void);
 };
 
 #endif // MAINWINDOW_H

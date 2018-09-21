@@ -33,11 +33,84 @@ PlayerRemoteDialog::PlayerRemoteDialog(QWidget *parent) :
     ui(new Ui::PlayerRemoteDialog)
 {
     ui->setupUi(this);
+
+    positionMode = PositionMode::pmFrame;
+    multiSpeed = MultiSpeed::multiX1;
+    displayMode = DisplayMode::displayOff;
+
+    updateGui();
 }
 
 PlayerRemoteDialog::~PlayerRemoteDialog()
 {
     delete ui;
+}
+
+// Update the GUI
+void PlayerRemoteDialog::updateGui(void)
+{
+    switch(positionMode) {
+    case PositionMode::pmChapter:
+        ui->unitLabel->setText(tr("Chapter"));
+        break;
+    case PositionMode::pmFrame:
+        ui->unitLabel->setText(tr("Frame"));
+        break;
+    case PositionMode::pmTime:
+        ui->unitLabel->setText(tr("Time"));
+        break;
+    case PositionMode::pmTrack:
+        ui->unitLabel->setText(tr("Track"));
+        break;
+    }
+
+    switch(multiSpeed) {
+    case MultiSpeed::multiSm16:
+        ui->speedLabel->setText(tr("x1/6"));
+        break;
+    case MultiSpeed::multiSm14:
+        ui->speedLabel->setText(tr("x1/4"));
+        break;
+    case MultiSpeed::multiSm13:
+        ui->speedLabel->setText(tr("x1/3"));
+        break;
+    case MultiSpeed::multiSm12:
+        ui->speedLabel->setText(tr("x1/2"));
+        break;
+    case MultiSpeed::multiX1:
+        ui->speedLabel->setText(tr("x1"));
+        break;
+    case MultiSpeed::multiX2:
+        ui->speedLabel->setText(tr("x2"));
+        break;
+    case MultiSpeed::multiX3:
+        ui->speedLabel->setText(tr("x3"));
+        break;
+    case MultiSpeed::multiX4:
+        ui->speedLabel->setText(tr("x4"));
+        break;
+    }
+
+    switch(displayMode) {
+    case DisplayMode::displayOff:
+        ui->displayLabel->setText(tr("OSD Off"));
+        break;
+    case DisplayMode::displayOn:
+        ui->displayLabel->setText(tr("OSD On"));
+        break;
+    }
+}
+
+void PlayerRemoteDialog::setMultiSpeed(MultiSpeed multiSpeedParam)
+{
+    multiSpeed = multiSpeedParam;
+    updateGui();
+}
+
+void PlayerRemoteDialog::setDisplayMode(DisplayMode displayModeParam)
+{
+    displayMode = displayModeParam;
+    updateGui();
 }
 
 // Handle push button clicked events ----------------------------------------------------------------------------------
@@ -174,5 +247,10 @@ void PlayerRemoteDialog::on_searchPushButton_clicked()
 
 void PlayerRemoteDialog::on_chapFramePushButton_clicked()
 {
-
+    // Rotate through the possible unit modes
+    if (positionMode == PositionMode::pmChapter) positionMode = PositionMode::pmFrame;
+    else if (positionMode == PositionMode::pmFrame) positionMode = PositionMode::pmTime;
+    else if (positionMode == PositionMode::pmTime) positionMode = PositionMode::pmTrack;
+    else if (positionMode == PositionMode::pmTrack) positionMode = PositionMode::pmChapter;
+    updateGui();
 }
