@@ -61,6 +61,11 @@ private slots:
     void configurationChangedSignalHandler(void);
     void remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteButtons button);
     void remoteControlSearchSignalHandler(qint32 position, PlayerRemoteDialog::PositionMode positionMode);
+    void startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog::CaptureType captureType,
+                                                              qint32 startAddress, qint32 endAddress,
+                                                              AutomaticCaptureDialog::DiscType discTypeParam);
+    void stopAutomaticCaptureDialogSignalHandler(void);
+
     void updateCaptureStatistics(void);
     void updatePlayerControlInformation(void);
     void transferFailedSignalHandler(void);
@@ -70,9 +75,7 @@ private slots:
     void on_actionAbout_triggered();
     void on_actionPreferences_triggered();
     void on_capturePushButton_clicked();
-
     void on_actionPlayer_remote_triggered();
-
     void on_actionAutomatic_capture_triggered();
 
 private:

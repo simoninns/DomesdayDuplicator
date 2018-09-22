@@ -59,7 +59,7 @@ public:
     void captureComplete();
 
 signals:
-    void startAutomaticCapture(qint32 captureType, qint32 startAddress, qint32 endAddress, quint32 discType);
+    void startAutomaticCapture(CaptureType captureType, qint32 startAddress, qint32 endAddress, DiscType discType);
     void stopAutomaticCapture(void);
 
 private slots:

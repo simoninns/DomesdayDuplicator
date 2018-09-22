@@ -72,6 +72,7 @@ AutomaticCaptureDialog::~AutomaticCaptureDialog()
     delete ui;
 }
 
+// Called by the parent class once a capture is complete
 void AutomaticCaptureDialog::captureComplete()
 {
     ui->wholeDiscRadioButton->setEnabled(true);
@@ -95,6 +96,8 @@ void AutomaticCaptureDialog::captureComplete()
     defaultTime.setHMS(0, 0, 0, 0);
     ui->startTimeTimeEdit->setTime(defaultTime);
     ui->endTimeTimeEdit->setTime(defaultTime);
+
+    captureInProgress = false;
 }
 
 // Private methods ----------------------------------------------------------------------------------------------------
@@ -126,6 +129,7 @@ void AutomaticCaptureDialog::on_leadInCaptureRadioButton_clicked()
     captureType = CaptureType::leadInCapture;
 }
 
+// Signal to the parent class that a capture is starting (CAV)
 void AutomaticCaptureDialog::on_startCavCapturePushButton_clicked()
 {
     if (!captureInProgress) {
@@ -161,12 +165,14 @@ void AutomaticCaptureDialog::on_startCavCapturePushButton_clicked()
         ui->startCavCapturePushButton->setText("Abort");
 
         emit startAutomaticCapture(captureType, startFrame, endFrame, DiscType::CAV);
+        captureInProgress = true;
     } else {
         // Abort
         emit stopAutomaticCapture();
     }
 }
 
+// Signal to the parent class that a capture is starting (CLV)
 void AutomaticCaptureDialog::on_startClvCapturePushButton_clicked()
 {
     if (!captureInProgress) {
@@ -214,6 +220,7 @@ void AutomaticCaptureDialog::on_startClvCapturePushButton_clicked()
         ui->startClvCapturePushButton->setText("Abort");
 
         emit startAutomaticCapture(captureType, startTimeCode, endTimeCode, DiscType::CLV);
+        captureInProgress = true;
     } else {
         emit stopAutomaticCapture();
     }
