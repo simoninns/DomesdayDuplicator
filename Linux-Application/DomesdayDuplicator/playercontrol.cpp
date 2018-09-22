@@ -42,6 +42,10 @@ PlayerControl::PlayerControl(QObject *parent) : QThread(parent)
 
     // Initialise the player communication object
     playerCommunication = new PlayerCommunication();
+
+    // Initialise the automatic capture
+    automaticCaptureStatus = tr("Idle");
+    automaticCaptureInProgress = false;
 }
 
 PlayerControl::~PlayerControl()
@@ -651,4 +655,46 @@ void PlayerControl::setSpeed(qint32 speed)
 {
     commandQueue.enqueue(Commands::cmdSetSpeed);
     parameterQueue.enqueue(speed);
+}
+
+// Automatic capture methods ------------------------------------------------------------------------------------------
+
+// Public method to start an automatic capture
+void PlayerControl::startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
+                                 qint32 startAddress, qint32 endAddress,
+                                 PlayerCommunication::DiscType discType)
+{
+    // Check if automatic capture is already running
+    if (automaticCaptureInProgress) {
+        qDebug() << "PlayerControl::startAutomaticCapture(): Automatic capture already running!";
+        return;
+    }
+
+    (void)fromLeadIn;
+    (void)wholeDisc;
+    (void)startAddress;
+    (void)endAddress;
+    (void)discType;
+}
+
+// Public method to stop an automatic capture
+void PlayerControl::stopAutomaticCapture(void)
+{
+    // Check automatic capture is running
+    if (!automaticCaptureInProgress) {
+        qDebug() << "PlayerControl::stopAutomaticCapture(): Automatic capture not running!";
+        return;
+    }
+}
+
+// Public method to get the current automatic capture status
+QString PlayerControl::getAutomaticCaptureStatus(void)
+{
+    return automaticCaptureStatus;
+}
+
+// Private method for processing automatic capture
+void PlayerControl::processAutomaticCapture(void)
+{
+
 }

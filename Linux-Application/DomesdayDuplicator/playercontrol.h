@@ -88,6 +88,12 @@ public:
     void setKeyLock(PlayerCommunication::KeyLockState keyLockState);
     void setSpeed(qint32 speed);
 
+    void startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
+                                     qint32 startAddress, qint32 endAddress,
+                                     PlayerCommunication::DiscType discType);
+    void stopAutomaticCapture(void);
+    QString getAutomaticCaptureStatus(void);
+
 signals:
     void startCapture(void);
     void stopCapture(void);
@@ -115,6 +121,10 @@ private:
 
     PlayerCommunication *playerCommunication;
 
+    // Automatic capture
+    QString automaticCaptureStatus;
+    bool automaticCaptureInProgress;
+
     // Command queue
     QQueue<PlayerControl::Commands> commandQueue;
     QQueue<qint32> parameterQueue;
@@ -135,6 +145,8 @@ private:
     void processSetAudio(qint32 parameter1);
     void processSetKeyLock(qint32 parameter1);
     void processSetSpeed(qint32 parameter1);
+
+    void processAutomaticCapture(void);
 };
 
 #endif // PLAYERCONTROL_H
