@@ -670,11 +670,15 @@ void PlayerControl::startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
         return;
     }
 
+    // Flag that a capture is in progress
+    automaticCaptureInProgress = true;
+
     (void)fromLeadIn;
     (void)wholeDisc;
     (void)startAddress;
     (void)endAddress;
     (void)discType;
+    qDebug() << "PlayerControl::startAutomaticCapture(): NOT IMPLEMENTED";
 }
 
 // Public method to stop an automatic capture
@@ -685,6 +689,10 @@ void PlayerControl::stopAutomaticCapture(void)
         qDebug() << "PlayerControl::stopAutomaticCapture(): Automatic capture not running!";
         return;
     }
+
+    // Flag that the capture has stopped
+    automaticCaptureInProgress = false;
+    qDebug() << "PlayerControl::stopAutomaticCapture(): NOT IMPLEMENTED";
 }
 
 // Public method to get the current automatic capture status

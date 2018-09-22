@@ -51,6 +51,10 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Create the automatic capture dialogue
     automaticCaptureDialog = new AutomaticCaptureDialog(this);
+    connect(automaticCaptureDialog, &AutomaticCaptureDialog::startAutomaticCapture,
+            this, &MainWindow::startAutomaticCaptureDialogSignalHandler);
+    connect(automaticCaptureDialog, &AutomaticCaptureDialog::stopAutomaticCapture,
+            this, &MainWindow::stopAutomaticCaptureDialogSignalHandler);
 
     // Start the player control object
     playerControl = new PlayerControl(this);
@@ -278,6 +282,41 @@ void MainWindow::remoteControlSearchSignalHandler(qint32 position, PlayerRemoteD
         playerControl->setPositionFrame(position);
         break;
     }
+}
+
+// Automatic capture dialogue signals that capture should start
+void MainWindow::startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog::CaptureType captureType,
+                                                          qint32 startAddress, qint32 endAddress,
+                                                          AutomaticCaptureDialog::DiscType discTypeParam)
+{
+    bool fromLeadIn = false;
+    bool wholeDisc = false;
+    PlayerCommunication::DiscType discType = PlayerCommunication::DiscType::unknownDiscType;
+
+    if (captureType == AutomaticCaptureDialog::CaptureType::wholeDisc) {
+        fromLeadIn = true;
+        wholeDisc = true;
+    } else if (captureType == AutomaticCaptureDialog::CaptureType::leadInCapture) {
+        fromLeadIn = true;
+        wholeDisc = false;
+    } else if (captureType == AutomaticCaptureDialog::CaptureType::partialDisc) {
+        fromLeadIn = false;
+        wholeDisc = false;
+    }
+
+    if (discTypeParam == AutomaticCaptureDialog::DiscType::CAV) discType = PlayerCommunication::DiscType::CAV;
+    else discType = PlayerCommunication::DiscType::CLV;
+
+    // Start the automatic capture
+    playerControl->startAutomaticCapture(fromLeadIn, wholeDisc,
+                                         startAddress, endAddress,
+                                         discType);
+}
+
+// Automatic capture dialogue signals that capture should stop
+void MainWindow::stopAutomaticCaptureDialogSignalHandler(void)
+{
+    playerControl->stopAutomaticCapture();
 }
 
 // Update the capture statistics labels
