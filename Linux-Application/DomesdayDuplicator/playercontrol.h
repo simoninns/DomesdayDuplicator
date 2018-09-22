@@ -53,6 +53,7 @@ public:
 
     QString getPlayerStatusInformation(void);
     QString getPlayerPositionInformation(void);
+    PlayerCommunication::DiscType getDiscType(void);
 
     // Commands
     enum Commands {
@@ -61,8 +62,9 @@ public:
         cmdStep,
         cmdScan,
         cmdMultiSpeed,
-        cmdSetFramePosition,
-        cmdSetTimeCodePosition,
+        cmdSetPositionFrame,
+        cmdSetPositionTimeCode,
+        cmdSetPositionChapter,
         cmdSetStopFrame,
         cmdSetStopTimeCode,
         cmdSetOnScreenDisplay,
@@ -76,8 +78,9 @@ public:
     void step(PlayerCommunication::Direction direction);
     void scan(PlayerCommunication::Direction direction);
     void multiSpeed(PlayerCommunication::Direction direction);
-    void setFramePosition(qint32 frame);
-    void setTimeCodePosition(qint32 timeCode);
+    void setPositionFrame(qint32 address);
+    void setPositionTimeCode(qint32 address);
+    void setPositionChapter(qint32 address);
     void setStopFrame(qint32 frame);
     void setStopTimeCode(qint32 timeCode);
     void setOnScreenDisplay(PlayerCommunication::DisplayState displayState);
@@ -123,8 +126,9 @@ private:
     void processStep(qint32 parameter1);
     void processScan(qint32 parameter1);
     void processMultiSpeed(qint32 parameter1);
-    void processSetFramePosition(qint32 parameter1);
-    void processSetTimeCodePosition(qint32 parameter1);
+    void processSetPositionFrame(qint32 parameter1);
+    void processSetPositionTimeCode(qint32 parameter1);
+    void processSetPositionChapter(qint32 parameter1);
     void processSetStopFrame(qint32 parameter1);
     void processSetStopTimeCode(qint32 parameter1);
     void processSetOnScreenDisplay(qint32 parameter1);

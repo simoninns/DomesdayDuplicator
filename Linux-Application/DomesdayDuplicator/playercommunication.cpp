@@ -377,23 +377,27 @@ void PlayerCommunication::multiSpeed(Direction direction)
     }
 }
 
-void PlayerCommunication::setFramePosition(qint32 frame)
+void PlayerCommunication::setPositionFrame(qint32 address)
 {
-    qDebug() << "PlayerCommunication::setFramePosition(): Sending seek command with start =" << frame;
-
     QString command;
-    command.sprintf("FR%dSE\r", frame);
-    sendSerialCommand(command); // Frame seek command
+    command.sprintf("FR%dSE\r", address);
+    sendSerialCommand(command);
     getSerialResponse(L_TIMEOUT);
 }
 
-void PlayerCommunication::setTimeCodePosition(qint32 timeCode)
+void PlayerCommunication::setPositionTimeCode(qint32 address)
 {
-    qDebug() << "PlayerCommunication::setTimeCodePosition(): Sending seek command with time-code =" << timeCode;
-
     QString command;
-    command.sprintf("FR%dSE\r", timeCode);
-    sendSerialCommand(command); // TimeCode seek command
+    command.sprintf("TM%dSE\r", address);
+    sendSerialCommand(command);
+    getSerialResponse(L_TIMEOUT);
+}
+
+void PlayerCommunication::setPositionChapter(qint32 address)
+{
+    QString command;
+    command.sprintf("CH%dSE\r", address);
+    sendSerialCommand(command);
     getSerialResponse(L_TIMEOUT);
 }
 

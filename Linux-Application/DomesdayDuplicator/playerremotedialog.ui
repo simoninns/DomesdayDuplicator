@@ -49,6 +49,11 @@
         </item>
         <item>
          <widget class="QLabel" name="entryLabel">
+          <property name="font">
+           <font>
+            <pointsize>14</pointsize>
+           </font>
+          </property>
           <property name="text">
            <string>Selection text from presses</string>
           </property>

@@ -224,8 +224,6 @@ void UsbDevice::sendConfigurationCommand(bool testMode)
 {
     quint16 configurationFlags = 0;
 
-    qDebug() << "UsbDevice::sendConfigurationCommand(): Test-mode =" << testMode;
-
     if (testMode) configurationFlags += 1; // Bit 0: Set test mode
     // Bit 1: Unused
     // Bit 2: Unused

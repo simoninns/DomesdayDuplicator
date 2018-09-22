@@ -123,8 +123,9 @@ public:
     void scan(Direction direction);
     void multiSpeed(Direction direction);
 
-    void setFramePosition(qint32 frame);
-    void setTimeCodePosition(qint32 timeCode);
+    void setPositionFrame(qint32 address);
+    void setPositionTimeCode(qint32 address);
+    void setPositionChapter(qint32 address);
 
     void setStopFrame(qint32 frame);
     void setStopTimeCode(qint32 timeCode);

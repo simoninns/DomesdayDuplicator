@@ -34,9 +34,12 @@ PlayerRemoteDialog::PlayerRemoteDialog(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    // Default the remote's settings
     positionMode = PositionMode::pmFrame;
     multiSpeed = MultiSpeed::multiX1;
     displayMode = DisplayMode::displayOff;
+    position = tr("0000000");
+    display = tr("0000000");
 
     updateGui();
 }
@@ -49,6 +52,7 @@ PlayerRemoteDialog::~PlayerRemoteDialog()
 // Update the GUI
 void PlayerRemoteDialog::updateGui(void)
 {
+    // Disc position unit mode
     switch(positionMode) {
     case PositionMode::pmChapter:
         ui->unitLabel->setText(tr("Chapter"));
@@ -59,11 +63,9 @@ void PlayerRemoteDialog::updateGui(void)
     case PositionMode::pmTime:
         ui->unitLabel->setText(tr("Time"));
         break;
-    case PositionMode::pmTrack:
-        ui->unitLabel->setText(tr("Track"));
-        break;
     }
 
+    // Multi-speed speed setting
     switch(multiSpeed) {
     case MultiSpeed::multiSm16:
         ui->speedLabel->setText(tr("x1/6"));
@@ -91,6 +93,7 @@ void PlayerRemoteDialog::updateGui(void)
         break;
     }
 
+    // On screen display mode
     switch(displayMode) {
     case DisplayMode::displayOff:
         ui->displayLabel->setText(tr("OSD Off"));
@@ -98,6 +101,33 @@ void PlayerRemoteDialog::updateGui(void)
     case DisplayMode::displayOn:
         ui->displayLabel->setText(tr("OSD On"));
         break;
+    }
+
+    // Position display
+    if (positionMode == PositionMode::pmTime) {
+        QString timeCodeString;
+        QString hourString;
+        QString minuteString;
+        QString secondString;
+
+
+        // Get the full 7 character time-code string
+        timeCodeString.sprintf("%05d", position.toInt());
+
+        // Split up the time-code
+        hourString = timeCodeString.left(1);
+        minuteString = timeCodeString.left(3).right(2);
+        secondString = timeCodeString.left(5).right(2);
+
+        // Display time-code (without frame number)
+        display = (hourString + ":" + minuteString + ":" + secondString);
+        ui->entryLabel->setText(display);
+    } else if (positionMode == PositionMode::pmChapter) {
+        display = position.right(3);
+        ui->entryLabel->setText(display);
+    } else if (positionMode == PositionMode::pmFrame) {
+        display = position.right(5);
+        ui->entryLabel->setText(display);
     }
 }
 
@@ -110,6 +140,37 @@ void PlayerRemoteDialog::setMultiSpeed(MultiSpeed multiSpeedParam)
 void PlayerRemoteDialog::setDisplayMode(DisplayMode displayModeParam)
 {
     displayMode = displayModeParam;
+    updateGui();
+}
+
+// Add a value to the position display
+void PlayerRemoteDialog::positionAddValue(qint32 value)
+{
+    // Frame number positions
+    if (positionMode == PositionMode::pmFrame) {
+        position = position + QString::number(value);
+
+        // Ensure the maximum length is 5
+        if (position.length() > 5) position = position.right(5);
+    }
+
+    // Chapter number positions
+    if (positionMode == PositionMode::pmChapter) {
+        position = position + QString::number(value);
+
+        // Ensure the maximum length is 3
+        if (position.length() > 3) position = position.right(3);
+    }
+
+    // Time positions
+    if (positionMode == PositionMode::pmTime) {
+        // Time format is h:mm:ss
+        position = position + QString::number(value);
+
+        // Ensure the maximum length is 5
+        if (position.length() > 5) position = position.right(5);
+    }
+
     updateGui();
 }
 
@@ -177,7 +238,9 @@ void PlayerRemoteDialog::on_speedUpPushButton_clicked()
 
 void PlayerRemoteDialog::on_clearPushButton_clicked()
 {
-
+    // Clear the position display
+    position = tr("0000000");
+    updateGui();
 }
 
 void PlayerRemoteDialog::on_multiRevPushButton_clicked()
@@ -192,57 +255,62 @@ void PlayerRemoteDialog::on_multiFwdPushButton_clicked()
 
 void PlayerRemoteDialog::on_sevenPushButton_clicked()
 {
-
+    positionAddValue(7);
 }
 
 void PlayerRemoteDialog::on_eightPushButton_clicked()
 {
-
+    positionAddValue(8);
 }
 
 void PlayerRemoteDialog::on_ninePushButton_clicked()
 {
-
+    positionAddValue(9);
 }
 
 void PlayerRemoteDialog::on_fourPushButton_clicked()
 {
-
+    positionAddValue(4);
 }
 
 void PlayerRemoteDialog::on_fivePushButton_clicked()
 {
-
+    positionAddValue(5);
 }
 
 void PlayerRemoteDialog::on_sixPushButton_clicked()
 {
-
+    positionAddValue(6);
 }
 
 void PlayerRemoteDialog::on_onePushButton_clicked()
 {
-
+    positionAddValue(1);
 }
 
 void PlayerRemoteDialog::on_twoPushButton_clicked()
 {
-
+    positionAddValue(2);
 }
 
 void PlayerRemoteDialog::on_threePushButton_clicked()
 {
-
+    positionAddValue(3);
 }
 
 void PlayerRemoteDialog::on_zeroPushButton_clicked()
 {
-
+    positionAddValue(0);
 }
 
 void PlayerRemoteDialog::on_searchPushButton_clicked()
 {
+    // Send the search request to the main GUI via a signal
+    emit remoteControlSearch(position.toInt(), positionMode);
 
+    // Clear the position display
+    position = tr("0000000");
+    updateGui();
 }
 
 void PlayerRemoteDialog::on_chapFramePushButton_clicked()
@@ -250,7 +318,7 @@ void PlayerRemoteDialog::on_chapFramePushButton_clicked()
     // Rotate through the possible unit modes
     if (positionMode == PositionMode::pmChapter) positionMode = PositionMode::pmFrame;
     else if (positionMode == PositionMode::pmFrame) positionMode = PositionMode::pmTime;
-    else if (positionMode == PositionMode::pmTime) positionMode = PositionMode::pmTrack;
-    else if (positionMode == PositionMode::pmTrack) positionMode = PositionMode::pmChapter;
+    else if (positionMode == PositionMode::pmTime) positionMode = PositionMode::pmChapter;
+    position = tr("0000000");
     updateGui();
 }
