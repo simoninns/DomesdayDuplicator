@@ -117,23 +117,23 @@ public:
     qint32 getMaximumFrameNumber(void);
     qint32 getMaximumTimeCode(void);
 
-    void setTrayState(TrayState trayState);
-    void setPlayerState(PlayerState playerState);
-    void step(Direction direction);
-    void scan(Direction direction);
-    void multiSpeed(Direction direction);
+    bool setTrayState(TrayState trayState);
+    bool setPlayerState(PlayerState playerState);
+    bool step(Direction direction);
+    bool scan(Direction direction);
+    bool multiSpeed(Direction direction);
 
-    void setPositionFrame(qint32 address);
-    void setPositionTimeCode(qint32 address);
-    void setPositionChapter(qint32 address);
+    bool setPositionFrame(qint32 address);
+    bool setPositionTimeCode(qint32 address);
+    bool setPositionChapter(qint32 address);
 
-    void setStopFrame(qint32 frame);
-    void setStopTimeCode(qint32 timeCode);
+    bool setStopFrame(qint32 frame);
+    bool setStopTimeCode(qint32 timeCode);
 
-    void setOnScreenDisplay(DisplayState displayState);
-    void setAudio(AudioState audioState);
-    void setKeyLock(KeyLockState keyLockState);
-    void setSpeed(qint32 speed);
+    bool setOnScreenDisplay(DisplayState displayState);
+    bool setAudio(AudioState audioState);
+    bool setKeyLock(KeyLockState keyLockState);
+    bool setSpeed(qint32 speed);
 
 signals:
 

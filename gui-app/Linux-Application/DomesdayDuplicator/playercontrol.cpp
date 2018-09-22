@@ -303,87 +303,190 @@ void PlayerControl::processCommandQueue(void)
 
 void PlayerControl::processSetTrayState(qint32 parameter1)
 {
+    bool successFlag = false;
+
     PlayerCommunication::TrayState trayState = PlayerCommunication::TrayState::unknownTrayState;
     if (parameter1 == 0) trayState = PlayerCommunication::TrayState::closed;
     if (parameter1 == 1) trayState = PlayerCommunication::TrayState::open;
 
-    playerCommunication->setTrayState(trayState);
+    successFlag = playerCommunication->setTrayState(trayState);
+
+    // Check for command processing error
+    if (!successFlag) {
+        qDebug() << "PlayerControl::processSetTrayState(): Serial command error";
+    }
 }
 
 void PlayerControl::processSetPlayerState(qint32 parameter1)
 {
+    bool successFlag = false;
+
     PlayerCommunication::PlayerState playerState = PlayerCommunication::PlayerState::unknownPlayerState;
     if (parameter1 == 0) playerState = PlayerCommunication::PlayerState::pause;
     if (parameter1 == 1) playerState = PlayerCommunication::PlayerState::play;
     if (parameter1 == 2) playerState = PlayerCommunication::PlayerState::stillFrame;
     if (parameter1 == 3) playerState = PlayerCommunication::PlayerState::stop;
 
-    playerCommunication->setPlayerState(playerState);
+    successFlag = playerCommunication->setPlayerState(playerState);
+
+    // Check for command processing error
+    if (!successFlag) {
+        qDebug() << "PlayerControl::processSetPlayerState(): Serial command error";
+    }
 }
 
 void PlayerControl::processStep(qint32 parameter1)
 {
-    PlayerCommunication::Direction direction = PlayerCommunication::Direction::forwards;
-    if (parameter1 == 0) direction = PlayerCommunication::Direction::backwards;
-    if (parameter1 == 1) direction = PlayerCommunication::Direction::forwards;
+    bool successFlag = false;
 
-    playerCommunication->step(direction);
+    if (discType == PlayerCommunication::DiscType::CAV) {
+        PlayerCommunication::Direction direction = PlayerCommunication::Direction::forwards;
+        if (parameter1 == 0) direction = PlayerCommunication::Direction::backwards;
+        if (parameter1 == 1) direction = PlayerCommunication::Direction::forwards;
+
+        successFlag = playerCommunication->step(direction);
+
+        // Check for command processing error
+        if (!successFlag) {
+            qDebug() << "PlayerControl::processStep(): Serial command error";
+        }
+    } else {
+        qDebug() << "PlayerControl::processStep(): Command only valid for CAV discs";
+    }
 }
 
 void PlayerControl::processScan(qint32 parameter1)
 {
+    bool successFlag = false;
+
     PlayerCommunication::Direction direction = PlayerCommunication::Direction::forwards;
     if (parameter1 == 0) direction = PlayerCommunication::Direction::backwards;
     if (parameter1 == 1) direction = PlayerCommunication::Direction::forwards;
 
-    playerCommunication->scan(direction);
+    successFlag = playerCommunication->scan(direction);
+
+    // Check for command processing error
+    if (!successFlag) {
+        qDebug() << "PlayerControl::processScan(): Serial command error";
+    }
 }
 
 void PlayerControl::processMultiSpeed(qint32 parameter1)
 {
-    PlayerCommunication::Direction direction = PlayerCommunication::Direction::forwards;
-    if (parameter1 == 0) direction = PlayerCommunication::Direction::backwards;
-    if (parameter1 == 1) direction = PlayerCommunication::Direction::forwards;
+    bool successFlag = false;
 
-    playerCommunication->multiSpeed(direction);
+    if (discType == PlayerCommunication::DiscType::CAV) {
+        PlayerCommunication::Direction direction = PlayerCommunication::Direction::forwards;
+        if (parameter1 == 0) direction = PlayerCommunication::Direction::backwards;
+        if (parameter1 == 1) direction = PlayerCommunication::Direction::forwards;
+
+        successFlag = playerCommunication->multiSpeed(direction);
+
+        // Check for command processing error
+        if (!successFlag) {
+            qDebug() << "PlayerControl::processMultiSpeed(): Serial command error";
+        }
+    } else {
+        qDebug() << "PlayerControl::processMultiSpeed(): Command only valid for CAV discs";
+    }
 }
 
 void PlayerControl::processSetPositionFrame(qint32 parameter1)
 {
-    playerCommunication->setPositionFrame(parameter1);
+    bool successFlag = false;
+
+    if (discType == PlayerCommunication::DiscType::CAV) {
+        successFlag = playerCommunication->setPositionFrame(parameter1);
+
+        // Check for command processing error
+        if (!successFlag) {
+            qDebug() << "PlayerControl::processSetPositionFrame(): Serial command error";
+        }
+    } else {
+        qDebug() << "PlayerControl::processSetPositionFrame(): Command only valid for CAV discs";
+    }
 }
 
 void PlayerControl::processSetPositionTimeCode(qint32 parameter1)
 {
-    playerCommunication->setPositionTimeCode(parameter1);
+    bool successFlag = false;
+
+    if (discType == PlayerCommunication::DiscType::CLV) {
+        successFlag = playerCommunication->setPositionTimeCode(parameter1);
+
+        // Check for command processing error
+        if (!successFlag) {
+            qDebug() << "PlayerControl::processSetPositionTimeCode(): Serial command error";
+        }
+    } else {
+        qDebug() << "PlayerControl::processSetPositionTimeCode(): Command only valid for CLV discs";
+    }
 }
 
 void PlayerControl::processSetPositionChapter(qint32 parameter1)
 {
-    playerCommunication->setPositionChapter(parameter1);
+    bool successFlag = false;
+
+    successFlag = playerCommunication->setPositionChapter(parameter1);
+
+    // Check for command processing error
+    if (!successFlag) {
+        qDebug() << "PlayerControl::processSetPositionChapter(): Serial command error";
+    }
 }
 
 void PlayerControl::processSetStopFrame(qint32 parameter1)
 {
-    playerCommunication->setStopFrame(parameter1);
+    bool successFlag = false;
+
+    if (discType == PlayerCommunication::DiscType::CAV) {
+        successFlag = playerCommunication->setStopFrame(parameter1);
+
+        // Check for command processing error
+        if (!successFlag) {
+            qDebug() << "PlayerControl::processSetStopFrame(): Serial command error";
+        }
+    } else {
+        qDebug() << "PlayerControl::processSetStopFrame(): Command only valid for CAV discs";
+    }
 }
 
 void PlayerControl::processSetStopTimeCode(qint32 parameter1)
 {
-    playerCommunication->setStopTimeCode(parameter1);
+    bool successFlag = false;
+
+    if (discType == PlayerCommunication::DiscType::CLV) {
+        successFlag = playerCommunication->setStopTimeCode(parameter1);
+
+        // Check for command processing error
+        if (!successFlag) {
+            qDebug() << "PlayerControl::processSetStopTimeCode(): Serial command error";
+        }
+    } else {
+        qDebug() << "PlayerControl::processSetStopTimeCode(): Command only valid for CLV discs";
+    }
 }
 
 void PlayerControl::processSetOnScreenDisplay(qint32 parameter1)
 {
+    bool successFlag = false;
+
     PlayerCommunication::DisplayState displayState = PlayerCommunication::DisplayState::unknownDisplayState;
     if (parameter1 == 0) displayState = PlayerCommunication::DisplayState::off;
     if (parameter1 == 1) displayState = PlayerCommunication::DisplayState::on;
 
-    playerCommunication->setOnScreenDisplay(displayState);
+    successFlag = playerCommunication->setOnScreenDisplay(displayState);
+
+    // Check for command processing error
+    if (!successFlag) {
+        qDebug() << "PlayerControl::processSetOnScreenDisplay(): Serial command error";
+    }
 }
 
 void PlayerControl::processSetAudio(qint32 parameter1)
 {
+    bool successFlag = false;
+
     PlayerCommunication::AudioState audioState = PlayerCommunication::AudioState::digitalStereo;
     if (parameter1 == 0) audioState = PlayerCommunication::AudioState::audioOff;
     if (parameter1 == 1) audioState = PlayerCommunication::AudioState::analogCh1;
@@ -393,31 +496,54 @@ void PlayerControl::processSetAudio(qint32 parameter1)
     if (parameter1 == 5) audioState = PlayerCommunication::AudioState::digitalCh2;
     if (parameter1 == 7) audioState = PlayerCommunication::AudioState::digitalStereo;
 
-    playerCommunication->setAudio(audioState);
+    successFlag = playerCommunication->setAudio(audioState);
+
+    // Check for command processing error
+    if (!successFlag) {
+        qDebug() << "PlayerControl::processSetAudio(): Serial command error";
+    }
 }
 
 void PlayerControl::processSetKeyLock(qint32 parameter1)
 {
+    bool successFlag = false;
+
     PlayerCommunication::KeyLockState keyLockState = PlayerCommunication::KeyLockState::unlocked;
     if (parameter1 == 0) keyLockState = PlayerCommunication::KeyLockState::unlocked;
     if (parameter1 == 1) keyLockState = PlayerCommunication::KeyLockState::locked;
 
-    playerCommunication->setKeyLock(keyLockState);
+    successFlag = playerCommunication->setKeyLock(keyLockState);
+
+    // Check for command processing error
+    if (!successFlag) {
+        qDebug() << "PlayerControl::processSetKeyLock(): Serial command error";
+    }
 }
 
 void PlayerControl::processSetSpeed(qint32 parameter1)
 {
-    qint32 speed = 60; // x1
-    if (parameter1 == 0) speed =  10; // x1/6
-    if (parameter1 == 1) speed =  15; // x1/4
-    if (parameter1 == 2) speed =  20; // x1/3
-    if (parameter1 == 3) speed =  30; // x1/2
-    if (parameter1 == 4) speed =  60; // x1
-    if (parameter1 == 5) speed = 120; // x2
-    if (parameter1 == 6) speed = 180; // x3
-    if (parameter1 == 7) speed = 240; // x4
+    bool successFlag = false;
 
-    playerCommunication->setSpeed(speed);
+    if (discType == PlayerCommunication::DiscType::CAV) {
+        qint32 speed = 60; // x1
+        if (parameter1 == 0) speed =  10; // x1/6
+        if (parameter1 == 1) speed =  15; // x1/4
+        if (parameter1 == 2) speed =  20; // x1/3
+        if (parameter1 == 3) speed =  30; // x1/2
+        if (parameter1 == 4) speed =  60; // x1
+        if (parameter1 == 5) speed = 120; // x2
+        if (parameter1 == 6) speed = 180; // x3
+        if (parameter1 == 7) speed = 240; // x4
+
+        successFlag = playerCommunication->setSpeed(speed);
+
+        // Check for command processing error
+        if (!successFlag) {
+            qDebug() << "PlayerControl::processSetSpeed(): Serial command error";
+        }
+    } else {
+        qDebug() << "PlayerControl::processSetSpeed(): Command only valid for CAV discs";
+    }
 }
 
 // Player command public methods --------------------------------------------------------------------------------------
