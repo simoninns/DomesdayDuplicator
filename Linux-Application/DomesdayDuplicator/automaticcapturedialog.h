@@ -29,6 +29,8 @@
 #define AUTOMATICCAPTUREDIALOG_H
 
 #include <QDialog>
+#include <QMessageBox>
+#include <QDebug>
 
 namespace Ui {
 class AutomaticCaptureDialog;
@@ -41,6 +43,18 @@ class AutomaticCaptureDialog : public QDialog
 public:
     explicit AutomaticCaptureDialog(QWidget *parent = nullptr);
     ~AutomaticCaptureDialog();
+
+    enum DiscType {
+        unknownDiscType,
+        CAV,
+        CLV
+    };
+
+    enum CaptureType {
+        wholeDisc,
+        partialDisc,
+        leadInCapture
+    };
 
     void captureComplete();
 
@@ -59,6 +73,7 @@ private:
     Ui::AutomaticCaptureDialog *ui;
 
     bool captureInProgress;
+    CaptureType captureType;
 };
 
 #endif // AUTOMATICCAPTUREDIALOG_H
