@@ -49,6 +49,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlCommand, this, &MainWindow::remoteControlCommandSignalHandler);
     connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlSearch, this, &MainWindow::remoteControlSearchSignalHandler);
 
+    // Create the automatic capture dialogue
+    automaticCaptureDialog = new AutomaticCaptureDialog(this);
+
     // Start the player control object
     playerControl = new PlayerControl(this);
     startPlayerControl();
@@ -376,6 +379,12 @@ void MainWindow::on_actionPlayer_remote_triggered()
     playerRemoteDialog->show();
 }
 
+// Menu option: View->Automatic capture
+void MainWindow::on_actionAutomatic_capture_triggered()
+{
+    automaticCaptureDialog->show();
+}
+
 // Menu option: Help->About
 void MainWindow::on_actionAbout_triggered()
 {
@@ -520,5 +529,7 @@ void MainWindow::updatePlayerRemoteDialog(void)
         break;
     }
 }
+
+
 
 

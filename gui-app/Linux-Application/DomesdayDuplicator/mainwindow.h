@@ -41,6 +41,7 @@
 #include "playercommunication.h"
 #include "playercontrol.h"
 #include "playerremotedialog.h"
+#include "automaticcapturedialog.h"
 
 namespace Ui {
 class MainWindow;
@@ -72,6 +73,8 @@ private slots:
 
     void on_actionPlayer_remote_triggered();
 
+    void on_actionAutomatic_capture_triggered();
+
 private:
     Configuration *configuration;
     UsbDevice *usbDevice;
@@ -79,6 +82,7 @@ private:
 
     Ui::MainWindow *ui;
     AboutDialog *aboutDialog;
+    AutomaticCaptureDialog *automaticCaptureDialog;
     ConfigurationDialog *configurationDialog;
     PlayerRemoteDialog *playerRemoteDialog;
     PlayerControl *playerControl;

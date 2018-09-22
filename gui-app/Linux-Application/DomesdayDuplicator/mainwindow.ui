@@ -240,6 +240,7 @@
      <string>View</string>
     </property>
     <addaction name="actionPlayer_remote"/>
+    <addaction name="actionAutomatic_capture"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -284,6 +285,11 @@
    </property>
    <property name="text">
     <string>Test mode</string>
+   </property>
+  </action>
+  <action name="actionAutomatic_capture">
+   <property name="text">
+    <string>Automatic capture</string>
    </property>
   </action>
  </widget>
