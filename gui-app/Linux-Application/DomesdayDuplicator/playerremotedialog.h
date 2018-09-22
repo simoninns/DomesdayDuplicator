@@ -29,6 +29,7 @@
 #define PLAYERREMOTEDIALOG_H
 
 #include <QDialog>
+#include <QDebug>
 
 namespace Ui {
 class PlayerRemoteDialog;
@@ -76,7 +77,6 @@ public:
     enum PositionMode {
         pmChapter,
         pmFrame,
-        pmTrack,
         pmTime
     };
 
@@ -101,6 +101,7 @@ public:
 
 signals:
     void remoteControlCommand(RemoteButtons button);
+    void remoteControlSearch(qint32 position, PlayerRemoteDialog::PositionMode positionMode);
 
 private slots:
     void on_rejectPushButton_clicked();
@@ -138,7 +139,11 @@ private:
     MultiSpeed multiSpeed;
     DisplayMode displayMode;
 
+    QString position;
+    QString display;
+
     void updateGui(void);
+    void positionAddValue(qint32 value);
 };
 
 #endif // PLAYERREMOTEDIALOG_H

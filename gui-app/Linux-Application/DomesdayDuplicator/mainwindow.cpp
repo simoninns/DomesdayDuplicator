@@ -47,6 +47,7 @@ MainWindow::MainWindow(QWidget *parent) :
     // Create the player remote dialogue
     playerRemoteDialog = new PlayerRemoteDialog(this);
     connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlCommand, this, &MainWindow::remoteControlCommandSignalHandler);
+    connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlSearch, this, &MainWindow::remoteControlSearchSignalHandler);
 
     // Start the player control object
     playerControl = new PlayerControl(this);
@@ -148,7 +149,11 @@ void MainWindow::remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteBut
         playerControl->setPlayerState(PlayerCommunication::PlayerState::stop);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbPause:
-        playerControl->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
+        // Still-frame only works for CAV, so we have to check the disc type here
+        if (playerControl->getDiscType() == PlayerCommunication::DiscType::CAV)
+            playerControl->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
+        else if (playerControl->getDiscType() == PlayerCommunication::DiscType::CLV)
+            playerControl->setPlayerState(PlayerCommunication::PlayerState::pause);
         break;
     case PlayerRemoteDialog::RemoteButtons::rbPlay:
         playerControl->setPlayerState(PlayerCommunication::PlayerState::play);
@@ -256,6 +261,22 @@ void MainWindow::remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteBut
     }
 }
 
+// Remote control search command signal handler
+void MainWindow::remoteControlSearchSignalHandler(qint32 position, PlayerRemoteDialog::PositionMode positionMode)
+{
+    switch(positionMode) {
+    case PlayerRemoteDialog::PositionMode::pmChapter:
+        playerControl->setPositionChapter(position);
+        break;
+    case PlayerRemoteDialog::PositionMode::pmTime:
+        playerControl->setPositionTimeCode(position);
+        break;
+    case PlayerRemoteDialog::PositionMode::pmFrame:
+        playerControl->setPositionFrame(position);
+        break;
+    }
+}
+
 // Update the capture statistics labels
 void MainWindow::updateCaptureStatistics(void)
 {
@@ -274,7 +295,18 @@ void MainWindow::updateCaptureStatistics(void)
 void MainWindow::updatePlayerControlInformation(void)
 {
     ui->playerStatusLabel->setText(playerControl->getPlayerStatusInformation());
-    ui->playerPositionLabel->setText(playerControl->getPlayerPositionInformation());
+
+    // Display the position information based on disc type
+    if (playerControl->getDiscType() == PlayerCommunication::DiscType::CAV) {
+        // CAV
+        ui->playerPositionLabel->setText(playerControl->getPlayerPositionInformation());
+    } else if (playerControl->getDiscType() == PlayerCommunication::DiscType::CLV) {
+        // CLV
+        ui->playerPositionLabel->setText(playerControl->getPlayerPositionInformation());
+    } else {
+        // Disc type unknown
+        ui->playerPositionLabel->setText(tr("Unknown"));
+    }
 }
 
 void MainWindow::startPlayerControl(void)

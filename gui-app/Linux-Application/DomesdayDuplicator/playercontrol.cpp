@@ -203,14 +203,28 @@ QString PlayerControl::getPlayerPositionInformation(void)
     QString playerPosition;
 
     if (playerState == PlayerCommunication::PlayerState::stop) {
-        playerPosition = "No disc playing";
+        playerPosition = "Disc stopped";
     } else {
         if (discType == PlayerCommunication::DiscType::CAV) {
             playerPosition = QString::number(frameNumber);
         }
 
         if (discType == PlayerCommunication::DiscType::CLV) {
-            playerPosition = QString::number(timeCode);
+            QString timeCodeString;
+            QString hourString;
+            QString minuteString;
+            QString secondString;
+
+            // Get the full 7 character time-code string
+            timeCodeString.sprintf("%07d", timeCode);
+
+            // Split up the time-code
+            hourString = timeCodeString.left(1);
+            minuteString = timeCodeString.left(3).right(2);
+            secondString = timeCodeString.left(5).right(2);
+
+            // Display time-code (without frame number)
+            playerPosition = ("0" + hourString + ":" + minuteString + ":" + secondString);
         }
 
         if (discType == PlayerCommunication::DiscType::unknownDiscType) {
@@ -219,6 +233,12 @@ QString PlayerControl::getPlayerPositionInformation(void)
     }
 
     return playerPosition;
+}
+
+// Get the disc type (CAV/CLV/unknown)
+PlayerCommunication::DiscType PlayerControl::getDiscType(void)
+{
+    return discType;
 }
 
 // Process the queued commands ----------------------------------------------------------------------------------------
@@ -246,11 +266,14 @@ void PlayerControl::processCommandQueue(void)
         case Commands::cmdMultiSpeed:
             processMultiSpeed(parameterQueue.dequeue());
             break;
-        case Commands::cmdSetFramePosition:
-            processSetFramePosition(parameterQueue.dequeue());
+        case Commands::cmdSetPositionFrame:
+            processSetPositionFrame(parameterQueue.dequeue());
             break;
-        case Commands::cmdSetTimeCodePosition:
-            processSetTimeCodePosition(parameterQueue.dequeue());
+        case Commands::cmdSetPositionTimeCode:
+            processSetPositionTimeCode(parameterQueue.dequeue());
+            break;
+        case Commands::cmdSetPositionChapter:
+            processSetPositionChapter(parameterQueue.dequeue());
             break;
         case Commands::cmdSetStopFrame:
             processSetStopFrame(parameterQueue.dequeue());
@@ -325,14 +348,19 @@ void PlayerControl::processMultiSpeed(qint32 parameter1)
     playerCommunication->multiSpeed(direction);
 }
 
-void PlayerControl::processSetFramePosition(qint32 parameter1)
+void PlayerControl::processSetPositionFrame(qint32 parameter1)
 {
-    playerCommunication->setFramePosition(parameter1);
+    playerCommunication->setPositionFrame(parameter1);
 }
 
-void PlayerControl::processSetTimeCodePosition(qint32 parameter1)
+void PlayerControl::processSetPositionTimeCode(qint32 parameter1)
 {
-    playerCommunication->setTimeCodePosition(parameter1);
+    playerCommunication->setPositionTimeCode(parameter1);
+}
+
+void PlayerControl::processSetPositionChapter(qint32 parameter1)
+{
+    playerCommunication->setPositionChapter(parameter1);
 }
 
 void PlayerControl::processSetStopFrame(qint32 parameter1)
@@ -436,16 +464,22 @@ void PlayerControl::multiSpeed(PlayerCommunication::Direction direction)
     if (direction == PlayerCommunication::Direction::forwards) parameterQueue.enqueue(1);
 }
 
-void PlayerControl::setFramePosition(qint32 frame)
+void PlayerControl::setPositionFrame(qint32 address)
 {
-    commandQueue.enqueue(Commands::cmdSetFramePosition);
-    parameterQueue.enqueue(frame);
+    commandQueue.enqueue(Commands::cmdSetPositionFrame);
+    parameterQueue.enqueue(address);
 }
 
-void PlayerControl::setTimeCodePosition(qint32 timeCode)
+void PlayerControl::setPositionTimeCode(qint32 address)
 {
-    commandQueue.enqueue(Commands::cmdSetTimeCodePosition);
-    parameterQueue.enqueue(timeCode);
+    commandQueue.enqueue(Commands::cmdSetPositionTimeCode);
+    parameterQueue.enqueue(address);
+}
+
+void PlayerControl::setPositionChapter(qint32 address)
+{
+    commandQueue.enqueue(Commands::cmdSetPositionChapter);
+    parameterQueue.enqueue(address);
 }
 
 void PlayerControl::setStopFrame(qint32 frame)
