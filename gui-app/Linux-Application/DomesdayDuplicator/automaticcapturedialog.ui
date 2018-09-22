@@ -144,6 +144,9 @@
       <property name="text">
        <string>Start CAV capture</string>
       </property>
+      <property name="autoDefault">
+       <bool>false</bool>
+      </property>
      </widget>
      <widget class="QLineEdit" name="startFrameLineEdit">
       <property name="enabled">
@@ -221,6 +224,9 @@
       </property>
       <property name="text">
        <string>Start CLV capture</string>
+      </property>
+      <property name="autoDefault">
+       <bool>false</bool>
       </property>
      </widget>
      <widget class="QTimeEdit" name="startTimeTimeEdit">
