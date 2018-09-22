@@ -75,6 +75,8 @@ PlayerCommunication::~PlayerCommunication()
 //
 // Note: All methods provided by this class are blocking.
 
+// Player connection and disconnection methods ------------------------------------------------------------------------
+
 // Connect to a LaserDisc player
 bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, SerialSpeed serialSpeed)
 {
@@ -159,6 +161,8 @@ void PlayerCommunication::disconnect(void)
     qDebug() << "PlayerCommunication::connect(): Disconnecting from player";
     serialPort->close();
 }
+
+// Player command methods ---------------------------------------------------------------------------------------------
 
 PlayerCommunication::TrayState PlayerCommunication::getTrayState(void)
 {
@@ -293,140 +297,262 @@ qint32 PlayerCommunication::getMaximumTimeCode(void)
     return getCurrentTimeCode();
 }
 
-void PlayerCommunication::setTrayState(TrayState trayState)
+bool PlayerCommunication::setTrayState(TrayState trayState)
 {
+    QString response;
+
     switch(trayState) {
     case TrayState::closed:
         sendSerialCommand("CO\r"); // Open door command
-        getSerialResponse(L_TIMEOUT);
+        response = getSerialResponse(L_TIMEOUT);
         break;
     case TrayState::open:
         sendSerialCommand("OP\r"); // Close door command
-        getSerialResponse(L_TIMEOUT);
+        response = getSerialResponse(L_TIMEOUT);
         break;
     case TrayState::unknownTrayState:
         qDebug() << "PlayerCommunication::setTrayState(): Invoker used TrayState::unknownTrayState - ignoring";
         break;
     }
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setPlayerState(PlayerState playerState)
+bool PlayerCommunication::setPlayerState(PlayerState playerState)
 {
+    QString response;
+
     switch(playerState) {
         case PlayerState::pause:
             sendSerialCommand("PA\r"); // Pause command
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
         case PlayerState::play:
             sendSerialCommand("PL\r"); // Play command
-            getSerialResponse(L_TIMEOUT);
+            response = getSerialResponse(L_TIMEOUT);
             break;
         case PlayerState::stillFrame:
             sendSerialCommand("ST\r"); // Still frame command
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
         case PlayerState::stop:
             sendSerialCommand("RJ\r"); // Reject (stop) command
-            getSerialResponse(L_TIMEOUT);
+            response = getSerialResponse(L_TIMEOUT);
             break;
         case PlayerState::unknownPlayerState:
             qDebug() << "PlayerCommunication::setPlayerState(): Invoker used PlayerState::unknownPlayerState - ignoring";
             break;
     }
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::step(Direction direction)
+bool PlayerCommunication::step(Direction direction)
 {
+    QString response;
+
     switch(direction) {
         case Direction::forwards:
             sendSerialCommand("SF\r");
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
         case Direction::backwards:
             sendSerialCommand("SR\r");
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
     }
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::scan(Direction direction)
+bool PlayerCommunication::scan(Direction direction)
 {
+    QString response;
+
     switch(direction) {
         case Direction::forwards:
             sendSerialCommand("NF\r");
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
         case Direction::backwards:
             sendSerialCommand("NR\r");
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
     }
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::multiSpeed(Direction direction)
+bool PlayerCommunication::multiSpeed(Direction direction)
 {
+    QString response;
+
     switch(direction) {
         case Direction::forwards:
             sendSerialCommand("MF\r");
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
         case Direction::backwards:
             sendSerialCommand("MB\r");
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
     }
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setPositionFrame(qint32 address)
+bool PlayerCommunication::setPositionFrame(qint32 address)
 {
+    QString response;
     QString command;
+
     command.sprintf("FR%dSE\r", address);
     sendSerialCommand(command);
-    getSerialResponse(L_TIMEOUT);
+    response = getSerialResponse(L_TIMEOUT);
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setPositionTimeCode(qint32 address)
+bool PlayerCommunication::setPositionTimeCode(qint32 address)
 {
+    QString response;
     QString command;
+
     command.sprintf("TM%dSE\r", address);
     sendSerialCommand(command);
-    getSerialResponse(L_TIMEOUT);
+    response = getSerialResponse(L_TIMEOUT);
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setPositionChapter(qint32 address)
+bool PlayerCommunication::setPositionChapter(qint32 address)
 {
+    QString response;
     QString command;
+
     command.sprintf("CH%dSE\r", address);
     sendSerialCommand(command);
-    getSerialResponse(L_TIMEOUT);
+    response = getSerialResponse(L_TIMEOUT);
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setStopFrame(qint32 frame)
+bool PlayerCommunication::setStopFrame(qint32 frame)
 {
+    QString response;
+
     (void)frame;
     qDebug() << "PlayerCommunication::setStopFrame(): Called, but function is not implemented yet";
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setStopTimeCode(qint32 timeCode)
+bool PlayerCommunication::setStopTimeCode(qint32 timeCode)
 {
+    QString response;
+
     (void)timeCode;
     qDebug() << "PlayerCommunication::setStopTimeCode(): Called, but function is not implemented yet";
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setOnScreenDisplay(DisplayState displayState)
+bool PlayerCommunication::setOnScreenDisplay(DisplayState displayState)
 {
+    QString response;
     QString command;
+
     if (displayState == PlayerCommunication::DisplayState::off) {
         sendSerialCommand("0DS\r");
-        getSerialResponse(N_TIMEOUT);
+        response = getSerialResponse(N_TIMEOUT);
     } else {
         sendSerialCommand("1DS\r");
-        getSerialResponse(N_TIMEOUT);
+        response = getSerialResponse(N_TIMEOUT);
     }
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setAudio(AudioState audioState)
+bool PlayerCommunication::setAudio(AudioState audioState)
 {
+    QString response;
     qint32 parameter = 7;
     QString command;
 
@@ -441,10 +567,21 @@ void PlayerCommunication::setAudio(AudioState audioState)
     command.sprintf("%dAD\r", parameter);
     sendSerialCommand(command);
     getSerialResponse(N_TIMEOUT);
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setKeyLock(KeyLockState keyLockState)
+bool PlayerCommunication::setKeyLock(KeyLockState keyLockState)
 {
+    QString response;
+
     switch(keyLockState) {
         case KeyLockState::locked:
             sendSerialCommand("1KL\r");
@@ -455,17 +592,38 @@ void PlayerCommunication::setKeyLock(KeyLockState keyLockState)
             getSerialResponse(N_TIMEOUT);
             break;
     }
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
 
-void PlayerCommunication::setSpeed(qint32 speed)
+bool PlayerCommunication::setSpeed(qint32 speed)
 {
+    QString response;
     QString command;
 
     command.sprintf("%dSP\r", speed);
     //qDebug() << "PlayerCommunication::setSpeed(): Sending command:" << command;
     sendSerialCommand(command);
     getSerialResponse(N_TIMEOUT);
+
+    // Check for error in response
+    if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
+        // Error
+        return false;
+    }
+
+    // Command response ok
+    return true;
 }
+
+// Serial read/write methods ------------------------------------------------------------------------------------------
 
 // Send a command via the serial connection
 void PlayerCommunication::sendSerialCommand(QString command)
