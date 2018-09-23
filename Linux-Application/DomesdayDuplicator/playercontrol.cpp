@@ -702,7 +702,7 @@ void PlayerControl::stopAutomaticCapture(void)
 {
     // Check automatic capture is running
     if (!acInProgress) {
-        qDebug() << "PlayerControl::stopAutomaticCapture(): Automatic capture not running!";
+        qDebug() << "PlayerControl::stopAutomaticCapture(): Automatic capture not running, ignored.";
         return;
     }
 
