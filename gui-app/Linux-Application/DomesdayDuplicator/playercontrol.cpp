@@ -781,6 +781,7 @@ PlayerControl::AcStates PlayerControl::acStateStart(void)
             acErrorMessage = tr("The disc in the player does not match the selected capture option");
             qDebug() << "AC Error:" << acErrorMessage;
             nextState = ac_error_state;
+            return nextState;
         }
         // Get the length of the disc
         nextState = ac_getLength_state;
@@ -789,6 +790,15 @@ PlayerControl::AcStates PlayerControl::acStateStart(void)
         // Player is stopped - attempt to spin up
         if (playerCommunication->setPlayerState(PlayerCommunication::PlayerState::play)) {
             // Command successful
+
+            // Check the disc type is correct
+            if (playerCommunication->getDiscType() != acDiscType) {
+                acErrorMessage = tr("The disc in the player does not match the selected capture option");
+                qDebug() << "AC Error:" << acErrorMessage;
+                nextState = ac_error_state;
+                return nextState;
+            }
+
             // Get the length of the disc
             nextState = ac_getLength_state;
         } else {
@@ -907,7 +917,7 @@ PlayerControl::AcStates PlayerControl::acStateSpinUpWithCapture(void)
     AcStates nextState = AcStates::ac_spinUpWithCapture_state;
 
     // Show the current state in the status
-    acStatus = tr("Staring capture and spinning-up player");
+    acStatus = tr("Starting capture and spinning-up");
 
     // Check for automatic capture being cancelled
     if (acCancelled) {
@@ -1122,6 +1132,10 @@ PlayerControl::AcStates PlayerControl::acStateError(void)
 
     // Send completion message with unsuccessful status
     emit automaticCaptureComplete(false);
+
+    // Stop the player (if it is not already stopped)
+    if (playerCommunication->getPlayerState() != PlayerCommunication::PlayerState::stop)
+        playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stop);
 
     // Remain in the error state
     return nextState;
