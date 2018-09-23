@@ -1,29 +1,15 @@
 #-------------------------------------------------
 #
-# Project created by QtCreator 2017-11-22T13:07:18
+# Project created by QtCreator 2018-09-10T10:51:04
 #
 #-------------------------------------------------
 
-QT       += core gui
+QT       += core gui widgets
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets serialport
+greaterThan(QT_MAJOR_VERSION, 4): QT += serialport
 
 TARGET = DomesdayDuplicator
 TEMPLATE = app
-
-# Set the compiler optimisation -
-# and remove possible other optimization flags
-QMAKE_CXXFLAGS_RELEASE -= -O
-QMAKE_CXXFLAGS_RELEASE -= -O1
-#QMAKE_CXXFLAGS_RELEASE -= -O2
-QMAKE_CXXFLAGS_RELEASE -= -O3
-
-# Add the desired optimisation flag if not present
-QMAKE_CXXFLAGS_RELEASE *= -O2
-
-# Ensure we use the correct C++ standard
-QMAKE_CXXFLAGS_RELEASE *= -std=gnu++11
-QMAKE_CXXFLAGS_DEBUG *= -std=gnu++11
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which has been marked as deprecated (the exact warnings
@@ -36,6 +22,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
+CONFIG += c++11
+
 # Include the libUSB library
 INCLUDEPATH += "/usr/local/include/libusb-1.0"
 LIBS += -L"/usr/local/lib" -lusb-1.0
@@ -43,37 +31,39 @@ LIBS += -L"/usr/local/lib" -lusb-1.0
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    QtUsb/qbaseusb.cpp \
-    QtUsb/qlibusb.cpp \
-    QtUsb/qusbmanager.cpp \
+    configuration.cpp \
     usbdevice.cpp \
-    QtUsb/qusbbulktransfer.cpp \
-    playercontroldialog.cpp \
-    serialportselectdialog.cpp \
     aboutdialog.cpp \
-    lvdpcontrol.cpp
+    configurationdialog.cpp \
+    usbcapture.cpp \
+    playerremotedialog.cpp \
+    playercommunication.cpp \
+    playercontrol.cpp \
+    automaticcapturedialog.cpp
 
 HEADERS += \
         mainwindow.h \
-    QtUsb/qbaseusb.h \
-    QtUsb/qlibusb.h \
-    QtUsb/qusb.h \
-    QtUsb/qusb_compat.h \
-    QtUsb/qusb_global.h \
-    QtUsb/qusb_types.h \
-    QtUsb/qusbmanager.h \
+    configuration.h \
     usbdevice.h \
-    QtUsb/qusbbulktransfer.h \
-    playercontroldialog.h \
-    serialportselectdialog.h \
     aboutdialog.h \
-    lvdpcontrol.h
+    configurationdialog.h \
+    usbcapture.h \
+    playerremotedialog.h \
+    playercommunication.h \
+    playercontrol.h \
+    automaticcapturedialog.h
 
 FORMS += \
         mainwindow.ui \
-    playercontroldialog.ui \
-    serialportselectdialog.ui \
-    aboutdialog.ui
+    aboutdialog.ui \
+    configurationdialog.ui \
+    playerremotedialog.ui \
+    automaticcapturedialog.ui
+
+# Default rules for deployment.
+qnx: target.path = /tmp/$${TARGET}/bin
+else: unix:!android: target.path = /opt/$${TARGET}/bin
+!isEmpty(target.path): INSTALLS += target
 
 RESOURCES += \
-    images.qrc
+    resources.qrc

@@ -1,6 +1,6 @@
 /************************************************************************
 
-    usbdevice.h
+    usbcapture.h
 
     Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
@@ -25,62 +25,54 @@
 
 ************************************************************************/
 
-#ifndef USBDEVICE_H
-#define USBDEVICE_H
+#ifndef USBCAPTURE_H
+#define USBCAPTURE_H
 
 #include <QObject>
-#include <QDebug>
 #include <QThread>
-#include <QWaitCondition>
+#include <QFile>
+#include <QVector>
+#include <QDebug>
+#include <QtConcurrent/QtConcurrent>
 
 #include <libusb-1.0/libusb.h>
-#include "usbcapture.h"
 
-class UsbDevice : public QThread
+class UsbCapture : public QThread
 {
     Q_OBJECT
 public:
-    explicit UsbDevice(QObject *parent = nullptr, quint16 vid = 0x1D50, quint16 pid = 0x603B);
-    ~UsbDevice() override;
+    explicit UsbCapture(QObject *parent = nullptr, libusb_context *libUsbContextParam = nullptr,
+                        libusb_device_handle *usbDeviceHandleParam = nullptr, QString filenameParam = nullptr,
+                        bool isCaptureFormat10BitParam = true);
+    ~UsbCapture() override;
 
-    bool scanForDevice(void);
-    void sendConfigurationCommand(bool testMode);
-
-    void startCapture(QString filename, bool isCaptureFormat10Bit);
-    void stopCapture(void);
+    void startTransfer(void);
+    void stopTransfer(void);
     qint32 getNumberOfTransfers(void);
     qint32 getNumberOfDiskBuffersWritten(void);
     QString getLastError(void);
 
 signals:
-    void deviceAttached(void);
-    void deviceDetached(void);
     void transferFailed(void);
 
 public slots:
 
 protected slots:
     void run() override;
+    void runDiskBuffers(void);
 
 protected:
     libusb_context *libUsbContext;
     libusb_device_handle *usbDeviceHandle;
-    bool threadAbort;
-
-private slots:
-    void transferFailedSignalHandler(void);
+    QString filename;
+    bool isCaptureFormat10Bit;
 
 private:
-    quint16 deviceVid;
-    quint16 devicePid;
+    qint32 numberOfDiskBuffersWritten;
+    void writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, bool isTestData);
 
-    UsbCapture *usbCapture;
-    QString lastError;
-
-    bool open(void);
-    void close(void);
-    bool sendVendorSpecificCommand(quint8 command, quint16 value);
-    bool pollForDevice(void);
+    void allocateDiskBuffers(void);
+    void freeDiskBuffers(void);
 };
 
-#endif // USBDEVICE_H
+#endif // USBCAPTURE_H

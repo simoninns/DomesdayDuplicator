@@ -2,7 +2,7 @@
 
     mainwindow.cpp
 
-    QT GUI Capture application for Domesday Duplicator
+    Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
     Copyright (C) 2018 Simon Inns
 
@@ -34,1124 +34,636 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    // Set up the USB device object
-    domDupUsbDevice = new usbDevice;
-
-    // Set up the LVDP control communication
-    playerControl = new lvdpControl;
-
-    // Set the capture flag to false (not capturing)
-    captureFlag = false;
-
-    // Set up the transfer button
-    ui->transferPushButton->setText(tr("Initialising"));
-
-    // Add some default status text to show the state of the USB device
-    usbStatusLabel = new QLabel;
-    ui->statusBar->addWidget(usbStatusLabel);
-    usbStatusChanged(false);
-
-    // Add status text to show the state of the PIC serial connection
-    serialStatusLabel = new QLabel;
-    ui->statusBar->addWidget(serialStatusLabel);
-    serialStatusLabel->setText(tr("PIC: Not Connected"));
-
-    // Connect to the usb device's signals to show insertion/removal events
-    connect(domDupUsbDevice, SIGNAL(statusChanged(bool)), SLOT(usbStatusChanged(bool)));
-
-    // Set up the text labels
-    ui->capturedDataLabel->setText(tr("0"));
-    ui->transferSpeedLabel->setText(tr("0"));
-    ui->diskBufferProgressBar->setValue(0);
-
-    // Set up a timer for updating capture results
-    captureTimer = new QTimer(this);
-    connect(captureTimer, SIGNAL(timeout()), this, SLOT(updateCaptureInfo()));
-
-    // Set up a timer for updating the player control information
-    updateTimer = new QTimer(this);
-    connect(updateTimer, SIGNAL(timeout()), this, SLOT(updatePlayerControlInfo()));
-
-    // Disable the start transfer buttons (until a destination file name is supplied)
-    ui->transferPushButton->setEnabled(false);
-    ui->cavCapturePushButton->setEnabled(false);
-    ui->clvCapturePushButton->setEnabled(false);
+    // Load the application's configuration settings file
+    configuration = new Configuration();
 
     // Create the about dialogue
-    aboutDomDup = new aboutDialog(this);
+    aboutDialog = new AboutDialog(this);
 
-    // Create the LVDP serial settings dialogue
-    lvdpSerialPortSelect = new serialPortSelectDialog(this);
+    // Create the configuration dialogue
+    configurationDialog = new ConfigurationDialog(this);
+    connect(configurationDialog, &ConfigurationDialog::configurationChanged, this, &MainWindow::configurationChangedSignalHandler);
 
-    // Create the LVDP control dialogue
-    lvdpPlayerControl = new playerControlDialog(this);
+    // Create the player remote dialogue
+    playerRemoteDialog = new PlayerRemoteDialog(this);
+    connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlCommand, this, &MainWindow::remoteControlCommandSignalHandler);
+    connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlSearch, this, &MainWindow::remoteControlSearchSignalHandler);
 
-    // Connect to the serial port configured signal
-    connect(lvdpSerialPortSelect, SIGNAL(serialPortChanged()), this, SLOT(serialPortStatusChange()));
+    // Create the automatic capture dialogue
+    automaticCaptureDialog = new AutomaticCaptureDialog(this);
+    connect(automaticCaptureDialog, &AutomaticCaptureDialog::startAutomaticCapture,
+            this, &MainWindow::startAutomaticCaptureDialogSignalHandler);
+    connect(automaticCaptureDialog, &AutomaticCaptureDialog::stopAutomaticCapture,
+            this, &MainWindow::stopAutomaticCaptureDialogSignalHandler);
 
-    // Start updating the player control information
-    updateTimer->start(100); // Update 10 times a second
+    // Set up a timer for updating the automatic capture status information
+    automaticCaptureTimer = new QTimer(this);
+    connect(automaticCaptureTimer, SIGNAL(timeout()), this, SLOT(updateAutomaticCaptureStatus()));
+    automaticCaptureTimer->start(100); // Update 10 times per second
 
-    // Connect PIC control events to the handler
-    connect(lvdpPlayerControl, SIGNAL(playerControlEvent(playerControlDialog::PlayerControlEvents, quint32)), this,
-            SLOT(handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32)));
+    // Start the player control object
+    playerControl = new PlayerControl(this);
+    connect(playerControl, &PlayerControl::automaticCaptureComplete,
+            this, &MainWindow::automaticCaptureCompleteSignalHandler);
+    connect(playerControl, &PlayerControl::startCapture,
+            this, &MainWindow::startCaptureSignalHandler);
+    connect(playerControl, &PlayerControl::stopCapture,
+            this, &MainWindow::stopCaptureSignalHandler);
+    startPlayerControl();
 
-    // Set the default frame numbers for the CAV PIC capture
-    ui->startFrameLineEdit->setText("1");
-    ui->endFrameLineEdit->setText("2");
+    // Define our application (required for configuration handling)
+    QCoreApplication::setOrganizationName("Domesday86");
+    QCoreApplication::setOrganizationDomain("domesday86.com");
+    QCoreApplication::setApplicationName("DomesdayDuplicator");
 
-    // Disable the PIC capture options (only available if a player is connected)
-    ui->cavIntegratedCaptureGroupBox->setEnabled(false);
-    ui->clvIntegratedCaptureGroupBox->setEnabled(false);
+    // Set the capture flag to not running
+    isCaptureRunning = false;
 
-    // Set up the PIC capture state-machines
-    cavPicCurrentState = cavState_idle;
-    cavPicNextState = cavPicCurrentState;
-    clvPicCurrentState = clvState_idle;
-    clvPicNextState = clvPicCurrentState;
+    // Add a label to the status bar for displaying the USB device status
+    usbStatusLabel = new QLabel;
+    ui->statusBar->addWidget(usbStatusLabel);
+    usbStatusLabel->setText(tr("USB device detached"));
 
-    cavPicCaptureActive = false;
-    cavPicCaptureAbort = false;
-    cavPicPollTimer = new QTimer(this);
-    connect(cavPicPollTimer, SIGNAL(timeout()), this, SLOT(cavPicPoll()));
-    cavPicPollTimer->start(50); // Update 20 times a second
+    // Disable the capture button
+    ui->capturePushButton->setEnabled(false);
 
-    clvPicCaptureActive = false;
-    clvPicCaptureAbort = false;
-    clvPicPollTimer = new QTimer(this);
-    connect(clvPicPollTimer, SIGNAL(timeout()), this, SLOT(clvPicPoll()));
-    clvPicPollTimer->start(50); // Update 20 times a second
+    // Set up a timer for timing the capture duration
+    captureDurationTimer = new QTimer(this);
+    connect(captureDurationTimer, SIGNAL(timeout()), this, SLOT(updateCaptureDuration()));
 
-    // Set the default data format to 10-bit
-    isTenBit = true;
+    // Set up the Domesday Duplicator USB device and connect the signal handlers
+    usbDevice = new UsbDevice(this, configuration->getUsbVid(), configuration->getUsbPid());
+    connect(usbDevice, &UsbDevice::deviceAttached, this, &MainWindow::deviceAttachedSignalHandler);
+    connect(usbDevice, &UsbDevice::deviceDetached, this, &MainWindow::deviceDetachedSignalHandler);
+
+    // Since the device might already be attached, perform an initial scan for it
+    usbDevice->scanForDevice();
+
+    // Set up a timer for updating capture results
+    captureStatusUpdateTimer = new QTimer(this);
+    connect(captureStatusUpdateTimer, SIGNAL(timeout()), this, SLOT(updateCaptureStatistics()));
+
+    // Set up a timer for updating player control information
+    playerControlTimer = new QTimer(this);
+    connect(playerControlTimer, SIGNAL(timeout()), this, SLOT(updatePlayerControlInformation()));
+    playerControlTimer->start(100); // Update 10 times per second
+
+    // Defaults for the remote control toggle settings
+    remoteDisplayState = PlayerCommunication::DisplayState::off;
+    remoteAudioState = PlayerCommunication::AudioState::digitalStereo;
+    remoteSpeed = 4;
+    remoteChapterFrameMode = PlayerCommunication::ChapterFrameMode::chapter;
+    updatePlayerRemoteDialog();
 }
 
 MainWindow::~MainWindow()
 {
-    // Stop the player control
-    playerControl->stopStateMachine();
-
-    // Delete the UI
     delete ui;
 }
 
-// Update the GUI (called when the USB device connectivity changes)
-void MainWindow::updateGui()
-{
-    // Is a USB device connected?
-    if (domDupUsbDevice->isConnected()) {
-        // USB device is connected
-        usbStatusLabel->setText(tr("USB: Connected"));
+// Signal handlers ----------------------------------------------------------------------------------------------------
 
-        // Enable transfer if there is a filename selected
-        if (!fileName.isEmpty()) {
-            // A target filename is specified
-            ui->transferPushButton->setEnabled(true);
-            ui->transferPushButton->setText(tr("Start Capture"));
-            ui->cavCapturePushButton->setEnabled(true);
-            ui->clvCapturePushButton->setEnabled(true);
+// USB device attached signal handler
+void MainWindow::deviceAttachedSignalHandler(void)
+{
+    qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been attached";
+
+    // Show the device status in the status bar
+    usbStatusLabel->setText(tr("USB device attached"));
+
+    // Set test mode unchecked in the menu
+    ui->actionTest_mode->setChecked(false);
+
+    // Enable the capture button
+    ui->capturePushButton->setEnabled(true);
+}
+
+// USB device detached signal handler
+void MainWindow::deviceDetachedSignalHandler(void)
+{
+    qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been detached";
+
+    // Show the device status in the status bar
+    usbStatusLabel->setText(tr("USB device detached"));
+
+    // Disable the capture button
+    ui->capturePushButton->setEnabled(false);
+}
+
+// Configuration changed signal handler
+void MainWindow::configurationChangedSignalHandler(void)
+{
+    qDebug() << "MainWindow::configurationChangedSignalHandler(): Configuration has been changed";
+
+    // Save the configuration
+    configurationDialog->saveConfiguration(configuration);
+
+    // Restart the player control
+    startPlayerControl();
+}
+
+// Remote control command signal handler
+void MainWindow::remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteButtons button)
+{
+    // Handle the possible remote control commands
+    switch(button) {
+    case PlayerRemoteDialog::RemoteButtons::rbReject:
+        playerControl->setPlayerState(PlayerCommunication::PlayerState::stop);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbPause:
+        // Still-frame only works for CAV, so we have to check the disc type here
+        if (playerControl->getDiscType() == PlayerCommunication::DiscType::CAV)
+            playerControl->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
+        else if (playerControl->getDiscType() == PlayerCommunication::DiscType::CLV)
+            playerControl->setPlayerState(PlayerCommunication::PlayerState::pause);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbPlay:
+        playerControl->setPlayerState(PlayerCommunication::PlayerState::play);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbRepeat:
+        qDebug() << "MainWindow::remoteControlCommandSignalHandler(): rbRepeat not implemented";
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbStepRev:
+        playerControl->step(PlayerCommunication::Direction::backwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbStepFwd:
+        playerControl->step(PlayerCommunication::Direction::forwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbDisplay:
+        if (remoteDisplayState == PlayerCommunication::DisplayState::off) {
+            playerControl->setOnScreenDisplay(PlayerCommunication::DisplayState::on);
+            remoteDisplayState = PlayerCommunication::DisplayState::on;
         } else {
-            // No target filename is specified
-            ui->transferPushButton->setEnabled(false);
-            ui->transferPushButton->setText(tr("No Target File"));
-            ui->cavCapturePushButton->setEnabled(false);
-            ui->clvCapturePushButton->setEnabled(false);
+            playerControl->setOnScreenDisplay(PlayerCommunication::DisplayState::off);
+            remoteDisplayState = PlayerCommunication::DisplayState::off;
         }
-    } else {
-        // USB device is not connected
-        usbStatusLabel->setText(tr("USB: Not Connected"));
-
-        // Are we mid-capture?
-        if (captureFlag) {
-            qDebug() << "MainWindow::usbStatusChanged(): USB device removed during capture.  Attempting to clean up";
-            this->stopTransfer();
-        }
-
-        ui->transferPushButton->setEnabled(false);
-        ui->transferPushButton->setText(tr("No USB Device"));
-        ui->cavCapturePushButton->setEnabled(false);
-        ui->clvCapturePushButton->setEnabled(false);
+        updatePlayerRemoteDialog();
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbScanRev:
+        playerControl->scan(PlayerCommunication::Direction::backwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbScanFwd:
+        playerControl->scan(PlayerCommunication::Direction::forwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbAudio:
+        // Rotate through audio options
+        if (remoteAudioState == PlayerCommunication::AudioState::audioOff)
+            remoteAudioState = PlayerCommunication::AudioState::analogCh1;
+        else if (remoteAudioState == PlayerCommunication::AudioState::analogCh1)
+            remoteAudioState = PlayerCommunication::AudioState::analogCh2;
+        else if (remoteAudioState == PlayerCommunication::AudioState::analogCh2)
+            remoteAudioState = PlayerCommunication::AudioState::analogStereo;
+        else if (remoteAudioState == PlayerCommunication::AudioState::analogStereo)
+            remoteAudioState = PlayerCommunication::AudioState::digitalCh1;
+        else if (remoteAudioState == PlayerCommunication::AudioState::digitalCh1)
+            remoteAudioState = PlayerCommunication::AudioState::digitalCh2;
+        else if (remoteAudioState == PlayerCommunication::AudioState::digitalCh2)
+            remoteAudioState = PlayerCommunication::AudioState::digitalStereo;
+        else if (remoteAudioState == PlayerCommunication::AudioState::digitalStereo)
+            remoteAudioState = PlayerCommunication::AudioState::audioOff;
+        playerControl->setAudio(remoteAudioState);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSpeedDown:
+        remoteSpeed--;
+        if (remoteSpeed < 0) remoteSpeed = 0;
+        playerControl->setSpeed(remoteSpeed);
+        updatePlayerRemoteDialog();
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSpeedUp:
+        remoteSpeed++;
+        if (remoteSpeed > 7) remoteSpeed = 7;
+        playerControl->setSpeed(remoteSpeed);
+        updatePlayerRemoteDialog();
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbClear:
+        // Note: ignored
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbMultiRev:
+        playerControl->multiSpeed(PlayerCommunication::Direction::backwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbMultiFwd:
+        playerControl->multiSpeed(PlayerCommunication::Direction::forwards);
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSearch:
+        // Requires interaction with remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbChapFrame:
+        // Requires interaction with remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbZero:
+        // Handled by the remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbOne:
+        // Handled by the remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbTwo:
+        // Handled by the remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbThree:
+        // Handled by the remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbFour:
+        // Handled by the remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbFive:
+        // Handled by the remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSix:
+        // Handled by the remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbSeven:
+        // Handled by the remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbEight:
+        // Handled by the remote control dialogue
+        break;
+    case PlayerRemoteDialog::RemoteButtons::rbNine:
+        // Handled by the remote control dialogue
+        break;
     }
 }
 
-// Display an error message to the user
-void MainWindow::showError(QString errorTitle, QString errorMessage)
+// Remote control search command signal handler
+void MainWindow::remoteControlSearchSignalHandler(qint32 position, PlayerRemoteDialog::PositionMode positionMode)
 {
-    QMessageBox::warning(this, errorTitle,
-        errorMessage,
-        QMessageBox::Ok);
+    switch(positionMode) {
+    case PlayerRemoteDialog::PositionMode::pmChapter:
+        playerControl->setPositionChapter(position);
+        break;
+    case PlayerRemoteDialog::PositionMode::pmTime:
+        playerControl->setPositionTimeCode(position);
+        break;
+    case PlayerRemoteDialog::PositionMode::pmFrame:
+        playerControl->setPositionFrame(position);
+        break;
+    }
 }
 
-// Update the USB device status based on signals from the USB detection
-void MainWindow::usbStatusChanged(bool statusFlag)
+// Update capture duration timer signal handler
+void MainWindow::updateCaptureDuration(void)
 {
-    qDebug() << "MainWindow::usbStatusChanged(): Called with statusFlag =" << statusFlag;
-    updateGui();
-}
+    // Add a second to the capture time and update the label
+    captureElapsedTime = captureElapsedTime.addSecs(1);
+    ui->durationLabel->setText(captureElapsedTime.toString("hh:mm:ss"));
 
-// Update the USB device configuration based on the GUI settings
-void MainWindow::updateUsbDeviceConfiguration()
-{
-    quint16 configurationFlags = 0;
+    // Time limited capture is on?
+    if (ui->limitDurationCheckBox->isChecked()) {
+        // Check if the capture duration has exceeded the time limit
+        qint32 timeLimit = ui->durationLimitTimeEdit->time().hour() * 60 * 60;
+        timeLimit += ui->durationLimitTimeEdit->time().minute() * 60;
+        timeLimit += ui->durationLimitTimeEdit->time().second();
 
-    // Set up the configuration flags (simple binary flag byte)
-    if (ui->testModeCheckBox->isChecked()) configurationFlags += 1;     // Bit 0: Set = Test mode
-    // Bit 1: Unused
-    // Bit 2: Unused
+        qint32 elapsedTime = captureElapsedTime.hour() * 60 * 60;
+        elapsedTime += captureElapsedTime.minute() * 60;
+        elapsedTime += captureElapsedTime.second();
 
-    // Output debug
-    qDebug() << "MainWindow::updateUsbDeviceConfiguration(): Sending vendor specific USB command (configuration).  Flags are =" << configurationFlags;
-
-    // Verify that the USB device is still connected
-    if (domDupUsbDevice->isConnected()) {
-        // Open the USB device
-        if (domDupUsbDevice->openDevice()) {
-            // Send configuration vendor specific USB command
-            domDupUsbDevice->sendVendorSpecificCommand(0xB6, configurationFlags);
-
-            // Close the USB device
-            domDupUsbDevice->closeDevice();
-        } else {
-            // Could not open device
-            qDebug() << "MainWindow::updateUsbDeviceConfiguration(): Cannot send configure command - could not open USB device";
-            showError(tr("USB Communication error"), tr("Could not open the USB device"));
+        if (timeLimit <= elapsedTime) {
+            // 'Press' the capture button automatically
+            on_capturePushButton_clicked();
         }
-    } else {
-        // Device no longer connected
-        qDebug() << "MainWindow::updateUsbDeviceConfiguration(): Cannot send configure command - USB device not connected";
-        showError(tr("USB Communication error"), tr("USB device is not connected"));
     }
 }
 
-// Menu bar action functions ------------------------------------------------------------------------------------------
-
-// Menu option "About" triggered
-void MainWindow::on_actionAbout_triggered()
+// Automatic capture dialogue signals that capture should start
+void MainWindow::startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog::CaptureType captureType,
+                                                          qint32 startAddress, qint32 endAddress,
+                                                          AutomaticCaptureDialog::DiscType discTypeParam)
 {
-    // Show about about dialogue
-    aboutDomDup->show();
-}
+    bool fromLeadIn = false;
+    bool wholeDisc = false;
+    PlayerCommunication::DiscType discType = PlayerCommunication::DiscType::unknownDiscType;
 
-// Menu option "Save As" triggered
-void MainWindow::on_actionSave_As_triggered()
-{
-    if (fileName.isEmpty()) {
-        // No previous file name selected.  Fill in the default location and file name
-        fileName = QFileDialog::getSaveFileName(this, tr("Save LaserDisc sample as"), QDir::homePath()+tr("/ldsample.lds"), tr("LDS Files (*.lds)"));
-    } else {
-        // Previous file name selected, fill it in again
-        fileName = QFileDialog::getSaveFileName(this, tr("Save LaserDisc sample as"), fileName, tr("LDS Files (*.lds)"));
+    if (captureType == AutomaticCaptureDialog::CaptureType::wholeDisc) {
+        fromLeadIn = true;
+        wholeDisc = true;
+    } else if (captureType == AutomaticCaptureDialog::CaptureType::leadInCapture) {
+        fromLeadIn = true;
+        wholeDisc = false;
+    } else if (captureType == AutomaticCaptureDialog::CaptureType::partialDisc) {
+        fromLeadIn = false;
+        wholeDisc = false;
     }
 
-    // Update the GUI
-    updateGui();
+    if (discTypeParam == AutomaticCaptureDialog::DiscType::CAV) discType = PlayerCommunication::DiscType::CAV;
+    else discType = PlayerCommunication::DiscType::CLV;
+
+    // Start the automatic capture
+    playerControl->startAutomaticCapture(fromLeadIn, wholeDisc,
+                                         startAddress, endAddress,
+                                         discType);
 }
 
-// Menu->PIC->Select player COM port triggered - Show the serial port selection dialogue
-void MainWindow::on_actionSelect_player_COM_port_triggered()
+// Automatic capture dialogue signals that capture should stop
+void MainWindow::stopAutomaticCaptureDialogSignalHandler(void)
 {
-    lvdpSerialPortSelect->show();
+    playerControl->stopAutomaticCapture();
 }
 
-// Menu->PIC->Show player control dialogue triggered - Show the player control dialogue
-void MainWindow::on_actionShow_player_control_triggered()
+// Update the automatic capture status (called by a timer)
+void MainWindow::updateAutomaticCaptureStatus(void)
 {
-    lvdpPlayerControl->show();
+    automaticCaptureDialog->updateStatus(playerControl->getAutomaticCaptureStatus());
 }
 
-// Menu option "Quit" triggered
-void MainWindow::on_actionQuit_triggered()
+// Handle the automatic capture complete signal from the player control object
+void MainWindow::automaticCaptureCompleteSignalHandler(bool success)
+{
+    // Tell the automatic capture dialogue that capture is complete
+    automaticCaptureDialog->captureComplete();
+
+    // Was the capture successful?
+    if (!success) {
+        // Show an error
+        QMessageBox messageBox;
+        messageBox.critical(this, "Error", playerControl->getAutomaticCaptureError());
+        messageBox.setFixedSize(500, 200);
+    }
+}
+
+// Handle the start capture signal from the player control object
+void MainWindow::startCaptureSignalHandler(void)
+{
+    qDebug() << "MainWindow::startCaptureSignalHandler(): Got start capture signal from player control";
+    if (!isCaptureRunning) on_capturePushButton_clicked();
+}
+
+// Handle the stop capture signal from the player control object
+void MainWindow::stopCaptureSignalHandler(void)
+{
+    qDebug() << "MainWindow::stopCaptureSignalHandler(): Got stop capture signal from player control";
+    if (isCaptureRunning) on_capturePushButton_clicked();
+}
+
+// Update the capture statistics labels
+void MainWindow::updateCaptureStatistics(void)
+{
+    ui->numberOfTransfersLabel->setText(QString::number(usbDevice->getNumberOfTransfers()));
+
+    // Calculate the captured data based on the sample format (i.e. size on disk)
+    qint32 mbWritten = 0;
+    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned)
+        mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 64; // 16-bit is 64MiB per buffer
+    else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40; // 10-bit is 40MiB per buffer
+
+    ui->numberOfDiskBuffersWrittenLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
+}
+
+// Update the player control labels
+void MainWindow::updatePlayerControlInformation(void)
+{
+    ui->playerStatusLabel->setText(playerControl->getPlayerStatusInformation());
+
+    // Display the position information based on disc type
+    if (playerControl->getDiscType() == PlayerCommunication::DiscType::CAV) {
+        // CAV
+        ui->playerPositionLabel->setText(playerControl->getPlayerPositionInformation());
+    } else if (playerControl->getDiscType() == PlayerCommunication::DiscType::CLV) {
+        // CLV
+        ui->playerPositionLabel->setText(playerControl->getPlayerPositionInformation());
+    } else {
+        // Disc type unknown
+        ui->playerPositionLabel->setText(tr("Unknown"));
+    }
+}
+
+void MainWindow::startPlayerControl(void)
+{
+    PlayerCommunication::SerialSpeed serialSpeed;
+    PlayerCommunication::PlayerType playerType;
+
+    // Get the configured serial speed
+    switch (configuration->getSerialSpeed()) {
+    case Configuration::bps1200: serialSpeed = PlayerCommunication::SerialSpeed::bps1200;
+        break;
+    case Configuration::bps2400: serialSpeed = PlayerCommunication::SerialSpeed::bps2400;
+        break;
+    case Configuration::bps4800: serialSpeed = PlayerCommunication::SerialSpeed::bps4800;
+        break;
+    case Configuration::bps9600: serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
+        break;
+    }
+
+    // Get the configured player type
+    qDebug() << "MainWindow::startPlayerControl(): Getting player type";
+    switch (configuration->getPlayerModel()) {
+    case Configuration::PlayerModels::none: playerType = PlayerCommunication::PlayerType::unknownPlayerType;
+        qDebug() << "MainWindow::startPlayerControl(): Warning: Player type is not configured";
+        break;
+    case Configuration::PlayerModels::pioneerLDV4300D: playerType = PlayerCommunication::PlayerType::pioneerLDV4300D;
+        break;
+    case Configuration::PlayerModels::pioneerCLDV2800: playerType = PlayerCommunication::PlayerType::pioneerCLDV2800;
+        break;
+    }
+
+    if (configuration->getSerialDevice().isEmpty())
+        qDebug() << "MainWindow::startPlayerControl(): Warning: Serial device is not configured";
+
+    // Send the configuration to the player control
+    playerControl->configurePlayerCommunication(configuration->getSerialDevice(),
+                                                    serialSpeed,
+                                                    playerType);
+}
+
+// GUI Triggered action handlers --------------------------------------------------------------------------------------
+
+// Menu option: File->Exit
+void MainWindow::on_actionExit_triggered()
 {
     // Quit the application
     qApp->quit();
 }
 
-// GUI action functions -----------------------------------------------------------------------------------------------
-
-// Transfer push button clicked
-void MainWindow::on_transferPushButton_clicked()
+// Menu option: Edit->Test mode
+void MainWindow::on_actionTest_mode_toggled(bool arg1)
 {
-    // Check if we are currently capturing
-    if (captureFlag) {
-        // Stop capturing
-        qDebug() << "MainWindow::on_transferPushButton_clicked(): Stopping capture";
-        stopTransfer();
+    if (arg1) {
+        // Turn test-mode on
+        usbDevice->sendConfigurationCommand(true);
+        ui->capturePushButton->setText("Test data capture");
     } else {
-        // Start capturing
-        qDebug() << "MainWindow::on_transferPushButton_clicked(): Starting capture";
-        startTransfer();
+        // Turn test-mode off
+        usbDevice->sendConfigurationCommand(false);
+        ui->capturePushButton->setText("Capture");
     }
 }
 
-// Test mode check box toggled
-void MainWindow::on_testModeCheckBox_toggled(bool checked)
+// Menu option: View->Player remote
+void MainWindow::on_actionPlayer_remote_triggered()
 {
-    qDebug() << "MainWindow::on_testModeCheckBox_toggled():" << checked;
-
-    // Update the USB configuration
-    updateUsbDeviceConfiguration();
+    playerRemoteDialog->show();
 }
 
-// CAV capture from lead-in check box toggled
-void MainWindow::on_cavLeadInCheckBox_toggled(bool checked)
+// Menu option: View->Automatic capture
+void MainWindow::on_actionAutomatic_capture_triggered()
 {
-    if (checked) {
-        // If checked, user cannot specify the start frame number
-        ui->startFrameLineEdit->setText("0");
-        ui->startFrameLineEdit->setEnabled(false);
-    } else {
-        ui->startFrameLineEdit->setEnabled(true);
-    }
+    automaticCaptureDialog->show();
 }
 
-// CLV capture from lead-in check box toggled
-void MainWindow::on_clvLeadInCheckBox_toggled(bool checked)
+// Menu option: Help->About
+void MainWindow::on_actionAbout_triggered()
 {
-    if (checked) {
-        // If checked, user cannot specify the start time-code
-        QTime startTimecode;
-        startTimecode.setHMS(0, 0, 0, 0);
-        ui->startTimeCodeTimeEdit->setTime(startTimecode);
-        ui->startTimeCodeTimeEdit->setEnabled(false);
-    } else {
-        ui->startTimeCodeTimeEdit->setEnabled(true);
-    }
+    aboutDialog->show();
 }
 
-// Data format radio button (10 bit) clicked
-void MainWindow::on_tenBitRadioButton_clicked()
+// Menu option: Edit->Preferences
+void MainWindow::on_actionPreferences_triggered()
 {
-    if (ui->tenBitRadioButton->isChecked()) isTenBit = true; else isTenBit = false;
-
-    if (isTenBit) qDebug() << "MainWindow::on_tenBitRadioButton_clicked(): 10-bit data format selected";
-    else qDebug() << "MainWindow::on_tenBitRadioButton_clicked(): 16-bit data format selected";
+    configurationDialog->loadConfiguration(configuration);
+    configurationDialog->show();
 }
 
-// Data format radio button (16 bit) clicked
-void MainWindow::on_sixteenBitRadioButton_clicked()
+// Main window - capture button clicked
+void MainWindow::on_capturePushButton_clicked()
 {
-    if (ui->sixteenBitRadioButton->isChecked()) isTenBit = false; else isTenBit = true;
+    if (!isCaptureRunning) {
+        // Start capture
+        QString captureFilename;
 
-    if (isTenBit) qDebug() << "MainWindow::on_sixteenBitRadioButton_clicked(): 10-bit data format selected";
-    else qDebug() << "MainWindow::on_sixteenBitRadioButton_clicked(): 16-bit data format selected";
-}
+        // Construct the capture file path and name
 
-// Start or stop sample transfer --------------------------------------------------------------------------------------
+        // Change the prefix depending on if the data is RF or test data
+        if (ui->actionTest_mode->isChecked()) captureFilename = configuration->getCaptureDirectory() + "/TestData_";
+        else captureFilename = configuration->getCaptureDirectory() + "/RF-Sample_";
+        captureFilename += QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
 
-// Start USB capture transfer
-void MainWindow::startTransfer(void)
-{
-    bool responseFlag = false;
+        // Change the suffix depending on if the data is 10 or 16 bit
+        if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) captureFilename += ".lds";
+        else captureFilename += ".raw";
 
-    // Ensure we have a file name
-    if (fileName.isEmpty()) {
-        qDebug() << "MainWindow::startTransfer(): No file name specified, cannot start transfer";
-        showError(tr("Capture error"), tr("No target file is specified. Cannot start transfer"));
-        return;
-    }
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting capture to file:" << captureFilename;
 
-    if (captureFlag == false) {
-        qDebug() << "MainWindow::startTransfer(): Starting transfer";
-
-        // Ensure the device's configuration matches the GUI
-        updateUsbDeviceConfiguration();
-
-        // Verify that the USB device is still connected
-        if (domDupUsbDevice->isConnected()) {
-            // Set the capture flag
-            captureFlag = true;
-
-            // Update the transfer button text
-            ui->transferPushButton->setText(tr("Stop Capture"));
-
-            // Disable the data format radio buttons
-            ui->tenBitRadioButton->setEnabled(false);
-            ui->sixteenBitRadioButton->setEnabled(false);
-
-            // Disable the test data check-box
-            ui->testModeCheckBox->setEnabled(false);
-
-            // Configure and open the USB device
-            responseFlag = domDupUsbDevice->openDevice();
-
-            if (responseFlag) {
-                qDebug() << "MainWindow::startTransfer(): USB device opened";
-
-                // Send start transfer vendor specific USB command
-                domDupUsbDevice->sendVendorSpecificCommand(0xB5, 1);
-
-                // Start the transfer (pass test mode on/off state)
-                domDupUsbDevice->startBulkRead(fileName, isTenBit);
-
-                // Start a timer to display the transfer information
-                captureTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
-            } else {
-                // Could not open USB device
-                qDebug() << "MainWindow::startTransfer(): Cannot start transfer - Opening USB device failed";
-                showError(tr("USB Communication error"), tr("Could not open the USB device"));
-                captureFlag = false;
-                updateGui();
-            }
+        updateGuiForCaptureStart();
+        isCaptureRunning = true;
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer";
+        if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
+            usbDevice->startCapture(captureFilename, true);
         } else {
-            // Cannot start transfer; USB device not detected
-            qDebug() << "MainWindow::startTransfer(): Cannot start transfer - USB device not connected";
-            showError(tr("USB Communication error"), tr("USB device is not connected"));
+            usbDevice->startCapture(captureFilename, false);
         }
+
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Transfer started";
+
+        // Start a timer to display the capture statistics
+        ui->durationLabel->setText(tr("00:00:00"));
+        captureStatusUpdateTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
+
+        // Start the capture duration timer
+        captureElapsedTime = QTime::fromString("00:00:00", "hh:mm:ss");
+        captureDurationTimer->start(1000); // Update 1 time per second
+
+        // Connect to the transfer failure notification signal
+        connect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
     } else {
-        qDebug() << "MainWindow::startTransfer(): Called, but transfer is already in progress";
+        // Stop capture
+        playerControl->stopAutomaticCapture(); // Stop auto-capture if in progress
+        usbDevice->stopCapture();
+        isCaptureRunning = false;
+        captureStatusUpdateTimer->stop();
+        captureDurationTimer->stop();
+        disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
+        updateGuiForCaptureStop();
     }
 }
 
-// Stop USB capture transfer
-void MainWindow::stopTransfer(void)
+// Limit duration checkbox state changed
+void MainWindow::on_limitDurationCheckBox_stateChanged(int arg1)
 {
-    if (captureFlag == true) {
-        qDebug() << "MainWindow::stopTransfer(): Stopping transfer";
+    (void)arg1;
 
-        // Disable the button whilst we stop the transfer
-        ui->transferPushButton->setEnabled(false);
-
-        // Set the capture flag
-        captureFlag = false;
-
-        // Stop the transfer
-        domDupUsbDevice->stopBulkRead();
-
-        // Stop the timer displaying the transfer information
-        captureTimer->stop();
-
-        // Send stop transfer vendor specific USB command
-        domDupUsbDevice->sendVendorSpecificCommand(0xB5, 0);
-
-        // Close the USB device
-        domDupUsbDevice->closeDevice();
-
-        // Update the GUI
-        updateGui();
-
-        // Enable the data format radio buttons
-        ui->tenBitRadioButton->setEnabled(true);
-        ui->sixteenBitRadioButton->setEnabled(true);
-
-        // Enable the test data check-box
-        ui->testModeCheckBox->setEnabled(true);
+    if (ui->limitDurationCheckBox->isChecked()) {
+        // Checked
+        ui->durationLimitTimeEdit->setEnabled(true);
     } else {
-        qDebug() << "MainWindow::stopTransfer(): Called, but transfer is not in progress";
+        // Unchecked
+        ui->durationLimitTimeEdit->setEnabled(false);
     }
 }
 
-// CAV PIC capture button clicked
-void MainWindow::on_cavCapturePushButton_clicked()
+// Transfer failed notification signal handler
+void MainWindow::transferFailedSignalHandler(void)
 {
-    // Ensure any command errors are cleared
-    playerControl->isLastCommandError();
+    // Stop capture - something has gone wrong
+    usbDevice->stopCapture();
+    isCaptureRunning = false;
+    captureStatusUpdateTimer->stop();
+    disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
+    updateGuiForCaptureStop();
 
-    // Make sure the CLV PIC capture is not running
-    if (!clvPicCaptureActive) {
-        if (!cavPicCaptureActive) {
-            // Ensure the device's configuration matches the GUI
-            updateUsbDeviceConfiguration();
-
-            // CAV capture not running... start it
-            qDebug() << "MainWindow::on_cavCapturePushButton_clicked(): Starting CAV PIC capture";
-            cavPicCaptureAbort = false;
-            cavPicCaptureActive = true;
-            ui->cavCapturePushButton->setText("Abort");
-        } else {
-            // CAV capture is running... abort
-            qDebug() << "MainWindow::on_cavCapturePushButton_clicked(): Aborting CAV PIC capture";
-            cavPicCaptureAbort = true;
-        }
-    } else {
-        qDebug() << "MainWindow::on_cavCapturePushButton_clicked(): Error - CLV PIC capture in progress";
-    }
+    // Show an error
+    QMessageBox messageBox;
+    messageBox.critical(this, "Error", usbDevice->getLastError());
+    messageBox.setFixedSize(500, 200);
 }
 
-// CLV PIC capture button clicked
-void MainWindow::on_clvCapturePushButton_clicked()
+// Update the GUI when capture starts
+void MainWindow::updateGuiForCaptureStart(void)
 {
-    // Ensure any command errors are cleared
-    playerControl->isLastCommandError();
+    // Disable functions during capture
+    ui->capturePushButton->setText(tr("Stop Capture"));
+    ui->capturePushButton->setStyleSheet("background-color: red");
+    ui->actionTest_mode->setEnabled(false);
+    ui->actionPreferences->setEnabled(false);
 
-    // Make sure the CAV PIC capture is not running
-    if (!cavPicCaptureActive) {
-        if (!clvPicCaptureActive) {
-            // Ensure the device's configuration matches the GUI
-            updateUsbDeviceConfiguration();
+    // Make sure the configuration dialogue is closed
+    configurationDialog->hide();
 
-            // CAV capture not running... start it
-            qDebug() << "MainWindow::on_clvCapturePushButton_clicked(): Starting CLV PIC capture";
-            clvPicCaptureAbort = false;
-            clvPicCaptureActive = true;
-            ui->clvCapturePushButton->setText("Abort");
-        } else {
-            // CAV capture is running... abort
-            qDebug() << "MainWindow::on_clvCapturePushButton_clicked(): Aborting CLV PIC capture";
-            clvPicCaptureAbort = true;
-        }
-    } else {
-        qDebug() << "MainWindow::on_clvCapturePushButton_clicked(): Error - CAV PIC capture in progress";
-    }
+    // Reset the capture statistics
+    ui->numberOfTransfersLabel->setText(tr("0"));
 }
 
-// GUI information update functions -----------------------------------------------------------------------------------
-
-// Update the capture information in the main window
-void MainWindow::updateCaptureInfo(void)
+// Update the GUI when capture stops
+void MainWindow::updateGuiForCaptureStop(void)
 {
-    // Calculate and display the current amount of captured data (in MBytes)
-    qreal capturedData = static_cast<qreal>(domDupUsbDevice->getPacketCounter() * domDupUsbDevice->getPacketSize()) / 1024;
-
-    if (capturedData < 1024) ui->capturedDataLabel->setText(QString::number(capturedData, 'f', 0) + tr(" MBytes"));
-    else {
-        capturedData = capturedData / 1024;
-        ui->capturedDataLabel->setText(QString::number(capturedData, 'f', 2) + tr(" GBytes"));
-    }
-
-    // Display the current transfer performance
-    qreal transferPerformance = domDupUsbDevice->getTransferPerformance() / 1024;
-    ui->transferSpeedLabel->setText(QString::number(transferPerformance, 'f', 0) + tr(" MBytes/sec"));
-
-    // Display the available number of disk buffers (as a percentage)
-    quint32 bufferAvailablity = (100 / domDupUsbDevice->getNumberOfDiskBuffers()) * domDupUsbDevice->getAvailableDiskBuffers();
-    ui->diskBufferProgressBar->setValue(static_cast<int>(bufferAvailablity));
+    // Disable functions after capture
+    if (ui->actionTest_mode->isChecked()) ui->capturePushButton->setText(tr("Test data capture"));
+    else ui->capturePushButton->setText(tr("Capture"));
+    ui->capturePushButton->setStyleSheet("background-color: none");
+    ui->actionTest_mode->setEnabled(true);
+    ui->actionPreferences->setEnabled(true);
 }
 
-// Called by the player control information update timer
-void MainWindow::updatePlayerControlInfo(void)
+// Update the player remote control dialogue
+void MainWindow::updatePlayerRemoteDialog(void)
 {
-    //qDebug() << "MainWindow::updatePlayerControlInfo(): Updating";
-    lvdpPlayerControl->updatePlayerControlInfo(
-                playerControl->isConnected(),
-                playerControl->isCav(),
-                static_cast<quint32>(playerControl->currentFrameNumber()),
-                static_cast<quint32>(playerControl->currentTimeCode()),
-                playerControl->isPlaying(),
-                playerControl->isPaused()
-                );
-
-    if (playerControl->isConnected()) {
-        serialStatusLabel->setText(tr("PIC: Connected"));
-        // If we are paused or playing, then we known the disc type
-        // otherwise it's up to the user to pick the right one
-        if (playerControl->isPaused() || playerControl->isPlaying()) {
-            if (playerControl->isCav()) {
-                ui->cavIntegratedCaptureGroupBox->setEnabled(true);
-                ui->clvIntegratedCaptureGroupBox->setEnabled(false);
-            } else {
-                ui->cavIntegratedCaptureGroupBox->setEnabled(false);
-                ui->clvIntegratedCaptureGroupBox->setEnabled(true);
-            }
-        } else {
-            // No disc is detected, enable both options
-            ui->cavIntegratedCaptureGroupBox->setEnabled(true);
-            ui->clvIntegratedCaptureGroupBox->setEnabled(true);
-        }
-    } else {
-        // Disable the PIC capture options (only available if a player is connected)
-        ui->cavIntegratedCaptureGroupBox->setEnabled(false);
-        ui->clvIntegratedCaptureGroupBox->setEnabled(false);
-        serialStatusLabel->setText(tr("PIC: Not Connected"));
+    switch(remoteDisplayState) {
+    case PlayerCommunication::DisplayState::off:
+        playerRemoteDialog->setDisplayMode(PlayerRemoteDialog::DisplayMode::displayOff);
+        break;
+    case PlayerCommunication::DisplayState::on:
+        playerRemoteDialog->setDisplayMode(PlayerRemoteDialog::DisplayMode::displayOn);
+        break;
+    case PlayerCommunication::DisplayState::unknownDisplayState:
+        playerRemoteDialog->setDisplayMode(PlayerRemoteDialog::DisplayMode::displayOff);
+        break;
     }
 
-    // Check for serial communication failure (from LVDP state-machine)
-    if (playerControl->isErrorState())
-        showError(tr("PIC Communication error"),
-                  tr("Serial communication with the LVDP has encountered an error!"));
-}
-
-// Called by a player control event (from the PIC controls)
-void MainWindow::handlePlayerControlEvent(playerControlDialog::PlayerControlEvents controlEvent,
-                                          quint32 parameter)
-{
-    // Determine the event and process
-    switch(controlEvent) {
-        case playerControlDialog::PlayerControlEvents::event_playClicked:
-        // Is the disc currently playing?
-        if (playerControl->isPlaying()) {
-            // Send a pause or still frame (CAV only) command instead
-            if (playerControl->isCav()) {
-                // CAV disc playing - send still frame command
-                playerControl->command(lvdpControl::PlayerCommands::command_still, 0);
-            } else {
-                // CLV disc playing - send pause command
-                playerControl->command(lvdpControl::PlayerCommands::command_pause, 0);
-            }
-        } else {
-            // Disc is either stopped or paused, send play command
-            playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
-        }
+    switch(remoteSpeed) {
+    case 0:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiSm16);
         break;
-
-        case playerControlDialog::PlayerControlEvents::event_pauseClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_still, 0);
+    case 1:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiSm14);
         break;
-
-        case playerControlDialog::PlayerControlEvents::event_stopClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_stop, 0);
+    case 2:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiSm13);
         break;
-
-        case playerControlDialog::PlayerControlEvents::event_stepForwardsClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_stepForwards, 0);
+    case 3:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiSm12);
         break;
-
-        case playerControlDialog::PlayerControlEvents::event_stepBackwardsClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_stepBackwards, 0);
+    case 4:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiX1);
         break;
-
-        case playerControlDialog::PlayerControlEvents::event_scanForwardsClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_scanForwards, 0);
+    case 5:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiX2);
         break;
-
-        case playerControlDialog::PlayerControlEvents::event_scanBackwardsClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_scanBackwards, 0);
+    case 6:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiX3);
         break;
-
-        case playerControlDialog::PlayerControlEvents::event_keyLockOnClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_keyLockOn, 0);
-        break;
-
-        case playerControlDialog::PlayerControlEvents::event_keyLockOffClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
-        break;
-
-        case playerControlDialog::PlayerControlEvents::event_seekClicked:
-        playerControl->command(lvdpControl::PlayerCommands::command_seek, parameter);
+    case 7:
+        playerRemoteDialog->setMultiSpeed(PlayerRemoteDialog::MultiSpeed::multiX4);
         break;
     }
 }
 
-// Called when the serial port selection dialogue signals that the serial configuration has changed
-void MainWindow::serialPortStatusChange(void)
-{
-    qDebug() << "MainWindow::serialPortStatusChange(): Serial port configuration changed";
 
-    if(lvdpSerialPortSelect->isConfigured()) {
-        // Connect to the player
-        playerControl->serialConfigured(lvdpSerialPortSelect->getPortName(), lvdpSerialPortSelect->getBaudRate());
-    } else {
-        // Ensure the player is disconnected
-        playerControl->serialUnconfigured();
-    }
-}
-
-// CAV/CLV capture process state-machines -----------------------------------------------------------------------------
-
-// CAV PIC capture state-machine
-void MainWindow::cavPicPoll(void)
-{
-    // Transition state if required
-    cavPicCurrentState = cavPicNextState;
-
-    // Get the start and end frame positions
-    qint32 startFrame = static_cast<qint32>(ui->startFrameLineEdit->text().toUInt());
-    qint32 endFrame = static_cast<qint32>(ui->endFrameLineEdit->text().toUInt());
-
-    // Get the capture lead-in flag
-    bool captureLeadInFlag = ui->cavLeadInCheckBox->checkState();
-
-    switch (cavPicCurrentState) {
-        case cavState_idle:
-            ui->cavPicStatus->setText("Idle");
-
-            // Wait for the flag then transition from idle
-            if (cavPicCaptureActive) {
-                // Sanity check the frame values
-                if (startFrame < 0) {
-                    qDebug() << "MainWindow::cavPicPoll(): Error: Start frame is negative! Aborting capture.";
-                    cavPicCaptureActive = false;
-                }
-
-                if (endFrame < 0) {
-                    qDebug() << "MainWindow::cavPicPoll(): Error: End frame is negative! Aborting capture.";
-                    cavPicCaptureActive = false;
-                }
-
-                if (startFrame > endFrame) {
-                    qDebug() << "MainWindow::cavPicPoll(): Error: Start frame is greater than end frame! Aborting capture.";
-                    cavPicCaptureActive = false;
-                }
-
-                if (startFrame > 60000) {
-                    qDebug() << "MainWindow::cavPicPoll(): Error: Start frame is greater than 60,000! Aborting capture.";
-                    qDebug() << "MainWindow::cavPicPoll(): Start frame field =" << ui->startFrameLineEdit->text();
-                    cavPicCaptureActive = false;
-                }
-
-                if (endFrame > 60000) {
-                    qDebug() << "MainWindow::cavPicPoll(): Error: End frame is greater than 60,000! Aborting capture.";
-                    qDebug() << "MainWindow::cavPicPoll(): End frame field =" << ui->endFrameLineEdit->text();
-                    cavPicCaptureActive = false;
-                }
-
-
-                // If no errors were detected, start the player
-                if (cavPicCaptureActive) cavPicNextState = cavState_startPlayer;
-                else ui->cavCapturePushButton->setText("Capture"); // If there was an error, reset the capture button text
-            }
-            else cavPicNextState = cavState_idle;
-            break;
-
-        case cavState_startPlayer:
-            ui->cavPicStatus->setText("Starting player");
-
-            // Lock the physical player controls for safety
-            playerControl->command(lvdpControl::PlayerCommands::command_keyLockOn, 0);
-            lvdpPlayerControl->lockAllPlayerControls();
-
-            // Send the play command if the player isn't already started
-            if (!playerControl->isPlaying() && !playerControl->isPaused() ) {
-                playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
-            }
-
-            cavPicNextState = cavState_waitForPlay;
-            break;
-
-        case cavState_waitForPlay:
-            ui->cavPicStatus->setText("Waiting for disc");
-
-            if (playerControl->isPlaying() || playerControl->isPaused()) {
-                if (playerControl->isCav()) {
-                    cavPicNextState = cavState_determineDiscLength;
-                } else {
-                    // Disc is not CAV - error
-                    cavPicNextState = cavState_error;
-                }
-            }
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
-                cavPicNextState = cavState_error;
-            }
-
-            break;
-
-        case cavState_determineDiscLength:
-            ui->cavPicStatus->setText("Determining disc length");
-            playerControl->command(lvdpControl::PlayerCommands::command_resetDiscLength, 0);
-            playerControl->command(lvdpControl::PlayerCommands::command_getDiscLength, 0);
-
-            cavPicNextState = cavState_waitForDetermineDiscLength;
-
-            break;
-
-        case cavState_waitForDetermineDiscLength:
-            ui->cavPicStatus->setText("Waiting for disc length");
-            if (playerControl->getDiscLength() != 0) {
-                qDebug() << "MainWindow::cavPicPoll(): Disc length is" << playerControl->getDiscLength() << "frames";
-
-                // Is lead-in capture required?
-                if (captureLeadInFlag) {
-                    qDebug() << "MainWindow::cavPicPoll(): Capture lead-in requested";
-
-                    // In order to capture lead-in we have to first stop the disc
-                    // and then start the capture before sending the play command
-                    playerControl->command(lvdpControl::PlayerCommands::command_stop, 0);
-                    cavPicNextState = cavState_stopPlayer;
-                } else {
-                    // Lead-in not required, start from frame
-                    cavPicNextState = cavState_seekToFrame;
-                }
-            }
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
-                cavPicNextState = cavState_error;
-            }
-            break;
-
-        case cavState_stopPlayer:
-            ui->cavPicStatus->setText("Waiting for disc to stop");
-            if (!playerControl->isPlaying() && !playerControl->isPaused()) {
-                // Player has stopped - start the transfer and start playing
-                startTransfer();
-                playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
-                cavPicNextState = cavState_waitForStartCapture;
-            }
-            break;
-
-        case cavState_seekToFrame:
-            ui->cavPicStatus->setText("Seeking for start frame");
-
-            // Verify that the startFrame is valid
-            if (startFrame == 0) startFrame = 1;
-            if (playerControl->getDiscLength() < startFrame) startFrame = playerControl->getDiscLength() - 1;
-
-            // Send the seek command
-            qDebug() << "MainWindow::cavPicPoll(): Requesting start frame" << startFrame;
-            playerControl->command(lvdpControl::PlayerCommands::command_seek, static_cast<quint32>(startFrame));
-            cavPicNextState = cavState_waitForSeek;
-            break;
-
-        case cavState_waitForSeek:
-            ui->cavPicStatus->setText("Waiting for start frame");
-
-            // Verify that the startFrame is valid
-            if (startFrame == 0) startFrame = 1;
-            if (playerControl->getDiscLength() < startFrame) startFrame = playerControl->getDiscLength() - 1;
-
-            // Get the seek position and pause
-            if (startFrame == playerControl->currentFrameNumber()) {
-                cavPicNextState = cavState_startCapture;
-            }
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
-                cavPicNextState = cavState_error;
-            }
-
-            break;
-
-        case cavState_startCapture:
-            ui->cavPicStatus->setText("Starting capture");
-
-            // Verify that the end frame is valid
-            if (endFrame > playerControl->getDiscLength()) endFrame = playerControl->getDiscLength();
-
-            qDebug() << "MainWindow::cavPicPoll(): Waiting for end frame" << endFrame;
-
-            // Start the capture
-            startTransfer();
-
-            // Play the disc
-            playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
-
-            cavPicNextState = cavState_waitForStartCapture;
-            break;
-
-        case cavState_waitForStartCapture:
-            ui->cavPicStatus->setText("Waiting for disc playing");
-            // Don't start waiting for the end frame unless the player is playing
-            if (playerControl->isPlaying()) cavPicNextState = cavState_waitForEndFrame;
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
-                cavPicNextState = cavState_error;
-            }
-            break;
-
-        case cavState_waitForEndFrame:
-            ui->cavPicStatus->setText("Waiting for end frame");
-
-            // Verify that the end frame is valid
-            if (endFrame > playerControl->getDiscLength()) endFrame = playerControl->getDiscLength();
-
-            // Check if the frame number is exceeded
-            if (playerControl->currentFrameNumber() >= endFrame)
-                cavPicNextState = cavState_stopCapture;
-
-            // Attempting to read past the last frame can cause the player
-            // to stop...  ensure we are still playing
-            if (!playerControl->isPlaying()) {
-                qDebug() << "MainWindow::cavPicPoll(): Player is no longer playing...";
-
-                // This can be caused by either exceeding the last frame on the disc or by
-                // a frame that contains a pause command.  If we are paused, restart the
-                // playback (as the LD-V4300D has no command to override automatic
-                // pausing during playback
-                if (playerControl->isPaused() && (playerControl->currentFrameNumber() < endFrame)) {
-                    qDebug() << "MainWindow::cavPicPoll(): Player was paused due to frame pause command in frame number" << playerControl->currentFrameNumber() <<"- Reissuing play command...";
-                    playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
-                    cavPicNextState = cavState_waitForStartCapture;
-                } else {
-                    // Transition to the stopped state
-                    cavPicNextState = cavState_stopCapture;
-                }
-            }
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::cavPicPoll(): Player command error flagged - aborting";
-                cavPicNextState = cavState_error;
-            }
-
-            // Check for abort capture flag
-            if (cavPicCaptureAbort) {
-                qDebug() << "MainWindow::cavPicPoll(): Abort capture flag is set - stopping capture";
-                cavPicNextState = cavState_stopCapture;
-            }
-            break;
-
-        case cavState_stopCapture:
-            ui->cavPicStatus->setText("Stopping capture");
-
-            // Stop the capture
-            stopTransfer();
-
-            // Put the player in still frame (if still playing)
-            // Note: the LD-V4300D reports an error if we try this at the end of the disc...
-            if (playerControl->isPlaying() && (playerControl->currentFrameNumber() != playerControl->getDiscLength()))
-                playerControl->command(lvdpControl::PlayerCommands::command_still, 0);
-
-            // Unlock the physical player controls
-            playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
-            lvdpPlayerControl->unlockAllPlayerControls();
-            ui->cavCapturePushButton->setText("Capture");
-
-            cavPicNextState = cavState_idle;
-            cavPicCaptureActive = false;
-            break;
-
-        case cavState_error:
-            ui->cavPicStatus->setText("Error");
-
-            // Stop any pending capture
-            stopTransfer();
-
-            // Unlock the physical player controls
-            playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
-            lvdpPlayerControl->unlockAllPlayerControls();
-            ui->cavCapturePushButton->setText("Capture");
-            showError(tr("USB Communication error"), tr("USB device is not connected"));
-
-            cavPicNextState = cavState_idle;
-            cavPicCaptureActive = false;
-            break;
-    }
-}
-
-// CLV PIC capture state-machine
-void MainWindow::clvPicPoll(void)
-{
-    // Transition state if required
-    clvPicCurrentState = clvPicNextState;
-
-    // Get the start and end frame positions
-    QString timeCode;
-
-    // Create a formatted 7-character string of the start time-code
-    timeCode.sprintf("%01d%02d%02d00", ui->startTimeCodeTimeEdit->time().hour(),
-                     ui->startTimeCodeTimeEdit->time().minute(),
-                     ui->startTimeCodeTimeEdit->time().second());
-
-    // Convert the start time-code to an integer
-    qint32 startFrame = timeCode.toInt();
-
-    timeCode.sprintf("%01d%02d%02d00", ui->endTimeCodeTimeEdit->time().hour(),
-                     ui->endTimeCodeTimeEdit->time().minute(),
-                     ui->endTimeCodeTimeEdit->time().second());
-
-    // Convert the end time-code to an integer
-    qint32 endFrame = timeCode.toInt();
-
-    // Get the capture lead-in flag
-    bool captureLeadInFlag = ui->clvLeadInCheckBox->checkState();
-
-    switch (clvPicCurrentState) {
-        case clvState_idle:
-            ui->clvPicStatus->setText("Idle");
-
-            // Wait for the flag then transition from idle
-            if (clvPicCaptureActive) clvPicNextState = clvState_startPlayer;
-            else clvPicNextState = clvState_idle;
-            break;
-
-        case clvState_startPlayer:
-            ui->clvPicStatus->setText("Starting player");
-
-            // Lock the physical player controls for safety
-            playerControl->command(lvdpControl::PlayerCommands::command_keyLockOn, 0);
-            lvdpPlayerControl->lockAllPlayerControls();
-
-            // Send the play command if the player isn't already started
-            if (!playerControl->isPlaying() && !playerControl->isPaused() ) {
-                playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
-            }
-
-            clvPicNextState = clvState_waitForPlay;
-            break;
-
-        case clvState_waitForPlay:
-            ui->clvPicStatus->setText("Waiting for disc");
-
-            if (playerControl->isPlaying() || playerControl->isPaused()) {
-                if (!playerControl->isCav()) {
-                    clvPicNextState = clvState_determineDiscLength;
-                } else {
-                    // Disc is not CLV - error
-                    clvPicNextState = clvState_error;
-                }
-            }
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::clvPicPoll(): Player command error flagged - aborting";
-                clvPicNextState = clvState_error;
-            }
-
-            break;
-
-        case clvState_determineDiscLength:
-            ui->clvPicStatus->setText("Determining disc length");
-            playerControl->command(lvdpControl::PlayerCommands::command_resetDiscLength, 0);
-            playerControl->command(lvdpControl::PlayerCommands::command_getDiscLength, 0);
-
-            clvPicNextState = clvState_waitForDetermineDiscLength;
-
-            break;
-
-        case clvState_waitForDetermineDiscLength:
-            ui->clvPicStatus->setText("Waiting for disc length");
-            if (playerControl->getDiscLength() != 0) {
-                qDebug() << "MainWindow::clvPicPoll(): Disc length is" << playerControl->getDiscLength() << "time-code frames";
-
-                // Is lead-in capture required?
-                if (captureLeadInFlag) {
-                    qDebug() << "MainWindow::clvPicPoll(): Capture lead-in requested";
-
-                    // In order to capture lead-in we have to first stop the disc
-                    // and then start the capture before sending the play command
-                    playerControl->command(lvdpControl::PlayerCommands::command_stop, 0);
-                    clvPicNextState = clvState_stopPlayer;
-                } else {
-                    // Lead-in not required, start from frame
-                    clvPicNextState = clvState_seekToFrame;
-                }
-            }
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::clvPicPoll(): Player command error flagged - aborting";
-                clvPicNextState = clvState_error;
-            }
-            break;
-
-        case clvState_stopPlayer:
-            ui->clvPicStatus->setText("Waiting for disc to stop");
-            if (!playerControl->isPlaying() && !playerControl->isPaused()) {
-                // Player has stopped - start the transfer and start playing
-                startTransfer();
-                playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
-                clvPicNextState = clvState_waitForStartCapture;
-            }
-            break;
-
-        case clvState_seekToFrame:
-            ui->clvPicStatus->setText("Seeking for start time");
-
-            // Verify that the startFrame is valid
-            // Note: the startFrame is hmmssff, so we set to one second before the end of the disc
-            if (playerControl->getDiscLength() < startFrame) startFrame = playerControl->getDiscLength() - 100;
-
-            // Send the seek command
-            qDebug() << "MainWindow::clvPicPoll(): Requesting start frame" << startFrame;
-            playerControl->command(lvdpControl::PlayerCommands::command_seek, static_cast<quint32>(startFrame));
-            clvPicNextState = clvState_waitForSeek;
-            break;
-
-        case clvState_waitForSeek:
-            ui->clvPicStatus->setText("Waiting for start time");
-
-            // Verify that the startFrame is valid
-            // Note: the startFrame is hmmssff, so we set to one second before the end of the disc
-            if (playerControl->getDiscLength() < startFrame) startFrame = playerControl->getDiscLength() - 100;
-
-            // Get the seek position and pause
-            if (startFrame == playerControl->currentTimeCode()) {
-                clvPicNextState = clvState_startCapture;
-            }
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::clvPicPoll(): Player command error flagged - aborting";
-                clvPicNextState = clvState_error;
-            }
-
-            break;
-
-        case clvState_startCapture:
-            ui->clvPicStatus->setText("Starting capture");
-
-            // Verify that the end frame is valid
-            if (endFrame > playerControl->getDiscLength()) endFrame = playerControl->getDiscLength();
-
-            qDebug() << "MainWindow::clvPicPoll(): Waiting for end frame" << endFrame;
-
-            // Start the capture
-            startTransfer();
-
-            // Play the disc
-            playerControl->command(lvdpControl::PlayerCommands::command_play, 0);
-
-            clvPicNextState = clvState_waitForStartCapture;
-            break;
-
-        case clvState_waitForStartCapture:
-            ui->clvPicStatus->setText("Waiting for disc playing");
-            // Don't start waiting for the end frame unless the player is playing
-            if (playerControl->isPlaying()) clvPicNextState = clvState_waitForEndFrame;
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::clvPicPoll(): Player command error flagged - aborting";
-                clvPicNextState = clvState_error;
-            }
-            break;
-
-        case clvState_waitForEndFrame:
-            ui->clvPicStatus->setText("Waiting for end time");
-
-            // Verify that the end frame is valid
-            if (endFrame > playerControl->getDiscLength()) endFrame = playerControl->getDiscLength();
-
-            // Check if the frame number is exceeded
-            if (playerControl->currentTimeCode() >= endFrame)
-                clvPicNextState = clvState_stopCapture;
-
-            // Attempting to read past the last frame can cause the player
-            // to stop...  ensure we are still playing
-            if (!playerControl->isPlaying())
-                clvPicNextState = clvState_stopCapture;
-
-            // Check for player command errors
-            if (playerControl->isLastCommandError()) {
-                qDebug() << "MainWindow::clvPicPoll(): Player command error flagged - aborting";
-                clvPicNextState = clvState_error;
-            }
-
-            // Check for abort capture flag
-            if (clvPicCaptureAbort) {
-                qDebug() << "MainWindow::clvPicPoll(): Abort capture flag is set - stopping capture";
-                clvPicNextState = clvState_stopCapture;
-            }
-            break;
-
-        case clvState_stopCapture:
-            ui->clvPicStatus->setText("Stopping capture");
-
-            // Stop the capture
-            stopTransfer();
-
-            // Pause the player (if still playing)
-            if (playerControl->isPlaying()) playerControl->command(lvdpControl::PlayerCommands::command_pause, 0);
-
-            // Unlock the physical player controls
-            playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
-            lvdpPlayerControl->unlockAllPlayerControls();
-            ui->clvCapturePushButton->setText("Capture");
-
-            clvPicNextState = clvState_idle;
-            clvPicCaptureActive = false;
-            break;
-
-        case clvState_error:
-            ui->clvPicStatus->setText("Error");
-
-            // Stop any pending capture
-            stopTransfer();
-
-            // Unlock the physical player controls
-            playerControl->command(lvdpControl::PlayerCommands::command_keyLockOff, 0);
-            lvdpPlayerControl->unlockAllPlayerControls();
-            ui->clvCapturePushButton->setText("Capture");
-
-            clvPicNextState = clvState_idle;
-            clvPicCaptureActive = false;
-            break;
-    }
-}
 

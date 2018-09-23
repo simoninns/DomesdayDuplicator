@@ -2,7 +2,7 @@
 
     mainwindow.h
 
-    QT GUI Capture application for Domesday Duplicator
+    Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
     Copyright (C) 2018 Simon Inns
 
@@ -25,30 +25,27 @@
 
 ************************************************************************/
 
-
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QMainWindow>
 #include <QLabel>
-#include <QDebug>
-#include <QMessageBox>
+#include <QDate>
 #include <QTimer>
-#include <QFileDialog>
-#include <QtSerialPort/QSerialPort>
+#include <QMessageBox>
 
-#include "usbdevice.h"
-#include "serialportselectdialog.h"
-#include "playercontroldialog.h"
 #include "aboutdialog.h"
-#include "lvdpcontrol.h"
+#include "configurationdialog.h"
+#include "configuration.h"
+#include "usbdevice.h"
+#include "playercommunication.h"
+#include "playercontrol.h"
+#include "playerremotedialog.h"
+#include "automaticcapturedialog.h"
 
 namespace Ui {
 class MainWindow;
 }
-
-class playerControlDialog;
-class serialPortSelectDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -58,110 +55,65 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-public slots:
-    void usbStatusChanged(bool statusFlag);
-
 private slots:
-    void updateGui();
-    void showError(QString errorTitle, QString errorMessage);
+    void deviceAttachedSignalHandler(void);
+    void deviceDetachedSignalHandler(void);
+    void configurationChangedSignalHandler(void);
+    void remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteButtons button);
+    void remoteControlSearchSignalHandler(qint32 position, PlayerRemoteDialog::PositionMode positionMode);
+    void startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog::CaptureType captureType,
+                                                              qint32 startAddress, qint32 endAddress,
+                                                              AutomaticCaptureDialog::DiscType discTypeParam);
+    void stopAutomaticCaptureDialogSignalHandler(void);
+    void updateAutomaticCaptureStatus(void);
+    void automaticCaptureCompleteSignalHandler(bool success);
 
+    void startCaptureSignalHandler(void);
+    void stopCaptureSignalHandler(void);
+
+    void updateCaptureStatistics(void);
+    void updatePlayerControlInformation(void);
+    void transferFailedSignalHandler(void);
+    void updateCaptureDuration(void);
+
+    void on_actionExit_triggered();
+    void on_actionTest_mode_toggled(bool arg1);
     void on_actionAbout_triggered();
-    void on_actionSave_As_triggered();
-    void on_actionQuit_triggered();
-    void on_transferPushButton_clicked();
-
-    void startTransfer(void);
-    void stopTransfer(void);
-    void updateCaptureInfo(void);
-    void updateUsbDeviceConfiguration(void);
-
-    void on_testModeCheckBox_toggled(bool checked);
-    void on_actionSelect_player_COM_port_triggered();
-    void on_actionShow_player_control_triggered();
-    void on_cavLeadInCheckBox_toggled(bool checked);
-    void on_clvLeadInCheckBox_toggled(bool checked);
-    void on_cavCapturePushButton_clicked();
-    void on_clvCapturePushButton_clicked();
-
-    void serialPortStatusChange(void);
-    void updatePlayerControlInfo(void);
-    void handlePlayerControlEvent(playerControlDialog::PlayerControlEvents, quint32);
-
-    void cavPicPoll(void);
-    void clvPicPoll(void);
-
-    void on_tenBitRadioButton_clicked();
-
-    void on_sixteenBitRadioButton_clicked();
+    void on_actionPreferences_triggered();
+    void on_capturePushButton_clicked();
+    void on_actionPlayer_remote_triggered();
+    void on_actionAutomatic_capture_triggered();
+    void on_limitDurationCheckBox_stateChanged(int arg1);
 
 private:
-    Ui::MainWindow *ui;
-
-    usbDevice *domDupUsbDevice;
+    Configuration *configuration;
+    UsbDevice *usbDevice;
     QLabel *usbStatusLabel;
-    QLabel *serialStatusLabel;
-    bool captureFlag;
 
-    QTimer* captureTimer;
-    QString fileName;
+    Ui::MainWindow *ui;
+    AboutDialog *aboutDialog;
+    AutomaticCaptureDialog *automaticCaptureDialog;
+    ConfigurationDialog *configurationDialog;
+    PlayerRemoteDialog *playerRemoteDialog;
+    PlayerControl *playerControl;
 
-    aboutDialog *aboutDomDup;
-    serialPortSelectDialog *lvdpSerialPortSelect;
-    playerControlDialog *lvdpPlayerControl;
+    bool isCaptureRunning;
+    QTimer *captureStatusUpdateTimer;
+    QTimer *playerControlTimer;
+    QTimer *automaticCaptureTimer;
+    QTimer *captureDurationTimer;
+    QTime captureElapsedTime;
 
-    QTimer* updateTimer;
-    lvdpControl *playerControl;
+    // Remote control states
+    PlayerCommunication::DisplayState remoteDisplayState;
+    PlayerCommunication::AudioState remoteAudioState;
+    qint32 remoteSpeed;
+    PlayerCommunication::ChapterFrameMode remoteChapterFrameMode;
 
-    // CAV PIC capture state-machine
-    // Define the possible state-machine states
-    enum CavPicStates {
-        cavState_idle,
-        cavState_startPlayer,
-        cavState_waitForPlay,
-        cavState_determineDiscLength,
-        cavState_waitForDetermineDiscLength,
-        cavState_stopPlayer,
-        cavState_seekToFrame,
-        cavState_waitForSeek,
-        cavState_startCapture,
-        cavState_waitForStartCapture,
-        cavState_waitForEndFrame,
-        cavState_stopCapture,
-        cavState_error
-    };
-
-    CavPicStates cavPicCurrentState;
-    CavPicStates cavPicNextState;
-    bool cavPicCaptureActive;
-    bool cavPicCaptureAbort;
-    QTimer* cavPicPollTimer;
-
-    // CLV PIC capture state-machine
-    // Define the possible state-machine states
-    enum ClvPicStates {
-        clvState_idle,
-        clvState_startPlayer,
-        clvState_waitForPlay,
-        clvState_determineDiscLength,
-        clvState_waitForDetermineDiscLength,
-        clvState_stopPlayer,
-        clvState_seekToFrame,
-        clvState_waitForSeek,
-        clvState_startCapture,
-        clvState_waitForStartCapture,
-        clvState_waitForEndFrame,
-        clvState_stopCapture,
-        clvState_error
-    };
-
-    ClvPicStates clvPicCurrentState;
-    ClvPicStates clvPicNextState;
-    bool clvPicCaptureActive;
-    bool clvPicCaptureAbort;
-    QTimer* clvPicPollTimer;
-
-    // Data format
-    bool isTenBit;
+    void updateGuiForCaptureStart(void);
+    void updateGuiForCaptureStop(void);
+    void startPlayerControl(void);
+    void updatePlayerRemoteDialog(void);
 };
 
 #endif // MAINWINDOW_H

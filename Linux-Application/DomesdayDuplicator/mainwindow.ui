@@ -6,520 +6,279 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>720</width>
-    <height>495</height>
+    <width>360</width>
+    <height>380</height>
    </rect>
-  </property>
-  <property name="sizePolicy">
-   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-    <horstretch>0</horstretch>
-    <verstretch>0</verstretch>
-   </sizepolicy>
   </property>
   <property name="minimumSize">
    <size>
-    <width>720</width>
-    <height>495</height>
+    <width>360</width>
+    <height>380</height>
    </size>
-  </property>
-  <property name="maximumSize">
-   <size>
-    <width>720</width>
-    <height>495</height>
-   </size>
-  </property>
-  <property name="font">
-   <font>
-    <pointsize>10</pointsize>
-   </font>
   </property>
   <property name="windowTitle">
    <string>Domesday Duplicator</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <widget class="QGroupBox" name="captureGroupBox">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>90</y>
-      <width>701</width>
-      <height>121</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string>Capture statistics:</string>
-    </property>
-    <widget class="QLabel" name="staticLabel1">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>91</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Captured data:</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-    <widget class="QLabel" name="capturedDataLabel">
-     <property name="geometry">
-      <rect>
-       <x>110</x>
-       <y>20</y>
-       <width>151</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>TextLabel</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="staticLabel2">
-     <property name="geometry">
-      <rect>
-       <x>0</x>
-       <y>40</y>
-       <width>101</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Transfer speed:</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-    <widget class="QLabel" name="transferSpeedLabel">
-     <property name="geometry">
-      <rect>
-       <x>110</x>
-       <y>40</y>
-       <width>141</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>TextLabel</string>
-     </property>
-    </widget>
-    <widget class="QProgressBar" name="diskBufferProgressBar">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>90</y>
-       <width>321</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="value">
-      <number>24</number>
-     </property>
-    </widget>
-    <widget class="QLabel" name="label">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>70</y>
-       <width>111</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Disc buffer status:</string>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QGroupBox" name="optionsGroupBox">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>370</y>
-      <width>341</width>
-      <height>71</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string>Test options:</string>
-    </property>
-    <widget class="QCheckBox" name="testModeCheckBox">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>321</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Test data generation (development only)</string>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QGroupBox" name="cavIntegratedCaptureGroupBox">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>220</y>
-      <width>341</width>
-      <height>141</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string>CAV integrated capture:</string>
-    </property>
-    <widget class="QCheckBox" name="cavLeadInCheckBox">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>151</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Capture from lead-in</string>
-     </property>
-    </widget>
-    <widget class="QLineEdit" name="startFrameLineEdit">
-     <property name="geometry">
-      <rect>
-       <x>120</x>
-       <y>50</y>
-       <width>113</width>
-       <height>22</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QLabel" name="staticLabel4">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>50</y>
-       <width>81</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Start frame:</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-    <widget class="QLabel" name="staticLabel5">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>80</y>
-       <width>81</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>End frame:</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-    <widget class="QLineEdit" name="endFrameLineEdit">
-     <property name="geometry">
-      <rect>
-       <x>120</x>
-       <y>80</y>
-       <width>113</width>
-       <height>22</height>
-      </rect>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="cavCapturePushButton">
-     <property name="geometry">
-      <rect>
-       <x>250</x>
-       <y>80</y>
-       <width>80</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Capture</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="staticLabel8">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>111</y>
-       <width>81</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Status:</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-    <widget class="QLabel" name="cavPicStatus">
-     <property name="geometry">
-      <rect>
-       <x>120</x>
-       <y>111</y>
-       <width>211</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Idle</string>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QGroupBox" name="clvIntegratedCaptureGroupBox">
-    <property name="geometry">
-     <rect>
-      <x>370</x>
-      <y>220</y>
-      <width>341</width>
-      <height>141</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string>CLV integrated capture:</string>
-    </property>
-    <widget class="QCheckBox" name="clvLeadInCheckBox">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>151</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Capture from lead-in</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="staticLabel6">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>50</y>
-       <width>101</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Start time-code:</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-    <widget class="QLabel" name="staticLabel7">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>80</y>
-       <width>101</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>End time-code:</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-    <widget class="QTimeEdit" name="startTimeCodeTimeEdit">
-     <property name="geometry">
-      <rect>
-       <x>120</x>
-       <y>50</y>
-       <width>118</width>
-       <height>22</height>
-      </rect>
-     </property>
-     <property name="maximumTime">
-      <time>
-       <hour>1</hour>
-       <minute>59</minute>
-       <second>59</second>
-      </time>
-     </property>
-     <property name="displayFormat">
-      <string>HH:mm:ss</string>
-     </property>
-    </widget>
-    <widget class="QTimeEdit" name="endTimeCodeTimeEdit">
-     <property name="geometry">
-      <rect>
-       <x>120</x>
-       <y>80</y>
-       <width>118</width>
-       <height>22</height>
-      </rect>
-     </property>
-     <property name="maximumTime">
-      <time>
-       <hour>1</hour>
-       <minute>59</minute>
-       <second>59</second>
-      </time>
-     </property>
-     <property name="displayFormat">
-      <string>HH:mm:ss</string>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="clvCapturePushButton">
-     <property name="geometry">
-      <rect>
-       <x>250</x>
-       <y>80</y>
-       <width>80</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Capture</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="staticLabel9">
-     <property name="geometry">
-      <rect>
-       <x>30</x>
-       <y>110</y>
-       <width>81</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Status:</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-    <widget class="QLabel" name="clvPicStatus">
-     <property name="geometry">
-      <rect>
-       <x>120</x>
-       <y>110</y>
-       <width>211</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Idle</string>
-     </property>
-    </widget>
-   </widget>
-   <widget class="QPushButton" name="transferPushButton">
-    <property name="enabled">
-     <bool>false</bool>
-    </property>
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>40</y>
-      <width>201</width>
-      <height>41</height>
-     </rect>
-    </property>
-    <property name="sizePolicy">
-     <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
-      <horstretch>0</horstretch>
-      <verstretch>0</verstretch>
-     </sizepolicy>
-    </property>
-    <property name="minimumSize">
-     <size>
-      <width>10</width>
-      <height>10</height>
-     </size>
-    </property>
-    <property name="text">
-     <string>Dynamic Text</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="logo">
-    <property name="geometry">
-     <rect>
-      <x>550</x>
-      <y>10</y>
-      <width>161</width>
-      <height>81</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-    <property name="pixmap">
-     <pixmap resource="images.qrc">:/logos/Graphics/Domesday Duplicator logo colour 150px.png</pixmap>
-    </property>
-   </widget>
-   <widget class="QGroupBox" name="groupBox">
-    <property name="geometry">
-     <rect>
-      <x>370</x>
-      <y>370</y>
-      <width>341</width>
-      <height>71</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string>Data format:</string>
-    </property>
-    <widget class="QRadioButton" name="tenBitRadioButton">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>321</width>
-       <height>22</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>10-bit packed data (recommended)</string>
-     </property>
-     <property name="checked">
-      <bool>true</bool>
-     </property>
-    </widget>
-    <widget class="QRadioButton" name="sixteenBitRadioButton">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>40</y>
-       <width>321</width>
-       <height>22</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>16-bit signed scaled data</string>
-     </property>
-    </widget>
-   </widget>
-   <zorder>captureGroupBox</zorder>
-   <zorder>optionsGroupBox</zorder>
-   <zorder>cavIntegratedCaptureGroupBox</zorder>
-   <zorder>clvIntegratedCaptureGroupBox</zorder>
-   <zorder>logo</zorder>
-   <zorder>transferPushButton</zorder>
-   <zorder>groupBox</zorder>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QGroupBox" name="groupBox_3">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>120</height>
+       </size>
+      </property>
+      <property name="title">
+       <string>Capture control:</string>
+      </property>
+      <widget class="QCheckBox" name="limitDurationCheckBox">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>80</y>
+         <width>111</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Limit duration</string>
+       </property>
+      </widget>
+      <widget class="QTimeEdit" name="durationLimitTimeEdit">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="geometry">
+        <rect>
+         <x>130</x>
+         <y>80</y>
+         <width>118</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="displayFormat">
+        <string>HH:mm:ss</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="capturePushButton">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>240</width>
+         <height>40</height>
+        </rect>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>240</width>
+         <height>40</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>240</width>
+         <height>40</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Capture</string>
+       </property>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="groupBox">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>105</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="title">
+       <string>Capture statistics:</string>
+      </property>
+      <widget class="QLabel" name="label">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>50</y>
+         <width>81</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Transfers:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="numberOfTransfersLabel">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>50</y>
+         <width>231</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>70</y>
+         <width>81</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Captured:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="numberOfDiskBuffersWrittenLabel">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>70</y>
+         <width>231</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0 MiB</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_5">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>81</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Duration:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="durationLabel">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>30</y>
+         <width>231</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>00:00:00</string>
+       </property>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <widget class="QGroupBox" name="groupBox_2">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>80</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="title">
+       <string>Player information:</string>
+      </property>
+      <widget class="QLabel" name="label_3">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>81</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Status:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_4">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>50</y>
+         <width>81</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Position:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="playerStatusLabel">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>30</y>
+         <width>231</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Unknown</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="playerPositionLabel">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>50</y>
+         <width>231</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Unknown</string>
+       </property>
+      </widget>
+     </widget>
+    </item>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>720</width>
+     <width>360</width>
      <height>21</height>
     </rect>
    </property>
@@ -527,9 +286,21 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionSave_As"/>
-    <addaction name="separator"/>
-    <addaction name="actionQuit"/>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="actionTest_mode"/>
+    <addaction name="actionPreferences"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>View</string>
+    </property>
+    <addaction name="actionPlayer_remote"/>
+    <addaction name="actionAutomatic_capture"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -537,30 +308,30 @@
     </property>
     <addaction name="actionAbout"/>
    </widget>
-   <widget class="QMenu" name="menuPIC">
-    <property name="title">
-     <string>PIC</string>
-    </property>
-    <addaction name="actionShow_player_control"/>
-    <addaction name="actionSelect_player_COM_port"/>
-   </widget>
    <addaction name="menuFile"/>
-   <addaction name="menuPIC"/>
+   <addaction name="menuEdit"/>
+   <addaction name="menuView"/>
    <addaction name="menuHelp"/>
   </widget>
-  <widget class="QStatusBar" name="statusBar">
-   <property name="sizeGripEnabled">
-    <bool>false</bool>
-   </property>
-  </widget>
-  <action name="actionSave_As">
+  <widget class="QStatusBar" name="statusBar"/>
+  <action name="actionExit">
    <property name="text">
-    <string>Save As...</string>
+    <string>Exit</string>
    </property>
   </action>
-  <action name="actionQuit">
+  <action name="actionPreferences">
    <property name="text">
-    <string>Quit</string>
+    <string>Preferences</string>
+   </property>
+  </action>
+  <action name="actionPlayer_remote">
+   <property name="text">
+    <string>Player remote</string>
+   </property>
+  </action>
+  <action name="actionLog_file">
+   <property name="text">
+    <string>Log file</string>
    </property>
   </action>
   <action name="actionAbout">
@@ -568,20 +339,21 @@
     <string>About</string>
    </property>
   </action>
-  <action name="actionShow_player_control">
+  <action name="actionTest_mode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
    <property name="text">
-    <string>Show player control</string>
+    <string>Test mode</string>
    </property>
   </action>
-  <action name="actionSelect_player_COM_port">
+  <action name="actionAutomatic_capture">
    <property name="text">
-    <string>Select player COM port</string>
+    <string>Automatic capture</string>
    </property>
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <resources>
-  <include location="images.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

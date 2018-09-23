@@ -2,7 +2,7 @@
 
     usbdevice.cpp
 
-    QT GUI Capture application for Domesday Duplicator
+    Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
     Copyright (C) 2018 Simon Inns
 
@@ -27,180 +27,365 @@
 
 #include "usbdevice.h"
 
-// Construct object and connect hot-plug signals
-usbDevice::usbDevice(QObject *parent) : QObject(parent)
+// Static function for handling libUSB callback for USB device attached events
+static int LIBUSB_CALL hotplug_callback_attach(libusb_context *ctx, libusb_device *dev, libusb_hotplug_event event, void *user_data)
 {
-    // Set up the device
-    this->setupDevice();
+    UsbDevice *usbDevice = static_cast<UsbDevice *>(user_data);
+    struct libusb_device_descriptor desc;
+    qint32 responseCode;
 
-    // Connect the device hotplug signals
-    QObject::connect(&mUsbManager, SIGNAL(deviceInserted(QtUsb::FilterList)),
-        this, SLOT(onDevInserted(QtUsb::FilterList)));
-    QObject::connect(&mUsbManager, SIGNAL(deviceRemoved(QtUsb::FilterList)), this,
-        SLOT(onDevRemoved(QtUsb::FilterList)));
+    (void)ctx;
+    (void)dev;
+    (void)event;
+    (void)user_data;
 
-    qDebug("usbDevice::usbDevice(): USB device object created (monitoring for insert/remove)");
+    qDebug() << "hotplug_callback_attach(): A Domesday Duplicator USB device has been attached";
 
-    // Perform initial check for USB device
-    domDupFilter.vid = VID;
-    domDupFilter.pid = PID;
-    if (mUsbManager.isPresent(domDupFilter)) {
-        qDebug("usbDevice::usbDevice(): USB device is present");
-        deviceConnected = true;
+    responseCode = libusb_get_device_descriptor(dev, &desc);
+    if (responseCode != LIBUSB_SUCCESS) {
+        qDebug() << "hotplug_callback_attach(): Error getting device descriptor!";
+    }
+
+    qDebug() << "hotplug_callback_attach(): Device attached with VID =" << desc.idVendor << "and PID =" << desc.idProduct;
+
+    // Send a signal indicating a device is attached
+    emit usbDevice->deviceAttached();
+
+    return 0;
+}
+
+// Static function for handling libUSB callback for USB device detached events
+static int LIBUSB_CALL hotplug_callback_detach(libusb_context *ctx, libusb_device *dev, libusb_hotplug_event event, void *user_data)
+{
+    UsbDevice *usbDevice = static_cast<UsbDevice *>(user_data);
+    struct libusb_device_descriptor desc;
+    qint32 responseCode;
+
+    (void)ctx;
+    (void)dev;
+    (void)event;
+    (void)user_data;
+
+    qDebug() << "hotplug_callback_detach(): A Domesday Duplicator USB device has been detached";
+
+    responseCode = libusb_get_device_descriptor(dev, &desc);
+    if (responseCode != LIBUSB_SUCCESS) {
+        qDebug() << "hotplug_callback_detach(): Error getting device descriptor!";
+    }
+
+    qDebug() << "hotplug_callback_detach(): Device detached with VID =" << desc.idVendor << "and PID =" << desc.idProduct;
+
+    // Send a signal indicating a device is detached
+    emit usbDevice->deviceDetached();
+
+    return 0;
+}
+
+// Class constructor
+UsbDevice::UsbDevice(QObject *parent, quint16 vid, quint16 pid) : QThread (parent)
+{
+    qint32 responseCode;
+    libusb_hotplug_callback_handle hotplugHandle[2];
+
+    // Store the VID and PID of the target device
+    deviceVid = vid;
+    devicePid = pid;
+
+    // Set up the libUSB event polling thread flags
+    threadAbort = false;
+
+    // Set the last error string
+    lastError = tr("None");
+
+    // Initialise libUSB
+    responseCode = libusb_init(&libUsbContext);
+    if (responseCode < 0) {
+        qDebug() << "UsbDevice::UsbDevice(): Could not initialise libUSB library!";
+        libusb_exit(libUsbContext);
+        lastError = tr("Could not initialise libUSB library!");
+        emit transferFailed();
+        return;
+    }
+
+    // Verify that hot-plug is supported on this platform
+    if (!libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
+        qDebug() << "UsbDevice::UsbDevice(): libUSB reports that this platform does not support hot-plug - falling back to device polling instead";
     } else {
-        qDebug("usbDevice::usbDevice(): USB device is not present");
-        deviceConnected = false;
-    }
-}
+        // Register the USB device attached callback
+        responseCode = libusb_hotplug_register_callback(libUsbContext, LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_NO_FLAGS,
+                                                        deviceVid, devicePid, LIBUSB_HOTPLUG_MATCH_ANY, hotplug_callback_attach,
+                                                        static_cast<void*>(this), &hotplugHandle[0]);
+        if (LIBUSB_SUCCESS != responseCode) {
+            qDebug() << "UsbDevice::UsbDevice(): Could not register USB device attached callback to libUSB!";
+            libusb_exit(libUsbContext);
+            lastError = tr("Could not register USB device attached callback to libUSB!");
+            emit transferFailed();
+            return;
+        }
 
-usbDevice::~usbDevice() {
-    qDebug() << "usbDevice::~usbDevice(): USB device object destroyed";
-}
-
-// Function returns true if a Domesday Duplicator USB device is connected
-bool usbDevice::isConnected(void)
-{
-    qDebug() << "usbDevice::isConnected(): Connected status is" << deviceConnected;
-    return deviceConnected;
-}
-
-// Function to handle device insertion
-void usbDevice::onDevInserted(QtUsb::FilterList list)
-{
-    qDebug("usbDevice::onDevInserted(): USB device(s) inserted");
-    for (int i = 0; i < list.length(); i++) {
-        QtUsb::DeviceFilter f = list.at(i);
-        qDebug("V%04x:P%04x", f.vid, f.pid);
-
-        // Check for the Domesday Duplicator device
-        if (f.vid == VID && f.pid == PID) {
-            qDebug() << "usbDevice::onDevInserted(): Domesday Duplicator USB device inserted";
-            deviceConnected = true;
-            emit statusChanged(true); // Send a signal
+        // Register the USB device detached callback
+        responseCode = libusb_hotplug_register_callback(libUsbContext, LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT, LIBUSB_HOTPLUG_NO_FLAGS,
+                                                        deviceVid, devicePid, LIBUSB_HOTPLUG_MATCH_ANY, hotplug_callback_detach,
+                                                        static_cast<void*>(this), &hotplugHandle[1]);
+        if (LIBUSB_SUCCESS != responseCode) {
+            qDebug() << "UsbDevice::UsbDevice(): Could not register USB device detached callback to libUSB!";
+            libusb_exit(libUsbContext);
+            lastError = tr("Could not register USB device detached callback to libUSB!");
+            emit transferFailed();
+            return;
         }
     }
+
+    // Now start a thread to poll for attach/detach events)
+    connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
+    this->start();
 }
 
-// Function to handle device removal
-void usbDevice::onDevRemoved(QtUsb::FilterList list)
+// Class destructor
+UsbDevice::~UsbDevice()
 {
-    qDebug("usbDevice::onDevRemoved(): USB device(s) removed");
-    for (int i = 0; i < list.length(); i++) {
-        QtUsb::DeviceFilter f = list.at(i);
-        qDebug("V%04x:P%04x", f.vid, f.pid);
+    // Stop the libUSB event processing thread
+    threadAbort = true;
+    this->wait();
 
-        // Check for the Domesday Duplicator device
-        if (f.vid == VID && f.pid == PID) {
-            qDebug() << "usbDevice::onDevRemoved(): Domesday Duplicator USB device removed";
-            deviceConnected = false;
-            emit statusChanged(false); // Send a signal
+    // Delete the libUSB context
+    libusb_exit(libUsbContext);
+}
+
+// Run the hot-plug detection thread
+void UsbDevice::run(void)
+{
+    qint32 responseCode;
+
+    // If hot-plug events are supported, use them
+    if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
+        // Use a 1 second timeout for the libusb_handle_events_timeout call
+        struct timeval libusbHandleTimeout;
+        libusbHandleTimeout.tv_sec  = 1;
+        libusbHandleTimeout.tv_usec = 0;
+
+        // Process until the thread abort flag is set
+        qDebug() << "UsbDevice::run(): libUSB event poll thread started (using hot-plug events)";
+        while(!threadAbort) {
+            // Process the libUSB events
+            responseCode = libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
+            if (responseCode < 0) {
+                qDebug() << "UsbDevice::run(): libusb_handle_events returned an error!";
+            }
+
+            // Sleep the thread for 0.25 seconds to save CPU
+            this->msleep(250);
+        }
+    } else {
+        // Hot-plug events are not supported
+        qDebug() << "UsbDevice::run(): libUSB event poll thread started (hot-plug events not supported)";
+        qDebug() << "UsbDevice::run(): WARNING: No USB attach/detach detection will be performed";
+
+        while (!threadAbort) {
+            // Perform USB attach/detach detection (without hot-plug) here
+            this->msleep(500);
         }
     }
+
+    qDebug() << "UsbDevice::run(): libUSB event poll thread stopped";
 }
 
-// Function to set-up device ready for data transfer
-void usbDevice::setupDevice(void)
+// Scan for the target USB device (detects device and emits signal)
+bool UsbDevice::scanForDevice(void)
 {
-    domDupDevice = new QUsbDevice();
-    domDupDevice->setDebug(true); // Turn on libUSB debug
+    qDebug() << "UsbDevice::scanForDevice(): Scanning for the USB device...";
 
-    // VID and PID of target device
-    domDupFilter.vid = VID;
-    domDupFilter.pid = PID;
+    // Attempt to open the USB device
+    // Open the USB device
+    open();
+    if (usbDeviceHandle == nullptr) return false;
 
-    // Configuration of target device
-    domDupConfig.alternate = 0;
-    domDupConfig.config = 1;
-    domDupConfig.interface = 0;
-    domDupConfig.readEp = 0x81;
-    domDupConfig.writeEp = 0x81;
-
-    deviceConnected = false;
+    // Device found, close it and return
+    close();
+    emit deviceAttached();
+    return true;
 }
 
-// Function to open the device for IO
-bool usbDevice::openDevice(void)
+// Poll for the target USB device (just detection)
+bool UsbDevice::pollForDevice(void)
 {
-    qDebug("usbDevice::openDevice(): Opening USB device");
+    // Attempt to open the USB device
+    // Open the USB device
+    open();
+    if (usbDeviceHandle == nullptr) return false;
 
-    QtUsb::DeviceStatus deviceStatus;
-    deviceStatus = mUsbManager.openDevice(domDupDevice, domDupFilter, domDupConfig);
+    // Device found, close it and return
+    close();
+    return true;
+}
 
-    if (deviceStatus == QtUsb::deviceOK) {
-        // Device is open
-        return true;
+// Send a configuration command to the USB device
+void UsbDevice::sendConfigurationCommand(bool testMode)
+{
+    quint16 configurationFlags = 0;
+
+    if (testMode) configurationFlags += 1; // Bit 0: Set test mode
+    // Bit 1: Unused
+    // Bit 2: Unused
+    // Bit 3: Unused
+    // Bit 4: Unused
+
+    sendVendorSpecificCommand(0xB6, configurationFlags);
+}
+
+// Open the USB device
+bool UsbDevice::open(void)
+{
+    libusb_device **usbDevices;
+    libusb_device *usbDevice;
+
+    usbDeviceHandle = nullptr;
+
+    qint32 responseCode;
+    ssize_t deviceCount;
+
+    // Get the number of attached USB devices
+    deviceCount = libusb_get_device_list(libUsbContext, &usbDevices);
+    if (deviceCount < 0) {
+        qDebug() << "UsbDevice::open(): libusb_get_device_list returned an error!";
+        return usbDeviceHandle;
     }
-    // Device is closed
-    return false;
+
+    // Search the attached devices for the target device
+    qint32 deviceCounter = 0;
+
+    while ((usbDevice = usbDevices[deviceCounter++]) != nullptr) {
+        // Get the descriptor for the current USB device
+        struct libusb_device_descriptor deviceDescriptor;
+        responseCode = libusb_get_device_descriptor(usbDevice, &deviceDescriptor);
+        if (responseCode < 0) {
+            qDebug() << "UsbDevice::open(): Found USB devices, but couldn't get the USB device descriptors to identify them!";
+            break;
+        }
+
+        // Does the VID and PID match the target device?
+        if (deviceVid == deviceDescriptor.idVendor && devicePid == deviceDescriptor.idProduct) {
+            // Open the USB device
+            responseCode = libusb_open(usbDevice, &usbDeviceHandle);
+            if (responseCode < 0) {
+                qDebug() << "UsbDevice::open(): Found device with matching VID/PID, but attempting to open it failed!";
+                usbDeviceHandle = nullptr;
+            }
+
+            // Done
+            break;
+        }
+    }
+
+    // Free up the device list
+    libusb_free_device_list(usbDevices, 1);
+
+    return true;
 }
 
-// Function to close the device for IO
-bool usbDevice::closeDevice(void)
+// Close the USB device
+void UsbDevice::close(void)
 {
-    qDebug("usbDevice::closeDevice(): Closing USB device");
-    mUsbManager.closeDevice(domDupDevice);
-    return false;
+    libusb_close(usbDeviceHandle);
 }
 
-// Read data from the device
-void usbDevice::readFromDevice(QByteArray *buf)
+// Set a vendor-specific USB command to the attached device
+bool UsbDevice::sendVendorSpecificCommand(quint8 command, quint16 value)
 {
-    domDupDevice->read(buf, 1);
+    qint32 responseCode;
+    bool result = true;
+
+    // Open the USB device
+    open();
+
+    // Did we get a valid device handle?
+    if (usbDeviceHandle != nullptr) {
+        // Perform a control transfer of type 0x40 (vendor specific command with no data packets)
+        responseCode = libusb_control_transfer(usbDeviceHandle, 0x40,
+                                               command, value,
+                                               0, nullptr, 0, 1000);
+        if (responseCode < 0) {
+            qDebug() << "UsbDevice::sendVendorSpecificCommand(): libusb_control_transfer failed with" << libusb_error_name(responseCode);
+            result = false;
+        }
+    } else {
+        qDebug() << "UsbDevice::sendVendorSpecificCommand(): Failed to open USB device";
+    }
+
+    // Close the USB device
+    close();
+
+    return result;
 }
 
-// Write data to the device
-void usbDevice::writeToDevice(QByteArray *buf)
+// Start capturing from the USB device
+void UsbDevice::startCapture(QString filename, bool isCaptureFormat10Bit)
 {
-    domDupDevice->write(buf, static_cast<quint32>(buf->size()));
+    qDebug() << "UsbDevice::startCapture(): Starting capture";
+
+    // Send the start capture command to the USB device
+    qDebug() << "UsbDevice::startCapture(): Sending start capture USB vendor specific command";
+    sendVendorSpecificCommand(0xB5, 1);
+
+    // Open the USB device
+    qDebug() << "UsbDevice::startCapture(): Opening the capture device";
+    open();
+
+    // Create the capture object
+    qDebug() << "UsbDevice::startCapture(): Creating the capture object";
+    usbCapture = new UsbCapture(this, libUsbContext, usbDeviceHandle, filename, isCaptureFormat10Bit);
+
+    // Did we get a valid device handle?
+    if (usbDeviceHandle != nullptr) {
+        qDebug() << "UsbDevice::startCapture(): Starting capture process with start()";
+        usbCapture->start();
+    } else {
+        qDebug() << "UsbDevice::startCapture(): Invalid device handle... cannot start capture!";
+    }
+
+    // Connect to the transfer failure notification signal
+    connect(usbCapture, &UsbCapture::transferFailed, this, &UsbDevice::transferFailedSignalHandler);
 }
 
-// Send a vendor specific USB command to the device
-void usbDevice::sendVendorSpecificCommand(quint16 command, quint16 value)
+// Stop capturing from the USB device
+void UsbDevice::stopCapture(void)
 {
-    // Request type fixed to 0x40 (vendor specific command with no data)
-    domDupDevice->sendControlTransfer(0x40, static_cast<quint8>(command), value, 0x00, nullptr, 0x00, 1000);
+     // Stop the capture (closes the USB device)
+    usbCapture->stopTransfer();
+
+    // Send the stop capture command to the USB device
+    sendVendorSpecificCommand(0xB5, 0);
+
+    // Destroy the capture object
+    usbCapture->deleteLater();
 }
 
-// Start a bulk read (continuously transfers data until stopped)
-void usbDevice::startBulkRead(QString fileName, bool isTenBit)
+// Transfer failed signal handler
+void UsbDevice::transferFailedSignalHandler(void)
 {
-    // Start the bulk transfer
-    domDupDevice->startBulkTransfer(fileName, isTenBit);
+    // Retransmit signal to parent object
+    qDebug() << "UsbDevice::transferFailedSignalHandler(): Transfer failed signal received from UsbCapture";
+    lastError = usbCapture->getLastError();
+    emit transferFailed();
 }
 
-// Stop a bulk read
-void usbDevice::stopBulkRead(void)
+// Get capture statistics
+qint32 UsbDevice::getNumberOfTransfers(void)
 {
-    // Stop the bulk transfer
-    domDupDevice->stopBulkTransfer();
+    if (usbCapture == nullptr) return 0;
+
+    return usbCapture->getNumberOfTransfers();
 }
 
-// Return the current value of the bulk transfer packet counter
-quint32 usbDevice::getPacketCounter(void)
+qint32 UsbDevice::getNumberOfDiskBuffersWritten(void)
 {
-    return domDupDevice->getPacketCounter();
+    if (usbCapture == nullptr) return 0;
+
+    return usbCapture->getNumberOfDiskBuffersWritten();
 }
 
-// Return the current value of the bulk transfer packet size
-quint32 usbDevice::getPacketSize(void)
+// Return the last recorded error message
+QString UsbDevice::getLastError(void)
 {
-    return domDupDevice->getPacketSize();
-}
-
-// Return the current bulk transfer stream performance value
-quint32 usbDevice::getTransferPerformance(void)
-{
-    return domDupDevice->getTransferPerformance();
-}
-
-// Return the current number of available disk buffers
-quint32 usbDevice::getAvailableDiskBuffers(void)
-{
-    return domDupDevice->getAvailableDiskBuffers();
-}
-
-// Return the total number of available disk buffers
-quint32 usbDevice::getNumberOfDiskBuffers(void)
-{
-    return domDupDevice->getNumberOfDiskBuffers();
+    return lastError;
 }

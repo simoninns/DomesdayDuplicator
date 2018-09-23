@@ -1,6 +1,6 @@
 /************************************************************************
 
-    aboutdialog.h
+    automaticcapturedialog.h
 
     Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
@@ -25,25 +25,56 @@
 
 ************************************************************************/
 
-#ifndef ABOUTDIALOG_H
-#define ABOUTDIALOG_H
+#ifndef AUTOMATICCAPTUREDIALOG_H
+#define AUTOMATICCAPTUREDIALOG_H
 
 #include <QDialog>
+#include <QMessageBox>
+#include <QDebug>
 
 namespace Ui {
-class AboutDialog;
+class AutomaticCaptureDialog;
 }
 
-class AboutDialog : public QDialog
+class AutomaticCaptureDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit AboutDialog(QWidget *parent = nullptr);
-    ~AboutDialog();
+    explicit AutomaticCaptureDialog(QWidget *parent = nullptr);
+    ~AutomaticCaptureDialog();
+
+    enum DiscType {
+        unknownDiscType,
+        CAV,
+        CLV
+    };
+
+    enum CaptureType {
+        wholeDisc,
+        partialDisc,
+        leadInCapture
+    };
+
+    void updateStatus(QString statusString);
+    void captureComplete();
+
+signals:
+    void startAutomaticCapture(CaptureType captureType, qint32 startAddress, qint32 endAddress, DiscType discType);
+    void stopAutomaticCapture(void);
+
+private slots:
+    void on_wholeDiscRadioButton_clicked();
+    void on_partialDiscRadioButton_clicked();
+    void on_leadInCaptureRadioButton_clicked();
+    void on_startCavCapturePushButton_clicked();
+    void on_startClvCapturePushButton_clicked();
 
 private:
-    Ui::AboutDialog *ui;
+    Ui::AutomaticCaptureDialog *ui;
+
+    bool captureInProgress;
+    CaptureType captureType;
 };
 
-#endif // ABOUTDIALOG_H
+#endif // AUTOMATICCAPTUREDIALOG_H
