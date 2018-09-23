@@ -87,6 +87,10 @@ MainWindow::MainWindow(QWidget *parent) :
     // Disable the capture button
     ui->capturePushButton->setEnabled(false);
 
+    // Set up a timer for timing the capture duration
+    captureDurationTimer = new QTimer(this);
+    connect(captureDurationTimer, SIGNAL(timeout()), this, SLOT(updateCaptureDuration()));
+
     // Set up the Domesday Duplicator USB device and connect the signal handlers
     usbDevice = new UsbDevice(this, configuration->getUsbVid(), configuration->getUsbPid());
     connect(usbDevice, &UsbDevice::deviceAttached, this, &MainWindow::deviceAttachedSignalHandler);
@@ -96,8 +100,8 @@ MainWindow::MainWindow(QWidget *parent) :
     usbDevice->scanForDevice();
 
     // Set up a timer for updating capture results
-    captureTimer = new QTimer(this);
-    connect(captureTimer, SIGNAL(timeout()), this, SLOT(updateCaptureStatistics()));
+    captureStatusUpdateTimer = new QTimer(this);
+    connect(captureStatusUpdateTimer, SIGNAL(timeout()), this, SLOT(updateCaptureStatistics()));
 
     // Set up a timer for updating player control information
     playerControlTimer = new QTimer(this);
@@ -292,6 +296,31 @@ void MainWindow::remoteControlSearchSignalHandler(qint32 position, PlayerRemoteD
     case PlayerRemoteDialog::PositionMode::pmFrame:
         playerControl->setPositionFrame(position);
         break;
+    }
+}
+
+// Update capture duration timer signal handler
+void MainWindow::updateCaptureDuration(void)
+{
+    // Add a second to the capture time and update the label
+    captureElapsedTime = captureElapsedTime.addSecs(1);
+    ui->durationLabel->setText(captureElapsedTime.toString("hh:mm:ss"));
+
+    // Time limited capture is on?
+    if (ui->limitDurationCheckBox->isChecked()) {
+        // Check if the capture duration has exceeded the time limit
+        qint32 timeLimit = ui->durationLimitTimeEdit->time().hour() * 60 * 60;
+        timeLimit += ui->durationLimitTimeEdit->time().minute() * 60;
+        timeLimit += ui->durationLimitTimeEdit->time().second();
+
+        qint32 elapsedTime = captureElapsedTime.hour() * 60 * 60;
+        elapsedTime += captureElapsedTime.minute() * 60;
+        elapsedTime += captureElapsedTime.second();
+
+        if (timeLimit <= elapsedTime) {
+            // 'Press' the capture button automatically
+            on_capturePushButton_clicked();
+        }
     }
 }
 
@@ -515,17 +544,38 @@ void MainWindow::on_capturePushButton_clicked()
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Transfer started";
 
         // Start a timer to display the capture statistics
-        captureTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
+        ui->durationLabel->setText(tr("00:00:00"));
+        captureStatusUpdateTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
+
+        // Start the capture duration timer
+        captureElapsedTime = QTime::fromString("00:00:00", "hh:mm:ss");
+        captureDurationTimer->start(1000); // Update 1 time per second
 
         // Connect to the transfer failure notification signal
         connect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
     } else {
         // Stop capture
+        playerControl->stopAutomaticCapture(); // Stop auto-capture if in progress
         usbDevice->stopCapture();
         isCaptureRunning = false;
-        captureTimer->stop();
+        captureStatusUpdateTimer->stop();
+        captureDurationTimer->stop();
         disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
         updateGuiForCaptureStop();
+    }
+}
+
+// Limit duration checkbox state changed
+void MainWindow::on_limitDurationCheckBox_stateChanged(int arg1)
+{
+    (void)arg1;
+
+    if (ui->limitDurationCheckBox->isChecked()) {
+        // Checked
+        ui->durationLimitTimeEdit->setEnabled(true);
+    } else {
+        // Unchecked
+        ui->durationLimitTimeEdit->setEnabled(false);
     }
 }
 
@@ -535,7 +585,7 @@ void MainWindow::transferFailedSignalHandler(void)
     // Stop capture - something has gone wrong
     usbDevice->stopCapture();
     isCaptureRunning = false;
-    captureTimer->stop();
+    captureStatusUpdateTimer->stop();
     disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
     updateGuiForCaptureStop();
 
@@ -614,7 +664,6 @@ void MainWindow::updatePlayerRemoteDialog(void)
         break;
     }
 }
-
 
 
 

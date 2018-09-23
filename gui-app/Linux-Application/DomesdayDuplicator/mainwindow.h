@@ -74,6 +74,7 @@ private slots:
     void updateCaptureStatistics(void);
     void updatePlayerControlInformation(void);
     void transferFailedSignalHandler(void);
+    void updateCaptureDuration(void);
 
     void on_actionExit_triggered();
     void on_actionTest_mode_toggled(bool arg1);
@@ -82,6 +83,7 @@ private slots:
     void on_capturePushButton_clicked();
     void on_actionPlayer_remote_triggered();
     void on_actionAutomatic_capture_triggered();
+    void on_limitDurationCheckBox_stateChanged(int arg1);
 
 private:
     Configuration *configuration;
@@ -96,9 +98,11 @@ private:
     PlayerControl *playerControl;
 
     bool isCaptureRunning;
-    QTimer *captureTimer;
+    QTimer *captureStatusUpdateTimer;
     QTimer *playerControlTimer;
     QTimer *automaticCaptureTimer;
+    QTimer *captureDurationTimer;
+    QTime captureElapsedTime;
 
     // Remote control states
     PlayerCommunication::DisplayState remoteDisplayState;
