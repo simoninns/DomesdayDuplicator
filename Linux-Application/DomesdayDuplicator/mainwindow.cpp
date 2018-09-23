@@ -56,8 +56,19 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(automaticCaptureDialog, &AutomaticCaptureDialog::stopAutomaticCapture,
             this, &MainWindow::stopAutomaticCaptureDialogSignalHandler);
 
+    // Set up a timer for updating the automatic capture status information
+    automaticCaptureTimer = new QTimer(this);
+    connect(automaticCaptureTimer, SIGNAL(timeout()), this, SLOT(updateAutomaticCaptureStatus()));
+    automaticCaptureTimer->start(100); // Update 10 times per second
+
     // Start the player control object
     playerControl = new PlayerControl(this);
+    connect(playerControl, &PlayerControl::automaticCaptureComplete,
+            this, &MainWindow::automaticCaptureCompleteSignalHandler);
+    connect(playerControl, &PlayerControl::startCapture,
+            this, &MainWindow::startCaptureSignalHandler);
+    connect(playerControl, &PlayerControl::stopCapture,
+            this, &MainWindow::stopCaptureSignalHandler);
     startPlayerControl();
 
     // Define our application (required for configuration handling)
@@ -317,6 +328,41 @@ void MainWindow::startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog
 void MainWindow::stopAutomaticCaptureDialogSignalHandler(void)
 {
     playerControl->stopAutomaticCapture();
+}
+
+// Update the automatic capture status (called by a timer)
+void MainWindow::updateAutomaticCaptureStatus(void)
+{
+    automaticCaptureDialog->updateStatus(playerControl->getAutomaticCaptureStatus());
+}
+
+// Handle the automatic capture complete signal from the player control object
+void MainWindow::automaticCaptureCompleteSignalHandler(bool success)
+{
+    // Tell the automatic capture dialogue that capture is complete
+    automaticCaptureDialog->captureComplete();
+
+    // Was the capture successful?
+    if (!success) {
+        // Show an error
+        QMessageBox messageBox;
+        messageBox.critical(this, "Error", playerControl->getAutomaticCaptureError());
+        messageBox.setFixedSize(500, 200);
+    }
+}
+
+// Handle the start capture signal from the player control object
+void MainWindow::startCaptureSignalHandler(void)
+{
+    qDebug() << "MainWindow::startCaptureSignalHandler(): Got start capture signal from player control";
+    if (!isCaptureRunning) on_capturePushButton_clicked();
+}
+
+// Handle the stop capture signal from the player control object
+void MainWindow::stopCaptureSignalHandler(void)
+{
+    qDebug() << "MainWindow::stopCaptureSignalHandler(): Got stop capture signal from player control";
+    if (isCaptureRunning) on_capturePushButton_clicked();
 }
 
 // Update the capture statistics labels

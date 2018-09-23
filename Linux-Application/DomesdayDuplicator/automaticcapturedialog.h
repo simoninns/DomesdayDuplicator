@@ -56,6 +56,7 @@ public:
         leadInCapture
     };
 
+    void updateStatus(QString statusString);
     void captureComplete();
 
 signals:

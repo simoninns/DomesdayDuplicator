@@ -72,6 +72,12 @@ AutomaticCaptureDialog::~AutomaticCaptureDialog()
     delete ui;
 }
 
+// Update the capture status text
+void AutomaticCaptureDialog::updateStatus(QString statusString)
+{
+    ui->captureStatusLabel->setText(statusString);
+}
+
 // Called by the parent class once a capture is complete
 void AutomaticCaptureDialog::captureComplete()
 {
@@ -96,6 +102,9 @@ void AutomaticCaptureDialog::captureComplete()
     defaultTime.setHMS(0, 0, 0, 0);
     ui->startTimeTimeEdit->setTime(defaultTime);
     ui->endTimeTimeEdit->setTime(defaultTime);
+
+    ui->startCavCapturePushButton->setText("Start CAV Capture");
+    ui->startClvCapturePushButton->setText("Start CLV Capture");
 
     captureInProgress = false;
 }

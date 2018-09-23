@@ -44,8 +44,9 @@ PlayerControl::PlayerControl(QObject *parent) : QThread(parent)
     playerCommunication = new PlayerCommunication();
 
     // Initialise the automatic capture
-    automaticCaptureStatus = tr("Idle");
-    automaticCaptureInProgress = false;
+    acStatus = tr("Idle");
+    acInProgress = false;
+    acCancelled = false;
 }
 
 PlayerControl::~PlayerControl()
@@ -159,6 +160,9 @@ void PlayerControl::run()
 
             // Process the command queue
             processCommandQueue();
+
+            // Process automatic capture
+            processAutomaticCapture();
         }
 
         // If reconnect is flagged, disconnect from the player
@@ -665,44 +669,443 @@ void PlayerControl::startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
                                  PlayerCommunication::DiscType discType)
 {
     // Check if automatic capture is already running
-    if (automaticCaptureInProgress) {
+    if (acInProgress) {
         qDebug() << "PlayerControl::startAutomaticCapture(): Automatic capture already running!";
         return;
     }
 
     // Flag that a capture is in progress
-    automaticCaptureInProgress = true;
+    acInProgress = true;
+    acCancelled = false;
 
-    (void)fromLeadIn;
-    (void)wholeDisc;
-    (void)startAddress;
-    (void)endAddress;
-    (void)discType;
-    qDebug() << "PlayerControl::startAutomaticCapture(): NOT IMPLEMENTED";
+    // Copy the capture parameters
+    acStartAddress = startAddress;
+    acEndAddress = endAddress;
+    acCaptureFromLeadIn = fromLeadIn;
+    acCaptureWholeDisc = wholeDisc;
+    acDiscType = discType;
+
+    // Set default state
+    acCurrentState = ac_start_state;
+    acNextState = ac_start_state;
+
+    qDebug() << "PlayerControl::startAutomaticCapture(): Starting auto-capture." <<
+                "fromLeadin =" << acCaptureFromLeadIn <<
+                "- wholeDisc =" << acCaptureWholeDisc <<
+                "- startAddress =" << acStartAddress <<
+                "- endAddress =" << acEndAddress <<
+                "- discType =" << acDiscType;
 }
 
 // Public method to stop an automatic capture
 void PlayerControl::stopAutomaticCapture(void)
 {
     // Check automatic capture is running
-    if (!automaticCaptureInProgress) {
+    if (!acInProgress) {
         qDebug() << "PlayerControl::stopAutomaticCapture(): Automatic capture not running!";
         return;
     }
 
-    // Flag that the capture has stopped
-    automaticCaptureInProgress = false;
-    qDebug() << "PlayerControl::stopAutomaticCapture(): NOT IMPLEMENTED";
+    qDebug() << "PlayerControl::stopAutomaticCapture(): Flagging automatic capture cancelled";
+
+    // Flag that the capture has been cancelled
+    acCancelled = true;
 }
 
 // Public method to get the current automatic capture status
 QString PlayerControl::getAutomaticCaptureStatus(void)
 {
-    return automaticCaptureStatus;
+    return acStatus;
+}
+
+// Public method to get the automatic capture error
+QString PlayerControl::getAutomaticCaptureError(void)
+{
+    return acErrorMessage;
 }
 
 // Private method for processing automatic capture
 void PlayerControl::processAutomaticCapture(void)
 {
+    // Is automatic capture running?
+    if (acInProgress) {
+        acCurrentState = acNextState;
 
+        switch(acCurrentState) {
+        case ac_start_state: acNextState = acStateStart();
+            break;
+        case ac_getLength_state: acNextState = acStateGetLength();
+            break;
+        case ac_spinDown_state: acNextState = acStateSpinDown();
+            break;
+        case ac_spinUpWithCapture_state: acNextState = acStateSpinUpWithCapture();
+            break;
+        case ac_moveToStartPosition_state: acNextState = acStateMoveToStartPosition();
+            break;
+        case ac_playAndCapture_state: acNextState = acStatePlayAndCapture();
+            break;
+        case ac_waitForEndAddress_state: acNextState = acStateWaitForEndAddress();
+            break;
+        case ac_finished_state: acNextState = acStateFinished();
+            break;
+        case ac_cancelled_state: acNextState = acStateCancelled();
+            break;
+        case ac_error_state: acNextState = acStateError();
+            break;
+        }
+    }
 }
+
+// Automatic capture state machine - ac_start_state
+PlayerControl::AcStates PlayerControl::acStateStart(void)
+{
+    AcStates nextState = AcStates::ac_start_state;
+
+    // Show the current state in the status
+    acStatus = tr("Starting player");
+
+    // Check for automatic capture being cancelled
+    if (acCancelled) {
+        nextState = ac_cancelled_state;
+    }
+
+    // Determine the current player state
+    switch (playerState) {
+    case PlayerCommunication::PlayerState::pause:
+    case PlayerCommunication::PlayerState::play:
+    case PlayerCommunication::PlayerState::stillFrame:
+        // Player is all ready spun up - verify the disc type
+        if (discType != acDiscType) {
+            acErrorMessage = tr("The disc in the player does not match the selected capture option");
+            qDebug() << "AC Error:" << acErrorMessage;
+            nextState = ac_error_state;
+        }
+        // Get the length of the disc
+        nextState = ac_getLength_state;
+        break;
+    case PlayerCommunication::PlayerState::stop:
+        // Player is stopped - attempt to spin up
+        if (playerCommunication->setPlayerState(PlayerCommunication::PlayerState::play)) {
+            // Command successful
+            // Get the length of the disc
+            nextState = ac_getLength_state;
+        } else {
+            // Command unsuccessful
+            acErrorMessage = tr("It was not possible to determine the length of the LaserDisc");
+            qDebug() << "AC Error:" << acErrorMessage;
+            nextState = ac_error_state;
+        }
+        break;
+    case PlayerCommunication::PlayerState::unknownPlayerState:
+        // Player state cannot be determined
+        acErrorMessage = tr("The player's state could not be determined - possibly a communication problem");
+        qDebug() << "AC Error:" << acErrorMessage;
+        nextState = ac_error_state;
+    }
+
+    return nextState;
+}
+
+// Automatic capture state machine - ac_getLength_state
+PlayerControl::AcStates PlayerControl::acStateGetLength(void)
+{
+    AcStates nextState = AcStates::ac_start_state;
+
+    // Show the current state in the status
+    acStatus = tr("Determining disc length");
+
+    // Check for automatic capture being cancelled
+    if (acCancelled) {
+        nextState = ac_cancelled_state;
+    }
+
+    // CAV?
+    if (acDiscType == PlayerCommunication::DiscType::CAV) {
+        // Seek to an impossible CAV frame number
+        if (playerCommunication->setPositionFrame(60000)) {
+            // Successful, get the current frame number
+            qint32 discEndAddress = playerCommunication->getCurrentFrame();
+            qDebug() << "PlayerControl::acStateGetLength(): CAV Disc length" << discEndAddress << "frames";
+
+            if (acCaptureWholeDisc) acEndAddress = discEndAddress;
+            else if (acEndAddress >= discEndAddress) acEndAddress = discEndAddress;
+            qDebug() << "PlayerControl::acStateGetLength(): Required stop frame is" << acEndAddress;
+
+            // If we are capturing the whole disc or from lead in, spin down
+            if (acCaptureWholeDisc || acCaptureFromLeadIn) {
+                nextState = ac_spinDown_state;
+            } else {
+                nextState = ac_moveToStartPosition_state;
+            }
+        } else {
+            // Unsuccessful
+            acErrorMessage = tr("Could not determine CAV disc length");
+            qDebug() << "AC Error:" << acErrorMessage;
+            nextState = ac_error_state;
+        }
+    } else {
+        // Seek to an impossible CLV time code
+        if (playerCommunication->setPositionTimeCode(1595900)) {
+            // Successful, get the current time code
+            qint32 discEndAddress = playerCommunication->getCurrentTimeCode();
+            qDebug() << "PlayerControl::acStateGetLength(): CLV Disc length" << discEndAddress << "time code";
+
+            if (acCaptureWholeDisc) acEndAddress = discEndAddress;
+            else if (acEndAddress >= discEndAddress) acEndAddress = discEndAddress;
+            qDebug() << "PlayerControl::acStateGetLength(): Required stop time is" << acEndAddress;
+
+            // If we are capturing the whole disc or from lead in, spin down
+            if (acCaptureWholeDisc || acCaptureFromLeadIn) {
+                nextState = ac_spinDown_state;
+            } else {
+                nextState = ac_moveToStartPosition_state;
+            }
+        } else {
+            // Unsuccessful
+            acErrorMessage = tr("Could not determine CLV disc length");
+            qDebug() << "AC Error:" << acErrorMessage;
+            nextState = ac_error_state;
+        }
+    }
+
+    return nextState;
+}
+
+// Automatic capture state machine - ac_spinDown_state
+PlayerControl::AcStates PlayerControl::acStateSpinDown(void)
+{
+    AcStates nextState = AcStates::ac_spinDown_state;
+
+    // Show the current state in the status
+    acStatus = tr("Spinning-down disc");
+
+    // Check for automatic capture being cancelled
+    if (acCancelled) {
+        nextState = ac_cancelled_state;
+    }
+
+    if (playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stop)) {
+        // Successful
+        nextState = ac_spinUpWithCapture_state;
+    } else {
+        // Unsuccessful
+        acErrorMessage = tr("Could not spin-down disc");
+        qDebug() << "AC Error:" << acErrorMessage;
+        nextState = ac_error_state;
+    }
+
+    return nextState;
+}
+
+// Automatic capture state machine - ac_spinUpWithCapture_state
+PlayerControl::AcStates PlayerControl::acStateSpinUpWithCapture(void)
+{
+    AcStates nextState = AcStates::ac_spinUpWithCapture_state;
+
+    // Show the current state in the status
+    acStatus = tr("Staring capture and spinning-up disc");
+
+    // Check for automatic capture being cancelled
+    if (acCancelled) {
+        nextState = ac_cancelled_state;
+    }
+
+    // Start the capture
+    emit startCapture();
+
+    if (playerCommunication->setPlayerState(PlayerCommunication::PlayerState::play)) {
+        // Successful
+        nextState = ac_waitForEndAddress_state;
+    } else {
+        // Unsuccessful
+        acErrorMessage = tr("Could not spin-up disc");
+        qDebug() << "AC Error:" << acErrorMessage;
+        nextState = ac_error_state;
+    }
+
+    return nextState;
+}
+
+// Automatic capture state machine - ac_moveToStartPosition_state
+PlayerControl::AcStates PlayerControl::acStateMoveToStartPosition(void)
+{
+    AcStates nextState = AcStates::ac_moveToStartPosition_state;
+
+    // Show the current state in the status
+    acStatus = tr("Moving to the specified start position");
+
+    // Check for automatic capture being cancelled
+    if (acCancelled) {
+        nextState = ac_cancelled_state;
+    }
+
+    // The player should not be stopped here, so we can move to the start address
+    // and pause/still-frame
+    if (acDiscType == PlayerCommunication::DiscType::CAV) {
+        if (playerCommunication->setPositionFrame(acStartAddress)) {
+            // Successful
+            nextState = ac_playAndCapture_state;
+        } else {
+            // Unsuccessful
+            acErrorMessage = tr("Could not position player on start frame");
+            qDebug() << "AC Error:" << acErrorMessage;
+            nextState = ac_error_state;
+        }
+    } else {
+        if (playerCommunication->setPositionTimeCode(acStartAddress)) {
+            // Successful
+            nextState = ac_playAndCapture_state;
+        } else {
+            // Unsuccessful
+            acErrorMessage = tr("Could not position player on start frame");
+            qDebug() << "AC Error:" << acErrorMessage;
+            nextState = ac_error_state;
+        }
+    }
+
+    return nextState;
+}
+
+// Automatic capture state machine - ac_playAndCapture_state
+PlayerControl::AcStates PlayerControl::acStatePlayAndCapture(void)
+{
+    AcStates nextState = AcStates::ac_playAndCapture_state;
+
+    // Show the current state in the status
+    acStatus = tr("Playing disc and beginning capture");
+
+    // Check for automatic capture being cancelled
+    if (acCancelled) {
+        nextState = ac_cancelled_state;
+    }
+
+    // Start capture
+    emit startCapture();
+
+    // Start playing the disc
+    if (playerCommunication->setPlayerState(PlayerCommunication::PlayerState::play)) {
+        // Successful
+        nextState = ac_waitForEndAddress_state;
+    } else {
+        // Unsuccessful
+        acErrorMessage = tr("Could not start playing");
+        qDebug() << "AC Error:" << acErrorMessage;
+        nextState = ac_error_state;
+    }
+
+    // Remain in the error state
+    return nextState;
+}
+
+// Automatic capture state machine - ac_waitForEndAddress_state
+PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
+{
+    AcStates nextState = AcStates::ac_waitForEndAddress_state;
+
+    // Show the current state in the status
+    acStatus = tr("Waiting for end address");
+
+    // Check for automatic capture being cancelled
+    if (acCancelled) {
+        nextState = ac_cancelled_state;
+    }
+
+    if (acDiscType == PlayerCommunication::DiscType::CAV) {
+        if (playerCommunication->getCurrentFrame() >= acEndAddress) {
+            // Target frame number reached
+            emit stopCapture();
+
+            // Still-frame the player
+            playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
+
+            nextState = ac_finished_state;
+        }
+    } else {
+        if (playerCommunication->getCurrentTimeCode() >= acEndAddress) {
+            // Target time code reached
+            emit stopCapture();
+
+            // Pause the player
+            playerCommunication->setPlayerState(PlayerCommunication::PlayerState::pause);
+
+            nextState = ac_finished_state;
+        }
+    }
+
+    // Remain in the error state
+    return nextState;
+}
+
+// Automatic capture state machine - ac_finished_state
+PlayerControl::AcStates PlayerControl::acStateFinished(void)
+{
+    AcStates nextState = AcStates::ac_finished_state;
+
+    // Show the current state in the status
+    acStatus = tr("Finished");
+    qDebug() << "PlayerControl::acStateFinished(): Auto-capture complete";
+
+    // Cancel the capture
+    acInProgress = false;
+
+    // Send completion message with successful status
+    emit automaticCaptureComplete(true);
+
+    // Remain in the finished state
+    return nextState;
+}
+
+// Automatic capture state machine - ac_cancelled_state
+PlayerControl::AcStates PlayerControl::acStateCancelled(void)
+{
+    AcStates nextState = AcStates::ac_cancelled_state;
+
+    // Show the current state in the status
+    acStatus = tr("Cancelled");
+    qDebug() << "PlayerControl::acStateFinished(): Auto-capture cancelled";
+
+    // Cancel the capture
+    emit stopCapture();
+    acInProgress = false;
+
+    // Send completion message with successful status
+    emit automaticCaptureComplete(true);
+
+    // Stop the player (if it is not already stopped)
+    if (playerCommunication->getPlayerState() != PlayerCommunication::PlayerState::stop)
+        playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stop);
+
+    // Remain in the cancelled state
+    return nextState;
+}
+
+// Automatic capture state machine - ac_error_state
+PlayerControl::AcStates PlayerControl::acStateError(void)
+{
+    AcStates nextState = AcStates::ac_error_state;
+
+    // Show the current state in the status
+    acStatus = tr("Error");
+    qDebug() << "PlayerControl::acStateFinished(): Auto-capture ended in error";
+
+    // Cancel the capture
+    acInProgress = false;
+
+    // Stop the capture
+    emit stopCapture();
+
+    // Send completion message with unsuccessful status
+    emit automaticCaptureComplete(false);
+
+    // Remain in the error state
+    return nextState;
+}
+
+
+
+
+
+
+
+
+
