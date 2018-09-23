@@ -2,7 +2,7 @@
 
     aboutdialog.cpp
 
-    QT GUI Capture application for Domesday Duplicator
+    Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
     Copyright (C) 2018 Simon Inns
 
@@ -28,14 +28,14 @@
 #include "aboutdialog.h"
 #include "ui_aboutdialog.h"
 
-aboutDialog::aboutDialog(QWidget *parent) :
+AboutDialog::AboutDialog(QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::aboutDialog)
+    ui(new Ui::AboutDialog)
 {
     ui->setupUi(this);
 }
 
-aboutDialog::~aboutDialog()
+AboutDialog::~AboutDialog()
 {
     delete ui;
 }
