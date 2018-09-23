@@ -185,7 +185,7 @@ void PlayerControl::run()
     qDebug() << "PlayerControl::run(): Player control thread has stopped";
 }
 
-// Returns a string that indicated the player's status
+// Returns a string that indicates the player's status
 QString PlayerControl::getPlayerStatusInformation(void)
 {
     QString status;
@@ -205,7 +205,7 @@ QString PlayerControl::getPlayerStatusInformation(void)
     return status;
 }
 
-// Returns a string that indicated the player's position (in the disc)
+// Returns a string that indicates the player's position (in the disc)
 QString PlayerControl::getPlayerPositionInformation(void)
 {
     QString playerPosition;
@@ -731,6 +731,7 @@ void PlayerControl::processAutomaticCapture(void)
     if (acInProgress) {
         acCurrentState = acNextState;
 
+        // Call the state handling method according to the current state
         switch(acCurrentState) {
         case ac_start_state: acNextState = acStateStart();
             break;
@@ -762,11 +763,12 @@ PlayerControl::AcStates PlayerControl::acStateStart(void)
     AcStates nextState = AcStates::ac_start_state;
 
     // Show the current state in the status
-    acStatus = tr("Starting player");
+    acStatus = tr("Spinning up player");
 
     // Check for automatic capture being cancelled
     if (acCancelled) {
         nextState = ac_cancelled_state;
+        return nextState;
     }
 
     // Determine the current player state
@@ -817,6 +819,7 @@ PlayerControl::AcStates PlayerControl::acStateGetLength(void)
     // Check for automatic capture being cancelled
     if (acCancelled) {
         nextState = ac_cancelled_state;
+        return nextState;
     }
 
     // CAV?
@@ -877,11 +880,12 @@ PlayerControl::AcStates PlayerControl::acStateSpinDown(void)
     AcStates nextState = AcStates::ac_spinDown_state;
 
     // Show the current state in the status
-    acStatus = tr("Spinning-down disc");
+    acStatus = tr("Spinning-down player");
 
     // Check for automatic capture being cancelled
     if (acCancelled) {
         nextState = ac_cancelled_state;
+        return nextState;
     }
 
     if (playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stop)) {
@@ -903,11 +907,12 @@ PlayerControl::AcStates PlayerControl::acStateSpinUpWithCapture(void)
     AcStates nextState = AcStates::ac_spinUpWithCapture_state;
 
     // Show the current state in the status
-    acStatus = tr("Staring capture and spinning-up disc");
+    acStatus = tr("Staring capture and spinning-up player");
 
     // Check for automatic capture being cancelled
     if (acCancelled) {
         nextState = ac_cancelled_state;
+        return nextState;
     }
 
     // Start the capture
@@ -932,11 +937,12 @@ PlayerControl::AcStates PlayerControl::acStateMoveToStartPosition(void)
     AcStates nextState = AcStates::ac_moveToStartPosition_state;
 
     // Show the current state in the status
-    acStatus = tr("Moving to the specified start position");
+    acStatus = tr("Moving to the start position");
 
     // Check for automatic capture being cancelled
     if (acCancelled) {
         nextState = ac_cancelled_state;
+        return nextState;
     }
 
     // The player should not be stopped here, so we can move to the start address
@@ -972,11 +978,12 @@ PlayerControl::AcStates PlayerControl::acStatePlayAndCapture(void)
     AcStates nextState = AcStates::ac_playAndCapture_state;
 
     // Show the current state in the status
-    acStatus = tr("Playing disc and beginning capture");
+    acStatus = tr("Playing disc with capture");
 
     // Check for automatic capture being cancelled
     if (acCancelled) {
         nextState = ac_cancelled_state;
+        return nextState;
     }
 
     // Start capture
@@ -1008,6 +1015,25 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
     // Check for automatic capture being cancelled
     if (acCancelled) {
         nextState = ac_cancelled_state;
+        return nextState;
+    }
+
+    // Due to stop codes on CAVs it's possible the disc will still-frame
+    // during capture.  Here we check for that and start the disc playing
+    // if it occurs
+    if (acDiscType == PlayerCommunication::DiscType::CAV) {
+        if (playerCommunication->getPlayerState() == PlayerCommunication::PlayerState::stillFrame) {
+            qDebug() << "PlayerControl::acStateWaitForEndAddress(): The player put itself in still-frame; sending play command";
+            playerCommunication->setPlayerState(PlayerCommunication::PlayerState::play);
+        }
+    }
+
+    // Now the player should be in play mode - or something has gone wrong with the capture
+    if (playerCommunication->getPlayerState() != PlayerCommunication::PlayerState::play) {
+        acErrorMessage = tr("Player ceased playing during capture");
+        qDebug() << "AC Error:" << acErrorMessage;
+        nextState = ac_error_state;
+        return nextState;
     }
 
     if (acDiscType == PlayerCommunication::DiscType::CAV) {
