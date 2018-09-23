@@ -93,11 +93,13 @@ public:
                                      PlayerCommunication::DiscType discType);
     void stopAutomaticCapture(void);
     QString getAutomaticCaptureStatus(void);
+    QString getAutomaticCaptureError(void);
 
 signals:
     void startCapture(void);
     void stopCapture(void);
     void playerControlError(QString);
+    void automaticCaptureComplete(bool success);
 
 protected:
     void run() override;
@@ -122,8 +124,32 @@ private:
     PlayerCommunication *playerCommunication;
 
     // Automatic capture
-    QString automaticCaptureStatus;
-    bool automaticCaptureInProgress;
+    QString acStatus;
+    bool acInProgress;
+    bool acCancelled;
+    qint32 acStartAddress;
+    qint32 acEndAddress;
+    PlayerCommunication::DiscType acDiscType;
+    bool acCaptureFromLeadIn;
+    bool acCaptureWholeDisc;
+
+    // Automatic capture state-machine
+    enum AcStates {
+        ac_start_state,
+        ac_getLength_state,
+        ac_spinDown_state,
+        ac_spinUpWithCapture_state,
+        ac_moveToStartPosition_state,
+        ac_playAndCapture_state,
+        ac_waitForEndAddress_state,
+        ac_finished_state,
+        ac_cancelled_state,
+        ac_error_state
+    };
+
+    AcStates acCurrentState;
+    AcStates acNextState;
+    QString acErrorMessage;
 
     // Command queue
     QQueue<PlayerControl::Commands> commandQueue;
@@ -147,6 +173,18 @@ private:
     void processSetSpeed(qint32 parameter1);
 
     void processAutomaticCapture(void);
+
+    // Automatic capture state methods
+    PlayerControl::AcStates acStateStart(void);
+    PlayerControl::AcStates acStateGetLength(void);
+    PlayerControl::AcStates acStateSpinDown(void);
+    PlayerControl::AcStates acStateSpinUpWithCapture(void);
+    PlayerControl::AcStates acStateMoveToStartPosition(void);
+    PlayerControl::AcStates acStatePlayAndCapture(void);
+    PlayerControl::AcStates acStateWaitForEndAddress(void);
+    PlayerControl::AcStates acStateFinished(void);
+    PlayerControl::AcStates acStateCancelled(void);
+    PlayerControl::AcStates acStateError(void);
 };
 
 #endif // PLAYERCONTROL_H

@@ -83,9 +83,9 @@
      <widget class="QLabel" name="captureStatusLabel">
       <property name="geometry">
        <rect>
-        <x>67</x>
+        <x>57</x>
         <y>100</y>
-        <width>161</width>
+        <width>231</width>
         <height>21</height>
        </rect>
       </property>

@@ -65,6 +65,11 @@ private slots:
                                                               qint32 startAddress, qint32 endAddress,
                                                               AutomaticCaptureDialog::DiscType discTypeParam);
     void stopAutomaticCaptureDialogSignalHandler(void);
+    void updateAutomaticCaptureStatus(void);
+    void automaticCaptureCompleteSignalHandler(bool success);
+
+    void startCaptureSignalHandler(void);
+    void stopCaptureSignalHandler(void);
 
     void updateCaptureStatistics(void);
     void updatePlayerControlInformation(void);
@@ -93,6 +98,7 @@ private:
     bool isCaptureRunning;
     QTimer *captureTimer;
     QTimer *playerControlTimer;
+    QTimer *automaticCaptureTimer;
 
     // Remote control states
     PlayerCommunication::DisplayState remoteDisplayState;
