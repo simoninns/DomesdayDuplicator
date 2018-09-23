@@ -460,7 +460,7 @@ bool PlayerCommunication::setPositionTimeCode(qint32 address)
     QString response;
     QString command;
 
-    command.sprintf("TM%dSE\r", address);
+    command.sprintf("FR%dSE\r", address);
     sendSerialCommand(command);
     response = getSerialResponse(L_TIMEOUT);
 
