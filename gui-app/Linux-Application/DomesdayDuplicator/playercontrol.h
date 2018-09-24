@@ -101,6 +101,9 @@ signals:
     void playerControlError(QString);
     void automaticCaptureComplete(bool success);
 
+    void playerConnected(void);
+    void playerDisconnected(void);
+
 protected:
     void run() override;
 
