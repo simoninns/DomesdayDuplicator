@@ -21,7 +21,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="resources.qrc">
-    <normaloff>:/graphics/ApplicationIcon/Graphics/ApplicationIcon/DomesdayDuplicator_24x24.png</normaloff>:/graphics/ApplicationIcon/Graphics/ApplicationIcon/DomesdayDuplicator_24x24.png</iconset>
+    <normaloff>:/graphics/ApplicationIcon/Graphics/ApplicationIcon/DomesdayDuplicator_128x128.png</normaloff>:/graphics/ApplicationIcon/Graphics/ApplicationIcon/DomesdayDuplicator_128x128.png</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
