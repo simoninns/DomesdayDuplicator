@@ -21,7 +21,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QGroupBox" name="groupBox">
+    <widget class="QGroupBox" name="optionsGroupBox">
      <property name="title">
       <string>Automatic capture options:</string>
      </property>
@@ -96,7 +96,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="groupBox_2">
+    <widget class="QGroupBox" name="cavGroupBox">
      <property name="title">
       <string>CAV capture:</string>
      </property>
@@ -177,7 +177,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="groupBox_3">
+    <widget class="QGroupBox" name="clvGroupBox">
      <property name="title">
       <string>CLV capture:</string>
      </property>

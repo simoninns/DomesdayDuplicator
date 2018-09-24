@@ -72,6 +72,14 @@ AutomaticCaptureDialog::~AutomaticCaptureDialog()
     delete ui;
 }
 
+// Enable and disable the dialogue
+void AutomaticCaptureDialog::setEnabled(bool flag)
+{
+    ui->optionsGroupBox->setEnabled(flag);
+    ui->cavGroupBox->setEnabled(flag);
+    ui->clvGroupBox->setEnabled(flag);
+}
+
 // Update the capture status text
 void AutomaticCaptureDialog::updateStatus(QString statusString)
 {

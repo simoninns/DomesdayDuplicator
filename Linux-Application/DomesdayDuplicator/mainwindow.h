@@ -69,6 +69,9 @@ private slots:
     void updateAutomaticCaptureStatus(void);
     void automaticCaptureCompleteSignalHandler(bool success);
 
+    void playerConnectedSignalHandler(void);
+    void playerDisconnectedSignalHandler(void);
+
     void startCaptureSignalHandler(void);
     void stopCaptureSignalHandler(void);
 

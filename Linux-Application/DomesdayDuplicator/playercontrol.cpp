@@ -119,6 +119,7 @@ void PlayerControl::run()
                 if (playerCommunication->connect(playerType, serialDevice, serialSpeed)) {
                     // Connection successful
                     isPlayerConnected = true;
+                    emit playerConnected();
                 }
             }
         }
@@ -171,6 +172,7 @@ void PlayerControl::run()
         // If reconnect is flagged, disconnect from the player
         if (reconnect) {
             isPlayerConnected = false;
+            emit playerDisconnected();
             reconnect = false;
             playerCommunication->disconnect();
         }
@@ -186,6 +188,9 @@ void PlayerControl::run()
     }
 
     qDebug() << "PlayerControl::run(): Player control thread has stopped";
+    if (isPlayerConnected) playerCommunication->disconnect();
+    isPlayerConnected = false;
+    emit playerDisconnected();
 }
 
 // Returns a string that indicates the player's status

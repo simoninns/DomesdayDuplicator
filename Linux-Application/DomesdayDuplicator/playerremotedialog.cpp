@@ -49,6 +49,13 @@ PlayerRemoteDialog::~PlayerRemoteDialog()
     delete ui;
 }
 
+// Enable and disable the remote control buttons
+void PlayerRemoteDialog::setEnabled(bool flag)
+{
+    if (flag) ui->remoteButtonsGroupBox->setEnabled(true);
+    else ui->remoteButtonsGroupBox->setEnabled(false);
+}
+
 // Update the GUI
 void PlayerRemoteDialog::updateGui(void)
 {

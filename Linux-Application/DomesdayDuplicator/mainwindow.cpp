@@ -51,6 +51,7 @@ MainWindow::MainWindow(QWidget *parent) :
     playerRemoteDialog = new PlayerRemoteDialog(this);
     connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlCommand, this, &MainWindow::remoteControlCommandSignalHandler);
     connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlSearch, this, &MainWindow::remoteControlSearchSignalHandler);
+    playerRemoteDialog->setEnabled(false); // Disable the dialogue until a player is connected
 
     // Create the automatic capture dialogue
     automaticCaptureDialog = new AutomaticCaptureDialog(this);
@@ -58,6 +59,7 @@ MainWindow::MainWindow(QWidget *parent) :
             this, &MainWindow::startAutomaticCaptureDialogSignalHandler);
     connect(automaticCaptureDialog, &AutomaticCaptureDialog::stopAutomaticCapture,
             this, &MainWindow::stopAutomaticCaptureDialogSignalHandler);
+    automaticCaptureDialog->setEnabled(false); // Disable the dialogue until a player is connected
 
     // Set up a timer for updating the automatic capture status information
     automaticCaptureTimer = new QTimer(this);
@@ -72,6 +74,10 @@ MainWindow::MainWindow(QWidget *parent) :
             this, &MainWindow::startCaptureSignalHandler);
     connect(playerControl, &PlayerControl::stopCapture,
             this, &MainWindow::stopCaptureSignalHandler);
+    connect(playerControl, &PlayerControl::playerConnected,
+            this, &MainWindow::playerConnectedSignalHandler);
+    connect(playerControl, &PlayerControl::playerDisconnected,
+            this, &MainWindow::playerDisconnectedSignalHandler);
     startPlayerControl();
 
     // Define our application (required for configuration handling)
@@ -395,6 +401,28 @@ void MainWindow::stopCaptureSignalHandler(void)
 {
     qDebug() << "MainWindow::stopCaptureSignalHandler(): Got stop capture signal from player control";
     if (isCaptureRunning) on_capturePushButton_clicked();
+}
+
+// Signal handler for player connected signal from player control
+void MainWindow::playerConnectedSignalHandler(void)
+{
+    qDebug() << "MainWindow::playerConnectedSignalHandler(): Received player connected signal";
+    // Enable remote control dialogue
+    playerRemoteDialog->setEnabled(true);
+
+    // Enable automatic-capture
+    automaticCaptureDialog->setEnabled(true);
+}
+
+// Signal handler for player disconnected signal from player control
+void MainWindow::playerDisconnectedSignalHandler(void)
+{
+    qDebug() << "MainWindow::playerConnectedSignalHandler(): Received player disconnected signal";
+    // Disable remote control dialogue
+    playerRemoteDialog->setEnabled(false);
+
+    // Disable automatic-capture
+    automaticCaptureDialog->setEnabled(false);
 }
 
 // Update the capture statistics labels
