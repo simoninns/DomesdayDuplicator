@@ -33,7 +33,12 @@
 Configuration::Configuration(QObject *parent) : QObject(parent)
 {
     // Open the application's configuration file
-    configuration = new QSettings();
+    QString configurationPath ;
+    QString configurationFileName;
+
+    configurationPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) ;
+    configurationFileName = "config.ini" ;
+    configuration = new QSettings(configurationPath + "/"+ configurationFileName, QSettings::IniFormat);
 
     // Read the configuration
     readConfiguration();
@@ -78,6 +83,8 @@ void Configuration::writeConfiguration(void)
 
 void Configuration::readConfiguration(void)
 {
+    qDebug() << "Configuration::readConfiguration(): Reading configuration from" << configuration->fileName();
+
     // Read the valid configuration flag
     settings.version = configuration->value("version").toInt();
 
