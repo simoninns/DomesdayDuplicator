@@ -330,7 +330,7 @@ void UsbCapture::run(void)
     }
 
     // Aborting transfer - wait for in-flight transfers to complete
-    qDebug() << "UsbCapture::run(): Transfer aborted - waiting for in-flight transfers to complete...";
+    qDebug() << "UsbCapture::run(): Transfer stopping - waiting for in-flight transfers to complete...";
     transferAbort = true;
 
     while(transfersInFlight > 0) {
@@ -338,8 +338,13 @@ void UsbCapture::run(void)
         libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
     }
 
+    // Deallocate transfers
+    qDebug() << "UsbCapture::run(): Transfer stopping - Freeing transfer buffers...";
+    for (qint32 transferNumber = 0; transferNumber < SIMULTANEOUSTRANSFERS; transferNumber++)
+         libusb_free_transfer(usbTransfers[transferNumber]);
+
     // Aborting transfer - wait for disk buffer processing thread to complete
-    qDebug() << "UsbCapture::run(): Transfer aborted - waiting for disk buffer processing to complete...";
+    qDebug() << "UsbCapture::run(): Transfer stopping - waiting for disk buffer processing to complete...";
     while (isDiskBufferProcessRunning) {
         // Just waiting here for now
     }
