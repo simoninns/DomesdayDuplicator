@@ -80,7 +80,7 @@ private:
     bool open(void);
     void close(void);
     bool sendVendorSpecificCommand(quint8 command, quint16 value);
-    bool pollForDevice(void);
+    bool searchForAttachedDevice(void);
 };
 
 #endif // USBDEVICE_H

@@ -180,22 +180,19 @@ void UsbDevice::run(void)
         }
     } else {
         // Hot-plug events are not supported
-        qDebug() << "UsbDevice::run(): libUSB event poll thread started (hot-plug events not supported by libUSB/OS)";
+        qDebug() << "UsbDevice::run(): Warning, no hot-plug support.  Application will only detect device attached event";
 
         while (!threadAbort) {
-            // Get the current device state
-            currentDeviceState = pollForDevice();
+            // If the device isn't attached, search for it
+            if (currentDeviceState == false) {
+                currentDeviceState = searchForAttachedDevice();
+                // Get the current device state
 
-            // Attached?
-            if (currentDeviceState == true && previousDeviceState == false) {
-                // Device attached
-                emit deviceAttached();
-            }
-
-            // Detached?
-            if (currentDeviceState == false && previousDeviceState == true) {
-                // Device detatched
-                emit deviceDetached();
+                // Attached?
+                if (currentDeviceState == true && previousDeviceState == false) {
+                    // Device attached
+                    emit deviceAttached();
+                }
             }
 
             // Store the current device state
@@ -225,9 +222,9 @@ bool UsbDevice::scanForDevice(void)
 }
 
 // Poll for the target USB device (just detection)
-bool UsbDevice::pollForDevice(void)
+bool UsbDevice::searchForAttachedDevice(void)
 {
-    // Attempt to open the USB device
+    // Attempt to find and open the USB device
     // Open the USB device
     open();
     if (usbDeviceHandle == nullptr) return false;
