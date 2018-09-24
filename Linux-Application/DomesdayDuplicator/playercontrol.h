@@ -132,6 +132,7 @@ private:
     bool acCancelled;
     qint32 acStartAddress;
     qint32 acEndAddress;
+    qint32 acLastSeenAddress;
     PlayerCommunication::DiscType acDiscType;
     bool acCaptureFromLeadIn;
     bool acCaptureWholeDisc;
