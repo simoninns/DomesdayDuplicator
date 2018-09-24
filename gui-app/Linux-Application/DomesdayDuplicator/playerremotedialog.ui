@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>376</width>
+    <width>380</width>
     <height>530</height>
    </rect>
   </property>
@@ -129,7 +129,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QGroupBox" name="groupBox_2">
+    <widget class="QGroupBox" name="remoteButtonsGroupBox">
      <property name="title">
       <string>Remote control:</string>
      </property>
@@ -581,6 +581,9 @@
           <property name="text">
            <string>Reject</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -1028,6 +1031,9 @@
           <property name="text">
            <string>Pause</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -1475,6 +1481,9 @@
           <property name="text">
            <string>Play</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -1939,6 +1948,9 @@
           <property name="text">
            <string>Repeat</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -2386,6 +2398,9 @@
           <property name="text">
            <string>Step Rev</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -2833,6 +2848,9 @@
           <property name="text">
            <string>Step Fwd</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -3297,6 +3315,9 @@
           <property name="text">
            <string>Display</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -3744,6 +3765,9 @@
           <property name="text">
            <string>Scan Rev</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -4191,6 +4215,9 @@
           <property name="text">
            <string>Scan Fwd</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -4655,6 +4682,9 @@
           <property name="text">
            <string>Audio</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -5102,6 +5132,9 @@
           <property name="text">
            <string>Speed -</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -5549,6 +5582,9 @@
           <property name="text">
            <string>Speed +</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -6013,6 +6049,9 @@
           <property name="text">
            <string>Clear</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -6460,6 +6499,9 @@
           <property name="text">
            <string>Multi Rev</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -6907,6 +6949,9 @@
           <property name="text">
            <string>Multi Fwd</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -7371,6 +7416,9 @@
           <property name="text">
            <string>7</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -7818,6 +7866,9 @@
           <property name="text">
            <string>8</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -8265,6 +8316,9 @@
           <property name="text">
            <string>9</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -8729,6 +8783,9 @@
           <property name="text">
            <string>4</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -9176,6 +9233,9 @@
           <property name="text">
            <string>5</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -9623,6 +9683,9 @@
           <property name="text">
            <string>6</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -10087,6 +10150,9 @@
           <property name="text">
            <string>1</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -10534,6 +10600,9 @@
           <property name="text">
            <string>2</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -10981,6 +11050,9 @@
           <property name="text">
            <string>3</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -11445,6 +11517,9 @@
           <property name="text">
            <string>0</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -11892,6 +11967,9 @@
           <property name="text">
            <string>Search</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -12339,6 +12417,9 @@
           <property name="text">
            <string>Chap/Frame</string>
           </property>
+          <attribute name="buttonGroup">
+           <string notr="true">remoteControlButtonGroup</string>
+          </attribute>
          </widget>
         </item>
         <item>
@@ -12363,4 +12444,7 @@
  </widget>
  <resources/>
  <connections/>
+ <buttongroups>
+  <buttongroup name="remoteControlButtonGroup"/>
+ </buttongroups>
 </ui>

@@ -267,6 +267,7 @@ void UsbCapture::run(void)
 
     // Launch a thread for writing disk buffers to disk
     QFuture<void> future = QtConcurrent::run(this, &UsbCapture::runDiskBuffers);
+    connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
 
     // Claim the required USB device interface for the transfer
     qint32 claimResult = libusb_claim_interface(usbDeviceHandle, 0);

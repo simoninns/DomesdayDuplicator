@@ -119,6 +119,7 @@ void PlayerControl::run()
                 if (playerCommunication->connect(playerType, serialDevice, serialSpeed)) {
                     // Connection successful
                     isPlayerConnected = true;
+                    emit playerConnected();
                 }
             }
         }
@@ -171,6 +172,7 @@ void PlayerControl::run()
         // If reconnect is flagged, disconnect from the player
         if (reconnect) {
             isPlayerConnected = false;
+            emit playerDisconnected();
             reconnect = false;
             playerCommunication->disconnect();
         }
@@ -186,6 +188,9 @@ void PlayerControl::run()
     }
 
     qDebug() << "PlayerControl::run(): Player control thread has stopped";
+    if (isPlayerConnected) playerCommunication->disconnect();
+    isPlayerConnected = false;
+    emit playerDisconnected();
 }
 
 // Returns a string that indicates the player's status
@@ -684,6 +689,7 @@ void PlayerControl::startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
     // Copy the capture parameters
     acStartAddress = startAddress;
     acEndAddress = endAddress;
+    acLastSeenAddress = -1;
     acCaptureFromLeadIn = fromLeadIn;
     acCaptureWholeDisc = wholeDisc;
     acDiscType = discType;
@@ -1050,7 +1056,8 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
     }
 
     if (acDiscType == PlayerCommunication::DiscType::CAV) {
-        if (playerCommunication->getCurrentFrame() >= acEndAddress) {
+        qint32 currentAddress = playerCommunication->getCurrentFrame();
+        if (currentAddress >= acEndAddress) {
             // Target frame number reached
             emit stopCapture();
 
@@ -1059,7 +1066,21 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
 
             nextState = ac_finished_state;
         }
+
+        if (acLastSeenAddress > currentAddress) {
+            // Somehow the player has gone backwards; probably due to restarting playing after
+            // reaching the end of a disc
+            qDebug() << "PlayerControl::acStateWaitForEndAddress(): The disc address has stepped backwards - is auto-replay on? Stopping capture";
+            emit stopCapture();
+
+            // Still-frame the player
+            playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
+
+            nextState = ac_finished_state;
+        }
+        acLastSeenAddress = currentAddress;
     } else {
+        qint32 currentAddress = playerCommunication->getCurrentTimeCode();
         if (playerCommunication->getCurrentTimeCode() >= acEndAddress) {
             // Target time code reached
             emit stopCapture();
@@ -1069,6 +1090,19 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
 
             nextState = ac_finished_state;
         }
+
+        if (acLastSeenAddress > currentAddress) {
+            // Somehow the player has gone backwards; probably due to restarting playing after
+            // reaching the end of a disc
+            qDebug() << "PlayerControl::acStateWaitForEndAddress(): The disc address has stepped backwards - is auto-replay on? Stopping capture";
+            emit stopCapture();
+
+            // Still-frame the player
+            playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
+
+            nextState = ac_finished_state;
+        }
+        acLastSeenAddress = currentAddress;
     }
 
     // Remain in the error state
