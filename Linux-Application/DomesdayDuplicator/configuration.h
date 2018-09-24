@@ -31,6 +31,7 @@
 #include <QObject>
 #include <QCoreApplication>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QApplication>
 #include <QDir>
 #include <QDebug>

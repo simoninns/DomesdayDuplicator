@@ -33,14 +33,20 @@
 Configuration::Configuration(QObject *parent) : QObject(parent)
 {
     // Open the application's configuration file
-    configuration = new QSettings();
+    QString configurationPath ;
+    QString configurationFileName;
+
+    configurationPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) ;
+    configurationFileName = "DomesdayDuplicator.ini" ;
+    configuration = new QSettings(configurationPath + "/"+ configurationFileName, QSettings::IniFormat);
 
     // Read the configuration
     readConfiguration();
 
     // Are the configuration settings valid?
     if (settings.version != SETTINGSVERSION) {
-        qDebug() << "Configuration::Configuration(): Configuration invalid or wrong version.  Setting to default values";
+        qDebug() << "Configuration::Configuration(): Configuration invalid or wrong version (" <<
+                    settings.version << "!= " << SETTINGSVERSION <<").  Setting to default values";
 
         // Set default configuration
         setDefault();
@@ -77,6 +83,8 @@ void Configuration::writeConfiguration(void)
 
 void Configuration::readConfiguration(void)
 {
+    qDebug() << "Configuration::readConfiguration(): Reading configuration from" << configuration->fileName();
+
     // Read the valid configuration flag
     settings.version = configuration->value("version").toInt();
 
