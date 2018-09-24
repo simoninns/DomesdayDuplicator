@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>AdvancedNamingDialog</class>
+ <widget class="QDialog" name="AdvancedNamingDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>500</width>
+    <height>220</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>500</width>
+    <height>220</height>
+   </size>
+  </property>
+  <property name="windowTitle">
+   <string>Advanced capture naming</string>
+  </property>
+  <widget class="QGroupBox" name="groupBox_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>481</width>
+     <height>201</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Advanced capture naming options:</string>
+   </property>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>40</y>
+      <width>81</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Disc title:</string>
+    </property>
+   </widget>
+   <widget class="QRadioButton" name="formatNtscRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>100</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>NTSC</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">formatButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="formatPalRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>100</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>PAL</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">formatButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QLabel" name="label_2">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>70</y>
+      <width>81</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Disc type:</string>
+    </property>
+   </widget>
+   <widget class="QRadioButton" name="typeCavRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>70</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>CAV</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">discTypeButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="typeClvRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>70</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>CLV</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">discTypeButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QLabel" name="label_3">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>100</y>
+      <width>81</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Format:</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="discTitleLineEdit">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>40</y>
+      <width>341</width>
+      <height>21</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_4">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>130</y>
+      <width>81</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Disc side:</string>
+    </property>
+   </widget>
+   <widget class="QRadioButton" name="sideOneRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>130</y>
+      <width>41</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>1</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">discSideButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="sideTwoRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>130</y>
+      <width>41</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>2</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">discSideButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="sideThreeRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>130</y>
+      <width>41</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>3</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">discSideButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="sideFourRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>280</x>
+      <y>130</y>
+      <width>41</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>4</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">discSideButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QCheckBox" name="discTitleCheckBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>40</y>
+      <width>21</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="discTypeCheckBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>70</y>
+      <width>21</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="formatCheckBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>100</y>
+      <width>21</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="discSideCheckBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>130</y>
+      <width>21</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_5">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>160</y>
+      <width>81</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Notes:</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="notesLineEdit">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>160</y>
+      <width>341</width>
+      <height>21</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="notesCheckBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>160</y>
+      <width>21</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+  </widget>
+ </widget>
+ <tabstops>
+  <tabstop>discTitleCheckBox</tabstop>
+  <tabstop>discTitleLineEdit</tabstop>
+  <tabstop>discTypeCheckBox</tabstop>
+  <tabstop>typeCavRadioButton</tabstop>
+  <tabstop>typeClvRadioButton</tabstop>
+  <tabstop>formatCheckBox</tabstop>
+  <tabstop>formatNtscRadioButton</tabstop>
+  <tabstop>formatPalRadioButton</tabstop>
+  <tabstop>discSideCheckBox</tabstop>
+  <tabstop>sideOneRadioButton</tabstop>
+  <tabstop>sideTwoRadioButton</tabstop>
+  <tabstop>sideThreeRadioButton</tabstop>
+  <tabstop>sideFourRadioButton</tabstop>
+  <tabstop>notesCheckBox</tabstop>
+  <tabstop>notesLineEdit</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+ <buttongroups>
+  <buttongroup name="discTypeButtonGroup"/>
+  <buttongroup name="formatButtonGroup"/>
+  <buttongroup name="discSideButtonGroup"/>
+ </buttongroups>
+</ui>
