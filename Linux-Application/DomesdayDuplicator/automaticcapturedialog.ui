@@ -30,7 +30,7 @@
        <rect>
         <x>10</x>
         <y>50</y>
-        <width>191</width>
+        <width>281</width>
         <height>22</height>
        </rect>
       </property>
@@ -43,7 +43,7 @@
        <rect>
         <x>10</x>
         <y>70</y>
-        <width>191</width>
+        <width>281</width>
         <height>22</height>
        </rect>
       </property>
@@ -56,7 +56,7 @@
        <rect>
         <x>10</x>
         <y>30</y>
-        <width>191</width>
+        <width>281</width>
         <height>22</height>
        </rect>
       </property>
@@ -137,7 +137,7 @@
        <rect>
         <x>10</x>
         <y>90</y>
-        <width>121</width>
+        <width>161</width>
         <height>24</height>
        </rect>
       </property>
@@ -218,7 +218,7 @@
        <rect>
         <x>10</x>
         <y>90</y>
-        <width>121</width>
+        <width>161</width>
         <height>24</height>
        </rect>
       </property>
@@ -265,6 +265,17 @@
    </item>
   </layout>
  </widget>
+ <tabstops>
+  <tabstop>wholeDiscRadioButton</tabstop>
+  <tabstop>partialDiscRadioButton</tabstop>
+  <tabstop>leadInCaptureRadioButton</tabstop>
+  <tabstop>startFrameLineEdit</tabstop>
+  <tabstop>endFrameLineEdit</tabstop>
+  <tabstop>startCavCapturePushButton</tabstop>
+  <tabstop>startTimeTimeEdit</tabstop>
+  <tabstop>endTimeTimeEdit</tabstop>
+  <tabstop>startClvCapturePushButton</tabstop>
+ </tabstops>
  <resources/>
  <connections/>
 </ui>

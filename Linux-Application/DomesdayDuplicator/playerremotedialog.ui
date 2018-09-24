@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>320</width>
-    <height>522</height>
+    <width>376</width>
+    <height>530</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -153,7 +153,7 @@
          <widget class="QPushButton" name="rejectPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -600,7 +600,7 @@
          <widget class="QPushButton" name="pausePushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -1047,7 +1047,7 @@
          <widget class="QPushButton" name="playPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -1511,7 +1511,7 @@
          <widget class="QPushButton" name="repeatPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -1958,7 +1958,7 @@
          <widget class="QPushButton" name="stepRevPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -2405,7 +2405,7 @@
          <widget class="QPushButton" name="stepFwdPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -2869,7 +2869,7 @@
          <widget class="QPushButton" name="displayPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -3316,7 +3316,7 @@
          <widget class="QPushButton" name="scanRevPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -3763,7 +3763,7 @@
          <widget class="QPushButton" name="scanFwdPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -4227,7 +4227,7 @@
          <widget class="QPushButton" name="audioPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -4674,7 +4674,7 @@
          <widget class="QPushButton" name="speedDownPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -5121,7 +5121,7 @@
          <widget class="QPushButton" name="speedUpPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -5585,7 +5585,7 @@
          <widget class="QPushButton" name="clearPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -6032,7 +6032,7 @@
          <widget class="QPushButton" name="multiRevPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -6479,7 +6479,7 @@
          <widget class="QPushButton" name="multiFwdPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -6943,7 +6943,7 @@
          <widget class="QPushButton" name="sevenPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -7390,7 +7390,7 @@
          <widget class="QPushButton" name="eightPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -7837,7 +7837,7 @@
          <widget class="QPushButton" name="ninePushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -8301,7 +8301,7 @@
          <widget class="QPushButton" name="fourPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -8748,7 +8748,7 @@
          <widget class="QPushButton" name="fivePushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -9195,7 +9195,7 @@
          <widget class="QPushButton" name="sixPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -9659,7 +9659,7 @@
          <widget class="QPushButton" name="onePushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -10106,7 +10106,7 @@
          <widget class="QPushButton" name="twoPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -10553,7 +10553,7 @@
          <widget class="QPushButton" name="threePushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -11017,7 +11017,7 @@
          <widget class="QPushButton" name="zeroPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -11464,7 +11464,7 @@
          <widget class="QPushButton" name="searchPushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
@@ -11911,7 +11911,7 @@
          <widget class="QPushButton" name="chapFramePushButton">
           <property name="minimumSize">
            <size>
-            <width>80</width>
+            <width>100</width>
             <height>20</height>
            </size>
           </property>
