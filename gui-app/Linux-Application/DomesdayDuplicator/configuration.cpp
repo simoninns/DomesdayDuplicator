@@ -37,7 +37,7 @@ Configuration::Configuration(QObject *parent) : QObject(parent)
     QString configurationFileName;
 
     configurationPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) ;
-    configurationFileName = "config.ini" ;
+    configurationFileName = "DomesdayDuplicator.ini" ;
     configuration = new QSettings(configurationPath + "/"+ configurationFileName, QSettings::IniFormat);
 
     // Read the configuration

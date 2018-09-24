@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>382</width>
-    <height>239</height>
+    <width>420</width>
+    <height>240</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>420</width>
+    <height>240</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>Preferences</string>
@@ -34,13 +40,13 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>360</width>
+     <width>400</width>
      <height>180</height>
     </rect>
    </property>
    <property name="minimumSize">
     <size>
-     <width>360</width>
+     <width>400</width>
      <height>180</height>
     </size>
    </property>
@@ -78,7 +84,7 @@
       <rect>
        <x>132</x>
        <y>10</y>
-       <width>211</width>
+       <width>251</width>
        <height>21</height>
       </rect>
      </property>
@@ -86,7 +92,7 @@
     <widget class="QPushButton" name="captureDirectoryPushButton">
      <property name="geometry">
       <rect>
-       <x>260</x>
+       <x>300</x>
        <y>40</y>
        <width>81</width>
        <height>24</height>
@@ -101,7 +107,7 @@
       <rect>
        <x>20</x>
        <y>100</y>
-       <width>271</width>
+       <width>361</width>
        <height>21</height>
       </rect>
      </property>
@@ -114,7 +120,7 @@
       <rect>
        <x>20</x>
        <y>80</y>
-       <width>291</width>
+       <width>361</width>
        <height>22</height>
       </rect>
      </property>
@@ -167,7 +173,7 @@
       <rect>
        <x>130</x>
        <y>10</y>
-       <width>113</width>
+       <width>151</width>
        <height>20</height>
       </rect>
      </property>
@@ -177,7 +183,7 @@
       <rect>
        <x>130</x>
        <y>40</y>
-       <width>113</width>
+       <width>151</width>
        <height>20</height>
       </rect>
      </property>
@@ -187,7 +193,7 @@
       <rect>
        <x>130</x>
        <y>70</y>
-       <width>141</width>
+       <width>251</width>
        <height>21</height>
       </rect>
      </property>
@@ -253,7 +259,7 @@
       <rect>
        <x>130</x>
        <y>10</y>
-       <width>161</width>
+       <width>181</width>
        <height>24</height>
       </rect>
      </property>
@@ -263,7 +269,7 @@
       <rect>
        <x>130</x>
        <y>40</y>
-       <width>161</width>
+       <width>181</width>
        <height>24</height>
       </rect>
      </property>
@@ -273,7 +279,7 @@
       <rect>
        <x>130</x>
        <y>70</y>
-       <width>161</width>
+       <width>181</width>
        <height>24</height>
       </rect>
      </property>
@@ -281,6 +287,18 @@
    </widget>
   </widget>
  </widget>
+ <tabstops>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>captureDirectoryLineEdit</tabstop>
+  <tabstop>captureDirectoryPushButton</tabstop>
+  <tabstop>saveAsTenBitRadioButton</tabstop>
+  <tabstop>saveAsSixteenBitRadioButton</tabstop>
+  <tabstop>vendorIdLineEdit</tabstop>
+  <tabstop>productIdLineEdit</tabstop>
+  <tabstop>serialDeviceComboBox</tabstop>
+  <tabstop>serialSpeedComboBox</tabstop>
+  <tabstop>playerModelComboBox</tabstop>
+ </tabstops>
  <resources/>
  <connections>
   <connection>
