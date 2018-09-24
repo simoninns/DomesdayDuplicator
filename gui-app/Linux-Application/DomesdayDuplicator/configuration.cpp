@@ -40,7 +40,8 @@ Configuration::Configuration(QObject *parent) : QObject(parent)
 
     // Are the configuration settings valid?
     if (settings.version != SETTINGSVERSION) {
-        qDebug() << "Configuration::Configuration(): Configuration invalid or wrong version.  Setting to default values";
+        qDebug() << "Configuration::Configuration(): Configuration invalid or wrong version (" <<
+                    settings.version << "!= " << SETTINGSVERSION <<").  Setting to default values";
 
         // Set default configuration
         setDefault();
