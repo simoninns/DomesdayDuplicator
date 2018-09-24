@@ -91,7 +91,7 @@ MainWindow::MainWindow(QWidget *parent) :
     // Add a label to the status bar for displaying the USB device status
     usbStatusLabel = new QLabel;
     ui->statusBar->addWidget(usbStatusLabel);
-    usbStatusLabel->setText(tr("USB device detached"));
+    usbStatusLabel->setText(tr("No USB capture device is attached"));
 
     // Disable the capture button
     ui->capturePushButton->setEnabled(false);
@@ -138,7 +138,7 @@ void MainWindow::deviceAttachedSignalHandler(void)
     qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been attached";
 
     // Show the device status in the status bar
-    usbStatusLabel->setText(tr("USB device attached"));
+    usbStatusLabel->setText(tr("Domesday Duplicator is connected via USB"));
 
     // Set test mode unchecked in the menu
     ui->actionTest_mode->setChecked(false);
@@ -153,7 +153,7 @@ void MainWindow::deviceDetachedSignalHandler(void)
     qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been detached";
 
     // Show the device status in the status bar
-    usbStatusLabel->setText(tr("USB device detached"));
+    usbStatusLabel->setText(tr("No USB capture device is attached"));
 
     // Disable the capture button
     ui->capturePushButton->setEnabled(false);
