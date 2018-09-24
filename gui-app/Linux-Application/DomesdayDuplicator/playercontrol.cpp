@@ -65,7 +65,6 @@ void PlayerControl::configurePlayerCommunication(
         PlayerCommunication::SerialSpeed serialSpeed,
         PlayerCommunication::PlayerType playerType)
 {
-    qDebug() << "PlayerControl::configurePlayerCommunication(): Called";
     QMutexLocker locker(&mutex);
 
     // Move all the parameters to be local
@@ -75,21 +74,25 @@ void PlayerControl::configurePlayerCommunication(
 
     // Make sure the player type is set and the serial device string is not empty
     if (playerType != PlayerCommunication::PlayerType::unknownPlayerType &&
-            !serialDevice.isEmpty()) {
-
-    }
-
-    // Is the run process already running?
-    if (!isRunning()) {
-        // No, start with low priority
-        qDebug() << "PlayerControl::configurePlayerCommunication(): Starting control thread";
-        reconnect = false;
-        start(LowPriority);
+            !serialDevice.isEmpty() && !serialDevice.contains("None", Qt::CaseInsensitive)) {
+        // Is the run process already running?
+        if (!isRunning()) {
+            // No, start with low priority
+            qDebug() << "PlayerControl::configurePlayerCommunication(): Starting control thread";
+            abort = false;
+            reconnect = false;
+            start(LowPriority);
+        } else {
+            // Yes, set the restart condition
+            qDebug() << "PlayerControl::configurePlayerCommunication(): Peforming reconnection attempt";
+            reconnect = true;
+            condition.wakeOne();
+        }
     } else {
-        // Yes, set the restart condition
-        qDebug() << "PlayerControl::configurePlayerCommunication(): Peforming reconnection attempt";
-        reconnect = true;
-        condition.wakeOne();
+        // Serial is not configured correctly for device connection
+        // Ensure the control thread is stopped
+        qDebug() << "PlayerControl::configurePlayerCommunication(): No player configured, control thread stopped";
+        abort = true;
     }
 }
 
