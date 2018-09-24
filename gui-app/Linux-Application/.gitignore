@@ -40,6 +40,10 @@ ui_*.h
 wrapper.bat
 wrapper.sh
 build-*/
+/*/.qmake.stash
+/DomesdayDuplicator/DomesdayDuplicator
+/*/moc_predefs.h
+
 
 # qtcreator generated files
 *.creator.user*
