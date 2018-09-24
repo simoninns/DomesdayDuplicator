@@ -40,6 +40,9 @@ MainWindow::MainWindow(QWidget *parent) :
     // Create the about dialogue
     aboutDialog = new AboutDialog(this);
 
+    // Create the advanced naming dialogue
+    advancedNamingDialog = new AdvancedNamingDialog(this);
+
     // Create the configuration dialogue
     configurationDialog = new ConfigurationDialog(this);
     connect(configurationDialog, &ConfigurationDialog::configurationChanged, this, &MainWindow::configurationChangedSignalHandler);
@@ -488,6 +491,12 @@ void MainWindow::on_actionTest_mode_toggled(bool arg1)
     }
 }
 
+// Menu option->Advanced naming
+void MainWindow::on_actionAdvanced_naming_triggered()
+{
+    advancedNamingDialog->show();
+}
+
 // Menu option: View->Player remote
 void MainWindow::on_actionPlayer_remote_triggered()
 {
@@ -522,10 +531,9 @@ void MainWindow::on_capturePushButton_clicked()
 
         // Construct the capture file path and name
 
-        // Change the prefix depending on if the data is RF or test data
-        if (ui->actionTest_mode->isChecked()) captureFilename = configuration->getCaptureDirectory() + "/TestData_";
-        else captureFilename = configuration->getCaptureDirectory() + "/RF-Sample_";
-        captureFilename += QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
+        // Use the advanced naming dialogue to generate the capture file name
+        captureFilename = configuration->getCaptureDirectory() +
+                advancedNamingDialog->getFileName(ui->actionTest_mode->isChecked());
 
         // Change the suffix depending on if the data is 10 or 16 bit
         if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) captureFilename += ".lds";
@@ -666,6 +674,8 @@ void MainWindow::updatePlayerRemoteDialog(void)
         break;
     }
 }
+
+
 
 
 

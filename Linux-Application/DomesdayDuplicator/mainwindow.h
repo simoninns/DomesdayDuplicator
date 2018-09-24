@@ -42,6 +42,7 @@
 #include "playercontrol.h"
 #include "playerremotedialog.h"
 #include "automaticcapturedialog.h"
+#include "advancednamingdialog.h"
 
 namespace Ui {
 class MainWindow;
@@ -84,6 +85,7 @@ private slots:
     void on_actionPlayer_remote_triggered();
     void on_actionAutomatic_capture_triggered();
     void on_limitDurationCheckBox_stateChanged(int arg1);
+    void on_actionAdvanced_naming_triggered();
 
 private:
     Configuration *configuration;
@@ -96,6 +98,7 @@ private:
     ConfigurationDialog *configurationDialog;
     PlayerRemoteDialog *playerRemoteDialog;
     PlayerControl *playerControl;
+    AdvancedNamingDialog *advancedNamingDialog;
 
     bool isCaptureRunning;
     QTimer *captureStatusUpdateTimer;

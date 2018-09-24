@@ -39,7 +39,8 @@ SOURCES += \
     playerremotedialog.cpp \
     playercommunication.cpp \
     playercontrol.cpp \
-    automaticcapturedialog.cpp
+    automaticcapturedialog.cpp \
+    advancednamingdialog.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -51,14 +52,16 @@ HEADERS += \
     playerremotedialog.h \
     playercommunication.h \
     playercontrol.h \
-    automaticcapturedialog.h
+    automaticcapturedialog.h \
+    advancednamingdialog.h
 
 FORMS += \
         mainwindow.ui \
     aboutdialog.ui \
     configurationdialog.ui \
     playerremotedialog.ui \
-    automaticcapturedialog.ui
+    automaticcapturedialog.ui \
+    advancednamingdialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
