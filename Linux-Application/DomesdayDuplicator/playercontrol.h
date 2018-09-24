@@ -101,6 +101,9 @@ signals:
     void playerControlError(QString);
     void automaticCaptureComplete(bool success);
 
+    void playerConnected(void);
+    void playerDisconnected(void);
+
 protected:
     void run() override;
 
@@ -129,6 +132,7 @@ private:
     bool acCancelled;
     qint32 acStartAddress;
     qint32 acEndAddress;
+    qint32 acLastSeenAddress;
     PlayerCommunication::DiscType acDiscType;
     bool acCaptureFromLeadIn;
     bool acCaptureWholeDisc;

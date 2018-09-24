@@ -96,6 +96,8 @@ public:
         displayOn
     };
 
+    void setEnabled(bool flag);
+
     void setMultiSpeed(MultiSpeed multiSpeedParam);
     void setDisplayMode(DisplayMode displayModeParam);
 
