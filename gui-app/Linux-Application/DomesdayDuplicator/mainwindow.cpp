@@ -585,6 +585,7 @@ void MainWindow::transferFailedSignalHandler(void)
     usbDevice->stopCapture();
     isCaptureRunning = false;
     captureStatusUpdateTimer->stop();
+    captureDurationTimer->stop();
     disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
     updateGuiForCaptureStop();
 
