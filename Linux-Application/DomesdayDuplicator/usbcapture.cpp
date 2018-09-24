@@ -233,6 +233,9 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
 
     // Set the flush counter
     flushCounter = 0;
+
+    // Set the disk process thread running flag
+    isDiskBufferProcessRunning = false;
 }
 
 // Class destructor
@@ -335,6 +338,12 @@ void UsbCapture::run(void)
         libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
     }
 
+    // Aborting transfer - wait for disk buffer processing thread to complete
+    qDebug() << "UsbCapture::run(): Transfer aborted - waiting for disk buffer processing to complete...";
+    while (isDiskBufferProcessRunning) {
+        // Just waiting here for now
+    }
+
     // If the transfer failed, emit a notification signal to the parent object
     if (transferFailure) {
         qDebug() << "UsbCapture::run(): Transfer failed - emitting notification signal";
@@ -427,6 +436,7 @@ void UsbCapture::runDiskBuffers(void)
     }
 
     // Process the disk buffers until the transfer is complete or fails
+    isDiskBufferProcessRunning = true;
     while(!transferAbort && !transferFailure) {
         for (qint32 diskBufferNumber = 0; diskBufferNumber < NUMBEROFDISKBUFFERS; diskBufferNumber++) {
             if (isDiskBufferFull[diskBufferNumber]) {
@@ -451,6 +461,9 @@ void UsbCapture::runDiskBuffers(void)
 
     // Close the capture file
     outputFile.close();
+
+    // Flag that the thread is complete
+    isDiskBufferProcessRunning = false;
 
     qDebug() << "UsbCapture::runDiskBuffers(): Thread stopped";
 }
