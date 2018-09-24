@@ -190,9 +190,6 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
             lastError = "LibUSB reported that a transfer re-submission failed - ensure the USB device is correctly attached!";
             transferFailure = true;
         }
-    } else {
-        // Free the transfer buffer
-        libusb_free_transfer(transfer);
     }
 }
 
