@@ -156,6 +156,8 @@ UsbDevice::~UsbDevice()
 void UsbDevice::run(void)
 {
     qint32 responseCode;
+    bool currentDeviceState = false;
+    bool previousDeviceState = false;
 
     // If hot-plug events are supported, use them
     if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG)) {
@@ -178,11 +180,24 @@ void UsbDevice::run(void)
         }
     } else {
         // Hot-plug events are not supported
-        qDebug() << "UsbDevice::run(): libUSB event poll thread started (hot-plug events not supported)";
-        qDebug() << "UsbDevice::run(): WARNING: No USB attach/detach detection will be performed";
+        qDebug() << "UsbDevice::run(): Warning, no hot-plug support.  Application will only detect device attached event";
 
         while (!threadAbort) {
-            // Perform USB attach/detach detection (without hot-plug) here
+            // If the device isn't attached, search for it
+            if (currentDeviceState == false) {
+                currentDeviceState = searchForAttachedDevice();
+                // Get the current device state
+
+                // Attached?
+                if (currentDeviceState == true && previousDeviceState == false) {
+                    // Device attached
+                    emit deviceAttached();
+                }
+            }
+
+            // Store the current device state
+            previousDeviceState = currentDeviceState;
+
             this->msleep(500);
         }
     }
@@ -207,9 +222,9 @@ bool UsbDevice::scanForDevice(void)
 }
 
 // Poll for the target USB device (just detection)
-bool UsbDevice::pollForDevice(void)
+bool UsbDevice::searchForAttachedDevice(void)
 {
-    // Attempt to open the USB device
+    // Attempt to find and open the USB device
     // Open the USB device
     open();
     if (usbDeviceHandle == nullptr) return false;

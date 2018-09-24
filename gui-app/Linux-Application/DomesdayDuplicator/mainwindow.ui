@@ -6,18 +6,22 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>360</width>
-    <height>380</height>
+    <width>480</width>
+    <height>395</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
-    <width>360</width>
-    <height>380</height>
+    <width>480</width>
+    <height>395</height>
    </size>
   </property>
   <property name="windowTitle">
    <string>Domesday Duplicator</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="resources.qrc">
+    <normaloff>:/graphics/ApplicationIcon/Graphics/ApplicationIcon/DomesdayDuplicator_128x128.png</normaloff>:/graphics/ApplicationIcon/Graphics/ApplicationIcon/DomesdayDuplicator_128x128.png</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -26,7 +30,7 @@
       <property name="minimumSize">
        <size>
         <width>0</width>
-        <height>120</height>
+        <height>130</height>
        </size>
       </property>
       <property name="title">
@@ -37,7 +41,7 @@
         <rect>
          <x>10</x>
          <y>80</y>
-         <width>111</width>
+         <width>141</width>
          <height>21</height>
         </rect>
        </property>
@@ -51,7 +55,7 @@
        </property>
        <property name="geometry">
         <rect>
-         <x>130</x>
+         <x>160</x>
          <y>80</y>
          <width>118</width>
          <height>21</height>
@@ -66,13 +70,13 @@
         <rect>
          <x>10</x>
          <y>30</y>
-         <width>240</width>
+         <width>270</width>
          <height>40</height>
         </rect>
        </property>
        <property name="minimumSize">
         <size>
-         <width>240</width>
+         <width>270</width>
          <height>40</height>
         </size>
        </property>
@@ -84,6 +88,22 @@
        </property>
        <property name="text">
         <string>Capture</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_6">
+       <property name="geometry">
+        <rect>
+         <x>300</x>
+         <y>20</y>
+         <width>171</width>
+         <height>101</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="pixmap">
+        <pixmap resource="resources.qrc">:/graphics/logo/Graphics/Domesday Duplicator logo colour 150px.png</pixmap>
        </property>
       </widget>
      </widget>
@@ -248,7 +268,7 @@
         <rect>
          <x>100</x>
          <y>30</y>
-         <width>231</width>
+         <width>351</width>
          <height>21</height>
         </rect>
        </property>
@@ -261,7 +281,7 @@
         <rect>
          <x>100</x>
          <y>50</y>
-         <width>231</width>
+         <width>351</width>
          <height>21</height>
         </rect>
        </property>
@@ -278,7 +298,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>360</width>
+     <width>480</width>
      <height>21</height>
     </rect>
    </property>
@@ -354,6 +374,13 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <resources/>
+ <tabstops>
+  <tabstop>capturePushButton</tabstop>
+  <tabstop>limitDurationCheckBox</tabstop>
+  <tabstop>durationLimitTimeEdit</tabstop>
+ </tabstops>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
  <connections/>
 </ui>

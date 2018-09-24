@@ -190,9 +190,6 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
             lastError = "LibUSB reported that a transfer re-submission failed - ensure the USB device is correctly attached!";
             transferFailure = true;
         }
-    } else {
-        // Free the transfer buffer
-        libusb_free_transfer(transfer);
     }
 }
 
@@ -233,6 +230,9 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
 
     // Set the flush counter
     flushCounter = 0;
+
+    // Set the disk process thread running flag
+    isDiskBufferProcessRunning = false;
 }
 
 // Class destructor
@@ -267,6 +267,14 @@ void UsbCapture::run(void)
 
     // Launch a thread for writing disk buffers to disk
     QFuture<void> future = QtConcurrent::run(this, &UsbCapture::runDiskBuffers);
+
+    // Claim the required USB device interface for the transfer
+    qint32 claimResult = libusb_claim_interface(usbDeviceHandle, 0);
+    if (claimResult < 0) {
+        qDebug() << "UsbCapture::run(): USB interface claim failed with error:" << libusb_error_name(claimResult);
+        lastError = tr("Could not claim USB interface - LibUSB reports: ") + libusb_error_name(claimResult);
+        transferFailure = true;
+    }
 
     // Set up the initial transfers
     for (qint32 transferNumber = 0; transferNumber < SIMULTANEOUSTRANSFERS; transferNumber++) {
@@ -319,7 +327,7 @@ void UsbCapture::run(void)
     }
 
     // Aborting transfer - wait for in-flight transfers to complete
-    qDebug() << "UsbCapture::run(): Transfer aborted - waiting for in-flight transfers to complete...";
+    qDebug() << "UsbCapture::run(): Transfer stopping - waiting for in-flight transfers to complete...";
     transferAbort = true;
 
     while(transfersInFlight > 0) {
@@ -327,10 +335,27 @@ void UsbCapture::run(void)
         libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
     }
 
+    // Deallocate transfers
+    qDebug() << "UsbCapture::run(): Transfer stopping - Freeing transfer buffers...";
+    for (qint32 transferNumber = 0; transferNumber < SIMULTANEOUSTRANSFERS; transferNumber++)
+         libusb_free_transfer(usbTransfers[transferNumber]);
+
+    // Aborting transfer - wait for disk buffer processing thread to complete
+    qDebug() << "UsbCapture::run(): Transfer stopping - waiting for disk buffer processing to complete...";
+    while (isDiskBufferProcessRunning) {
+        // Just waiting here for now
+    }
+
     // If the transfer failed, emit a notification signal to the parent object
     if (transferFailure) {
         qDebug() << "UsbCapture::run(): Transfer failed - emitting notification signal";
         emit transferFailed();
+    }
+
+    // Release the USB interface
+    qint32 releaseResult = libusb_release_interface(usbDeviceHandle, 0);
+    if (claimResult < 0) {
+        qDebug() << "UsbCapture::run(): USB interface release failed with error:" << libusb_error_name(releaseResult);
     }
 
     // Free the disk buffers
@@ -413,6 +438,7 @@ void UsbCapture::runDiskBuffers(void)
     }
 
     // Process the disk buffers until the transfer is complete or fails
+    isDiskBufferProcessRunning = true;
     while(!transferAbort && !transferFailure) {
         for (qint32 diskBufferNumber = 0; diskBufferNumber < NUMBEROFDISKBUFFERS; diskBufferNumber++) {
             if (isDiskBufferFull[diskBufferNumber]) {
@@ -437,6 +463,9 @@ void UsbCapture::runDiskBuffers(void)
 
     // Close the capture file
     outputFile.close();
+
+    // Flag that the thread is complete
+    isDiskBufferProcessRunning = false;
 
     qDebug() << "UsbCapture::runDiskBuffers(): Thread stopped";
 }

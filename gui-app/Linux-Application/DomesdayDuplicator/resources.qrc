@@ -1,5 +1,16 @@
 <RCC>
     <qresource prefix="/graphics/logo">
         <file alias="Domesday Duplicator logo">Graphics/Domesday Duplicator logo colour 250px.png</file>
+        <file>Graphics/Domesday Duplicator logo colour 150px.png</file>
+    </qresource>
+    <qresource prefix="/graphics/ApplicationIcon">
+        <file>Graphics/ApplicationIcon/DomesdayDuplicator_16x16.png</file>
+        <file>Graphics/ApplicationIcon/DomesdayDuplicator_24x24.png</file>
+        <file>Graphics/ApplicationIcon/DomesdayDuplicator_32x32.png</file>
+        <file>Graphics/ApplicationIcon/DomesdayDuplicator_48x48.png</file>
+        <file>Graphics/ApplicationIcon/DomesdayDuplicator_64x64.png</file>
+        <file>Graphics/ApplicationIcon/DomesdayDuplicator_128x128.png</file>
+        <file>Graphics/ApplicationIcon/DomesdayDuplicator_256x256.png</file>
+        <file>Graphics/ApplicationIcon/DomesdayDuplicator_300x300.png</file>
     </qresource>
 </RCC>
