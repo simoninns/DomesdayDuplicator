@@ -432,6 +432,7 @@ void MainWindow::startPlayerControl(void)
     PlayerCommunication::PlayerType playerType;
 
     // Get the configured serial speed
+    serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
     switch (configuration->getSerialSpeed()) {
     case Configuration::bps1200: serialSpeed = PlayerCommunication::SerialSpeed::bps1200;
         break;
@@ -444,6 +445,7 @@ void MainWindow::startPlayerControl(void)
     }
 
     // Get the configured player type
+    playerType = PlayerCommunication::PlayerType::unknownPlayerType;
     switch (configuration->getPlayerModel()) {
     case Configuration::PlayerModels::none: playerType = PlayerCommunication::PlayerType::unknownPlayerType;
         qDebug() << "MainWindow::startPlayerControl(): Player type is not configured in preferences";
