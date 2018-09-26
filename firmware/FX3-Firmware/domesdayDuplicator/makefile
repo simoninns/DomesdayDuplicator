@@ -63,7 +63,7 @@ clean:
 
 post-build:
 	-@echo 'Generate boot-loadable binary image'
-	-${FX3_INSTALL_PATH}/util/elf2img/elf2img -i domesdayDuplicator.elf -o domesdayDuplicator.img -v
+	-"${FX3_INSTALL_PATH}"/util/elf2img/elf2img -i domesdayDuplicator.elf -o domesdayDuplicator.img -v
 	-@echo ' '
 
 secondary-outputs:
