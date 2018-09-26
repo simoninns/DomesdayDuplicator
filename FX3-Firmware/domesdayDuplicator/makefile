@@ -54,7 +54,7 @@ domesdayDuplicator.elf: $(OBJS) $(USER_OBJS)
 	arm-none-eabi-gcc -mcpu=arm926ej-s -mthumb -O3 -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -Wall  -g -T "${FX3_INSTALL_PATH}/fw_build/fx3_fw/fx3.ld" -nostartfiles -Xlinker --gc-sections -L"${FX3_INSTALL_PATH}/fw_lib/1_3_3/fx3_release" -Wl,-Map,"domesdayDuplicator.map" -Wl,-d -Wl,--no-wchar-size-warning -Wl,--entry,CyU3PFirmwareEntry -o "domesdayDuplicator.elf" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
-	$(MAKE) --no-print-directory post-build
+	"$(MAKE)" --no-print-directory post-build
 
 # Other Targets
 clean:
@@ -63,7 +63,7 @@ clean:
 
 post-build:
 	-@echo 'Generate boot-loadable binary image'
-	-"${FX3_INSTALL_PATH}"/util/elf2img/elf2img -i domesdayDuplicator.elf -o domesdayDuplicator.img -v
+	-"${FX3_INSTALL_PATH}/util/elf2img/elf2img" -i domesdayDuplicator.elf -o domesdayDuplicator.img -v
 	-@echo ' '
 
 secondary-outputs:
