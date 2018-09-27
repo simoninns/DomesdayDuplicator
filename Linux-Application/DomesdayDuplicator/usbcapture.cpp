@@ -272,9 +272,14 @@ void UsbCapture::run(void)
     // Claim the required USB device interface for the transfer
     qint32 claimResult = libusb_claim_interface(usbDeviceHandle, 0);
     if (claimResult < 0) {
-        qDebug() << "UsbCapture::run(): USB interface claim failed with error:" << libusb_error_name(claimResult);
-        lastError = tr("Could not claim USB interface - LibUSB reports: ") + libusb_error_name(claimResult);
+        qDebug() << "UsbCapture::run(): USB interface claim failed (connected via USB2?) with error:" << libusb_error_name(claimResult);
+        lastError = tr("Could not claim USB interface - Ensure the Duplicator is plugged into a USB3 port - LibUSB reports: ") + libusb_error_name(claimResult);
         transferFailure = true;
+
+        // We can't continue... clean-up and give up
+        emit transferFailed();
+        freeDiskBuffers();
+        return;
     }
 
     // Set up the initial transfers
@@ -355,7 +360,7 @@ void UsbCapture::run(void)
 
     // Release the USB interface
     qint32 releaseResult = libusb_release_interface(usbDeviceHandle, 0);
-    if (claimResult < 0) {
+    if (releaseResult < 0) {
         qDebug() << "UsbCapture::run(): USB interface release failed with error:" << libusb_error_name(releaseResult);
     }
 

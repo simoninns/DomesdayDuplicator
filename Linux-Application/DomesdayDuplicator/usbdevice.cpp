@@ -315,6 +315,16 @@ bool UsbDevice::sendVendorSpecificCommand(quint8 command, quint16 value)
 
     // Did we get a valid device handle?
     if (usbDeviceHandle != nullptr) {
+        // Claim the required USB device interface for the transfer
+        qint32 claimResult = libusb_claim_interface(usbDeviceHandle, 0);
+        if (claimResult < 0) {
+            qDebug() << "UsbDevice::sendVendorSpecificCommand(): USB interface claim failed (connected via USB2?) with error:" << libusb_error_name(claimResult);
+
+            // We can't continue... clean-up and give up
+            close();
+            return false;
+        }
+
         // Perform a control transfer of type 0x40 (vendor specific command with no data packets)
         responseCode = libusb_control_transfer(usbDeviceHandle, 0x40,
                                                command, value,
@@ -325,6 +335,12 @@ bool UsbDevice::sendVendorSpecificCommand(quint8 command, quint16 value)
         }
     } else {
         qDebug() << "UsbDevice::sendVendorSpecificCommand(): Failed to open USB device";
+    }
+
+    // Release the USB interface
+    qint32 releaseResult = libusb_release_interface(usbDeviceHandle, 0);
+    if (releaseResult < 0) {
+        qDebug() << "UsbDevice::sendVendorSpecificCommand(): USB interface release failed with error:" << libusb_error_name(releaseResult);
     }
 
     // Close the USB device
