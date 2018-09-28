@@ -205,6 +205,12 @@ void UsbDevice::run(void)
     qDebug() << "UsbDevice::run(): libUSB event poll thread stopped";
 }
 
+void UsbDevice::stop(void)
+{
+    qDebug() << "UsbDevice::stop(): Stopping usbDevice thread";
+    threadAbort = true;
+}
+
 // Scan for the target USB device (detects device and emits signal)
 bool UsbDevice::scanForDevice(void)
 {
@@ -246,6 +252,18 @@ void UsbDevice::sendConfigurationCommand(bool testMode)
     // Bit 4: Unused
 
     sendVendorSpecificCommand(0xB6, configurationFlags);
+}
+
+// Send a start/stop capture command to the USB device
+void UsbDevice::sendCaptureStartStopCommand(bool startFlag)
+{
+    if (startFlag) {
+        qDebug() << "UsbDevice::sendCaptureStartStopCommand(): Sending start capture USB vendor specific command";
+        sendVendorSpecificCommand(0xB5, 1);
+    } else {
+        qDebug() << "UsbDevice::sendCaptureStartStopCommand(): Sending stop capture USB vendor specific command";
+        sendVendorSpecificCommand(0xB5, 0);
+    }
 }
 
 // Open the USB device
@@ -354,10 +372,6 @@ void UsbDevice::startCapture(QString filename, bool isCaptureFormat10Bit)
 {
     qDebug() << "UsbDevice::startCapture(): Starting capture";
 
-    // Send the start capture command to the USB device
-    qDebug() << "UsbDevice::startCapture(): Sending start capture USB vendor specific command";
-    sendVendorSpecificCommand(0xB5, 1);
-
     // Open the USB device
     qDebug() << "UsbDevice::startCapture(): Opening the capture device";
     open();
@@ -383,9 +397,6 @@ void UsbDevice::stopCapture(void)
 {
      // Stop the capture (closes the USB device)
     usbCapture->stopTransfer();
-
-    // Send the stop capture command to the USB device
-    sendVendorSpecificCommand(0xB5, 0);
 
     // Destroy the capture object
     usbCapture->deleteLater();

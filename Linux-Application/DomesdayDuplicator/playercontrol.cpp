@@ -182,8 +182,8 @@ void PlayerControl::run()
             // Sleep the thread for 100uS
             this->usleep(100);
         } else {
-            // Sleep the thread for 1 second
-            this->msleep(1000);
+            // Sleep the thread for 0.2 seconds
+            this->msleep(200);
         }
     }
 
@@ -191,6 +191,12 @@ void PlayerControl::run()
     if (isPlayerConnected) playerCommunication->disconnect();
     isPlayerConnected = false;
     emit playerDisconnected();
+}
+
+void PlayerControl::stop(void)
+{
+    qDebug() << "PlayerControl::stop(): Stopping player control thread";
+    abort = true;
 }
 
 // Returns a string that indicates the player's status

@@ -127,7 +127,24 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    qDebug() << "MainWindow::~MainWindow(): Quitting...";
+
+    // Ask the threads to stop
+    if (playerControl->isRunning()) playerControl->stop();
+    if (usbDevice->isRunning()) usbDevice->stop();
+
+    // Schedule the objects for deletion
+    playerControl->deleteLater();
+    usbDevice->deleteLater();
+
+    // Wait for the objects to be deleted
+    playerControl->wait();
+    usbDevice->wait();
+
+    // Delete the UI
     delete ui;
+
+    qDebug() << "MainWindow::~MainWindow(): Done";
 }
 
 // Signal handlers ----------------------------------------------------------------------------------------------------
@@ -568,6 +585,10 @@ void MainWindow::on_capturePushButton_clicked()
         else captureFilename += ".raw";
 
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting capture to file:" << captureFilename;
+
+        // Send the start capture command to the USB device
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Sending start capture command to USB device";
+        usbDevice->sendCaptureStartStopCommand(true);
 
         updateGuiForCaptureStart();
         isCaptureRunning = true;
