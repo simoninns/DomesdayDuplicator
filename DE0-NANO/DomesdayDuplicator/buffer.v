@@ -28,7 +28,6 @@ module buffer (
 	input nReset,
 	input writeClock,
 	input readClock,
-	input isWriting,
 	input isReading,
 	input [9:0] dataIn,
 	
@@ -125,8 +124,8 @@ assign pingReadRequest = currentWriteBuffer ? isReading : 1'b0;
 assign pongReadRequest = currentWriteBuffer ? 1'b0 : isReading;
 
 // if current write buffer = ping then write to ping else write to pong
-assign pingWriteRequest = currentWriteBuffer ? 1'b0 : isWriting;
-assign pongWriteRequest = currentWriteBuffer ? isWriting : 1'b0;
+assign pingWriteRequest = currentWriteBuffer ? 1'b0 : 1'b1;
+assign pongWriteRequest = currentWriteBuffer ? 1'b1 : 1'b0;
 
 // Define registers for the async clear flags and map to registers
 // Note: the async clear flag can cause the empty flag to glitch when

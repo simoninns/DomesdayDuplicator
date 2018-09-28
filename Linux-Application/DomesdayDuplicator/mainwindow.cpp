@@ -96,6 +96,9 @@ MainWindow::MainWindow(QWidget *parent) :
     // Disable the capture button
     ui->capturePushButton->setEnabled(false);
 
+    // Disable the test mode option
+    ui->actionTest_mode->setEnabled(false);
+
     // Set up a timer for timing the capture duration
     captureDurationTimer = new QTimer(this);
     connect(captureDurationTimer, SIGNAL(timeout()), this, SLOT(updateCaptureDuration()));
@@ -127,7 +130,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
-    qDebug() << "MainWindow::~MainWindow(): Quitting...";
+    qDebug() << "MainWindow::~MainWindow(): Quit selected; asking threads to stop...";
 
     // Ask the threads to stop
     if (playerControl->isRunning()) playerControl->stop();
@@ -144,7 +147,7 @@ MainWindow::~MainWindow()
     // Delete the UI
     delete ui;
 
-    qDebug() << "MainWindow::~MainWindow(): Done";
+    qDebug() << "MainWindow::~MainWindow(): All threads stopped; done.";
 }
 
 // Signal handlers ----------------------------------------------------------------------------------------------------
@@ -162,6 +165,9 @@ void MainWindow::deviceAttachedSignalHandler(void)
 
     // Enable the capture button
     ui->capturePushButton->setEnabled(true);
+
+    // Enable the test mode option
+    ui->actionTest_mode->setEnabled(true);
 }
 
 // USB device detached signal handler
@@ -174,6 +180,9 @@ void MainWindow::deviceDetachedSignalHandler(void)
 
     // Disable the capture button
     ui->capturePushButton->setEnabled(false);
+
+    // Disable the test mode option
+    ui->actionTest_mode->setEnabled(false);
 }
 
 // Configuration changed signal handler
@@ -585,11 +594,6 @@ void MainWindow::on_capturePushButton_clicked()
         else captureFilename += ".raw";
 
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting capture to file:" << captureFilename;
-
-        // Send the start capture command to the USB device
-        qDebug() << "MainWindow::on_capturePushButton_clicked(): Sending start capture command to USB device";
-        usbDevice->sendCaptureStartStopCommand(true);
-
         updateGuiForCaptureStart();
         isCaptureRunning = true;
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer";
