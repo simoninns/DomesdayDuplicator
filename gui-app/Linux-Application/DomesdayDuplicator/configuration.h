@@ -83,6 +83,8 @@ public:
     PlayerModels getPlayerModel(void);
     void setSerialDevice(QString serialDevice);
     QString getSerialDevice(void);
+    void setKeyLock(bool keyLock);
+    bool getKeyLock(void);
 
 signals:
 
@@ -107,6 +109,7 @@ private:
         QString serialDevice;
         SerialSpeeds serialSpeed;
         PlayerModels playerModel;
+        bool keyLock;
     };
 
     struct Settings {
