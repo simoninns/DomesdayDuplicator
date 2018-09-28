@@ -385,7 +385,8 @@ void MainWindow::startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog
     // Start the automatic capture
     playerControl->startAutomaticCapture(fromLeadIn, wholeDisc,
                                          startAddress, endAddress,
-                                         discType);
+                                         discType,
+                                         configuration->getKeyLock());
 }
 
 // Automatic capture dialogue signals that capture should stop

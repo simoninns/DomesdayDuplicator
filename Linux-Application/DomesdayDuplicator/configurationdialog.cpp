@@ -130,6 +130,9 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
         ui->playerModelComboBox->setCurrentIndex(2);
         break;
     }
+
+    // Keylock flag
+    ui->keyLockCheckBox->setChecked(configuration->getKeyLock());
 }
 
 // Save the configuration settings from the UI widgets
@@ -171,6 +174,10 @@ void ConfigurationDialog::saveConfiguration(Configuration *configuration)
         case 2: configuration->setPlayerModel(Configuration::PlayerModels::pioneerCLDV2800);
         break;
     }
+
+    // KeyLock
+    if (ui->keyLockCheckBox->isChecked()) configuration->setKeyLock(true);
+    else configuration->setKeyLock(false);
 
     // Save the configuration to disk
     configuration->writeConfiguration();

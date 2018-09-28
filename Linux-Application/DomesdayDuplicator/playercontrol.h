@@ -91,7 +91,7 @@ public:
 
     void startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
                                      qint32 startAddress, qint32 endAddress,
-                                     PlayerCommunication::DiscType discType);
+                                     PlayerCommunication::DiscType discType, bool keyLock);
     void stopAutomaticCapture(void);
     QString getAutomaticCaptureStatus(void);
     QString getAutomaticCaptureError(void);
@@ -137,6 +137,7 @@ private:
     PlayerCommunication::DiscType acDiscType;
     bool acCaptureFromLeadIn;
     bool acCaptureWholeDisc;
+    bool acKeyLock;
 
     // Automatic capture state-machine
     enum AcStates {

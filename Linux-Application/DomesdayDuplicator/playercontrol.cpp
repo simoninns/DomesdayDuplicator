@@ -680,7 +680,8 @@ void PlayerControl::setSpeed(qint32 speed)
 // Public method to start an automatic capture
 void PlayerControl::startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
                                  qint32 startAddress, qint32 endAddress,
-                                 PlayerCommunication::DiscType discType)
+                                 PlayerCommunication::DiscType discType,
+                                 bool keyLock)
 {
     // Check if automatic capture is already running
     if (acInProgress) {
@@ -699,6 +700,7 @@ void PlayerControl::startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
     acCaptureFromLeadIn = fromLeadIn;
     acCaptureWholeDisc = wholeDisc;
     acDiscType = discType;
+    acKeyLock = keyLock;
 
     // Set default state
     acCurrentState = ac_start_state;
@@ -709,7 +711,8 @@ void PlayerControl::startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
                 "- wholeDisc =" << acCaptureWholeDisc <<
                 "- startAddress =" << acStartAddress <<
                 "- endAddress =" << acEndAddress <<
-                "- discType =" << acDiscType;
+                "- discType =" << acDiscType <<
+                "- keyLock =" << acKeyLock;
 }
 
 // Public method to stop an automatic capture
@@ -785,6 +788,9 @@ PlayerControl::AcStates PlayerControl::acStateStart(void)
         nextState = ac_cancelled_state;
         return nextState;
     }
+
+    // Switch on key-lock if required
+    if (acKeyLock) playerCommunication->setKeyLock(PlayerCommunication::KeyLockState::locked);
 
     // Determine the current player state
     switch (playerState) {
@@ -1124,6 +1130,9 @@ PlayerControl::AcStates PlayerControl::acStateFinished(void)
     acStatus = tr("Finished");
     qDebug() << "PlayerControl::acStateFinished(): Auto-capture complete";
 
+    // Switch off key-lock if required
+    if (acKeyLock) playerCommunication->setKeyLock(PlayerCommunication::KeyLockState::unlocked);
+
     // Cancel the capture
     acInProgress = false;
 
@@ -1142,6 +1151,9 @@ PlayerControl::AcStates PlayerControl::acStateCancelled(void)
     // Show the current state in the status
     acStatus = tr("Cancelled");
     qDebug() << "PlayerControl::acStateFinished(): Auto-capture cancelled";
+
+    // Switch off key-lock if required
+    if (acKeyLock) playerCommunication->setKeyLock(PlayerCommunication::KeyLockState::unlocked);
 
     // Cancel the capture
     emit stopCapture();
@@ -1166,6 +1178,9 @@ PlayerControl::AcStates PlayerControl::acStateError(void)
     // Show the current state in the status
     acStatus = tr("Error");
     qDebug() << "PlayerControl::acStateFinished(): Auto-capture ended in error";
+
+    // Switch off key-lock if required
+    if (acKeyLock) playerCommunication->setKeyLock(PlayerCommunication::KeyLockState::unlocked);
 
     // Cancel the capture
     acInProgress = false;
