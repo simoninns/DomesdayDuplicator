@@ -79,6 +79,7 @@ private slots:
     void updatePlayerControlInformation(void);
     void transferFailedSignalHandler(void);
     void updateCaptureDuration(void);
+    void updateStorageInformation(void);
 
     void on_actionExit_triggered();
     void on_actionTest_mode_toggled(bool arg1);
@@ -94,6 +95,7 @@ private:
     Configuration *configuration;
     UsbDevice *usbDevice;
     QLabel *usbStatusLabel;
+    QStorageInfo *storageInfo;
 
     Ui::MainWindow *ui;
     AboutDialog *aboutDialog;
@@ -109,6 +111,7 @@ private:
     QTimer *automaticCaptureTimer;
     QTimer *captureDurationTimer;
     QTime captureElapsedTime;
+    QTimer *storageInfoTimer;
 
     // Remote control states
     PlayerCommunication::DisplayState remoteDisplayState;

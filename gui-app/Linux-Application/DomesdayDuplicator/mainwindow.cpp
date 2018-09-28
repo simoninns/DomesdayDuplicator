@@ -126,6 +126,15 @@ MainWindow::MainWindow(QWidget *parent) :
     remoteSpeed = 4;
     remoteChapterFrameMode = PlayerCommunication::ChapterFrameMode::chapter;
     updatePlayerRemoteDialog();
+
+    // Storage space information
+    storageInfo = new QStorageInfo();
+    storageInfo->setPath(configuration->getCaptureDirectory());
+
+    // Storage information update timer
+    storageInfoTimer = new QTimer(this);
+    connect(storageInfoTimer, SIGNAL(timeout()), this, SLOT(updateStorageInformation()));
+    storageInfoTimer->start(200); // Update 5 times per second
 }
 
 MainWindow::~MainWindow()
@@ -195,6 +204,9 @@ void MainWindow::configurationChangedSignalHandler(void)
 
     // Restart the player control
     startPlayerControl();
+
+    // Update the target directory for the storage information
+    storageInfo->setPath(configuration->getCaptureDirectory());
 }
 
 // Remote control command signal handler
@@ -482,6 +494,25 @@ void MainWindow::updatePlayerControlInformation(void)
         // Disc type unknown
         ui->playerPositionLabel->setText(tr("Unknown"));
     }
+}
+
+// Update the storage information labels
+void MainWindow::updateStorageInformation(void)
+{
+    storageInfo->refresh();
+    qint64 availableMiBs = storageInfo->bytesAvailable() / 1024 / 1024;
+
+    qint64 availableSeconds = 0;
+
+    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) {
+        availableSeconds = availableMiBs / 64;
+    } else {
+        availableSeconds = availableMiBs / 40;
+    }
+
+    // Print the time available (be non-specific if > 24 hours)
+    if (availableSeconds > 84600) ui->spaceAvailableLabel->setText("More than 24 hours");
+    else ui->spaceAvailableLabel->setText(QTime(0, 0, 0, 0).addSecs(static_cast<qint32>(availableSeconds)).toString("hh:mm:ss"));
 }
 
 void MainWindow::startPlayerControl(void)
