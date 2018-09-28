@@ -47,7 +47,6 @@ public:
 
     bool scanForDevice(void);
     void sendConfigurationCommand(bool testMode);
-    void sendCaptureStartStopCommand(bool startFlag);
 
     void startCapture(QString filename, bool isCaptureFormat10Bit);
     void stopCapture(void);

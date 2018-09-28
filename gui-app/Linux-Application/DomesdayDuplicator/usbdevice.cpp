@@ -254,18 +254,6 @@ void UsbDevice::sendConfigurationCommand(bool testMode)
     sendVendorSpecificCommand(0xB6, configurationFlags);
 }
 
-// Send a start/stop capture command to the USB device
-void UsbDevice::sendCaptureStartStopCommand(bool startFlag)
-{
-    if (startFlag) {
-        qDebug() << "UsbDevice::sendCaptureStartStopCommand(): Sending start capture USB vendor specific command";
-        sendVendorSpecificCommand(0xB5, 1);
-    } else {
-        qDebug() << "UsbDevice::sendCaptureStartStopCommand(): Sending stop capture USB vendor specific command";
-        sendVendorSpecificCommand(0xB5, 0);
-    }
-}
-
 // Open the USB device
 bool UsbDevice::open(void)
 {
