@@ -43,8 +43,11 @@ public:
     explicit UsbDevice(QObject *parent = nullptr, quint16 vid = 0x1D50, quint16 pid = 0x603B);
     ~UsbDevice() override;
 
+    void stop(void);
+
     bool scanForDevice(void);
     void sendConfigurationCommand(bool testMode);
+    void sendCaptureStartStopCommand(bool startFlag);
 
     void startCapture(QString filename, bool isCaptureFormat10Bit);
     void stopCapture(void);

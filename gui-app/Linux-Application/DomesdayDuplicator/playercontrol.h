@@ -46,6 +46,7 @@ public:
     explicit PlayerControl(QObject *parent = nullptr);
     ~PlayerControl() override;
 
+    void stop(void);
     void configurePlayerCommunication(
             QString serialDevice,
             PlayerCommunication::SerialSpeed serialSpeed,

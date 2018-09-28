@@ -106,42 +106,37 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
 
     //qDebug() << "PlayerCommunication::connect(): Serial port opened successfully";
 
-    // Attempt 5 times to connect to the player
-    for (qint32 connectionAttempts = 0; connectionAttempts < 5; connectionAttempts++) {
-        // Pioneer LD-V4300D connected?
-        if (playerType == PlayerType::pioneerLDV4300D) {
-            sendSerialCommand("?X\r");
-            QString response = getSerialResponse(N_TIMEOUT);
+    // Pioneer LD-V4300D connected?
+    if (playerType == PlayerType::pioneerLDV4300D) {
+        sendSerialCommand("?X\r");
+        QString response = getSerialResponse(N_TIMEOUT);
 
-            if (response.isEmpty()) {
-                //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer LD-V4300D!";
-            }
-
-            if (!response.contains("P1515")) {
-                //qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
-            } else {
-                qDebug() << "PlayerCommunication::connect(): Pioneer LD-V4300D connected";
-                connectionSuccessful = true;
-                break;
-            }
+        if (response.isEmpty()) {
+            //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer LD-V4300D!";
         }
 
-        // Pioneer CLD-V2800 connected?
-        if (playerType == PlayerType::pioneerCLDV2800) {
-            sendSerialCommand("?X\r");
-            QString response = getSerialResponse(N_TIMEOUT);
+        if (!response.contains("P1515")) {
+            //qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
+        } else {
+            qDebug() << "PlayerCommunication::connect(): Pioneer LD-V4300D connected";
+            connectionSuccessful = true;
+        }
+    }
 
-            if (response.isEmpty()) {
-                //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer CLD-V2800!";
-            }
+    // Pioneer CLD-V2800 connected?
+    if (playerType == PlayerType::pioneerCLDV2800) {
+        sendSerialCommand("?X\r");
+        QString response = getSerialResponse(N_TIMEOUT);
 
-            if (!response.contains("P1537")) {
-                //qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
-            } else {
-                qDebug() << "PlayerCommunication::connect(): Pioneer CLD-V2800 connected";
-                connectionSuccessful = true;
-                break;
-            }
+        if (response.isEmpty()) {
+            //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer CLD-V2800!";
+        }
+
+        if (!response.contains("P1537")) {
+            //qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
+        } else {
+            qDebug() << "PlayerCommunication::connect(): Pioneer CLD-V2800 connected";
+            connectionSuccessful = true;
         }
     }
 
@@ -158,7 +153,7 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
 // Disconnect from a LaserDisc player
 void PlayerCommunication::disconnect(void)
 {
-    qDebug() << "PlayerCommunication::connect(): Disconnecting from player";
+    qDebug() << "PlayerCommunication::disconnect(): Disconnecting from serial port";
     serialPort->close();
 }
 
