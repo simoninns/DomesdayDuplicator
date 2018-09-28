@@ -75,6 +75,7 @@ void Configuration::writeConfiguration(void)
     configuration->setValue("serialDevice", settings.pic.serialDevice);
     configuration->setValue("serialSpeed", convertSerialSpeedsToInt(settings.pic.serialSpeed));
     configuration->setValue("playerModel", convertPlayerModelsToInt(settings.pic.playerModel));
+    configuration->setValue("keyLock", settings.pic.keyLock);
     configuration->endGroup();
 
     // Sync the settings with disk
@@ -105,6 +106,7 @@ void Configuration::readConfiguration(void)
     settings.pic.serialDevice = configuration->value("serialDevice").toString();
     settings.pic.serialSpeed = convertIntToSerialSpeeds(configuration->value("serialSpeed").toInt());
     settings.pic.playerModel = convertIntToPlayerModels(configuration->value("playerModel").toInt());
+    settings.pic.keyLock = configuration->value("keyLock").toBool();
     configuration->endGroup();
 }
 
@@ -125,6 +127,7 @@ void Configuration::setDefault(void)
     settings.pic.serialDevice = tr("");
     settings.pic.serialSpeed = SerialSpeeds::bps9600;
     settings.pic.playerModel = PlayerModels::none;
+    settings.pic.keyLock = false;
 
     // Write the configuration
     writeConfiguration();
@@ -270,4 +273,14 @@ void Configuration::setSerialDevice(QString serialDevice)
 QString Configuration::getSerialDevice(void)
 {
     return settings.pic.serialDevice;
+}
+
+void Configuration::setKeyLock(bool keyLock)
+{
+    settings.pic.keyLock = keyLock;
+}
+
+bool Configuration::getKeyLock(void)
+{
+    return settings.pic.keyLock;
 }
