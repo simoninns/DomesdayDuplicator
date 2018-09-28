@@ -152,7 +152,7 @@ assign GPIO1[33] = 1'bZ;
 // Databus				GPIO0:15					Output	- Databus
 // dataAvailable		GPIO_17		CTL_00	Output	- FPGA signals if data is available for reading
 // nReset				GPIO_27		CTL_10	Input		- FX3 signals (not) reset condition
-// collectData			GPIO_19		CTL_02	Input		- FX3 signals data collection on/off
+// collectData			GPIO_19		CTL_02	Input		- Unused
 // readData				GPIO_18		CTL_01	Input		- FX3 signals it is reading from the databus
 
 // input0				GPIO_20		CTL_03	Output	- Buffer error flag from FPGA
@@ -169,7 +169,6 @@ assign GPIO1[33] = 1'bZ;
 // Wire definitions for FX3 GPIO mapping
 wire fx3_nReset;
 wire fx3_dataAvailable;
-wire fx3_collectData;
 wire fx3_readData;
 wire fx3_bufferError;
 wire fx3_testMode;
@@ -185,7 +184,7 @@ assign fx3_control[12]	= 1'b0;
 
 // Signal inputs from FX3
 assign fx3_nReset      = fx3_control[10];
-assign fx3_collectData = fx3_control[02];
+//assign fx3_unused = fx3_control[02];
 assign fx3_readData    = fx3_control[01];
 
 // Signal inputs from FX3 (configuration bits)
@@ -258,7 +257,6 @@ buffer buffer0 (
 	.nReset(fx3_nReset),						// Not reset
 	.writeClock(adc_clock),					// ADC clock
 	.readClock(fx3_clock),					// FX3 clock
-	.isWriting(fx3_collectData),			// Collect data (ADC data is discarded if 0)
 	.isReading(fx3_isReading),				// 1 = FX3 is reading data
 	.dataIn(dataGeneratorOut),				// 10-bit ADC data bus input
 	
