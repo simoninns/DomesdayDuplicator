@@ -52,6 +52,9 @@ struct transferUserDataStruct {
     qint32 diskBufferNumber;            // The current target disk buffer number (0-3)
 };
 
+// Flag to indicate if disk buffer processing is running
+static volatile bool isDiskBufferProcessRunning;
+
 // Global to monitor the number of in-flight transfers
 static volatile qint32 transfersInFlight = 0;
 
@@ -306,20 +309,23 @@ void UsbCapture::run(void)
         }
     }
 
-    // Submit the transfers via libUSB
-    qDebug() << "UsbCapture::run(): Submitting the transfers";
-    for (qint32 currentTransferNumber = 0; currentTransferNumber < SIMULTANEOUSTRANSFERS; currentTransferNumber++) {
-        qint32 resultCode = libusb_submit_transfer(usbTransfers[currentTransferNumber]);
+    if (!transferFailure) {
+        // Submit the transfers via libUSB
+        qDebug() << "UsbCapture::run(): Submitting the transfers";
+        for (qint32 currentTransferNumber = 0; currentTransferNumber < SIMULTANEOUSTRANSFERS; currentTransferNumber++) {
+            qint32 resultCode = libusb_submit_transfer(usbTransfers[currentTransferNumber]);
 
-        if (resultCode >= 0) {
-            transfersInFlight++;
-        } else {
-            qDebug() << "UsbCapture::run(): Transfer launch" << currentTransferNumber << "failed with error:" << libusb_error_name(resultCode);
-            lastError = tr("Could not launch USB transfer processes - LibUSB reports: ") + libusb_error_name(resultCode);
-            transferFailure = true;
+            if (resultCode >= 0) {
+                transfersInFlight++;
+            } else {
+                qDebug() << "UsbCapture::run(): Transfer launch" << currentTransferNumber << "failed with error:" << libusb_error_name(resultCode);
+                lastError = tr("Could not launch USB transfer processes - LibUSB reports: ") + libusb_error_name(resultCode);
+                transferFailure = true;
+            }
+
+            qDebug() << "UsbCapture::run():" << transfersInFlight << "simultaneous transfers launched.";
         }
     }
-    qDebug() << "UsbCapture::run():" << transfersInFlight << "simultaneous transfers launched.";
 
     // Use a 1 second timeout for the libusb_handle_events_timeout call
     struct timeval libusbHandleTimeout;
@@ -333,7 +339,8 @@ void UsbCapture::run(void)
     }
 
     // Aborting transfer - wait for in-flight transfers to complete
-    qDebug() << "UsbCapture::run(): Transfer stopping - waiting for in-flight transfers to complete...";
+    if (!transferFailure) qDebug() << "UsbCapture::run(): Transfer stopping - waiting for in-flight transfers to complete...";
+    else qDebug() << "UsbCapture::run(): Transfer failing - waiting for in-flight transfers to complete...";
     transferAbort = true;
 
     while(transfersInFlight > 0) {
@@ -447,7 +454,7 @@ void UsbCapture::runDiskBuffers(void)
     isDiskBufferProcessRunning = true;
     while(!transferAbort && !transferFailure) {
         for (qint32 diskBufferNumber = 0; diskBufferNumber < NUMBEROFDISKBUFFERS; diskBufferNumber++) {
-            if (isDiskBufferFull[diskBufferNumber]) {
+            if (isDiskBufferFull[diskBufferNumber] && !transferFailure) {
                 // Write the buffer
                 //qDebug() << "UsbCapture::runDiskBuffers(): Disk buffer" << diskBufferNumber << "processing...";
                 writeBufferToDisk(&outputFile, diskBufferNumber, false);
