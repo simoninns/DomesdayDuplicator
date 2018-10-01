@@ -500,19 +500,30 @@ void MainWindow::updatePlayerControlInformation(void)
 void MainWindow::updateStorageInformation(void)
 {
     storageInfo->refresh();
-    qint64 availableMiBs = storageInfo->bytesAvailable() / 1024 / 1024;
+    if (storageInfo->isValid()) {
+        qint64 availableMiBs = storageInfo->bytesAvailable() / 1024 / 1024;
 
-    qint64 availableSeconds = 0;
+        qint64 availableSeconds = 0;
 
-    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) {
-        availableSeconds = availableMiBs / 64;
+        if (availableMiBs != 0) {
+            if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) {
+                availableSeconds = availableMiBs / 64;
+            } else {
+                availableSeconds = availableMiBs / 40;
+            }
+
+            // Print the time available (be non-specific if > 24 hours)
+            if (availableSeconds > 84600) ui->spaceAvailableLabel->setText("More than 24 hours");
+            else ui->spaceAvailableLabel->setText(QTime(0, 0, 0, 0).addSecs(static_cast<qint32>(availableSeconds)).toString("hh:mm:ss"));
+        } else {
+            // Unable to get storage info
+            ui->spaceAvailableLabel->setText(tr("Unknown"));
+        }
     } else {
-        availableSeconds = availableMiBs / 40;
+        // Unable to get storage info
+        ui->spaceAvailableLabel->setText(tr("Unknown"));
     }
 
-    // Print the time available (be non-specific if > 24 hours)
-    if (availableSeconds > 84600) ui->spaceAvailableLabel->setText("More than 24 hours");
-    else ui->spaceAvailableLabel->setText(QTime(0, 0, 0, 0).addSecs(static_cast<qint32>(availableSeconds)).toString("hh:mm:ss"));
 }
 
 void MainWindow::startPlayerControl(void)
