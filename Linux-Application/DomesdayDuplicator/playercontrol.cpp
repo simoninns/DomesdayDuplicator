@@ -1082,13 +1082,15 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
         if (acLastSeenAddress > currentAddress) {
             // Somehow the player has gone backwards; probably due to restarting playing after
             // reaching the end of a disc
-            qDebug() << "PlayerControl::acStateWaitForEndAddress(): The disc address has stepped backwards - is auto-replay on? Stopping capture";
+            qDebug() << "PlayerControl::acStateWaitForEndAddress(): Error - The CAV disc address has stepped backwards: Last address =" << acLastSeenAddress <<
+                        "current addres =" << currentAddress << "- is auto-replay on? Stopping capture";
+            acErrorMessage = tr("CAV disc frames were not sequential - it is likely the player skipped during playback.");
             emit stopCapture();
 
             // Still-frame the player
             playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
 
-            nextState = ac_finished_state;
+            nextState = ac_error_state;
         }
         acLastSeenAddress = currentAddress;
     } else {
@@ -1106,13 +1108,15 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
         if (acLastSeenAddress > currentAddress) {
             // Somehow the player has gone backwards; probably due to restarting playing after
             // reaching the end of a disc
-            qDebug() << "PlayerControl::acStateWaitForEndAddress(): The disc address has stepped backwards - is auto-replay on? Stopping capture";
+            qDebug() << "PlayerControl::acStateWaitForEndAddress(): Error - The CLV disc address has stepped backwards: Last address =" << acLastSeenAddress <<
+                        "current addres =" << currentAddress << "- is auto-replay on? Stopping capture";
+            acErrorMessage = tr("CLV disc frames were not sequential - it is likely the player skipped during playback.");
             emit stopCapture();
 
             // Still-frame the player
             playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
 
-            nextState = ac_finished_state;
+            nextState = ac_error_state;
         }
         acLastSeenAddress = currentAddress;
     }
