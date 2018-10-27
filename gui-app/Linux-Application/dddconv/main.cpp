@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
     // Get the configured settings from the parser
     bool isDebugOn = parser.isSet(showDebugOption);
     bool isUnpacking = parser.isSet(showUnpackOption);
-    bool isPacking = parser.isSet(showUnpackOption);
+    bool isPacking = parser.isSet(showPackOption);
     QString inputFileName = parser.value(sourceVideoFileOption);
     QString outputFileName = parser.value(targetVideoFileOption);
 
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
     }
 
     // Initialise the data conversion object
-    DataConversion dataConversion(inputFileName, outputFileName, modeUnpack);
+    DataConversion dataConversion(inputFileName, outputFileName, !modeUnpack);
 
     // Process the data conversion
     dataConversion.process();
