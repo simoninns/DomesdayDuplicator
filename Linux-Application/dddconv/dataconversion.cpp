@@ -121,11 +121,151 @@ void DataConversion::closeOutputFile(void)
 // Method to pack 16-bit data into 10-bit data
 void DataConversion::packFile(void)
 {
+    qDebug() << "DataConversion::packFile(): Packing";
+    QVector<qint16> inputBuffer;
+    QByteArray outputBuffer;
+    bool isComplete = false;
 
+    while(!isComplete) {
+        // Input buffer must be divisible by 5 bytes due to 10-bit data format
+        qint32 bufferSizeInBytes = (20 * 1024 * 1024); // = 20MiBytes
+        inputBuffer.resize(bufferSizeInBytes / 2);
+
+        // Every 4 input words (8 bytes) is 5 output bytes
+        outputBuffer.resize((bufferSizeInBytes / 8) * 5);
+
+        // Fill the input buffer with data
+        qint64 receivedBytes = 0;
+        qint64 totalReceivedBytes = 0;
+        do {
+            receivedBytes = inputFileHandle->read(reinterpret_cast<char *>(inputBuffer.data() + (totalReceivedBytes / 2)), bufferSizeInBytes);
+            if (receivedBytes > 0) totalReceivedBytes += receivedBytes;
+        } while (receivedBytes != 0 && totalReceivedBytes < bufferSizeInBytes);
+
+        // Check for end of file
+        if (receivedBytes == 0) isComplete = true;
+
+        if (totalReceivedBytes != 0) {
+            // If we didn't fill the input buffer, resize it
+            if (bufferSizeInBytes != totalReceivedBytes) {
+                inputBuffer.resize(static_cast<qint32>(totalReceivedBytes / 2));
+                outputBuffer.resize((static_cast<qint32>(totalReceivedBytes) / 8) * 5);
+            }
+            qDebug() << "DataConversion::packFile(): Got" << inputBuffer.size() << "bytes from input file";
+
+            qint32 word0, word1, word2, word3;
+            qint32 outputBufferPointer = 0;
+            for (qint32 wordPointer = 0; wordPointer < inputBuffer.size(); wordPointer += 4) {
+
+                word0 = (inputBuffer[wordPointer + 0] / 64) + 512;
+                word1 = (inputBuffer[wordPointer + 1] / 64) + 512;
+                word2 = (inputBuffer[wordPointer + 2] / 64) + 512;
+                word3 = (inputBuffer[wordPointer + 3] / 64) + 512;
+
+                outputBuffer[outputBufferPointer + 0]  = static_cast<char>((word0 & 0x03FC) >> 2);
+                outputBuffer[outputBufferPointer + 1]  = static_cast<char>(((word0 & 0x0003) << 6) + ((word1 & 0x03F0) >> 4));
+                outputBuffer[outputBufferPointer + 2]  = static_cast<char>(((word1 & 0x000F) << 4) + ((word2 & 0x03C0) >> 6));
+                outputBuffer[outputBufferPointer + 3]  = static_cast<char>(((word2 & 0x003F) << 2) + ((word3 & 0x0300) >> 8));
+                outputBuffer[outputBufferPointer + 4]  = static_cast<char>(word3 & 0x00FF);
+
+                // Increment the packed sample buffer pointer
+                outputBufferPointer += 5;
+            }
+
+            // Write the output buffer to the output file
+            if (!outputFileHandle->write(reinterpret_cast<char *>(outputBuffer.data()),
+                                         outputBuffer.size())) {
+                // File write failed
+                qCritical("Could not write to output file!");
+            }
+            qDebug() << "DataConversion::packFile(): Wrote" << outputBuffer.size() * 2 << "bytes to output file";
+        } else {
+            // Input file is empty
+            qDebug() << "DataConversion::packFile(): Got zero bytes from input file";
+            isComplete = true;
+        }
+    }
 }
 
 // Method to unpack 10-bit data into 16-bit data
 void DataConversion::unpackFile(void)
 {
+    qDebug() << "DataConversion::unpackFile(): Unpacking";
+    QByteArray inputBuffer;
+    QVector<qint16> outputBuffer;
+    bool isComplete = false;
 
+    while(!isComplete) {
+        // Input buffer must be divisible by 5 bytes due to 10-bit data format
+        qint32 bufferSizeInBytes = (5 * 1024 * 1024) * 4; // 5MiB * 4 = 20MiBytes
+        inputBuffer.resize(bufferSizeInBytes);
+
+        // Every 5 input bytes is 4 output words (8 bytes)
+        outputBuffer.resize((bufferSizeInBytes / 5) * 4);
+
+        // Fill the input buffer with data
+        qint64 receivedBytes = 0;
+        qint64 totalReceivedBytes = 0;
+        do {
+            receivedBytes = inputFileHandle->read(reinterpret_cast<char *>(inputBuffer.data() + totalReceivedBytes), bufferSizeInBytes);
+            if (receivedBytes > 0) totalReceivedBytes += receivedBytes;
+        } while (receivedBytes != 0 && totalReceivedBytes < bufferSizeInBytes);
+
+        // Check for end of file
+        if (receivedBytes == 0) isComplete = true;
+
+        if (totalReceivedBytes != 0) {
+            // If we didn't fill the input buffer, resize it
+            if (bufferSizeInBytes != totalReceivedBytes) {
+                inputBuffer.resize(static_cast<qint32>(totalReceivedBytes));
+                outputBuffer.resize((static_cast<qint32>(totalReceivedBytes) / 5) * 4);
+            }
+            qDebug() << "DataConversion::unpackFile(): Got" << inputBuffer.size() << "bytes from input file";
+
+            char byte0, byte1, byte2, byte3, byte4;
+            qint32 word0, word1, word2, word3;
+            qint32 outputBufferPointer = 0;
+            for (qint32 bytePointer = 0; bytePointer < inputBuffer.size(); bytePointer += 5) {
+                // Unpack the 5 bytes into 4x 10-bit values
+
+                // Unpacked:                 Packed:
+                // 0: xxxx xx00 0000 0000    0: 0000 0000 0011 1111
+                // 1: xxxx xx11 1111 1111    2: 1111 2222 2222 2233
+                // 2: xxxx xx22 2222 2222    4: 3333 3333
+                // 3: xxxx xx33 3333 3333
+
+                byte0 = inputBuffer[bytePointer + 0];
+                byte1 = inputBuffer[bytePointer + 1];
+                byte2 = inputBuffer[bytePointer + 2];
+                byte3 = inputBuffer[bytePointer + 3];
+                byte4 = inputBuffer[bytePointer + 4];
+
+                // Use multiplication instead of left-shift to avoid implicit conversion issues
+                word0  = ((byte0 & 0xFF) *   4) + ((byte1 & 0xC0) >> 6);
+                word1  = ((byte1 & 0x3F) *  16) + ((byte2 & 0xF0) >> 4);
+                word2  = ((byte2 & 0x0F) *  64) + ((byte3 & 0xFC) >> 2);
+                word3  = ((byte3 & 0x03) * 256) + ((byte4 & 0xFF)     );
+
+                outputBuffer[outputBufferPointer + 0] = static_cast<qint16>((word0 - 512) * 64);
+                outputBuffer[outputBufferPointer + 1] = static_cast<qint16>((word1 - 512) * 64);
+                outputBuffer[outputBufferPointer + 2] = static_cast<qint16>((word2 - 512) * 64);
+                outputBuffer[outputBufferPointer + 3] = static_cast<qint16>((word3 - 512) * 64);
+
+                // Increment the sample buffer pointer
+                outputBufferPointer += 4;
+            }
+
+            // Write the output buffer to the output file
+            if (!outputFileHandle->write(reinterpret_cast<char *>(outputBuffer.data()),
+                                         outputBuffer.size() * 2)) {
+                // File write failed
+                qCritical("Could not write to output file!");
+            }
+            qDebug() << "DataConversion::unpackFile(): Wrote" << outputBuffer.size() * 2 << "bytes to output file";
+        } else {
+            // Input file is empty
+            qDebug() << "DataConversion::unpackFile(): Got zero bytes from input file";
+            isComplete = true;
+        }
+    }
 }
