@@ -14,11 +14,13 @@ bool DataConversion::process(void)
     // Open the input file
     if (!openInputFile()) {
         qCritical("Could not open input file!");
+        return false;
     }
 
     // Open the output file
     if (!openOutputFile()) {
         qCritical("Could not open output file!");
+        return false;
     }
 
     // Packing or unpacking?
@@ -31,6 +33,7 @@ bool DataConversion::process(void)
     // Close the output file
     closeOutputFile();
 
+    // Exit with success
     return true;
 }
 
