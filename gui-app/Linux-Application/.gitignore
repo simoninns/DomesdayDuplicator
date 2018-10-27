@@ -42,6 +42,7 @@ wrapper.sh
 build-*/
 /*/.qmake.stash
 /DomesdayDuplicator/DomesdayDuplicator
+/dddconv/dddconv
 /*/moc_predefs.h
 
 
