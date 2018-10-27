@@ -98,13 +98,13 @@ int main(int argc, char *argv[])
 
     // Option to specify input video file (-i)
     QCommandLineOption sourceVideoFileOption(QStringList() << "i" << "input",
-                QCoreApplication::translate("main", "Specify input video file"),
+                QCoreApplication::translate("main", "Specify input video file (default is stdin"),
                 QCoreApplication::translate("main", "file"));
     parser.addOption(sourceVideoFileOption);
 
     // Option to specify output video file (-o)
     QCommandLineOption targetVideoFileOption(QStringList() << "o" << "output",
-                QCoreApplication::translate("main", "Specify output video file"),
+                QCoreApplication::translate("main", "Specify output video file (default is stdout"),
                 QCoreApplication::translate("main", "file"));
     parser.addOption(targetVideoFileOption);
 
@@ -137,7 +137,8 @@ int main(int argc, char *argv[])
     // Check that both pack and unpack are not set
     if (isUnpacking && isPacking) {
         // Quit with error
-        qFatal("Specify only --unpack (-u) or --pack (-p) - not both!");
+        qCritical("Specify only --unpack (-u) or --pack (-p) - not both!");
+        return -1;
     }
 
     // Initialise the data conversion object
