@@ -280,7 +280,7 @@ bool UsbDevice::open(void)
         struct libusb_device_descriptor deviceDescriptor;
         responseCode = libusb_get_device_descriptor(usbDevice, &deviceDescriptor);
         if (responseCode < 0) {
-            qDebug() << "UsbDevice::open(): Found USB devices, but couldn't get the USB device descriptors to identify them!";
+            qDebug() << "UsbDevice::open(): Found USB devices, but couldn't get the USB device descriptors to identify them!" << libusb_error_name(responseCode);
             break;
         }
 
@@ -289,7 +289,7 @@ bool UsbDevice::open(void)
             // Open the USB device
             responseCode = libusb_open(usbDevice, &usbDeviceHandle);
             if (responseCode < 0) {
-                qDebug() << "UsbDevice::open(): Found device with matching VID/PID, but attempting to open it failed!";
+                qDebug() << "UsbDevice::open(): Found device with matching VID/PID, but attempting to open it failed!" << libusb_error_name(responseCode);
                 usbDeviceHandle = nullptr;
             }
 
