@@ -61,6 +61,9 @@ static volatile qint32 transfersInFlight = 0;
 // Flag to cancel transfers in flight
 static volatile bool transferAbort = false;
 
+// Flag to show capture complete
+static volatile bool captureComplete = false;
+
 // Flag to show transfer failure
 static volatile bool transferFailure = false;
 
@@ -96,7 +99,7 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
     transferUserDataStruct *transferUserData = static_cast<transferUserDataStruct *>(transfer->user_data);
 
     // Check if the transfer has succeeded
-    if ((transfer->status != LIBUSB_TRANSFER_COMPLETED) && !transferAbort) {
+    if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
         // Show the failure reason in the debug
         switch (transfer->status) {
             case LIBUSB_TRANSFER_ERROR:
@@ -151,6 +154,9 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         if (transferUserData->diskBufferTransferNumber == (TRANSFERSPERDISKBUFFER - 1)) {
             // Mark the disk buffer as full
             isDiskBufferFull[transferUserData->diskBufferNumber] = true;
+
+            // If transfer is aborting, mark the capture as complete now the disk buffer is full
+            if (transferAbort) captureComplete = true;
         }
 
         // Point to the next slot for the transfer in the disk buffer
@@ -178,8 +184,8 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
         flushCounter++;
     }
 
-    // If the transfer has not been aborted, resubmit the transfer to libUSB
-    if (!transferAbort) {
+    // If the capture is not complete, resubmit the transfer to libUSB
+    if (!captureComplete) {
         libusb_fill_bulk_transfer(transfer, transfer->dev_handle, transfer->endpoint,
                                   reinterpret_cast<unsigned char *>(diskBuffers[transferUserData->diskBufferNumber] +
                                   (TRANSFERSIZE * transferUserData->diskBufferTransferNumber)),
@@ -223,6 +229,7 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
 
     // Set the transfer abort flag
     transferAbort = false;
+    captureComplete = false;
 
     // Reset transfer statistics
     statistics.transferCount = 0;
@@ -452,11 +459,11 @@ void UsbCapture::runDiskBuffers(void)
 
     // Process the disk buffers until the transfer is complete or fails
     isDiskBufferProcessRunning = true;
-    while(!transferAbort && !transferFailure) {
+    while(!captureComplete && !transferFailure) {
         for (qint32 diskBufferNumber = 0; diskBufferNumber < NUMBEROFDISKBUFFERS; diskBufferNumber++) {
             if (isDiskBufferFull[diskBufferNumber] && !transferFailure) {
                 // Write the buffer
-                //qDebug() << "UsbCapture::runDiskBuffers(): Disk buffer" << diskBufferNumber << "processing...";
+                if (transferAbort) qDebug() << "UsbCapture::runDiskBuffers(): Transfer abort flagged, writing disk buffer" << diskBufferNumber;
                 writeBufferToDisk(&outputFile, diskBufferNumber, false);
 
                 // Mark it as empty
@@ -471,6 +478,23 @@ void UsbCapture::runDiskBuffers(void)
 
             // Check for transfer failure before continuing...
             if (transferFailure) break;
+        }
+    }
+
+    // Ensure all disk buffers are written before quitting the thread
+    if (!transferFailure) {
+        for (qint32 diskBufferNumber = 0; diskBufferNumber < NUMBEROFDISKBUFFERS; diskBufferNumber++) {
+            if (isDiskBufferFull[diskBufferNumber] && !transferFailure) {
+                // Write the buffer
+                qDebug() << "UsbCapture::runDiskBuffers(): Capture complete flagged, writing disk buffer" << diskBufferNumber;
+                writeBufferToDisk(&outputFile, diskBufferNumber, false);
+
+                // Mark it as empty
+                isDiskBufferFull[diskBufferNumber] = false;
+
+                // Increment the statistics
+                numberOfDiskBuffersWritten++;
+            }
         }
     }
 
