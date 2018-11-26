@@ -1079,12 +1079,12 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
             nextState = ac_finished_state;
         }
 
-        if (acLastSeenAddress > currentAddress) {
+        if ((acLastSeenAddress - 1000) > currentAddress) {
             // Somehow the player has gone backwards; probably due to restarting playing after
             // reaching the end of a disc
-            qDebug() << "PlayerControl::acStateWaitForEndAddress(): Error - The CAV disc address has stepped backwards: Last address =" << acLastSeenAddress <<
-                        "current addres =" << currentAddress << "- is auto-replay on? Stopping capture";
-            acErrorMessage = tr("CAV disc frames were not sequential - it is likely the player skipped during playback.");
+            qDebug() << "PlayerControl::acStateWaitForEndAddress(): Error - The CAV disc address has stepped backwards more than 1000 frames: Last address =" << acLastSeenAddress <<
+                        "current address =" << currentAddress << "- is auto-replay on? Stopping capture";
+            acErrorMessage = tr("CAV disc frames were not sequential - player skipped back more than 1000 frames during capture");
             emit stopCapture();
 
             // Still-frame the player
@@ -1105,12 +1105,12 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
             nextState = ac_finished_state;
         }
 
-        if (acLastSeenAddress > currentAddress) {
+        if ((acLastSeenAddress - 1000) > currentAddress) {
             // Somehow the player has gone backwards; probably due to restarting playing after
             // reaching the end of a disc
-            qDebug() << "PlayerControl::acStateWaitForEndAddress(): Error - The CLV disc address has stepped backwards: Last address =" << acLastSeenAddress <<
-                        "current addres =" << currentAddress << "- is auto-replay on? Stopping capture";
-            acErrorMessage = tr("CLV disc frames were not sequential - it is likely the player skipped during playback.");
+            qDebug() << "PlayerControl::acStateWaitForEndAddress(): Error - The CLV disc address has stepped backwards more than 1000 frames: Last address =" << acLastSeenAddress <<
+                        "current address =" << currentAddress << "- is auto-replay on? Stopping capture";
+            acErrorMessage = tr("CLV disc frames were not sequential - player skipped back more than 1000 frames during capture");
             emit stopCapture();
 
             // Still-frame the player
@@ -1121,7 +1121,7 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
         acLastSeenAddress = currentAddress;
     }
 
-    // Remain in the error state
+    // Remain in the wait For end address state
     return nextState;
 }
 

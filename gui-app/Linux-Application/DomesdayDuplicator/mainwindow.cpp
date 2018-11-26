@@ -80,11 +80,6 @@ MainWindow::MainWindow(QWidget *parent) :
             this, &MainWindow::playerDisconnectedSignalHandler);
     startPlayerControl();
 
-    // Define our application (required for configuration handling)
-    QCoreApplication::setOrganizationName("Domesday86");
-    QCoreApplication::setOrganizationDomain("domesday86.com");
-    QCoreApplication::setApplicationName("DomesdayDuplicator");
-
     // Set the capture flag to not running
     isCaptureRunning = false;
 
@@ -177,6 +172,10 @@ void MainWindow::deviceAttachedSignalHandler(void)
 
     // Enable the test mode option
     ui->actionTest_mode->setEnabled(true);
+
+    // Ensure that the test mode option matches the device configuration
+    if (ui->actionTest_mode->isChecked()) usbDevice->sendConfigurationCommand(true);
+    else usbDevice->sendConfigurationCommand(false);
 }
 
 // USB device detached signal handler
