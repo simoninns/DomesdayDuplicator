@@ -81,6 +81,7 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName("DomesdayDuplicator");
     QCoreApplication::setApplicationVersion("2.0");
     QCoreApplication::setOrganizationDomain("domesday86.com");
+    QCoreApplication::setOrganizationName("Domesday86");
 
     // Set up the command line parser
     QCommandLineParser parser;
