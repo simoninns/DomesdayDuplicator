@@ -141,7 +141,7 @@ void DataConversion::packFile(void)
         qint64 receivedBytes = 0;
         qint64 totalReceivedBytes = 0;
         do {
-            receivedBytes = inputFileHandle->read(reinterpret_cast<char *>(inputBuffer.data() + (totalReceivedBytes / 2)), bufferSizeInBytes);
+            receivedBytes = inputFileHandle->read(reinterpret_cast<char *>(inputBuffer.data() + totalReceivedBytes), bufferSizeInBytes - totalReceivedBytes);
             if (receivedBytes > 0) totalReceivedBytes += receivedBytes;
         } while (receivedBytes != 0 && totalReceivedBytes < bufferSizeInBytes);
 
@@ -210,7 +210,7 @@ void DataConversion::unpackFile(void)
         qint64 receivedBytes = 0;
         qint64 totalReceivedBytes = 0;
         do {
-            receivedBytes = inputFileHandle->read(reinterpret_cast<char *>(inputBuffer.data() + totalReceivedBytes), bufferSizeInBytes);
+            receivedBytes = inputFileHandle->read(reinterpret_cast<char *>(inputBuffer.data() + totalReceivedBytes), bufferSizeInBytes - totalReceivedBytes);
             if (receivedBytes > 0) totalReceivedBytes += receivedBytes;
         } while (receivedBytes != 0 && totalReceivedBytes < bufferSizeInBytes);
 
