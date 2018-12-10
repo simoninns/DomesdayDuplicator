@@ -1056,15 +1056,10 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
         if (playerCommunication->getPlayerState() == PlayerCommunication::PlayerState::stillFrame) {
             qDebug() << "PlayerControl::acStateWaitForEndAddress(): The player put itself in still-frame; sending play command";
             playerCommunication->setPlayerState(PlayerCommunication::PlayerState::play);
-        }
-    }
 
-    // Now the player should be in play mode - or something has gone wrong with the capture
-    if (playerCommunication->getPlayerState() != PlayerCommunication::PlayerState::play) {
-        acErrorMessage = tr("Player ceased playing during capture");
-        qDebug() << "AC Error:" << acErrorMessage;
-        nextState = ac_error_state;
-        return nextState;
+            // Continue in the present state
+            return nextState;
+        }
     }
 
     if (acDiscType == PlayerCommunication::DiscType::CAV) {
