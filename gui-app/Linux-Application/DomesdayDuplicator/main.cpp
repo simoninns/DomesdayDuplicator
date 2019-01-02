@@ -72,6 +72,9 @@ void debugOutputHandler(QtMsgType type, const QMessageLogContext &context, const
 
 int main(int argc, char *argv[])
 {
+    // Fix DPI issues on Windows
+    qputenv("QT_AUTO_SCREEN_SCALE_FACTOR", "1");
+
     // Install the local debug message handler
     qInstallMessageHandler(debugOutputHandler);
 
