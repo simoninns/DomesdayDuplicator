@@ -265,6 +265,8 @@ bool UsbDevice::open(void)
     qint32 responseCode;
     ssize_t deviceCount;
 
+    bool isSuccess = false;
+
     // Get the number of attached USB devices
     deviceCount = libusb_get_device_list(libUsbContext, &usbDevices);
     if (deviceCount < 0) {
@@ -291,7 +293,7 @@ bool UsbDevice::open(void)
             if (responseCode < 0) {
                 qDebug() << "UsbDevice::open(): Found device with matching VID/PID, but attempting to open it failed!" << libusb_error_name(responseCode);
                 usbDeviceHandle = nullptr;
-            }
+            } else isSuccess = true;
 
             // Done
             break;
@@ -301,7 +303,7 @@ bool UsbDevice::open(void)
     // Free up the device list
     libusb_free_device_list(usbDevices, 1);
 
-    return true;
+    return isSuccess;
 }
 
 // Close the USB device
@@ -341,6 +343,7 @@ bool UsbDevice::sendVendorSpecificCommand(quint8 command, quint16 value)
         }
     } else {
         qDebug() << "UsbDevice::sendVendorSpecificCommand(): Failed to open USB device";
+        result = false;
     }
 
     // Release the USB interface

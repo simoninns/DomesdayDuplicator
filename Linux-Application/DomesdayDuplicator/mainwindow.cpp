@@ -178,10 +178,6 @@ void MainWindow::deviceAttachedSignalHandler(void)
 
     // Enable the test mode option
     ui->actionTest_mode->setEnabled(true);
-
-    // Ensure that the test mode option matches the device configuration
-    if (ui->actionTest_mode->isChecked()) usbDevice->sendConfigurationCommand(true);
-    else usbDevice->sendConfigurationCommand(false);
 }
 
 // USB device detached signal handler
@@ -634,6 +630,11 @@ void MainWindow::on_capturePushButton_clicked()
     if (!isCaptureRunning) {
         // Start capture
         QString captureFilename;
+
+        // Ensure that the test mode option matches the device configuration
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Setting device's test mode flag to" << ui->actionTest_mode->isChecked();
+        if (ui->actionTest_mode->isChecked()) usbDevice->sendConfigurationCommand(true);
+        else usbDevice->sendConfigurationCommand(false);
 
         // Construct the capture file path and name
 
