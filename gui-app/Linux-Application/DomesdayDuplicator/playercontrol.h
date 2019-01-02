@@ -49,9 +49,11 @@ public:
     void stop(void);
     void configurePlayerCommunication(
             QString serialDevice,
-            PlayerCommunication::SerialSpeed serialSpeed,
-            PlayerCommunication::PlayerType playerType);
+            PlayerCommunication::SerialSpeed serialSpeed);
 
+    QString getPlayerModelName(void);
+    QString getPlayerVersionNumber(void);
+    QString getSerialBaudRate(void);
     QString getPlayerStatusInformation(void);
     QString getPlayerPositionInformation(void);
     PlayerCommunication::DiscType getDiscType(void);
