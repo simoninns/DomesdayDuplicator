@@ -130,6 +130,9 @@ MainWindow::MainWindow(QWidget *parent) :
     storageInfoTimer = new QTimer(this);
     connect(storageInfoTimer, SIGNAL(timeout()), this, SLOT(updateStorageInformation()));
     storageInfoTimer->start(200); // Update 5 times per second
+
+    // Set player as disconnected
+    isPlayerConnected = false;
 }
 
 MainWindow::~MainWindow()
@@ -170,6 +173,9 @@ void MainWindow::deviceAttachedSignalHandler(void)
     // Enable the capture button
     ui->capturePushButton->setEnabled(true);
 
+    // Enable the automatic capture dialogue
+    if (isPlayerConnected) automaticCaptureDialog->setEnabled(true);
+
     // Enable the test mode option
     ui->actionTest_mode->setEnabled(true);
 
@@ -188,6 +194,9 @@ void MainWindow::deviceDetachedSignalHandler(void)
 
     // Disable the capture button
     ui->capturePushButton->setEnabled(false);
+
+    // Disable the automatic capture dialogue
+    automaticCaptureDialog->setEnabled(false);
 
     // Disable the test mode option
     ui->actionTest_mode->setEnabled(false);
@@ -448,8 +457,10 @@ void MainWindow::playerConnectedSignalHandler(void)
     // Enable remote control dialogue
     playerRemoteDialog->setEnabled(true);
 
-    // Enable automatic-capture
-    automaticCaptureDialog->setEnabled(true);
+    // Enable automatic-capture (is capture is currently allowed)
+    if (ui->capturePushButton->isEnabled()) automaticCaptureDialog->setEnabled(true);
+
+    isPlayerConnected = true;
 }
 
 // Signal handler for player disconnected signal from player control
@@ -461,6 +472,8 @@ void MainWindow::playerDisconnectedSignalHandler(void)
 
     // Disable automatic-capture
     automaticCaptureDialog->setEnabled(false);
+
+    isPlayerConnected = false;
 }
 
 // Update the capture statistics labels
