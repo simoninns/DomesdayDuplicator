@@ -218,7 +218,7 @@ QString PlayerControl::getSerialBaudRate(void)
     case PlayerCommunication::SerialSpeed::bps9600:
         return "9600";
     case PlayerCommunication::SerialSpeed::autoDetect:
-        return "4800"; // Require to supress compilation warning
+        return ""; // Require to supress compilation warning
     }
     return "";
 }

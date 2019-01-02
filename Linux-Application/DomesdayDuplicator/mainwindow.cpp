@@ -480,8 +480,12 @@ void MainWindow::updateCaptureStatistics(void)
 // Update the player control labels
 void MainWindow::updatePlayerControlInformation(void)
 {
-    ui->playerPortLabel->setText(configuration->getSerialDevice());
-    ui->playerSerialSpeedLabel->setText(playerControl->getSerialBaudRate());
+    if (!playerControl->getSerialBaudRate().isEmpty()) {
+        ui->playerPortLabel->setText(configuration->getSerialDevice() + " @ " + playerControl->getSerialBaudRate() + " bps");
+    } else {
+        ui->playerPortLabel->setText(configuration->getSerialDevice());
+    }
+
     QString modelLabel;
     auto playerModelName = playerControl->getPlayerModelName();
     if (!playerModelName.isEmpty()) {

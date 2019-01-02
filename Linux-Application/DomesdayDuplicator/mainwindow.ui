@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>480</width>
-    <height>463</height>
+    <height>470</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>480</width>
-    <height>463</height>
+    <height>470</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -270,7 +270,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>86</y>
+         <y>70</y>
          <width>81</width>
          <height>21</height>
         </rect>
@@ -286,7 +286,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>106</y>
+         <y>90</y>
          <width>81</width>
          <height>21</height>
         </rect>
@@ -302,7 +302,7 @@
        <property name="geometry">
         <rect>
          <x>100</x>
-         <y>86</y>
+         <y>70</y>
          <width>351</width>
          <height>21</height>
         </rect>
@@ -315,7 +315,7 @@
        <property name="geometry">
         <rect>
          <x>100</x>
-         <y>106</y>
+         <y>90</y>
          <width>351</width>
          <height>21</height>
         </rect>
@@ -328,7 +328,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>65</y>
+         <y>50</y>
          <width>81</width>
          <height>21</height>
         </rect>
@@ -344,7 +344,7 @@
        <property name="geometry">
         <rect>
          <x>100</x>
-         <y>65</y>
+         <y>50</y>
          <width>351</width>
          <height>21</height>
         </rect>
@@ -357,7 +357,7 @@
        <property name="geometry">
         <rect>
          <x>100</x>
-         <y>25</y>
+         <y>30</y>
          <width>351</width>
          <height>21</height>
         </rect>
@@ -370,42 +370,13 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>25</y>
+         <y>30</y>
          <width>81</width>
          <height>21</height>
         </rect>
        </property>
        <property name="text">
         <string>Port:</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-       </property>
-      </widget>
-      <widget class="QLabel" name="playerSerialSpeedLabel">
-       <property name="geometry">
-        <rect>
-         <x>100</x>
-         <y>45</y>
-         <width>351</width>
-         <height>21</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Unknown</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="label_10">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>45</y>
-         <width>81</width>
-         <height>21</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Serial Speed:</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
