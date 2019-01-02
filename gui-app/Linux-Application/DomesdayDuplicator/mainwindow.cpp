@@ -480,6 +480,14 @@ void MainWindow::updateCaptureStatistics(void)
 // Update the player control labels
 void MainWindow::updatePlayerControlInformation(void)
 {
+    ui->playerPortLabel->setText(configuration->getSerialDevice());
+    ui->playerSerialSpeedLabel->setText(playerControl->getSerialBaudRate());
+    QString modelLabel;
+    auto playerModelName = playerControl->getPlayerModelName();
+    if (!playerModelName.isEmpty()) {
+        modelLabel = playerModelName + " [Version " + playerControl->getPlayerVersionNumber() + "]";
+    }
+    ui->playerModelLabel->setText(modelLabel);
     ui->playerStatusLabel->setText(playerControl->getPlayerStatusInformation());
 
     // Display the position information based on disc type
@@ -527,31 +535,18 @@ void MainWindow::updateStorageInformation(void)
 
 void MainWindow::startPlayerControl(void)
 {
-    PlayerCommunication::SerialSpeed serialSpeed;
-    PlayerCommunication::PlayerType playerType;
-
     // Get the configured serial speed
-    serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
+    PlayerCommunication::SerialSpeed serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
     switch (configuration->getSerialSpeed()) {
-    case Configuration::bps1200: serialSpeed = PlayerCommunication::SerialSpeed::bps1200;
+    case Configuration::SerialSpeeds::bps1200: serialSpeed = PlayerCommunication::SerialSpeed::bps1200;
         break;
-    case Configuration::bps2400: serialSpeed = PlayerCommunication::SerialSpeed::bps2400;
+    case Configuration::SerialSpeeds::bps2400: serialSpeed = PlayerCommunication::SerialSpeed::bps2400;
         break;
-    case Configuration::bps4800: serialSpeed = PlayerCommunication::SerialSpeed::bps4800;
+    case Configuration::SerialSpeeds::bps4800: serialSpeed = PlayerCommunication::SerialSpeed::bps4800;
         break;
-    case Configuration::bps9600: serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
+    case Configuration::SerialSpeeds::bps9600: serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
         break;
-    }
-
-    // Get the configured player type
-    playerType = PlayerCommunication::PlayerType::unknownPlayerType;
-    switch (configuration->getPlayerModel()) {
-    case Configuration::PlayerModels::none: playerType = PlayerCommunication::PlayerType::unknownPlayerType;
-        qDebug() << "MainWindow::startPlayerControl(): Player type is not configured in preferences";
-        break;
-    case Configuration::PlayerModels::pioneerLDV4300D: playerType = PlayerCommunication::PlayerType::pioneerLDV4300D;
-        break;
-    case Configuration::PlayerModels::pioneerCLDV2800: playerType = PlayerCommunication::PlayerType::pioneerCLDV2800;
+    case Configuration::SerialSpeeds::autoDetect: serialSpeed = PlayerCommunication::SerialSpeed::autoDetect;
         break;
     }
 
@@ -559,9 +554,7 @@ void MainWindow::startPlayerControl(void)
         qDebug() << "MainWindow::startPlayerControl(): Player serial device is not configured in preferences";
 
     // Send the configuration to the player control
-    playerControl->configurePlayerCommunication(configuration->getSerialDevice(),
-                                                    serialSpeed,
-                                                    playerType);
+    playerControl->configurePlayerCommunication(configuration->getSerialDevice(), serialSpeed);
 }
 
 // GUI Triggered action handlers --------------------------------------------------------------------------------------
