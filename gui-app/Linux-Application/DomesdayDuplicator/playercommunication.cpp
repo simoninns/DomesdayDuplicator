@@ -75,7 +75,7 @@ PlayerCommunication::~PlayerCommunication()
 //
 // Note: All methods provided by this class are blocking.
 
-PlayerCommunication::PlayerType PlayerCommunication::playerCodeToType(const std::string& playerCode) const
+PlayerCommunication::PlayerType PlayerCommunication::playerCodeToType(const QString& playerCode) const
 {
     if (playerCode == "42") {
         return PlayerType::pioneerCLDV5000;
@@ -110,7 +110,7 @@ PlayerCommunication::PlayerType PlayerCommunication::playerCodeToType(const std:
     return PlayerType::unknownPlayerType;
 }
 
-std::string PlayerCommunication::playerCodeToName(const std::string& playerCode) const
+QString PlayerCommunication::playerCodeToName(const QString &playerCode) const
 {
     if (playerCode == "42") {
         return "Pioneer CLD-V5000";
@@ -142,7 +142,7 @@ std::string PlayerCommunication::playerCodeToName(const std::string& playerCode)
     else if (playerCode == "02") {
         return "Pioneer LD-V4200";
     }
-    return std::string("Unknown Player [") + playerCode + "]";
+    return QString("Unknown Player [") + playerCode + "]";
 }
 
 // Player connection and disconnection methods ------------------------------------------------------------------------
@@ -200,8 +200,8 @@ bool PlayerCommunication::connect(QString serialDevice, SerialSpeed serialSpeed)
     }
 
     // Attempt to connect to the player
-    SerialSpeed detectedSerialSpeed;
-    std::string responseString;
+    SerialSpeed detectedSerialSpeed = PlayerCommunication::SerialSpeed::autoDetect;
+    QString responseString;
     while (!connectionSuccessful && (baudRateIndex < baudRateSearchEnd)) {
         // Configure the baud rate of the serial port
         serialPort->setBaudRate(supportedBaudRatesNative[baudRateIndex]);
@@ -223,7 +223,7 @@ bool PlayerCommunication::connect(QString serialDevice, SerialSpeed serialSpeed)
             }
 
             // Retrieve the connection information, and flag that we've successfully connected to the player.
-            responseString = response.toStdString();
+            responseString = response;
             detectedSerialSpeed = supportedBaudRates[baudRateIndex];
             connectionSuccessful = true;
             break;
@@ -241,16 +241,16 @@ bool PlayerCommunication::connect(QString serialDevice, SerialSpeed serialSpeed)
         //qDebug() << "PlayerCommunication::connect(): Could not connect to LaserDisc player";
         return false;
     }
-    qDebug() << "PlayerCommunication::connect(): Response string " << responseString.c_str() << " received";
+    qDebug() << "PlayerCommunication::connect(): Response string " << responseString << " received";
 
     // Save information on the player and the connection
-    std::string playerCode = responseString.substr(3, 2);
-    std::string playerVersionNumber = responseString.substr(5);
+    QString playerCode = responseString.mid(3, 2);
+    QString playerVersionNumber = responseString.mid(5);
     PlayerType detectedPlayerType = playerCodeToType(playerCode);
     currentSerialSpeed = detectedSerialSpeed;
     currentPlayerType = detectedPlayerType;
-    currentPlayerName = QString::fromStdString(playerCodeToName(playerCode));
-    currentPlayerVersionNumber = QString::fromStdString(playerVersionNumber).trimmed();
+    currentPlayerName = playerCodeToName(playerCode);
+    currentPlayerVersionNumber = playerVersionNumber.trimmed();
 
     return true;
 }

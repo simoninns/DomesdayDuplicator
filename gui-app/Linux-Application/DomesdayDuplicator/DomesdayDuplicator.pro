@@ -26,8 +26,8 @@ CONFIG += c++11
 
 # Include the libUSB library
 unix {
-    INCLUDEPATH += "/usr/local/include/libusb-1.0/libusb-1.0"
-    LIBS += -L"/usr/local/lib" -lusb-1.0
+    INCLUDEPATH += "/usr/include/libusb-1.0"
+    LIBS += -L"/usr/lib" -lusb-1.0
 }
 win32 {
     debug {

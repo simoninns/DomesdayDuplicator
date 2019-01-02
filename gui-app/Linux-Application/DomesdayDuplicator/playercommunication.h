@@ -153,8 +153,8 @@ public:
 signals:
 
 private:
-    PlayerType PlayerCommunication::playerCodeToType(const std::string& playerCode) const;
-    std::string PlayerCommunication::playerCodeToName(const std::string& playerCode) const;
+    PlayerType playerCodeToType(const QString &playerCode) const;
+    QString playerCodeToName(const QString& playerCode) const;
 
 private:
     QSerialPort *serialPort;
