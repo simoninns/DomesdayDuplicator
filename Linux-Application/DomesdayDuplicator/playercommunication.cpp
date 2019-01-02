@@ -31,8 +31,8 @@
 // they player usually responds to quickly, like framecode request).
 // The timeout for long commands is 30 seconds (there are commands like
 // play and open tray).
-#define N_TIMEOUT 5
-#define L_TIMEOUT 30
+#define N_TIMEOUT 5 * 1000
+#define L_TIMEOUT 30 * 1000
 
 PlayerCommunication::PlayerCommunication(QObject *parent) : QObject(parent)
 {
@@ -75,10 +75,80 @@ PlayerCommunication::~PlayerCommunication()
 //
 // Note: All methods provided by this class are blocking.
 
+PlayerCommunication::PlayerType PlayerCommunication::playerCodeToType(const std::string& playerCode) const
+{
+    if (playerCode == "42") {
+        return PlayerType::pioneerCLDV5000;
+    }
+    else if (playerCode == "37") {
+        return PlayerType::pioneerCLDV2800;
+    }
+    else if (playerCode == "27") {
+        return PlayerType::pioneerCLDV2600;
+    }
+    else if (playerCode == "18") {
+        return PlayerType::pioneerCLDV2400;
+    }
+    else if (playerCode == "16") {
+        return PlayerType::pioneerLDV4400;
+    }
+    else if (playerCode == "15") {
+        return PlayerType::pioneerLDV4300D;
+    }
+    else if (playerCode == "07") {
+        return PlayerType::pioneerLDV2200;
+    }
+    else if (playerCode == "06") {
+        return PlayerType::pioneerLDV8000;
+    }
+    else if (playerCode == "05") {
+        return PlayerType::pioneerLCV330;
+    }
+    else if (playerCode == "02") {
+        return PlayerType::pioneerLDV4200;
+    }
+    return PlayerType::unknownPlayerType;
+}
+
+std::string PlayerCommunication::playerCodeToName(const std::string& playerCode) const
+{
+    if (playerCode == "42") {
+        return "Pioneer CLD-V5000";
+    }
+    else if (playerCode == "37") {
+        return "Pioneer CLD-V2800";
+    }
+    else if (playerCode == "27") {
+        return "Pioneer CLD-V2600";
+    }
+    else if (playerCode == "18") {
+        return "Pioneer CLD-V2400";
+    }
+    else if (playerCode == "16") {
+        return "Pioneer LD-V4400";
+    }
+    else if (playerCode == "15") {
+        return "Pioneer LD-V4300D";
+    }
+    else if (playerCode == "07") {
+        return "Pioneer LD-V2200";
+    }
+    else if (playerCode == "06") {
+        return "Pioneer LD-V8000";
+    }
+    else if (playerCode == "05") {
+        return "Pioneer VC-V330";
+    }
+    else if (playerCode == "02") {
+        return "Pioneer LD-V4200";
+    }
+    return std::string("Unknown Player [") + playerCode + "]";
+}
+
 // Player connection and disconnection methods ------------------------------------------------------------------------
 
 // Connect to a LaserDisc player
-bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, SerialSpeed serialSpeed)
+bool PlayerCommunication::connect(QString serialDevice, SerialSpeed serialSpeed)
 {
     bool connectionSuccessful = false;
 
@@ -87,65 +157,100 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
 
     // Configure the serial port object
     serialPort->setPortName(serialDevice);
-    //qDebug() << "PlayerCommunication::connect(): Serial port name is" << serialDevice;
-
-    if (serialSpeed == SerialSpeed::bps1200) serialPort->setBaudRate(QSerialPort::Baud1200);
-    if (serialSpeed == SerialSpeed::bps2400) serialPort->setBaudRate(QSerialPort::Baud2400);
-    if (serialSpeed == SerialSpeed::bps4800) serialPort->setBaudRate(QSerialPort::Baud4800);
-    if (serialSpeed == SerialSpeed::bps9600) serialPort->setBaudRate(QSerialPort::Baud9600);
-
     serialPort->setDataBits(QSerialPort::Data8);
     serialPort->setParity(QSerialPort::NoParity);
     serialPort->setStopBits(QSerialPort::OneStop);
     serialPort->setFlowControl(QSerialPort::NoFlowControl);
+    //qDebug() << "PlayerCommunication::connect(): Serial port name is" << serialDevice;
 
-    if (!serialPort->open(QIODevice::ReadWrite)) {
-        //qDebug() << "PlayerCommunication::connect(): Unable to open serial port!";
-        return false;
+    // Define our set of supported baud rates
+    SerialSpeed supportedBaudRates[] = { SerialSpeed::bps9600, SerialSpeed::bps4800, SerialSpeed::bps2400, SerialSpeed::bps1200 };
+    QSerialPort::BaudRate supportedBaudRatesNative[] = { QSerialPort::Baud9600, QSerialPort::Baud4800, QSerialPort::Baud2400, QSerialPort::Baud1200 };
+    unsigned int supportedBaudRatesCount = sizeof(supportedBaudRates) / sizeof(supportedBaudRates[0]);
+
+    // Determine which baud rates to use in the connection attempt, and the timeout and retry settings.
+    unsigned int baudRateIndex = 0;
+    unsigned int baudRateSearchEnd = 0;
+    unsigned int maxConnectAttempts = 1;
+    qint32 serialQueryTimeout = 1500;
+    switch (serialSpeed)
+    {
+    case SerialSpeed::autoDetect:
+        baudRateIndex = 0;
+        baudRateSearchEnd = supportedBaudRatesCount;
+        serialQueryTimeout = 250;
+        maxConnectAttempts = 3;
+        break;
+    case SerialSpeed::bps1200:
+        baudRateIndex = 3;
+        baudRateSearchEnd = baudRateIndex + 1;
+        break;
+    case SerialSpeed::bps2400:
+        baudRateIndex = 2;
+        baudRateSearchEnd = baudRateIndex + 1;
+        break;
+    case SerialSpeed::bps4800:
+        baudRateIndex = 1;
+        baudRateSearchEnd = baudRateIndex + 1;
+        break;
+    case SerialSpeed::bps9600:
+        baudRateIndex = 0;
+        baudRateSearchEnd = baudRateIndex + 1;
+        break;
     }
 
-    //qDebug() << "PlayerCommunication::connect(): Serial port opened successfully";
-
-    // Pioneer LD-V4300D connected?
-    if (playerType == PlayerType::pioneerLDV4300D) {
-        sendSerialCommand("?X\r");
-        QString response = getSerialResponse(N_TIMEOUT);
-
-        if (response.isEmpty()) {
-            //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer LD-V4300D!";
+    // Attempt to connect to the player
+    SerialSpeed detectedSerialSpeed;
+    std::string responseString;
+    while (!connectionSuccessful && (baudRateIndex < baudRateSearchEnd)) {
+        // Configure the baud rate of the serial port
+        serialPort->setBaudRate(supportedBaudRatesNative[baudRateIndex]);
+        if (!serialPort->open(QIODevice::ReadWrite)) {
+            ++baudRateIndex;
+            continue;
         }
 
-        if (!response.contains("P1515")) {
-            //qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
-        } else {
-            qDebug() << "PlayerCommunication::connect(): Pioneer LD-V4300D connected";
+        // Attempt to retrieve the player version information
+        for (unsigned int i = 0; i < maxConnectAttempts; ++i) {
+            // Send the "LVP Model Name Request", as documented in the Pioneer Level III User's Manual for various
+            // Laserdisc players.
+            sendSerialCommand("?X\r");
+
+            // Attempt to retrieve the response to the model name request
+            QString response = getSerialResponse(serialQueryTimeout);
+            if (!response.startsWith("P15") || (response.size() < 5)) {
+                continue;
+            }
+
+            // Retrieve the connection information, and flag that we've successfully connected to the player.
+            responseString = response.toStdString();
+            detectedSerialSpeed = supportedBaudRates[baudRateIndex];
             connectionSuccessful = true;
-        }
-    }
-
-    // Pioneer CLD-V2800 connected?
-    if (playerType == PlayerType::pioneerCLDV2800) {
-        sendSerialCommand("?X\r");
-        QString response = getSerialResponse(N_TIMEOUT);
-
-        if (response.isEmpty()) {
-            //qDebug() << "PlayerCommunication::connect(): Could not detect Pioneer CLD-V2800!";
+            break;
         }
 
-        if (!response.contains("P1537")) {
-            //qDebug() << "PlayerCommunication::connect(): Unrecognised player identity received!";
-        } else {
-            qDebug() << "PlayerCommunication::connect(): Pioneer CLD-V2800 connected";
-            connectionSuccessful = true;
+        // If we failed to establish communication with the player, close the serial connection.
+        if (!connectionSuccessful) {
+            serialPort->close();
         }
+        ++baudRateIndex;
     }
 
     // Did the connection fail?
     if (!connectionSuccessful) {
         //qDebug() << "PlayerCommunication::connect(): Could not connect to LaserDisc player";
-        serialPort->close();
         return false;
     }
+    qDebug() << "PlayerCommunication::connect(): Response string " << responseString.c_str() << " received";
+
+    // Save information on the player and the connection
+    std::string playerCode = responseString.substr(3, 2);
+    std::string playerVersionNumber = responseString.substr(5);
+    PlayerType detectedPlayerType = playerCodeToType(playerCode);
+    currentSerialSpeed = detectedSerialSpeed;
+    currentPlayerType = detectedPlayerType;
+    currentPlayerName = QString::fromStdString(playerCodeToName(playerCode));
+    currentPlayerVersionNumber = QString::fromStdString(playerVersionNumber).trimmed();
 
     return true;
 }
@@ -154,6 +259,10 @@ bool PlayerCommunication::connect(PlayerType playerType, QString serialDevice, S
 void PlayerCommunication::disconnect(void)
 {
     qDebug() << "PlayerCommunication::disconnect(): Disconnecting from serial port";
+    currentPlayerName = "";
+    currentPlayerVersionNumber = "";
+    currentPlayerType = none;
+    currentSerialSpeed = autoDetect;
     serialPort->close();
 }
 
@@ -171,6 +280,26 @@ PlayerCommunication::TrayState PlayerCommunication::getTrayState(void)
     }
 
     return TrayState::closed;
+}
+
+PlayerCommunication::PlayerType PlayerCommunication::getPlayerType(void)
+{
+    return currentPlayerType;
+}
+
+QString PlayerCommunication::getPlayerName(void)
+{
+    return currentPlayerName;
+}
+
+QString PlayerCommunication::getPlayerVersionNumber(void)
+{
+    return currentPlayerVersionNumber;
+}
+
+PlayerCommunication::SerialSpeed PlayerCommunication::getSerialSpeed(void)
+{
+    return currentSerialSpeed;
 }
 
 PlayerCommunication::PlayerState PlayerCommunication::getPlayerState(void)
@@ -629,7 +758,7 @@ void PlayerCommunication::sendSerialCommand(QString command)
 }
 
 // Receive a response via the serial connection
-QString PlayerCommunication::getSerialResponse(qint32 timeoutInSeconds)
+QString PlayerCommunication::getSerialResponse(qint32 timeoutInMilliseconds)
 {
     QString response;
 
@@ -649,7 +778,7 @@ QString PlayerCommunication::getSerialResponse(qint32 timeoutInSeconds)
         }
 
         // Check for response timeout
-        if ((responseTimer.elapsed() >= static_cast<qint64>(timeoutInSeconds * 1000)) && (!responseComplete)) {
+        if ((responseTimer.elapsed() >= static_cast<qint64>(timeoutInMilliseconds)) && (!responseComplete)) {
             responseTimedOut = true;
             responseComplete = true;
             //qDebug() << "PlayerCommunication::getSerialResponse(): Serial response timed out!";

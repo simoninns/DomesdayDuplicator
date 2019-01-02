@@ -74,7 +74,6 @@ void Configuration::writeConfiguration(void)
     configuration->beginGroup("pic");
     configuration->setValue("serialDevice", settings.pic.serialDevice);
     configuration->setValue("serialSpeed", convertSerialSpeedsToInt(settings.pic.serialSpeed));
-    configuration->setValue("playerModel", convertPlayerModelsToInt(settings.pic.playerModel));
     configuration->setValue("keyLock", settings.pic.keyLock);
     configuration->endGroup();
 
@@ -105,7 +104,6 @@ void Configuration::readConfiguration(void)
     configuration->beginGroup("pic");
     settings.pic.serialDevice = configuration->value("serialDevice").toString();
     settings.pic.serialSpeed = convertIntToSerialSpeeds(configuration->value("serialSpeed").toInt());
-    settings.pic.playerModel = convertIntToPlayerModels(configuration->value("playerModel").toInt());
     settings.pic.keyLock = configuration->value("keyLock").toBool();
     configuration->endGroup();
 }
@@ -125,8 +123,7 @@ void Configuration::setDefault(void)
 
     // PIC
     settings.pic.serialDevice = tr("");
-    settings.pic.serialSpeed = SerialSpeeds::bps9600;
-    settings.pic.playerModel = PlayerModels::none;
+    settings.pic.serialSpeed = SerialSpeeds::autoDetect;
     settings.pic.keyLock = false;
 
     // Write the configuration
@@ -162,9 +159,10 @@ qint32 Configuration::convertSerialSpeedsToInt(SerialSpeeds serialSpeeds)
     if (serialSpeeds == SerialSpeeds::bps2400) return 1;
     if (serialSpeeds == SerialSpeeds::bps4800) return 2;
     if (serialSpeeds == SerialSpeeds::bps9600) return 3;
+    if (serialSpeeds == SerialSpeeds::autoDetect) return 4;
 
-    // Default to bps9600
-    return 3;
+    // Default to auto detect
+    return 4;
 }
 
 // Enum conversion from int to serial speed
@@ -174,31 +172,10 @@ Configuration::SerialSpeeds Configuration::convertIntToSerialSpeeds(qint32 seria
     if (serialInt == 1) return SerialSpeeds::bps2400;
     if (serialInt == 2) return SerialSpeeds::bps4800;
     if (serialInt == 3) return SerialSpeeds::bps9600;
+    if (serialInt == 4) return SerialSpeeds::autoDetect;
 
-    // Default to bps9600
-    return SerialSpeeds::bps9600;
-}
-
-// Enum conversion from player model to int
-qint32 Configuration::convertPlayerModelsToInt(PlayerModels playerModels)
-{
-    if (playerModels == PlayerModels::none) return 0;
-    if (playerModels == PlayerModels::pioneerLDV4300D) return 1;
-    if (playerModels == PlayerModels::pioneerCLDV2800) return 2;
-
-    // Default to none
-    return 0;
-}
-
-// Enum conversion from int to player model
-Configuration::PlayerModels Configuration::convertIntToPlayerModels(qint32 playerInt)
-{
-    if (playerInt == 0) return PlayerModels::none;
-    if (playerInt == 1) return PlayerModels::pioneerLDV4300D;
-    if (playerInt == 2) return PlayerModels::pioneerCLDV2800;
-
-    // Default to none
-    return PlayerModels::none;
+    // Default to auto detect
+    return SerialSpeeds::autoDetect;
 }
 
 // Functions to get and set configuration values ----------------------------------------------------------------------
@@ -253,16 +230,6 @@ void Configuration::setSerialSpeed(SerialSpeeds serialSpeed)
 Configuration::SerialSpeeds Configuration::getSerialSpeed(void)
 {
     return settings.pic.serialSpeed;
-}
-
-void Configuration::setPlayerModel(PlayerModels playerModel)
-{
-    settings.pic.playerModel = playerModel;
-}
-
-Configuration::PlayerModels Configuration::getPlayerModel(void)
-{
-    return settings.pic.playerModel;
 }
 
 void Configuration::setSerialDevice(QString serialDevice)

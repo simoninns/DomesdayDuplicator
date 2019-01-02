@@ -34,6 +34,7 @@
 #include <QTimer>
 #include <QTimerEvent>
 #include <QElapsedTimer>
+#include <string>
 
 class PlayerCommunication : public QObject
 {
@@ -43,6 +44,7 @@ public:
     ~PlayerCommunication() override;
 
     enum SerialSpeed {
+        autoDetect,
         bps9600,
         bps4800,
         bps2400,
@@ -50,9 +52,18 @@ public:
     };
 
     enum PlayerType {
-        unknownPlayerType,
-        pioneerLDV4300D,    // Pioneer LD-V4300D
-        pioneerCLDV2800     // Pioneer CLD-V2800
+        none,               // No defined player model
+        pioneerCLDV5000,    // Pioneer CLD-V5000 (ID code 42)
+        pioneerCLDV2800,    // Pioneer CLD-V2800 (ID code 37)
+        pioneerCLDV2600,    // Pioneer CLD-V2600 (ID code 27)
+        pioneerCLDV2400,    // Pioneer CLD-V2400 (ID code 18)
+        pioneerLDV4400,     // Pioneer LD-V4400  (ID code 16)
+        pioneerLDV4300D,    // Pioneer LD-V4300D (ID code 15)
+        pioneerLDV2200,     // Pioneer LD-V2200  (ID code 07)
+        pioneerLDV8000,     // Pioneer LD-V8000  (ID code 06)
+        pioneerLCV330,      // Pioneer VC-V330   (ID code 05)
+        pioneerLDV4200,     // Pioneer LD-V4200  (ID code 02)
+        unknownPlayerType,  // Unknown but compatible player model
     };
 
     enum PlayerState {
@@ -106,8 +117,12 @@ public:
         frame
     };
 
-    bool connect(PlayerType playerType, QString serialDevice, SerialSpeed serialSpeed);
+    bool connect(QString serialDevice, SerialSpeed serialSpeed);
     void disconnect(void);
+    PlayerType getPlayerType(void);
+    QString getPlayerName(void);
+    QString getPlayerVersionNumber(void);
+    SerialSpeed getSerialSpeed(void);
     TrayState getTrayState(void);
     PlayerState getPlayerState(void);
     qint32 getCurrentFrame(void);
@@ -138,10 +153,18 @@ public:
 signals:
 
 private:
+    PlayerType PlayerCommunication::playerCodeToType(const std::string& playerCode) const;
+    std::string PlayerCommunication::playerCodeToName(const std::string& playerCode) const;
+
+private:
     QSerialPort *serialPort;
+    SerialSpeed currentSerialSpeed;
+    PlayerType currentPlayerType;
+    QString currentPlayerName;
+    QString currentPlayerVersionNumber;
 
     void sendSerialCommand(QString command);
-    QString getSerialResponse(qint32 timeoutInSeconds);
+    QString getSerialResponse(qint32 timeoutInMilliseconds);
 
 public slots:
 };
