@@ -238,22 +238,6 @@
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
      </property>
     </widget>
-    <widget class="QLabel" name="label_6">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>70</y>
-       <width>111</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Player model:</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
     <widget class="QComboBox" name="serialDeviceComboBox">
      <property name="geometry">
       <rect>
@@ -274,21 +258,11 @@
       </rect>
      </property>
     </widget>
-    <widget class="QComboBox" name="playerModelComboBox">
-     <property name="geometry">
-      <rect>
-       <x>130</x>
-       <y>70</y>
-       <width>181</width>
-       <height>24</height>
-      </rect>
-     </property>
-    </widget>
     <widget class="QCheckBox" name="keyLockCheckBox">
      <property name="geometry">
       <rect>
        <x>130</x>
-       <y>100</y>
+       <y>70</y>
        <width>251</width>
        <height>22</height>
       </rect>
@@ -310,7 +284,6 @@
   <tabstop>productIdLineEdit</tabstop>
   <tabstop>serialDeviceComboBox</tabstop>
   <tabstop>serialSpeedComboBox</tabstop>
-  <tabstop>playerModelComboBox</tabstop>
  </tabstops>
  <resources/>
  <connections>

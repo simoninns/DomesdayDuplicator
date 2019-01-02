@@ -218,13 +218,13 @@ bool UsbDevice::scanForDevice(void)
 
     // Attempt to open the USB device
     // Open the USB device
-    open();
+    bool result = open();
     if (usbDeviceHandle == nullptr) return false;
 
     // Device found, close it and return
     close();
     emit deviceAttached();
-    return true;
+    return result;
 }
 
 // Poll for the target USB device (just detection)
@@ -232,12 +232,12 @@ bool UsbDevice::searchForAttachedDevice(void)
 {
     // Attempt to find and open the USB device
     // Open the USB device
-    open();
+    bool result = open();
     if (usbDeviceHandle == nullptr) return false;
 
     // Device found, close it and return
     close();
-    return true;
+    return result;
 }
 
 // Send a configuration command to the USB device
@@ -265,6 +265,8 @@ bool UsbDevice::open(void)
     qint32 responseCode;
     ssize_t deviceCount;
 
+    bool isSuccess = false;
+
     // Get the number of attached USB devices
     deviceCount = libusb_get_device_list(libUsbContext, &usbDevices);
     if (deviceCount < 0) {
@@ -291,7 +293,7 @@ bool UsbDevice::open(void)
             if (responseCode < 0) {
                 qDebug() << "UsbDevice::open(): Found device with matching VID/PID, but attempting to open it failed!" << libusb_error_name(responseCode);
                 usbDeviceHandle = nullptr;
-            }
+            } else isSuccess = true;
 
             // Done
             break;
@@ -301,7 +303,7 @@ bool UsbDevice::open(void)
     // Free up the device list
     libusb_free_device_list(usbDevices, 1);
 
-    return true;
+    return isSuccess;
 }
 
 // Close the USB device
@@ -317,40 +319,45 @@ bool UsbDevice::sendVendorSpecificCommand(quint8 command, quint16 value)
     bool result = true;
 
     // Open the USB device
-    open();
+    result = open();
 
-    // Did we get a valid device handle?
-    if (usbDeviceHandle != nullptr) {
-        // Claim the required USB device interface for the transfer
-        qint32 claimResult = libusb_claim_interface(usbDeviceHandle, 0);
-        if (claimResult < 0) {
-            qDebug() << "UsbDevice::sendVendorSpecificCommand(): USB interface claim failed (connected via USB2?) with error:" << libusb_error_name(claimResult);
+    if (result) {
+        // Did we get a valid device handle?
+        if (usbDeviceHandle != nullptr) {
+            // Claim the required USB device interface for the transfer
+            qint32 claimResult = libusb_claim_interface(usbDeviceHandle, 0);
+            if (claimResult < 0) {
+                qDebug() << "UsbDevice::sendVendorSpecificCommand(): USB interface claim failed (connected via USB2?) with error:" << libusb_error_name(claimResult);
 
-            // We can't continue... clean-up and give up
-            close();
-            return false;
-        }
+                // We can't continue... clean-up and give up
+                close();
+                return false;
+            }
 
-        // Perform a control transfer of type 0x40 (vendor specific command with no data packets)
-        responseCode = libusb_control_transfer(usbDeviceHandle, 0x40,
-                                               command, value,
-                                               0, nullptr, 0, 1000);
-        if (responseCode < 0) {
-            qDebug() << "UsbDevice::sendVendorSpecificCommand(): libusb_control_transfer failed with" << libusb_error_name(responseCode);
+            // Perform a control transfer of type 0x40 (vendor specific command with no data packets)
+            responseCode = libusb_control_transfer(usbDeviceHandle, 0x40,
+                                                   command, value,
+                                                   0, nullptr, 0, 1000);
+            if (responseCode < 0) {
+                qDebug() << "UsbDevice::sendVendorSpecificCommand(): libusb_control_transfer failed with" << libusb_error_name(responseCode);
+                result = false;
+            }
+        } else {
+            qDebug() << "UsbDevice::sendVendorSpecificCommand(): Failed to open USB device";
             result = false;
         }
+
+        // Release the USB interface
+        qint32 releaseResult = libusb_release_interface(usbDeviceHandle, 0);
+        if (releaseResult < 0) {
+            qDebug() << "UsbDevice::sendVendorSpecificCommand(): USB interface release failed with error:" << libusb_error_name(releaseResult);
+        }
+
+        // Close the USB device
+        close();
     } else {
-        qDebug() << "UsbDevice::sendVendorSpecificCommand(): Failed to open USB device";
+        qDebug() << "UsbDevice::sendVendorSpecificCommand(): Sending vendor specific command failed, could not open USB device!";
     }
-
-    // Release the USB interface
-    qint32 releaseResult = libusb_release_interface(usbDeviceHandle, 0);
-    if (releaseResult < 0) {
-        qDebug() << "UsbDevice::sendVendorSpecificCommand(): USB interface release failed with error:" << libusb_error_name(releaseResult);
-    }
-
-    // Close the USB device
-    close();
 
     return result;
 }
@@ -362,22 +369,26 @@ void UsbDevice::startCapture(QString filename, bool isCaptureFormat10Bit)
 
     // Open the USB device
     qDebug() << "UsbDevice::startCapture(): Opening the capture device";
-    open();
+    bool result = open();
 
-    // Create the capture object
-    qDebug() << "UsbDevice::startCapture(): Creating the capture object";
-    usbCapture = new UsbCapture(this, libUsbContext, usbDeviceHandle, filename, isCaptureFormat10Bit);
+    if (result) {
+        // Create the capture object
+        qDebug() << "UsbDevice::startCapture(): Creating the capture object";
+        usbCapture = new UsbCapture(this, libUsbContext, usbDeviceHandle, filename, isCaptureFormat10Bit);
 
-    // Did we get a valid device handle?
-    if (usbDeviceHandle != nullptr) {
-        qDebug() << "UsbDevice::startCapture(): Starting capture process with start()";
-        usbCapture->start();
+        // Did we get a valid device handle?
+        if (usbDeviceHandle != nullptr) {
+            qDebug() << "UsbDevice::startCapture(): Starting capture process with start()";
+            usbCapture->start();
+        } else {
+            qDebug() << "UsbDevice::startCapture(): Invalid device handle... cannot start capture!";
+        }
+
+        // Connect to the transfer failure notification signal
+        connect(usbCapture, &UsbCapture::transferFailed, this, &UsbDevice::transferFailedSignalHandler);
     } else {
-        qDebug() << "UsbDevice::startCapture(): Invalid device handle... cannot start capture!";
+        qDebug() << "UsbDevice::startCapture(): Could not open USB device... cannot start capture!";
     }
-
-    // Connect to the transfer failure notification signal
-    connect(usbCapture, &UsbCapture::transferFailed, this, &UsbDevice::transferFailedSignalHandler);
 }
 
 // Stop capturing from the USB device

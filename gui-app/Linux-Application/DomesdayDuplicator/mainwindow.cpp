@@ -130,6 +130,9 @@ MainWindow::MainWindow(QWidget *parent) :
     storageInfoTimer = new QTimer(this);
     connect(storageInfoTimer, SIGNAL(timeout()), this, SLOT(updateStorageInformation()));
     storageInfoTimer->start(200); // Update 5 times per second
+
+    // Set player as disconnected
+    isPlayerConnected = false;
 }
 
 MainWindow::~MainWindow()
@@ -170,12 +173,11 @@ void MainWindow::deviceAttachedSignalHandler(void)
     // Enable the capture button
     ui->capturePushButton->setEnabled(true);
 
+    // Enable the automatic capture dialogue
+    if (isPlayerConnected) automaticCaptureDialog->setEnabled(true);
+
     // Enable the test mode option
     ui->actionTest_mode->setEnabled(true);
-
-    // Ensure that the test mode option matches the device configuration
-    if (ui->actionTest_mode->isChecked()) usbDevice->sendConfigurationCommand(true);
-    else usbDevice->sendConfigurationCommand(false);
 }
 
 // USB device detached signal handler
@@ -188,6 +190,9 @@ void MainWindow::deviceDetachedSignalHandler(void)
 
     // Disable the capture button
     ui->capturePushButton->setEnabled(false);
+
+    // Disable the automatic capture dialogue
+    automaticCaptureDialog->setEnabled(false);
 
     // Disable the test mode option
     ui->actionTest_mode->setEnabled(false);
@@ -448,8 +453,10 @@ void MainWindow::playerConnectedSignalHandler(void)
     // Enable remote control dialogue
     playerRemoteDialog->setEnabled(true);
 
-    // Enable automatic-capture
-    automaticCaptureDialog->setEnabled(true);
+    // Enable automatic-capture (is capture is currently allowed)
+    if (ui->capturePushButton->isEnabled()) automaticCaptureDialog->setEnabled(true);
+
+    isPlayerConnected = true;
 }
 
 // Signal handler for player disconnected signal from player control
@@ -461,6 +468,8 @@ void MainWindow::playerDisconnectedSignalHandler(void)
 
     // Disable automatic-capture
     automaticCaptureDialog->setEnabled(false);
+
+    isPlayerConnected = false;
 }
 
 // Update the capture statistics labels
@@ -480,6 +489,18 @@ void MainWindow::updateCaptureStatistics(void)
 // Update the player control labels
 void MainWindow::updatePlayerControlInformation(void)
 {
+    if (!playerControl->getSerialBaudRate().isEmpty()) {
+        ui->playerPortLabel->setText(configuration->getSerialDevice() + " @ " + playerControl->getSerialBaudRate() + " bps");
+    } else {
+        ui->playerPortLabel->setText(configuration->getSerialDevice());
+    }
+
+    QString modelLabel;
+    auto playerModelName = playerControl->getPlayerModelName();
+    if (!playerModelName.isEmpty()) {
+        modelLabel = playerModelName + " [Version " + playerControl->getPlayerVersionNumber() + "]";
+    }
+    ui->playerModelLabel->setText(modelLabel);
     ui->playerStatusLabel->setText(playerControl->getPlayerStatusInformation());
 
     // Display the position information based on disc type
@@ -527,31 +548,18 @@ void MainWindow::updateStorageInformation(void)
 
 void MainWindow::startPlayerControl(void)
 {
-    PlayerCommunication::SerialSpeed serialSpeed;
-    PlayerCommunication::PlayerType playerType;
-
     // Get the configured serial speed
-    serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
+    PlayerCommunication::SerialSpeed serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
     switch (configuration->getSerialSpeed()) {
-    case Configuration::bps1200: serialSpeed = PlayerCommunication::SerialSpeed::bps1200;
+    case Configuration::SerialSpeeds::bps1200: serialSpeed = PlayerCommunication::SerialSpeed::bps1200;
         break;
-    case Configuration::bps2400: serialSpeed = PlayerCommunication::SerialSpeed::bps2400;
+    case Configuration::SerialSpeeds::bps2400: serialSpeed = PlayerCommunication::SerialSpeed::bps2400;
         break;
-    case Configuration::bps4800: serialSpeed = PlayerCommunication::SerialSpeed::bps4800;
+    case Configuration::SerialSpeeds::bps4800: serialSpeed = PlayerCommunication::SerialSpeed::bps4800;
         break;
-    case Configuration::bps9600: serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
+    case Configuration::SerialSpeeds::bps9600: serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
         break;
-    }
-
-    // Get the configured player type
-    playerType = PlayerCommunication::PlayerType::unknownPlayerType;
-    switch (configuration->getPlayerModel()) {
-    case Configuration::PlayerModels::none: playerType = PlayerCommunication::PlayerType::unknownPlayerType;
-        qDebug() << "MainWindow::startPlayerControl(): Player type is not configured in preferences";
-        break;
-    case Configuration::PlayerModels::pioneerLDV4300D: playerType = PlayerCommunication::PlayerType::pioneerLDV4300D;
-        break;
-    case Configuration::PlayerModels::pioneerCLDV2800: playerType = PlayerCommunication::PlayerType::pioneerCLDV2800;
+    case Configuration::SerialSpeeds::autoDetect: serialSpeed = PlayerCommunication::SerialSpeed::autoDetect;
         break;
     }
 
@@ -559,9 +567,7 @@ void MainWindow::startPlayerControl(void)
         qDebug() << "MainWindow::startPlayerControl(): Player serial device is not configured in preferences";
 
     // Send the configuration to the player control
-    playerControl->configurePlayerCommunication(configuration->getSerialDevice(),
-                                                    serialSpeed,
-                                                    playerType);
+    playerControl->configurePlayerCommunication(configuration->getSerialDevice(), serialSpeed);
 }
 
 // GUI Triggered action handlers --------------------------------------------------------------------------------------
@@ -624,6 +630,11 @@ void MainWindow::on_capturePushButton_clicked()
     if (!isCaptureRunning) {
         // Start capture
         QString captureFilename;
+
+        // Ensure that the test mode option matches the device configuration
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Setting device's test mode flag to" << ui->actionTest_mode->isChecked();
+        if (ui->actionTest_mode->isChecked()) usbDevice->sendConfigurationCommand(true);
+        else usbDevice->sendConfigurationCommand(false);
 
         // Construct the capture file path and name
 
