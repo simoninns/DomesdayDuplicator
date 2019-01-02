@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>480</width>
-    <height>400</height>
+    <height>470</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>480</width>
-    <height>400</height>
+    <height>470</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -242,10 +242,19 @@
     </item>
     <item>
      <widget class="QGroupBox" name="groupBox_2">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <property name="minimumSize">
        <size>
         <width>0</width>
-        <height>80</height>
+        <height>140</height>
        </size>
       </property>
       <property name="maximumSize">
@@ -261,7 +270,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>30</y>
+         <y>70</y>
          <width>81</width>
          <height>21</height>
         </rect>
@@ -277,7 +286,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>50</y>
+         <y>90</y>
          <width>81</width>
          <height>21</height>
         </rect>
@@ -293,7 +302,7 @@
        <property name="geometry">
         <rect>
          <x>100</x>
-         <y>30</y>
+         <y>70</y>
          <width>351</width>
          <height>21</height>
         </rect>
@@ -306,6 +315,35 @@
        <property name="geometry">
         <rect>
          <x>100</x>
+         <y>90</y>
+         <width>351</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Unknown</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_8">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>50</y>
+         <width>81</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Model:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="playerModelLabel">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
          <y>50</y>
          <width>351</width>
          <height>21</height>
@@ -313,6 +351,35 @@
        </property>
        <property name="text">
         <string>Unknown</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="playerPortLabel">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>30</y>
+         <width>351</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Unknown</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_9">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>81</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Port:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
        </property>
       </widget>
      </widget>

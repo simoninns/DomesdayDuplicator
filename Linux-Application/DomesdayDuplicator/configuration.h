@@ -51,14 +51,8 @@ public:
         bps1200,
         bps2400,
         bps4800,
-        bps9600
-    };
-
-    // Define the possible supported player models
-    enum PlayerModels {
-        none,               // No defined player model
-        pioneerLDV4300D,    // Pioneer LD-V4300D
-        pioneerCLDV2800     // Pioneer CLD-V2800
+        bps9600,
+        autoDetect,
     };
 
     explicit Configuration(QObject *parent = nullptr);
@@ -79,8 +73,6 @@ public:
     quint16 getUsbPid(void);
     void setSerialSpeed(SerialSpeeds serialSpeed);
     SerialSpeeds getSerialSpeed(void);
-    void setPlayerModel(PlayerModels playerModel);
-    PlayerModels getPlayerModel(void);
     void setSerialDevice(QString serialDevice);
     QString getSerialDevice(void);
     void setKeyLock(bool keyLock);
@@ -108,7 +100,6 @@ private:
     struct Pic {
         QString serialDevice;
         SerialSpeeds serialSpeed;
-        PlayerModels playerModel;
         bool keyLock;
     };
 
@@ -123,8 +114,6 @@ private:
     CaptureFormat convertIntToCaptureFormat(qint32 captureInt);
     qint32 convertSerialSpeedsToInt(SerialSpeeds serialSpeeds);
     SerialSpeeds convertIntToSerialSpeeds(qint32 serialInt);
-    qint32 convertPlayerModelsToInt(PlayerModels playerModels);
-    PlayerModels convertIntToPlayerModels(qint32 playerInt);
 };
 
 #endif // CONFIGURATION_H

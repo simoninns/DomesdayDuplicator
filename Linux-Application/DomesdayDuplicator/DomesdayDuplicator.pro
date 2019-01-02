@@ -25,8 +25,21 @@ DEFINES += QT_DEPRECATED_WARNINGS
 CONFIG += c++11
 
 # Include the libUSB library
-INCLUDEPATH += "/usr/local/include/libusb-1.0"
-LIBS += -L"/usr/local/lib" -lusb-1.0
+unix {
+    INCLUDEPATH += "/usr/include/libusb-1.0"
+    LIBS += -L"/usr/lib" -lusb-1.0
+}
+win32 {
+    debug {
+        LIBS += -L"$$PWD/libusb-1.0.22/x64/Debug/lib"
+    }
+    release {
+       LIBS += -L"$$PWD/libusb-1.0.22/x64/Release/lib"
+    }
+    LIBS += -llibusb-1.0 -lAdvAPI32
+    INCLUDEPATH += "$$PWD/libusb-1.0.22/libusb"
+    DEFINES += NOMINMAX QUSB_LIBRARY
+}
 
 SOURCES += \
         main.cpp \
@@ -70,3 +83,7 @@ else: unix:!android: target.path = /usr/local/bin/
 
 RESOURCES += \
     resources.qrc
+
+win32 {
+    RC_FILE = resources.rc
+}

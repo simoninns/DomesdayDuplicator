@@ -91,45 +91,14 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
 
     // Build the serialSpeedComboBox
     ui->serialSpeedComboBox->clear();
+    ui->serialSpeedComboBox->addItem("Auto", Configuration::SerialSpeeds::autoDetect);
     ui->serialSpeedComboBox->addItem("9600", Configuration::SerialSpeeds::bps9600);
     ui->serialSpeedComboBox->addItem("4800", Configuration::SerialSpeeds::bps4800);
     ui->serialSpeedComboBox->addItem("2400", Configuration::SerialSpeeds::bps2400);
     ui->serialSpeedComboBox->addItem("1200", Configuration::SerialSpeeds::bps1200);
 
     // Select the currently configured serial speed
-    switch (configuration->getSerialSpeed()) {
-        case Configuration::SerialSpeeds::bps9600:
-        ui->serialSpeedComboBox->setCurrentIndex(0);
-        break;
-        case Configuration::SerialSpeeds::bps4800:
-        ui->serialSpeedComboBox->setCurrentIndex(1);
-        break;
-        case Configuration::SerialSpeeds::bps2400:
-        ui->serialSpeedComboBox->setCurrentIndex(2);
-        break;
-        case Configuration::SerialSpeeds::bps1200:
-        ui->serialSpeedComboBox->setCurrentIndex(3);
-        break;
-    }
-
-    // Build the playerModelComboBox
-    ui->playerModelComboBox->clear();
-    ui->playerModelComboBox->addItem("None", Configuration::PlayerModels::none);
-    ui->playerModelComboBox->addItem("Pioneer LD-V4300D", Configuration::PlayerModels::pioneerLDV4300D);
-    ui->playerModelComboBox->addItem("Pioneer CLD-V2800", Configuration::PlayerModels::pioneerCLDV2800);
-
-    // Select the currently configured player
-    switch(configuration->getPlayerModel()) {
-        case Configuration::PlayerModels::none:
-        ui->playerModelComboBox->setCurrentIndex(0);
-        break;
-        case Configuration::PlayerModels::pioneerLDV4300D:
-        ui->playerModelComboBox->setCurrentIndex(1);
-        break;
-        case Configuration::PlayerModels::pioneerCLDV2800:
-        ui->playerModelComboBox->setCurrentIndex(2);
-        break;
-    }
+    ui->serialSpeedComboBox->setCurrentIndex(ui->serialSpeedComboBox->findData((unsigned int)configuration->getSerialSpeed()));
 
     // Keylock flag
     ui->keyLockCheckBox->setChecked(configuration->getKeyLock());
@@ -154,26 +123,7 @@ void ConfigurationDialog::saveConfiguration(Configuration *configuration)
     configuration->setSerialDevice(ui->serialDeviceComboBox->currentText());
 
     // Player integration - Serial speed
-    switch (ui->serialSpeedComboBox->currentIndex()) {
-        case 0: configuration->setSerialSpeed(Configuration::SerialSpeeds::bps9600);
-        break;
-        case 1: configuration->setSerialSpeed(Configuration::SerialSpeeds::bps4800);
-        break;
-        case 2: configuration->setSerialSpeed(Configuration::SerialSpeeds::bps2400);
-        break;
-        case 3: configuration->setSerialSpeed(Configuration::SerialSpeeds::bps1200);
-        break;
-    }
-
-    // Player integration - player model
-    switch (ui->playerModelComboBox->currentIndex()) {
-        case 0: configuration->setPlayerModel(Configuration::PlayerModels::none);
-        break;
-        case 1: configuration->setPlayerModel(Configuration::PlayerModels::pioneerLDV4300D);
-        break;
-        case 2: configuration->setPlayerModel(Configuration::PlayerModels::pioneerCLDV2800);
-        break;
-    }
+    configuration->setSerialSpeed((Configuration::SerialSpeeds)ui->serialSpeedComboBox->itemData(ui->serialSpeedComboBox->currentIndex()).toInt());
 
     // KeyLock
     if (ui->keyLockCheckBox->isChecked()) configuration->setKeyLock(true);
@@ -228,7 +178,6 @@ void ConfigurationDialog::on_buttonBox_clicked(QAbstractButton *button)
         ui->productIdLineEdit->setText(QString::number(24635));
 
         ui->serialDeviceComboBox->setCurrentIndex(0);
-        ui->serialSpeedComboBox->setCurrentIndex(0);
-        ui->playerModelComboBox->setCurrentIndex(0);
+        ui->serialSpeedComboBox->setCurrentIndex(ui->serialSpeedComboBox->findData(Configuration::SerialSpeeds::autoDetect));
     }
 }

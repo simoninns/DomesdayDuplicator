@@ -62,19 +62,16 @@ PlayerControl::~PlayerControl()
 // Method to set the player connection parameters
 void PlayerControl::configurePlayerCommunication(
         QString serialDevice,
-        PlayerCommunication::SerialSpeed serialSpeed,
-        PlayerCommunication::PlayerType playerType)
+        PlayerCommunication::SerialSpeed serialSpeed)
 {
     QMutexLocker locker(&mutex);
 
     // Move all the parameters to be local
     this->serialDevice = serialDevice;
     this->serialSpeed = serialSpeed;
-    this->playerType = playerType;
 
-    // Make sure the player type is set and the serial device string is not empty
-    if (playerType != PlayerCommunication::PlayerType::unknownPlayerType &&
-            !serialDevice.isEmpty() && !serialDevice.contains("None", Qt::CaseInsensitive)) {
+    // Make sure the serial device string is not empty
+    if (!serialDevice.isEmpty() && !serialDevice.contains("None", Qt::CaseInsensitive)) {
         // Is the run process already running?
         if (!isRunning()) {
             // No, start with low priority
@@ -111,12 +108,11 @@ void PlayerControl::run()
     while(!abort) {
         // Are we connected to the player?
         if (!isPlayerConnected && reconnect == false) {
-            // Make sure the player type is set and the serial device string is not empty
+            // Make sure the serial device string is not empty
             // otherwise don't attempt connect to the player
-            if (playerType != PlayerCommunication::PlayerType::unknownPlayerType &&
-                    !serialDevice.isEmpty()) {
+            if (!serialDevice.isEmpty()) {
                 // Connect to the player
-                if (playerCommunication->connect(playerType, serialDevice, serialSpeed)) {
+                if (playerCommunication->connect(serialDevice, serialSpeed)) {
                     // Connection successful
                     isPlayerConnected = true;
                     emit playerConnected();
@@ -197,6 +193,34 @@ void PlayerControl::stop(void)
 {
     qDebug() << "PlayerControl::stop(): Stopping player control thread";
     abort = true;
+}
+
+QString PlayerControl::getPlayerModelName(void)
+{
+    return playerCommunication->getPlayerName();
+}
+
+QString PlayerControl::getPlayerVersionNumber(void)
+{
+    return playerCommunication->getPlayerVersionNumber();
+}
+
+QString PlayerControl::getSerialBaudRate(void)
+{
+    switch (playerCommunication->getSerialSpeed())
+    {
+    case PlayerCommunication::SerialSpeed::bps1200:
+        return "1200";
+    case PlayerCommunication::SerialSpeed::bps2400:
+        return "2400";
+    case PlayerCommunication::SerialSpeed::bps4800:
+        return "4800";
+    case PlayerCommunication::SerialSpeed::bps9600:
+        return "9600";
+    case PlayerCommunication::SerialSpeed::autoDetect:
+        return ""; // Require to supress compilation warning
+    }
+    return "";
 }
 
 // Returns a string that indicates the player's status

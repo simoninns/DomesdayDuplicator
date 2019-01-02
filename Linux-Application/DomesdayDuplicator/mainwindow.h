@@ -113,6 +113,8 @@ private:
     QTime captureElapsedTime;
     QTimer *storageInfoTimer;
 
+    bool isPlayerConnected;
+
     // Remote control states
     PlayerCommunication::DisplayState remoteDisplayState;
     PlayerCommunication::AudioState remoteAudioState;
