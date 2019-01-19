@@ -4,7 +4,7 @@
 
     Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2018 Simon Inns
+    Copyright (C) 2018-2019 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -133,13 +133,28 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Set player as disconnected
     isPlayerConnected = false;
+
+    // Load the window geometry from the configuration
+    restoreGeometry(configuration->getMainWindowGeometry());
+    playerRemoteDialog->restoreGeometry(configuration->getPlayerRemoteDialogGeometry());
+    advancedNamingDialog->restoreGeometry(configuration->getAdvancedNamingDialogGeometry());
+    automaticCaptureDialog->restoreGeometry(configuration->getAutomaticCaptureDialogGeometry());
+    configurationDialog->restoreGeometry(configuration->getConfigurationDialogGeometry());
 }
 
 MainWindow::~MainWindow()
 {
-    qDebug() << "MainWindow::~MainWindow(): Quit selected; asking threads to stop...";
+    // Save window and dialogue geometry
+    qDebug() << "MainWindow::~MainWindow(): Quit selected; saving configuration...";
+    configuration->setMainWindowGeometry(saveGeometry());
+    configuration->setPlayerRemoteDialogGeometry(playerRemoteDialog->saveGeometry());
+    configuration->setAdvancedNamingDialogGeometry(advancedNamingDialog->saveGeometry());
+    configuration->setAutomaticCaptureDialogGeometry(automaticCaptureDialog->saveGeometry());
+    configuration->setConfigurationDialogGeometry(configurationDialog->saveGeometry());
+    configuration->writeConfiguration();
 
     // Ask the threads to stop
+    qDebug() << "MainWindow::~MainWindow(): Quit selected; asking threads to stop...";
     if (playerControl->isRunning()) playerControl->stop();
     if (usbDevice->isRunning()) usbDevice->stop();
 

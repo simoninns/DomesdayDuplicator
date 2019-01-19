@@ -4,7 +4,7 @@
 
     Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2018 Simon Inns
+    Copyright (C) 2018-2019 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -78,6 +78,17 @@ public:
     void setKeyLock(bool keyLock);
     bool getKeyLock(void);
 
+    void setMainWindowGeometry(QByteArray mainWindowGeometry);
+    QByteArray getMainWindowGeometry(void);
+    void setPlayerRemoteDialogGeometry(QByteArray playerRemoteDialogGeometry);
+    QByteArray getPlayerRemoteDialogGeometry(void);
+    void setAdvancedNamingDialogGeometry(QByteArray advancedNamingDialogGeometry);
+    QByteArray getAdvancedNamingDialogGeometry(void);
+    void setAutomaticCaptureDialogGeometry(QByteArray automaticCaptureDialogGeometry);
+    QByteArray getAutomaticCaptureDialogGeometry(void);
+    void setConfigurationDialogGeometry(QByteArray configurationDialogGeometry);
+    QByteArray getConfigurationDialogGeometry(void);
+
 signals:
 
 public slots:
@@ -103,11 +114,21 @@ private:
         bool keyLock;
     };
 
+    // Window geometry and settings
+    struct Windows {
+        QByteArray mainWindowGeometry;
+        QByteArray playerRemoteDialogGeometry;
+        QByteArray advancedNamingDialogGeometry;
+        QByteArray automaticCaptureDialogGeometry;
+        QByteArray configurationDialogGeometry;
+    };
+
     struct Settings {
         qint32 version;
         Capture capture;
         Usb usb;
         Pic pic;
+        Windows windows;
     } settings;
 
     qint32 convertCaptureFormatToInt(CaptureFormat captureFormat);
