@@ -4,7 +4,7 @@
 
     Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2018 Simon Inns
+    Copyright (C) 2018-2019 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -77,6 +77,15 @@ void Configuration::writeConfiguration(void)
     configuration->setValue("keyLock", settings.pic.keyLock);
     configuration->endGroup();
 
+    // Windows
+    configuration->beginGroup("windows");
+    configuration->setValue("mainWindowGeometry", settings.windows.mainWindowGeometry);
+    configuration->setValue("playerRemoteDialogGeometry", settings.windows.playerRemoteDialogGeometry);
+    configuration->setValue("advancedNamingDialogGeometry", settings.windows.advancedNamingDialogGeometry);
+    configuration->setValue("automaticCaptureDialogGeometry", settings.windows.automaticCaptureDialogGeometry);
+    configuration->setValue("configurationDialogGeometry", settings.windows.configurationDialogGeometry);
+    configuration->endGroup();
+
     // Sync the settings with disk
     configuration->sync();
 }
@@ -106,6 +115,15 @@ void Configuration::readConfiguration(void)
     settings.pic.serialSpeed = convertIntToSerialSpeeds(configuration->value("serialSpeed").toInt());
     settings.pic.keyLock = configuration->value("keyLock").toBool();
     configuration->endGroup();
+
+    // Windows
+    configuration->beginGroup("windows");
+    settings.windows.mainWindowGeometry = configuration->value("mainWindowGeometry").toByteArray();
+    settings.windows.playerRemoteDialogGeometry = configuration->value("playerRemoteDialogGeometry").toByteArray();
+    settings.windows.advancedNamingDialogGeometry = configuration->value("advancedNamingDialogGeometry").toByteArray();
+    settings.windows.automaticCaptureDialogGeometry = configuration->value("automaticCaptureDialogGeometry").toByteArray();
+    settings.windows.configurationDialogGeometry = configuration->value("configurationDialogGeometry").toByteArray();
+    configuration->endGroup();
 }
 
 void Configuration::setDefault(void)
@@ -125,6 +143,13 @@ void Configuration::setDefault(void)
     settings.pic.serialDevice = tr("");
     settings.pic.serialSpeed = SerialSpeeds::autoDetect;
     settings.pic.keyLock = false;
+
+    // Windows
+    settings.windows.mainWindowGeometry = QByteArray();
+    settings.windows.playerRemoteDialogGeometry = QByteArray();
+    settings.windows.advancedNamingDialogGeometry = QByteArray();
+    settings.windows.automaticCaptureDialogGeometry = QByteArray();
+    settings.windows.configurationDialogGeometry = QByteArray();
 
     // Write the configuration
     writeConfiguration();
@@ -250,4 +275,55 @@ void Configuration::setKeyLock(bool keyLock)
 bool Configuration::getKeyLock(void)
 {
     return settings.pic.keyLock;
+}
+
+// Windows
+void Configuration::setMainWindowGeometry(QByteArray mainWindowGeometry)
+{
+    settings.windows.mainWindowGeometry = mainWindowGeometry;
+}
+
+QByteArray Configuration::getMainWindowGeometry(void)
+{
+    return settings.windows.mainWindowGeometry;
+}
+
+void Configuration::setPlayerRemoteDialogGeometry(QByteArray playerRemoteDialogGeometry)
+{
+    settings.windows.playerRemoteDialogGeometry = playerRemoteDialogGeometry;
+}
+
+QByteArray Configuration::getPlayerRemoteDialogGeometry(void)
+{
+    return settings.windows.playerRemoteDialogGeometry;
+}
+
+void Configuration::setAdvancedNamingDialogGeometry(QByteArray advancedNamingDialogGeometry)
+{
+    settings.windows.advancedNamingDialogGeometry = advancedNamingDialogGeometry;
+}
+
+QByteArray Configuration::getAdvancedNamingDialogGeometry(void)
+{
+    return settings.windows.advancedNamingDialogGeometry;
+}
+
+void Configuration::setAutomaticCaptureDialogGeometry(QByteArray automaticCaptureDialogGeometry)
+{
+    settings.windows.automaticCaptureDialogGeometry = automaticCaptureDialogGeometry;
+}
+
+QByteArray Configuration::getAutomaticCaptureDialogGeometry(void)
+{
+    return settings.windows.automaticCaptureDialogGeometry;
+}
+
+void Configuration::setConfigurationDialogGeometry(QByteArray configurationDialogGeometry)
+{
+    settings.windows.configurationDialogGeometry = configurationDialogGeometry;
+}
+
+QByteArray Configuration::getConfigurationDialogGeometry(void)
+{
+    return settings.windows.configurationDialogGeometry;
 }

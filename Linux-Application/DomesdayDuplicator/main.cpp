@@ -4,7 +4,7 @@
 
     Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2018 Simon Inns
+    Copyright (C) 2018-2019 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription(
         "DomesdayDuplicator - LaserDisc RF sampler\n"
         "\n"
-        "(c)2018 Simon Inns\n"
+        "(c)2018-2019 Simon Inns\n"
         "GPLv3 Open-Source - github: https://github.com/simoninns/DomesdayDuplicator");
     parser.addHelpOption();
     parser.addVersionOption();

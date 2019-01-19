@@ -4,7 +4,7 @@
 
     Capture application for the Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2018 Simon Inns
+    Copyright (C) 2018-2019 Simon Inns
 
     This file is part of Domesday Duplicator.
 
