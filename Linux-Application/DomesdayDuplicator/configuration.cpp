@@ -162,6 +162,7 @@ qint32 Configuration::convertCaptureFormatToInt(CaptureFormat captureFormat)
 {
     if (captureFormat == CaptureFormat::tenBitPacked) return 0;
     if (captureFormat == CaptureFormat::sixteenBitSigned) return 1;
+    if (captureFormat == CaptureFormat::tenBitCdPacked) return 2;
 
     // Default to 0
     return 0;
@@ -172,6 +173,7 @@ Configuration::CaptureFormat Configuration::convertIntToCaptureFormat(qint32 cap
 {
     if (captureInt == 0) return CaptureFormat::tenBitPacked;
     if (captureInt == 1) return CaptureFormat::sixteenBitSigned;
+    if (captureInt == 2) return CaptureFormat::tenBitCdPacked;
 
     // Default to 10 bit packed
     return CaptureFormat::tenBitPacked;
