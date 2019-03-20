@@ -2,9 +2,9 @@
 
     main.cpp
 
-    RF Sample analyser for Domesday Duplicator
+    Utilities for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2018 Simon Inns
+    Copyright (C) 2019 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -24,7 +24,6 @@
     Email: simon.inns@gmail.com
 
 ************************************************************************/
-
 
 #include "mainwindow.h"
 #include <QApplication>

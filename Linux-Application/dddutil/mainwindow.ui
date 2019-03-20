@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>LaserDisc Analyser</string>
+   <string>dddutil</string>
   </property>
   <widget class="QWidget" name="centralWidget">
    <widget class="QGroupBox" name="fileInformationGroupBox">
