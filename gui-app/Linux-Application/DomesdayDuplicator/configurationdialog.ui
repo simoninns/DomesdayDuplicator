@@ -141,7 +141,7 @@
       </rect>
      </property>
      <property name="text">
-      <string>Save captures as 10-bit packed (5:1 decimation for CD)</string>
+      <string>Save captures as 10-bit packed (4:1 decimation for CD)</string>
      </property>
     </widget>
    </widget>

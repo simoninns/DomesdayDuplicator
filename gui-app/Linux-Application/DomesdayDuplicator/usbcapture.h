@@ -43,7 +43,7 @@ class UsbCapture : public QThread
 public:
     explicit UsbCapture(QObject *parent = nullptr, libusb_context *libUsbContextParam = nullptr,
                         libusb_device_handle *usbDeviceHandleParam = nullptr, QString filenameParam = nullptr,
-                        bool isCaptureFormat10BitParam = true);
+                        bool isCaptureFormat10BitParam = true, bool isCaptureFormat10BitDecimatedParam = false);
     ~UsbCapture() override;
 
     void startTransfer(void);
@@ -66,6 +66,7 @@ protected:
     libusb_device_handle *usbDeviceHandle;
     QString filename;
     bool isCaptureFormat10Bit;
+    bool isCaptureFormat10BitDecimated;
 
 private:
     qint32 numberOfDiskBuffersWritten;

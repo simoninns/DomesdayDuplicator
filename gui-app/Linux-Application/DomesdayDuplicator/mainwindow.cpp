@@ -498,7 +498,7 @@ void MainWindow::updateCaptureStatistics(void)
         mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 64; // 16-bit is 64MiB per buffer
     else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked)
         mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40; // 10-bit is 40MiB per buffer
-    else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 8; // 10-bit 1:5 is 8MiB per buffer
+    else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 10; // 10-bit 4:1 is 8MiB per buffer
 
     ui->numberOfDiskBuffersWrittenLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
 }
@@ -548,7 +548,7 @@ void MainWindow::updateStorageInformation(void)
             } else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
                 availableSeconds = availableMiBs / 40; // 10-bit is 40MiB per buffer
             } else {
-                availableSeconds = availableMiBs / 8; // 10-bit 1:5 is 8MiB per buffer
+                availableSeconds = availableMiBs / 10; // 10-bit 4:1 is 10MiB per buffer
             }
 
             // Print the time available (be non-specific if > 24 hours)
@@ -663,16 +663,22 @@ void MainWindow::on_capturePushButton_clicked()
 
         // Change the suffix depending on if the data is 10 or 16 bit
         if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) captureFilename += ".lds";
-        else captureFilename += ".raw";
+        else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) captureFilename += ".raw";
+        else captureFilename += ".cds";
 
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting capture to file:" << captureFilename;
         updateGuiForCaptureStart();
         isCaptureRunning = true;
-        qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer";
+
         if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
-            usbDevice->startCapture(captureFilename, true);
+            qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer - 10-bit packed";
+            usbDevice->startCapture(captureFilename, true, false);
+        } else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitCdPacked) {
+            qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer - 10-bit packed 4:1 decimated";
+            usbDevice->startCapture(captureFilename, true, true);
         } else {
-            usbDevice->startCapture(captureFilename, false);
+            qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer - 16-bit";
+            usbDevice->startCapture(captureFilename, false, false);
         }
 
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Transfer started";
