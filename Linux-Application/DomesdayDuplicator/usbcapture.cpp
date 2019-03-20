@@ -207,7 +207,8 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
 
 UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
                        libusb_device_handle *usbDeviceHandleParam,
-                       QString filenameParam, bool isCaptureFormat10BitParam) : QThread(parent)
+                       QString filenameParam, bool isCaptureFormat10BitParam,
+                       bool isCaptureFormat10BitDecimatedParam) : QThread(parent)
 {
     // Set the libUSB context
     libUsbContext = libUsbContextParam;
@@ -226,6 +227,7 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
 
     // Store the requested data format
     isCaptureFormat10Bit = isCaptureFormat10BitParam;
+    isCaptureFormat10BitDecimated = isCaptureFormat10BitDecimatedParam;
 
     // Set the transfer abort flag
     transferAbort = false;
@@ -540,39 +542,78 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
 
     // Write the data in 10 or 16 bit format
     if (isCaptureFormat10Bit) {
-        // Translate the data in the disk buffer to unsigned 10-bit packed data
-        quint32 conversionBufferPointer = 0;
+        if (!isCaptureFormat10BitDecimated) {
+            // Translate the data in the disk buffer to unsigned 10-bit packed data
+            quint32 conversionBufferPointer = 0;
 
-        for (qint32 diskBufferPointer = 0; diskBufferPointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); diskBufferPointer += 8) {
-            quint32 originalWords[4];
+            for (qint32 diskBufferPointer = 0; diskBufferPointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); diskBufferPointer += 8) {
+                quint32 originalWords[4];
 
-            // Get the original 4 10-bit words
-            originalWords[0]  = diskBuffers[diskBufferNumber][diskBufferPointer + 0];
-            originalWords[0] += diskBuffers[diskBufferNumber][diskBufferPointer + 1] * 256;
-            originalWords[1]  = diskBuffers[diskBufferNumber][diskBufferPointer + 2];
-            originalWords[1] += diskBuffers[diskBufferNumber][diskBufferPointer + 3] * 256;
-            originalWords[2]  = diskBuffers[diskBufferNumber][diskBufferPointer + 4];
-            originalWords[2] += diskBuffers[diskBufferNumber][diskBufferPointer + 5] * 256;
-            originalWords[3]  = diskBuffers[diskBufferNumber][diskBufferPointer + 6];
-            originalWords[3] += diskBuffers[diskBufferNumber][diskBufferPointer + 7] * 256;
+                // Get the original 4 10-bit words
+                originalWords[0]  = diskBuffers[diskBufferNumber][diskBufferPointer + 0];
+                originalWords[0] += diskBuffers[diskBufferNumber][diskBufferPointer + 1] * 256;
+                originalWords[1]  = diskBuffers[diskBufferNumber][diskBufferPointer + 2];
+                originalWords[1] += diskBuffers[diskBufferNumber][diskBufferPointer + 3] * 256;
+                originalWords[2]  = diskBuffers[diskBufferNumber][diskBufferPointer + 4];
+                originalWords[2] += diskBuffers[diskBufferNumber][diskBufferPointer + 5] * 256;
+                originalWords[3]  = diskBuffers[diskBufferNumber][diskBufferPointer + 6];
+                originalWords[3] += diskBuffers[diskBufferNumber][diskBufferPointer + 7] * 256;
 
-            // Convert into 5 bytes of packed 10-bit data
-            conversionBuffer[conversionBufferPointer + 0]  = static_cast<unsigned char>((originalWords[0] & 0x03FC) >> 2);
-            conversionBuffer[conversionBufferPointer + 1]  = static_cast<unsigned char>((originalWords[0] & 0x0003) << 6);
-            conversionBuffer[conversionBufferPointer + 1] += static_cast<unsigned char>((originalWords[1] & 0x03F0) >> 4);
-            conversionBuffer[conversionBufferPointer + 2]  = static_cast<unsigned char>((originalWords[1] & 0x000F) << 4);
-            conversionBuffer[conversionBufferPointer + 2] += static_cast<unsigned char>((originalWords[2] & 0x03C0) >> 6);
-            conversionBuffer[conversionBufferPointer + 3]  = static_cast<unsigned char>((originalWords[2] & 0x003F) << 2);
-            conversionBuffer[conversionBufferPointer + 3] += static_cast<unsigned char>((originalWords[3] & 0x0300) >> 8);
-            conversionBuffer[conversionBufferPointer + 4]  = static_cast<unsigned char>((originalWords[3] & 0x00FF));
+                // Convert into 5 bytes of packed 10-bit data
+                conversionBuffer[conversionBufferPointer + 0]  = static_cast<unsigned char>((originalWords[0] & 0x03FC) >> 2);
+                conversionBuffer[conversionBufferPointer + 1]  = static_cast<unsigned char>((originalWords[0] & 0x0003) << 6);
+                conversionBuffer[conversionBufferPointer + 1] += static_cast<unsigned char>((originalWords[1] & 0x03F0) >> 4);
+                conversionBuffer[conversionBufferPointer + 2]  = static_cast<unsigned char>((originalWords[1] & 0x000F) << 4);
+                conversionBuffer[conversionBufferPointer + 2] += static_cast<unsigned char>((originalWords[2] & 0x03C0) >> 6);
+                conversionBuffer[conversionBufferPointer + 3]  = static_cast<unsigned char>((originalWords[2] & 0x003F) << 2);
+                conversionBuffer[conversionBufferPointer + 3] += static_cast<unsigned char>((originalWords[3] & 0x0300) >> 8);
+                conversionBuffer[conversionBufferPointer + 4]  = static_cast<unsigned char>((originalWords[3] & 0x00FF));
 
-            // Increment the conversion buffer pointer
-            conversionBufferPointer += 5;
+                // Increment the conversion buffer pointer
+                conversionBufferPointer += 5;
+            }
+
+            // Write the conversion buffer to disk
+            outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * conversionBufferPointer);
+            //qDebug() << "UsbCapture::writeBufferToDisk(): 10-bit - Written" << (sizeof(unsigned char) * conversionBufferPointer) << "bytes to disk";
+        } else {
+            // Translate the data in the disk buffer to unsigned 10-bit packed data with 4:1 decimation
+            quint32 conversionBufferPointer = 0;
+
+            for (qint32 diskBufferPointer = 0; diskBufferPointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); diskBufferPointer += (8 * 4)) {
+                quint32 originalWords[4];
+
+                // Get the original 4 10-bit words
+                originalWords[0]  = diskBuffers[diskBufferNumber][diskBufferPointer + 0];
+                originalWords[0] += diskBuffers[diskBufferNumber][diskBufferPointer + 1] * 256;
+
+                originalWords[1]  = diskBuffers[diskBufferNumber][diskBufferPointer + 2 + 4];
+                originalWords[1] += diskBuffers[diskBufferNumber][diskBufferPointer + 3 + 4] * 256;
+
+                originalWords[2]  = diskBuffers[diskBufferNumber][diskBufferPointer + 4 + 8];
+                originalWords[2] += diskBuffers[diskBufferNumber][diskBufferPointer + 5 + 8] * 256;
+
+                originalWords[3]  = diskBuffers[diskBufferNumber][diskBufferPointer + 6 + 12];
+                originalWords[3] += diskBuffers[diskBufferNumber][diskBufferPointer + 7 + 12] * 256;
+
+                // Convert into 5 bytes of packed 10-bit data
+                conversionBuffer[conversionBufferPointer + 0]  = static_cast<unsigned char>((originalWords[0] & 0x03FC) >> 2);
+                conversionBuffer[conversionBufferPointer + 1]  = static_cast<unsigned char>((originalWords[0] & 0x0003) << 6);
+                conversionBuffer[conversionBufferPointer + 1] += static_cast<unsigned char>((originalWords[1] & 0x03F0) >> 4);
+                conversionBuffer[conversionBufferPointer + 2]  = static_cast<unsigned char>((originalWords[1] & 0x000F) << 4);
+                conversionBuffer[conversionBufferPointer + 2] += static_cast<unsigned char>((originalWords[2] & 0x03C0) >> 6);
+                conversionBuffer[conversionBufferPointer + 3]  = static_cast<unsigned char>((originalWords[2] & 0x003F) << 2);
+                conversionBuffer[conversionBufferPointer + 3] += static_cast<unsigned char>((originalWords[3] & 0x0300) >> 8);
+                conversionBuffer[conversionBufferPointer + 4]  = static_cast<unsigned char>((originalWords[3] & 0x00FF));
+
+                // Increment the conversion buffer pointer
+                conversionBufferPointer += 5;
+            }
+
+            // Write the conversion buffer to disk
+            outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * conversionBufferPointer);
+            //qDebug() << "UsbCapture::writeBufferToDisk(): 10-bit - Written" << (sizeof(unsigned char) * conversionBufferPointer) << "bytes to disk";
         }
-
-        // Write the conversion buffer to disk
-        outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * conversionBufferPointer);
-        //qDebug() << "UsbCapture::writeBufferToDisk(): 10-bit - Written" << (sizeof(unsigned char) * conversionBufferPointer) << "bytes to disk";
     } else {
         // Translate the data in the disk buffer to scaled 16-bit signed data
         for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
