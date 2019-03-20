@@ -131,6 +131,19 @@
       <bool>true</bool>
      </property>
     </widget>
+    <widget class="QRadioButton" name="saveAs10BitCdRadioButton">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>120</y>
+       <width>361</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Save captures as 10-bit packed (4:1 decimation for CD)</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="usb">
     <attribute name="title">

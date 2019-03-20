@@ -51,7 +51,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>LaserDisc Analyser</string>
+    <string>Domesday Duplicator Utilities</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_2">
@@ -64,7 +64,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>(c) 2018 Simon Inns</string>
+    <string>(c) 2019 Simon Inns</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_3">

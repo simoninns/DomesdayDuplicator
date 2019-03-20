@@ -1,10 +1,10 @@
 /************************************************************************
 
-    about.cpp
+    sampledetails.h
 
-    RF Sample analyser for Domesday Duplicator
+    Utilities for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2018 Simon Inns
+    Copyright (C) 2019 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -25,17 +25,40 @@
 
 ************************************************************************/
 
-#include "about.h"
-#include "ui_about.h"
+#ifndef SAMPLEDETAILS_H
+#define SAMPLEDETAILS_H
 
-About::About(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::About)
-{
-    ui->setupUi(this);
-}
+#include <QObject>
+#include <QFile>
+#include <QDebug>
+#include <QDateTime>
 
-About::~About()
+class SampleDetails
 {
-    delete ui;
-}
+
+public:
+    SampleDetails(void);
+    bool getInputSampleDetails(QString inputFilename, bool isTenBit);
+
+    QString getSizeOnDisc(void);
+    qint64 getNumberOfSamples(void);
+    qint32 getDurationSeconds(void);
+    QString getDurationString(void);
+    bool getInputFileFormat(void);
+
+signals:
+
+public slots:
+
+private:
+    qint64 sizeOnDisc;
+    qint64 numberOfSamples;
+    bool isInputFileTenBit;
+
+    qint32 samplesToTenBitBytes(qint32 numberOfSamples);
+    qint32 tenBitBytesToSamples(qint32 numberOfBytes);
+    qint32 samplesToSixteenBitBytes(qint32 numberOfSamples);
+    qint32 sixteenBitBytesToSamples(qint32 numberOfBytes);
+};
+
+#endif // RFSAMPLE_H

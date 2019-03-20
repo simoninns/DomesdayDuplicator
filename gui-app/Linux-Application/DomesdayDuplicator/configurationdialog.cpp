@@ -51,9 +51,15 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
     if(configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
         ui->saveAsTenBitRadioButton->setChecked(true);
         ui->saveAsSixteenBitRadioButton->setChecked(false);
-    } else {
+        ui->saveAs10BitCdRadioButton->setChecked(false);
+    } else if(configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) {
         ui->saveAsTenBitRadioButton->setChecked(false);
         ui->saveAsSixteenBitRadioButton->setChecked(true);
+        ui->saveAs10BitCdRadioButton->setChecked(false);
+    } else {
+        ui->saveAsTenBitRadioButton->setChecked(false);
+        ui->saveAsSixteenBitRadioButton->setChecked(false);
+        ui->saveAs10BitCdRadioButton->setChecked(true);
     }
 
     // USB
@@ -98,7 +104,7 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
     ui->serialSpeedComboBox->addItem("1200", Configuration::SerialSpeeds::bps1200);
 
     // Select the currently configured serial speed
-    ui->serialSpeedComboBox->setCurrentIndex(ui->serialSpeedComboBox->findData((unsigned int)configuration->getSerialSpeed()));
+    ui->serialSpeedComboBox->setCurrentIndex(ui->serialSpeedComboBox->findData(static_cast<unsigned int>(configuration->getSerialSpeed())));
 
     // Keylock flag
     ui->keyLockCheckBox->setChecked(configuration->getKeyLock());
@@ -113,7 +119,8 @@ void ConfigurationDialog::saveConfiguration(Configuration *configuration)
     configuration->setCaptureDirectory(ui->captureDirectoryLineEdit->text());
 
     if (ui->saveAsTenBitRadioButton->isChecked()) configuration->setCaptureFormat(Configuration::CaptureFormat::tenBitPacked);
-    else configuration->setCaptureFormat(Configuration::CaptureFormat::sixteenBitSigned);
+    else if (ui->saveAsSixteenBitRadioButton->isChecked()) configuration->setCaptureFormat(Configuration::CaptureFormat::sixteenBitSigned);
+    else configuration->setCaptureFormat(Configuration::CaptureFormat::tenBitCdPacked);
 
     // USB
     configuration->setUsbVid(static_cast<quint16>(ui->vendorIdLineEdit->text().toInt()));
@@ -123,7 +130,7 @@ void ConfigurationDialog::saveConfiguration(Configuration *configuration)
     configuration->setSerialDevice(ui->serialDeviceComboBox->currentText());
 
     // Player integration - Serial speed
-    configuration->setSerialSpeed((Configuration::SerialSpeeds)ui->serialSpeedComboBox->itemData(ui->serialSpeedComboBox->currentIndex()).toInt());
+    configuration->setSerialSpeed(static_cast<Configuration::SerialSpeeds>(ui->serialSpeedComboBox->itemData(ui->serialSpeedComboBox->currentIndex()).toInt()));
 
     // KeyLock
     if (ui->keyLockCheckBox->isChecked()) configuration->setKeyLock(true);
@@ -173,6 +180,7 @@ void ConfigurationDialog::on_buttonBox_clicked(QAbstractButton *button)
         ui->captureDirectoryLineEdit->setText(QDir::homePath());
         ui->saveAsTenBitRadioButton->setChecked(true);
         ui->saveAsSixteenBitRadioButton->setChecked(false);
+        ui->saveAs10BitCdRadioButton->setChecked(false);
 
         ui->vendorIdLineEdit->setText(QString::number(7504));
         ui->productIdLineEdit->setText(QString::number(24635));

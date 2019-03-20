@@ -1,10 +1,10 @@
 /************************************************************************
 
-    sampledetails.h
+    progressdialog.h
 
-    RF Sample analyser for Domesday Duplicator
+    Utilities for Domesday Duplicator
     DomesdayDuplicator - LaserDisc RF sampler
-    Copyright (C) 2018 Simon Inns
+    Copyright (C) 2019 Simon Inns
 
     This file is part of Domesday Duplicator.
 
@@ -25,40 +25,36 @@
 
 ************************************************************************/
 
-#ifndef SAMPLEDETAILS_H
-#define SAMPLEDETAILS_H
 
-#include <QObject>
-#include <QFile>
-#include <QDebug>
-#include <QDateTime>
+#ifndef PROGRESSDIALOG_H
+#define PROGRESSDIALOG_H
 
-class SampleDetails
+#include <QDialog>
+#include <QtDebug>
+#include <QCloseEvent>
+
+namespace Ui {
+class ProgressDialog;
+}
+
+class ProgressDialog : public QDialog
 {
+    Q_OBJECT
 
 public:
-    SampleDetails(void);
-    bool getInputSampleDetails(QString inputFilename, bool isTenBit);
+    explicit ProgressDialog(QWidget *parent = nullptr);
+    ~ProgressDialog();
 
-    QString getSizeOnDisc(void);
-    qint64 getNumberOfSamples(void);
-    qint32 getDurationSeconds(void);
-    QString getDurationString(void);
-    bool getInputFileFormat(void);
+    void closeEvent(QCloseEvent *event);
+
+    void setPercentage(qint32 percentage);
+    void setText(QString message);
 
 signals:
-
-public slots:
+    void cancelled(void);
 
 private:
-    qint64 sizeOnDisc;
-    qint64 numberOfSamples;
-    bool isInputFileTenBit;
-
-    qint32 samplesToTenBitBytes(qint32 numberOfSamples);
-    qint32 tenBitBytesToSamples(qint32 numberOfBytes);
-    qint32 samplesToSixteenBitBytes(qint32 numberOfSamples);
-    qint32 sixteenBitBytesToSamples(qint32 numberOfBytes);
+    Ui::ProgressDialog *ui;
 };
 
-#endif // RFSAMPLE_H
+#endif // PROGRESSDIALOG_H

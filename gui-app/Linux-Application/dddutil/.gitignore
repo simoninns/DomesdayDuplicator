@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------
 
 # Ignore files generated when compiled from the CLI
-LaserDiscAnalyser
+dddutil
 moc_predefs.h
 
 !core/
