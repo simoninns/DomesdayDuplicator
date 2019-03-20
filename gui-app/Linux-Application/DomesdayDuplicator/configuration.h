@@ -43,7 +43,8 @@ public:
     // Define the possible capture formats
     enum CaptureFormat {
         tenBitPacked,
-        sixteenBitSigned
+        sixteenBitSigned,
+        tenBitCdPacked
     };
 
     // Define the possible serial communication speeds

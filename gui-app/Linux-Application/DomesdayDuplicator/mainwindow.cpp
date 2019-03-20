@@ -496,7 +496,9 @@ void MainWindow::updateCaptureStatistics(void)
     qint32 mbWritten = 0;
     if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned)
         mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 64; // 16-bit is 64MiB per buffer
-    else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40; // 10-bit is 40MiB per buffer
+    else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked)
+        mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40; // 10-bit is 40MiB per buffer
+    else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 8; // 10-bit 1:5 is 8MiB per buffer
 
     ui->numberOfDiskBuffersWrittenLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
 }
@@ -542,9 +544,11 @@ void MainWindow::updateStorageInformation(void)
 
         if (availableMiBs != 0) {
             if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) {
-                availableSeconds = availableMiBs / 64;
+                availableSeconds = availableMiBs / 64; // 16-bit is 64MiB per buffer
+            } else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
+                availableSeconds = availableMiBs / 40; // 10-bit is 40MiB per buffer
             } else {
-                availableSeconds = availableMiBs / 40;
+                availableSeconds = availableMiBs / 8; // 10-bit 1:5 is 8MiB per buffer
             }
 
             // Print the time available (be non-specific if > 24 hours)
