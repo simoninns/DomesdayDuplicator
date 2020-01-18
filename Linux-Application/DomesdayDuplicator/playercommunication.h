@@ -70,6 +70,7 @@ public:
         unknownPlayerState,
         stop,
         play,
+        playWithStopCodesDisabled,
         pause,
         stillFrame
     };
