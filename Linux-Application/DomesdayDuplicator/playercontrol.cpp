@@ -820,6 +820,7 @@ PlayerControl::AcStates PlayerControl::acStateStart(void)
     switch (playerState) {
     case PlayerCommunication::PlayerState::pause:
     case PlayerCommunication::PlayerState::play:
+    case PlayerCommunication::PlayerState::playWithStopCodesDisabled:
     case PlayerCommunication::PlayerState::stillFrame:
         // Player is all ready spun up - verify the disc type
         if (discType != acDiscType) {
@@ -977,7 +978,7 @@ PlayerControl::AcStates PlayerControl::acStateSpinUpWithCapture(void)
 
     // We don't want the player to pause on stop codes on CAV discs
     if (acDiscType == PlayerCommunication::DiscType::CAV) {
-        state == PlayerCommunication::PlayerState::playWithStopCodesDisabled;
+        state = PlayerCommunication::PlayerState::playWithStopCodesDisabled;
     }
 
     if (playerCommunication->setPlayerState(state)) {
