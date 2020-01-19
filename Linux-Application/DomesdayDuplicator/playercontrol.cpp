@@ -973,7 +973,14 @@ PlayerControl::AcStates PlayerControl::acStateSpinUpWithCapture(void)
     // Start the capture
     emit startCapture();
 
-    if (playerCommunication->setPlayerState(PlayerCommunication::PlayerState::play)) {
+    PlayerCommunication::PlayerState state = PlayerCommunication::PlayerState::play;
+
+    // We don't want the player to pause on stop codes on CAV discs
+    if (acDiscType == PlayerCommunication::DiscType::CAV) {
+        state == PlayerCommunication::PlayerState::playWithStopCodesDisabled;
+    }
+
+    if (playerCommunication->setPlayerState(state)) {
         // Successful
         nextState = ac_waitForEndAddress_state;
     } else {
@@ -1092,8 +1099,8 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
             // Target frame number reached
             emit stopCapture();
 
-            // Still-frame the player
-            playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stillFrame);
+            // Stop the disc once capture has concluded (for unattended capturing)
+            playerCommunication->setPlayerState(PlayerCommunication::PlayerState::stop);
 
             nextState = ac_finished_state;
         }

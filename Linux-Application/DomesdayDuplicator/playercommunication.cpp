@@ -462,6 +462,10 @@ bool PlayerCommunication::setPlayerState(PlayerState playerState)
             sendSerialCommand("PL\r"); // Play command
             response = getSerialResponse(L_TIMEOUT);
             break;
+        case PlayerState::playWithStopCodesDisabled:
+            sendSerialCommand("PL64RBMF\r"); // Enable audio during multi-speed ("64RB"), multi-speed forward ("MF).  Essentially, play disc with stop codes disabled
+            response = getSerialResponse(L_TIMEOUT);
+            break;
         case PlayerState::stillFrame:
             sendSerialCommand("ST\r"); // Still frame command
             response = getSerialResponse(N_TIMEOUT);
