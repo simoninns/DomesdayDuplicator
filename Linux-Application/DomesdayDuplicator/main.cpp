@@ -72,9 +72,6 @@ void debugOutputHandler(QtMsgType type, const QMessageLogContext &context, const
 
 int main(int argc, char *argv[])
 {
-    // Fix DPI issues on Windows
-    qputenv("QT_AUTO_SCREEN_SCALE_FACTOR", "1");
-
     // Install the local debug message handler
     qInstallMessageHandler(debugOutputHandler);
 
@@ -82,7 +79,7 @@ int main(int argc, char *argv[])
 
     // Set application name and version
     QCoreApplication::setApplicationName("DomesdayDuplicator");
-    QCoreApplication::setApplicationVersion("2.0");
+    QCoreApplication::setApplicationVersion("2.1");
     QCoreApplication::setOrganizationDomain("domesday86.com");
     QCoreApplication::setOrganizationName("Domesday86");
 
@@ -110,6 +107,7 @@ int main(int argc, char *argv[])
     // Process the command line options
     if (isDebugOn) showDebug = true;
 
+    qDebug() << "Starting main window process";
     MainWindow w;
     w.show();
 
