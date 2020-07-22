@@ -473,9 +473,12 @@ void UsbCapture::runDiskBuffers(void)
 
                 // Increment the statistics
                 numberOfDiskBuffersWritten++;
-            } else {
+            } else if (!captureComplete) {
                 // Sleep the thread for 100 uS to keep the CPU usage down
                 usleep(100);
+
+                // Then try the same buffer again, so we don't skip any
+                diskBufferNumber--;
             }
 
             // Check for transfer failure before continuing...
