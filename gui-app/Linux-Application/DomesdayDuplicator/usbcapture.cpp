@@ -473,9 +473,12 @@ void UsbCapture::runDiskBuffers(void)
 
                 // Increment the statistics
                 numberOfDiskBuffersWritten++;
-            } else {
+            } else if (!captureComplete) {
                 // Sleep the thread for 100 uS to keep the CPU usage down
                 usleep(100);
+
+                // Then try the same buffer again, so we don't skip any
+                diskBufferNumber--;
             }
 
             // Check for transfer failure before continuing...
@@ -500,7 +503,11 @@ void UsbCapture::runDiskBuffers(void)
         }
     }
 
-    // Close the capture file
+    // Close the capture file. QFile::close ignores errors, so flush first.
+    if (!outputFile.flush()) {
+        lastError = tr("Unable to write captured data to the destination file");
+        transferFailure = true;
+    }
     outputFile.close();
 
     // Flag that the thread is complete
@@ -574,8 +581,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
             }
 
             // Write the conversion buffer to disk
-            outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * conversionBufferPointer);
-            //qDebug() << "UsbCapture::writeBufferToDisk(): 10-bit - Written" << (sizeof(unsigned char) * conversionBufferPointer) << "bytes to disk";
+            writeConversionBuffer(outputFile, conversionBufferPointer);
         } else {
             // Translate the data in the disk buffer to unsigned 10-bit packed data with 4:1 decimation
             quint32 conversionBufferPointer = 0;
@@ -611,8 +617,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
             }
 
             // Write the conversion buffer to disk
-            outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * conversionBufferPointer);
-            //qDebug() << "UsbCapture::writeBufferToDisk(): 10-bit - Written" << (sizeof(unsigned char) * conversionBufferPointer) << "bytes to disk";
+            writeConversionBuffer(outputFile, conversionBufferPointer);
         }
     } else {
         // Translate the data in the disk buffer to scaled 16-bit signed data
@@ -630,8 +635,19 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, b
         }
 
         // Write the conversion buffer to disk
-        outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * (TRANSFERSIZE * TRANSFERSPERDISKBUFFER));
-        //qDebug() << "UsbCapture::writeBufferToDisk(): 16-bit - Written" << (sizeof(unsigned char) * (TRANSFERSIZE * TRANSFERSPERDISKBUFFER)) << "bytes to disk";
+        writeConversionBuffer(outputFile, TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
+    }
+}
+
+void UsbCapture::writeConversionBuffer(QFile *outputFile, qint32 numBytes)
+{
+    qint64 bytesWritten = outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * numBytes);
+    //qDebug() << "UsbCapture::writeBufferToDisk(): 10-bit - Written" << bytesWritten << "bytes to disk";
+
+    // Check for a short write (which shouldn't happen, because outputFile is buffered) or a filesystem error
+    if (bytesWritten != numBytes) {
+        lastError = tr("Unable to write captured data to the destination file");
+        transferFailure = true;
     }
 }
 
