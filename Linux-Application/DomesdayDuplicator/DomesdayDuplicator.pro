@@ -30,15 +30,14 @@ unix {
     LIBS += -L"/usr/lib" -lusb-1.0
 }
 win32 {
-    debug {
-        LIBS += -L"$$PWD/libusb-1.0.22/x64/Debug/lib"
-    }
-    release {
-       LIBS += -L"$$PWD/libusb-1.0.22/x64/Release/lib"
-    }
-    LIBS += -llibusb-1.0 -lAdvAPI32
-    INCLUDEPATH += "$$PWD/libusb-1.0.22/libusb"
+    LIBS += -L"C:/libusb/" -llibusb-1.0.dll -lAdvAPI32
+    INCLUDEPATH += "C:/libusb"
     DEFINES += NOMINMAX QUSB_LIBRARY
+	CONFIG(debug, debug|release) {
+		DLLCP_PATH = $$OUT_PWD/debug
+	} else {
+		DLLCP_PATH = $$OUT_PWD/release
+	}
 }
 
 SOURCES += \
@@ -75,11 +74,18 @@ FORMS += \
     playerremotedialog.ui \
     automaticcapturedialog.ui \
     advancednamingdialog.ui
-
+    
 # Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /usr/local/bin/
-!isEmpty(target.path): INSTALLS += target
+unix {
+	qnx: target.path = /tmp/$${TARGET}/bin
+	else: unix:!android: target.path = /usr/local/bin/
+	!isEmpty(target.path): INSTALLS += target
+}
+win32 {
+	usbdll.files += "C:/libusb/libusb-1.0.dll"
+	usbdll.path = $$DLLCP_PATH
+	INSTALLS += usbdll
+}
 
 RESOURCES += \
     resources.qrc
