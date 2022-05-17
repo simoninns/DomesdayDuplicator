@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>500</width>
-    <height>220</height>
+    <height>250</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>500</width>
-    <height>220</height>
+    <height>250</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -25,7 +25,7 @@
      <x>10</x>
      <y>10</y>
      <width>481</width>
-     <height>201</height>
+     <height>231</height>
     </rect>
    </property>
    <property name="title">
@@ -157,7 +157,7 @@
     <property name="geometry">
      <rect>
       <x>40</x>
-      <y>130</y>
+      <y>160</y>
       <width>81</width>
       <height>21</height>
      </rect>
@@ -170,7 +170,7 @@
     <property name="geometry">
      <rect>
       <x>130</x>
-      <y>130</y>
+      <y>160</y>
       <width>41</width>
       <height>22</height>
      </rect>
@@ -189,7 +189,7 @@
     <property name="geometry">
      <rect>
       <x>180</x>
-      <y>130</y>
+      <y>160</y>
       <width>41</width>
       <height>22</height>
      </rect>
@@ -205,7 +205,7 @@
     <property name="geometry">
      <rect>
       <x>230</x>
-      <y>130</y>
+      <y>160</y>
       <width>41</width>
       <height>22</height>
      </rect>
@@ -221,7 +221,7 @@
     <property name="geometry">
      <rect>
       <x>280</x>
-      <y>130</y>
+      <y>160</y>
       <width>41</width>
       <height>22</height>
      </rect>
@@ -276,7 +276,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>130</y>
+      <y>160</y>
       <width>21</width>
       <height>22</height>
      </rect>
@@ -289,7 +289,7 @@
     <property name="geometry">
      <rect>
       <x>40</x>
-      <y>160</y>
+      <y>190</y>
       <width>81</width>
       <height>21</height>
      </rect>
@@ -302,7 +302,7 @@
     <property name="geometry">
      <rect>
       <x>130</x>
-      <y>160</y>
+      <y>190</y>
       <width>341</width>
       <height>21</height>
      </rect>
@@ -312,7 +312,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>160</y>
+      <y>190</y>
       <width>21</width>
       <height>22</height>
      </rect>
@@ -320,6 +320,99 @@
     <property name="text">
      <string/>
     </property>
+   </widget>
+   <widget class="QCheckBox" name="audioCheckBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>130</y>
+      <width>21</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_6">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>130</y>
+      <width>81</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Audio:</string>
+    </property>
+   </widget>
+   <widget class="QRadioButton" name="audioDefaultRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>130</y>
+      <width>80</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Default</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">audioButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="audioAnalogueRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>210</x>
+      <y>130</y>
+      <width>120</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Analogue only</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">audioButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="audioAc3RadioButton">
+    <property name="geometry">
+     <rect>
+      <x>340</x>
+      <y>130</y>
+      <width>70</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AC3</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">audioButtonGroup</string>
+    </attribute>
+   </widget>
+   <widget class="QRadioButton" name="audioDtsRadioButton">
+    <property name="geometry">
+     <rect>
+      <x>410</x>
+      <y>130</y>
+      <width>70</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>DTS</string>
+    </property>
+    <attribute name="buttonGroup">
+     <string notr="true">audioButtonGroup</string>
+    </attribute>
    </widget>
   </widget>
  </widget>
@@ -346,5 +439,6 @@
   <buttongroup name="discTypeButtonGroup"/>
   <buttongroup name="formatButtonGroup"/>
   <buttongroup name="discSideButtonGroup"/>
+  <buttongroup name="audioButtonGroup"/>
  </buttongroups>
 </ui>
