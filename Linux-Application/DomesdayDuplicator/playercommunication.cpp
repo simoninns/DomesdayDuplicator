@@ -569,7 +569,7 @@ bool PlayerCommunication::setPositionFrame(qint32 address)
     QString response;
     QString command;
 
-    command.sprintf("FR%dSE\r", address);
+    command = QString("FR%1SE\r").arg(address);
     sendSerialCommand(command);
     response = getSerialResponse(L_TIMEOUT);
 
@@ -588,7 +588,7 @@ bool PlayerCommunication::setPositionTimeCode(qint32 address)
     QString response;
     QString command;
 
-    command.sprintf("FR%dSE\r", address);
+    command = QString("FR%1SE\r").arg(address);
     sendSerialCommand(command);
     response = getSerialResponse(L_TIMEOUT);
 
@@ -607,7 +607,7 @@ bool PlayerCommunication::setPositionChapter(qint32 address)
     QString response;
     QString command;
 
-    command.sprintf("CH%dSE\r", address);
+    command = QString("CH%1SE\r").arg(address);
     sendSerialCommand(command);
     response = getSerialResponse(L_TIMEOUT);
 
@@ -692,7 +692,7 @@ bool PlayerCommunication::setAudio(AudioState audioState)
     if (audioState == PlayerCommunication::AudioState::digitalCh2) parameter = 6;
     if (audioState == PlayerCommunication::AudioState::digitalStereo) parameter = 7;
 
-    command.sprintf("%dAD\r", parameter);
+    command = QString("%1AD\r").arg(parameter);
     sendSerialCommand(command);
     getSerialResponse(N_TIMEOUT);
 
@@ -736,7 +736,7 @@ bool PlayerCommunication::setSpeed(qint32 speed)
     QString response;
     QString command;
 
-    command.sprintf("%dSP\r", speed);
+    command = QString("%1SP\r").arg(speed);
     //qDebug() << "PlayerCommunication::setSpeed(): Sending command:" << command;
     sendSerialCommand(command);
     getSerialResponse(N_TIMEOUT);

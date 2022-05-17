@@ -194,15 +194,8 @@ void AutomaticCaptureDialog::on_startClvCapturePushButton_clicked()
 {
     if (!captureInProgress) {
         // Create a formatted 7-character string of the time-code
-        QString startTimeCodeString;
-        startTimeCodeString.sprintf("%01d%02d%02d00", ui->startTimeTimeEdit->time().hour(),
-                         ui->startTimeTimeEdit->time().minute(),
-        ui->startTimeTimeEdit->time().second());
-
-        QString endTimeCodeString;
-        endTimeCodeString.sprintf("%01d%02d%02d00", ui->endTimeTimeEdit->time().hour(),
-                         ui->endTimeTimeEdit->time().minute(),
-        ui->endTimeTimeEdit->time().second());
+        QString startTimeCodeString = ui->startTimeTimeEdit->time().toString("Hmmss00");
+        QString endTimeCodeString = ui->endTimeTimeEdit->time().toString("Hmmss00");
 
         // Convert start and end time codes to integers
         qint32 startTimeCode = startTimeCodeString.toInt();
