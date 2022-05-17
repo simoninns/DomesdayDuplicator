@@ -89,10 +89,7 @@ QString AdvancedNamingDialog::getFileName(bool isTestData)
         }
 
         if (ui->discSideCheckBox->isChecked()) {
-            if (ui->sideOneRadioButton->isChecked()) fileName += "_side1";
-            if (ui->sideTwoRadioButton->isChecked()) fileName += "_side2";
-            if (ui->sideThreeRadioButton->isChecked()) fileName += "_side3";
-            if (ui->sideFourRadioButton->isChecked()) fileName += "_side4";
+            fileName += QString("_side%1").arg(ui->discSideSpinBox->value());
         }
 
         if (ui->notesCheckBox->isChecked()) {
@@ -144,15 +141,9 @@ void AdvancedNamingDialog::updateGui(void)
     }
 
     if (ui->discSideCheckBox->isChecked()) {
-        ui->sideOneRadioButton->setEnabled(true);
-        ui->sideTwoRadioButton->setEnabled(true);
-        ui->sideThreeRadioButton->setEnabled(true);
-        ui->sideFourRadioButton->setEnabled(true);
+        ui->discSideSpinBox->setEnabled(true);
     } else {
-        ui->sideOneRadioButton->setEnabled(false);
-        ui->sideTwoRadioButton->setEnabled(false);
-        ui->sideThreeRadioButton->setEnabled(false);
-        ui->sideFourRadioButton->setEnabled(false);
+        ui->discSideSpinBox->setEnabled(false);
     }
 
     if (ui->notesCheckBox->isChecked()) {
