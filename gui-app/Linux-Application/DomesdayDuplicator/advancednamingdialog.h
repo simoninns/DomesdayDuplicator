@@ -29,7 +29,7 @@
 #define ADVANCEDNAMINGDIALOG_H
 
 #include <QDialog>
-#include <QRegExpValidator>
+#include <QRegularExpressionValidator>
 #include <QDate>
 
 namespace Ui {
