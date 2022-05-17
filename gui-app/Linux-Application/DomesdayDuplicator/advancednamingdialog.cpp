@@ -38,6 +38,7 @@ AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
     ui->discTitleCheckBox->setChecked(false);
     ui->discTypeCheckBox->setChecked(false);
     ui->formatCheckBox->setChecked(false);
+    ui->audioCheckBox->setChecked(false);
     ui->discSideCheckBox->setChecked(false);
     ui->notesCheckBox->setChecked(false);
 
@@ -79,6 +80,12 @@ QString AdvancedNamingDialog::getFileName(bool isTestData)
         if (ui->formatCheckBox->isChecked()) {
             if (ui->formatNtscRadioButton->isChecked()) fileName += "_NTSC";
             if (ui->formatPalRadioButton->isChecked()) fileName += "_PAL";
+        }
+
+        if (ui->audioCheckBox->isChecked()) {
+            if (ui->audioAnalogueRadioButton->isChecked()) fileName += "_ANA";
+            if (ui->audioAc3RadioButton->isChecked()) fileName += "_AC3";
+            if (ui->audioDtsRadioButton->isChecked()) fileName += "_DTS";
         }
 
         if (ui->discSideCheckBox->isChecked()) {
@@ -124,6 +131,18 @@ void AdvancedNamingDialog::updateGui(void)
         ui->formatPalRadioButton->setEnabled(false);
     }
 
+    if (ui->audioCheckBox->isChecked()) {
+        ui->audioDefaultRadioButton->setEnabled(true);
+        ui->audioAnalogueRadioButton->setEnabled(true);
+        ui->audioAc3RadioButton->setEnabled(true);
+        ui->audioDtsRadioButton->setEnabled(true);
+    } else {
+        ui->audioDefaultRadioButton->setEnabled(false);
+        ui->audioAnalogueRadioButton->setEnabled(false);
+        ui->audioAc3RadioButton->setEnabled(false);
+        ui->audioDtsRadioButton->setEnabled(false);
+    }
+
     if (ui->discSideCheckBox->isChecked()) {
         ui->sideOneRadioButton->setEnabled(true);
         ui->sideTwoRadioButton->setEnabled(true);
@@ -154,6 +173,11 @@ void AdvancedNamingDialog::on_discTypeCheckBox_clicked()
 }
 
 void AdvancedNamingDialog::on_formatCheckBox_clicked()
+{
+    updateGui();
+}
+
+void AdvancedNamingDialog::on_audioCheckBox_clicked()
 {
     updateGui();
 }
