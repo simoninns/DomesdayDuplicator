@@ -262,7 +262,7 @@ QString PlayerControl::getPlayerPositionInformation(void)
             QString secondString;
 
             // Get the full 7 character time-code string
-            timeCodeString.sprintf("%07d", timeCode);
+            timeCodeString = QString("%1").arg(timeCode, 7, 10, QChar('0'));
 
             // Split up the time-code
             hourString = timeCodeString.left(1);
