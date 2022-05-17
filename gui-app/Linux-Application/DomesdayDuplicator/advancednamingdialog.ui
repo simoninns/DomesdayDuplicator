@@ -31,19 +31,6 @@
    <property name="title">
     <string>Advanced capture naming options:</string>
    </property>
-   <widget class="QLabel" name="label">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
-      <y>40</y>
-      <width>81</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Disc title:</string>
-    </property>
-   </widget>
    <widget class="QRadioButton" name="formatNtscRadioButton">
     <property name="geometry">
      <rect>
@@ -78,19 +65,6 @@
     <attribute name="buttonGroup">
      <string notr="true">formatButtonGroup</string>
     </attribute>
-   </widget>
-   <widget class="QLabel" name="label_2">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
-      <y>70</y>
-      <width>81</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Disc type:</string>
-    </property>
    </widget>
    <widget class="QRadioButton" name="typeCavRadioButton">
     <property name="geometry">
@@ -127,19 +101,6 @@
      <string notr="true">discTypeButtonGroup</string>
     </attribute>
    </widget>
-   <widget class="QLabel" name="label_3">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
-      <y>100</y>
-      <width>81</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Format:</string>
-    </property>
-   </widget>
    <widget class="QLineEdit" name="discTitleLineEdit">
     <property name="enabled">
      <bool>true</bool>
@@ -153,30 +114,17 @@
      </rect>
     </property>
    </widget>
-   <widget class="QLabel" name="label_4">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
-      <y>160</y>
-      <width>81</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Disc side:</string>
-    </property>
-   </widget>
    <widget class="QCheckBox" name="discTitleCheckBox">
     <property name="geometry">
      <rect>
       <x>10</x>
       <y>40</y>
-      <width>21</width>
+      <width>111</width>
       <height>22</height>
      </rect>
     </property>
     <property name="text">
-     <string/>
+     <string>Disc title:</string>
     </property>
    </widget>
    <widget class="QCheckBox" name="discTypeCheckBox">
@@ -184,12 +132,12 @@
      <rect>
       <x>10</x>
       <y>70</y>
-      <width>21</width>
+      <width>111</width>
       <height>22</height>
      </rect>
     </property>
     <property name="text">
-     <string/>
+     <string>Disc type:</string>
     </property>
    </widget>
    <widget class="QCheckBox" name="formatCheckBox">
@@ -197,12 +145,12 @@
      <rect>
       <x>10</x>
       <y>100</y>
-      <width>21</width>
+      <width>111</width>
       <height>22</height>
      </rect>
     </property>
     <property name="text">
-     <string/>
+     <string>Format:</string>
     </property>
    </widget>
    <widget class="QCheckBox" name="discSideCheckBox">
@@ -210,25 +158,12 @@
      <rect>
       <x>10</x>
       <y>160</y>
-      <width>21</width>
+      <width>111</width>
       <height>22</height>
      </rect>
     </property>
     <property name="text">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_5">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
-      <y>190</y>
-      <width>81</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Notes:</string>
+     <string>Disc side:</string>
     </property>
    </widget>
    <widget class="QLineEdit" name="notesLineEdit">
@@ -246,12 +181,12 @@
      <rect>
       <x>10</x>
       <y>190</y>
-      <width>21</width>
+      <width>111</width>
       <height>22</height>
      </rect>
     </property>
     <property name="text">
-     <string/>
+     <string>Notes:</string>
     </property>
    </widget>
    <widget class="QCheckBox" name="audioCheckBox">
@@ -259,21 +194,8 @@
      <rect>
       <x>10</x>
       <y>130</y>
-      <width>21</width>
+      <width>111</width>
       <height>22</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_6">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
-      <y>130</y>
-      <width>81</width>
-      <height>21</height>
      </rect>
     </property>
     <property name="text">
