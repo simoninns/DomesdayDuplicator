@@ -219,7 +219,7 @@ void AutomaticCaptureDialog::on_startClvCapturePushButton_clicked()
         } else if ((captureType == CaptureType::leadInCapture) && (endTimeCode == 0)) {
             // Show an error
             QMessageBox messageBox;
-            messageBox.warning(this, "Warning", tr("The end time be at least 1 second"));
+            messageBox.warning(this, "Warning", tr("The end time must be at least 1 second"));
             messageBox.setFixedSize(500, 200);
             return;
         }
