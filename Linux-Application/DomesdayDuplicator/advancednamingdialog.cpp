@@ -38,6 +38,7 @@ AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
     ui->discTitleCheckBox->setChecked(false);
     ui->discTypeCheckBox->setChecked(false);
     ui->formatCheckBox->setChecked(false);
+    ui->audioCheckBox->setChecked(false);
     ui->discSideCheckBox->setChecked(false);
     ui->notesCheckBox->setChecked(false);
 
@@ -81,11 +82,14 @@ QString AdvancedNamingDialog::getFileName(bool isTestData)
             if (ui->formatPalRadioButton->isChecked()) fileName += "_PAL";
         }
 
+        if (ui->audioCheckBox->isChecked()) {
+            if (ui->audioAnalogueRadioButton->isChecked()) fileName += "_ANA";
+            if (ui->audioAc3RadioButton->isChecked()) fileName += "_AC3";
+            if (ui->audioDtsRadioButton->isChecked()) fileName += "_DTS";
+        }
+
         if (ui->discSideCheckBox->isChecked()) {
-            if (ui->sideOneRadioButton->isChecked()) fileName += "_side1";
-            if (ui->sideTwoRadioButton->isChecked()) fileName += "_side2";
-            if (ui->sideThreeRadioButton->isChecked()) fileName += "_side3";
-            if (ui->sideFourRadioButton->isChecked()) fileName += "_side4";
+            fileName += QString("_side%1").arg(ui->discSideSpinBox->value());
         }
 
         if (ui->notesCheckBox->isChecked()) {
@@ -124,16 +128,22 @@ void AdvancedNamingDialog::updateGui(void)
         ui->formatPalRadioButton->setEnabled(false);
     }
 
-    if (ui->discSideCheckBox->isChecked()) {
-        ui->sideOneRadioButton->setEnabled(true);
-        ui->sideTwoRadioButton->setEnabled(true);
-        ui->sideThreeRadioButton->setEnabled(true);
-        ui->sideFourRadioButton->setEnabled(true);
+    if (ui->audioCheckBox->isChecked()) {
+        ui->audioDefaultRadioButton->setEnabled(true);
+        ui->audioAnalogueRadioButton->setEnabled(true);
+        ui->audioAc3RadioButton->setEnabled(true);
+        ui->audioDtsRadioButton->setEnabled(true);
     } else {
-        ui->sideOneRadioButton->setEnabled(false);
-        ui->sideTwoRadioButton->setEnabled(false);
-        ui->sideThreeRadioButton->setEnabled(false);
-        ui->sideFourRadioButton->setEnabled(false);
+        ui->audioDefaultRadioButton->setEnabled(false);
+        ui->audioAnalogueRadioButton->setEnabled(false);
+        ui->audioAc3RadioButton->setEnabled(false);
+        ui->audioDtsRadioButton->setEnabled(false);
+    }
+
+    if (ui->discSideCheckBox->isChecked()) {
+        ui->discSideSpinBox->setEnabled(true);
+    } else {
+        ui->discSideSpinBox->setEnabled(false);
     }
 
     if (ui->notesCheckBox->isChecked()) {
@@ -154,6 +164,11 @@ void AdvancedNamingDialog::on_discTypeCheckBox_clicked()
 }
 
 void AdvancedNamingDialog::on_formatCheckBox_clicked()
+{
+    updateGui();
+}
+
+void AdvancedNamingDialog::on_audioCheckBox_clicked()
 {
     updateGui();
 }

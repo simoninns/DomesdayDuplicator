@@ -50,6 +50,7 @@ private slots:
     void on_discTitleCheckBox_clicked();
     void on_discTypeCheckBox_clicked();
     void on_formatCheckBox_clicked();
+    void on_audioCheckBox_clicked();
     void on_discSideCheckBox_clicked();
     void on_notesCheckBox_clicked();
 
