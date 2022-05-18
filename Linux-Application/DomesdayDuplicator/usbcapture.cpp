@@ -278,7 +278,11 @@ void UsbCapture::run(void)
     allocateDiskBuffers();
 
     // Launch a thread for writing disk buffers to disk
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QFuture<void> future = QtConcurrent::run(this, &UsbCapture::runDiskBuffers);
+#else
+    QFuture<void> future = QtConcurrent::run(&UsbCapture::runDiskBuffers, this);
+#endif
     connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
 
     // Claim the required USB device interface for the transfer
