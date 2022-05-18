@@ -43,10 +43,10 @@ AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
     ui->notesCheckBox->setChecked(false);
 
     // Set line edit validation to A-Z, a-z, 0-9 and space, minus and underscore
-    ui->discTitleLineEdit->setValidator(new QRegExpValidator(
-                                            QRegExp("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
-    ui->notesLineEdit->setValidator(new QRegExpValidator(
-                                        QRegExp("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
+    ui->discTitleLineEdit->setValidator(new QRegularExpressionValidator(
+                                            QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
+    ui->notesLineEdit->setValidator(new QRegularExpressionValidator(
+                                        QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
 
     updateGui();
 }

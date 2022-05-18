@@ -118,8 +118,8 @@ void PlayerRemoteDialog::updateGui(void)
         QString secondString;
 
 
-        // Get the full 7 character time-code string
-        timeCodeString.sprintf("%05d", position.toInt());
+        // Pad the string out to 5 characters with zeros
+        timeCodeString = QString("%1").arg(position, 5, QChar('0'));
 
         // Split up the time-code
         hourString = timeCodeString.left(1);

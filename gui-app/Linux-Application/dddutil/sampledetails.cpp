@@ -108,7 +108,7 @@ QString SampleDetails::getDurationString(void)
     qint64 duration = numberOfSamples / 40000000;
 
     // Return a QString in the format hh:mm:ss
-    return QDateTime::fromTime_t(static_cast<quint32>(duration)).toUTC().toString("hh:mm:ss");
+    return QDateTime::fromMSecsSinceEpoch(duration * 1000).toUTC().toString("hh:mm:ss");
 }
 
 // Get the input file format, returns true if 10-bit
