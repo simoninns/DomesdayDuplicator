@@ -55,6 +55,9 @@ struct transferUserDataStruct {
 // Flag to indicate if disk buffer processing is running
 static volatile bool isDiskBufferProcessRunning;
 
+// Flag passed to mainwindow to notify of closefile
+static bool isOkToRename = false;
+
 // Global to monitor the number of in-flight transfers
 static volatile qint32 transfersInFlight = 0;
 
@@ -448,6 +451,9 @@ void UsbCapture::freeDiskBuffers(void)
     // Free up the temporary disk buffer
     free(conversionBuffer);
     conversionBuffer = nullptr;
+
+    qDebug() << "Setting finished variable for mainwindow";
+    isOkToRename = true;
 }
 
 // Thread for processing disk buffers
@@ -516,7 +522,6 @@ void UsbCapture::runDiskBuffers(void)
 
     // Flag that the thread is complete
     isDiskBufferProcessRunning = false;
-
     qDebug() << "UsbCapture::runDiskBuffers(): Thread stopped";
 }
 
@@ -658,6 +663,8 @@ void UsbCapture::writeConversionBuffer(QFile *outputFile, qint32 numBytes)
 // Start capturing
 void UsbCapture::startTransfer(void)
 {
+    // Flip isOkToRename back to false; new capture
+    isOkToRename = false;
     // Start the capture processing thread
     connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
     this->start();
@@ -687,4 +694,10 @@ qint32 UsbCapture::getNumberOfDiskBuffersWritten(void)
 QString UsbCapture::getLastError(void)
 {
     return lastError;
+}
+
+// Return capture is complete and buffers are empty
+bool UsbCapture::getOkToRename()
+{
+    return isOkToRename;
 }

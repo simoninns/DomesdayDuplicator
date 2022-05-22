@@ -41,11 +41,15 @@ AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
     ui->audioCheckBox->setChecked(false);
     ui->discSideCheckBox->setChecked(false);
     ui->notesCheckBox->setChecked(false);
+    ui->mintCheckBox->setChecked(false);
+    ui->durationCheckBox->setChecked(false);
 
     // Set line edit validation to A-Z, a-z, 0-9 and space, minus and underscore
     ui->discTitleLineEdit->setValidator(new QRegularExpressionValidator(
                                             QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
     ui->notesLineEdit->setValidator(new QRegularExpressionValidator(
+                                        QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
+    ui->mintLineEdit->setValidator(new QRegularExpressionValidator(
                                         QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
 
     updateGui();
@@ -96,11 +100,27 @@ QString AdvancedNamingDialog::getFileName(bool isTestData)
             fileName += "_" + ui->notesLineEdit->text();
         }
 
+        if (ui->mintCheckBox->isChecked()) {
+            fileName += "_" + ui->mintLineEdit->text();
+        }
+
         // Add the date/time stamp
         fileName += "_" + QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
     }
 
     return fileName;
+}
+
+// Function to return if duration checkbox is set
+bool AdvancedNamingDialog::getDurationChecked()
+{
+    bool fileDurationBox = false;
+
+    if (ui->durationCheckBox->isChecked()) {
+        fileDurationBox = true;
+    }
+
+    return fileDurationBox;
 }
 
 // Update the GUI based on the state of the check boxes
@@ -151,6 +171,13 @@ void AdvancedNamingDialog::updateGui(void)
     } else {
         ui->notesLineEdit->setEnabled(false);
     }
+
+    if (ui->mintCheckBox->isChecked()) {
+        ui->mintLineEdit->setEnabled(true);
+    } else {
+        ui->mintLineEdit->setEnabled(false);
+    }
+
 }
 
 void AdvancedNamingDialog::on_discTitleCheckBox_clicked()
@@ -181,4 +208,15 @@ void AdvancedNamingDialog::on_discSideCheckBox_clicked()
 void AdvancedNamingDialog::on_notesCheckBox_clicked()
 {
     updateGui();
+}
+
+void AdvancedNamingDialog::on_mintCheckBox_clicked()
+{
+    updateGui();
+}
+
+void AdvancedNamingDialog::on_durationCheckBox_clicked()
+{
+    updateGui();
+
 }

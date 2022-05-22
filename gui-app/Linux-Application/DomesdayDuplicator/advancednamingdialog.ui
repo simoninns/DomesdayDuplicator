@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>500</width>
-    <height>250</height>
+    <height>315</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -25,7 +25,7 @@
      <x>10</x>
      <y>10</y>
      <width>481</width>
-     <height>231</height>
+     <height>281</height>
     </rect>
    </property>
    <property name="title">
@@ -285,6 +285,42 @@
      <number>999</number>
     </property>
    </widget>
+   <widget class="QCheckBox" name="mintCheckBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>220</y>
+      <width>111</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Mint marks:</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="mintLineEdit">
+    <property name="geometry">
+     <rect>
+      <x>130</x>
+      <y>220</y>
+      <width>341</width>
+      <height>21</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="durationCheckBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>250</y>
+      <width>231</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Append capture duration</string>
+    </property>
+   </widget>
   </widget>
  </widget>
  <tabstops>
@@ -303,8 +339,8 @@
  <resources/>
  <connections/>
  <buttongroups>
-  <buttongroup name="discTypeButtonGroup"/>
   <buttongroup name="formatButtonGroup"/>
+  <buttongroup name="discTypeButtonGroup"/>
   <buttongroup name="audioButtonGroup"/>
  </buttongroups>
 </ui>
