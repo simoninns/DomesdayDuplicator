@@ -22,7 +22,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-CONFIG += c++11
+CONFIG += c++11 console
 
 # Include the libUSB library
 unix {
@@ -30,14 +30,8 @@ unix {
     LIBS += -L"/usr/lib" -lusb-1.0
 }
 win32 {
-    debug {
-        LIBS += -L"$$PWD/libusb-1.0.22/x64/Debug/lib"
-    }
-    release {
-       LIBS += -L"$$PWD/libusb-1.0.22/x64/Release/lib"
-    }
-    LIBS += -llibusb-1.0 -lAdvAPI32
-    INCLUDEPATH += "$$PWD/libusb-1.0.22/libusb"
+    LIBS += -L"$$PWD/libusb-1.0.0/" -llibusb-1.0 -lAdvAPI32
+    INCLUDEPATH += "$$PWD/libusb-1.0.0"
     DEFINES += NOMINMAX QUSB_LIBRARY
 }
 
