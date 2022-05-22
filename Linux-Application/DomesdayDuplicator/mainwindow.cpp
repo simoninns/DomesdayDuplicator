@@ -27,6 +27,8 @@
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "usbcapture.h"
+#include <QFile>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -644,11 +646,11 @@ void MainWindow::on_actionPreferences_triggered()
 }
 
 // Main window - capture button clicked
+QString captureFilename;
 void MainWindow::on_capturePushButton_clicked()
 {
     if (!isCaptureRunning) {
         // Start capture
-        QString captureFilename;
 
         // Ensure that the test mode option matches the device configuration
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Setting device's test mode flag to" << ui->actionTest_mode->isChecked();
@@ -701,6 +703,25 @@ void MainWindow::on_capturePushButton_clicked()
         captureStatusUpdateTimer->stop();
         captureDurationTimer->stop();
         disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
+        // Rename output file if duration checkbox is clicked
+        if (advancedNamingDialog->getDurationChecked()) {
+            qDebug() << "ainWindow::on_capturePushButton_clicked(): Starting attempt to append duration";
+            // Make sure output file is closed
+            if (!UsbCapture::getOkToRename()) {
+                qDebug() << "MainWindow::on_capturePushButton_clicked(): Not ok to rename, disk buffers still writing";
+                while (!UsbCapture::getOkToRename()) {
+                    // Wait until finished
+                }
+            }
+            QString durationFilename = captureFilename;
+            QString finalDuration = captureElapsedTime.toString("hh'H'mm'M'ss'S'");
+            finalDuration.prepend("_");
+            // Get "." before extension and save as index
+            int durationIndex = durationFilename.lastIndexOf(".");
+            durationFilename.insert(durationIndex, finalDuration);
+            QFile::rename(captureFilename, durationFilename);
+            qDebug() << "MainWindow::on_capturePushButton_clicked(): Renamed file to" << durationFilename;
+        }
         updateGuiForCaptureStop();
     }
 }
@@ -752,7 +773,7 @@ void MainWindow::updateGuiForCaptureStart(void)
     ui->numberOfTransfersLabel->setText(tr("0"));
 }
 
-// Update the GUI when capture stops
+// Update the GUI when capture stops, and flip rename var back to false
 void MainWindow::updateGuiForCaptureStop(void)
 {
     // Disable functions after capture
