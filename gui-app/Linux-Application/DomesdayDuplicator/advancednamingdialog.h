@@ -45,6 +45,7 @@ public:
     ~AdvancedNamingDialog();
 
     QString getFileName(bool isTestData);
+    bool getDurationChecked();
 
 private slots:
     void on_discTitleCheckBox_clicked();
@@ -53,6 +54,8 @@ private slots:
     void on_audioCheckBox_clicked();
     void on_discSideCheckBox_clicked();
     void on_notesCheckBox_clicked();
+    void on_mintCheckBox_clicked();
+    void on_durationCheckBox_clicked();
 
 private:
     Ui::AdvancedNamingDialog *ui;

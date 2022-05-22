@@ -51,6 +51,7 @@ public:
     qint32 getNumberOfTransfers(void);
     qint32 getNumberOfDiskBuffersWritten(void);
     QString getLastError(void);
+    static bool getOkToRename();
 
 signals:
     void transferFailed(void);
