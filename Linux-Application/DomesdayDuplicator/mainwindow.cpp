@@ -653,15 +653,15 @@ void MainWindow::on_capturePushButton_clicked()
         // Start capture
 
         // Ensure that the test mode option matches the device configuration
-        qDebug() << "MainWindow::on_capturePushButton_clicked(): Setting device's test mode flag to" << ui->actionTest_mode->isChecked();
-        if (ui->actionTest_mode->isChecked()) usbDevice->sendConfigurationCommand(true);
-        else usbDevice->sendConfigurationCommand(false);
+        bool isTestMode = ui->actionTest_mode->isChecked();
+        qDebug() << "MainWindow::on_capturePushButton_clicked(): Setting device's test mode flag to" << isTestMode;
+        usbDevice->sendConfigurationCommand(isTestMode);
 
         // Construct the capture file path and name
 
         // Use the advanced naming dialogue to generate the capture file name
         captureFilename = configuration->getCaptureDirectory() +
-                advancedNamingDialog->getFileName(ui->actionTest_mode->isChecked());
+                advancedNamingDialog->getFileName(isTestMode);
 
         // Change the suffix depending on if the data is 10 or 16 bit
         if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) captureFilename += ".lds";
@@ -674,13 +674,13 @@ void MainWindow::on_capturePushButton_clicked()
 
         if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
             qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer - 10-bit packed";
-            usbDevice->startCapture(captureFilename, true, false);
+            usbDevice->startCapture(captureFilename, true, false, isTestMode);
         } else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitCdPacked) {
             qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer - 10-bit packed 4:1 decimated";
-            usbDevice->startCapture(captureFilename, true, true);
+            usbDevice->startCapture(captureFilename, true, true, isTestMode);
         } else {
             qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer - 16-bit";
-            usbDevice->startCapture(captureFilename, false, false);
+            usbDevice->startCapture(captureFilename, false, false, isTestMode);
         }
 
         qDebug() << "MainWindow::on_capturePushButton_clicked(): Transfer started";

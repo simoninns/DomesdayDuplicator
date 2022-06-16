@@ -211,7 +211,7 @@ static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
 UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
                        libusb_device_handle *usbDeviceHandleParam,
                        QString filenameParam, bool isCaptureFormat10BitParam,
-                       bool isCaptureFormat10BitDecimatedParam) : QThread(parent)
+                       bool isCaptureFormat10BitDecimatedParam, bool isTestDataParam) : QThread(parent)
 {
     // Set the libUSB context
     libUsbContext = libUsbContextParam;
@@ -231,6 +231,7 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
     // Store the requested data format
     isCaptureFormat10Bit = isCaptureFormat10BitParam;
     isCaptureFormat10BitDecimated = isCaptureFormat10BitDecimatedParam;
+    isTestData = isTestDataParam;
 
     // Set the transfer abort flag
     transferAbort = false;
@@ -476,7 +477,7 @@ void UsbCapture::runDiskBuffers(void)
             if (isDiskBufferFull[diskBufferNumber] && !transferFailure) {
                 // Write the buffer
                 if (transferAbort) qDebug() << "UsbCapture::runDiskBuffers(): Transfer abort flagged, writing disk buffer" << diskBufferNumber;
-                writeBufferToDisk(&outputFile, diskBufferNumber, false);
+                writeBufferToDisk(&outputFile, diskBufferNumber);
 
                 // Mark it as empty
                 isDiskBufferFull[diskBufferNumber] = false;
@@ -502,7 +503,7 @@ void UsbCapture::runDiskBuffers(void)
             if (isDiskBufferFull[diskBufferNumber] && !transferFailure) {
                 // Write the buffer
                 qDebug() << "UsbCapture::runDiskBuffers(): Capture complete flagged, writing disk buffer" << diskBufferNumber;
-                writeBufferToDisk(&outputFile, diskBufferNumber, false);
+                writeBufferToDisk(&outputFile, diskBufferNumber);
 
                 // Mark it as empty
                 isDiskBufferFull[diskBufferNumber] = false;
@@ -526,7 +527,7 @@ void UsbCapture::runDiskBuffers(void)
 }
 
 // Write a disk buffer to disk
-void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber, bool isTestData)
+void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
 {
     // Is this test data?
     if (isTestData) {
