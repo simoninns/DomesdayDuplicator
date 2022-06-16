@@ -28,6 +28,7 @@
 #include "usbcapture.h"
 
 #include <atomic>
+#include <sched.h>
 
 // Notes on transfer and disk buffering:
 //
@@ -303,6 +304,29 @@ void UsbCapture::run(void)
         return;
     }
 
+    // Save the current scheduling policy and parameters
+    int oldSchedPolicy = sched_getscheduler(0);
+    if (oldSchedPolicy == -1) oldSchedPolicy = SCHED_OTHER;
+    struct sched_param oldSchedParam;
+    if (sched_getparam(0, &oldSchedParam) == -1) oldSchedParam.sched_priority = 0;
+
+    // Enable real-time scheduling for this thread
+    int minSchedPriority = sched_get_priority_min(SCHED_RR);
+    int maxSchedPriority = sched_get_priority_max(SCHED_RR);
+    struct sched_param schedParams;
+    if (minSchedPriority == -1 || maxSchedPriority == -1) {
+        schedParams.sched_priority = 0;
+    } else {
+        // Put the priority about 3/4 of the way through its range
+        schedParams.sched_priority = (minSchedPriority + (3 * maxSchedPriority)) / 4;
+    }
+    if (sched_setscheduler(0, SCHED_RR, &schedParams) != -1) {
+        qDebug() << "UsbCapture::run(): Real-time scheduling enabled with priority" << schedParams.sched_priority;
+    } else {
+        // Continue anyway, but print a warning
+        qInfo() << "UsbCapture::run(): Unable to enable real-time scheduling for capture thread";
+    }
+
     // Set up the initial transfers
     for (qint32 transferNumber = 0; transferNumber < SIMULTANEOUSTRANSFERS; transferNumber++) {
         usbTransfers[transferNumber] = libusb_alloc_transfer(0);
@@ -366,6 +390,11 @@ void UsbCapture::run(void)
         libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
     }
 
+    // Return to the original scheduling policy while we're cleaning up
+    if (sched_setscheduler(0, oldSchedPolicy, &oldSchedParam) == -1) {
+        qDebug() << "UsbCapture::run(): Unable to restore original scheduling policy";
+    }
+
     // Deallocate transfers
     qDebug() << "UsbCapture::run(): Transfer stopping - Freeing transfer buffers...";
     for (qint32 transferNumber = 0; transferNumber < SIMULTANEOUSTRANSFERS; transferNumber++)
@@ -375,6 +404,7 @@ void UsbCapture::run(void)
     qDebug() << "UsbCapture::run(): Transfer stopping - waiting for disk buffer processing to complete...";
     while (isDiskBufferProcessRunning) {
         // Just waiting here for now
+        sched_yield();
     }
 
     // If the transfer failed, emit a notification signal to the parent object
