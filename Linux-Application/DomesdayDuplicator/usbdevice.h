@@ -48,7 +48,7 @@ public:
     bool scanForDevice(void);
     void sendConfigurationCommand(bool testMode);
 
-    void startCapture(QString filename, bool isCaptureFormat10Bit, bool isCaptureFormat10BitDecimated);
+    void startCapture(QString filename, bool isCaptureFormat10Bit, bool isCaptureFormat10BitDecimated, bool isTestMode);
     void stopCapture(void);
     qint32 getNumberOfTransfers(void);
     qint32 getNumberOfDiskBuffersWritten(void);
