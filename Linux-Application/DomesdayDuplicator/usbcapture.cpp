@@ -241,6 +241,9 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
     statistics.transferCount = 0;
     numberOfDiskBuffersWritten = 0;
 
+    // Initialise the test data sequence
+    savedTestDataValue = -1;
+
     // Clear the transfer failure flag
     transferFailure = false;
 
@@ -532,7 +535,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
     // Is this test data?
     if (isTestData) {
         // Verify the data
-        qint32 currentValue = -1;
+        qint32 currentValue = savedTestDataValue;
 
         for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
             // Get the original 10-bit unsigned value from the disk data buffer
@@ -555,6 +558,9 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
                 }
             }
         }
+
+        qDebug() << "UsbCapture::writeBufferToDisk(): Verified test data OK - current value" << currentValue;
+        savedTestDataValue = currentValue;
     }
 
     // Write the data in 10 or 16 bit format
