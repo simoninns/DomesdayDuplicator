@@ -27,6 +27,8 @@
 
 #include "usbcapture.h"
 
+#include <atomic>
+
 // Notes on transfer and disk buffering:
 //
 // TRANSFERSIZE: Each in-flight transfer returns 16 Kbytes * 16 (256 Kbytes)
@@ -53,32 +55,32 @@ struct transferUserDataStruct {
 };
 
 // Flag to indicate if disk buffer processing is running
-static volatile bool isDiskBufferProcessRunning;
+static std::atomic<bool> isDiskBufferProcessRunning;
 
 // Flag passed to mainwindow to notify of closefile
 static bool isOkToRename = false;
 
 // Global to monitor the number of in-flight transfers
-static volatile qint32 transfersInFlight = 0;
+static std::atomic<qint32> transfersInFlight(0);
 
 // Flag to cancel transfers in flight
-static volatile bool transferAbort = false;
+static std::atomic<bool> transferAbort(false);
 
 // Flag to show capture complete
-static volatile bool captureComplete = false;
+static std::atomic<bool> captureComplete(false);
 
 // Flag to show transfer failure
-static volatile bool transferFailure = false;
+static std::atomic<bool> transferFailure(false);
 
 // Private variables used to report statistics about the transfer process
 struct statisticsStruct {
-    qint32 transferCount;          // Number of successful transfers
+    std::atomic<qint32> transferCount;  // Number of successful transfers
 };
-static volatile statisticsStruct statistics;
+static statisticsStruct statistics;
 
 // Set up a pointer to the disk buffers and their full flags
 static unsigned char **diskBuffers = nullptr;
-static volatile bool isDiskBufferFull[NUMBEROFDISKBUFFERS];
+static std::atomic<bool> isDiskBufferFull[NUMBEROFDISKBUFFERS];
 
 // Set up a pointer to the conversion buffer
 static unsigned char *conversionBuffer;
@@ -87,7 +89,7 @@ static unsigned char *conversionBuffer;
 // before disk buffering starts.  It seems to be necessary to discard
 // the first set of in-flight transfers as the FX3 doesn't return
 // valid data until second set.
-static volatile qint32 flushCounter;
+static std::atomic<qint32> flushCounter;
 
 // Last error is a string used to communicate a failure reason to the GUI
 static QString lastError;
