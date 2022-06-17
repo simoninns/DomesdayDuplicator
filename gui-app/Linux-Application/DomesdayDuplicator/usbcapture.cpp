@@ -245,7 +245,8 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
     statistics.transferCount = 0;
     numberOfDiskBuffersWritten = 0;
 
-    // Initialise the test data sequence
+    // Initialise the sample and test data sequences
+    sequenceState = SEQUENCE_SYNC;
     savedTestDataValue = -1;
     testDataMax = -1;
 
@@ -575,19 +576,85 @@ void UsbCapture::runDiskBuffers(void)
     qDebug() << "UsbCapture::runDiskBuffers(): Thread stopped";
 }
 
-// Remove sequence numbers from a buffer
+// Check and remove sequence numbers from a buffer
 void UsbCapture::checkBufferSequence(qint32 diskBufferNumber)
 {
-    // Remove the sequence numbers
-    for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
-        diskBuffers[diskBufferNumber][pointer + 1] &= 3;
+    static constexpr qint32 COUNTER_SHIFT = 16;
+    static constexpr quint32 COUNTER_MAX = 63;
+
+    // If we have no work to do, return immediately
+    if (sequenceState == SEQUENCE_DISABLED || sequenceState == SEQUENCE_FAILED) return;
+
+    unsigned char *diskBuffer = diskBuffers[diskBufferNumber];
+    quint32 sequenceCounter;
+
+    if (sequenceState == SEQUENCE_SYNC) {
+        // Determine the initial value of sequenceCounter, based on the contents of diskBuffer
+
+        sequenceCounter = 0xFFFFFFFF;
+
+        // Get the first sequence number from the buffer
+        quint32 prevSeqNum = diskBuffer[1] >> 2;
+
+        // Find the first time the sequence number changes.
+        // Since each sequence number appears on (1 << COUNTER_SHIFT) samples,
+        // at worst we will see a change within (1 << COUNTER_SHIFT) + 1
+        // samples.
+        for (qint32 pointer = 2; pointer < ((1 << COUNTER_SHIFT) + 1) * 2; pointer += 2) {
+            const quint32 seqNum = diskBuffer[pointer + 1] >> 2;
+            if (seqNum != prevSeqNum) {
+                // Found it -- compute sequenceCounter's value at the start of the buffer
+                sequenceCounter = (seqNum << COUNTER_SHIFT) - (pointer / 2);
+                break;
+            }
+            prevSeqNum = seqNum;
+        }
+
+        if (sequenceCounter == 0xFFFFFFFF) {
+            // No sequence number change detected
+            qDebug() << "UsbCapture::checkBufferSequence(): Data does not include sequence numbers";
+            sequenceState = SEQUENCE_DISABLED;
+            return;
+        }
+
+        qDebug() << "UsbCapture::checkBufferSequence(): Synchronised with data sequence numbers";
+        sequenceState = SEQUENCE_RUNNING;
+    } else {
+        sequenceCounter = savedSequenceCounter;
     }
+
+    // We must now be in the SEQUENCE_RUNNING state.
+    // Check diskBuffer's sequence numbers match sequenceCounter.
+    for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
+        const quint32 expected = sequenceCounter >> COUNTER_SHIFT;
+        const quint32 seqNum = diskBuffer[pointer + 1] >> 2;
+        if (seqNum != expected) {
+            qDebug() << "UsbCapture::checkBufferSequence(): Sequence number mismatch - expecting" << expected << "but got" << seqNum;
+            sequenceState = SEQUENCE_FAILED;
+            savedSequenceCounter = sequenceCounter;
+            return;
+        }
+
+        // Update sequenceCounter
+        sequenceCounter++;
+        if (sequenceCounter == (COUNTER_MAX << COUNTER_SHIFT)) sequenceCounter = 0;
+
+        // Remove the sequence number
+        diskBuffer[pointer + 1] &= 3;
+    }
+
+    savedSequenceCounter = sequenceCounter;
 }
 
 // Write a disk buffer to disk
 void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
 {
     checkBufferSequence(diskBufferNumber);
+    if (sequenceState == SEQUENCE_FAILED) {
+        lastError = tr("Sequence number mismatch -- samples have been lost from input!");
+        transferFailure = true;
+        return;
+    }
 
     // Is this test data?
     if (isTestData) {
