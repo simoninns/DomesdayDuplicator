@@ -29,6 +29,7 @@
 
 #include <atomic>
 #include <sched.h>
+#include <sys/mman.h>
 
 // Notes on transfer and disk buffering:
 //
@@ -439,6 +440,7 @@ void UsbCapture::allocateDiskBuffers(void)
     // Allocate the disk buffers
     diskBuffers = static_cast<unsigned char **>(calloc(NUMBEROFDISKBUFFERS, sizeof(unsigned char *)));
     if (diskBuffers != nullptr) {
+        bool tryMlock = true;
         for (quint32 bufferNumber = 0; bufferNumber < NUMBEROFDISKBUFFERS; bufferNumber++) {
 
             diskBuffers[bufferNumber] = static_cast<unsigned char *>(malloc(TRANSFERSIZE * TRANSFERSPERDISKBUFFER));
@@ -451,7 +453,15 @@ void UsbCapture::allocateDiskBuffers(void)
                 transferFailure = true;
                 break;
             }
+
+            // Lock the buffer into memory, preventing it from being paged out
+            if (tryMlock && mlock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER) == -1) {
+                // Continue anyway, but print a warning
+                qInfo() << "UsbCapture::allocateDiskBuffers(): Unable to lock disk buffer into memory";
+                tryMlock = false;
+            }
         }
+        if (tryMlock) qDebug() << "UsbCapture::allocateDiskBuffers(): Locked disk buffers into memory";
     } else {
         // Memory allocation has failed
         qDebug() << "UsbCapture::allocateDiskBuffers(): Disk buffer array allocation failed!";
@@ -475,6 +485,9 @@ void UsbCapture::freeDiskBuffers(void)
     // Free up the allocated disk buffers
     if (diskBuffers != nullptr) {
         for (qint32 bufferNumber = 0; bufferNumber < NUMBEROFDISKBUFFERS; bufferNumber++) {
+            // Don't keep the buffer in RAM any more (silently ignoring failure)
+            (void) munlock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
+
             if (diskBuffers[bufferNumber] != nullptr) {
                 free(diskBuffers[bufferNumber]);
             }
