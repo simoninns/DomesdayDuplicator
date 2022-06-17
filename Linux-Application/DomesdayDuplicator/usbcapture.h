@@ -74,6 +74,13 @@ protected:
 private:
     qint32 numberOfDiskBuffersWritten;
 
+    enum {
+        SEQUENCE_SYNC,
+        SEQUENCE_RUNNING,
+        SEQUENCE_DISABLED,
+        SEQUENCE_FAILED,
+    } sequenceState;
+    quint32 savedSequenceCounter;
     void checkBufferSequence(qint32 diskBufferNumber);
 
     qint32 savedTestDataValue;
