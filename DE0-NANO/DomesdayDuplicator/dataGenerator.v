@@ -37,7 +37,6 @@ module dataGenerator (
 // Register to store test and ADC data values
 reg [9:0] adcData;
 reg [9:0] testData;
-wire [9:0] adc_databusRead;
 
 // If we are in test-mode use test data,
 // otherwise use the actual ADC data
