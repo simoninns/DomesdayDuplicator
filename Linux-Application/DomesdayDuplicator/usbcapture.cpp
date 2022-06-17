@@ -435,7 +435,7 @@ void UsbCapture::run(void)
 // Note: Using vectors would be neater, but they are just too slow
 void UsbCapture::allocateDiskBuffers(void)
 {
-    qDebug() << "UsbCapture::allocateDiskBuffers(): Allocating memory for disk buffers";
+    qDebug() << "UsbCapture::allocateDiskBuffers(): Allocating" << (1ULL * TRANSFERSIZE * TRANSFERSPERDISKBUFFER * NUMBEROFDISKBUFFERS) / (1024 * 1024) << "MiB memory for disk buffers";
     // Allocate the disk buffers
     diskBuffers = static_cast<unsigned char **>(calloc(NUMBEROFDISKBUFFERS, sizeof(unsigned char *)));
     if (diskBuffers != nullptr) {
