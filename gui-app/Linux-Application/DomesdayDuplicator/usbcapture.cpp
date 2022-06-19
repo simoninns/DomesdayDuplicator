@@ -582,26 +582,27 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
         // Verify the data
         qint32 currentValue = savedTestDataValue;
 
+        if (currentValue == -1) {
+            // Initialiase currentValue from the first value
+            currentValue = diskBuffers[diskBufferNumber][0] + (diskBuffers[diskBufferNumber][1] * 256);
+        }
+
         for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
             // Get the original 10-bit unsigned value from the disk data buffer
             qint32 originalValue = diskBuffers[diskBufferNumber][pointer];
-            originalValue += diskBuffers[diskBufferNumber][pointer+1] * 256;
+            originalValue += diskBuffers[diskBufferNumber][pointer + 1] * 256;
 
-            if (currentValue == -1) {
-                // Initial data word
-                currentValue = originalValue;
-            } else {
-                currentValue++;
-                if (currentValue == 1024) currentValue = 0;
-
-                if (currentValue != originalValue) {
-                    // Data error
-                    qDebug() << "UsbCapture::writeBufferToDisk(): Data error! Expecting" << currentValue << "but got" << originalValue;
-                    lastError = tr("Test data verification error!");
-                    transferFailure = true;
-                    return;
-                }
+            if (currentValue != originalValue) {
+                // Data error
+                qDebug() << "UsbCapture::writeBufferToDisk(): Data error! Expecting" << currentValue << "but got" << originalValue;
+                lastError = tr("Test data verification error!");
+                transferFailure = true;
+                return;
             }
+
+            // Update currentValue
+            currentValue++;
+            if (currentValue == 1024) currentValue = 0;
         }
 
         savedTestDataValue = currentValue;
