@@ -29,17 +29,12 @@ module buffer (
 	input writeClock,
 	input readClock,
 	input isReading,
-	input [9:0] dataIn,
+	input [15:0] dataIn,
 	
 	output reg bufferOverflow,
 	output reg dataAvailable,
-	output [15:0] dataOut_16bit
+	output [15:0] dataOut
 );
-
-// Convert 10 bit data out to 16-bit (unsigned and unscaled)
-wire [9:0] dataOut_10bit;
-assign dataOut_16bit[9:0] = dataOut_10bit;
-assign dataOut_16bit[15:10] = 6'b0;
 
 // FIFO buffer size in words
 // Note: The size of this buffer must match the buffer size used
@@ -48,7 +43,7 @@ assign dataOut_16bit[15:10] = 6'b0;
 //
 localparam bufferSize = 14'd8191; // 0 - 8191 = 8192 words
 
-// "Ping-pong" buffer storing 8192 10-bit words per buffer
+// "Ping-pong" buffer storing 8192 16-bit words per buffer
 reg currentWriteBuffer; // 0 = write to ping buffer read from pong,
 								// 1 = write to pong buffer read from ping
 
@@ -69,33 +64,33 @@ wire [13:0] pingUsedWords_rd;
 wire [13:0] pongUsedWords_rd;
 
 // Data out buses
-wire [9:0] pingdataOut;
-wire [9:0] pongdataOut;
+wire [15:0] pingdataOut;
+wire [15:0] pongdataOut;
 
-// Define the ping buffer (0) - 8192 10-bit words
+// Define the ping buffer (0) - 8192 16-bit words
 IPfifo pingBuffer (
 	.aclr(pingAsyncClear_wr),
-	.data(pingDataIn),				// 10-bit [9:0]
+	.data(pingDataIn),				// 16-bit [15:0]
 	.rdclk(readClock),
 	.rdreq(pingReadRequest),
 	.wrclk(writeClock),
 	.wrreq(pingWriteRequest),
-	.q(pingdataOut),					// 10-bit [9:0]
+	.q(pingdataOut),					// 16-bit [15:0]
 	.rdempty(pingEmptyFlag_rd),
 	.rdusedw(pingUsedWords_rd),	// 14-bit [13:0]
 	.wrempty(pingEmptyFlag_wr),
 	.wrusedw(pingUsedWords_wr)		// 14-bit [13:0]
 );
 
-// Define the pong buffer (1) - 8192 10-bit words
+// Define the pong buffer (1) - 8192 16-bit words
 IPfifo pongBuffer (
 	.aclr(pongAsyncClear_wr),
-	.data(pongDataIn),				// 10-bit [9:0]
+	.data(pongDataIn),				// 16-bit [15:0]
 	.rdclk(readClock),
 	.rdreq(pongReadRequest),
 	.wrclk(writeClock),
 	.wrreq(pongWriteRequest),
-	.q(pongdataOut),					// 10-bit [9:0]
+	.q(pongdataOut),					// 16-bit [15:0]
 	.rdempty(pongEmptyFlag_rd),
 	.rdusedw(pongUsedWords_rd),	// 14-bit [13:0]
 	.wrempty(pongEmptyFlag_wr),
@@ -104,8 +99,8 @@ IPfifo pongBuffer (
 
 
 // Route the control signals according to the currently selected write buffer
-wire [9:0] pingDataIn;
-wire [9:0] pongDataIn;
+wire [15:0] pingDataIn;
+wire [15:0] pongDataIn;
 wire pingReadRequest;
 wire pongReadRequest;
 wire pingWriteRequest;
@@ -113,11 +108,11 @@ wire pongWriteRequest;
 
 // if current write buffer = ping then send data to ping buffer
 // else send data to pong buffer
-assign pingDataIn = currentWriteBuffer ? 10'd0 : dataIn;
-assign pongDataIn = currentWriteBuffer ? dataIn : 10'd0; 
+assign pingDataIn = currentWriteBuffer ? 16'd0 : dataIn;
+assign pongDataIn = currentWriteBuffer ? dataIn : 16'd0;
 
-// if current write buffer = ping the dataOut_10bit = pong buffer else dataOut_10bit = pingBuffer
-assign dataOut_10bit = currentWriteBuffer ? pingdataOut : pongdataOut; 
+// if current write buffer = ping then dataOut = pong buffer else dataOut = pingBuffer
+assign dataOut = currentWriteBuffer ? pingdataOut : pongdataOut;
 
 // If current write buffer = ping then read from pong else read from ping
 assign pingReadRequest = currentWriteBuffer ? isReading : 1'b0;
