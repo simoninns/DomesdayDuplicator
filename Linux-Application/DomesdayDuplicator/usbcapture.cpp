@@ -604,7 +604,6 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
             }
         }
 
-        qDebug() << "UsbCapture::writeBufferToDisk(): Verified test data OK - current value" << currentValue;
         savedTestDataValue = currentValue;
     }
 
