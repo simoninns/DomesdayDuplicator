@@ -575,9 +575,20 @@ void UsbCapture::runDiskBuffers(void)
     qDebug() << "UsbCapture::runDiskBuffers(): Thread stopped";
 }
 
+// Remove sequence numbers from a buffer
+void UsbCapture::checkBufferSequence(qint32 diskBufferNumber)
+{
+    // Remove the sequence numbers
+    for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
+        diskBuffers[diskBufferNumber][pointer + 1] &= 3;
+    }
+}
+
 // Write a disk buffer to disk
 void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
 {
+    checkBufferSequence(diskBufferNumber);
+
     // Is this test data?
     if (isTestData) {
         // Verify the data

@@ -237,9 +237,9 @@ IPpllGenerator IPpllGenerator0 (
 );
 
 wire fx3_isReading;
-wire [9:0] dataGeneratorOut;
+wire [15:0] dataGeneratorOut;
 
-// Generate 10-bit data either from the ADC or the test data generator
+// Generate 16-bit data either from the ADC or the test data generator
 dataGenerator dataGenerator0 (
 	// Inputs
 	.nReset(fx3_nReset),				// Not reset
@@ -248,7 +248,7 @@ dataGenerator dataGenerator0 (
 	.testModeFlag(fx3_testMode),	// 1 = Test mode on
 	
 	// Outputs
-	.dataOut(dataGeneratorOut)		// 10-bit data out
+	.dataOut(dataGeneratorOut)		// 16-bit data out
 );
 
 // FIFO buffer
@@ -258,12 +258,12 @@ buffer buffer0 (
 	.writeClock(adc_clock),					// ADC clock
 	.readClock(fx3_clock),					// FX3 clock
 	.isReading(fx3_isReading),				// 1 = FX3 is reading data
-	.dataIn(dataGeneratorOut),				// 10-bit ADC data bus input
+	.dataIn(dataGeneratorOut),				// 16-bit ADC data bus input
 	
 	// Outputs
 	.bufferOverflow(fx3_bufferError),	// Set if a buffer overflow occurs
 	.dataAvailable(fx3_dataAvailable),	// Set if buffer contains at least 8192 words of data
-	.dataOut_16bit(fx3_databus)			// 16-bit data output
+	.dataOut(fx3_databus)					// 16-bit data output
 );
 
 // FX3 GPIF state-machine logic
