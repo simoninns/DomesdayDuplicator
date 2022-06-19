@@ -247,6 +247,7 @@ UsbCapture::UsbCapture(QObject *parent, libusb_context *libUsbContextParam,
 
     // Initialise the test data sequence
     savedTestDataValue = -1;
+    testDataMax = -1;
 
     // Clear the transfer failure flag
     transferFailure = false;
@@ -593,6 +594,15 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
             originalValue += diskBuffers[diskBufferNumber][pointer + 1] * 256;
 
             if (currentValue != originalValue) {
+                // If this is the first time the test sequence has wrapped around to 0,
+                // detect the length of the sequence: either 1021 (newer FPGA firmware)
+                // or 1024 (older FPGA firmware).
+                if (testDataMax == -1 && originalValue == 0 && (currentValue == 1021 || currentValue == 1024)) {
+                    testDataMax = currentValue;
+                    currentValue = 1;
+                    continue;
+                }
+
                 // Data error
                 qDebug() << "UsbCapture::writeBufferToDisk(): Data error! Expecting" << currentValue << "but got" << originalValue;
                 lastError = tr("Test data verification error!");
@@ -602,7 +612,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
 
             // Update currentValue
             currentValue++;
-            if (currentValue == 1024) currentValue = 0;
+            if (currentValue == testDataMax) currentValue = 0;
         }
 
         savedTestDataValue = currentValue;

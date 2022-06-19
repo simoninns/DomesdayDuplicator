@@ -191,6 +191,7 @@ bool AnalyseTestData::analyseSampleStart(void)
 
     // Reset the current expected value
     currentValue = 0;
+    testDataMax = 0;
     firstTest = true;
     testSuccessful = true;
 
@@ -264,10 +265,19 @@ bool AnalyseTestData::analyseDataIntegrity(QVector<quint16> sample)
     // Test the data in the buffer
     for (qint32 pointer = startPointer; pointer < sample.size(); pointer++) {
         // Increment the current value and range check
-        if (++currentValue > 1023) currentValue = 0;
+        if (++currentValue == testDataMax) currentValue = 0;
         //qDebug() << "sample[" << pointer <<"] =" << sample[pointer] << " currentValue=" << currentValue;
         // Check if the data is as expected
         if (sample[pointer] != currentValue) {
+            // If this is the first time the test sequence has wrapped around
+            // to 0, detect the length of the sequence: either 1021 (newer FPGA
+            // firmware) or 1024 (older FPGA firmware).
+            if (testDataMax == 0 && sample[pointer] == 0 && (currentValue == 1021 || currentValue == 1024)) {
+                testDataMax = currentValue;
+                currentValue = 0;
+                continue;
+            }
+
             // Bad data
             qDebug() << "AnalyseTestData::analyseDataIntegrity(): Bad data! Expecting" << currentValue
                      << "got" << sample[pointer] << "instead at pointer" << pointer;
