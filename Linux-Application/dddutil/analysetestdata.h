@@ -89,6 +89,7 @@ private:
     qint64 samplesToAnalyseTs;
 
     quint16 currentValue;
+    quint16 testDataMax;
     bool firstTest;
     bool testSuccessful;
 
