@@ -46,7 +46,7 @@ assign dataOut = testModeFlag ? testData : adcData;
 // negative edge of the clock
 //
 // Note: The test data is a repeating pattern of incrementing
-// values from 0 to 1023.
+// values from 0 to 1020.
 always @ (posedge clock, negedge nReset) begin
 	if (!nReset) begin
 		adcData <= 10'd0;
@@ -56,7 +56,10 @@ always @ (posedge clock, negedge nReset) begin
 		adcData <= adc_databus;
 		
 		// Test mode data generation
-		testData <= testData + 10'd1;
+		if (testData == 10'd1021 - 1)
+			testData <= 10'd0;
+		else
+			testData <= testData + 10'd1;
 	end
 end
 
