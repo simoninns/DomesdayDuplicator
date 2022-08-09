@@ -1,0 +1,63 @@
+name: Tests
+
+on:
+  push:
+    paths:
+      - '.github/**'
+      - 'Linux-Application/**'
+  pull_request:
+    paths:
+      - '.github/**'
+      - 'Linux-Application/**'
+  release:
+
+jobs:
+  qt5:
+    name: Build with Qt 5
+    runs-on: ubuntu-20.04
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      timeout-minutes: 10
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends qt5-default libqt5serialport5-dev libusb-1.0-0-dev
+
+    - name: Configure
+      timeout-minutes: 5
+      run: cd Linux-Application && qmake -recursive
+
+    - name: Build
+      timeout-minutes: 15
+      run: make -C Linux-Application
+
+    - name: Install
+      timeout-minutes: 5
+      run: make -C Linux-Application DESTDIR=/tmp/staging install
+
+  qt6:
+    name: Build with Qt 6
+    runs-on: ubuntu-22.04
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - name: Install dependencies
+      timeout-minutes: 10
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends qmake6 qt6-base-dev libqt6serialport6-dev libusb-1.0-0-dev
+
+    - name: Configure
+      timeout-minutes: 5
+      run: cd Linux-Application && qmake6 -recursive
+
+    - name: Build
+      timeout-minutes: 15
+      run: make -C Linux-Application
+
+    - name: Install
+      timeout-minutes: 5
+      run: make -C Linux-Application DESTDIR=/tmp/staging install
