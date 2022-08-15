@@ -1,4 +1,4 @@
-qt_add_executable(DomesdayDuplicator MACOSX_BUNDLE
+add_executable(DomesdayDuplicator MACOSX_BUNDLE
     aboutdialog.cpp aboutdialog.h aboutdialog.ui
     advancednamingdialog.cpp advancednamingdialog.h advancednamingdialog.ui
     automaticcapturedialog.cpp automaticcapturedialog.h automaticcapturedialog.ui
