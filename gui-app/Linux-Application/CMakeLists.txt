@@ -15,6 +15,20 @@ find_package(QT NAMES Qt5 Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Gui Widgets SerialPort)
 find_package(LibUSB REQUIRED)
 
+# For Qt < 5.15, emulate 5.15's Qt5CoreConfig.cmake, so we don't have to
+# specify Qt5/Qt6 elsewhere.
+if(QT_VERSION VERSION_LESS 5.15)
+    function(qt_add_resources outfiles)
+        qt5_add_resources("${outfiles}" ${ARGN})
+        set("${outfiles}" "${${outfiles}}" PARENT_SCOPE)
+    endfunction()
+    foreach(library Core Gui SerialPort Widgets)
+        add_library(Qt::${library} INTERFACE IMPORTED)
+        set_target_properties(Qt::${library} PROPERTIES
+            INTERFACE_LINK_LIBRARIES "Qt5::${library}")
+    endforeach()
+endif()
+
 add_subdirectory(DomesdayDuplicator)
 add_subdirectory(dddconv)
 add_subdirectory(dddutil)

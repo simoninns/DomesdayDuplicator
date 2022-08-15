@@ -1,4 +1,4 @@
-qt_add_executable(dddconv
+add_executable(dddconv
     dataconversion.cpp dataconversion.h
     main.cpp
 )

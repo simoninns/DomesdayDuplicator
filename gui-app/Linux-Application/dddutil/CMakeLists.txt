@@ -1,4 +1,4 @@
-qt_add_executable(dddutil WIN32 MACOSX_BUNDLE
+add_executable(dddutil WIN32 MACOSX_BUNDLE
     about.cpp about.h about.ui
     analysetestdata.cpp analysetestdata.h
     fileconverter.cpp fileconverter.h
