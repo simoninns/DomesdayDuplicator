@@ -1,20 +1,3 @@
-cmake_minimum_required(VERSION 3.16)
-project(DomesdayDuplicator VERSION 1.0 LANGUAGES CXX)
-
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake_modules")
-
-# Set up AUTOMOC and some sensible defaults for runtime execution
-# When using Qt 6.3, you can replace the code block below with
-# qt_standard_project_setup()
-set(CMAKE_AUTOMOC ON)
-include(GNUInstallDirs)
-set(CMAKE_AUTOUIC ON)
-
-find_package(QT NAMES Qt5 Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Gui Widgets SerialPort)
-find_package(LibUSB REQUIRED)
-
 qt_add_executable(DomesdayDuplicator MACOSX_BUNDLE
     aboutdialog.cpp aboutdialog.h aboutdialog.ui
     advancednamingdialog.cpp advancednamingdialog.h advancednamingdialog.ui
@@ -95,7 +78,3 @@ install(TARGETS DomesdayDuplicator
     BUNDLE DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-
-# Consider using qt_generate_deploy_app_script() for app deployment if
-# the project can use Qt 6.3. In that case rerun qmake2cmake with
-# --min-qt-version=6.3.
