@@ -2,6 +2,9 @@
 # Copyright (c) 2018 individual OpenKinect contributors (https://github.com/OpenKinect/libfreenect2/blob/master/CONTRIB)
 # File itself does not specify license, but project is dual GPL2/Apache
 
+if (NOT PKG_CONFIG_FOUND)
+  find_package(PkgConfig)
+endif()
 
 # - Find libusb for portable USB support
 # 
