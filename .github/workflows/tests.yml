@@ -23,15 +23,15 @@ jobs:
       timeout-minutes: 10
       run: |
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends qt5-default libqt5serialport5-dev libusb-1.0-0-dev
+        sudo apt-get install -y --no-install-recommends cmake qt5-default libqt5serialport5-dev libusb-1.0-0-dev
 
     - name: Configure
       timeout-minutes: 5
-      run: cd Linux-Application && qmake -recursive
+      run: cd Linux-Application && cmake .
 
     - name: Build
       timeout-minutes: 15
-      run: make -C Linux-Application
+      run: make -C Linux-Application VERBOSE=1
 
     - name: Install
       timeout-minutes: 5
@@ -48,15 +48,16 @@ jobs:
       timeout-minutes: 10
       run: |
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends qmake6 qt6-base-dev libqt6serialport6-dev libusb-1.0-0-dev
+        # libgl-dev is needed by QtGui, but not listed as a dependency
+        sudo apt-get install -y --no-install-recommends cmake libgl-dev qt6-base-dev libqt6serialport6-dev libusb-1.0-0-dev
 
     - name: Configure
       timeout-minutes: 5
-      run: cd Linux-Application && qmake6 -recursive
+      run: cd Linux-Application && cmake .
 
     - name: Build
       timeout-minutes: 15
-      run: make -C Linux-Application
+      run: make -C Linux-Application VERBOSE=1
 
     - name: Install
       timeout-minutes: 5
