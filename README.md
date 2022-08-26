@@ -28,7 +28,7 @@ The Domesday Duplicator is intended to allow high-quality back-ups of the analog
 
 ## Installation
 
-Please see http://www.domesday86.com/?page_id=978 for detailed documentation on the Domesday Duplicator
+Please see https://www.domesday86.com/?page_id=1312#Installation for instructions on how to install the Domesday Duplicator software
 
 ## Author
 
