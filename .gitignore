@@ -47,11 +47,12 @@ Temporary Items
 .apdisk
 
 # CMake related things
-/CMakeFiles
-*/CMakeFiles
+*.depends
+*_autogen/
 CMakeCache.txt
+CMakeFiles/
 cmake_install.cmake
 install_manifest.txt
-moc_*.cpp_parameters
 moc_*.cpp
+moc_*.cpp_parameters
 ui_*.h
