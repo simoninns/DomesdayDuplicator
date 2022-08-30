@@ -8,6 +8,7 @@ add_executable(dddutil WIN32 MACOSX_BUNDLE
     progressdialog.cpp progressdialog.h progressdialog.ui
     sampledetails.cpp sampledetails.h
 )
+
 target_compile_definitions(dddutil PRIVATE
     QT_DEPRECATED_WARNINGS
 )
