@@ -12,6 +12,7 @@ add_executable(DomesdayDuplicator MACOSX_BUNDLE
     usbcapture.cpp usbcapture.h
     usbdevice.cpp usbdevice.h
 )
+
 target_compile_definitions(DomesdayDuplicator PRIVATE
     QT_DEPRECATED_WARNINGS
 )
@@ -60,7 +61,6 @@ qt_add_resources(DomesdayDuplicator "resources1"
 target_include_directories(DomesdayDuplicator PRIVATE
     ${LibUSB_INCLUDE_DIRS}
 )
-
 
 if(WIN32)
     target_compile_definitions(DomesdayDuplicator PRIVATE

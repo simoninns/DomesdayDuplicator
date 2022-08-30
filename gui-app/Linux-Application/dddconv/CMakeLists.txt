@@ -2,6 +2,7 @@ add_executable(dddconv
     dataconversion.cpp dataconversion.h
     main.cpp
 )
+
 target_compile_definitions(dddconv PRIVATE
     QT_DEPRECATED_WARNINGS
 )
