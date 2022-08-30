@@ -28,6 +28,11 @@
 #include "advancednamingdialog.h"
 #include "ui_advancednamingdialog.h"
 
+QString mintSide1;
+QString mintSide2;
+QString notesSide1;
+QString notesSide2;
+
 AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AdvancedNamingDialog)
@@ -92,16 +97,27 @@ QString AdvancedNamingDialog::getFileName(bool isTestData)
             if (ui->audioDtsRadioButton->isChecked()) fileName += "_DTS";
         }
 
-        if (ui->discSideCheckBox->isChecked()) {
-            fileName += QString("_side%1").arg(ui->discSideSpinBox->value());
-        }
+        if ((mintSide1.isNull() and notesSide1.isNull()) or (ui->discSideSpinBox->value() > 2)) {
 
-        if (ui->notesCheckBox->isChecked()) {
-            fileName += "_" + ui->notesLineEdit->text();
-        }
+            if (ui->discSideCheckBox->isChecked()) {
+                fileName += QString("_side%1").arg(ui->discSideSpinBox->value());
+            }
 
-        if (ui->mintCheckBox->isChecked()) {
-            fileName += "_" + ui->mintLineEdit->text();
+            if (ui->notesCheckBox->isChecked()) {
+                fileName += "_" + ui->notesLineEdit->text();
+            }
+
+            if (ui->mintCheckBox->isChecked()) {
+                fileName += "_" + ui->mintLineEdit->text();
+            }
+
+        } else {
+
+            mintSide2 = ui->mintLineEdit->text();
+            notesSide2 = ui->notesLineEdit->text();
+
+            fileName += QString(("_side1")) + "_" + notesSide1 + "_" + mintSide1;
+            fileName += QString(("_side2")) + "_" + notesSide2 + "_" + mintSide2;
         }
 
         // Add the date/time stamp
@@ -180,6 +196,56 @@ void AdvancedNamingDialog::updateGui(void)
 
 }
 
+// Update the GUI and hold values from previous side input
+void AdvancedNamingDialog::updateSideHoldings(void)
+{
+    if ((ui->discSideSpinBox->value()) == 2 ) {
+
+        if (mintSide1.length() == 0){
+        mintSide1 = ui->mintLineEdit->text();
+        }
+        if (notesSide1.length() == 0) {
+        notesSide1 = ui->notesLineEdit->text();
+        }
+
+        ui->mintLineEdit->setText(mintSide2);
+        ui->notesLineEdit->setText(notesSide2);
+    }
+
+    if ((ui->discSideSpinBox->value()) == 1) {
+
+        if (mintSide2.length() == 0){
+        mintSide2 = ui->mintLineEdit->text();
+        }
+        if (notesSide2.length() == 0){
+        notesSide2 = ui->notesLineEdit->text();
+        }
+
+        ui->mintLineEdit->setText(mintSide1);
+        ui->notesLineEdit->setText(notesSide1);
+    }
+
+    if ((ui->discSideSpinBox->value()) == 3) {
+
+        if (mintSide2.length() == 0){
+        mintSide2 = ui->mintLineEdit->text();
+        }
+        if (notesSide2.length() == 0){
+        notesSide2 = ui->notesLineEdit->text();
+        }
+
+        ui->mintLineEdit->setText("");
+        ui->notesLineEdit->setText("");
+    }
+
+    if ((ui->discSideSpinBox->value() != 1 and ui->discSideSpinBox->value() != 2 and ui->discSideSpinBox->value() != 3 )) {
+
+        ui->mintLineEdit->setText("");
+        ui->notesLineEdit->setText("");
+    }
+
+}
+
 void AdvancedNamingDialog::on_discTitleCheckBox_clicked()
 {
     updateGui();
@@ -218,5 +284,11 @@ void AdvancedNamingDialog::on_mintCheckBox_clicked()
 void AdvancedNamingDialog::on_durationCheckBox_clicked()
 {
     updateGui();
+
+}
+
+void AdvancedNamingDialog::on_discSideSpinBox_valueChanged()
+{
+    updateSideHoldings();
 
 }
