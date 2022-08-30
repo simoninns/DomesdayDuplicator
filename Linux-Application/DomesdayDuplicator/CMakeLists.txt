@@ -1,4 +1,4 @@
-add_executable(DomesdayDuplicator MACOSX_BUNDLE
+set(DomesdayDuplicator_SOURCES
     aboutdialog.cpp aboutdialog.h aboutdialog.ui
     advancednamingdialog.cpp advancednamingdialog.h advancednamingdialog.ui
     automaticcapturedialog.cpp automaticcapturedialog.h automaticcapturedialog.ui
@@ -13,6 +13,11 @@ add_executable(DomesdayDuplicator MACOSX_BUNDLE
     usbdevice.cpp usbdevice.h
 )
 
+qt_add_resources(DomesdayDuplicator_SOURCES resources.qrc)
+
+add_executable(DomesdayDuplicator MACOSX_BUNDLE
+    ${DomesdayDuplicator_SOURCES})
+
 target_compile_definitions(DomesdayDuplicator PRIVATE
     QT_DEPRECATED_WARNINGS
 )
@@ -23,39 +28,6 @@ target_link_libraries(DomesdayDuplicator PRIVATE
     Qt::Widgets
     Qt::SerialPort
     ${LibUSB_LIBRARIES}
-)
-
-# Resources:
-set_source_files_properties("Graphics/Domesday Duplicator logo colour 250px.png"
-    PROPERTIES QT_RESOURCE_ALIAS "Domesday Duplicator logo"
-)
-set(resources_resource_files
-    "Graphics/Domesday Duplicator logo colour 150px.png"
-    "Graphics/Domesday Duplicator logo colour 250px.png"
-)
-
-qt_add_resources(DomesdayDuplicator "resources"
-    PREFIX
-        "/graphics/logo"
-    FILES
-        ${resources_resource_files}
-)
-set(resources1_resource_files
-    "Graphics/ApplicationIcon/DomesdayDuplicator_128x128.png"
-    "Graphics/ApplicationIcon/DomesdayDuplicator_16x16.png"
-    "Graphics/ApplicationIcon/DomesdayDuplicator_24x24.png"
-    "Graphics/ApplicationIcon/DomesdayDuplicator_256x256.png"
-    "Graphics/ApplicationIcon/DomesdayDuplicator_300x300.png"
-    "Graphics/ApplicationIcon/DomesdayDuplicator_32x32.png"
-    "Graphics/ApplicationIcon/DomesdayDuplicator_48x48.png"
-    "Graphics/ApplicationIcon/DomesdayDuplicator_64x64.png"
-)
-
-qt_add_resources(DomesdayDuplicator "resources1"
-    PREFIX
-        "/graphics/ApplicationIcon"
-    FILES
-        ${resources1_resource_files}
 )
 
 target_include_directories(DomesdayDuplicator PRIVATE
