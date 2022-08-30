@@ -48,7 +48,10 @@ Temporary Items
 
 # CMake related things
 *.depends
+*.ninja
 *_autogen/
+.ninja_*
+.qt/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
