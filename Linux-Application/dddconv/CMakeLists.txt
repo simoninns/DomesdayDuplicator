@@ -1,5 +1,5 @@
 add_executable(dddconv
-    dataconversion.cpp dataconversion.h
+    dataconversion.cpp
     main.cpp
 )
 
