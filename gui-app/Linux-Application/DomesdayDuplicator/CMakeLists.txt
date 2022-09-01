@@ -15,7 +15,7 @@ set(DomesdayDuplicator_SOURCES
 
 qt_add_resources(DomesdayDuplicator_SOURCES resources.qrc)
 
-add_executable(DomesdayDuplicator MACOSX_BUNDLE
+add_executable(DomesdayDuplicator WIN32 MACOSX_BUNDLE
     ${DomesdayDuplicator_SOURCES})
 
 target_compile_definitions(DomesdayDuplicator PRIVATE
