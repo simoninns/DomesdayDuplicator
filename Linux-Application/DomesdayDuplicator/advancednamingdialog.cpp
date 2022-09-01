@@ -51,7 +51,6 @@ AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
                                         QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
     ui->mintLineEdit->setValidator(new QRegularExpressionValidator(
                                         QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
-
     updateGui();
 }
 
@@ -96,12 +95,18 @@ QString AdvancedNamingDialog::getFileName(bool isTestData)
             fileName += QString("_side%1").arg(ui->discSideSpinBox->value());
         }
 
-        if (ui->notesCheckBox->isChecked()) {
+        // Require additional conditions to account for side 1 notes/mint without changing spinbox value
+        if (ui->notesCheckBox->isChecked() and notesHolding[ui->discSideSpinBox->value()].isNull()) {
             fileName += "_" + ui->notesLineEdit->text();
+        } else {
+            fileName += "_" + notesHolding[ui->discSideSpinBox->value()];
         }
 
-        if (ui->mintCheckBox->isChecked()) {
+        // Require additional conditions to account for side 1 notes/mint without changing spinbox value
+        if (ui->mintCheckBox->isChecked() and mintHolding[ui->discSideSpinBox->value()].isNull()) {
             fileName += "_" + ui->mintLineEdit->text();
+        } else {
+            fileName += "_" + mintHolding[ui->discSideSpinBox->value()];
         }
 
         // Add the date/time stamp
@@ -180,6 +185,32 @@ void AdvancedNamingDialog::updateGui(void)
 
 }
 
+// Update the GUI and hold values from previous side input
+void AdvancedNamingDialog::updateSideHoldings(void)
+{
+    if (ui->mintCheckBox->isChecked()) {
+        mintHolding[discSideSpinBoxPrevVal] = ui->mintLineEdit->text();
+
+        if (mintHolding[ui->discSideSpinBox->value()].isNull()) {
+            ui->mintLineEdit->setText("");
+        } else {
+            ui->mintLineEdit->setText(mintHolding[ui->discSideSpinBox->value()]);
+        }
+    }
+
+    if (ui->notesCheckBox->isChecked()) {
+        notesHolding[discSideSpinBoxPrevVal] = ui->notesLineEdit->text();
+
+        if (notesHolding[ui->discSideSpinBox->value()].isNull()) {
+            ui->notesLineEdit->setText("");
+        } else {
+            ui->notesLineEdit->setText(notesHolding[ui->discSideSpinBox->value()]);
+        }
+    }
+
+    discSideSpinBoxPrevVal = ui->discSideSpinBox->value();
+}
+
 void AdvancedNamingDialog::on_discTitleCheckBox_clicked()
 {
     updateGui();
@@ -218,5 +249,11 @@ void AdvancedNamingDialog::on_mintCheckBox_clicked()
 void AdvancedNamingDialog::on_durationCheckBox_clicked()
 {
     updateGui();
+
+}
+
+void AdvancedNamingDialog::on_discSideSpinBox_valueChanged()
+{
+    updateSideHoldings();
 
 }
