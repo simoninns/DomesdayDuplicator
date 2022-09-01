@@ -1,12 +1,12 @@
 add_executable(dddutil WIN32 MACOSX_BUNDLE
-    about.cpp about.h about.ui
-    analysetestdata.cpp analysetestdata.h
-    fileconverter.cpp fileconverter.h
-    inputsample.cpp inputsample.h
+    about.cpp about.ui
+    analysetestdata.cpp
+    fileconverter.cpp
+    inputsample.cpp
     main.cpp
-    mainwindow.cpp mainwindow.h mainwindow.ui
-    progressdialog.cpp progressdialog.h progressdialog.ui
-    sampledetails.cpp sampledetails.h
+    mainwindow.cpp mainwindow.ui
+    progressdialog.cpp progressdialog.ui
+    sampledetails.cpp
 )
 
 target_compile_definitions(dddutil PRIVATE
