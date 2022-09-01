@@ -56,11 +56,16 @@ private slots:
     void on_notesCheckBox_clicked();
     void on_mintCheckBox_clicked();
     void on_durationCheckBox_clicked();
+    void on_discSideSpinBox_valueChanged();
 
 private:
     Ui::AdvancedNamingDialog *ui;
 
     void updateGui(void);
+    void updateSideHoldings(void);
+    int discSideSpinBoxPrevVal = 1;
+    QString notesHolding[99];
+    QString mintHolding[99];
 };
 
 #endif // ADVANCEDNAMINGDIALOG_H
