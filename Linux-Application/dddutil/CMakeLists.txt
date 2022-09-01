@@ -19,7 +19,4 @@ target_link_libraries(dddutil PRIVATE
     Qt::Widgets
 )
 
-install(TARGETS dddutil
-    BUNDLE DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+install(TARGETS dddutil)
