@@ -46,7 +46,4 @@ if(WIN32)
     )
 endif()
 
-install(TARGETS DomesdayDuplicator
-    BUNDLE DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+install(TARGETS DomesdayDuplicator)
