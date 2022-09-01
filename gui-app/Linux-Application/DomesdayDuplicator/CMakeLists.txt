@@ -1,16 +1,16 @@
 set(DomesdayDuplicator_SOURCES
-    aboutdialog.cpp aboutdialog.h aboutdialog.ui
-    advancednamingdialog.cpp advancednamingdialog.h advancednamingdialog.ui
-    automaticcapturedialog.cpp automaticcapturedialog.h automaticcapturedialog.ui
-    configuration.cpp configuration.h
-    configurationdialog.cpp configurationdialog.h configurationdialog.ui
+    aboutdialog.cpp aboutdialog.ui
+    advancednamingdialog.cpp advancednamingdialog.ui
+    automaticcapturedialog.cpp automaticcapturedialog.ui
+    configuration.cpp
+    configurationdialog.cpp configurationdialog.ui
     main.cpp
-    mainwindow.cpp mainwindow.h mainwindow.ui
-    playercommunication.cpp playercommunication.h
-    playercontrol.cpp playercontrol.h
-    playerremotedialog.cpp playerremotedialog.h playerremotedialog.ui
-    usbcapture.cpp usbcapture.h
-    usbdevice.cpp usbdevice.h
+    mainwindow.cpp mainwindow.ui
+    playercommunication.cpp
+    playercontrol.cpp
+    playerremotedialog.cpp playerremotedialog.ui
+    usbcapture.cpp
+    usbdevice.cpp
 )
 
 qt_add_resources(DomesdayDuplicator_SOURCES resources.qrc)
