@@ -282,7 +282,7 @@
      <number>1</number>
     </property>
     <property name="maximum">
-     <number>999</number>
+     <number>99</number>
     </property>
    </widget>
    <widget class="QCheckBox" name="mintCheckBox">
@@ -339,8 +339,8 @@
  <resources/>
  <connections/>
  <buttongroups>
+  <buttongroup name="audioButtonGroup"/>
   <buttongroup name="formatButtonGroup"/>
   <buttongroup name="discTypeButtonGroup"/>
-  <buttongroup name="audioButtonGroup"/>
  </buttongroups>
 </ui>
