@@ -11,7 +11,4 @@ target_link_libraries(dddconv PRIVATE
     Qt::Core
 )
 
-install(TARGETS dddconv
-    BUNDLE DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
+install(TARGETS dddconv)
