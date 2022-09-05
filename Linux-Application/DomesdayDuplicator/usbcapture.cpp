@@ -468,7 +468,7 @@ void UsbCapture::allocateDiskBuffers(void)
 
             // Lock the buffer into memory, preventing it from being paged out
 #ifdef _WIN32
-            if (tryMlock && VirtualLock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER) == -1) {
+            if (tryMlock && VirtualLock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER) == 0) {
 #else
             if (tryMlock && mlock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER) == -1) {
 #endif
