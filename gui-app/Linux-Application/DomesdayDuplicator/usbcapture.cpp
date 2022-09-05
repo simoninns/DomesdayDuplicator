@@ -29,11 +29,10 @@
 
 #include <atomic>
 #include <sched.h>
-#ifdef __linux__
-    #include <sys/mman.h>
-#elif _WIN32
+#ifdef _WIN32
     #include <memoryapi.h>
 #else
+    #include <sys/mman.h>
 #endif
 
 // Notes on transfer and disk buffering:
@@ -315,16 +314,15 @@ void UsbCapture::run(void)
         freeDiskBuffers();
         return;
     }
-
-#ifdef __linux__
+    
     // Save the current scheduling policy and parameters
+#ifdef _WIN32
+    // TODO: Implement pthread-win32 for scheduling on Windows
+#else
     int oldSchedPolicy = sched_getscheduler(0);
     if (oldSchedPolicy == -1) oldSchedPolicy = SCHED_OTHER;
     struct sched_param oldSchedParam;
     if (sched_getparam(0, &oldSchedParam) == -1) oldSchedParam.sched_priority = 0;
-#elif _WIN32
-    // TODO: Implement pthread-win32 for scheduling on Windows
-#else
 #endif
 
     // Enable real-time scheduling for this thread
@@ -407,14 +405,13 @@ void UsbCapture::run(void)
         libusb_handle_events_timeout(libUsbContext, &libusbHandleTimeout);
     }
 
-#ifdef __LINUX__
+#ifdef _WIN32
+    // TODO: Implement pthread-win32 for scheduling on Windows
+#else
     // Return to the original scheduling policy while we're cleaning up
     if (sched_setscheduler(0, oldSchedPolicy, &oldSchedParam) == -1) {
         qDebug() << "UsbCapture::run(): Unable to restore original scheduling policy";
     }
-#elif _WIN32
-    // TODO: Implement pthread-win32 for scheduling on Windows
-#else
 #endif
 
     // Deallocate transfers
@@ -472,11 +469,10 @@ void UsbCapture::allocateDiskBuffers(void)
             }
 
             // Lock the buffer into memory, preventing it from being paged out
-#ifdef __linux__
-            if (tryMlock && mlock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER) == -1) {
-#elif _WIN32
+#ifdef _WIN32
             if (tryMlock && VirtualLock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER) == -1) {
 #else
+            if (tryMlock && mlock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER) == -1) {
 #endif
                 // Continue anyway, but print a warning
                 qInfo() << "UsbCapture::allocateDiskBuffers(): Unable to lock disk buffer into memory";
@@ -508,11 +504,10 @@ void UsbCapture::freeDiskBuffers(void)
     if (diskBuffers != nullptr) {
         for (qint32 bufferNumber = 0; bufferNumber < NUMBEROFDISKBUFFERS; bufferNumber++) {
             // Don't keep the buffer in RAM any more (silently ignoring failure)
-#ifdef __linux__
-            (void) munlock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
-#elif _WIN32
+#ifdef _WIN32
             (void) VirtualUnlock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
 #else
+            (void) munlock(diskBuffers[bufferNumber], TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
 #endif
 
             if (diskBuffers[bufferNumber] != nullptr) {
