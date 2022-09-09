@@ -43,6 +43,7 @@
 #include "playerremotedialog.h"
 #include "automaticcapturedialog.h"
 #include "advancednamingdialog.h"
+#include "amplitudemeasurement.h"
 
 namespace Ui {
 class MainWindow;
@@ -55,6 +56,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void setupMainUIGraphs(void);
 
 private slots:
     void deviceAttachedSignalHandler(void);
@@ -80,6 +82,8 @@ private slots:
     void transferFailedSignalHandler(void);
     void updateCaptureDuration(void);
     void updateStorageInformation(void);
+    void updateAmplitude(void);
+    void amplitudeSettings(void);
 
     void on_actionExit_triggered();
     void on_actionTest_mode_toggled(bool arg1);
@@ -104,6 +108,7 @@ private:
     PlayerRemoteDialog *playerRemoteDialog;
     PlayerControl *playerControl;
     AdvancedNamingDialog *advancedNamingDialog;
+    AmplitudeMeasurement *amplitudeMeasurement;
 
     bool isCaptureRunning;
     QTimer *captureStatusUpdateTimer;
@@ -112,6 +117,7 @@ private:
     QTimer *captureDurationTimer;
     QTime captureElapsedTime;
     QTimer *storageInfoTimer;
+    QTimer *amplitudeTimer;
 
     bool isPlayerConnected;
 
@@ -125,6 +131,10 @@ private:
     void updateGuiForCaptureStop(void);
     void startPlayerControl(void);
     void updatePlayerRemoteDialog(void);
+
+signals:
+    void plotAmplitude(void);
+    void bufferAmplitude(void);
 };
 
 #endif // MAINWINDOW_H

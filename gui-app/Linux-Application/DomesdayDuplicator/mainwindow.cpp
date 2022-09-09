@@ -28,6 +28,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "usbcapture.h"
+#include "amplitudemeasurement.h"
 #include <QFile>
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -96,9 +97,15 @@ MainWindow::MainWindow(QWidget *parent) :
     // Disable the test mode option
     ui->actionTest_mode->setEnabled(false);
 
+    // Set up graphs, if requested
+    setupMainUIGraphs();
+
     // Set up a timer for timing the capture duration
     captureDurationTimer = new QTimer(this);
     connect(captureDurationTimer, SIGNAL(timeout()), this, SLOT(updateCaptureDuration()));
+
+    // Set up timers for amplitude procesing
+    amplitudeSettings();
 
     // Set up the Domesday Duplicator USB device and connect the signal handlers
     usbDevice = new UsbDevice(this, configuration->getUsbVid(), configuration->getUsbPid());
@@ -228,6 +235,12 @@ void MainWindow::configurationChangedSignalHandler(void)
 
     // Update the target directory for the storage information
     storageInfo->setPath(configuration->getCaptureDirectory());
+
+    // Reload graph settings
+    setupMainUIGraphs();
+
+    // Reload amplitude settings
+    amplitudeSettings();
 }
 
 // Remote control command signal handler
@@ -695,12 +708,17 @@ void MainWindow::on_capturePushButton_clicked()
 
         // Connect to the transfer failure notification signal
         connect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
+
+        // Start graph processing
+        amplitudeTimer->start(1000);
+
     } else {
         // Stop capture
         playerControl->stopAutomaticCapture(); // Stop auto-capture if in progress
         usbDevice->stopCapture();
         isCaptureRunning = false;
         captureStatusUpdateTimer->stop();
+        amplitudeTimer->stop();
         captureDurationTimer->stop();
         disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
         // Rename output file if duration checkbox is clicked
@@ -827,7 +845,39 @@ void MainWindow::updatePlayerRemoteDialog(void)
     }
 }
 
+// Setup Main UI Graph Functions
 
+void MainWindow::setupMainUIGraphs(void) {
 
+if (configuration->getGraphType() == Configuration::GraphType::QCPMean) {
+    ui->am->setVisible(true);
+    } else {
+    ui->am->setVisible(false);
+    }
+}
 
+// Update amplitude label
 
+void MainWindow::updateAmplitude(void) {
+    ui->meanAmplitudeLabel->setText(QString::number(AmplitudeMeasurement::getMeanAmplitude(), 'f', 3));
+}
+
+// Set up timers for amplitude processing
+
+void MainWindow::amplitudeSettings(void) {
+    // Set up a timer for amplitude processing
+    amplitudeTimer = new QTimer(this);
+    if (configuration->getAmplitudeEnabled() == true) {
+    connect(amplitudeTimer, SIGNAL(timeout()), this, SLOT(updateAmplitude()));
+    ui->meanAmplitudeLabel->setText("0.000");
+    } else {
+        disconnect(amplitudeTimer);
+        ui->meanAmplitudeLabel->setText("N/A");
+    }
+    if (configuration->getGraphType() == Configuration::GraphType::QCPMean) {
+    connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(setBuffer()));
+    connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(plot()));
+    } else {
+        disconnect(amplitudeTimer);
+    }
+}
