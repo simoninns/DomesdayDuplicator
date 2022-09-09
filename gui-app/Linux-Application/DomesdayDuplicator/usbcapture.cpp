@@ -680,9 +680,6 @@ void UsbCapture::checkBufferSequence(qint32 diskBufferNumber)
 // Write a disk buffer to disk
 void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
 {
-
-
-
     checkBufferSequence(diskBufferNumber);
     if (sequenceState == SEQUENCE_FAILED) {
         lastError = tr("Sequence number mismatch -- samples have been lost from input!");
