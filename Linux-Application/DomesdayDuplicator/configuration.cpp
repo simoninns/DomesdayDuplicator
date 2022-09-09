@@ -28,7 +28,7 @@
 #include "configuration.h"
 
 // This define should be incremented if the settings file format changes
-#define SETTINGSVERSION 2
+#define SETTINGSVERSION 3
 
 Configuration::Configuration(QObject *parent) : QObject(parent)
 {
@@ -62,6 +62,12 @@ void Configuration::writeConfiguration(void)
     configuration->beginGroup("capture");
     configuration->setValue("captureDirectory", settings.capture.captureDirectory);
     configuration->setValue("captureFormat", convertCaptureFormatToInt(settings.capture.captureFormat));
+    configuration->endGroup();
+
+    // UI
+    configuration->beginGroup("ui");
+    configuration->setValue("amplitudeEnabled", settings.ui.amplitudeEnabled);
+    configuration->setValue("graphType", convertGraphTypeToInt(settings.ui.graphType));
     configuration->endGroup();
 
     // USB
@@ -103,6 +109,12 @@ void Configuration::readConfiguration(void)
     settings.capture.captureFormat = convertIntToCaptureFormat(configuration->value("captureFormat").toInt());
     configuration->endGroup();
 
+    // UI
+    configuration->beginGroup("ui");
+    settings.ui.graphType = convertIntToGraphType(configuration->value("graphType").toInt());
+    settings.ui.amplitudeEnabled = configuration->value("amplitudeEnabled").toBool();
+    configuration->endGroup();
+
     // USB
     configuration->beginGroup("usb");
     settings.usb.vid = static_cast<quint16>(configuration->value("vid").toUInt());
@@ -134,6 +146,10 @@ void Configuration::setDefault(void)
     // Capture
     settings.capture.captureDirectory = QDir::homePath();
     settings.capture.captureFormat = CaptureFormat::tenBitPacked;
+
+    // UI
+    settings.ui.graphType = GraphType::noGraph;
+    settings.ui.amplitudeEnabled = false;
 
     // USB
     settings.usb.vid = 0x1D50;
@@ -177,6 +193,28 @@ Configuration::CaptureFormat Configuration::convertIntToCaptureFormat(qint32 cap
 
     // Default to 10 bit packed
     return CaptureFormat::tenBitPacked;
+}
+
+// Enum conversion from
+
+// Enum conversion from GraphType to int
+qint32 Configuration::convertGraphTypeToInt(GraphType graphType)
+{
+    if (graphType == GraphType::noGraph) return 0;
+    if (graphType == GraphType::QCPMean) return 1;
+
+    // Default to 0
+    return 0;
+}
+
+// Enum conversion from int to GraphType
+Configuration::GraphType Configuration::convertIntToGraphType(qint32 graphInt)
+{
+    if (graphInt == 0) return GraphType::noGraph;
+    if (graphInt == 1) return GraphType::QCPMean;
+
+    // Default to no graph
+    return GraphType::noGraph;
 }
 
 // Enum conversion from serial speed to int
@@ -277,6 +315,27 @@ void Configuration::setKeyLock(bool keyLock)
 bool Configuration::getKeyLock(void)
 {
     return settings.pic.keyLock;
+}
+
+// UI settings
+void Configuration::setAmplitudeEnabled(bool amplitudeEnabled)
+{
+    settings.ui.amplitudeEnabled = amplitudeEnabled;
+}
+
+bool Configuration::getAmplitudeEnabled(void)
+{
+    return settings.ui.amplitudeEnabled;
+}
+
+void Configuration::setGraphType(GraphType graphType)
+{
+    settings.ui.graphType = graphType;
+}
+
+Configuration::GraphType Configuration::getGraphType(void)
+{
+    return settings.ui.graphType;
 }
 
 // Windows
