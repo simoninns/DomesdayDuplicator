@@ -53,6 +53,10 @@ Configuration::Configuration(QObject *parent) : QObject(parent)
     }
 }
 
+// Init variables for amplitude configuration
+bool processTextAmplitude = false;
+bool processGraphAmplitude = false;
+
 void Configuration::writeConfiguration(void)
 {
     // Write the valid configuration flag
@@ -325,6 +329,7 @@ void Configuration::setAmplitudeEnabled(bool amplitudeEnabled)
 
 bool Configuration::getAmplitudeEnabled(void)
 {
+    processTextAmplitude = settings.ui.amplitudeEnabled;
     return settings.ui.amplitudeEnabled;
 }
 
@@ -335,6 +340,11 @@ void Configuration::setGraphType(GraphType graphType)
 
 Configuration::GraphType Configuration::getGraphType(void)
 {
+    if (settings.ui.graphType == noGraph) {
+        processGraphAmplitude = false;
+    } else {
+        processGraphAmplitude = true;
+    }
     return settings.ui.graphType;
 }
 
@@ -387,4 +397,13 @@ void Configuration::setConfigurationDialogGeometry(QByteArray configurationDialo
 QByteArray Configuration::getConfigurationDialogGeometry(void)
 {
     return settings.windows.configurationDialogGeometry;
+}
+
+bool Configuration::getProcessAmplitude(void)
+{
+    if (processGraphAmplitude || processTextAmplitude) {
+    return true;
+    } else {
+        return false;
+    }
 }

@@ -100,6 +100,8 @@ public:
     void setConfigurationDialogGeometry(QByteArray configurationDialogGeometry);
     QByteArray getConfigurationDialogGeometry(void);
 
+    static bool getProcessAmplitude(void);
+
 signals:
 
 public slots:
