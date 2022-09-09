@@ -155,7 +155,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>50</y>
+         <y>40</y>
          <width>81</width>
          <height>21</height>
         </rect>
@@ -171,7 +171,7 @@
        <property name="geometry">
         <rect>
          <x>100</x>
-         <y>50</y>
+         <y>40</y>
          <width>231</width>
          <height>21</height>
         </rect>
@@ -184,7 +184,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>70</y>
+         <y>60</y>
          <width>81</width>
          <height>21</height>
         </rect>
@@ -200,7 +200,7 @@
        <property name="geometry">
         <rect>
          <x>100</x>
-         <y>70</y>
+         <y>60</y>
          <width>231</width>
          <height>21</height>
         </rect>
@@ -213,7 +213,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>30</y>
+         <y>20</y>
          <width>81</width>
          <height>21</height>
         </rect>
@@ -229,13 +229,52 @@
        <property name="geometry">
         <rect>
          <x>100</x>
-         <y>30</y>
+         <y>20</y>
          <width>231</width>
          <height>21</height>
         </rect>
        </property>
        <property name="text">
         <string>00:00:00</string>
+       </property>
+      </widget>
+      <widget class="AmplitudeMeasurement" name="am" native="true">
+       <property name="geometry">
+        <rect>
+         <x>180</x>
+         <y>20</y>
+         <width>271</width>
+         <height>81</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_10">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>80</y>
+         <width>81</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Amplitude:</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+      <widget class="QLabel" name="meanAmplitudeLabel">
+       <property name="geometry">
+        <rect>
+         <x>100</x>
+         <y>80</y>
+         <width>41</width>
+         <height>21</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>0</string>
        </property>
       </widget>
      </widget>
@@ -303,7 +342,7 @@
         <rect>
          <x>100</x>
          <y>70</y>
-         <width>351</width>
+         <width>171</width>
          <height>21</height>
         </rect>
        </property>
@@ -316,7 +355,7 @@
         <rect>
          <x>100</x>
          <y>90</y>
-         <width>351</width>
+         <width>171</width>
          <height>21</height>
         </rect>
        </property>
@@ -345,7 +384,7 @@
         <rect>
          <x>100</x>
          <y>50</y>
-         <width>351</width>
+         <width>171</width>
          <height>21</height>
         </rect>
        </property>
@@ -358,7 +397,7 @@
         <rect>
          <x>100</x>
          <y>30</y>
-         <width>351</width>
+         <width>171</width>
          <height>21</height>
         </rect>
        </property>
@@ -392,7 +431,7 @@
      <x>0</x>
      <y>0</y>
      <width>480</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -473,6 +512,14 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>AmplitudeMeasurement</class>
+   <extends>QWidget</extends>
+   <header>amplitudemeasurement.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <tabstops>
   <tabstop>capturePushButton</tabstop>
   <tabstop>limitDurationCheckBox</tabstop>
