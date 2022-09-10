@@ -3,7 +3,6 @@
 #include <QtCore/QIODevice>
 #include <QtCore/QPointF>
 #include <QtCore/QVector>
-#include <QtCharts/QChartGlobal>
 #include <QThread>
 #include <QAudioBuffer>
 #include <QAudioSource>
