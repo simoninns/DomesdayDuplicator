@@ -6,6 +6,14 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake_modules")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Options that can be specified with -D
+
+set(USE_QT_VERSION "" CACHE STRING
+    "Version of Qt to use (by default, try Qt 6 then Qt 5)"
+)
+
+# Check for dependencies
+
 # Set up AUTOMOC and some sensible defaults for runtime execution
 # When using Qt 6.3, you can replace the code block below with
 # qt_standard_project_setup()
@@ -13,7 +21,11 @@ set(CMAKE_AUTOMOC ON)
 include(GNUInstallDirs)
 set(CMAKE_AUTOUIC ON)
 
-find_package(QT NAMES Qt5 Qt6 REQUIRED COMPONENTS Core)
+set(QT_PACKAGE_NAMES Qt5 Qt6)
+if(USE_QT_VERSION)
+    set(QT_PACKAGE_NAMES Qt${USE_QT_VERSION})
+endif()
+find_package(QT NAMES ${QT_PACKAGE_NAMES} REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Gui Widgets SerialPort)
 find_package(LibUSB REQUIRED)
 
