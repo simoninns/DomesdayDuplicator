@@ -3,6 +3,9 @@ project(DomesdayDuplicator VERSION 1.0)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake_modules")
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Set up AUTOMOC and some sensible defaults for runtime execution
 # When using Qt 6.3, you can replace the code block below with
 # qt_standard_project_setup()
