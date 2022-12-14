@@ -12,30 +12,6 @@ on:
   release:
 
 jobs:
-  qt5:
-    name: Build with Qt 5
-    runs-on: ubuntu-20.04
-    steps:
-
-    - uses: actions/checkout@v2
-
-    - name: Install dependencies
-      timeout-minutes: 10
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends cmake qt5-default libqt5serialport5-dev libusb-1.0-0-dev
-
-    - name: Configure
-      timeout-minutes: 5
-      run: cd Linux-Application && cmake .
-
-    - name: Build
-      timeout-minutes: 15
-      run: make -C Linux-Application VERBOSE=1
-
-    - name: Install
-      timeout-minutes: 5
-      run: make -C Linux-Application DESTDIR=/tmp/staging install
 
   qt6:
     name: Build with Qt 6
