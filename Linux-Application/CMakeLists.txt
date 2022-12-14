@@ -11,7 +11,7 @@ include(GNUInstallDirs)
 set(CMAKE_AUTOUIC ON)
 
 find_package(QT NAMES Qt5 Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Gui Widgets SerialPort)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Gui Widgets SerialPort Multimedia)
 find_package(LibUSB REQUIRED)
 
 # For Qt < 5.15, emulate 5.15's Qt5CoreConfig.cmake, so we don't have to
@@ -21,7 +21,7 @@ if(QT_VERSION VERSION_LESS 5.15)
         qt5_add_resources("${outfiles}" ${ARGN})
         set("${outfiles}" "${${outfiles}}" PARENT_SCOPE)
     endfunction()
-    foreach(library Core Gui SerialPort Widgets)
+    foreach(library Core Gui SerialPort Widgets Multimedia)
         add_library(Qt::${library} INTERFACE IMPORTED)
         set_target_properties(Qt::${library} PROPERTIES
             INTERFACE_LINK_LIBRARIES "Qt5::${library}")
