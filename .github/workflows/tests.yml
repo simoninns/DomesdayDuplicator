@@ -23,7 +23,7 @@ jobs:
       timeout-minutes: 10
       run: |
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends cmake qt5-default libqt5serialport5-dev libusb-1.0-0-dev
+        sudo apt-get install -y --no-install-recommends cmake qt5-default libqt5serialport5-dev libusb-1.0-0-dev qt6-multimedia-dev
 
     - name: Configure
       timeout-minutes: 5
