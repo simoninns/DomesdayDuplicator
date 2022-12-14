@@ -1,6 +1,7 @@
 set(DomesdayDuplicator_SOURCES
     aboutdialog.cpp aboutdialog.ui
     advancednamingdialog.cpp advancednamingdialog.ui
+    amplitudemeasurement.cpp
     automaticcapturedialog.cpp automaticcapturedialog.ui
     configuration.cpp
     configurationdialog.cpp configurationdialog.ui
@@ -9,6 +10,7 @@ set(DomesdayDuplicator_SOURCES
     playercommunication.cpp
     playercontrol.cpp
     playerremotedialog.cpp playerremotedialog.ui
+    qcustomplot.cpp
     usbcapture.cpp
     usbdevice.cpp
 )
@@ -27,6 +29,7 @@ target_link_libraries(DomesdayDuplicator PRIVATE
     Qt::Gui
     Qt::Widgets
     Qt::SerialPort
+    Qt::Multimedia
     ${LibUSB_LIBRARIES}
 )
 
