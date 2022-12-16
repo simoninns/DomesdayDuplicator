@@ -47,7 +47,8 @@ SOURCES += \
     playercommunication.cpp \
     playercontrol.cpp \
     automaticcapturedialog.cpp \
-    advancednamingdialog.cpp
+    advancednamingdialog.cpp \
+    amplitudemeasurement.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -60,7 +61,8 @@ HEADERS += \
     playercommunication.h \
     playercontrol.h \
     automaticcapturedialog.h \
-    advancednamingdialog.h
+    advancednamingdialog.h \
+    amplitudemeasurement.h
 
 FORMS += \
         mainwindow.ui \
