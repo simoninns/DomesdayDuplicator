@@ -35,6 +35,7 @@ target_link_libraries(DomesdayDuplicator PRIVATE
 
 target_include_directories(DomesdayDuplicator PRIVATE
     ${LibUSB_INCLUDE_DIRS}
+    .
 )
 
 if(WIN32)
