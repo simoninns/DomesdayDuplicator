@@ -43,21 +43,16 @@ class AmplitudeMeasurement : public QCustomPlot
 
 public:
 
-   static const int availableSamples = 33554400;
-   static const int sampleCount = 2000;
-   qreal level() const { return level(); }
    AmplitudeMeasurement(QWidget *parent = Q_NULLPTR);
    static double getMeanAmplitude();
-   static QByteArray audioBuffer();
 
 public slots:
    void setBuffer();
    void plot();
 
 private:
-   qreal getPeakValue(const QAudioFormat& format);
    QVector<double> samples;
-   QCPGraph *wavePlot;
+    QCPGraph *wavePlot;
 };
 
 
