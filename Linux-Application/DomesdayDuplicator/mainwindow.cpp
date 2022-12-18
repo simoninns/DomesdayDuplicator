@@ -711,7 +711,6 @@ void MainWindow::on_capturePushButton_clicked()
 
         // Start graph processing
         amplitudeTimer->start(1000);
-
     } else {
         // Stop capture
         playerControl->stopAutomaticCapture(); // Stop auto-capture if in progress
@@ -845,38 +844,35 @@ void MainWindow::updatePlayerRemoteDialog(void)
     }
 }
 
-// Setup Main UI Graph Functions
-
+// Update amplitude graph
 void MainWindow::setupMainUIGraphs(void) {
-
-if (configuration->getGraphType() == Configuration::GraphType::QCPMean) {
-    ui->am->setVisible(true);
+    if (configuration->getGraphType() == Configuration::GraphType::QCPMean) {
+        ui->am->setVisible(true);
     } else {
-    ui->am->setVisible(false);
+        ui->am->setVisible(false);
     }
 }
 
 // Update amplitude label
-
 void MainWindow::updateAmplitude(void) {
     ui->meanAmplitudeLabel->setText(QString::number(AmplitudeMeasurement::getMeanAmplitude(), 'f', 3));
 }
 
 // Set up timers for amplitude processing
-
 void MainWindow::amplitudeSettings(void) {
-    // Set up a timer for amplitude processing
     amplitudeTimer = new QTimer(this);
-    if (configuration->getAmplitudeEnabled() == true) {
-    connect(amplitudeTimer, SIGNAL(timeout()), this, SLOT(updateAmplitude()));
-    ui->meanAmplitudeLabel->setText("0.000");
+
+    if (configuration->getAmplitudeEnabled()) {
+        connect(amplitudeTimer, SIGNAL(timeout()), this, SLOT(updateAmplitude()));
+        ui->meanAmplitudeLabel->setText("0.000");
     } else {
         disconnect(amplitudeTimer);
         ui->meanAmplitudeLabel->setText("N/A");
     }
+
     if (configuration->getGraphType() == Configuration::GraphType::QCPMean) {
-    connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(setBuffer()));
-    connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(plot()));
+        connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(setBuffer()));
+        connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(plot()));
     } else {
         disconnect(amplitudeTimer);
     }
