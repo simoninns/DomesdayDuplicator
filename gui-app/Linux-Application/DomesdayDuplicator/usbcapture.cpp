@@ -777,7 +777,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
                 }
 
                 periodicSignedValue = QByteArray(reinterpret_cast<char*>(holdingSignedValue),
-                                                 sizeof(unsigned char) * TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
+                                                 TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
             }
 
             // Write the conversion buffer to disk
@@ -833,7 +833,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
                 }
 
                 periodicSignedValue = QByteArray(reinterpret_cast<char*>(holdingSignedValue),
-                                                 sizeof(unsigned char) * TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
+                                                 TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
             }
 
             // Write the conversion buffer to disk
@@ -854,7 +854,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
             conversionBuffer[pointer+1] = static_cast<unsigned char>((signedValue & 0xFF00) >> 8);
         }
 
-        periodicSignedValue = QByteArray(reinterpret_cast<char*>(conversionBuffer), sizeof(unsigned char) * TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
+        periodicSignedValue = QByteArray(reinterpret_cast<char*>(conversionBuffer), TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
 
         // Write the conversion buffer to disk
         writeConversionBuffer(outputFile, TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
@@ -863,7 +863,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
 
 void UsbCapture::writeConversionBuffer(QFile *outputFile, qint32 numBytes)
 {
-    qint64 bytesWritten = outputFile->write(reinterpret_cast<const char *>(conversionBuffer), sizeof(unsigned char) * numBytes);
+    qint64 bytesWritten = outputFile->write(reinterpret_cast<const char *>(conversionBuffer), numBytes);
     //qDebug() << "UsbCapture::writeBufferToDisk(): 10-bit - Written" << bytesWritten << "bytes to disk";
 
     // Check for a short write (which shouldn't happen, because outputFile is buffered) or a filesystem error
