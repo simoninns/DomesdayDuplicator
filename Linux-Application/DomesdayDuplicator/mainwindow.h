@@ -56,7 +56,6 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void setupMainUIGraphs(void);
 
 private slots:
     void deviceAttachedSignalHandler(void);
@@ -82,8 +81,7 @@ private slots:
     void transferFailedSignalHandler(void);
     void updateCaptureDuration(void);
     void updateStorageInformation(void);
-    void updateAmplitude(void);
-    void amplitudeSettings(void);
+    void updateAmplitudeLabel(void);
 
     void on_actionExit_triggered();
     void on_actionTest_mode_toggled(bool arg1);
@@ -131,6 +129,7 @@ private:
     void updateGuiForCaptureStop(void);
     void startPlayerControl(void);
     void updatePlayerRemoteDialog(void);
+    void updateAmplitudeUI(void);
 
 signals:
     void plotAmplitude(void);
