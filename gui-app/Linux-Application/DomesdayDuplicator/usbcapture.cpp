@@ -109,7 +109,7 @@ static QByteArray periodicSignedValue;
 
 // LibUSB transfer call-back handler (called when an in-flight transfer completes)
 static void LIBUSB_CALL bulkTransferCallback(struct libusb_transfer *transfer)
-{    
+{
     // Extract the user data
     transferUserDataStruct *transferUserData = static_cast<transferUserDataStruct *>(transfer->user_data);
 
@@ -318,7 +318,7 @@ void UsbCapture::run(void)
         freeDiskBuffers();
         return;
     }
-    
+
     // Save the current scheduling policy and parameters
 #ifdef _WIN32
     // TODO: Implement pthread-win32 for scheduling on Windows
@@ -761,8 +761,7 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
                 conversionBufferPointer += 5;
             }
 
-            if (Configuration::getProcessAmplitude() == true) {
-
+            if (Configuration::getProcessAmplitude()) {
                 // Translate the data in the disk buffer to scaled 16-bit signed data for amplitude processing
                 for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
                     // Get the original 10-bit unsigned value from the disk data buffer
@@ -775,11 +774,10 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
 
                     holdingSignedValue[pointer] = static_cast<unsigned char>(signedValue & 0x00FF);
                     holdingSignedValue[pointer+1] = static_cast<unsigned char>((signedValue & 0xFF00) >> 8);
+                }
 
-                    }
-
-            periodicSignedValue = QByteArray(reinterpret_cast<char*>(holdingSignedValue), sizeof(unsigned char) * TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
-
+                periodicSignedValue = QByteArray(reinterpret_cast<char*>(holdingSignedValue),
+                                                 sizeof(unsigned char) * TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
             }
 
             // Write the conversion buffer to disk
@@ -816,10 +814,9 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
 
                 // Increment the conversion buffer pointer
                 conversionBufferPointer += 5;
-            }        
+            }
 
-            if (Configuration::getProcessAmplitude() == true) {
-
+            if (Configuration::getProcessAmplitude()) {
                 // Translate the data in the disk buffer to scaled 16-bit signed data for amplitude processing
                 for (qint32 pointer = 0; pointer < (TRANSFERSIZE * TRANSFERSPERDISKBUFFER); pointer += 2) {
                     // Get the original 10-bit unsigned value from the disk data buffer
@@ -833,10 +830,11 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
                     holdingSignedValue[pointer] = static_cast<unsigned char>(signedValue & 0x00FF);
                     holdingSignedValue[pointer+1] = static_cast<unsigned char>((signedValue & 0xFF00) >> 8);
 
-                    }
-
-                periodicSignedValue = QByteArray(reinterpret_cast<char*>(holdingSignedValue), sizeof(unsigned char) * TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
                 }
+
+                periodicSignedValue = QByteArray(reinterpret_cast<char*>(holdingSignedValue),
+                                                 sizeof(unsigned char) * TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
+            }
 
             // Write the conversion buffer to disk
             writeConversionBuffer(outputFile, conversionBufferPointer);
@@ -859,7 +857,6 @@ void UsbCapture::writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber)
         periodicSignedValue = QByteArray(reinterpret_cast<char*>(conversionBuffer), sizeof(unsigned char) * TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
 
         // Write the conversion buffer to disk
-
         writeConversionBuffer(outputFile, TRANSFERSIZE * TRANSFERSPERDISKBUFFER);
     }
 }

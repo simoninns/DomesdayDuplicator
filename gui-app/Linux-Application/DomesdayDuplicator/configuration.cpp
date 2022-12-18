@@ -199,8 +199,6 @@ Configuration::CaptureFormat Configuration::convertIntToCaptureFormat(qint32 cap
     return CaptureFormat::tenBitPacked;
 }
 
-// Enum conversion from
-
 // Enum conversion from GraphType to int
 qint32 Configuration::convertGraphTypeToInt(GraphType graphType)
 {
@@ -402,7 +400,7 @@ QByteArray Configuration::getConfigurationDialogGeometry(void)
 bool Configuration::getProcessAmplitude(void)
 {
     if (processGraphAmplitude || processTextAmplitude) {
-    return true;
+        return true;
     } else {
         return false;
     }
