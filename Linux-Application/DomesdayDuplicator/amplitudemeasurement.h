@@ -28,14 +28,8 @@
 #ifndef AMPLITUDEMEASUREMENT_H
 #define AMPLITUDEMEASUREMENT_H
 
-#include <QtCore/QIODevice>
-#include <QtCore/QPointF>
-#include <QtCore/QVector>
-#include <QThread>
-#include <QAudioBuffer>
-#include <QAudioSource>
-#include <QMediaDevices>
-#include <QAudioBuffer>
+#include <QVector>
+#include <vector>
 #include "qcustomplot.h"
 
 class AmplitudeMeasurement : public QCustomPlot
@@ -44,14 +38,15 @@ class AmplitudeMeasurement : public QCustomPlot
 
 public:
     AmplitudeMeasurement(QWidget *parent = Q_NULLPTR);
-    static double getMeanAmplitude();
+    double getMeanAmplitude();
 
 public slots:
-    void setBuffer();
-    void plot();
+    void updateBuffer();
+    void plotGraph();
 
 private:
-    QVector<double> samples;
+    std::vector<qint16> inputSamples;
+    QVector<double> graphXValues, graphYValues;
     QCPGraph *wavePlot;
 };
 
