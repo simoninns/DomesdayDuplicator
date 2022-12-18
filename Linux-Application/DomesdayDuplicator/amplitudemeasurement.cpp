@@ -36,10 +36,7 @@
 
 // Note that in signed 16 PCM, one disk buffer (64MB) is 838860 milliseconds
 
-QList<int> m_buffer;
-QVector<double> sample;
 static int plotpointcount = 0;
-int signalPeaks = 0;
 qreal peak = 32767;
 // Fill array with zeroes and backfill as needed
 QList<double> rollingAmp({0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0});
