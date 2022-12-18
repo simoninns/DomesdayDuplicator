@@ -25,7 +25,7 @@ jobs:
       run: |
         sudo apt-get update
         # libgl-dev is needed by QtGui, but not listed as a dependency
-        sudo apt-get install -y --no-install-recommends cmake libgl-dev qt6-base-dev libqt6serialport6-dev libusb-1.0-0-dev qt6-multimedia-dev
+        sudo apt-get install -y --no-install-recommends cmake libgl-dev qt6-base-dev libqt6serialport6-dev libusb-1.0-0-dev
 
     - name: Configure
       timeout-minutes: 5

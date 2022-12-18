@@ -27,26 +27,23 @@
 
 #include "amplitudemeasurement.h"
 
-#include <QtWidgets>
-#include <QtMultimedia>
-#include <QAudioBuffer>
 #include <QList>
-#include <QAudioDevice>
-#include <QAudioSource>
 #include "usbcapture.h"
 
-// Note that in signed 16 PCM, one disk buffer (64MB) is 838860 milliseconds
+static constexpr qint32 GRAPH_POINTS = 1028;
+static constexpr double MAX_SAMPLE = 32767.0;
 
-static int plotpointcount = 0;
-qreal peak = 32767;
 // Fill array with zeroes and backfill as needed
 QList<double> rollingAmp({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
 
-// Initialize QCP graph
 AmplitudeMeasurement::AmplitudeMeasurement(QWidget *parent)
     : QCustomPlot(parent)
 {
-    samples.fill(0, 1028);
+    graphXValues.resize(GRAPH_POINTS);
+    for (int i = 0; i < GRAPH_POINTS; i++) graphXValues[i] = i;
+    graphYValues.fill(0, GRAPH_POINTS);
+
+    // Initialize QCP graph
     wavePlot = addGraph();
     setMinimumHeight(50);
     xAxis->setTicks(false);
@@ -59,72 +56,61 @@ AmplitudeMeasurement::AmplitudeMeasurement(QWidget *parent)
     yAxis->setTickLabelFont(yfont);
 }
 
-// Process graph
-void AmplitudeMeasurement::plot()
+// Get a buffer from UsbCapture, and update the statistics
+void AmplitudeMeasurement::updateBuffer()
 {
-    QVector<double> x(samples.size());
-    for (int i = 0; i < x.size(); i++) {
-        x[i] = i;
+    // Get a recent disk buffer from UsbCapture
+    const unsigned char *rawData;
+    qint32 rawBytes;
+    UsbCapture::getAmplitudeBuffer(&rawData, &rawBytes);
+
+    // Convert to 16-bit samples in diskBuffer
+    inputSamples.resize(rawBytes / 2);
+    for (qint32 inPos = 0, outPos = 0; inPos < rawBytes; inPos += 2, outPos++) {
+        // Get the original 10-bit unsigned value
+        quint32 originalValue = rawData[inPos] + (rawData[inPos + 1] * 256);
+
+        // Sign and scale the data to 16-bits
+        inputSamples[outPos] = static_cast<qint16>(originalValue - 512) * 64;
     }
-    if (wavePlot->dataCount() >= 1027) {
+}
+
+// Draw the graph
+void AmplitudeMeasurement::plotGraph()
+{
+    // Add every millionth point to graphYValues and shift along
+    qint32 numSamples = inputSamples.size();
+    for (int i = 0; i < numSamples; i += 1000000) {
+        graphYValues.append(inputSamples[i] / MAX_SAMPLE);
+    }
+    if (graphYValues.size() > GRAPH_POINTS) {
+        graphYValues.remove(0, graphYValues.size() - GRAPH_POINTS);
+    }
+
+    if (wavePlot->dataCount() >= GRAPH_POINTS - 1) {
         wavePlot->data()->clear();
     }
-    wavePlot->addData(x, samples);
-    xAxis->setRange(QCPRange(0, samples.size()));
+    wavePlot->addData(graphXValues, graphYValues);
+    xAxis->setRange(QCPRange(0, GRAPH_POINTS));
     replot();
 }
 
-//Fill the buffer with data
-void AmplitudeMeasurement::setBuffer()
-{
-    QAudioFormat format;
-    format.setSampleRate(40000);
-    format.setChannelCount(1);
-    format.setSampleFormat(QAudioFormat::Int16);
-    QByteArray sourceAudio = UsbCapture::getBuffer();
-    QAudioBuffer ampliBuffer(sourceAudio, format, -1);
-
-    const qint16 *data = ampliBuffer.constData<qint16>();
-    int count = ampliBuffer.sampleCount();
-
-    for (int i = 0; i < count; i++) {
-        double val = data[i] / peak;
-        i += 1000000;
-
-        plotpointcount++;
-        if (plotpointcount >= 1028) {
-            samples.removeFirst();
-        }
-        samples.append(val);
-    }
-}
-
-//Calculate mean amplitude (text label)
+// Calculate mean amplitude
 double AmplitudeMeasurement::getMeanAmplitude()
 {
-    QAudioFormat format;
-    format.setSampleRate(40000);
-    format.setChannelCount(1);
-    format.setSampleFormat(QAudioFormat::Int16);
-    QByteArray sourceAudio = UsbCapture::getBuffer();
-    QAudioBuffer ampliBuffer(sourceAudio, format, -1);
-
     double posSum = 0;
     double avgVal = 0;
     double finalAmp = 0.0;
 
-    const qint16 *ampliData = ampliBuffer.constData<qint16>();
-    double ampliCount = ampliBuffer.sampleCount();
-
-    for (int i = 0; i < ampliCount; i++){
-        const double& data = ampliData[i];
-        avgVal = data / peak;
+    qint32 numSamples = inputSamples.size();
+    for (int i = 0; i < numSamples; i++){
+        avgVal = inputSamples[i] / MAX_SAMPLE;
         posSum += avgVal * avgVal;
     }
     for (int i = 0; i < 19; i++) {
         rollingAmp.move(i + 1, i);
     }
-    rollingAmp[19] = sqrt(posSum / (ampliCount / 2));
+    rollingAmp[19] = sqrt(posSum / (numSamples / 2));
     for (int ra = 0; ra < 19; ra++) {
         finalAmp += rollingAmp[ra];
     }
