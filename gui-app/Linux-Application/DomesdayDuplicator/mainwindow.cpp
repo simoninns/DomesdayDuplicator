@@ -840,28 +840,36 @@ void MainWindow::updatePlayerRemoteDialog(void)
 }
 
 // Timer callback to update amplitude display
-void MainWindow::updateAmplitudeLabel(void) {
-    ui->meanAmplitudeLabel->setText(QString::number(AmplitudeMeasurement::getMeanAmplitude(), 'f', 3));
+void MainWindow::updateAmplitudeLabel(void)
+{
+    ui->meanAmplitudeLabel->setText(QString::number(ui->am->getMeanAmplitude(), 'f', 3));
 }
 
 // Update amplitude UI elements
-void MainWindow::updateAmplitudeUI(void) {
+void MainWindow::updateAmplitudeUI(void)
+{
+    // If any amplitude display is enabled, capture amplitude data
+    if (configuration->getAmplitudeEnabled() || configuration->getGraphType() != Configuration::GraphType::noGraph) {
+        connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(updateBuffer()));
+    } else {
+        disconnect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(updateBuffer()));
+    }
+
     // Update amplitude label, driven by timer
     if (configuration->getAmplitudeEnabled()) {
         ui->meanAmplitudeLabel->setText("0.000");
         connect(amplitudeTimer, SIGNAL(timeout()), this, SLOT(updateAmplitudeLabel()));
     } else {
-        disconnect(amplitudeTimer);
+        disconnect(amplitudeTimer, SIGNAL(timeout()), this, SLOT(updateAmplitudeLabel()));
         ui->meanAmplitudeLabel->setText("N/A");
     }
 
     // Update amplitude graph
     if (configuration->getGraphType() == Configuration::GraphType::QCPMean) {
-        connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(setBuffer()));
-        connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(plot()));
         ui->am->setVisible(true);
+        connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(plotGraph()));
     } else {
-        disconnect(amplitudeTimer);
+        disconnect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(plotGraph()));
         ui->am->setVisible(false);
     }
 }

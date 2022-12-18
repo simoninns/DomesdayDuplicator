@@ -29,7 +29,6 @@ target_link_libraries(DomesdayDuplicator PRIVATE
     Qt::Gui
     Qt::Widgets
     Qt::SerialPort
-    Qt::Multimedia
     ${LibUSB_LIBRARIES}
 )
 

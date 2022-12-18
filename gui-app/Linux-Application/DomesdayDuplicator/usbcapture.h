@@ -53,7 +53,7 @@ public:
     qint32 getNumberOfDiskBuffersWritten(void);
     QString getLastError(void);
     static bool getOkToRename();
-    static QByteArray getBuffer();
+    static void getAmplitudeBuffer(const unsigned char **buffer, qint32 *numBytes);
 
 signals:
     void transferFailed(void);
