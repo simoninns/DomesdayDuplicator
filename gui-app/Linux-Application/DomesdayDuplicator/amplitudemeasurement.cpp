@@ -28,13 +28,11 @@
 #include "amplitudemeasurement.h"
 
 #include <QList>
+#include <algorithm>
 #include "usbcapture.h"
 
 static constexpr qint32 GRAPH_POINTS = 1028;
 static constexpr double MAX_SAMPLE = 32767.0;
-
-// Fill array with zeroes and backfill as needed
-QList<double> rollingAmp({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
 
 AmplitudeMeasurement::AmplitudeMeasurement(QWidget *parent)
     : QCustomPlot(parent)
@@ -54,6 +52,9 @@ AmplitudeMeasurement::AmplitudeMeasurement(QWidget *parent)
     QFont yfont;
     yfont.setPointSize(6);
     yAxis->setTickLabelFont(yfont);
+
+    // Clear the amplitude history
+    std::fill(rollingAmp.begin(), rollingAmp.end(), 0.0);
 }
 
 // Get a buffer from UsbCapture, and update the statistics
@@ -98,25 +99,21 @@ void AmplitudeMeasurement::plotGraph()
 // Calculate mean amplitude
 double AmplitudeMeasurement::getMeanAmplitude()
 {
-    double posSum = 0;
-    double avgVal = 0;
-    double finalAmp = 0.0;
-
     qint32 numSamples = inputSamples.size();
+    double posSum = 0.0;
     for (int i = 0; i < numSamples; i++){
-        avgVal = inputSamples[i] / MAX_SAMPLE;
-        posSum += avgVal * avgVal;
+        posSum += inputSamples[i] * inputSamples[i];
     }
-    for (int i = 0; i < 19; i++) {
-        rollingAmp.move(i + 1, i);
-    }
-    rollingAmp[19] = sqrt(posSum / (numSamples / 2));
-    for (int ra = 0; ra < 19; ra++) {
-        finalAmp += rollingAmp[ra];
-    }
-    if (rollingAmp.contains(0)) {
-        return rollingAmp[19];
+
+    std::copy(rollingAmp.begin() + 1, rollingAmp.end(), rollingAmp.begin());
+    rollingAmp.back() = sqrt(posSum / (MAX_SAMPLE * MAX_SAMPLE * (numSamples / 2)));
+
+    if (std::find(rollingAmp.begin(), rollingAmp.end(), 0.0) != rollingAmp.end()) {
+        // rollingAmp (probably) isn't full yet -- return the latest value
+        return rollingAmp.back();
     } else {
-        return finalAmp / 20;
+        double finalAmp = 0.0;
+        for (double value: rollingAmp) finalAmp += value;
+        return finalAmp / rollingAmp.size();
     }
 }
