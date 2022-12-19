@@ -29,6 +29,7 @@
 #define AMPLITUDEMEASUREMENT_H
 
 #include <QVector>
+#include <array>
 #include <vector>
 #include "qcustomplot.h"
 
@@ -47,6 +48,7 @@ public slots:
 private:
     std::vector<qint16> inputSamples;
     QVector<double> graphXValues, graphYValues;
+    std::array<double, 20> rollingAmp;
     QCPGraph *wavePlot;
 };
 
