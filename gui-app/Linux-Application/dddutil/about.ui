@@ -64,7 +64,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>(c) 2019 Simon Inns</string>
+    <string>(c) 2019-2022 Simon Inns</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_3">
