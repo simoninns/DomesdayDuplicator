@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
-project(DomesdayDuplicator VERSION 1.0)
+project(DomesdayDuplicator)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake_modules")
 
