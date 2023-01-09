@@ -510,7 +510,7 @@ void MainWindow::updateCaptureStatistics(void)
         mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40; // 10-bit is 40MiB per buffer
     else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 10; // 10-bit 4:1 is 8MiB per buffer
 
-    ui->numberOfDiskBuffersWrittenLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
+    ui->dataCapturedLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
 }
 
 // Update the player control labels
