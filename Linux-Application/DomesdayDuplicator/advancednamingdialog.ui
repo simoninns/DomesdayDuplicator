@@ -19,7 +19,7 @@
   <property name="windowTitle">
    <string>Advanced capture naming</string>
   </property>
-  <widget class="QGroupBox" name="groupBox_2">
+  <widget class="QGroupBox" name="advancedNamingGroupBox">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -339,8 +339,8 @@
  <resources/>
  <connections/>
  <buttongroups>
-  <buttongroup name="audioButtonGroup"/>
   <buttongroup name="formatButtonGroup"/>
   <buttongroup name="discTypeButtonGroup"/>
+  <buttongroup name="audioButtonGroup"/>
  </buttongroups>
 </ui>

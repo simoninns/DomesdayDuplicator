@@ -57,7 +57,7 @@
     <attribute name="title">
      <string>About DdD</string>
     </attribute>
-    <widget class="QLabel" name="label">
+    <widget class="QLabel" name="logoLabel">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -76,7 +76,7 @@
       <set>Qt::AlignCenter</set>
      </property>
     </widget>
-    <widget class="QTextBrowser" name="textBrowser_3">
+    <widget class="QTextBrowser" name="aboutTextBrowser">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -106,7 +106,7 @@ p, li { white-space: pre-wrap; }
     <attribute name="title">
      <string>Licensing</string>
     </attribute>
-    <widget class="QTextBrowser" name="textBrowser">
+    <widget class="QTextBrowser" name="licenseTextBrowser">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -276,7 +276,7 @@ p, li { white-space: pre-wrap; }
     <attribute name="title">
      <string>Credits</string>
     </attribute>
-    <widget class="QTextBrowser" name="textBrowser_2">
+    <widget class="QTextBrowser" name="creditsTextBrowser">
      <property name="geometry">
       <rect>
        <x>10</x>
