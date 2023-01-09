@@ -63,7 +63,7 @@
     <attribute name="title">
      <string>Capture</string>
     </attribute>
-    <widget class="QLabel" name="label">
+    <widget class="QLabel" name="captureDirectoryLabel">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -149,7 +149,7 @@
     <attribute name="title">
      <string>USB</string>
     </attribute>
-    <widget class="QLabel" name="label_2">
+    <widget class="QLabel" name="vendorIdLabel">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -165,7 +165,7 @@
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
      </property>
     </widget>
-    <widget class="QLabel" name="label_3">
+    <widget class="QLabel" name="productIdLabel">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -201,7 +201,7 @@
       </rect>
      </property>
     </widget>
-    <widget class="QLabel" name="label_7">
+    <widget class="QLabel" name="defaultIdsLabel">
      <property name="geometry">
       <rect>
        <x>130</x>
@@ -219,7 +219,7 @@
     <attribute name="title">
      <string>Player Control</string>
     </attribute>
-    <widget class="QLabel" name="label_4">
+    <widget class="QLabel" name="serialDeviceLabel">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -235,7 +235,7 @@
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
      </property>
     </widget>
-    <widget class="QLabel" name="label_5">
+    <widget class="QLabel" name="serialSpeedLabel">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -318,7 +318,7 @@
       <bool>true</bool>
      </property>
     </widget>
-    <widget class="QLabel" name="label_6">
+    <widget class="QLabel" name="graphingOptionsLabel">
      <property name="geometry">
       <rect>
        <x>10</x>
@@ -334,7 +334,7 @@
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
      </property>
     </widget>
-    <widget class="QLabel" name="label_8">
+    <widget class="QLabel" name="amplitudeLabel">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -363,7 +363,7 @@
       <string>RMS (Average)</string>
      </property>
     </widget>
-    <widget class="QLabel" name="label_9">
+    <widget class="QLabel" name="textLabelOptionsLabel">
      <property name="geometry">
       <rect>
        <x>0</x>
