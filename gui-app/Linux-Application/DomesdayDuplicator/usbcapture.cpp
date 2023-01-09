@@ -630,9 +630,10 @@ void UsbCapture::checkBufferSequence(qint32 diskBufferNumber)
         // at worst we will see a change within (1 << COUNTER_SHIFT) + 1
         // samples.
         for (qint32 pointer = 2; pointer < ((1 << COUNTER_SHIFT) + 1) * 2; pointer += 2) {
-            const quint32 seqNum = diskBuffer[pointer + 1] >> 2;
+            quint32 seqNum = diskBuffer[pointer + 1] >> 2;
             if (seqNum != prevSeqNum) {
                 // Found it -- compute sequenceCounter's value at the start of the buffer
+                if (seqNum == 0) seqNum = COUNTER_MAX;
                 sequenceCounter = (seqNum << COUNTER_SHIFT) - (pointer / 2);
                 break;
             }
