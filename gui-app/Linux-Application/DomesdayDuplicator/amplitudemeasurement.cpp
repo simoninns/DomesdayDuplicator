@@ -101,8 +101,8 @@ double AmplitudeMeasurement::getMeanAmplitude()
 {
     qint32 numSamples = inputSamples.size();
     double posSum = 0.0;
-    for (int i = 0; i < numSamples; i++){
-        posSum += inputSamples[i] * inputSamples[i];
+    for (qint16 sample: inputSamples) {
+        posSum += static_cast<double>(sample) * static_cast<double>(sample);
     }
 
     std::copy(rollingAmp.begin() + 1, rollingAmp.end(), rollingAmp.begin());
