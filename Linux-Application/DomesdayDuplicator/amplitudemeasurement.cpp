@@ -106,7 +106,8 @@ double AmplitudeMeasurement::getMeanAmplitude()
     }
 
     std::copy(rollingAmp.begin() + 1, rollingAmp.end(), rollingAmp.begin());
-    rollingAmp.back() = sqrt(posSum / (MAX_SAMPLE * MAX_SAMPLE * (numSamples / 2)));
+    // Divide by 2 here for a crest factor of sqrt(2) (i.e. assume a sin-ish signal)
+    rollingAmp.back() = sqrt(posSum / (MAX_SAMPLE * MAX_SAMPLE * numSamples / 2.0));
 
     if (std::find(rollingAmp.begin(), rollingAmp.end(), 0.0) != rollingAmp.end()) {
         // rollingAmp (probably) isn't full yet -- return the latest value
