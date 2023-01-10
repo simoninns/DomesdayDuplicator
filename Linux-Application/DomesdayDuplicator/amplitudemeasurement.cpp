@@ -79,9 +79,9 @@ void AmplitudeMeasurement::updateBuffer()
 // Draw the graph
 void AmplitudeMeasurement::plotGraph()
 {
-    // Add every millionth point to graphYValues and shift along
+    // Add every 100th point to graphYValues and shift along
     qint32 numSamples = inputSamples.size();
-    for (int i = 0; i < numSamples; i += 1000000) {
+    for (int i = 0; i < numSamples; i += 100) {
         graphYValues.append(inputSamples[i] / MAX_SAMPLE);
     }
     if (graphYValues.size() > GRAPH_POINTS) {
