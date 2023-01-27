@@ -332,15 +332,24 @@
   <tabstop>formatCheckBox</tabstop>
   <tabstop>formatNtscRadioButton</tabstop>
   <tabstop>formatPalRadioButton</tabstop>
+  <tabstop>audioCheckBox</tabstop>
+  <tabstop>audioDefaultRadioButton</tabstop>
+  <tabstop>audioAnalogueRadioButton</tabstop>
+  <tabstop>audioAc3RadioButton</tabstop>
+  <tabstop>audioDtsRadioButton</tabstop>
   <tabstop>discSideCheckBox</tabstop>
+  <tabstop>discSideSpinBox</tabstop>
   <tabstop>notesCheckBox</tabstop>
   <tabstop>notesLineEdit</tabstop>
+  <tabstop>mintCheckBox</tabstop>
+  <tabstop>mintLineEdit</tabstop>
+  <tabstop>durationCheckBox</tabstop>
  </tabstops>
  <resources/>
  <connections/>
  <buttongroups>
+  <buttongroup name="audioButtonGroup"/>
   <buttongroup name="formatButtonGroup"/>
   <buttongroup name="discTypeButtonGroup"/>
-  <buttongroup name="audioButtonGroup"/>
  </buttongroups>
 </ui>
