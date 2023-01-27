@@ -434,13 +434,20 @@
   </layout>
  </widget>
  <tabstops>
+  <tabstop>tabWidget</tabstop>
   <tabstop>captureDirectoryLineEdit</tabstop>
+  <tabstop>captureDirectoryPushButton</tabstop>
   <tabstop>saveAsTenBitRadioButton</tabstop>
   <tabstop>saveAsSixteenBitRadioButton</tabstop>
+  <tabstop>saveAs10BitCdRadioButton</tabstop>
   <tabstop>vendorIdLineEdit</tabstop>
   <tabstop>productIdLineEdit</tabstop>
   <tabstop>serialDeviceComboBox</tabstop>
   <tabstop>serialSpeedComboBox</tabstop>
+  <tabstop>keyLockCheckBox</tabstop>
+  <tabstop>amplitudeProcessingCheckBox</tabstop>
+  <tabstop>amplitudeGraphRadioButton</tabstop>
+  <tabstop>noGraphButton</tabstop>
  </tabstops>
  <resources/>
  <connections>
