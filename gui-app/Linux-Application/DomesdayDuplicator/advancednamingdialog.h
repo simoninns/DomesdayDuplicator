@@ -64,8 +64,8 @@ private:
     void updateGui(void);
     void updateSideHoldings(void);
     int discSideSpinBoxPrevVal = 1;
-    QString notesHolding[99];
-    QString mintHolding[99];
+    QString notesHolding[100];
+    QString mintHolding[100];
 };
 
 #endif // ADVANCEDNAMINGDIALOG_H

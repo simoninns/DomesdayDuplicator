@@ -95,18 +95,12 @@ QString AdvancedNamingDialog::getFileName(bool isTestData)
             fileName += QString("_side%1").arg(ui->discSideSpinBox->value());
         }
 
-        // Require additional conditions to account for side 1 notes/mint without changing spinbox value
-        if (ui->notesCheckBox->isChecked() and notesHolding[ui->discSideSpinBox->value()].isNull()) {
+        if (ui->notesCheckBox->isChecked()) {
             fileName += "_" + ui->notesLineEdit->text();
-        } else {
-            fileName += "_" + notesHolding[ui->discSideSpinBox->value()];
         }
 
-        // Require additional conditions to account for side 1 notes/mint without changing spinbox value
-        if (ui->mintCheckBox->isChecked() and mintHolding[ui->discSideSpinBox->value()].isNull()) {
+        if (ui->mintCheckBox->isChecked()) {
             fileName += "_" + ui->mintLineEdit->text();
-        } else {
-            fileName += "_" + mintHolding[ui->discSideSpinBox->value()];
         }
 
         // Add the date/time stamp
@@ -190,22 +184,12 @@ void AdvancedNamingDialog::updateSideHoldings(void)
 {
     if (ui->mintCheckBox->isChecked()) {
         mintHolding[discSideSpinBoxPrevVal] = ui->mintLineEdit->text();
-
-        if (mintHolding[ui->discSideSpinBox->value()].isNull()) {
-            ui->mintLineEdit->setText("");
-        } else {
-            ui->mintLineEdit->setText(mintHolding[ui->discSideSpinBox->value()]);
-        }
+        ui->mintLineEdit->setText(mintHolding[ui->discSideSpinBox->value()]);
     }
 
     if (ui->notesCheckBox->isChecked()) {
         notesHolding[discSideSpinBoxPrevVal] = ui->notesLineEdit->text();
-
-        if (notesHolding[ui->discSideSpinBox->value()].isNull()) {
-            ui->notesLineEdit->setText("");
-        } else {
-            ui->notesLineEdit->setText(notesHolding[ui->discSideSpinBox->value()]);
-        }
+        ui->notesLineEdit->setText(notesHolding[ui->discSideSpinBox->value()]);
     }
 
     discSideSpinBoxPrevVal = ui->discSideSpinBox->value();
@@ -249,11 +233,9 @@ void AdvancedNamingDialog::on_mintCheckBox_clicked()
 void AdvancedNamingDialog::on_durationCheckBox_clicked()
 {
     updateGui();
-
 }
 
 void AdvancedNamingDialog::on_discSideSpinBox_valueChanged()
 {
     updateSideHoldings();
-
 }
