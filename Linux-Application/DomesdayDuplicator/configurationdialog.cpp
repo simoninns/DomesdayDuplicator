@@ -62,10 +62,6 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
         ui->saveAs10BitCdRadioButton->setChecked(true);
     }
 
-    // Amplitude
-    ui->amplitudeLabelCheckBox->setChecked(configuration->getAmplitudeLabelEnabled());
-    ui->amplitudeChartCheckBox->setChecked(configuration->getAmplitudeChartEnabled());
-
     // USB
     ui->vendorIdLineEdit->setText(QString::number(configuration->getUsbVid()));
     ui->productIdLineEdit->setText(QString::number(configuration->getUsbPid()));
@@ -112,6 +108,10 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
 
     // Keylock flag
     ui->keyLockCheckBox->setChecked(configuration->getKeyLock());
+
+    // Amplitude
+    ui->amplitudeLabelCheckBox->setChecked(configuration->getAmplitudeLabelEnabled());
+    ui->amplitudeChartCheckBox->setChecked(configuration->getAmplitudeChartEnabled());
 }
 
 // Save the configuration settings from the UI widgets
