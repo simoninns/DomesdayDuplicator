@@ -78,6 +78,10 @@ public:
     QString getSerialDevice();
     void setKeyLock(bool keyLock);
     bool getKeyLock();
+    bool getPerSideNotesEnabled();
+    void setPerSideNotesEnabled(bool enabled);
+    bool getPerSideMintEnabled();
+    void setPerSideMintEnabled(bool enabled);
     bool getAmplitudeLabelEnabled();
     void setAmplitudeLabelEnabled(bool enabled);
     bool getAmplitudeChartEnabled();
@@ -120,6 +124,8 @@ private:
     };
 
     struct Ui {
+        bool perSideNotesEnabled;
+        bool perSideMintEnabled;
         bool amplitudeLabelEnabled;
         bool amplitudeChartEnabled;
     };

@@ -313,6 +313,43 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
+        <widget class="QLabel" name="advancedNamingLabel">
+         <property name="text">
+          <string>Advanced capture naming:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="perSideNotesCheckBox">
+         <property name="text">
+          <string>Reset notes when disc side changes</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="perSideMintCheckBox">
+         <property name="text">
+          <string>Reset mint marks when disc side changes</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_8">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Fixed</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>12</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
         <widget class="QLabel" name="amplitudeLabel">
          <property name="text">
           <string>RF signal amplitude display:</string>
@@ -383,6 +420,8 @@
   <tabstop>serialDeviceComboBox</tabstop>
   <tabstop>serialSpeedComboBox</tabstop>
   <tabstop>keyLockCheckBox</tabstop>
+  <tabstop>perSideNotesCheckBox</tabstop>
+  <tabstop>perSideMintCheckBox</tabstop>
   <tabstop>amplitudeLabelCheckBox</tabstop>
   <tabstop>amplitudeChartCheckBox</tabstop>
  </tabstops>
