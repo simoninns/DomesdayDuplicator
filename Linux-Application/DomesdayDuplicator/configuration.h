@@ -56,12 +56,6 @@ public:
         autoDetect,
     };
 
-    // Define the possible amplitude graph types
-    enum GraphType {
-        noGraph,
-        QCPMean,
-    };
-
     explicit Configuration(QObject *parent = nullptr);
 
     void writeConfiguration();
@@ -84,10 +78,10 @@ public:
     QString getSerialDevice();
     void setKeyLock(bool keyLock);
     bool getKeyLock();
-    void setGraphType(GraphType graphType);
-    GraphType getGraphType();
-    bool getAmplitudeEnabled();
-    void setAmplitudeEnabled(bool amplitudeEnabled);
+    bool getAmplitudeLabelEnabled();
+    void setAmplitudeLabelEnabled(bool enabled);
+    bool getAmplitudeChartEnabled();
+    void setAmplitudeChartEnabled(bool enabled);
 
     void setMainWindowGeometry(QByteArray mainWindowGeometry);
     QByteArray getMainWindowGeometry();
@@ -108,7 +102,7 @@ private:
     QSettings *configuration;
 
     // Note: Configuration is organised by the following top-level labels
-    // Capture, USB, PIC (player integrated capture), UI (includes optional UI features [currently RF amplitude RMS and graphing])
+    // Capture, USB, PIC (player integrated capture), UI
     struct Capture {
         QString captureDirectory;
         CaptureFormat captureFormat;
@@ -126,8 +120,8 @@ private:
     };
 
     struct Ui {
-        GraphType graphType;
-        bool amplitudeEnabled;
+        bool amplitudeLabelEnabled;
+        bool amplitudeChartEnabled;
     };
 
     // Window geometry and settings
@@ -152,8 +146,6 @@ private:
     CaptureFormat convertIntToCaptureFormat(qint32 captureInt);
     qint32 convertSerialSpeedsToInt(SerialSpeeds serialSpeeds);
     SerialSpeeds convertIntToSerialSpeeds(qint32 serialInt);
-    qint32 convertGraphTypeToInt(GraphType graphType);
-    GraphType convertIntToGraphType(qint32 graphInt);
 };
 
 #endif // CONFIGURATION_H
