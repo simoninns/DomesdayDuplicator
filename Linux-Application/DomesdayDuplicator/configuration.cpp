@@ -66,6 +66,8 @@ void Configuration::writeConfiguration()
 
     // UI
     configuration->beginGroup("ui");
+    configuration->setValue("perSideNotesEnabled", settings.ui.perSideNotesEnabled);
+    configuration->setValue("perSideMintEnabled", settings.ui.perSideMintEnabled);
     configuration->setValue("amplitudeEnabled", settings.ui.amplitudeLabelEnabled);
     configuration->setValue("graphType", settings.ui.amplitudeChartEnabled ? 1 : 0);
     configuration->endGroup();
@@ -111,6 +113,8 @@ void Configuration::readConfiguration()
 
     // UI
     configuration->beginGroup("ui");
+    settings.ui.perSideNotesEnabled = configuration->value("perSideNotesEnabled").toBool();
+    settings.ui.perSideMintEnabled = configuration->value("perSideMintEnabled").toBool();
     settings.ui.amplitudeLabelEnabled = configuration->value("amplitudeEnabled").toBool();
     settings.ui.amplitudeChartEnabled = configuration->value("graphType").toInt() > 0;
     configuration->endGroup();
@@ -148,6 +152,8 @@ void Configuration::setDefault()
     settings.capture.captureFormat = CaptureFormat::tenBitPacked;
 
     // UI
+    settings.ui.perSideNotesEnabled = false;
+    settings.ui.perSideMintEnabled = false;
     settings.ui.amplitudeLabelEnabled = false;
     settings.ui.amplitudeChartEnabled = false;
 
@@ -296,6 +302,26 @@ bool Configuration::getKeyLock()
 }
 
 // UI settings
+void Configuration::setPerSideNotesEnabled(bool enabled)
+{
+    settings.ui.perSideNotesEnabled = enabled;
+}
+
+bool Configuration::getPerSideNotesEnabled()
+{
+    return settings.ui.perSideNotesEnabled;
+}
+
+void Configuration::setPerSideMintEnabled(bool enabled)
+{
+    settings.ui.perSideMintEnabled = enabled;
+}
+
+bool Configuration::getPerSideMintEnabled()
+{
+    return settings.ui.perSideMintEnabled;
+}
+
 void Configuration::setAmplitudeLabelEnabled(bool enabled)
 {
     settings.ui.amplitudeLabelEnabled = enabled;
