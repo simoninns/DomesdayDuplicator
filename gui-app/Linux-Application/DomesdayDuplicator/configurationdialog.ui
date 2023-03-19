@@ -315,7 +315,7 @@
        <item>
         <widget class="QLabel" name="amplitudeLabel">
          <property name="text">
-          <string>RF Signal Amplitude Processing:</string>
+          <string>RF signal amplitude display:</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -323,78 +323,16 @@
         </widget>
        </item>
        <item>
-        <spacer name="verticalSpacer_7">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Fixed</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>12</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QLabel" name="textLabelOptionsLabel">
+        <widget class="QCheckBox" name="amplitudeLabelCheckBox">
          <property name="text">
-          <string>Text Label Options (Low CPU usage):</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+          <string>Show RMS amplitude as number (low CPU usage)</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="amplitudeProcessingCheckBox">
+        <widget class="QCheckBox" name="amplitudeChartCheckBox">
          <property name="text">
-          <string>RMS (Average)</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="verticalSpacer_8">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Fixed</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>12</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QLabel" name="graphingOptionsLabel">
-         <property name="text">
-          <string>Graphing Options (Higher CPU usage):</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QRadioButton" name="amplitudeGraphRadioButton">
-         <property name="text">
-          <string>Mean Amplitude (QCP)</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QRadioButton" name="noGraphButton">
-         <property name="text">
-          <string>None</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
+          <string>Show RMS amplitude as chart (higher CPU usage)</string>
          </property>
         </widget>
        </item>
@@ -445,9 +383,8 @@
   <tabstop>serialDeviceComboBox</tabstop>
   <tabstop>serialSpeedComboBox</tabstop>
   <tabstop>keyLockCheckBox</tabstop>
-  <tabstop>amplitudeProcessingCheckBox</tabstop>
-  <tabstop>amplitudeGraphRadioButton</tabstop>
-  <tabstop>noGraphButton</tabstop>
+  <tabstop>amplitudeLabelCheckBox</tabstop>
+  <tabstop>amplitudeChartCheckBox</tabstop>
  </tabstops>
  <resources/>
  <connections>
