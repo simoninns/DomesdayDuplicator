@@ -47,22 +47,22 @@ public:
                         bool isTestData = false);
     ~UsbCapture() override;
 
-    void startTransfer(void);
-    void stopTransfer(void);
-    qint32 getNumberOfTransfers(void);
-    qint32 getNumberOfDiskBuffersWritten(void);
-    QString getLastError(void);
+    void startTransfer();
+    void stopTransfer();
+    qint32 getNumberOfTransfers();
+    qint32 getNumberOfDiskBuffersWritten();
+    QString getLastError();
     static bool getOkToRename();
     static void getAmplitudeBuffer(const unsigned char **buffer, qint32 *numBytes);
 
 signals:
-    void transferFailed(void);
+    void transferFailed();
 
 public slots:
 
 protected slots:
     void run() override;
-    void runDiskBuffers(void);
+    void runDiskBuffers();
 
 protected:
     libusb_context *libUsbContext;
@@ -89,8 +89,8 @@ private:
     void writeBufferToDisk(QFile *outputFile, qint32 diskBufferNumber);
     void writeConversionBuffer(QFile *outputFile, qint32 numBytes);
 
-    void allocateDiskBuffers(void);
-    void freeDiskBuffers(void);
+    void allocateDiskBuffers();
+    void freeDiskBuffers();
 };
 
 #endif // USBCAPTURE_H

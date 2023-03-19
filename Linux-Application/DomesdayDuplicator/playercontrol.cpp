@@ -189,23 +189,23 @@ void PlayerControl::run()
     emit playerDisconnected();
 }
 
-void PlayerControl::stop(void)
+void PlayerControl::stop()
 {
     qDebug() << "PlayerControl::stop(): Stopping player control thread";
     abort = true;
 }
 
-QString PlayerControl::getPlayerModelName(void)
+QString PlayerControl::getPlayerModelName()
 {
     return playerCommunication->getPlayerName();
 }
 
-QString PlayerControl::getPlayerVersionNumber(void)
+QString PlayerControl::getPlayerVersionNumber()
 {
     return playerCommunication->getPlayerVersionNumber();
 }
 
-QString PlayerControl::getSerialBaudRate(void)
+QString PlayerControl::getSerialBaudRate()
 {
     switch (playerCommunication->getSerialSpeed())
     {
@@ -224,7 +224,7 @@ QString PlayerControl::getSerialBaudRate(void)
 }
 
 // Returns a string that indicates the player's status
-QString PlayerControl::getPlayerStatusInformation(void)
+QString PlayerControl::getPlayerStatusInformation()
 {
     QString status;
 
@@ -244,7 +244,7 @@ QString PlayerControl::getPlayerStatusInformation(void)
 }
 
 // Returns a string that indicates the player's position (in the disc)
-QString PlayerControl::getPlayerPositionInformation(void)
+QString PlayerControl::getPlayerPositionInformation()
 {
     QString playerPosition;
 
@@ -282,7 +282,7 @@ QString PlayerControl::getPlayerPositionInformation(void)
 }
 
 // Get the disc type (CAV/CLV/unknown)
-PlayerCommunication::DiscType PlayerControl::getDiscType(void)
+PlayerCommunication::DiscType PlayerControl::getDiscType()
 {
     return discType;
 }
@@ -292,7 +292,7 @@ PlayerCommunication::DiscType PlayerControl::getDiscType(void)
 // This method takes commands and parameters from the queue and passes them to
 // the appropriate command processing method
 
-void PlayerControl::processCommandQueue(void)
+void PlayerControl::processCommandQueue()
 {
     // If the queue has commands in it, process one
     if (!commandQueue.isEmpty()) {
@@ -740,7 +740,7 @@ void PlayerControl::startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
 }
 
 // Public method to stop an automatic capture
-void PlayerControl::stopAutomaticCapture(void)
+void PlayerControl::stopAutomaticCapture()
 {
     // Check automatic capture is running
     if (!acInProgress) {
@@ -755,19 +755,19 @@ void PlayerControl::stopAutomaticCapture(void)
 }
 
 // Public method to get the current automatic capture status
-QString PlayerControl::getAutomaticCaptureStatus(void)
+QString PlayerControl::getAutomaticCaptureStatus()
 {
     return acStatus;
 }
 
 // Public method to get the automatic capture error
-QString PlayerControl::getAutomaticCaptureError(void)
+QString PlayerControl::getAutomaticCaptureError()
 {
     return acErrorMessage;
 }
 
 // Private method for processing automatic capture
-void PlayerControl::processAutomaticCapture(void)
+void PlayerControl::processAutomaticCapture()
 {
     // Is automatic capture running?
     if (acInProgress) {
@@ -800,7 +800,7 @@ void PlayerControl::processAutomaticCapture(void)
 }
 
 // Automatic capture state machine - ac_start_state
-PlayerControl::AcStates PlayerControl::acStateStart(void)
+PlayerControl::AcStates PlayerControl::acStateStart()
 {
     AcStates nextState = AcStates::ac_start_state;
 
@@ -865,7 +865,7 @@ PlayerControl::AcStates PlayerControl::acStateStart(void)
 }
 
 // Automatic capture state machine - ac_getLength_state
-PlayerControl::AcStates PlayerControl::acStateGetLength(void)
+PlayerControl::AcStates PlayerControl::acStateGetLength()
 {
     AcStates nextState = AcStates::ac_start_state;
 
@@ -931,7 +931,7 @@ PlayerControl::AcStates PlayerControl::acStateGetLength(void)
 }
 
 // Automatic capture state machine - ac_spinDown_state
-PlayerControl::AcStates PlayerControl::acStateSpinDown(void)
+PlayerControl::AcStates PlayerControl::acStateSpinDown()
 {
     AcStates nextState = AcStates::ac_spinDown_state;
 
@@ -958,7 +958,7 @@ PlayerControl::AcStates PlayerControl::acStateSpinDown(void)
 }
 
 // Automatic capture state machine - ac_spinUpWithCapture_state
-PlayerControl::AcStates PlayerControl::acStateSpinUpWithCapture(void)
+PlayerControl::AcStates PlayerControl::acStateSpinUpWithCapture()
 {
     AcStates nextState = AcStates::ac_spinUpWithCapture_state;
 
@@ -995,7 +995,7 @@ PlayerControl::AcStates PlayerControl::acStateSpinUpWithCapture(void)
 }
 
 // Automatic capture state machine - ac_moveToStartPosition_state
-PlayerControl::AcStates PlayerControl::acStateMoveToStartPosition(void)
+PlayerControl::AcStates PlayerControl::acStateMoveToStartPosition()
 {
     AcStates nextState = AcStates::ac_moveToStartPosition_state;
 
@@ -1036,7 +1036,7 @@ PlayerControl::AcStates PlayerControl::acStateMoveToStartPosition(void)
 }
 
 // Automatic capture state machine - ac_playAndCapture_state
-PlayerControl::AcStates PlayerControl::acStatePlayAndCapture(void)
+PlayerControl::AcStates PlayerControl::acStatePlayAndCapture()
 {
     AcStates nextState = AcStates::ac_playAndCapture_state;
 
@@ -1068,7 +1068,7 @@ PlayerControl::AcStates PlayerControl::acStatePlayAndCapture(void)
 }
 
 // Automatic capture state machine - ac_waitForEndAddress_state
-PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
+PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress()
 {
     AcStates nextState = AcStates::ac_waitForEndAddress_state;
 
@@ -1153,7 +1153,7 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress(void)
 }
 
 // Automatic capture state machine - ac_finished_state
-PlayerControl::AcStates PlayerControl::acStateFinished(void)
+PlayerControl::AcStates PlayerControl::acStateFinished()
 {
     AcStates nextState = AcStates::ac_finished_state;
 
@@ -1175,7 +1175,7 @@ PlayerControl::AcStates PlayerControl::acStateFinished(void)
 }
 
 // Automatic capture state machine - ac_cancelled_state
-PlayerControl::AcStates PlayerControl::acStateCancelled(void)
+PlayerControl::AcStates PlayerControl::acStateCancelled()
 {
     AcStates nextState = AcStates::ac_cancelled_state;
 
@@ -1202,7 +1202,7 @@ PlayerControl::AcStates PlayerControl::acStateCancelled(void)
 }
 
 // Automatic capture state machine - ac_error_state
-PlayerControl::AcStates PlayerControl::acStateError(void)
+PlayerControl::AcStates PlayerControl::acStateError()
 {
     AcStates nextState = AcStates::ac_error_state;
 

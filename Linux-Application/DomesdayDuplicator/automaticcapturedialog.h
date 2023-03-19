@@ -62,7 +62,7 @@ public:
 
 signals:
     void startAutomaticCapture(CaptureType captureType, qint32 startAddress, qint32 endAddress, DiscType discType);
-    void stopAutomaticCapture(void);
+    void stopAutomaticCapture();
 
 private slots:
     void on_wholeDiscRadioButton_clicked();

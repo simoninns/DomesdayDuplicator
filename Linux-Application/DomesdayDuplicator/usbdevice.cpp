@@ -153,7 +153,7 @@ UsbDevice::~UsbDevice()
 }
 
 // Run the hot-plug detection thread
-void UsbDevice::run(void)
+void UsbDevice::run()
 {
     qint32 responseCode;
     bool currentDeviceState = false;
@@ -205,14 +205,14 @@ void UsbDevice::run(void)
     qDebug() << "UsbDevice::run(): libUSB event poll thread stopped";
 }
 
-void UsbDevice::stop(void)
+void UsbDevice::stop()
 {
     qDebug() << "UsbDevice::stop(): Stopping usbDevice thread";
     threadAbort = true;
 }
 
 // Scan for the target USB device (detects device and emits signal)
-bool UsbDevice::scanForDevice(void)
+bool UsbDevice::scanForDevice()
 {
     qDebug() << "UsbDevice::scanForDevice(): Scanning for the USB device...";
 
@@ -228,7 +228,7 @@ bool UsbDevice::scanForDevice(void)
 }
 
 // Poll for the target USB device (just detection)
-bool UsbDevice::searchForAttachedDevice(void)
+bool UsbDevice::searchForAttachedDevice()
 {
     // Attempt to find and open the USB device
     // Open the USB device
@@ -255,7 +255,7 @@ void UsbDevice::sendConfigurationCommand(bool testMode)
 }
 
 // Open the USB device
-bool UsbDevice::open(void)
+bool UsbDevice::open()
 {
     libusb_device **usbDevices;
     libusb_device *usbDevice;
@@ -307,7 +307,7 @@ bool UsbDevice::open(void)
 }
 
 // Close the USB device
-void UsbDevice::close(void)
+void UsbDevice::close()
 {
     libusb_close(usbDeviceHandle);
 }
@@ -393,7 +393,7 @@ void UsbDevice::startCapture(QString filename, bool isCaptureFormat10Bit, bool i
 }
 
 // Stop capturing from the USB device
-void UsbDevice::stopCapture(void)
+void UsbDevice::stopCapture()
 {
      // Stop the capture (closes the USB device)
     usbCapture->stopTransfer();
@@ -403,7 +403,7 @@ void UsbDevice::stopCapture(void)
 }
 
 // Transfer failed signal handler
-void UsbDevice::transferFailedSignalHandler(void)
+void UsbDevice::transferFailedSignalHandler()
 {
     // Retransmit signal to parent object
     qDebug() << "UsbDevice::transferFailedSignalHandler(): Transfer failed signal received from UsbCapture";
@@ -412,14 +412,14 @@ void UsbDevice::transferFailedSignalHandler(void)
 }
 
 // Get capture statistics
-qint32 UsbDevice::getNumberOfTransfers(void)
+qint32 UsbDevice::getNumberOfTransfers()
 {
     if (usbCapture == nullptr) return 0;
 
     return usbCapture->getNumberOfTransfers();
 }
 
-qint32 UsbDevice::getNumberOfDiskBuffersWritten(void)
+qint32 UsbDevice::getNumberOfDiskBuffersWritten()
 {
     if (usbCapture == nullptr) return 0;
 
@@ -427,7 +427,7 @@ qint32 UsbDevice::getNumberOfDiskBuffersWritten(void)
 }
 
 // Return the last recorded error message
-QString UsbDevice::getLastError(void)
+QString UsbDevice::getLastError()
 {
     return lastError;
 }

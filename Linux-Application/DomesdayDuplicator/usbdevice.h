@@ -43,21 +43,21 @@ public:
     explicit UsbDevice(QObject *parent = nullptr, quint16 vid = 0x1D50, quint16 pid = 0x603B);
     ~UsbDevice() override;
 
-    void stop(void);
+    void stop();
 
-    bool scanForDevice(void);
+    bool scanForDevice();
     void sendConfigurationCommand(bool testMode);
 
     void startCapture(QString filename, bool isCaptureFormat10Bit, bool isCaptureFormat10BitDecimated, bool isTestMode);
-    void stopCapture(void);
-    qint32 getNumberOfTransfers(void);
-    qint32 getNumberOfDiskBuffersWritten(void);
-    QString getLastError(void);
+    void stopCapture();
+    qint32 getNumberOfTransfers();
+    qint32 getNumberOfDiskBuffersWritten();
+    QString getLastError();
 
 signals:
-    void deviceAttached(void);
-    void deviceDetached(void);
-    void transferFailed(void);
+    void deviceAttached();
+    void deviceDetached();
+    void transferFailed();
 
 public slots:
 
@@ -70,7 +70,7 @@ protected:
     bool threadAbort;
 
 private slots:
-    void transferFailedSignalHandler(void);
+    void transferFailedSignalHandler();
 
 private:
     quint16 deviceVid;
@@ -79,10 +79,10 @@ private:
     UsbCapture *usbCapture;
     QString lastError;
 
-    bool open(void);
-    void close(void);
+    bool open();
+    void close();
     bool sendVendorSpecificCommand(quint8 command, quint16 value);
-    bool searchForAttachedDevice(void);
+    bool searchForAttachedDevice();
 };
 
 #endif // USBDEVICE_H

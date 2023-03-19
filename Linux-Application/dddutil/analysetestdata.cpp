@@ -145,7 +145,7 @@ void AnalyseTestData::quit()
 // File conversion methods --------------------------------------------------------------------------------------------
 
 // Open the files and get ready to convert
-bool AnalyseTestData::analyseSampleStart(void)
+bool AnalyseTestData::analyseSampleStart()
 {
     if (isInputTenBitTs) qDebug() << "AnalyseTestData::analyseSampleStart(): Reading in 10-bit format";
     else qDebug() << "AnalyseTestData::analyseSampleStart(): Reading in 16-bit format";
@@ -200,7 +200,7 @@ bool AnalyseTestData::analyseSampleStart(void)
 }
 
 // Process a buffer of sample data
-bool AnalyseTestData::analyseSampleProcess(void)
+bool AnalyseTestData::analyseSampleProcess()
 {
     // Define a sample buffer for the transfer of data
     QVector<quint16> sampleBuffer;
@@ -242,7 +242,7 @@ bool AnalyseTestData::analyseSampleProcess(void)
 }
 
 // Close the sample files and clean up
-void AnalyseTestData::analyseSampleStop(void)
+void AnalyseTestData::analyseSampleStop()
 {
     // Destroy the input sample object
     inputSample->deleteLater();

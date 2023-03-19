@@ -53,7 +53,7 @@ Configuration::Configuration(QObject *parent) : QObject(parent)
     }
 }
 
-void Configuration::writeConfiguration(void)
+void Configuration::writeConfiguration()
 {
     // Write the valid configuration flag
     configuration->setValue("version", settings.version);
@@ -96,7 +96,7 @@ void Configuration::writeConfiguration(void)
     configuration->sync();
 }
 
-void Configuration::readConfiguration(void)
+void Configuration::readConfiguration()
 {
     qDebug() << "Configuration::readConfiguration(): Reading configuration from" << configuration->fileName();
 
@@ -138,7 +138,7 @@ void Configuration::readConfiguration(void)
     configuration->endGroup();
 }
 
-void Configuration::setDefault(void)
+void Configuration::setDefault()
 {
     // Set up the default values
     settings.version = SETTINGSVERSION;
@@ -249,7 +249,7 @@ void Configuration::setCaptureDirectory(QString captureDirectory)
     settings.capture.captureDirectory = captureDirectory;
 }
 
-QString Configuration::getCaptureDirectory(void)
+QString Configuration::getCaptureDirectory()
 {
     return settings.capture.captureDirectory;
 }
@@ -259,7 +259,7 @@ void Configuration::setCaptureFormat(CaptureFormat captureFormat)
     settings.capture.captureFormat = captureFormat;
 }
 
-Configuration::CaptureFormat Configuration::getCaptureFormat(void)
+Configuration::CaptureFormat Configuration::getCaptureFormat()
 {
     return settings.capture.captureFormat;
 }
@@ -270,7 +270,7 @@ void Configuration::setUsbVid(quint16 vid)
     settings.usb.vid = vid;
 }
 
-quint16 Configuration::getUsbVid(void)
+quint16 Configuration::getUsbVid()
 {
     return settings.usb.vid;
 }
@@ -279,7 +279,7 @@ void Configuration::setUsbPid(quint16 pid)
     settings.usb.pid = pid;
 }
 
-quint16 Configuration::getUsbPid(void)
+quint16 Configuration::getUsbPid()
 {
     return settings.usb.pid;
 }
@@ -290,7 +290,7 @@ void Configuration::setSerialSpeed(SerialSpeeds serialSpeed)
     settings.pic.serialSpeed = serialSpeed;
 }
 
-Configuration::SerialSpeeds Configuration::getSerialSpeed(void)
+Configuration::SerialSpeeds Configuration::getSerialSpeed()
 {
     return settings.pic.serialSpeed;
 }
@@ -300,7 +300,7 @@ void Configuration::setSerialDevice(QString serialDevice)
     settings.pic.serialDevice = serialDevice;
 }
 
-QString Configuration::getSerialDevice(void)
+QString Configuration::getSerialDevice()
 {
     return settings.pic.serialDevice;
 }
@@ -310,7 +310,7 @@ void Configuration::setKeyLock(bool keyLock)
     settings.pic.keyLock = keyLock;
 }
 
-bool Configuration::getKeyLock(void)
+bool Configuration::getKeyLock()
 {
     return settings.pic.keyLock;
 }
@@ -321,7 +321,7 @@ void Configuration::setAmplitudeEnabled(bool amplitudeEnabled)
     settings.ui.amplitudeEnabled = amplitudeEnabled;
 }
 
-bool Configuration::getAmplitudeEnabled(void)
+bool Configuration::getAmplitudeEnabled()
 {
     return settings.ui.amplitudeEnabled;
 }
@@ -331,7 +331,7 @@ void Configuration::setGraphType(GraphType graphType)
     settings.ui.graphType = graphType;
 }
 
-Configuration::GraphType Configuration::getGraphType(void)
+Configuration::GraphType Configuration::getGraphType()
 {
     return settings.ui.graphType;
 }
@@ -342,7 +342,7 @@ void Configuration::setMainWindowGeometry(QByteArray mainWindowGeometry)
     settings.windows.mainWindowGeometry = mainWindowGeometry;
 }
 
-QByteArray Configuration::getMainWindowGeometry(void)
+QByteArray Configuration::getMainWindowGeometry()
 {
     return settings.windows.mainWindowGeometry;
 }
@@ -352,7 +352,7 @@ void Configuration::setPlayerRemoteDialogGeometry(QByteArray playerRemoteDialogG
     settings.windows.playerRemoteDialogGeometry = playerRemoteDialogGeometry;
 }
 
-QByteArray Configuration::getPlayerRemoteDialogGeometry(void)
+QByteArray Configuration::getPlayerRemoteDialogGeometry()
 {
     return settings.windows.playerRemoteDialogGeometry;
 }
@@ -362,7 +362,7 @@ void Configuration::setAdvancedNamingDialogGeometry(QByteArray advancedNamingDia
     settings.windows.advancedNamingDialogGeometry = advancedNamingDialogGeometry;
 }
 
-QByteArray Configuration::getAdvancedNamingDialogGeometry(void)
+QByteArray Configuration::getAdvancedNamingDialogGeometry()
 {
     return settings.windows.advancedNamingDialogGeometry;
 }
@@ -372,7 +372,7 @@ void Configuration::setAutomaticCaptureDialogGeometry(QByteArray automaticCaptur
     settings.windows.automaticCaptureDialogGeometry = automaticCaptureDialogGeometry;
 }
 
-QByteArray Configuration::getAutomaticCaptureDialogGeometry(void)
+QByteArray Configuration::getAutomaticCaptureDialogGeometry()
 {
     return settings.windows.automaticCaptureDialogGeometry;
 }
@@ -382,7 +382,7 @@ void Configuration::setConfigurationDialogGeometry(QByteArray configurationDialo
     settings.windows.configurationDialogGeometry = configurationDialogGeometry;
 }
 
-QByteArray Configuration::getConfigurationDialogGeometry(void)
+QByteArray Configuration::getConfigurationDialogGeometry()
 {
     return settings.windows.configurationDialogGeometry;
 }

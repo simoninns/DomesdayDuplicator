@@ -256,7 +256,7 @@ bool PlayerCommunication::connect(QString serialDevice, SerialSpeed serialSpeed)
 }
 
 // Disconnect from a LaserDisc player
-void PlayerCommunication::disconnect(void)
+void PlayerCommunication::disconnect()
 {
     qDebug() << "PlayerCommunication::disconnect(): Disconnecting from serial port";
     currentPlayerName = "";
@@ -268,7 +268,7 @@ void PlayerCommunication::disconnect(void)
 
 // Player command methods ---------------------------------------------------------------------------------------------
 
-PlayerCommunication::TrayState PlayerCommunication::getTrayState(void)
+PlayerCommunication::TrayState PlayerCommunication::getTrayState()
 {
     sendSerialCommand("?P\r"); // Player active mode request
     QString response = getSerialResponse(N_TIMEOUT);
@@ -282,27 +282,27 @@ PlayerCommunication::TrayState PlayerCommunication::getTrayState(void)
     return TrayState::closed;
 }
 
-PlayerCommunication::PlayerType PlayerCommunication::getPlayerType(void)
+PlayerCommunication::PlayerType PlayerCommunication::getPlayerType()
 {
     return currentPlayerType;
 }
 
-QString PlayerCommunication::getPlayerName(void)
+QString PlayerCommunication::getPlayerName()
 {
     return currentPlayerName;
 }
 
-QString PlayerCommunication::getPlayerVersionNumber(void)
+QString PlayerCommunication::getPlayerVersionNumber()
 {
     return currentPlayerVersionNumber;
 }
 
-PlayerCommunication::SerialSpeed PlayerCommunication::getSerialSpeed(void)
+PlayerCommunication::SerialSpeed PlayerCommunication::getSerialSpeed()
 {
     return currentSerialSpeed;
 }
 
-PlayerCommunication::PlayerState PlayerCommunication::getPlayerState(void)
+PlayerCommunication::PlayerState PlayerCommunication::getPlayerState()
 {
     sendSerialCommand("?P\r"); // Player active mode request
     QString response = getSerialResponse(N_TIMEOUT);
@@ -350,7 +350,7 @@ PlayerCommunication::PlayerState PlayerCommunication::getPlayerState(void)
 }
 
 // Return the current frame or -1 if communication fails
-qint32 PlayerCommunication::getCurrentFrame(void)
+qint32 PlayerCommunication::getCurrentFrame()
 {
     sendSerialCommand("?F\r");
     QString response = getSerialResponse(N_TIMEOUT);
@@ -363,7 +363,7 @@ qint32 PlayerCommunication::getCurrentFrame(void)
 }
 
 // Return the current timeCode or -1 if communication fails
-qint32 PlayerCommunication::getCurrentTimeCode(void)
+qint32 PlayerCommunication::getCurrentTimeCode()
 {
     sendSerialCommand("?F\r");
     QString response = getSerialResponse(N_TIMEOUT);
@@ -375,7 +375,7 @@ qint32 PlayerCommunication::getCurrentTimeCode(void)
     return timeCode;
 }
 
-PlayerCommunication::DiscType PlayerCommunication::getDiscType(void)
+PlayerCommunication::DiscType PlayerCommunication::getDiscType()
 {
     sendSerialCommand("?D\r");
     QString response = getSerialResponse(N_TIMEOUT);
@@ -399,13 +399,13 @@ PlayerCommunication::DiscType PlayerCommunication::getDiscType(void)
     return DiscType::unknownDiscType;
 }
 
-QString PlayerCommunication::getUserCode(void)
+QString PlayerCommunication::getUserCode()
 {
     sendSerialCommand("$Y\r");
     return getSerialResponse(N_TIMEOUT);
 }
 
-qint32 PlayerCommunication::getMaximumFrameNumber(void)
+qint32 PlayerCommunication::getMaximumFrameNumber()
 {
     sendSerialCommand("FR60000SE\r"); // Frame seek to impossible frame number
 
@@ -413,7 +413,7 @@ qint32 PlayerCommunication::getMaximumFrameNumber(void)
     return getCurrentFrame();
 }
 
-qint32 PlayerCommunication::getMaximumTimeCode(void)
+qint32 PlayerCommunication::getMaximumTimeCode()
 {
     sendSerialCommand("FR1595900SE\r"); // Frame seek to impossible time-code frame number
 

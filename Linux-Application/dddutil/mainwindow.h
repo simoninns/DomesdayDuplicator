@@ -64,19 +64,19 @@ private slots:
     void on_endTimeEdit_userTimeChanged(const QTime &endTime);
 
     void conversionPercentageProcessedSignalHandler(qint32 percentage);
-    void conversionCompletedSignalHandler(void);
-    void conversionCancelledSignalHandler(void);
+    void conversionCompletedSignalHandler();
+    void conversionCancelledSignalHandler();
 
     void analyseTestDataPercentageProcessedSignalHandler(qint32 percentage);
-    void analyseTestDataCompletedSignalHandler(void);
-    void analyseTestDataCancelledSignalHandler(void);
-    void analyseTestDataTestFailedSignalHandler(void);
+    void analyseTestDataCompletedSignalHandler();
+    void analyseTestDataCancelledSignalHandler();
+    void analyseTestDataTestFailedSignalHandler();
 
 private:
     Ui::MainWindow *ui;
 
-    void noInputFileSpecified(void);
-    void inputFileSpecified(void);
+    void noInputFileSpecified();
+    void inputFileSpecified();
 
     QString inputFilename;
     QString outputFilename;

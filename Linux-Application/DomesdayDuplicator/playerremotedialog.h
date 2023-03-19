@@ -144,7 +144,7 @@ private:
     QString position;
     QString display;
 
-    void updateGui(void);
+    void updateGui();
     void positionAddValue(qint32 value);
 };
 

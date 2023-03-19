@@ -46,17 +46,17 @@ public:
     explicit PlayerControl(QObject *parent = nullptr);
     ~PlayerControl() override;
 
-    void stop(void);
+    void stop();
     void configurePlayerCommunication(
             QString serialDevice,
             PlayerCommunication::SerialSpeed serialSpeed);
 
-    QString getPlayerModelName(void);
-    QString getPlayerVersionNumber(void);
-    QString getSerialBaudRate(void);
-    QString getPlayerStatusInformation(void);
-    QString getPlayerPositionInformation(void);
-    PlayerCommunication::DiscType getDiscType(void);
+    QString getPlayerModelName();
+    QString getPlayerVersionNumber();
+    QString getSerialBaudRate();
+    QString getPlayerStatusInformation();
+    QString getPlayerPositionInformation();
+    PlayerCommunication::DiscType getDiscType();
 
     // Commands
     enum Commands {
@@ -94,18 +94,18 @@ public:
     void startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
                                      qint32 startAddress, qint32 endAddress,
                                      PlayerCommunication::DiscType discType, bool keyLock);
-    void stopAutomaticCapture(void);
-    QString getAutomaticCaptureStatus(void);
-    QString getAutomaticCaptureError(void);
+    void stopAutomaticCapture();
+    QString getAutomaticCaptureStatus();
+    QString getAutomaticCaptureError();
 
 signals:
-    void startCapture(void);
-    void stopCapture(void);
+    void startCapture();
+    void stopCapture();
     void playerControlError(QString);
     void automaticCaptureComplete(bool success);
 
-    void playerConnected(void);
-    void playerDisconnected(void);
+    void playerConnected();
+    void playerDisconnected();
 
 protected:
     void run() override;
@@ -163,7 +163,7 @@ private:
     QQueue<PlayerControl::Commands> commandQueue;
     QQueue<qint32> parameterQueue;
 
-    void processCommandQueue(void);
+    void processCommandQueue();
 
     void processSetTrayState(qint32 parameter1);
     void processSetPlayerState(qint32 parameter1);
@@ -180,19 +180,19 @@ private:
     void processSetKeyLock(qint32 parameter1);
     void processSetSpeed(qint32 parameter1);
 
-    void processAutomaticCapture(void);
+    void processAutomaticCapture();
 
     // Automatic capture state methods
-    PlayerControl::AcStates acStateStart(void);
-    PlayerControl::AcStates acStateGetLength(void);
-    PlayerControl::AcStates acStateSpinDown(void);
-    PlayerControl::AcStates acStateSpinUpWithCapture(void);
-    PlayerControl::AcStates acStateMoveToStartPosition(void);
-    PlayerControl::AcStates acStatePlayAndCapture(void);
-    PlayerControl::AcStates acStateWaitForEndAddress(void);
-    PlayerControl::AcStates acStateFinished(void);
-    PlayerControl::AcStates acStateCancelled(void);
-    PlayerControl::AcStates acStateError(void);
+    PlayerControl::AcStates acStateStart();
+    PlayerControl::AcStates acStateGetLength();
+    PlayerControl::AcStates acStateSpinDown();
+    PlayerControl::AcStates acStateSpinUpWithCapture();
+    PlayerControl::AcStates acStateMoveToStartPosition();
+    PlayerControl::AcStates acStatePlayAndCapture();
+    PlayerControl::AcStates acStateWaitForEndAddress();
+    PlayerControl::AcStates acStateFinished();
+    PlayerControl::AcStates acStateCancelled();
+    PlayerControl::AcStates acStateError();
 };
 
 #endif // PLAYERCONTROL_H
