@@ -58,30 +58,30 @@ public:
     ~MainWindow();
 
 private slots:
-    void deviceAttachedSignalHandler(void);
-    void deviceDetachedSignalHandler(void);
-    void configurationChangedSignalHandler(void);
+    void deviceAttachedSignalHandler();
+    void deviceDetachedSignalHandler();
+    void configurationChangedSignalHandler();
     void remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteButtons button);
     void remoteControlSearchSignalHandler(qint32 position, PlayerRemoteDialog::PositionMode positionMode);
     void startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog::CaptureType captureType,
                                                               qint32 startAddress, qint32 endAddress,
                                                               AutomaticCaptureDialog::DiscType discTypeParam);
-    void stopAutomaticCaptureDialogSignalHandler(void);
-    void updateAutomaticCaptureStatus(void);
+    void stopAutomaticCaptureDialogSignalHandler();
+    void updateAutomaticCaptureStatus();
     void automaticCaptureCompleteSignalHandler(bool success);
 
-    void playerConnectedSignalHandler(void);
-    void playerDisconnectedSignalHandler(void);
+    void playerConnectedSignalHandler();
+    void playerDisconnectedSignalHandler();
 
-    void startCaptureSignalHandler(void);
-    void stopCaptureSignalHandler(void);
+    void startCaptureSignalHandler();
+    void stopCaptureSignalHandler();
 
-    void updateCaptureStatistics(void);
-    void updatePlayerControlInformation(void);
-    void transferFailedSignalHandler(void);
-    void updateCaptureDuration(void);
-    void updateStorageInformation(void);
-    void updateAmplitudeLabel(void);
+    void updateCaptureStatistics();
+    void updatePlayerControlInformation();
+    void transferFailedSignalHandler();
+    void updateCaptureDuration();
+    void updateStorageInformation();
+    void updateAmplitudeLabel();
 
     void on_actionExit_triggered();
     void on_actionTest_mode_toggled(bool arg1);
@@ -125,15 +125,15 @@ private:
     qint32 remoteSpeed;
     PlayerCommunication::ChapterFrameMode remoteChapterFrameMode;
 
-    void updateGuiForCaptureStart(void);
-    void updateGuiForCaptureStop(void);
-    void startPlayerControl(void);
-    void updatePlayerRemoteDialog(void);
-    void updateAmplitudeUI(void);
+    void updateGuiForCaptureStart();
+    void updateGuiForCaptureStop();
+    void startPlayerControl();
+    void updatePlayerRemoteDialog();
+    void updateAmplitudeUI();
 
 signals:
-    void plotAmplitude(void);
-    void bufferAmplitude(void);
+    void plotAmplitude();
+    void bufferAmplitude();
 };
 
 #endif // MAINWINDOW_H

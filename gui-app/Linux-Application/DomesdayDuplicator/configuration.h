@@ -64,41 +64,41 @@ public:
 
     explicit Configuration(QObject *parent = nullptr);
 
-    void writeConfiguration(void);
-    void readConfiguration(void);
+    void writeConfiguration();
+    void readConfiguration();
 
     // Get and set methods
-    void setDefault(void);
+    void setDefault();
 
     void setCaptureDirectory(QString captureDirectory);
-    QString getCaptureDirectory(void);
+    QString getCaptureDirectory();
     void setCaptureFormat(CaptureFormat captureFormat);
-    CaptureFormat getCaptureFormat(void);
+    CaptureFormat getCaptureFormat();
     void setUsbVid(quint16 vid);
-    quint16 getUsbVid(void);
+    quint16 getUsbVid();
     void setUsbPid(quint16 pid);
-    quint16 getUsbPid(void);
+    quint16 getUsbPid();
     void setSerialSpeed(SerialSpeeds serialSpeed);
-    SerialSpeeds getSerialSpeed(void);
+    SerialSpeeds getSerialSpeed();
     void setSerialDevice(QString serialDevice);
-    QString getSerialDevice(void);
+    QString getSerialDevice();
     void setKeyLock(bool keyLock);
-    bool getKeyLock(void);
+    bool getKeyLock();
     void setGraphType(GraphType graphType);
-    GraphType getGraphType(void);
-    bool getAmplitudeEnabled(void);
+    GraphType getGraphType();
+    bool getAmplitudeEnabled();
     void setAmplitudeEnabled(bool amplitudeEnabled);
 
     void setMainWindowGeometry(QByteArray mainWindowGeometry);
-    QByteArray getMainWindowGeometry(void);
+    QByteArray getMainWindowGeometry();
     void setPlayerRemoteDialogGeometry(QByteArray playerRemoteDialogGeometry);
-    QByteArray getPlayerRemoteDialogGeometry(void);
+    QByteArray getPlayerRemoteDialogGeometry();
     void setAdvancedNamingDialogGeometry(QByteArray advancedNamingDialogGeometry);
-    QByteArray getAdvancedNamingDialogGeometry(void);
+    QByteArray getAdvancedNamingDialogGeometry();
     void setAutomaticCaptureDialogGeometry(QByteArray automaticCaptureDialogGeometry);
-    QByteArray getAutomaticCaptureDialogGeometry(void);
+    QByteArray getAutomaticCaptureDialogGeometry();
     void setConfigurationDialogGeometry(QByteArray configurationDialogGeometry);
-    QByteArray getConfigurationDialogGeometry(void);
+    QByteArray getConfigurationDialogGeometry();
 
 signals:
 

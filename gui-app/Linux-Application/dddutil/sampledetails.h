@@ -37,14 +37,14 @@ class SampleDetails
 {
 
 public:
-    SampleDetails(void);
+    SampleDetails();
     bool getInputSampleDetails(QString inputFilename, bool isTenBit);
 
-    QString getSizeOnDisc(void);
-    qint64 getNumberOfSamples(void);
-    qint32 getDurationSeconds(void);
-    QString getDurationString(void);
-    bool getInputFileFormat(void);
+    QString getSizeOnDisc();
+    qint64 getNumberOfSamples();
+    qint32 getDurationSeconds();
+    QString getDurationString();
+    bool getInputFileFormat();
 
 signals:
 

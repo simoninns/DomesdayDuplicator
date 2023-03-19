@@ -61,8 +61,8 @@ private slots:
 private:
     Ui::AdvancedNamingDialog *ui;
 
-    void updateGui(void);
-    void updateSideHoldings(void);
+    void updateGui();
+    void updateSideHoldings();
     int discSideSpinBoxPrevVal = 1;
     QString notesHolding[100];
     QString mintHolding[100];

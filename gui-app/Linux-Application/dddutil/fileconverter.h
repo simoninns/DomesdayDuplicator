@@ -56,7 +56,7 @@ public:
 
 signals:
     void percentageProcessed(qint32);
-    void completed(void);
+    void completed();
 
 protected:
     void run() override;
@@ -92,13 +92,13 @@ private:
     qint64 endSampleTs;
     qint64 samplesToConvertTs;
 
-    bool convertSampleStart(void);
-    bool convertSampleProcess(void);
-    void convertSampleStop(void);
+    bool convertSampleStart();
+    bool convertSampleProcess();
+    void convertSampleStop();
 
     bool writeOutputSample(QVector<quint16> sampleBuffer, bool isTenBit);
     bool openOutputSample(QString filename);
-    void closeOutputSample(void);
+    void closeOutputSample();
     qint64 samplesToTenBitBytes(qint64 numberOfSamples);
 };
 

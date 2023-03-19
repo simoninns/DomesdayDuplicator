@@ -148,7 +148,7 @@ void FileConverter::quit()
 // File conversion methods --------------------------------------------------------------------------------------------
 
 // Open the files and get ready to convert
-bool FileConverter::convertSampleStart(void)
+bool FileConverter::convertSampleStart()
 {
     qDebug() << "FileConverter::convertSampleStart(): Saving output file as " << outputFilenameTs;
 
@@ -209,7 +209,7 @@ bool FileConverter::convertSampleStart(void)
 }
 
 // Process a buffer of sample data
-bool FileConverter::convertSampleProcess(void)
+bool FileConverter::convertSampleProcess()
 {
     // Define a sample buffer for the transfer of data
     QVector<quint16> sampleBuffer;
@@ -244,7 +244,7 @@ bool FileConverter::convertSampleProcess(void)
 }
 
 // Close the sample files and clean up
-void FileConverter::convertSampleStop(void)
+void FileConverter::convertSampleStop()
 {
     // Destroy the input sample object
     inputSample->deleteLater();
@@ -269,7 +269,7 @@ bool FileConverter::openOutputSample(QString filename)
 }
 
 // Close the output RF sample
-void FileConverter::closeOutputSample(void)
+void FileConverter::closeOutputSample()
 {
     // Is a sample file open?
     if (outputSampleFileHandleTs != nullptr) {

@@ -76,7 +76,7 @@ MainWindow::~MainWindow()
 // GUI Update functions -----------------------------------------------------------------------------------------------
 
 // Actions on file not loaded
-void MainWindow::noInputFileSpecified(void)
+void MainWindow::noInputFileSpecified()
 {
     // Menu options
     ui->actionOpen_10_bit_File->setEnabled(true);
@@ -98,7 +98,7 @@ void MainWindow::noInputFileSpecified(void)
 }
 
 // Actions on file loaded
-void MainWindow::inputFileSpecified(void)
+void MainWindow::inputFileSpecified()
 {
     // Menu options
     ui->actionOpen_10_bit_File->setEnabled(true);
@@ -335,14 +335,14 @@ void MainWindow::conversionPercentageProcessedSignalHandler(qint32 percentage)
 }
 
 // Handle the conversion completed signal sent by the file converter thread
-void MainWindow::conversionCompletedSignalHandler(void)
+void MainWindow::conversionCompletedSignalHandler()
 {
     // Hide the process dialogue (re-enables main window)
     conversionProgressDialog->hide();
 }
 
 // Handle the progress dialogue cancelled signal sent by the progress dialogue
-void MainWindow::conversionCancelledSignalHandler(void)
+void MainWindow::conversionCancelledSignalHandler()
 {
     // Cancel the conversion in progress
     fileConverter.cancelConversion();
@@ -358,7 +358,7 @@ void MainWindow::analyseTestDataPercentageProcessedSignalHandler(qint32 percenta
 }
 
 // Handle the conversion completed signal sent by the test data analyser thread
-void MainWindow::analyseTestDataCompletedSignalHandler(void)
+void MainWindow::analyseTestDataCompletedSignalHandler()
 {
     // Hide the process dialogue (re-enables main window)
     analyseTestDataProgressDialog->hide();
@@ -370,14 +370,14 @@ void MainWindow::analyseTestDataCompletedSignalHandler(void)
 }
 
 // Handle the progress dialogue cancelled signal sent by the progress dialogue
-void MainWindow::analyseTestDataCancelledSignalHandler(void)
+void MainWindow::analyseTestDataCancelledSignalHandler()
 {
     // Cancel the analysis in progress
     analyseTestData.cancelAnalysis();
 }
 
 // Handle the test failed signal from the test data analyser
-void MainWindow::analyseTestDataTestFailedSignalHandler(void)
+void MainWindow::analyseTestDataTestFailedSignalHandler()
 {
     // Hide the process dialogue (re-enables main window)
     analyseTestDataProgressDialog->hide();

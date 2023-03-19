@@ -56,8 +56,8 @@ public:
 
 signals:
     void percentageProcessed(qint32);
-    void completed(void);
-    void testFailed(void);
+    void completed();
+    void testFailed();
 
 protected:
     void run() override;
@@ -93,9 +93,9 @@ private:
     bool firstTest;
     bool testSuccessful;
 
-    bool analyseSampleStart(void);
-    bool analyseSampleProcess(void);
-    void analyseSampleStop(void);
+    bool analyseSampleStart();
+    bool analyseSampleProcess();
+    void analyseSampleStop();
 
     bool analyseDataIntegrity(QVector<quint16> sample);
 };

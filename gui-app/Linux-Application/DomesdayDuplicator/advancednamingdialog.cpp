@@ -123,7 +123,7 @@ bool AdvancedNamingDialog::getDurationChecked()
 }
 
 // Update the GUI based on the state of the check boxes
-void AdvancedNamingDialog::updateGui(void)
+void AdvancedNamingDialog::updateGui()
 {
     if (ui->discTitleCheckBox->isChecked()) {
         ui->discTitleLineEdit->setEnabled(true);
@@ -180,7 +180,7 @@ void AdvancedNamingDialog::updateGui(void)
 }
 
 // Update the GUI and hold values from previous side input
-void AdvancedNamingDialog::updateSideHoldings(void)
+void AdvancedNamingDialog::updateSideHoldings()
 {
     if (ui->mintCheckBox->isChecked()) {
         mintHolding[discSideSpinBoxPrevVal] = ui->mintLineEdit->text();

@@ -119,19 +119,19 @@ public:
     };
 
     bool connect(QString serialDevice, SerialSpeed serialSpeed);
-    void disconnect(void);
-    PlayerType getPlayerType(void);
-    QString getPlayerName(void);
-    QString getPlayerVersionNumber(void);
-    SerialSpeed getSerialSpeed(void);
-    TrayState getTrayState(void);
-    PlayerState getPlayerState(void);
-    qint32 getCurrentFrame(void);
-    qint32 getCurrentTimeCode(void);
-    DiscType getDiscType(void);
-    QString getUserCode(void);
-    qint32 getMaximumFrameNumber(void);
-    qint32 getMaximumTimeCode(void);
+    void disconnect();
+    PlayerType getPlayerType();
+    QString getPlayerName();
+    QString getPlayerVersionNumber();
+    SerialSpeed getSerialSpeed();
+    TrayState getTrayState();
+    PlayerState getPlayerState();
+    qint32 getCurrentFrame();
+    qint32 getCurrentTimeCode();
+    DiscType getDiscType();
+    QString getUserCode();
+    qint32 getMaximumFrameNumber();
+    qint32 getMaximumTimeCode();
 
     bool setTrayState(TrayState trayState);
     bool setPlayerState(PlayerState playerState);

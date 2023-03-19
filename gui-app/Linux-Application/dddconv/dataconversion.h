@@ -11,7 +11,7 @@ class DataConversion : public QObject
 public:
     explicit DataConversion(QString inputFileNameParam, QString outputFileNameParam, bool isPackingParam, QObject *parent = nullptr);
 
-    bool process(void);
+    bool process();
 signals:
 
 public slots:
@@ -25,12 +25,12 @@ private:
     QFile *outputFileHandle;
 
     // Private methods
-    bool openInputFile(void);
-    void closeInputFile(void);
-    bool openOutputFile(void);
-    void closeOutputFile(void);
-    void packFile(void);
-    void unpackFile(void);
+    bool openInputFile();
+    void closeInputFile();
+    bool openOutputFile();
+    void closeOutputFile();
+    void packFile();
+    void unpackFile();
 };
 
 #endif // DATACONVERSION_H
