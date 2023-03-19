@@ -73,7 +73,7 @@ bool InputSample::open(QString filename)
 }
 
 // Close the input sample
-void InputSample::close(void)
+void InputSample::close()
 {
     // Is a sample file open?
     if (sampleFileHandle != nullptr) {
@@ -236,13 +236,13 @@ void InputSample::seek(qint64 numberOfSamples)
 // Get and set methods ------------------------------------------------------------------------------------------------
 
 // Determine if input sample is valid
-bool InputSample::isInputSampleValid(void)
+bool InputSample::isInputSampleValid()
 {
     return sampleIsValid;
 }
 
 // Get the number of samples in the input sample
-qint64 InputSample::getNumberOfSamples(void)
+qint64 InputSample::getNumberOfSamples()
 {
     return numberOfSamples;
 }

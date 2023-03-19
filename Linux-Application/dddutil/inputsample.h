@@ -44,8 +44,8 @@ public:
     QVector<quint16> read(qint32 maximumSamples);
     void seek(qint64 numberOfSamples);
 
-    bool isInputSampleValid(void);
-    qint64 getNumberOfSamples(void);
+    bool isInputSampleValid();
+    qint64 getNumberOfSamples();
 
 signals:
 
@@ -59,7 +59,7 @@ private:
     bool sampleIsValid;
 
     bool open(QString filename);
-    void close(void);
+    void close();
 
     qint64 samplesToTenBitBytes(qint64 numberOfSamples);
     qint64 tenBitBytesToSamples(qint64 numberOfBytes);

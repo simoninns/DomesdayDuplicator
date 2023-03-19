@@ -27,7 +27,7 @@
 
 #include "sampledetails.h"
 
-SampleDetails::SampleDetails(void)
+SampleDetails::SampleDetails()
 {
     // Set default object values
     sizeOnDisc = 0;
@@ -72,7 +72,7 @@ bool SampleDetails::getInputSampleDetails(QString inputFilename, bool isTenBit)
 
 // Get the size of the sample file on disc and return as a
 // readable string
-QString SampleDetails::getSizeOnDisc(void)
+QString SampleDetails::getSizeOnDisc()
 {
     QString sizeText;
 
@@ -88,21 +88,21 @@ QString SampleDetails::getSizeOnDisc(void)
 }
 
 // Get the number of samples contained in the sample file
-qint64 SampleDetails::getNumberOfSamples(void)
+qint64 SampleDetails::getNumberOfSamples()
 {
     return numberOfSamples;
 }
 
 // Get the approximate duration of the sample file and
 // return it as the number of seconds
-qint32 SampleDetails::getDurationSeconds(void)
+qint32 SampleDetails::getDurationSeconds()
 {
     return static_cast<qint32>(numberOfSamples / 40000000);
 }
 
 // Get the approximate duration of the sample file and
 // return it as a time string "hh:mm:ss"
-QString SampleDetails::getDurationString(void)
+QString SampleDetails::getDurationString()
 {
     // Number of samples / 40 MSPS sampling rate
     qint64 duration = numberOfSamples / 40000000;
@@ -113,7 +113,7 @@ QString SampleDetails::getDurationString(void)
 
 // Get the input file format, returns true if 10-bit
 // and false if 16-bit
-bool SampleDetails::getInputFileFormat(void)
+bool SampleDetails::getInputFileFormat()
 {
     return isInputFileTenBit;
 }

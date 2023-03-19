@@ -182,7 +182,7 @@ MainWindow::~MainWindow()
 // Signal handlers ----------------------------------------------------------------------------------------------------
 
 // USB device attached signal handler
-void MainWindow::deviceAttachedSignalHandler(void)
+void MainWindow::deviceAttachedSignalHandler()
 {
     qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been attached";
 
@@ -203,7 +203,7 @@ void MainWindow::deviceAttachedSignalHandler(void)
 }
 
 // USB device detached signal handler
-void MainWindow::deviceDetachedSignalHandler(void)
+void MainWindow::deviceDetachedSignalHandler()
 {
     qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been detached";
 
@@ -221,7 +221,7 @@ void MainWindow::deviceDetachedSignalHandler(void)
 }
 
 // Configuration changed signal handler
-void MainWindow::configurationChangedSignalHandler(void)
+void MainWindow::configurationChangedSignalHandler()
 {
     qDebug() << "MainWindow::configurationChangedSignalHandler(): Configuration has been changed";
 
@@ -376,7 +376,7 @@ void MainWindow::remoteControlSearchSignalHandler(qint32 position, PlayerRemoteD
 }
 
 // Update capture duration timer signal handler
-void MainWindow::updateCaptureDuration(void)
+void MainWindow::updateCaptureDuration()
 {
     // Add a second to the capture time and update the label
     captureElapsedTime = captureElapsedTime.addSecs(1);
@@ -431,13 +431,13 @@ void MainWindow::startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog
 }
 
 // Automatic capture dialogue signals that capture should stop
-void MainWindow::stopAutomaticCaptureDialogSignalHandler(void)
+void MainWindow::stopAutomaticCaptureDialogSignalHandler()
 {
     playerControl->stopAutomaticCapture();
 }
 
 // Update the automatic capture status (called by a timer)
-void MainWindow::updateAutomaticCaptureStatus(void)
+void MainWindow::updateAutomaticCaptureStatus()
 {
     automaticCaptureDialog->updateStatus(playerControl->getAutomaticCaptureStatus());
 }
@@ -458,21 +458,21 @@ void MainWindow::automaticCaptureCompleteSignalHandler(bool success)
 }
 
 // Handle the start capture signal from the player control object
-void MainWindow::startCaptureSignalHandler(void)
+void MainWindow::startCaptureSignalHandler()
 {
     qDebug() << "MainWindow::startCaptureSignalHandler(): Got start capture signal from player control";
     if (!isCaptureRunning) on_capturePushButton_clicked();
 }
 
 // Handle the stop capture signal from the player control object
-void MainWindow::stopCaptureSignalHandler(void)
+void MainWindow::stopCaptureSignalHandler()
 {
     qDebug() << "MainWindow::stopCaptureSignalHandler(): Got stop capture signal from player control";
     if (isCaptureRunning) on_capturePushButton_clicked();
 }
 
 // Signal handler for player connected signal from player control
-void MainWindow::playerConnectedSignalHandler(void)
+void MainWindow::playerConnectedSignalHandler()
 {
     qDebug() << "MainWindow::playerConnectedSignalHandler(): Received player connected signal";
     // Enable remote control dialogue
@@ -485,7 +485,7 @@ void MainWindow::playerConnectedSignalHandler(void)
 }
 
 // Signal handler for player disconnected signal from player control
-void MainWindow::playerDisconnectedSignalHandler(void)
+void MainWindow::playerDisconnectedSignalHandler()
 {
     qDebug() << "MainWindow::playerConnectedSignalHandler(): Received player disconnected signal";
     // Disable remote control dialogue
@@ -498,7 +498,7 @@ void MainWindow::playerDisconnectedSignalHandler(void)
 }
 
 // Update the capture statistics labels
-void MainWindow::updateCaptureStatistics(void)
+void MainWindow::updateCaptureStatistics()
 {
     ui->numberOfTransfersLabel->setText(QString::number(usbDevice->getNumberOfTransfers()));
 
@@ -514,7 +514,7 @@ void MainWindow::updateCaptureStatistics(void)
 }
 
 // Update the player control labels
-void MainWindow::updatePlayerControlInformation(void)
+void MainWindow::updatePlayerControlInformation()
 {
     if (!playerControl->getSerialBaudRate().isEmpty()) {
         ui->playerPortLabel->setText(configuration->getSerialDevice() + " @ " + playerControl->getSerialBaudRate() + " bps");
@@ -544,7 +544,7 @@ void MainWindow::updatePlayerControlInformation(void)
 }
 
 // Update the storage information labels
-void MainWindow::updateStorageInformation(void)
+void MainWindow::updateStorageInformation()
 {
     storageInfo->refresh();
     if (storageInfo->isValid()) {
@@ -575,7 +575,7 @@ void MainWindow::updateStorageInformation(void)
 
 }
 
-void MainWindow::startPlayerControl(void)
+void MainWindow::startPlayerControl()
 {
     // Get the configured serial speed
     PlayerCommunication::SerialSpeed serialSpeed = PlayerCommunication::SerialSpeed::bps9600;
@@ -753,7 +753,7 @@ void MainWindow::on_limitDurationCheckBox_stateChanged(int arg1)
 }
 
 // Transfer failed notification signal handler
-void MainWindow::transferFailedSignalHandler(void)
+void MainWindow::transferFailedSignalHandler()
 {
     // Stop capture - something has gone wrong
     usbDevice->stopCapture();
@@ -770,7 +770,7 @@ void MainWindow::transferFailedSignalHandler(void)
 }
 
 // Update the GUI when capture starts
-void MainWindow::updateGuiForCaptureStart(void)
+void MainWindow::updateGuiForCaptureStart()
 {
     // Disable functions during capture
     ui->capturePushButton->setText(tr("Stop Capture"));
@@ -786,7 +786,7 @@ void MainWindow::updateGuiForCaptureStart(void)
 }
 
 // Update the GUI when capture stops, and flip rename var back to false
-void MainWindow::updateGuiForCaptureStop(void)
+void MainWindow::updateGuiForCaptureStop()
 {
     // Disable functions after capture
     if (ui->actionTest_mode->isChecked()) ui->capturePushButton->setText(tr("Test data capture"));
@@ -797,7 +797,7 @@ void MainWindow::updateGuiForCaptureStop(void)
 }
 
 // Update the player remote control dialogue
-void MainWindow::updatePlayerRemoteDialog(void)
+void MainWindow::updatePlayerRemoteDialog()
 {
     switch(remoteDisplayState) {
     case PlayerCommunication::DisplayState::off:
@@ -840,13 +840,13 @@ void MainWindow::updatePlayerRemoteDialog(void)
 }
 
 // Timer callback to update amplitude display
-void MainWindow::updateAmplitudeLabel(void)
+void MainWindow::updateAmplitudeLabel()
 {
     ui->meanAmplitudeLabel->setText(QString::number(ui->am->getMeanAmplitude(), 'f', 3));
 }
 
 // Update amplitude UI elements
-void MainWindow::updateAmplitudeUI(void)
+void MainWindow::updateAmplitudeUI()
 {
     // If any amplitude display is enabled, capture amplitude data
     if (configuration->getAmplitudeEnabled() || configuration->getGraphType() != Configuration::GraphType::noGraph) {

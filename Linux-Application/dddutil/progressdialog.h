@@ -51,7 +51,7 @@ public:
     void setText(QString message);
 
 signals:
-    void cancelled(void);
+    void cancelled();
 
 private:
     Ui::ProgressDialog *ui;

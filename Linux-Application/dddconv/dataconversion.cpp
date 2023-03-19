@@ -9,7 +9,7 @@ DataConversion::DataConversion(QString inputFileNameParam, QString outputFileNam
 }
 
 // Method to process the conversion of the file
-bool DataConversion::process(void)
+bool DataConversion::process()
 {
     // Open the input file
     if (!openInputFile()) {
@@ -38,7 +38,7 @@ bool DataConversion::process(void)
 }
 
 // Method to open the input file for reading
-bool DataConversion::openInputFile(void)
+bool DataConversion::openInputFile()
 {
     // Do we have a file name for the input file?
     if (inputFileName.isEmpty()) {
@@ -67,7 +67,7 @@ bool DataConversion::openInputFile(void)
 }
 
 // Method to close the input file
-void DataConversion::closeInputFile(void)
+void DataConversion::closeInputFile()
 {
     // Is an input file open?
     if (inputFileHandle != nullptr) {
@@ -80,7 +80,7 @@ void DataConversion::closeInputFile(void)
 }
 
 // Method to open the output file for writing
-bool DataConversion::openOutputFile(void)
+bool DataConversion::openOutputFile()
 {
     // Do we have a file name for the output file?
     if (outputFileName.isEmpty()) {
@@ -109,7 +109,7 @@ bool DataConversion::openOutputFile(void)
 }
 
 // Method to close the output file
-void DataConversion::closeOutputFile(void)
+void DataConversion::closeOutputFile()
 {
     // Is an output file open?
     if (outputFileHandle != nullptr) {
@@ -122,7 +122,7 @@ void DataConversion::closeOutputFile(void)
 }
 
 // Method to pack 16-bit data into 10-bit data
-void DataConversion::packFile(void)
+void DataConversion::packFile()
 {
     qDebug() << "DataConversion::packFile(): Packing";
     QByteArray inputBuffer;
@@ -194,7 +194,7 @@ void DataConversion::packFile(void)
 }
 
 // Method to unpack 10-bit data into 16-bit data
-void DataConversion::unpackFile(void)
+void DataConversion::unpackFile()
 {
     qDebug() << "DataConversion::unpackFile(): Unpacking";
     QByteArray inputBuffer;

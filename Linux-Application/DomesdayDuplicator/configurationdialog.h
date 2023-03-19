@@ -52,7 +52,7 @@ public:
     void saveConfiguration(Configuration *configuration);
 
 signals:
-    void configurationChanged(void);
+    void configurationChanged();
 
 private slots:
     void on_captureDirectoryPushButton_clicked();

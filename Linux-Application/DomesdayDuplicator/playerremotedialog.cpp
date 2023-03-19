@@ -57,7 +57,7 @@ void PlayerRemoteDialog::setEnabled(bool flag)
 }
 
 // Update the GUI
-void PlayerRemoteDialog::updateGui(void)
+void PlayerRemoteDialog::updateGui()
 {
     // Disc position unit mode
     switch(positionMode) {
