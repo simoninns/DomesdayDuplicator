@@ -66,8 +66,8 @@ void Configuration::writeConfiguration()
 
     // UI
     configuration->beginGroup("ui");
-    configuration->setValue("amplitudeEnabled", settings.ui.amplitudeEnabled);
-    configuration->setValue("graphType", convertGraphTypeToInt(settings.ui.graphType));
+    configuration->setValue("amplitudeEnabled", settings.ui.amplitudeLabelEnabled);
+    configuration->setValue("graphType", settings.ui.amplitudeChartEnabled ? 1 : 0);
     configuration->endGroup();
 
     // USB
@@ -111,8 +111,8 @@ void Configuration::readConfiguration()
 
     // UI
     configuration->beginGroup("ui");
-    settings.ui.graphType = convertIntToGraphType(configuration->value("graphType").toInt());
-    settings.ui.amplitudeEnabled = configuration->value("amplitudeEnabled").toBool();
+    settings.ui.amplitudeLabelEnabled = configuration->value("amplitudeEnabled").toBool();
+    settings.ui.amplitudeChartEnabled = configuration->value("graphType").toInt() > 0;
     configuration->endGroup();
 
     // USB
@@ -148,8 +148,8 @@ void Configuration::setDefault()
     settings.capture.captureFormat = CaptureFormat::tenBitPacked;
 
     // UI
-    settings.ui.graphType = GraphType::noGraph;
-    settings.ui.amplitudeEnabled = false;
+    settings.ui.amplitudeLabelEnabled = false;
+    settings.ui.amplitudeChartEnabled = false;
 
     // USB
     settings.usb.vid = 0x1D50;
@@ -193,26 +193,6 @@ Configuration::CaptureFormat Configuration::convertIntToCaptureFormat(qint32 cap
 
     // Default to 10 bit packed
     return CaptureFormat::tenBitPacked;
-}
-
-// Enum conversion from GraphType to int
-qint32 Configuration::convertGraphTypeToInt(GraphType graphType)
-{
-    if (graphType == GraphType::noGraph) return 0;
-    if (graphType == GraphType::QCPMean) return 1;
-
-    // Default to 0
-    return 0;
-}
-
-// Enum conversion from int to GraphType
-Configuration::GraphType Configuration::convertIntToGraphType(qint32 graphInt)
-{
-    if (graphInt == 0) return GraphType::noGraph;
-    if (graphInt == 1) return GraphType::QCPMean;
-
-    // Default to no graph
-    return GraphType::noGraph;
 }
 
 // Enum conversion from serial speed to int
@@ -316,24 +296,24 @@ bool Configuration::getKeyLock()
 }
 
 // UI settings
-void Configuration::setAmplitudeEnabled(bool amplitudeEnabled)
+void Configuration::setAmplitudeLabelEnabled(bool enabled)
 {
-    settings.ui.amplitudeEnabled = amplitudeEnabled;
+    settings.ui.amplitudeLabelEnabled = enabled;
 }
 
-bool Configuration::getAmplitudeEnabled()
+bool Configuration::getAmplitudeLabelEnabled()
 {
-    return settings.ui.amplitudeEnabled;
+    return settings.ui.amplitudeLabelEnabled;
 }
 
-void Configuration::setGraphType(GraphType graphType)
+void Configuration::setAmplitudeChartEnabled(bool enabled)
 {
-    settings.ui.graphType = graphType;
+    settings.ui.amplitudeChartEnabled = enabled;
 }
 
-Configuration::GraphType Configuration::getGraphType()
+bool Configuration::getAmplitudeChartEnabled()
 {
-    return settings.ui.graphType;
+    return settings.ui.amplitudeChartEnabled;
 }
 
 // Windows

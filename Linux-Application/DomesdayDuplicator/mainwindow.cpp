@@ -849,14 +849,14 @@ void MainWindow::updateAmplitudeLabel()
 void MainWindow::updateAmplitudeUI()
 {
     // If any amplitude display is enabled, capture amplitude data
-    if (configuration->getAmplitudeEnabled() || configuration->getGraphType() != Configuration::GraphType::noGraph) {
+    if (configuration->getAmplitudeLabelEnabled() || configuration->getAmplitudeChartEnabled()) {
         connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(updateBuffer()));
     } else {
         disconnect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(updateBuffer()));
     }
 
     // Update amplitude label, driven by timer
-    if (configuration->getAmplitudeEnabled()) {
+    if (configuration->getAmplitudeLabelEnabled()) {
         ui->meanAmplitudeLabel->setText("0.000");
         connect(amplitudeTimer, SIGNAL(timeout()), this, SLOT(updateAmplitudeLabel()));
     } else {
@@ -865,7 +865,7 @@ void MainWindow::updateAmplitudeUI()
     }
 
     // Update amplitude graph
-    if (configuration->getGraphType() == Configuration::GraphType::QCPMean) {
+    if (configuration->getAmplitudeChartEnabled()) {
         ui->am->setVisible(true);
         connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(plotGraph()));
     } else {

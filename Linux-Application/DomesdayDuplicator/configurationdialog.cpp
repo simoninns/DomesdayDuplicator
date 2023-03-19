@@ -63,14 +63,8 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
     }
 
     // Amplitude
-    ui->amplitudeProcessingCheckBox->setChecked(configuration->getAmplitudeEnabled());
-
-    // Graph Type
-    if(configuration->getGraphType() == Configuration::GraphType::QCPMean) {
-        ui->amplitudeGraphRadioButton->setChecked(true);
-    } else {
-        ui->noGraphButton->setChecked(true);
-    }
+    ui->amplitudeLabelCheckBox->setChecked(configuration->getAmplitudeLabelEnabled());
+    ui->amplitudeChartCheckBox->setChecked(configuration->getAmplitudeChartEnabled());
 
     // USB
     ui->vendorIdLineEdit->setText(QString::number(configuration->getUsbVid()));
@@ -147,12 +141,8 @@ void ConfigurationDialog::saveConfiguration(Configuration *configuration)
     else configuration->setKeyLock(false);
 
     // Amplitude
-    if (ui->amplitudeProcessingCheckBox->isChecked()) configuration->setAmplitudeEnabled(true);
-    else configuration->setAmplitudeEnabled(false);
-
-    // Graph
-    if (ui->noGraphButton->isChecked()) configuration->setGraphType(Configuration::noGraph);
-    else if (ui->amplitudeGraphRadioButton->isChecked()) configuration->setGraphType(Configuration::QCPMean);
+    configuration->setAmplitudeLabelEnabled(ui->amplitudeLabelCheckBox->isChecked());
+    configuration->setAmplitudeChartEnabled(ui->amplitudeChartCheckBox->isChecked());
 
     // Save the configuration to disk
     configuration->writeConfiguration();
