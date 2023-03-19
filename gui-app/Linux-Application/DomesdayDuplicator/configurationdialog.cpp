@@ -195,5 +195,8 @@ void ConfigurationDialog::on_buttonBox_clicked(QAbstractButton *button)
 
         ui->serialDeviceComboBox->setCurrentIndex(0);
         ui->serialSpeedComboBox->setCurrentIndex(ui->serialSpeedComboBox->findData(Configuration::SerialSpeeds::autoDetect));
+
+        ui->amplitudeLabelCheckBox->setChecked(false);
+        ui->amplitudeChartCheckBox->setChecked(false);
     }
 }
