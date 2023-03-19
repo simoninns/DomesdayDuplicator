@@ -234,6 +234,10 @@ void MainWindow::configurationChangedSignalHandler()
     // Update the target directory for the storage information
     storageInfo->setPath(configuration->getCaptureDirectory());
 
+    // Update advanced naming UI
+    advancedNamingDialog->setPerSideNotesEnabled(configuration->getPerSideNotesEnabled());
+    advancedNamingDialog->setPerSideMintEnabled(configuration->getPerSideMintEnabled());
+
     // Update amplitude UI
     updateAmplitudeUI();
 }

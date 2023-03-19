@@ -122,6 +122,18 @@ bool AdvancedNamingDialog::getDurationChecked()
     return fileDurationBox;
 }
 
+// Enable or disable per-side notes
+void AdvancedNamingDialog::setPerSideNotesEnabled(bool enabled)
+{
+    perSideNotesEnabled = enabled;
+}
+
+// Enable or disable per-side mint marks
+void AdvancedNamingDialog::setPerSideMintEnabled(bool enabled)
+{
+    perSideMintEnabled = enabled;
+}
+
 // Update the GUI based on the state of the check boxes
 void AdvancedNamingDialog::updateGui()
 {
@@ -182,14 +194,14 @@ void AdvancedNamingDialog::updateGui()
 // Update the GUI and hold values from previous side input
 void AdvancedNamingDialog::updateSideHoldings()
 {
-    if (ui->mintCheckBox->isChecked()) {
-        mintHolding[discSideSpinBoxPrevVal] = ui->mintLineEdit->text();
-        ui->mintLineEdit->setText(mintHolding[ui->discSideSpinBox->value()]);
-    }
-
-    if (ui->notesCheckBox->isChecked()) {
+    if (perSideNotesEnabled && ui->notesCheckBox->isChecked()) {
         notesHolding[discSideSpinBoxPrevVal] = ui->notesLineEdit->text();
         ui->notesLineEdit->setText(notesHolding[ui->discSideSpinBox->value()]);
+    }
+
+    if (perSideMintEnabled && ui->mintCheckBox->isChecked()) {
+        mintHolding[discSideSpinBoxPrevVal] = ui->mintLineEdit->text();
+        ui->mintLineEdit->setText(mintHolding[ui->discSideSpinBox->value()]);
     }
 
     discSideSpinBoxPrevVal = ui->discSideSpinBox->value();

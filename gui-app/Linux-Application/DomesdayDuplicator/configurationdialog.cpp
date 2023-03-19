@@ -109,6 +109,10 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
     // Keylock flag
     ui->keyLockCheckBox->setChecked(configuration->getKeyLock());
 
+    // Advanced naming
+    ui->perSideNotesCheckBox->setChecked(configuration->getPerSideNotesEnabled());
+    ui->perSideMintCheckBox->setChecked(configuration->getPerSideMintEnabled());
+
     // Amplitude
     ui->amplitudeLabelCheckBox->setChecked(configuration->getAmplitudeLabelEnabled());
     ui->amplitudeChartCheckBox->setChecked(configuration->getAmplitudeChartEnabled());
@@ -139,6 +143,10 @@ void ConfigurationDialog::saveConfiguration(Configuration *configuration)
     // KeyLock
     if (ui->keyLockCheckBox->isChecked()) configuration->setKeyLock(true);
     else configuration->setKeyLock(false);
+
+    // Advanced naming
+    configuration->setPerSideNotesEnabled(ui->perSideNotesCheckBox->isChecked());
+    configuration->setPerSideMintEnabled(ui->perSideMintCheckBox->isChecked());
 
     // Amplitude
     configuration->setAmplitudeLabelEnabled(ui->amplitudeLabelCheckBox->isChecked());
@@ -195,6 +203,9 @@ void ConfigurationDialog::on_buttonBox_clicked(QAbstractButton *button)
 
         ui->serialDeviceComboBox->setCurrentIndex(0);
         ui->serialSpeedComboBox->setCurrentIndex(ui->serialSpeedComboBox->findData(Configuration::SerialSpeeds::autoDetect));
+
+        ui->perSideNotesCheckBox->setChecked(false);
+        ui->perSideMintCheckBox->setChecked(false);
 
         ui->amplitudeLabelCheckBox->setChecked(false);
         ui->amplitudeChartCheckBox->setChecked(false);
