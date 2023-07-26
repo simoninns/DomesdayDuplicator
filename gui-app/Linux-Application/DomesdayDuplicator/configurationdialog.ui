@@ -19,7 +19,7 @@
   <property name="windowTitle">
    <string>Preferences</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="preferencesVerticalLayout">
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="minimumSize">
@@ -35,7 +35,7 @@
       <attribute name="title">
        <string>Capture</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <layout class="QVBoxLayout" name="captureVerticalLayout">
        <item>
         <layout class="QHBoxLayout" name="captureDirectoryHorizontalLayout">
          <item>
@@ -138,7 +138,7 @@
       <attribute name="title">
        <string>USB</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <layout class="QVBoxLayout" name="usbVerticalLayout">
        <item>
         <layout class="QGridLayout" name="usbDeviceGridLayout">
          <item row="0" column="0">
@@ -212,7 +212,7 @@
       <attribute name="title">
        <string>Player Control</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <layout class="QVBoxLayout" name="playerControlVerticalLayout">
        <item>
         <layout class="QGridLayout" name="serialDeviceGridLayout">
          <item row="0" column="0">
@@ -311,7 +311,7 @@
       <attribute name="title">
        <string>User Interface</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <layout class="QVBoxLayout" name="userInterfaceVerticalLayout">
        <item>
         <widget class="QLabel" name="advancedNamingLabel">
          <property name="text">
