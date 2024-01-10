@@ -19,4 +19,7 @@ target_link_libraries(dddutil PRIVATE
     Qt::Widgets
 )
 
-install(TARGETS dddutil)
+install(TARGETS dddutil
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION bin
+)
