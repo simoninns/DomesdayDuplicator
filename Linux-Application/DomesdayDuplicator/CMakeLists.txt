@@ -49,4 +49,7 @@ if(WIN32)
     )
 endif()
 
-install(TARGETS DomesdayDuplicator)
+install(TARGETS DomesdayDuplicator
+        BUNDLE DESTINATION .
+        RUNTIME DESTINATION bin
+)
