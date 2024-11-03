@@ -66,7 +66,7 @@ bool UsbDeviceLibUsb::DevicePresent(const std::string& preferredDevicePath) cons
     std::vector<std::string> presentDevicePaths;
     if (!GetPresentDevicePaths(presentDevicePaths))
     {
-        Log().Trace("devicePresent(): Failed to locate USB device");
+        Log().Trace("DevicePresent(): Failed to locate USB device");
         return false;
     }
 
@@ -75,7 +75,7 @@ bool UsbDeviceLibUsb::DevicePresent(const std::string& preferredDevicePath) cons
     libusb_device_handle* usbDeviceHandle = nullptr;
     if (!ConnectToDevice(preferredDevicePath, usbDevice, usbDeviceHandle))
     {
-        Log().Warning("devicePresent(): Failed to connect to device");
+        Log().Warning("DevicePresent(): Failed to connect to device");
         return false;
     }
     DisconnectFromDevice(usbDevice, usbDeviceHandle);
@@ -137,7 +137,7 @@ bool UsbDeviceLibUsb::ConnectToDevice(const std::string& preferredDevicePath)
     // If we're already connected to the device, abort any further processing.
     if (connectedToDevice)
     {
-        Log().Warning("connectToDevice(): Already connected to device.");
+        Log().Warning("ConnectToDevice(): Already connected to device.");
         return true;
     }
     captureUsbDevice = nullptr;
@@ -146,7 +146,7 @@ bool UsbDeviceLibUsb::ConnectToDevice(const std::string& preferredDevicePath)
     // Attempt to connect to the device
     if (!ConnectToDevice(preferredDevicePath, captureUsbDevice, captureUsbDeviceHandle))
     {
-        Log().Error("connectToDevice(): Failed to connect to device");
+        Log().Error("ConnectToDevice(): Failed to connect to device");
         captureUsbDeviceHandle = nullptr;
         return false;
     }
@@ -217,7 +217,7 @@ bool UsbDeviceLibUsb::ConnectToDevice(const std::string& preferredDevicePath)
     libusb_free_config_descriptor(configDescriptor);
     if (!foundBulkInPipeInfo)
     {
-        Log().Error("connectToDevice(): Failed to locate bulk in endpoint for device");
+        Log().Error("ConnectToDevice(): Failed to locate bulk in endpoint for device");
         return false;
     }
     
@@ -310,7 +310,7 @@ void UsbDeviceLibUsb::DisconnectFromDevice()
     // If we're not currently connected to the device, abort any further processing.
     if (!connectedToDevice)
     {
-        Log().Error("disconnectFromDevice() called when no device was connected");
+        Log().Error("DisconnectFromDevice() called when no device was connected");
         return;
     }
 
@@ -432,7 +432,7 @@ bool UsbDeviceLibUsb::SendVendorSpecificCommand(const std::string& preferredDevi
     libusb_device_handle* usbDeviceHandle = nullptr;
     if (!ConnectToDevice(preferredDevicePath, usbDevice, usbDeviceHandle))
     {
-        Log().Error("sendVendorSpecificCommand failed as the device connection attempt failed");
+        Log().Error("SendVendorSpecificCommand failed as the device connection attempt failed");
         return false;
     }
     std::shared_ptr<void> scopedDeviceDisconnectHandler(nullptr, [&](void*) { DisconnectFromDevice(usbDevice, usbDeviceHandle); });
@@ -484,7 +484,7 @@ void UsbDeviceLibUsb::CalculateDesiredBufferCountAndSize(bool useSmallUsbTransfe
 //----------------------------------------------------------------------------------------------------------------------
 void UsbDeviceLibUsb::UsbTransferThread()
 {
-    Log().Info("usbTransferThread(): Starting");
+    Log().Info("UsbTransferThread(): Starting");
 
     // Determine how we're going to split our transfers across our disk buffers
     size_t diskBufferCount = GetDiskBufferCount();
@@ -608,7 +608,7 @@ void UsbDeviceLibUsb::UsbTransferThread()
     // Submit the transfers via libUSB
     if (!transferFailure)
     {
-        Log().Info("usbTransferThread(): Submitting {0} transfers", simultaneousTransfers);
+        Log().Info("UsbTransferThread(): Submitting {0} transfers", simultaneousTransfers);
         for (size_t transferNumber = 0; transferNumber < simultaneousTransfers; ++transferNumber)
         {
             TransferBufferEntry& transferBufferEntry = transferBuffers[transferNumber];
@@ -644,7 +644,7 @@ void UsbDeviceLibUsb::UsbTransferThread()
     {
         libusb_handle_events_timeout_completed(libUsbContext, &libUsbTimeout, NULL);
     }
-    Log().Info("usbTransferThread(): Capture complete. Wrapping up.");
+    Log().Info("UsbTransferThread(): Capture complete. Wrapping up.");
 
     // Abort any remaining transfers in progress. This will usually be the case if an error occurred during USB
     // transfer, or the transfer is being forcefully aborted.
@@ -654,7 +654,7 @@ void UsbDeviceLibUsb::UsbTransferThread()
         // program logic somewhere. Log an error.
         if (!transferFailure)
         {
-            Log().Error("usbTransferThread(): Transfers were still in progress after a non-failed capture!");
+            Log().Error("UsbTransferThread(): Transfers were still in progress after a non-failed capture!");
         }
 
         // Cancel each transfer marked as still in progress
@@ -681,7 +681,7 @@ void UsbDeviceLibUsb::UsbTransferThread()
             libusb_handle_events_timeout_completed(libUsbContext, &libUsbTimeout, NULL);
         }
     }
-    Log().Info("usbTransferThread(): Transfers complete. Freeing transfer structures.");
+    Log().Info("UsbTransferThread(): Transfers complete. Freeing transfer structures.");
 
     // Free all the transfer structures now that they're completed or cancelled
     for (size_t transferNumber = 0; transferNumber < simultaneousTransfers; transferNumber++)
@@ -694,14 +694,13 @@ void UsbDeviceLibUsb::UsbTransferThread()
     // is about to exit, but we'll do it anyway.
     RestoreCurrentThreadPriority(threadPriorityRestoreInfo);
 
-    Log().Info("usbTransferThread(): Completed");
-
     // If we've been requested to stop the capture process, and an error hasn't been flagged, mark the process as
     // successful.
     if (!transferFailure)
     {
         SetUsbTransferFinished(TransferResult::Success);
     }
+    Log().Info("UsbTransferThread(): Completed");
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -750,7 +749,7 @@ void UsbDeviceLibUsb::BulkTransferCallback(libusb_transfer* transfer, TransferBu
             statusAsString = "LIBUSB_TRANSFER_OVERFLOW";
             break;
         }
-        Log().Error("bulkTransferCallback(): Transfer completed with error {0} for buffer index {1}:{2}", statusAsString, transferUserData->diskBufferIndex, transferUserData->diskBufferTransferIndex);
+        Log().Error("BulkTransferCallback(): Transfer completed with error {0} for buffer index {1}:{2}", statusAsString, transferUserData->diskBufferIndex, transferUserData->diskBufferTransferIndex);
 
         // Set the transfer failure flag
         SetUsbTransferFinished(TransferResult::UsbTransferFailure);
@@ -764,7 +763,7 @@ void UsbDeviceLibUsb::BulkTransferCallback(libusb_transfer* transfer, TransferBu
     if (transfer->actual_length != transfer->length)
     {
         // Report the details in the debug log
-        Log().Error("bulkTransferCallback(): Expected {0} bytes from USB transfer but got {1} bytes from buffer index {2}:{3}.", transfer->length, transfer->actual_length, transferUserData->diskBufferIndex, transferUserData->diskBufferTransferIndex);
+        Log().Error("BulkTransferCallback(): Expected {0} bytes from USB transfer but got {1} bytes from buffer index {2}:{3}.", transfer->length, transfer->actual_length, transferUserData->diskBufferIndex, transferUserData->diskBufferTransferIndex);
 
         // Set the transfer failure flag
         SetUsbTransferFinished(TransferResult::UsbTransferFailure);
@@ -795,7 +794,7 @@ void UsbDeviceLibUsb::BulkTransferCallback(libusb_transfer* transfer, TransferBu
         // was not the case.
         if (bufferEntry.isDiskBufferFull.test_and_set())
         {
-            Log().Error("bulkTransferCallback(): Disk buffer overflow at index {0}, transfer {1}", transferUserData->diskBufferIndex, transferUserData->diskBufferTransferIndex);
+            Log().Error("BulkTransferCallback(): Disk buffer overflow at index {0}, transfer {1}", transferUserData->diskBufferIndex, transferUserData->diskBufferTransferIndex);
             SetUsbTransferFinished(TransferResult::ProgramError);
             transferFailure = true;
             return;
@@ -803,7 +802,7 @@ void UsbDeviceLibUsb::BulkTransferCallback(libusb_transfer* transfer, TransferBu
 
         // Notify any threads waiting on this buffer that there is now data for processing
         bufferEntry.isDiskBufferFull.notify_all();
-        Log().Trace("bulkTransferCallback(): Submitted disk buffer {0} for processing", transferUserData->diskBufferIndex);
+        Log().Trace("BulkTransferCallback(): Submitted disk buffer {0} for processing", transferUserData->diskBufferIndex);
 
         // If transfer has been requested to stop, mark the capture as complete now that we've reached a disk buffer
         // boundary.
