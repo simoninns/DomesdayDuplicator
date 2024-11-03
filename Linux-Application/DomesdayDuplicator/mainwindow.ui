@@ -72,19 +72,6 @@
          </item>
          <item>
           <layout class="QGridLayout" name="captureControlGridLayout">
-           <item row="0" column="0">
-            <widget class="QCheckBox" name="limitDurationCheckBox">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>Limit duration</string>
-             </property>
-            </widget>
-           </item>
            <item row="0" column="1">
             <widget class="QTimeEdit" name="durationLimitTimeEdit">
              <property name="enabled">
@@ -101,10 +88,16 @@
              </property>
             </widget>
            </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="spaceAvailablePreLabel">
+           <item row="0" column="0">
+            <widget class="QCheckBox" name="limitDurationCheckBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
              <property name="text">
-              <string>Space available:</string>
+              <string>Limit duration</string>
              </property>
             </widget>
            </item>
@@ -121,6 +114,20 @@
              </property>
             </widget>
            </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="spaceAvailablePreLabel">
+             <property name="text">
+              <string>Space available:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QCheckBox" name="stopPlayerWhenCaptureStops">
+             <property name="text">
+              <string>Stop player when capture stops</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
         </layout>
@@ -134,7 +141,7 @@
           <pixmap resource="resources.qrc">:/graphics/logo/Graphics/Domesday Duplicator logo colour 150px.png</pixmap>
          </property>
          <property name="alignment">
-          <set>Qt::AlignCenter</set>
+          <set>Qt::AlignmentFlag::AlignCenter</set>
          </property>
          <property name="margin">
           <number>0</number>
@@ -182,7 +189,7 @@
             <string>Duration:</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -211,7 +218,7 @@
             <string>Transfers:</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -240,7 +247,7 @@
             <string>Captured:</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -269,7 +276,7 @@
             <string>Amplitude:</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -342,7 +349,7 @@
             <string>Port:</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -371,7 +378,7 @@
             <string>Model:</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -400,7 +407,7 @@
             <string>Status:</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -429,7 +436,7 @@
             <string>Position:</string>
            </property>
            <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
            </property>
           </widget>
          </item>
@@ -459,7 +466,7 @@
      <x>0</x>
      <y>0</y>
      <width>480</width>
-     <height>19</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

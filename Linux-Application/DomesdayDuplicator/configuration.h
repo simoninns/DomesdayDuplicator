@@ -24,10 +24,7 @@
     Email: simon.inns@gmail.com
 
 ************************************************************************/
-
-#ifndef CONFIGURATION_H
-#define CONFIGURATION_H
-
+#pragma once
 #include <QObject>
 #include <QCoreApplication>
 #include <QSettings>
@@ -35,6 +32,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QDebug>
+#include <memory>
 
 class Configuration : public QObject
 {
@@ -65,45 +63,57 @@ public:
     void setDefault();
 
     void setCaptureDirectory(QString captureDirectory);
-    QString getCaptureDirectory();
+    QString getCaptureDirectory() const;
     void setCaptureFormat(CaptureFormat captureFormat);
-    CaptureFormat getCaptureFormat();
+    CaptureFormat getCaptureFormat() const;
     void setUsbVid(quint16 vid);
-    quint16 getUsbVid();
+    quint16 getUsbVid() const;
     void setUsbPid(quint16 pid);
-    quint16 getUsbPid();
+    quint16 getUsbPid() const;
+    void setUsbPreferredDevice(QString preferredDevice);
+    QString getUsbPreferredDevice() const;
+    void setDiskBufferQueueSize(size_t state);
+    size_t getDiskBufferQueueSize() const;
+    void setUseSmallUsbTransferQueue(bool state);
+    bool getUseSmallUsbTransferQueue() const;
+    void setUseSmallUsbTransfers(bool state);
+    bool getUseSmallUsbTransfers() const;
+    void setUseWinUsb(bool state);
+    bool getUseWinUsb() const;
+    void setUseAsyncFileIo(bool state);
+    bool getUseAsyncFileIo() const;
     void setSerialSpeed(SerialSpeeds serialSpeed);
-    SerialSpeeds getSerialSpeed();
+    SerialSpeeds getSerialSpeed() const;
     void setSerialDevice(QString serialDevice);
-    QString getSerialDevice();
+    QString getSerialDevice() const;
     void setKeyLock(bool keyLock);
-    bool getKeyLock();
-    bool getPerSideNotesEnabled();
+    bool getKeyLock() const;
     void setPerSideNotesEnabled(bool enabled);
-    bool getPerSideMintEnabled();
+    bool getPerSideNotesEnabled() const;
     void setPerSideMintEnabled(bool enabled);
-    bool getAmplitudeLabelEnabled();
+    bool getPerSideMintEnabled() const;
     void setAmplitudeLabelEnabled(bool enabled);
-    bool getAmplitudeChartEnabled();
+    bool getAmplitudeLabelEnabled() const;
     void setAmplitudeChartEnabled(bool enabled);
+    bool getAmplitudeChartEnabled() const;
 
     void setMainWindowGeometry(QByteArray mainWindowGeometry);
-    QByteArray getMainWindowGeometry();
+    QByteArray getMainWindowGeometry() const;
     void setPlayerRemoteDialogGeometry(QByteArray playerRemoteDialogGeometry);
-    QByteArray getPlayerRemoteDialogGeometry();
+    QByteArray getPlayerRemoteDialogGeometry() const;
     void setAdvancedNamingDialogGeometry(QByteArray advancedNamingDialogGeometry);
-    QByteArray getAdvancedNamingDialogGeometry();
+    QByteArray getAdvancedNamingDialogGeometry() const;
     void setAutomaticCaptureDialogGeometry(QByteArray automaticCaptureDialogGeometry);
-    QByteArray getAutomaticCaptureDialogGeometry();
+    QByteArray getAutomaticCaptureDialogGeometry() const;
     void setConfigurationDialogGeometry(QByteArray configurationDialogGeometry);
-    QByteArray getConfigurationDialogGeometry();
+    QByteArray getConfigurationDialogGeometry() const;
 
 signals:
 
 public slots:
 
 private:
-    QSettings *configuration;
+    std::unique_ptr<QSettings> configuration;
 
     // Note: Configuration is organised by the following top-level labels
     // Capture, USB, PIC (player integrated capture), UI
@@ -115,6 +125,12 @@ private:
     struct Usb {
         quint16 vid;    // Vendor ID of USB device
         quint16 pid;    // Product ID of USB device
+        QString preferredDevice;
+        size_t diskBufferQueueSize;
+        bool useSmallUsbTransferQueue;
+        bool useSmallUsbTransfers;
+        bool useWinUsb;
+        bool useAsyncFileIo;
     };
 
     struct Pic {
@@ -153,5 +169,3 @@ private:
     qint32 convertSerialSpeedsToInt(SerialSpeeds serialSpeeds);
     SerialSpeeds convertIntToSerialSpeeds(qint32 serialInt);
 };
-
-#endif // CONFIGURATION_H

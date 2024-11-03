@@ -24,26 +24,27 @@
     Email: simon.inns@gmail.com
 
 ************************************************************************/
-
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
-
+#pragma once
 #include <QMainWindow>
 #include <QLabel>
 #include <QDate>
 #include <QTimer>
 #include <QMessageBox>
-
 #include "aboutdialog.h"
 #include "configurationdialog.h"
 #include "configuration.h"
-#include "usbdevice.h"
+#include "UsbDeviceBase.h"
 #include "playercommunication.h"
 #include "playercontrol.h"
 #include "playerremotedialog.h"
 #include "automaticcapturedialog.h"
 #include "advancednamingdialog.h"
 #include "amplitudemeasurement.h"
+#include "ILogger.h"
+#include <chrono>
+#include <filesystem>
+#include <optional>
+#include <memory>
 
 namespace Ui {
 class MainWindow;
@@ -54,15 +55,14 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(const ILogger& log, QWidget *parent = nullptr);
     ~MainWindow();
 
 private slots:
-    void deviceAttachedSignalHandler();
-    void deviceDetachedSignalHandler();
     void configurationChangedSignalHandler();
     void remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteButtons button);
     void remoteControlSearchSignalHandler(qint32 position, PlayerRemoteDialog::PositionMode positionMode);
+    void remoteControlManualSerialCommandHandler(QString commandString);
     void startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog::CaptureType captureType,
                                                               qint32 startAddress, qint32 endAddress,
                                                               AutomaticCaptureDialog::DiscType discTypeParam);
@@ -76,11 +76,11 @@ private slots:
     void startCaptureSignalHandler();
     void stopCaptureSignalHandler();
 
-    void updateCaptureStatistics();
+    void updateCaptureStatus();
+    void updateDeviceStatus();
     void updatePlayerControlInformation();
-    void transferFailedSignalHandler();
-    void updateCaptureDuration();
     void updateStorageInformation();
+    void updateAmplitudeDataBuffer();
     void updateAmplitudeLabel();
 
     void on_actionExit_triggered();
@@ -94,30 +94,76 @@ private slots:
     void on_actionAdvanced_naming_triggered();
 
 private:
-    Configuration *configuration;
-    UsbDevice *usbDevice;
-    QLabel *usbStatusLabel;
-    QStorageInfo *storageInfo;
+    struct AmplitudeRecord
+    {
+        std::chrono::time_point<std::chrono::steady_clock> sampleTime;
+        double amplitude;
+    };
+    struct TimeCodeRecord
+    {
+        std::chrono::time_point<std::chrono::steady_clock> sampleTime;
+        qint32 timeCodeOrFrameNumber;
+    };
+    struct PlayerStatusRecord
+    {
+        std::chrono::time_point<std::chrono::steady_clock> sampleTime;
+        PlayerCommunication::PlayerState playerState;
+    };
 
-    Ui::MainWindow *ui;
-    AboutDialog *aboutDialog;
-    AutomaticCaptureDialog *automaticCaptureDialog;
-    ConfigurationDialog *configurationDialog;
-    PlayerRemoteDialog *playerRemoteDialog;
-    PlayerControl *playerControl;
-    AdvancedNamingDialog *advancedNamingDialog;
-    AmplitudeMeasurement *amplitudeMeasurement;
+private:
+    void StopCapture();
+    void StartCapture();
 
-    bool isCaptureRunning;
-    QTimer *captureStatusUpdateTimer;
-    QTimer *playerControlTimer;
-    QTimer *automaticCaptureTimer;
-    QTimer *captureDurationTimer;
-    QTime captureElapsedTime;
-    QTimer *storageInfoTimer;
-    QTimer *amplitudeTimer;
+private:
+    const ILogger& log;
+    std::unique_ptr<Configuration> configuration;
+    std::unique_ptr<UsbDeviceBase> usbDevice;
+    std::unique_ptr<QLabel> usbStatusLabel;
+    std::unique_ptr<QStorageInfo> storageInfo;
 
-    bool isPlayerConnected;
+    std::unique_ptr<Ui::MainWindow> ui;
+    std::unique_ptr<AboutDialog> aboutDialog;
+    std::unique_ptr<AutomaticCaptureDialog> automaticCaptureDialog;
+    std::unique_ptr<ConfigurationDialog> configurationDialog;
+    std::unique_ptr<PlayerRemoteDialog> playerRemoteDialog;
+    std::unique_ptr<PlayerControl> playerControl;
+    std::unique_ptr<AdvancedNamingDialog> advancedNamingDialog;
+    std::unique_ptr<AmplitudeMeasurement> amplitudeMeasurement;
+
+    std::atomic<bool> isCaptureRunning = false;
+    bool isCaptureStopping = false;
+    bool playerStopRequested = false;
+    std::filesystem::path captureFilePath;
+    std::unique_ptr<QTimer> captureStatusUpdateTimer;
+    std::unique_ptr<QTimer> playerControlTimer;
+    std::unique_ptr<QTimer> deviceStatusTimer;
+    std::unique_ptr<QTimer> automaticCaptureTimer;
+    std::unique_ptr<QTimer> storageInfoTimer;
+    std::unique_ptr<QTimer> amplitudeTimer;
+    std::chrono::time_point<std::chrono::steady_clock> captureStartTime;
+    std::chrono::time_point<std::chrono::steady_clock> captureEndTime;
+    std::vector<AmplitudeRecord> amplitudeRecord;
+    std::vector<TimeCodeRecord> playerTimeCodeRecord;
+    std::vector<PlayerStatusRecord> playerStatusRecord;
+
+    bool isPlayerConnected = false;
+    bool usbDevicePresentLastCheck = false;
+    bool isPlayerConnectedLastCheck = false;
+    std::atomic<PlayerCommunication::DiscType> playerDiscTypeCached = PlayerCommunication::DiscType::unknownDiscType;
+    std::atomic<qint32> minPlayerTimeCode = -1;
+    std::atomic<qint32> maxPlayerTimeCode = -1;
+    std::atomic<qint32> minPlayerFrameNumber = -1;
+    std::atomic<qint32> maxPlayerFrameNumber = -1;
+
+    // Saved disk naming/notes metadata
+    std::optional<QString> namingDiskTitle;
+    std::optional<bool> namingDiskIsCav;
+    std::optional<bool> namingDiskIsNtsc;
+    std::optional<int> namingDiskSide;
+    std::optional<AdvancedNamingDialog::AudioType> namingDiskAudioType;
+    std::optional<QString> namingDiskMintMarks;
+    std::optional<QString> namingDiskNotes;
+    std::optional<QString> namingDiskMetadataNotes;
 
     // Remote control states
     PlayerCommunication::DisplayState remoteDisplayState;
@@ -125,8 +171,6 @@ private:
     qint32 remoteSpeed;
     PlayerCommunication::ChapterFrameMode remoteChapterFrameMode;
 
-    void updateGuiForCaptureStart();
-    void updateGuiForCaptureStop();
     void startPlayerControl();
     void updatePlayerRemoteDialog();
     void updateAmplitudeUI();
@@ -135,5 +179,3 @@ signals:
     void plotAmplitude();
     void bufferAmplitude();
 };
-
-#endif // MAINWINDOW_H

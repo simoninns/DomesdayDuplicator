@@ -29,7 +29,6 @@
 
 #include <QList>
 #include <algorithm>
-#include "usbcapture.h"
 
 static constexpr qint32 GRAPH_POINTS = 1028;
 static constexpr double MAX_SAMPLE = 32767.0;
@@ -58,21 +57,18 @@ AmplitudeMeasurement::AmplitudeMeasurement(QWidget *parent)
 }
 
 // Get a buffer from UsbCapture, and update the statistics
-void AmplitudeMeasurement::updateBuffer()
+void AmplitudeMeasurement::updateBuffer(const std::vector<uint8_t>& bufferSample)
 {
-    // Get a recent disk buffer from UsbCapture
-    const unsigned char *rawData;
-    qint32 rawBytes;
-    UsbCapture::getAmplitudeBuffer(&rawData, &rawBytes);
-
     // Convert to 16-bit samples in diskBuffer
-    inputSamples.resize(rawBytes / 2);
-    for (qint32 inPos = 0, outPos = 0; inPos < rawBytes; inPos += 2, outPos++) {
+    size_t bufferSampleSizeInBytes = bufferSample.size();
+    inputSamples.resize(bufferSampleSizeInBytes / 2);
+    for (size_t inPos = 0, outPos = 0; inPos < bufferSampleSizeInBytes; inPos += 2, outPos++) {
         // Get the original 10-bit unsigned value
-        quint32 originalValue = rawData[inPos] + (rawData[inPos + 1] * 256);
+        uint16_t originalValue = (uint16_t)bufferSample[inPos] | ((uint16_t)bufferSample[inPos + 1] << 8);
 
         // Sign and scale the data to 16-bits
-        inputSamples[outPos] = static_cast<qint16>(originalValue - 512) * 64;
+        uint16_t signedValue = (uint16_t)((int16_t)originalValue - 0x0200) << 6;
+        inputSamples[outPos] = (qint16)signedValue;
     }
 }
 
@@ -80,8 +76,8 @@ void AmplitudeMeasurement::updateBuffer()
 void AmplitudeMeasurement::plotGraph()
 {
     // Add every 100th point to graphYValues and shift along
-    qint32 numSamples = inputSamples.size();
-    for (int i = 0; i < numSamples; i += 100) {
+    size_t numSamples = inputSamples.size();
+    for (size_t i = 0; i < numSamples; i += 100) {
         graphYValues.append(inputSamples[i] / MAX_SAMPLE);
     }
     if (graphYValues.size() > GRAPH_POINTS) {
@@ -99,7 +95,7 @@ void AmplitudeMeasurement::plotGraph()
 // Calculate mean amplitude
 double AmplitudeMeasurement::getMeanAmplitude()
 {
-    qint32 numSamples = inputSamples.size();
+    size_t numSamples = inputSamples.size();
     double posSum = 0.0;
     for (qint16 sample: inputSamples) {
         posSum += static_cast<double>(sample) * static_cast<double>(sample);
