@@ -35,6 +35,8 @@
 #include <QTimerEvent>
 #include <QElapsedTimer>
 #include <string>
+#include <atomic>
+#include <memory>
 
 class PlayerCommunication : public QObject
 {
@@ -132,6 +134,7 @@ public:
     QString getUserCode();
     qint32 getMaximumFrameNumber();
     qint32 getMaximumTimeCode();
+    QString getManualCommandResponse();
 
     bool setTrayState(TrayState trayState);
     bool setPlayerState(PlayerState playerState);
@@ -151,6 +154,8 @@ public:
     bool setKeyLock(KeyLockState keyLockState);
     bool setSpeed(qint32 speed);
 
+    bool sendManualCommand(QString command);
+
 signals:
 
 private:
@@ -158,11 +163,12 @@ private:
     QString playerCodeToName(const QString& playerCode) const;
 
 private:
-    QSerialPort *serialPort;
+    std::unique_ptr<QSerialPort> serialPort;
     SerialSpeed currentSerialSpeed;
     PlayerType currentPlayerType;
     QString currentPlayerName;
     QString currentPlayerVersionNumber;
+    QString manualCommandResponse;
 
     void sendSerialCommand(QString command);
     QString getSerialResponse(qint32 timeoutInMilliseconds);

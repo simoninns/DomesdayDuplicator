@@ -24,12 +24,10 @@
     Email: simon.inns@gmail.com
 
 ************************************************************************/
-
-#ifndef PLAYERREMOTEDIALOG_H
-#define PLAYERREMOTEDIALOG_H
-
+#pragma once
 #include <QDialog>
 #include <QDebug>
+#include <memory>
 
 namespace Ui {
 class PlayerRemoteDialog;
@@ -101,9 +99,12 @@ public:
     void setMultiSpeed(MultiSpeed multiSpeedParam);
     void setDisplayMode(DisplayMode displayModeParam);
 
+    void setPlayerResponseToManualCommand(QString response);
+
 signals:
     void remoteControlCommand(RemoteButtons button);
     void remoteControlSearch(qint32 position, PlayerRemoteDialog::PositionMode positionMode);
+    void remoteControlManualSerialCommand(QString commandString);
 
 private slots:
     void on_rejectPushButton_clicked();
@@ -133,9 +134,10 @@ private slots:
     void on_zeroPushButton_clicked();
     void on_searchPushButton_clicked();
     void on_chapFramePushButton_clicked();
+    void on_sendManualCommand_clicked();
 
 private:
-    Ui::PlayerRemoteDialog *ui;
+    std::unique_ptr<Ui::PlayerRemoteDialog> ui;
 
     PositionMode positionMode;
     MultiSpeed multiSpeed;
@@ -147,5 +149,3 @@ private:
     void updateGui();
     void positionAddValue(qint32 value);
 };
-
-#endif // PLAYERREMOTEDIALOG_H

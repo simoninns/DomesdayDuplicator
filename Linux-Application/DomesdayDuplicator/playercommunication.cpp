@@ -153,7 +153,7 @@ bool PlayerCommunication::connect(QString serialDevice, SerialSpeed serialSpeed)
     bool connectionSuccessful = false;
 
     // Create the serial port object
-    serialPort = new QSerialPort();
+    serialPort.reset(new QSerialPort());
 
     // Configure the serial port object
     serialPort->setPortName(serialDevice);
@@ -419,6 +419,11 @@ qint32 PlayerCommunication::getMaximumTimeCode()
 
     // Return the current time code
     return getCurrentTimeCode();
+}
+
+QString PlayerCommunication::getManualCommandResponse()
+{
+    return manualCommandResponse;
 }
 
 bool PlayerCommunication::setTrayState(TrayState trayState)
@@ -694,7 +699,7 @@ bool PlayerCommunication::setAudio(AudioState audioState)
 
     command = QString("%1AD\r").arg(parameter);
     sendSerialCommand(command);
-    getSerialResponse(N_TIMEOUT);
+    response = getSerialResponse(N_TIMEOUT);
 
     // Check for error in response
     if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
@@ -713,11 +718,11 @@ bool PlayerCommunication::setKeyLock(KeyLockState keyLockState)
     switch(keyLockState) {
         case KeyLockState::locked:
             sendSerialCommand("1KL\r");
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
         case KeyLockState::unlocked:
             sendSerialCommand("0KL\r");
-            getSerialResponse(N_TIMEOUT);
+            response = getSerialResponse(N_TIMEOUT);
             break;
     }
 
@@ -739,7 +744,7 @@ bool PlayerCommunication::setSpeed(qint32 speed)
     command = QString("%1SP\r").arg(speed);
     //qDebug() << "PlayerCommunication::setSpeed(): Sending command:" << command;
     sendSerialCommand(command);
-    getSerialResponse(N_TIMEOUT);
+    response = getSerialResponse(N_TIMEOUT);
 
     // Check for error in response
     if (response.isEmpty() || response.contains("E", Qt::CaseSensitive)) {
@@ -751,11 +756,20 @@ bool PlayerCommunication::setSpeed(qint32 speed)
     return true;
 }
 
+bool PlayerCommunication::sendManualCommand(QString command)
+{
+    sendSerialCommand(command);
+    manualCommandResponse = getSerialResponse(L_TIMEOUT);
+    return true;
+}
+
 // Serial read/write methods ------------------------------------------------------------------------------------------
 
 // Send a command via the serial connection
 void PlayerCommunication::sendSerialCommand(QString command)
 {
+    //qDebug() << "PlayerCommunication::sendSerialCommand(): " << command;
+
     //qDebug() << "PlayerCommunication::sendSerialCommand(): Sending command:" << command;
     // Maximum command string length is 20 characters
     serialPort->write(command.toUtf8().left(20));
@@ -791,6 +805,8 @@ QString PlayerCommunication::getSerialResponse(qint32 timeoutInMilliseconds)
 
     // If the response timed out, clear the response buffer
     if (responseTimedOut) response.clear();
+
+    //qDebug() << "PlayerCommunication::getSerialResponse(): " << response;
 
     return response;
 }

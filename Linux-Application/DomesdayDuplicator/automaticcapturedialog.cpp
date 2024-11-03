@@ -29,9 +29,9 @@
 #include "ui_automaticcapturedialog.h"
 
 AutomaticCaptureDialog::AutomaticCaptureDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::AutomaticCaptureDialog)
+    QDialog(parent)
 {
+    ui.reset(new Ui::AutomaticCaptureDialog());
     ui->setupUi(this);
 
     // Set up the UI
@@ -69,7 +69,6 @@ AutomaticCaptureDialog::AutomaticCaptureDialog(QWidget *parent) :
 
 AutomaticCaptureDialog::~AutomaticCaptureDialog()
 {
-    delete ui;
 }
 
 // Enable and disable the dialogue

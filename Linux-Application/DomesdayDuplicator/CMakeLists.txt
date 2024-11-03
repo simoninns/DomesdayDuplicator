@@ -11,8 +11,10 @@ set(DomesdayDuplicator_SOURCES
     playercontrol.cpp
     playerremotedialog.cpp playerremotedialog.ui
     qcustomplot.cpp
-    usbcapture.cpp
-    usbdevice.cpp
+    QtLogger.cpp
+    UsbDeviceBase.cpp
+    UsbDeviceLibUsb.cpp
+    UsbDeviceWinUsb.cpp
 )
 
 qt_add_resources(DomesdayDuplicator_SOURCES resources.qrc)
@@ -44,8 +46,9 @@ if(WIN32)
     )
 
     target_link_libraries(DomesdayDuplicator PRIVATE
-        # TODO: Does this depend on compiler?
         AdvAPI32
+        onecoreuap
+        winusb
     )
 endif()
 

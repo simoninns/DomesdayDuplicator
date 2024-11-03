@@ -24,16 +24,15 @@
     Email: simon.inns@gmail.com
 
 ************************************************************************/
-
-#ifndef CONFIGURATIONDIALOG_H
-#define CONFIGURATIONDIALOG_H
-
+#pragma once
 #include <QDialog>
 #include <QFileDialog>
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
 #include <QAbstractButton>
-
+#include <vector>
+#include <string>
+#include <memory>
 #include "configuration.h"
 
 namespace Ui {
@@ -48,8 +47,9 @@ public:
     explicit ConfigurationDialog(QWidget *parent = nullptr);
     ~ConfigurationDialog();
 
-    void loadConfiguration(Configuration *configuration);
-    void saveConfiguration(Configuration *configuration);
+    void updateDeviceList(const std::vector<std::string>& deviceList);
+    void loadConfiguration(const Configuration& configuration);
+    void saveConfiguration(Configuration& configuration);
 
 signals:
     void configurationChanged();
@@ -62,7 +62,5 @@ private slots:
     void on_buttonBox_clicked(QAbstractButton *button);
 
 private:
-    Ui::ConfigurationDialog *ui;
+    std::unique_ptr<Ui::ConfigurationDialog> ui;
 };
-
-#endif // CONFIGURATIONDIALOG_H

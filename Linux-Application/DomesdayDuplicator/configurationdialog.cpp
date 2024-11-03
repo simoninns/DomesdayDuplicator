@@ -29,42 +29,75 @@
 #include "ui_configurationdialog.h"
 
 ConfigurationDialog::ConfigurationDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::ConfigurationDialog)
+    QDialog(parent)
 {
+    ui.reset(new Ui::ConfigurationDialog());
     ui->setupUi(this);
+
+    // Build the captureFormatComboBox
+    ui->captureFormatComboBox->clear();
+    ui->captureFormatComboBox->addItem("16-bit Signed Scaled", Configuration::CaptureFormat::sixteenBitSigned);
+    ui->captureFormatComboBox->addItem("10-bit Packed Unsigned", Configuration::CaptureFormat::tenBitPacked);
+    ui->captureFormatComboBox->addItem("10-bit Packed Unsigned (4:1 decimation for CD)", Configuration::CaptureFormat::tenBitCdPacked);
+
+    // Build the diskBufferQueueSizeComboBox
+    ui->diskBufferQueueSizeComboBox->clear();
+    ui->diskBufferQueueSizeComboBox->addItem("64MB", 64 * 1024 * 1024);
+    ui->diskBufferQueueSizeComboBox->addItem("128MB", 128 * 1024 * 1024);
+    ui->diskBufferQueueSizeComboBox->addItem("256MB", 256 * 1024 * 1024);
+    ui->diskBufferQueueSizeComboBox->addItem("512MB", 512 * 1024 * 1024);
+
+    // Build the serialSpeedComboBox
+    ui->serialSpeedComboBox->clear();
+    ui->serialSpeedComboBox->addItem("Auto", Configuration::SerialSpeeds::autoDetect);
+    ui->serialSpeedComboBox->addItem("9600", Configuration::SerialSpeeds::bps9600);
+    ui->serialSpeedComboBox->addItem("4800", Configuration::SerialSpeeds::bps4800);
+    ui->serialSpeedComboBox->addItem("2400", Configuration::SerialSpeeds::bps2400);
+    ui->serialSpeedComboBox->addItem("1200", Configuration::SerialSpeeds::bps1200);
+
+    // If we're running on Linux, disable Windows-specific options.
+#ifndef _WIN32
+    ui->useWinUsb->setChecked(false);
+    ui->useWinUsb->setEnabled(false);
+    ui->useAsyncFileIo->setChecked(false);
+    ui->useAsyncFileIo->setEnabled(false);
+#endif
 }
 
 ConfigurationDialog::~ConfigurationDialog()
 {
-    delete ui;
+}
+
+void ConfigurationDialog::updateDeviceList(const std::vector<std::string>& deviceList)
+{
+    // Build the captureFormatComboBox
+    ui->preferredDeviceComboBox->clear();
+    for (const auto& devicePath : deviceList)
+    {
+        ui->preferredDeviceComboBox->addItem(devicePath.c_str(), devicePath.c_str());
+    }
 }
 
 // Load the configuration settings into the UI widgets
-void ConfigurationDialog::loadConfiguration(Configuration *configuration)
+void ConfigurationDialog::loadConfiguration(const Configuration& configuration)
 {
     // Read the configuration and set up the widgets
 
     // Capture
-    ui->captureDirectoryLineEdit->setText(configuration->getCaptureDirectory());
-
-    if(configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
-        ui->saveAsTenBitRadioButton->setChecked(true);
-        ui->saveAsSixteenBitRadioButton->setChecked(false);
-        ui->saveAs10BitCdRadioButton->setChecked(false);
-    } else if(configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) {
-        ui->saveAsTenBitRadioButton->setChecked(false);
-        ui->saveAsSixteenBitRadioButton->setChecked(true);
-        ui->saveAs10BitCdRadioButton->setChecked(false);
-    } else {
-        ui->saveAsTenBitRadioButton->setChecked(false);
-        ui->saveAsSixteenBitRadioButton->setChecked(false);
-        ui->saveAs10BitCdRadioButton->setChecked(true);
-    }
+    ui->captureDirectoryLineEdit->setText(configuration.getCaptureDirectory());
+    ui->captureFormatComboBox->setCurrentIndex(ui->captureFormatComboBox->findData(static_cast<unsigned int>(configuration.getCaptureFormat())));
 
     // USB
-    ui->vendorIdLineEdit->setText(QString::number(configuration->getUsbVid()));
-    ui->productIdLineEdit->setText(QString::number(configuration->getUsbPid()));
+    ui->vendorIdLineEdit->setText(QString::number(configuration.getUsbVid()));
+    ui->productIdLineEdit->setText(QString::number(configuration.getUsbPid()));
+    ui->preferredDeviceComboBox->setCurrentText(configuration.getUsbPreferredDevice());
+    ui->diskBufferQueueSizeComboBox->setCurrentIndex(ui->diskBufferQueueSizeComboBox->findData((qulonglong)configuration.getDiskBufferQueueSize()));
+    ui->useSmallUsbTransferQueue->setChecked(configuration.getUseSmallUsbTransferQueue());
+    ui->useSmallUsbTransfers->setChecked(configuration.getUseSmallUsbTransfers());
+#ifdef _WIN32
+    ui->useWinUsb->setChecked(configuration.getUseWinUsb());
+    ui->useAsyncFileIo->setChecked(configuration.getUseAsyncFileIo());
+#endif
 
     // Player Integration
 
@@ -77,12 +110,10 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
 
     bool configuredSerialDevicePresent = false;
     for (const QSerialPortInfo &info : infos) {
-        QStringList list;
-        list << info.portName();
-        ui->serialDeviceComboBox->addItem(list.first(), list);
+        ui->serialDeviceComboBox->addItem(info.portName(), info.portName());
 
         // Is this the currently configured serial device?
-        if (info.portName() == configuration->getSerialDevice())
+        if (info.portName() == configuration.getSerialDevice())
                 configuredSerialDevicePresent = true;
     }
 
@@ -92,68 +123,63 @@ void ConfigurationDialog::loadConfiguration(Configuration *configuration)
         ui->serialDeviceComboBox->setCurrentIndex(0);
     } else {
         // Set to the configured device
-        ui->serialDeviceComboBox->setCurrentIndex(ui->serialDeviceComboBox->findData(configuration->getSerialDevice()));
+        int index = ui->serialDeviceComboBox->findData(configuration.getSerialDevice());
+        ui->serialDeviceComboBox->setCurrentIndex(index);
     }
 
-    // Build the serialSpeedComboBox
-    ui->serialSpeedComboBox->clear();
-    ui->serialSpeedComboBox->addItem("Auto", Configuration::SerialSpeeds::autoDetect);
-    ui->serialSpeedComboBox->addItem("9600", Configuration::SerialSpeeds::bps9600);
-    ui->serialSpeedComboBox->addItem("4800", Configuration::SerialSpeeds::bps4800);
-    ui->serialSpeedComboBox->addItem("2400", Configuration::SerialSpeeds::bps2400);
-    ui->serialSpeedComboBox->addItem("1200", Configuration::SerialSpeeds::bps1200);
-
     // Select the currently configured serial speed
-    ui->serialSpeedComboBox->setCurrentIndex(ui->serialSpeedComboBox->findData(static_cast<unsigned int>(configuration->getSerialSpeed())));
+    ui->serialSpeedComboBox->setCurrentIndex(ui->serialSpeedComboBox->findData(static_cast<unsigned int>(configuration.getSerialSpeed())));
 
     // Keylock flag
-    ui->keyLockCheckBox->setChecked(configuration->getKeyLock());
+    ui->keyLockCheckBox->setChecked(configuration.getKeyLock());
 
     // Advanced naming
-    ui->perSideNotesCheckBox->setChecked(configuration->getPerSideNotesEnabled());
-    ui->perSideMintCheckBox->setChecked(configuration->getPerSideMintEnabled());
+    ui->perSideNotesCheckBox->setChecked(configuration.getPerSideNotesEnabled());
+    ui->perSideMintCheckBox->setChecked(configuration.getPerSideMintEnabled());
 
     // Amplitude
-    ui->amplitudeLabelCheckBox->setChecked(configuration->getAmplitudeLabelEnabled());
-    ui->amplitudeChartCheckBox->setChecked(configuration->getAmplitudeChartEnabled());
+    ui->amplitudeLabelCheckBox->setChecked(configuration.getAmplitudeLabelEnabled());
+    ui->amplitudeChartCheckBox->setChecked(configuration.getAmplitudeChartEnabled());
 }
 
 // Save the configuration settings from the UI widgets
-void ConfigurationDialog::saveConfiguration(Configuration *configuration)
+void ConfigurationDialog::saveConfiguration(Configuration& configuration)
 {
     qDebug() << "ConfigurationDialog::saveConfiguration(): Saving configuration";
 
     // Capture
-    configuration->setCaptureDirectory(ui->captureDirectoryLineEdit->text());
-
-    if (ui->saveAsTenBitRadioButton->isChecked()) configuration->setCaptureFormat(Configuration::CaptureFormat::tenBitPacked);
-    else if (ui->saveAsSixteenBitRadioButton->isChecked()) configuration->setCaptureFormat(Configuration::CaptureFormat::sixteenBitSigned);
-    else configuration->setCaptureFormat(Configuration::CaptureFormat::tenBitCdPacked);
+    configuration.setCaptureDirectory(ui->captureDirectoryLineEdit->text());
+    configuration.setCaptureFormat(static_cast<Configuration::CaptureFormat>(ui->captureFormatComboBox->itemData(ui->captureFormatComboBox->currentIndex()).toInt()));
 
     // USB
-    configuration->setUsbVid(static_cast<quint16>(ui->vendorIdLineEdit->text().toInt()));
-    configuration->setUsbPid(static_cast<quint16>(ui->productIdLineEdit->text().toInt()));
+    configuration.setUsbVid(static_cast<quint16>(ui->vendorIdLineEdit->text().toInt()));
+    configuration.setUsbPid(static_cast<quint16>(ui->productIdLineEdit->text().toInt()));
+    configuration.setUsbPreferredDevice(ui->preferredDeviceComboBox->currentText());
+    configuration.setDiskBufferQueueSize((size_t)ui->diskBufferQueueSizeComboBox->itemData(ui->diskBufferQueueSizeComboBox->currentIndex()).toULongLong());
+    configuration.setUseSmallUsbTransferQueue(ui->useSmallUsbTransferQueue->isChecked());
+    configuration.setUseSmallUsbTransfers(ui->useSmallUsbTransfers->isChecked());
+    configuration.setUseWinUsb(ui->useWinUsb->isChecked());
+    configuration.setUseAsyncFileIo(ui->useAsyncFileIo->isChecked());
 
     // Player integration - serial device
-    configuration->setSerialDevice(ui->serialDeviceComboBox->currentText());
+    configuration.setSerialDevice(ui->serialDeviceComboBox->currentText());
 
     // Player integration - Serial speed
-    configuration->setSerialSpeed(static_cast<Configuration::SerialSpeeds>(ui->serialSpeedComboBox->itemData(ui->serialSpeedComboBox->currentIndex()).toInt()));
+    configuration.setSerialSpeed(static_cast<Configuration::SerialSpeeds>(ui->serialSpeedComboBox->itemData(ui->serialSpeedComboBox->currentIndex()).toInt()));
 
     // KeyLock
-    if (ui->keyLockCheckBox->isChecked()) configuration->setKeyLock(true);
-    else configuration->setKeyLock(false);
+    configuration.setKeyLock(ui->keyLockCheckBox->isChecked());
 
     // Advanced naming
-    configuration->setPerSideNotesEnabled(ui->perSideNotesCheckBox->isChecked());
-    configuration->setPerSideMintEnabled(ui->perSideMintCheckBox->isChecked());
+    configuration.setPerSideNotesEnabled(ui->perSideNotesCheckBox->isChecked());
+    configuration.setPerSideMintEnabled(ui->perSideMintCheckBox->isChecked());
 
     // Amplitude
-    configuration->setAmplitudeLabelEnabled(ui->amplitudeLabelCheckBox->isChecked());
-    configuration->setAmplitudeChartEnabled(ui->amplitudeChartCheckBox->isChecked());
+    configuration.setAmplitudeLabelEnabled(ui->amplitudeLabelCheckBox->isChecked());
+    configuration.setAmplitudeChartEnabled(ui->amplitudeChartCheckBox->isChecked());
 
     // Save the configuration to disk
-    configuration->writeConfiguration();
+    configuration.writeConfiguration();
 }
 
 // Browse for capture directory button clicked
@@ -192,22 +218,8 @@ void ConfigurationDialog::on_buttonBox_clicked(QAbstractButton *button)
     if (button == ui->buttonBox->button(QDialogButtonBox::RestoreDefaults)) {
         qDebug() << "ConfigurationDialog::on_buttonBox_clicked(): Restore defaults clicked";
 
-        // Set default values for dialog
-        ui->captureDirectoryLineEdit->setText(QDir::homePath());
-        ui->saveAsTenBitRadioButton->setChecked(true);
-        ui->saveAsSixteenBitRadioButton->setChecked(false);
-        ui->saveAs10BitCdRadioButton->setChecked(false);
-
-        ui->vendorIdLineEdit->setText(QString::number(7504));
-        ui->productIdLineEdit->setText(QString::number(24635));
-
-        ui->serialDeviceComboBox->setCurrentIndex(0);
-        ui->serialSpeedComboBox->setCurrentIndex(ui->serialSpeedComboBox->findData(Configuration::SerialSpeeds::autoDetect));
-
-        ui->perSideNotesCheckBox->setChecked(false);
-        ui->perSideMintCheckBox->setChecked(false);
-
-        ui->amplitudeLabelCheckBox->setChecked(false);
-        ui->amplitudeChartCheckBox->setChecked(false);
+        Configuration defaultConfig(this);
+        defaultConfig.setDefault();
+        loadConfiguration(defaultConfig);
     }
 }
