@@ -55,7 +55,7 @@ bool UsbDeviceWinUsb::DevicePresent(const std::string& preferredDevicePath) cons
     std::wstring deviceInstancePath;
     if (!FindDomesdayDeviceInstancePath(Utf8StringToWString(preferredDevicePath), deviceInstancePath))
     {
-        Log().Trace("devicePresent(): Failed to locate USB device");
+        Log().Trace("DevicePresent(): Failed to locate USB device");
         return false;
     }
 
@@ -64,7 +64,7 @@ bool UsbDeviceWinUsb::DevicePresent(const std::string& preferredDevicePath) cons
     WINUSB_INTERFACE_HANDLE winUsbInterfaceHandle;
     if (!ConnectToDevice(deviceInstancePath, deviceHandle, winUsbInterfaceHandle))
     {
-        Log().Warning("devicePresent(): Failed to connect to device with instance path {0}", deviceInstancePath);
+        Log().Warning("DevicePresent(): Failed to connect to device with instance path {0}", deviceInstancePath);
         return false;
     }
     DisconnectFromDevice(deviceHandle, winUsbInterfaceHandle);
@@ -104,7 +104,7 @@ bool UsbDeviceWinUsb::ConnectToDevice(const std::string& preferredDevicePath)
     // If we're already connected to the device, abort any further processing.
     if (connectedToDevice)
     {
-        Log().Warning("connectToDevice(): Already connected to device.");
+        Log().Warning("ConnectToDevice(): Already connected to device.");
         return true;
     }
 
@@ -112,19 +112,28 @@ bool UsbDeviceWinUsb::ConnectToDevice(const std::string& preferredDevicePath)
     std::wstring deviceInstancePath;
     if (!FindDomesdayDeviceInstancePath(Utf8StringToWString(preferredDevicePath), deviceInstancePath))
     {
-        Log().Error("connectToDevice(): Failed to locate USB device");
+        Log().Error("ConnectToDevice(): Failed to locate USB device");
         return false;
     }
 
     // Attempt to connect to the device
     if (!ConnectToDevice(deviceInstancePath, captureUsbDeviceHandle, captureWinUsbInterfaceHandle))
     {
-        Log().Error("connectToDevice(): Failed to connect to device with instance path {0}", deviceInstancePath);
+        Log().Error("ConnectToDevice(): Failed to connect to device with instance path {0}", deviceInstancePath);
         captureUsbDeviceHandle = nullptr;
         captureWinUsbInterfaceHandle = nullptr;
         return false;
     }
     connectedToDevice = true;
+    bool releaseDeviceDisconnector = false;
+    std::shared_ptr<void> deviceDisconnector(nullptr,
+        [&](void*)
+        {
+            if (!releaseDeviceDisconnector)
+            {
+                DisconnectFromDevice();
+            }
+        });
 
     // Find the pipe info for the bulk in endpoint from the device. We expect this to be at alternate interface number 0
     // so we hardcode that here.
@@ -135,7 +144,6 @@ bool UsbDeviceWinUsb::ConnectToDevice(const std::string& preferredDevicePath)
     {
         DWORD lastError = GetLastError();
         Log().Error("WinUsb_QueryInterfaceSettings failed with error code {0} for device with instance path {1}", lastError, deviceInstancePath);
-        DisconnectFromDevice();
         return false;
     }
     bool foundBulkInPipeInfo = false;
@@ -157,8 +165,7 @@ bool UsbDeviceWinUsb::ConnectToDevice(const std::string& preferredDevicePath)
     }
     if (!foundBulkInPipeInfo)
     {
-        Log().Error("connectToDevice(): Failed to locate bulk in endpoint for device with instance path {0}", deviceInstancePath);
-        DisconnectFromDevice();
+        Log().Error("ConnectToDevice(): Failed to locate bulk in endpoint for device with instance path {0}", deviceInstancePath);
         return false;
     }
 
@@ -170,15 +177,16 @@ bool UsbDeviceWinUsb::ConnectToDevice(const std::string& preferredDevicePath)
     {
         DWORD lastError = GetLastError();
         Log().Error("WinUsb_GetPipePolicy failed with error code {0} for device with instance path {1}", lastError, deviceInstancePath);
-        DisconnectFromDevice();
         return false;
     }
     if (maxTransferSizeForPipeBufferSize != sizeof(maxTransferSizeForPipe))
     {
         Log().Error("WinUsb_GetPipePolicy returned {0} bytes when {1} were expected", maxTransferSizeForPipeBufferSize, sizeof(maxTransferSizeForPipe));
-        DisconnectFromDevice();
         return false;
     }
+
+    // Since the device connection has succeeded, release the scoped destructor and let it live.
+    releaseDeviceDisconnector = true;
 
     // Store our pipe information, and return true to the caller.
     captureWinUsbBulkInPipeId = pipeInfo.PipeId;
@@ -208,7 +216,6 @@ bool UsbDeviceWinUsb::ConnectToDevice(const std::wstring& deviceInstancePath, HA
         Log().Trace("CreateFileW failed with error code {0} for device with instance path {1}", lastError, deviceInstancePath);
         return false;
     }
-    //std::shared_ptr<std::remove_pointer<HANDLE>::type> deviceHandleTemp(deviceHandleRaw, CloseHandle);
 
     // Open the target device in WinUSB
     WINUSB_INTERFACE_HANDLE winUsbInterfaceHandleRaw;
@@ -220,7 +227,6 @@ bool UsbDeviceWinUsb::ConnectToDevice(const std::wstring& deviceInstancePath, HA
         CloseHandle(deviceHandleRaw);
         return false;
     }
-    //std::shared_ptr<std::remove_pointer<HANDLE>::type> winUsbInterfaceHandleTemp(winUsbInterfaceHandleRaw, WinUsb_Free);
 
     // Return the device handles to the caller
     deviceHandle = deviceHandleRaw;
@@ -234,7 +240,7 @@ void UsbDeviceWinUsb::DisconnectFromDevice()
     // If we're not currently connected to the device, abort any further processing.
     if (!connectedToDevice)
     {
-        Log().Error("disconnectFromDevice() called when no device was connected");
+        Log().Error("DisconnectFromDevice() called when no device was connected");
         return;
     }
 
@@ -314,7 +320,7 @@ bool UsbDeviceWinUsb::GetDeviceInstancePathsByInterface(GUID* interfaceGuid, std
 
     // Return the results to the caller
     deviceInstancePaths = std::move(deviceListLocal);
-    Log().Trace("getDeviceInstancePathsByInterface: Found {0} devices", deviceInstancePaths.size());
+    Log().Trace("GetDeviceInstancePathsByInterface: Found {0} devices", deviceInstancePaths.size());
     return true;
 }
 
@@ -328,7 +334,7 @@ bool UsbDeviceWinUsb::GetAllDomesdayDeviceInstancePaths(std::vector<std::wstring
     std::vector<std::wstring> allDeviceInstancePaths;
     if (!GetDeviceInstancePathsByInterface((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE, allDeviceInstancePaths))
     {
-        Log().Error("getDeviceInstancePathsByInterface failed");
+        Log().Error("GetDeviceInstancePathsByInterface failed");
         return false;
     }
 
@@ -342,7 +348,7 @@ bool UsbDeviceWinUsb::GetAllDomesdayDeviceInstancePaths(std::vector<std::wstring
         WINUSB_INTERFACE_HANDLE winUsbInterfaceHandle;
         if (!ConnectToDevice(deviceInstancePath, deviceHandle, winUsbInterfaceHandle))
         {
-            Log().Trace("connectToDevice failed for device with instance path: {0}", deviceInstancePath);
+            Log().Trace("GetAllDomesdayDeviceInstancePaths failed for device with instance path: {0}", deviceInstancePath);
             continue;
         }
         std::shared_ptr<void> scopedDeviceDisconnectHandler((void*)nullptr, [&](void*) { DisconnectFromDevice(deviceHandle, winUsbInterfaceHandle); });
@@ -441,7 +447,7 @@ bool UsbDeviceWinUsb::SendVendorSpecificCommand(const std::string& preferredDevi
     std::wstring deviceInstancePath;
     if (!FindDomesdayDeviceInstancePath(Utf8StringToWString(preferredDevicePath), deviceInstancePath))
     {
-        Log().Error("sendVendorSpecificCommand failed as no device could be found");
+        Log().Error("SendVendorSpecificCommand failed as no device could be found");
         return false;
     }
 
@@ -450,7 +456,7 @@ bool UsbDeviceWinUsb::SendVendorSpecificCommand(const std::string& preferredDevi
     WINUSB_INTERFACE_HANDLE winUsbInterfaceHandle;
     if (!ConnectToDevice(deviceInstancePath, deviceHandle, winUsbInterfaceHandle))
     {
-        Log().Error("sendVendorSpecificCommand failed as the device connection attempt failed");
+        Log().Error("SendVendorSpecificCommand failed as the device connection attempt failed");
         return false;
     }
     std::shared_ptr<void> scopedDeviceDisconnectHandler((void*)nullptr, [&](void*) { DisconnectFromDevice(deviceHandle, winUsbInterfaceHandle); });
@@ -640,7 +646,7 @@ void UsbDeviceWinUsb::UsbTransferThread()
             // Ensure that we received the number of bytes that we requested
             if (bytesTransferred != transferSizeInBytes)
             {
-                Log().Error("usbTransferThread(): Expected {0} bytes from USB transfer but got {1} bytes from buffer index {2}:{3}.", transferSizeInBytes, bytesTransferred, transferBufferEntry.diskBufferIndex, transferBufferEntry.diskBufferTransferIndex);
+                Log().Error("UsbTransferThread(): Expected {0} bytes from USB transfer but got {1} bytes from buffer index {2}:{3}.", transferSizeInBytes, bytesTransferred, transferBufferEntry.diskBufferIndex, transferBufferEntry.diskBufferTransferIndex);
                 SetUsbTransferFinished(TransferResult::UsbTransferFailure);
                 transferFailure = true;
                 continue;
@@ -663,7 +669,7 @@ void UsbDeviceWinUsb::UsbTransferThread()
                 DiskBufferEntry& diskBufferEntry = GetDiskBuffer(transferBufferEntry.diskBufferIndex);
                 if (diskBufferEntry.isDiskBufferFull.test_and_set())
                 {
-                    Log().Error("usbTransferThread(): Disk buffer overflow at index {0}:{1}", transferBufferEntry.diskBufferIndex, transferBufferEntry.diskBufferTransferIndex);
+                    Log().Error("UsbTransferThread(): Disk buffer overflow at index {0}:{1}", transferBufferEntry.diskBufferIndex, transferBufferEntry.diskBufferTransferIndex);
                     SetUsbTransferFinished(TransferResult::ProgramError);
                     transferFailure = true;
                     continue;
@@ -671,7 +677,7 @@ void UsbDeviceWinUsb::UsbTransferThread()
 
                 // Notify any threads waiting on this buffer that there is now data for processing
                 diskBufferEntry.isDiskBufferFull.notify_all();
-                Log().Trace("usbTransferThread(): Submitted disk buffer {0} for processing", transferBufferEntry.diskBufferIndex);
+                Log().Trace("UsbTransferThread(): Submitted disk buffer {0} for processing", transferBufferEntry.diskBufferIndex);
 
                 // If transfer has been requested to stop, mark the capture as complete now that we've reached a disk
                 // buffer boundary.
@@ -718,7 +724,7 @@ void UsbDeviceWinUsb::UsbTransferThread()
                 }
             }
             transferBufferEntry.transferSubmitted = true;
-            Log().Trace("usbTransferThread(): Queued buffer {0}:{1} for read", transferBufferEntry.diskBufferIndex, transferBufferEntry.diskBufferTransferIndex);
+            Log().Trace("UsbTransferThread(): Queued buffer {0}:{1} for read", transferBufferEntry.diskBufferIndex, transferBufferEntry.diskBufferTransferIndex);
 
             // If the previous buffer has already completed, it means there was likely a time when no reads were queued.
             // This means we have likely missed data, so report an error and abort.
