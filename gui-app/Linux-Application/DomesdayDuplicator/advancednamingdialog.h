@@ -24,13 +24,11 @@
     Email: simon.inns@gmail.com
 
 ************************************************************************/
-
-#ifndef ADVANCEDNAMINGDIALOG_H
-#define ADVANCEDNAMINGDIALOG_H
-
+#pragma once
 #include <QDialog>
 #include <QRegularExpressionValidator>
 #include <QDate>
+#include <memory>
 
 namespace Ui {
 class AdvancedNamingDialog;
@@ -41,11 +39,34 @@ class AdvancedNamingDialog : public QDialog
     Q_OBJECT
 
 public:
+    enum class AudioType
+    {
+        Default,
+        Analog,
+        AC3,
+        DTS,
+    };
+
     explicit AdvancedNamingDialog(QWidget *parent = nullptr);
     ~AdvancedNamingDialog();
 
-    QString getFileName(bool isTestData);
-    bool getDurationChecked();
+    QString getFileName(bool isTestData) const;
+    bool getDurationChecked() const;
+    bool getDiskTitleChecked() const;
+    QString getDiskTitle() const;
+    bool getDiskTypeChecked() const;
+    bool getDiskTypeCav() const;
+    bool getDiskTypeClv() const;
+    bool getFormatChecked() const;
+    bool getFormatNtsc() const;
+    bool getFormatPal() const;
+    bool getAudioChecked() const;
+    AudioType getAudioType() const;
+    bool getDiscSideChecked() const;
+    int getDiscSide() const;
+    QString getNotes() const;
+    QString getMintMarks() const;
+    QString getMetadataNotes() const;
 
     void setPerSideNotesEnabled(bool enabled);
     void setPerSideMintEnabled(bool enabled);
@@ -62,7 +83,7 @@ private slots:
     void on_discSideSpinBox_valueChanged();
 
 private:
-    Ui::AdvancedNamingDialog *ui;
+    std::unique_ptr<Ui::AdvancedNamingDialog> ui;
 
     void updateGui();
     void updateSideHoldings();
@@ -73,5 +94,3 @@ private:
     bool perSideMintEnabled = false;
     QString mintHolding[100];
 };
-
-#endif // ADVANCEDNAMINGDIALOG_H

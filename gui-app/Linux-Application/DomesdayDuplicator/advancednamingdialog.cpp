@@ -29,9 +29,9 @@
 #include "ui_advancednamingdialog.h"
 
 AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::AdvancedNamingDialog)
+    QDialog(parent)
 {
+    ui.reset(new Ui::AdvancedNamingDialog());
     ui->setupUi(this);
 
     // Set default state for all widgets
@@ -46,9 +46,9 @@ AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
 
     // Set line edit validation to A-Z, a-z, 0-9 and space, minus and underscore
     ui->discTitleLineEdit->setValidator(new QRegularExpressionValidator(
-                                            QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
+                                            QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_()-]+)*$"), this ));
     ui->notesLineEdit->setValidator(new QRegularExpressionValidator(
-                                        QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
+                                        QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_()-]+)*$"), this ));
     ui->mintLineEdit->setValidator(new QRegularExpressionValidator(
                                         QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
     updateGui();
@@ -56,12 +56,11 @@ AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
 
 AdvancedNamingDialog::~AdvancedNamingDialog()
 {
-    delete ui;
 }
 
 // Function to return the current file name based on the
 // file name settings and the date/time stamp
-QString AdvancedNamingDialog::getFileName(bool isTestData)
+QString AdvancedNamingDialog::getFileName(bool isTestData) const
 {
     QString fileName;
 
@@ -111,7 +110,7 @@ QString AdvancedNamingDialog::getFileName(bool isTestData)
 }
 
 // Function to return if duration checkbox is set
-bool AdvancedNamingDialog::getDurationChecked()
+bool AdvancedNamingDialog::getDurationChecked() const
 {
     bool fileDurationBox = false;
 
@@ -120,6 +119,93 @@ bool AdvancedNamingDialog::getDurationChecked()
     }
 
     return fileDurationBox;
+}
+
+bool AdvancedNamingDialog::getDiskTitleChecked() const
+{
+    return ui->discTitleCheckBox->isChecked();
+}
+
+QString AdvancedNamingDialog::getDiskTitle() const
+{
+    return ui->discTitleLineEdit->text();
+}
+
+bool AdvancedNamingDialog::getDiskTypeChecked() const
+{
+    return ui->discTypeCheckBox->isChecked();
+}
+
+bool AdvancedNamingDialog::getDiskTypeCav() const
+{
+    return ui->typeCavRadioButton->isChecked();
+}
+
+bool AdvancedNamingDialog::getDiskTypeClv() const
+{
+    return ui->typeClvRadioButton->isChecked();
+}
+
+bool AdvancedNamingDialog::getFormatChecked() const
+{
+    return ui->formatCheckBox->isChecked();
+}
+
+bool AdvancedNamingDialog::getFormatNtsc() const
+{
+    return ui->formatNtscRadioButton->isChecked();
+}
+
+bool AdvancedNamingDialog::getFormatPal() const
+{
+    return ui->formatPalRadioButton->isChecked();
+}
+
+bool AdvancedNamingDialog::getAudioChecked() const
+{
+    return ui->audioCheckBox->isChecked();
+}
+
+AdvancedNamingDialog::AudioType AdvancedNamingDialog::getAudioType() const
+{
+    if (ui->audioAnalogueRadioButton->isChecked())
+    {
+        return AudioType::Analog;
+    }
+    else if (ui->audioAc3RadioButton->isChecked())
+    {
+        return AudioType::AC3;
+    }
+    else if (ui->audioDtsRadioButton->isChecked())
+    {
+        return AudioType::DTS;
+    }
+    return AudioType::Default;
+}
+
+bool AdvancedNamingDialog::getDiscSideChecked() const
+{
+    return ui->discSideCheckBox->isChecked();
+}
+
+int AdvancedNamingDialog::getDiscSide() const
+{
+    return ui->discSideSpinBox->value();
+}
+
+QString AdvancedNamingDialog::getNotes() const
+{
+    return ui->notesLineEdit->text();
+}
+
+QString AdvancedNamingDialog::getMintMarks() const
+{
+    return ui->mintLineEdit->text();
+}
+
+QString AdvancedNamingDialog::getMetadataNotes() const
+{
+    return ui->metadataNotesEditBox->toPlainText();
 }
 
 // Enable or disable per-side notes

@@ -35,7 +35,8 @@
 #include <QString>
 #include <QQueue>
 #include <QDebug>
-
+#include <atomic>
+#include <memory>
 #include "playercommunication.h"
 
 class PlayerControl : public QThread
@@ -54,9 +55,12 @@ public:
     QString getPlayerModelName();
     QString getPlayerVersionNumber();
     QString getSerialBaudRate();
-    QString getPlayerStatusInformation();
-    QString getPlayerPositionInformation();
+    bool getPlayerConnected();
+    qint32 getCurrentTimeCode();
+    qint32 getCurrentFrameNumber();
     PlayerCommunication::DiscType getDiscType();
+    PlayerCommunication::PlayerState getPlayerState();
+    QString getManualCommandResponse();
 
     // Commands
     enum Commands {
@@ -73,7 +77,8 @@ public:
         cmdSetOnScreenDisplay,
         cmdSetAudio,
         cmdSetKeyLock,
-        cmdSetSpeed
+        cmdSetSpeed,
+        cmdSendManualCommand,
     };
 
     void setTrayState(PlayerCommunication::TrayState trayState);
@@ -90,6 +95,7 @@ public:
     void setAudio(PlayerCommunication::AudioState audioState);
     void setKeyLock(PlayerCommunication::KeyLockState keyLockState);
     void setSpeed(qint32 speed);
+    void sendManualCommand(QString command);
 
     void startAutomaticCapture(bool fromLeadIn, bool wholeDisc,
                                      qint32 startAddress, qint32 endAddress,
@@ -117,17 +123,17 @@ private:
     bool reconnect;
     bool abort;
 
-    bool isPlayerConnected;
-    PlayerCommunication::PlayerState playerState;
-    PlayerCommunication::DiscType discType;
-    qint32 timeCode;
-    qint32 frameNumber;
+    std::atomic<bool> isPlayerConnected;
+    std::atomic<PlayerCommunication::PlayerState> playerState;
+    std::atomic<PlayerCommunication::DiscType> discType;
+    std::atomic<qint32> timeCode;
+    std::atomic<qint32> frameNumber;
 
     QString serialDevice;
     PlayerCommunication::SerialSpeed serialSpeed;
     PlayerCommunication::PlayerType playerType;
 
-    PlayerCommunication *playerCommunication;
+    std::unique_ptr<PlayerCommunication> playerCommunication;
 
     // Automatic capture
     QString acStatus;
@@ -162,6 +168,7 @@ private:
     // Command queue
     QQueue<PlayerControl::Commands> commandQueue;
     QQueue<qint32> parameterQueue;
+    QQueue<QString> stringParameterQueue;
 
     void processCommandQueue();
 
@@ -179,6 +186,7 @@ private:
     void processSetAudio(qint32 parameter1);
     void processSetKeyLock(qint32 parameter1);
     void processSetSpeed(qint32 parameter1);
+    void processSendManualCommand(QString commandString);
 
     void processAutomaticCapture();
 

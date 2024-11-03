@@ -37,11 +37,11 @@ PlayerControl::PlayerControl(QObject *parent) : QThread(parent)
     isPlayerConnected = false;
     playerState = PlayerCommunication::PlayerState::unknownPlayerState;
     discType = PlayerCommunication::DiscType::unknownDiscType;
-    timeCode = 0;
-    frameNumber = 0;
+    timeCode = -1;
+    frameNumber = -1;
 
     // Initialise the player communication object
-    playerCommunication = new PlayerCommunication();
+    playerCommunication.reset(new PlayerCommunication());
 
     // Initialise the automatic capture
     acStatus = tr("Idle");
@@ -101,8 +101,8 @@ void PlayerControl::run()
     isPlayerConnected = false;
     playerState = PlayerCommunication::PlayerState::unknownPlayerState;
     discType = PlayerCommunication::DiscType::unknownDiscType;
-    timeCode = 0;
-    frameNumber = 0;
+    timeCode = -1;
+    frameNumber = -1;
 
     // Process the player control loop until abort
     while(!abort) {
@@ -223,68 +223,35 @@ QString PlayerControl::getSerialBaudRate()
     return "";
 }
 
-// Returns a string that indicates the player's status
-QString PlayerControl::getPlayerStatusInformation()
+bool PlayerControl::getPlayerConnected()
 {
-    QString status;
-
-    if (isPlayerConnected){
-        if (discType == PlayerCommunication::DiscType::CAV) status += "CAV ";
-        if (discType == PlayerCommunication::DiscType::CLV) status += "CLV ";
-
-        if (playerState == PlayerCommunication::PlayerState::stop) status += "Stopped";
-        if (playerState == PlayerCommunication::PlayerState::pause) status += "Paused";
-        if (playerState == PlayerCommunication::PlayerState::stillFrame) status += "Still-Frame";
-        if (playerState == PlayerCommunication::PlayerState::play) status += "Playing";
-    } else {
-        status = "No player connected (serial)";
-    }
-
-    return status;
+    return isPlayerConnected;
 }
 
-// Returns a string that indicates the player's position (in the disc)
-QString PlayerControl::getPlayerPositionInformation()
+qint32 PlayerControl::getCurrentTimeCode()
 {
-    QString playerPosition;
+    return timeCode;
+}
 
-    if (playerState == PlayerCommunication::PlayerState::stop) {
-        playerPosition = "Disc stopped";
-    } else {
-        if (discType == PlayerCommunication::DiscType::CAV) {
-            playerPosition = QString::number(frameNumber);
-        }
-
-        if (discType == PlayerCommunication::DiscType::CLV) {
-            QString timeCodeString;
-            QString hourString;
-            QString minuteString;
-            QString secondString;
-
-            // Get the full 7 character time-code string
-            timeCodeString = QString("%1").arg(timeCode, 7, 10, QChar('0'));
-
-            // Split up the time-code
-            hourString = timeCodeString.left(1);
-            minuteString = timeCodeString.left(3).right(2);
-            secondString = timeCodeString.left(5).right(2);
-
-            // Display time-code (without frame number)
-            playerPosition = ("0" + hourString + ":" + minuteString + ":" + secondString);
-        }
-
-        if (discType == PlayerCommunication::DiscType::unknownDiscType) {
-            playerPosition = "Unknown disc type";
-        }
-    }
-
-    return playerPosition;
+qint32 PlayerControl::getCurrentFrameNumber()
+{
+    return frameNumber;
 }
 
 // Get the disc type (CAV/CLV/unknown)
 PlayerCommunication::DiscType PlayerControl::getDiscType()
 {
     return discType;
+}
+
+PlayerCommunication::PlayerState PlayerControl::getPlayerState()
+{
+    return playerState;
+}
+
+QString PlayerControl::getManualCommandResponse()
+{
+    return playerCommunication->getManualCommandResponse();
 }
 
 // Process the queued commands ----------------------------------------------------------------------------------------
@@ -338,6 +305,9 @@ void PlayerControl::processCommandQueue()
             break;
         case Commands::cmdSetSpeed:
             processSetSpeed(parameterQueue.dequeue());
+            break;
+        case Commands::cmdSendManualCommand:
+            processSendManualCommand(stringParameterQueue.dequeue());
             break;
         }
     }
@@ -592,6 +562,11 @@ void PlayerControl::processSetSpeed(qint32 parameter1)
     }
 }
 
+void PlayerControl::processSendManualCommand(QString commandString)
+{
+    playerCommunication->sendManualCommand(commandString);
+}
+
 // Player command public methods --------------------------------------------------------------------------------------
 
 // These public methods queue commands for processing.  For queue logic simplicity, parameters are converted into
@@ -697,6 +672,12 @@ void PlayerControl::setSpeed(qint32 speed)
 {
     commandQueue.enqueue(Commands::cmdSetSpeed);
     parameterQueue.enqueue(speed);
+}
+
+void PlayerControl::sendManualCommand(QString command)
+{
+    commandQueue.enqueue(Commands::cmdSendManualCommand);
+    stringParameterQueue.enqueue(command);
 }
 
 // Automatic capture methods ------------------------------------------------------------------------------------------

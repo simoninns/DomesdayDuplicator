@@ -29,9 +29,9 @@
 #include "ui_playerremotedialog.h"
 
 PlayerRemoteDialog::PlayerRemoteDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::PlayerRemoteDialog)
+    QDialog(parent)
 {
+    ui.reset(new Ui::PlayerRemoteDialog());
     ui->setupUi(this);
 
     // Default the remote's settings
@@ -46,7 +46,6 @@ PlayerRemoteDialog::PlayerRemoteDialog(QWidget *parent) :
 
 PlayerRemoteDialog::~PlayerRemoteDialog()
 {
-    delete ui;
 }
 
 // Enable and disable the remote control buttons
@@ -148,6 +147,12 @@ void PlayerRemoteDialog::setDisplayMode(DisplayMode displayModeParam)
 {
     displayMode = displayModeParam;
     updateGui();
+}
+
+void PlayerRemoteDialog::setPlayerResponseToManualCommand(QString response)
+{
+    response.replace('\r', "\\r");
+    ui->manualResponseString->setText(response);
 }
 
 // Add a value to the position display
@@ -328,4 +333,15 @@ void PlayerRemoteDialog::on_chapFramePushButton_clicked()
     else if (positionMode == PositionMode::pmTime) positionMode = PositionMode::pmChapter;
     position = tr("0000000");
     updateGui();
+}
+
+void PlayerRemoteDialog::on_sendManualCommand_clicked()
+{
+    QString modifiedCommandString = ui->manualCommandString->text();
+    if (!modifiedCommandString.endsWith('\r'))
+    {
+        modifiedCommandString += '\r';
+    }
+    modifiedCommandString.replace("\\r", "\r");
+    emit remoteControlManualSerialCommand(modifiedCommandString);
 }

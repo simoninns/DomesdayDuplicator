@@ -24,11 +24,9 @@
     Email: simon.inns@gmail.com
 
 ************************************************************************/
-
-#ifndef ABOUTDIALOG_H
-#define ABOUTDIALOG_H
-
+#pragma once
 #include <QDialog>
+#include <memory>
 
 namespace Ui {
 class AboutDialog;
@@ -43,7 +41,5 @@ public:
     ~AboutDialog();
 
 private:
-    Ui::AboutDialog *ui;
+    std::unique_ptr<Ui::AboutDialog> ui;
 };
-
-#endif // ABOUTDIALOG_H

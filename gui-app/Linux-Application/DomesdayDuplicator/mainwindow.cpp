@@ -27,68 +27,76 @@
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "usbcapture.h"
+#include "UsbDeviceLibUsb.h"
+#ifdef _WIN32
+#include "UsbDeviceWinUsb.h"
+#endif
 #include "amplitudemeasurement.h"
 #include <QFile>
+#ifdef _WIN32
+// It'd be nice to use this on Linux, but under linux the max version of GCC is bound to the OS version, and libstdc++
+// was very slow to add C++20 features, including format. This means a lot of recent Linux OS installs, like Ubuntu
+// 22.04 LTS, can't compile this code. We could switch to Clang, but Qt doesn't support Clang, meaning we'd have to
+// build it from source and run an unsupported config.
+#include <format>
+#endif
+#include "json/json.hpp"
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(const ILogger& log, QWidget* parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    log(log)
 {
+    ui.reset(new Ui::MainWindow());
     ui->setupUi(this);
 
     // Load the application's configuration settings file
-    configuration = new Configuration();
+    configuration.reset(new Configuration());
 
     // Create the about dialogue
-    aboutDialog = new AboutDialog(this);
+    aboutDialog.reset(new AboutDialog(this));
 
     // Create the advanced naming dialogue
-    advancedNamingDialog = new AdvancedNamingDialog(this);
+    advancedNamingDialog.reset(new AdvancedNamingDialog(this));
 
     // Create the configuration dialogue
-    configurationDialog = new ConfigurationDialog(this);
-    connect(configurationDialog, &ConfigurationDialog::configurationChanged, this, &MainWindow::configurationChangedSignalHandler);
+    configurationDialog.reset(new ConfigurationDialog(this));
+    connect(configurationDialog.get(), &ConfigurationDialog::configurationChanged, this, &MainWindow::configurationChangedSignalHandler);
 
     // Create the player remote dialogue
-    playerRemoteDialog = new PlayerRemoteDialog(this);
-    connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlCommand, this, &MainWindow::remoteControlCommandSignalHandler);
-    connect(playerRemoteDialog, &PlayerRemoteDialog::remoteControlSearch, this, &MainWindow::remoteControlSearchSignalHandler);
+    playerRemoteDialog.reset(new PlayerRemoteDialog(this));
+    connect(playerRemoteDialog.get(), &PlayerRemoteDialog::remoteControlCommand, this, &MainWindow::remoteControlCommandSignalHandler);
+    connect(playerRemoteDialog.get(), &PlayerRemoteDialog::remoteControlSearch, this, &MainWindow::remoteControlSearchSignalHandler);
+    connect(playerRemoteDialog.get(), &PlayerRemoteDialog::remoteControlManualSerialCommand, this, &MainWindow::remoteControlManualSerialCommandHandler);
     playerRemoteDialog->setEnabled(false); // Disable the dialogue until a player is connected
+    ui->stopPlayerWhenCaptureStops->setEnabled(false);
 
     // Create the automatic capture dialogue
-    automaticCaptureDialog = new AutomaticCaptureDialog(this);
-    connect(automaticCaptureDialog, &AutomaticCaptureDialog::startAutomaticCapture,
-            this, &MainWindow::startAutomaticCaptureDialogSignalHandler);
-    connect(automaticCaptureDialog, &AutomaticCaptureDialog::stopAutomaticCapture,
-            this, &MainWindow::stopAutomaticCaptureDialogSignalHandler);
+    automaticCaptureDialog.reset(new AutomaticCaptureDialog(this));
+    connect(automaticCaptureDialog.get(), &AutomaticCaptureDialog::startAutomaticCapture, this, &MainWindow::startAutomaticCaptureDialogSignalHandler);
+    connect(automaticCaptureDialog.get(), &AutomaticCaptureDialog::stopAutomaticCapture, this, &MainWindow::stopAutomaticCaptureDialogSignalHandler);
     automaticCaptureDialog->setEnabled(false); // Disable the dialogue until a player is connected
 
     // Set up a timer for updating the automatic capture status information
-    automaticCaptureTimer = new QTimer(this);
-    connect(automaticCaptureTimer, SIGNAL(timeout()), this, SLOT(updateAutomaticCaptureStatus()));
+    automaticCaptureTimer.reset(new QTimer(this));
+    connect(automaticCaptureTimer.get(), SIGNAL(timeout()), this, SLOT(updateAutomaticCaptureStatus()));
     automaticCaptureTimer->start(100); // Update 10 times per second
 
     // Start the player control object
-    playerControl = new PlayerControl(this);
-    connect(playerControl, &PlayerControl::automaticCaptureComplete,
-            this, &MainWindow::automaticCaptureCompleteSignalHandler);
-    connect(playerControl, &PlayerControl::startCapture,
-            this, &MainWindow::startCaptureSignalHandler);
-    connect(playerControl, &PlayerControl::stopCapture,
-            this, &MainWindow::stopCaptureSignalHandler);
-    connect(playerControl, &PlayerControl::playerConnected,
-            this, &MainWindow::playerConnectedSignalHandler);
-    connect(playerControl, &PlayerControl::playerDisconnected,
-            this, &MainWindow::playerDisconnectedSignalHandler);
+    playerControl.reset(new PlayerControl(this));
+    connect(playerControl.get(), &PlayerControl::automaticCaptureComplete, this, &MainWindow::automaticCaptureCompleteSignalHandler);
+    connect(playerControl.get(), &PlayerControl::startCapture, this, &MainWindow::startCaptureSignalHandler);
+    connect(playerControl.get(), &PlayerControl::stopCapture, this, &MainWindow::stopCaptureSignalHandler);
+    connect(playerControl.get(), &PlayerControl::playerConnected, this, &MainWindow::playerConnectedSignalHandler);
+    connect(playerControl.get(), &PlayerControl::playerDisconnected, this, &MainWindow::playerDisconnectedSignalHandler);
     startPlayerControl();
 
     // Set the capture flag to not running
     isCaptureRunning = false;
+    isCaptureStopping = false;
 
     // Add a label to the status bar for displaying the USB device status
-    usbStatusLabel = new QLabel;
-    ui->statusBar->addWidget(usbStatusLabel);
+    usbStatusLabel.reset(new QLabel);
+    ui->statusBar->addWidget(usbStatusLabel.get());
     usbStatusLabel->setText(tr("No USB capture device is attached"));
 
     // Disable the capture button
@@ -97,30 +105,41 @@ MainWindow::MainWindow(QWidget *parent) :
     // Disable the test mode option
     ui->actionTest_mode->setEnabled(false);
 
-    // Set up a timer for timing the capture duration
-    captureDurationTimer = new QTimer(this);
-    connect(captureDurationTimer, SIGNAL(timeout()), this, SLOT(updateCaptureDuration()));
-
     // Set up amplitude timer, and update amplitude UI
-    amplitudeTimer = new QTimer(this);
+    amplitudeTimer.reset(new QTimer(this));
     updateAmplitudeUI();
 
     // Set up the Domesday Duplicator USB device and connect the signal handlers
-    usbDevice = new UsbDevice(this, configuration->getUsbVid(), configuration->getUsbPid());
-    connect(usbDevice, &UsbDevice::deviceAttached, this, &MainWindow::deviceAttachedSignalHandler);
-    connect(usbDevice, &UsbDevice::deviceDetached, this, &MainWindow::deviceDetachedSignalHandler);
-
-    // Since the device might already be attached, perform an initial scan for it
-    usbDevice->scanForDevice();
+#ifdef _WIN32
+    if (configuration->getUseWinUsb())
+    {
+        usbDevice.reset(new UsbDeviceWinUsb(log));
+    }
+    else
+    {
+#endif
+        usbDevice.reset(new UsbDeviceLibUsb(log));
+#ifdef _WIN32
+    }
+#endif
+    if (!usbDevice->Initialize(configuration->getUsbVid(), configuration->getUsbPid()))
+    {
+        qDebug() << "MainWindow::MainWindow(): Failed to initialize UsbDeviceLibUsb!";
+    }
 
     // Set up a timer for updating capture results
-    captureStatusUpdateTimer = new QTimer(this);
-    connect(captureStatusUpdateTimer, SIGNAL(timeout()), this, SLOT(updateCaptureStatistics()));
+    captureStatusUpdateTimer.reset(new QTimer(this));
+    connect(captureStatusUpdateTimer.get(), SIGNAL(timeout()), this, SLOT(updateCaptureStatus()));
 
     // Set up a timer for updating player control information
-    playerControlTimer = new QTimer(this);
-    connect(playerControlTimer, SIGNAL(timeout()), this, SLOT(updatePlayerControlInformation()));
+    playerControlTimer.reset(new QTimer(this));
+    connect(playerControlTimer.get(), SIGNAL(timeout()), this, SLOT(updatePlayerControlInformation()));
     playerControlTimer->start(100); // Update 10 times per second
+
+    // Set up a timer for updating device status
+    deviceStatusTimer.reset(new QTimer(this));
+    connect(deviceStatusTimer.get(), SIGNAL(timeout()), this, SLOT(updateDeviceStatus()));
+    deviceStatusTimer->start(100); // Update 10 times per second
 
     // Defaults for the remote control toggle settings
     remoteDisplayState = PlayerCommunication::DisplayState::off;
@@ -130,12 +149,12 @@ MainWindow::MainWindow(QWidget *parent) :
     updatePlayerRemoteDialog();
 
     // Storage space information
-    storageInfo = new QStorageInfo();
+    storageInfo.reset(new QStorageInfo());
     storageInfo->setPath(configuration->getCaptureDirectory());
 
     // Storage information update timer
-    storageInfoTimer = new QTimer(this);
-    connect(storageInfoTimer, SIGNAL(timeout()), this, SLOT(updateStorageInformation()));
+    storageInfoTimer.reset(new QTimer(this));
+    connect(storageInfoTimer.get(), SIGNAL(timeout()), this, SLOT(updateStorageInformation()));
     storageInfoTimer->start(200); // Update 5 times per second
 
     // Set player as disconnected
@@ -163,62 +182,21 @@ MainWindow::~MainWindow()
     // Ask the threads to stop
     qDebug() << "MainWindow::~MainWindow(): Quit selected; asking threads to stop...";
     if (playerControl->isRunning()) playerControl->stop();
-    if (usbDevice->isRunning()) usbDevice->stop();
+    usbDevice.reset();
 
     // Schedule the objects for deletion
     playerControl->deleteLater();
-    usbDevice->deleteLater();
 
     // Wait for the objects to be deleted
     playerControl->wait();
-    usbDevice->wait();
 
     // Delete the UI
-    delete ui;
+    ui.reset();
 
     qDebug() << "MainWindow::~MainWindow(): All threads stopped; done.";
 }
 
 // Signal handlers ----------------------------------------------------------------------------------------------------
-
-// USB device attached signal handler
-void MainWindow::deviceAttachedSignalHandler()
-{
-    qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been attached";
-
-    // Show the device status in the status bar
-    usbStatusLabel->setText(tr("Domesday Duplicator is connected via USB"));
-
-    // Set test mode unchecked in the menu
-    ui->actionTest_mode->setChecked(false);
-
-    // Enable the capture button
-    ui->capturePushButton->setEnabled(true);
-
-    // Enable the automatic capture dialogue
-    if (isPlayerConnected) automaticCaptureDialog->setEnabled(true);
-
-    // Enable the test mode option
-    ui->actionTest_mode->setEnabled(true);
-}
-
-// USB device detached signal handler
-void MainWindow::deviceDetachedSignalHandler()
-{
-    qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been detached";
-
-    // Show the device status in the status bar
-    usbStatusLabel->setText(tr("No USB capture device is attached"));
-
-    // Disable the capture button
-    ui->capturePushButton->setEnabled(false);
-
-    // Disable the automatic capture dialogue
-    automaticCaptureDialog->setEnabled(false);
-
-    // Disable the test mode option
-    ui->actionTest_mode->setEnabled(false);
-}
 
 // Configuration changed signal handler
 void MainWindow::configurationChangedSignalHandler()
@@ -226,7 +204,7 @@ void MainWindow::configurationChangedSignalHandler()
     qDebug() << "MainWindow::configurationChangedSignalHandler(): Configuration has been changed";
 
     // Save the configuration
-    configurationDialog->saveConfiguration(configuration);
+    configurationDialog->saveConfiguration(*configuration);
 
     // Restart the player control
     startPlayerControl();
@@ -379,29 +357,9 @@ void MainWindow::remoteControlSearchSignalHandler(qint32 position, PlayerRemoteD
     }
 }
 
-// Update capture duration timer signal handler
-void MainWindow::updateCaptureDuration()
+void MainWindow::remoteControlManualSerialCommandHandler(QString commandString)
 {
-    // Add a second to the capture time and update the label
-    captureElapsedTime = captureElapsedTime.addSecs(1);
-    ui->durationLabel->setText(captureElapsedTime.toString("hh:mm:ss"));
-
-    // Time limited capture is on?
-    if (ui->limitDurationCheckBox->isChecked()) {
-        // Check if the capture duration has exceeded the time limit
-        qint32 timeLimit = ui->durationLimitTimeEdit->time().hour() * 60 * 60;
-        timeLimit += ui->durationLimitTimeEdit->time().minute() * 60;
-        timeLimit += ui->durationLimitTimeEdit->time().second();
-
-        qint32 elapsedTime = captureElapsedTime.hour() * 60 * 60;
-        elapsedTime += captureElapsedTime.minute() * 60;
-        elapsedTime += captureElapsedTime.second();
-
-        if (timeLimit <= elapsedTime) {
-            // 'Press' the capture button automatically
-            on_capturePushButton_clicked();
-        }
-    }
+    playerControl->sendManualCommand(commandString);
 }
 
 // Automatic capture dialogue signals that capture should start
@@ -485,6 +443,9 @@ void MainWindow::playerConnectedSignalHandler()
     // Enable automatic-capture (is capture is currently allowed)
     if (ui->capturePushButton->isEnabled()) automaticCaptureDialog->setEnabled(true);
 
+    // Enable the stop player option
+    if (ui->capturePushButton->isEnabled()) ui->stopPlayerWhenCaptureStops->setEnabled(true);
+
     isPlayerConnected = true;
 }
 
@@ -498,23 +459,365 @@ void MainWindow::playerDisconnectedSignalHandler()
     // Disable automatic-capture
     automaticCaptureDialog->setEnabled(false);
 
+    // Disable the stop player option
+    ui->stopPlayerWhenCaptureStops->setEnabled(false);
+
     isPlayerConnected = false;
 }
 
-// Update the capture statistics labels
-void MainWindow::updateCaptureStatistics()
+void MainWindow::updateCaptureStatus()
 {
-    ui->numberOfTransfersLabel->setText(QString::number(usbDevice->getNumberOfTransfers()));
-
-    // Calculate the captured data based on the sample format (i.e. size on disk)
-    qint32 mbWritten = 0;
-    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned)
-        mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 64; // 16-bit is 64MiB per buffer
-    else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked)
-        mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 40; // 10-bit is 40MiB per buffer
-    else mbWritten = usbDevice->getNumberOfDiskBuffersWritten() * 10; // 10-bit 4:1 is 8MiB per buffer
-
+    // Update our transfer statistics. We update these even if a transfer is stopping or stopped.
+    size_t mbWritten = usbDevice->GetFileSizeWrittenInBytes() / (1024 * 1024);
     ui->dataCapturedLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
+    ui->numberOfTransfersLabel->setText(QString::number(usbDevice->GetNumberOfTransfers()));
+
+    // If the capture process was requeted to stop and has now in fact stopped, perform our final tasks for this capture
+    // and return the UI state to normal.
+    if (isCaptureStopping && !isCaptureRunning)
+    {
+        // Latch our capture end time
+        captureEndTime = std::chrono::steady_clock::now();
+        auto captureElapsedTime = captureEndTime - captureStartTime;
+
+        // Stop our update timers
+        captureStatusUpdateTimer->stop();
+        amplitudeTimer->stop();
+
+        // Tell the player to stop playing if requested, and we haven't already sent a stop command from an error
+        // occurring. Note that if we send a second stop command here while the player is in the process of stopping,
+        // it'll cause the tray to eject once the stop is complete, so we want to avoid that.
+        if (isPlayerConnected && !playerStopRequested && ui->stopPlayerWhenCaptureStops->isChecked() && (playerControl->getPlayerState() != PlayerCommunication::PlayerState::stop))
+        {
+            playerControl->setPlayerState(PlayerCommunication::PlayerState::stop);
+        }
+
+        // Rename output file if duration checkbox is clicked
+        auto usedCaptureFilePath = captureFilePath;
+        if (advancedNamingDialog->getDurationChecked())
+        {
+            // Build a string representation of the capture duration
+            qDebug() << "ainWindow::StartCapture(): Appending duration to filename";
+#ifdef _WIN32
+            std::string durationString = std::format("{:%HH%MM%SS}", std::chrono::floor<std::chrono::seconds>(captureElapsedTime));
+#else
+            std::string durationString = QTime(0, 0, 0, 0).addSecs(std::chrono::floor<std::chrono::seconds>(captureElapsedTime).count()).toString("hh'H'mm'M'ss'S'").toStdString();
+#endif
+
+            // Build a new path for the output file with the duration included
+            auto newFileName = captureFilePath.stem();
+            newFileName += "_";
+            newFileName += durationString;
+            newFileName += captureFilePath.extension();
+            auto durationFilePath = captureFilePath;
+            durationFilePath.replace_filename(newFileName);
+
+            // Rename the output file
+            std::filesystem::rename(captureFilePath, durationFilePath);
+            qDebug() << "MainWindow::StartCapture(): Renamed file to" << durationFilePath;
+            usedCaptureFilePath = durationFilePath;
+        }
+
+        // Build our json metadata
+        nlohmann::json infoFile;
+
+        // Populate the player serial info
+        infoFile["serialInfo"]["playerModelName"] = playerControl->getPlayerModelName().toStdString();
+        infoFile["serialInfo"]["playerVesionNumber"] = playerControl->getPlayerVersionNumber().toStdString();
+        auto discType = playerDiscTypeCached.load();
+        if (discType == PlayerCommunication::DiscType::CAV)
+        {
+            infoFile["serialInfo"]["discType"] = "CAV";
+        }
+        else if (discType == PlayerCommunication::DiscType::CLV)
+        {
+            infoFile["serialInfo"]["discType"] = "CLV";
+        }
+        if (minPlayerTimeCode.load() >= 0)
+        {
+            infoFile["serialInfo"]["minTimeCode"] = minPlayerTimeCode.load();
+        }
+        if (maxPlayerTimeCode.load() >= 0)
+        {
+            infoFile["serialInfo"]["maxTimeCode"] = maxPlayerTimeCode.load();
+        }
+        if (minPlayerFrameNumber.load() >= 0)
+        {
+            infoFile["serialInfo"]["minFrameNumber"] = minPlayerFrameNumber.load();
+        }
+        if (maxPlayerFrameNumber.load() >= 0)
+        {
+            infoFile["serialInfo"]["maxFrameNumber"] = maxPlayerFrameNumber.load();
+        }
+
+        // Populate the manually entered naming info
+        if (namingDiskTitle.has_value())
+        {
+            infoFile["namingInfo"]["title"] = namingDiskTitle.value().toStdString();
+        }
+        if (namingDiskIsCav.has_value())
+        {
+            infoFile["namingInfo"]["type"] = (namingDiskIsCav.value() ? "CAV" : "CLV");
+        }
+        if (namingDiskIsNtsc.has_value())
+        {
+            infoFile["namingInfo"]["format"] = (namingDiskIsNtsc.value() ? "NTSC" : "PAL");
+        }
+        if (namingDiskAudioType.has_value())
+        {
+            switch (namingDiskAudioType.value())
+            {
+            case AdvancedNamingDialog::AudioType::Analog:
+                infoFile["namingInfo"]["audioType"] = "Analog";
+                break;
+            case AdvancedNamingDialog::AudioType::AC3:
+                infoFile["namingInfo"]["audioType"] = "AC3";
+                break;
+            case AdvancedNamingDialog::AudioType::DTS:
+                infoFile["namingInfo"]["audioType"] = "DTS";
+                break;
+            case AdvancedNamingDialog::AudioType::Default:
+                infoFile["namingInfo"]["audioType"] = "Default";
+                break;
+            }
+        }
+        if (namingDiskSide.has_value())
+        {
+            infoFile["namingInfo"]["side"] = namingDiskSide.value();
+        }
+        if (namingDiskMintMarks.has_value())
+        {
+            infoFile["namingInfo"]["mintMarks"] = namingDiskMintMarks.value().toStdString();
+        }
+        if (namingDiskNotes.has_value())
+        {
+            infoFile["namingInfo"]["notes"] = namingDiskNotes.value().toStdString();
+        }
+        if (namingDiskMetadataNotes.has_value())
+        {
+            infoFile["namingInfo"]["metadataNotes"] = namingDiskMetadataNotes.value().toStdString();
+        }
+
+        // Populate the capture info
+        infoFile["captureInfo"]["transferResult"] = (int)usbDevice->GetTransferResult();
+        infoFile["captureInfo"]["durationInMilliseconds"] = std::chrono::round<std::chrono::milliseconds>(captureElapsedTime).count();
+        infoFile["captureInfo"]["transferCount"] = usbDevice->GetNumberOfTransfers();
+        infoFile["captureInfo"]["numberOfDiskBuffersWritten"] = usbDevice->GetNumberOfDiskBuffersWritten();
+        infoFile["captureInfo"]["fileSizeWrittenInBytes"] = usbDevice->GetFileSizeWrittenInBytes();
+        infoFile["captureInfo"]["minSampleValue"] = usbDevice->GetMinSampleValue();
+        infoFile["captureInfo"]["maxSampleValue"] = usbDevice->GetMaxSampleValue();
+        infoFile["captureInfo"]["clippedMinSampleCount"] = usbDevice->GetClippedMinSampleCount();
+        infoFile["captureInfo"]["clippedMaxSampleCount"] = usbDevice->GetClippedMaxSampleCount();
+        infoFile["captureInfo"]["sequenceMarkersPresent"] = usbDevice->GetTransferHadSequenceNumbers();
+
+        // Helper function to turn our sample times into a millisecond count since the start of the capture process,
+        // encoded as fixed-length strings with 8 characters. This is enough to keep the indexes in numeric order for
+        // up to 24 hours, which makes the file more human readable.
+        auto sampleTimeToString = [&](std::chrono::time_point<std::chrono::steady_clock> sampleTime)
+            {
+                auto sampleTimeSinceCaptureStart = std::chrono::round<std::chrono::milliseconds>(sampleTime - captureStartTime);
+                std::ostringstream sampleTimeAsFixedLengthString;
+                sampleTimeAsFixedLengthString << std::setfill('0') << std::setw(8) << sampleTimeSinceCaptureStart.count();
+                return sampleTimeAsFixedLengthString.str();
+            };
+
+        // Populate the amplitude record
+        for (const auto& entry : amplitudeRecord)
+        {
+            if (!std::isnan(entry.amplitude) && !std::isinf(entry.amplitude))
+            {
+                auto sampleTimeString = sampleTimeToString(entry.sampleTime);
+                infoFile["timeSampledData"]["amplitudeRecord"][sampleTimeString] = entry.amplitude;
+            }
+        }
+
+        // Populate the timecode/frame number record
+        for (const auto& entry : playerTimeCodeRecord)
+        {
+            auto sampleTimeString = sampleTimeToString(entry.sampleTime);
+            infoFile["timeSampledData"]["timeCodeRecord"][sampleTimeString] = entry.timeCodeOrFrameNumber;
+        }
+
+        // Populate the player state record
+        for (const auto& entry : playerStatusRecord)
+        {
+            auto sampleTimeString = sampleTimeToString(entry.sampleTime);
+            infoFile["timeSampledData"]["statusRecord"][sampleTimeString] = entry.playerState;
+        }
+
+        // Turn the json structure into a string. We "prettify" this json with an indent to make it easier to visually
+        // inspect.
+        const int jsonIndentLevel = 4;
+        std::string jsonString = infoFile.dump(jsonIndentLevel);
+
+        // Write the json metadata to our metadata output file
+        std::filesystem::path metadataFilePath = usedCaptureFilePath;
+        metadataFilePath.replace_extension(".json");
+        std::ofstream metadataFile;
+        metadataFile.open(metadataFilePath, std::ios::out | std::ios::trunc | std::ios::binary);
+        if (!metadataFile.is_open())
+        {
+            qDebug() << "startCapture(): Failed to create the json metadata output file at path" << metadataFilePath;
+        }
+        else
+        {
+            metadataFile.write(jsonString.data(), jsonString.size());
+        }
+
+        // Update the gui state now that capturing is complete
+        if (ui->actionTest_mode->isChecked())
+        {
+            ui->capturePushButton->setText(tr("Test data capture"));
+        }
+        else
+        {
+            ui->capturePushButton->setText(tr("Capture"));
+        }
+        ui->capturePushButton->setStyleSheet("background-color: none");
+        ui->capturePushButton->setEnabled(true);
+        ui->actionTest_mode->setEnabled(true);
+        ui->actionPreferences->setEnabled(true);
+        return;
+    }
+
+    // If the capture is stopping but the stopping process isn't complete, there's not much to do.
+    if (isCaptureStopping)
+    {
+        return;
+    }
+
+    // If the capture isn't stopping but the usb device isn't currently transferring, something's gone wrong. In this
+    // case we flag the capture to stop, and display an error message to the user.
+    bool captureRunning = usbDevice->GetTransferInProgress();
+    if (!isCaptureStopping && !captureRunning)
+    {
+        // Stop capture - something has gone wrong
+        StopCapture();
+
+        // Tell the player to stop playing if requested. Note that we need to do this here as we're about to block on
+        // the modal message box below, so we can't let it be picked up in the handler for when the capture is stopped.
+        // We want the player to stop on error, not play continuously until the error dialog is dismissed. We set a flag
+        // here to indicate a stop has already been requested, so we don't send a second stop command later and trigger
+        // the tray to open.
+        if (isPlayerConnected && ui->stopPlayerWhenCaptureStops->isChecked() && (playerControl->getPlayerState() != PlayerCommunication::PlayerState::stop))
+        {
+            playerStopRequested = true;
+            playerControl->setPlayerState(PlayerCommunication::PlayerState::stop);
+        }
+
+        // Show an error based on the transfer result
+        QMessageBox messageBox;
+        auto transferResult = usbDevice->GetTransferResult();
+        std::string errorMessage = "An internal program error occurred. Please run with --debug and check the logs.";
+        switch (transferResult)
+        {
+#ifndef _WIN32
+            case UsbDeviceBase::TransferResult::UsbMemoryLimit:
+                errorMessage = "Your kernel USB buffer size was too small. Consult the software documentation on how to increase your \"usbfs_memory_mb\" settings (highly recommended), or enable the \"Limited USB Queue\" option in the USB preferences.";
+                break;
+#endif
+            case UsbDeviceBase::TransferResult::BufferUnderflow:
+                errorMessage = "A buffer underflow occurred. Either your USB connection, CPU, or HDD was unable to keep up with the required transfer rate. Check your USB buffer settings and consult the software documentation.";
+                break;
+            case UsbDeviceBase::TransferResult::UsbTransferFailure:
+                errorMessage = "An unrecoverable error occurred in the USB transfer process";
+                break;
+            case UsbDeviceBase::TransferResult::FileWriteError:
+                errorMessage = "An error occurred writing to the target file";
+                break;
+            case UsbDeviceBase::TransferResult::SequenceMismatch:
+                errorMessage = "A sequence mismatch occurred when processing the captured data. Data was lost from the input stream, probably from a buffer underflow. Check your USB buffer settings and consult the software documentation.";
+                break;
+            case UsbDeviceBase::TransferResult::VerificationError:
+                errorMessage = "A verification error occurred validating the test sequence. There may be a software or hardware error with your capture device.";
+                break;
+        }
+        messageBox.critical(this, "Error", errorMessage.c_str());
+        messageBox.setFixedSize(500, 200);
+        return;
+    }
+
+    // Since the capture process isn't in a stopping or error state, update the current capture time.
+    auto captureElapsedTime = std::chrono::steady_clock::now() - captureStartTime;
+#ifdef _WIN32
+    std::string captureElapsedTimeAsString = std::format("{:%H:%M:%S}", std::chrono::floor<std::chrono::seconds>(captureElapsedTime));
+#else
+    std::string captureElapsedTimeAsString = QTime(0, 0, 0, 0).addSecs(std::chrono::floor<std::chrono::seconds>(captureElapsedTime).count()).toString("hh:mm:ss").toStdString();
+#endif
+    ui->durationLabel->setText(captureElapsedTimeAsString.c_str());
+
+    // If time-limited capture is enabled, stop the capture if we've exceeded the target time.
+    if (ui->limitDurationCheckBox->isChecked())
+    {
+        auto timeLimitAsQTime = ui->durationLimitTimeEdit->time();
+        auto timeLimit = std::chrono::hours(timeLimitAsQTime.hour()) + std::chrono::minutes(timeLimitAsQTime.minute()) + std::chrono::seconds(timeLimitAsQTime.second());
+        if (captureElapsedTime >= timeLimit)
+        {
+            StopCapture();
+        }
+    }
+}
+
+void MainWindow::updateDeviceStatus()
+{
+    // If the player and USB device present state hasn't changed, abort any further processing.
+    bool usbDevicePresent = usbDevice->DevicePresent(configuration->getUsbPreferredDevice().toStdString());
+    if ((usbDevicePresentLastCheck == usbDevicePresent) && (isPlayerConnectedLastCheck == isPlayerConnected))
+    {
+        return;
+    }
+
+    // Update the list of usb devices in the configuration dialog
+    std::vector<std::string> devicePaths;
+    if (usbDevice->GetPresentDevicePaths(devicePaths))
+    {
+        configurationDialog->updateDeviceList(devicePaths);
+    }
+
+    // Update the UI state to reflect the new device/player connection status
+    if (!usbDevicePresent)
+    {
+        qDebug() << "MainWindow::updateDeviceStatus(): Domesday Duplicator USB device has been detached";
+
+        // Show the device status in the status bar
+        usbStatusLabel->setText(tr("No USB capture device is attached"));
+
+        // Disable the capture button
+        ui->capturePushButton->setEnabled(false);
+
+        // Disable the automatic capture dialogue
+        automaticCaptureDialog->setEnabled(false);
+
+        // Disable the stop player option
+        ui->stopPlayerWhenCaptureStops->setEnabled(false);
+
+        // Disable the test mode option
+        ui->actionTest_mode->setEnabled(false);
+    }
+    else
+    {
+        qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been attached";
+
+        // Show the device status in the status bar
+        usbStatusLabel->setText(tr("Domesday Duplicator is connected via USB"));
+
+        // Set test mode unchecked in the menu
+        ui->actionTest_mode->setChecked(false);
+
+        // Enable the capture button
+        ui->capturePushButton->setEnabled(true);
+
+        // Enable the automatic capture dialogue
+        if (isPlayerConnected) automaticCaptureDialog->setEnabled(true);
+
+        // Enable the stop player option
+        if (isPlayerConnected) ui->stopPlayerWhenCaptureStops->setEnabled(true);
+
+        // Enable the test mode option
+        ui->actionTest_mode->setEnabled(true);
+    }
+    usbDevicePresentLastCheck = usbDevicePresent;
+    isPlayerConnectedLastCheck = isPlayerConnected;
 }
 
 // Update the player control labels
@@ -532,19 +835,96 @@ void MainWindow::updatePlayerControlInformation()
         modelLabel = playerModelName + " [Version " + playerControl->getPlayerVersionNumber() + "]";
     }
     ui->playerModelLabel->setText(modelLabel);
-    ui->playerStatusLabel->setText(playerControl->getPlayerStatusInformation());
 
-    // Display the position information based on disc type
-    if (playerControl->getDiscType() == PlayerCommunication::DiscType::CAV) {
-        // CAV
-        ui->playerPositionLabel->setText(playerControl->getPlayerPositionInformation());
-    } else if (playerControl->getDiscType() == PlayerCommunication::DiscType::CLV) {
-        // CLV
-        ui->playerPositionLabel->setText(playerControl->getPlayerPositionInformation());
-    } else {
-        // Disc type unknown
-        ui->playerPositionLabel->setText(tr("Unknown"));
+    // Retrieve the current player status info
+    bool isPlayerConnected = playerControl->getPlayerConnected();
+    auto discType = playerControl->getDiscType();
+    auto playerState = playerControl->getPlayerState();
+    auto frameNumber = playerControl->getCurrentFrameNumber();
+    auto timeCode = playerControl->getCurrentTimeCode();
+
+    // Update the player status information for the capture metadata record
+    if (isCaptureRunning && !isCaptureStopping && isPlayerConnected)
+    {
+        if (discType != PlayerCommunication::DiscType::unknownDiscType)
+        {
+            playerDiscTypeCached = discType;
+        }
+        if (discType == PlayerCommunication::DiscType::CAV)
+        {
+            minPlayerFrameNumber = (minPlayerFrameNumber.load() < 0) ? frameNumber : std::min(frameNumber, minPlayerFrameNumber.load());
+            maxPlayerFrameNumber = (maxPlayerFrameNumber.load() < 0) ? frameNumber : std::max(frameNumber, maxPlayerFrameNumber.load());
+            playerTimeCodeRecord.push_back({ std::chrono::steady_clock::now(), frameNumber });
+        }
+        else if (discType == PlayerCommunication::DiscType::CLV)
+        {
+            minPlayerTimeCode = (minPlayerTimeCode.load() < 0) ? timeCode : std::min(timeCode, minPlayerTimeCode.load());
+            maxPlayerTimeCode = (maxPlayerTimeCode.load() < 0) ? timeCode : std::max(timeCode, maxPlayerTimeCode.load());
+            playerTimeCodeRecord.push_back({ std::chrono::steady_clock::now(), timeCode });
+        }
     }
+    playerStatusRecord.push_back({ std::chrono::steady_clock::now(), (isPlayerConnected ? playerState : (PlayerCommunication::PlayerState)-1)});
+
+    // Display the position information based on disc type and player status
+    QString playerPositionString;
+    if (!isPlayerConnected)
+    {
+        playerPositionString = "Unknown";
+    }
+    else if (playerState == PlayerCommunication::PlayerState::stop)
+    {
+        playerPositionString = "Disc stopped";
+    }
+    else
+    {
+        if (discType == PlayerCommunication::DiscType::CAV)
+        {
+            playerPositionString = QString::number(frameNumber);
+        }
+        else if (discType == PlayerCommunication::DiscType::CLV)
+        {
+            QString timeCodeString;
+            QString hourString;
+            QString minuteString;
+            QString secondString;
+
+            // Get the full 7 character time-code string
+            timeCodeString = QString("%1").arg(timeCode, 7, 10, QChar('0'));
+
+            // Split up the time-code
+            hourString = timeCodeString.left(1);
+            minuteString = timeCodeString.left(3).right(2);
+            secondString = timeCodeString.left(5).right(2);
+
+            // Display time-code (without frame number)
+            playerPositionString = ("0" + hourString + ":" + minuteString + ":" + secondString);
+        }
+        else
+        {
+            playerPositionString = "Unknown disc type";
+        }
+    }
+    ui->playerPositionLabel->setText(playerPositionString);
+
+    // Display the player status information based on disc type and player status
+    QString playerStatusString;
+    if (isPlayerConnected)
+    {
+        if (discType == PlayerCommunication::DiscType::CAV) playerStatusString += "CAV ";
+        if (discType == PlayerCommunication::DiscType::CLV) playerStatusString += "CLV ";
+        if (playerState == PlayerCommunication::PlayerState::stop) playerStatusString += "Stopped";
+        if (playerState == PlayerCommunication::PlayerState::pause) playerStatusString += "Paused";
+        if (playerState == PlayerCommunication::PlayerState::stillFrame) playerStatusString += "Still-Frame";
+        if (playerState == PlayerCommunication::PlayerState::play) playerStatusString += "Playing";
+    }
+    else
+    {
+        playerStatusString = "No player connected (serial)";
+    }
+    ui->playerStatusLabel->setText(playerStatusString);
+
+    // Update the displayed response to the last manual command
+    playerRemoteDialog->setPlayerResponseToManualCommand(playerControl->getManualCommandResponse());
 }
 
 // Update the storage information labels
@@ -552,25 +932,42 @@ void MainWindow::updateStorageInformation()
 {
     storageInfo->refresh();
     if (storageInfo->isValid()) {
-        qint64 availableMiBs = storageInfo->bytesAvailable() / 1024 / 1024;
+        // Calculate the space required per second based on the selected sample format
+        size_t samplesPerSecond = 40 * 1000 * 1000;
+        size_t bytesPerSecond = 0;
+        switch (configuration->getCaptureFormat())
+        {
+        case Configuration::CaptureFormat::sixteenBitSigned:
+            // 2 bytes per sample
+            bytesPerSecond = samplesPerSecond * 2;
+            break;
+        case Configuration::CaptureFormat::tenBitPacked:
+            // 5 bytes every 4 samples
+            bytesPerSecond = (samplesPerSecond / 4) * 5;
+            break;
+        case Configuration::CaptureFormat::tenBitCdPacked:
+            // 5 bytes every 16 samples
+            bytesPerSecond = (samplesPerSecond / 16) * 5;
+            break;
+        }
 
-        qint64 availableSeconds = 0;
+        // Calculate the amount of time we can record based on the available space
+        size_t bytesAvailable = (size_t)storageInfo->bytesAvailable();
+        size_t availableSeconds = bytesAvailable / bytesPerSecond;
 
-        if (availableMiBs != 0) {
-            if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) {
-                availableSeconds = availableMiBs / 64; // 16-bit is 64MiB per buffer
-            } else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
-                availableSeconds = availableMiBs / 40; // 10-bit is 40MiB per buffer
-            } else {
-                availableSeconds = availableMiBs / 10; // 10-bit 4:1 is 10MiB per buffer
-            }
-
-            // Print the time available (be non-specific if > 24 hours)
-            if (availableSeconds > 84600) ui->spaceAvailableLabel->setText("More than 24 hours");
-            else ui->spaceAvailableLabel->setText(QTime(0, 0, 0, 0).addSecs(static_cast<qint32>(availableSeconds)).toString("hh:mm:ss"));
-        } else {
-            // Unable to get storage info
-            ui->spaceAvailableLabel->setText(tr("Unknown"));
+        // Print the time available
+        if (availableSeconds > (60 * 60 * 96))
+        {
+            ui->spaceAvailableLabel->setText("More than 96 hours");
+        }
+        else
+        {
+#ifdef _WIN32
+            std::string timeAvailableString = std::format("{:%H:%M:%S}", std::chrono::seconds(availableSeconds));
+#else
+            std::string timeAvailableString = QTime(0, 0, 0, 0).addSecs(static_cast<qint32>(availableSeconds)).toString("hh:mm:ss").toStdString();
+#endif
+            ui->spaceAvailableLabel->setText(timeAvailableString.c_str());
         }
     } else {
         // Unable to get storage info
@@ -617,11 +1014,11 @@ void MainWindow::on_actionTest_mode_toggled(bool arg1)
 {
     if (arg1) {
         // Turn test-mode on
-        usbDevice->sendConfigurationCommand(true);
+        usbDevice->SendConfigurationCommand(configuration->getUsbPreferredDevice().toStdString(), true);
         ui->capturePushButton->setText("Test data capture");
     } else {
         // Turn test-mode off
-        usbDevice->sendConfigurationCommand(false);
+        usbDevice->SendConfigurationCommand(configuration->getUsbPreferredDevice().toStdString(), false);
         ui->capturePushButton->setText("Capture");
     }
 }
@@ -653,92 +1050,230 @@ void MainWindow::on_actionAbout_triggered()
 // Menu option: Edit->Preferences
 void MainWindow::on_actionPreferences_triggered()
 {
-    configurationDialog->loadConfiguration(configuration);
+    configurationDialog->loadConfiguration(*configuration);
     configurationDialog->show();
 }
 
+void MainWindow::StopCapture()
+{
+    // If no capture is currently in progress or it is currently stopping, abort any further processing.
+    if (!isCaptureRunning || isCaptureStopping)
+    {
+        return;
+    }
+
+    // Update the button text to indicate the capture is stopping
+    ui->capturePushButton->setText(tr("Stopping"));
+    ui->capturePushButton->setEnabled(false);
+
+    // Flag the capture process to stop
+    isCaptureStopping = true;
+    playerControl->stopAutomaticCapture(); // Stop auto-capture if in progress
+    std::thread stopThread([&]()
+        {
+            usbDevice->StopCapture();
+            isCaptureRunning = false;
+        });
+    stopThread.detach();
+}
+
+void MainWindow::StartCapture()
+{
+    // If a capture is already in progress, abort any further processing.
+    if (isCaptureRunning)
+    {
+        return;
+    }
+
+    // Ensure that the test mode option matches the device configuration
+    bool isTestMode = ui->actionTest_mode->isChecked();
+    qDebug() << "MainWindow::StartCapture(): Setting device's test mode flag to" << isTestMode;
+    usbDevice->SendConfigurationCommand(configuration->getUsbPreferredDevice().toStdString(), isTestMode);
+
+    // Use the advanced naming dialogue to generate the capture file name
+    captureFilePath = std::filesystem::path((char8_t const*)configuration->getCaptureDirectory().toUtf8().data());
+    captureFilePath += std::filesystem::path((char8_t const*)advancedNamingDialog->getFileName(isTestMode).toUtf8().data());
+
+    // Reset our amplitude buffer. We reserve enough storage to capture 24 hours worth of samples at the 1000ms timer
+    // interval, to prevent stalls from a large memory allocation/relocation operation during capture.
+    amplitudeRecord.clear();
+    amplitudeRecord.reserve(24 * 60 * 60);
+
+    // Reset our time code/frame number and player status buffers. We reserve enough storage to capture 24 hours worth
+    // of samples at the 100ms timer interval, to prevent stalls from a large memory allocation/relocation operation
+    // during capture.
+    playerTimeCodeRecord.clear();
+    playerTimeCodeRecord.reserve(24 * 60 * 60 * 10);
+    playerStatusRecord.clear();
+    playerStatusRecord.reserve(24 * 60 * 60 * 10);
+
+    // Reset our cached serial control info
+    playerDiscTypeCached = PlayerCommunication::DiscType::unknownDiscType;
+    minPlayerTimeCode = -1;
+    maxPlayerTimeCode = -1;
+    minPlayerFrameNumber = -1;
+    maxPlayerFrameNumber = -1;
+
+    // Store fields from the advanced naming dialog for metadata saving later
+    namingDiskTitle.reset();
+    namingDiskIsCav.reset();
+    namingDiskIsNtsc.reset();
+    namingDiskAudioType.reset();
+    namingDiskSide.reset();
+    namingDiskMintMarks.reset();
+    namingDiskNotes.reset();
+    namingDiskMetadataNotes.reset();
+    if (advancedNamingDialog->getDiskTitleChecked())
+    {
+        namingDiskTitle = advancedNamingDialog->getDiskTitle();
+    }
+    if (advancedNamingDialog->getDiskTypeChecked())
+    {
+        namingDiskIsCav = advancedNamingDialog->getDiskTypeCav();
+    }
+    if (advancedNamingDialog->getFormatChecked())
+    {
+        namingDiskIsNtsc = advancedNamingDialog->getFormatNtsc();
+    }
+    if (advancedNamingDialog->getAudioChecked())
+    {
+        namingDiskAudioType = advancedNamingDialog->getAudioType();
+    }
+    if (advancedNamingDialog->getDiscSideChecked())
+    {
+        namingDiskSide = advancedNamingDialog->getDiscSide();
+    }
+    if (!advancedNamingDialog->getMintMarks().isEmpty())
+    {
+        namingDiskMintMarks = advancedNamingDialog->getMintMarks();
+    }
+    if (!advancedNamingDialog->getNotes().isEmpty())
+    {
+        namingDiskNotes = advancedNamingDialog->getNotes();
+    }
+    if (!advancedNamingDialog->getMetadataNotes().isEmpty())
+    {
+        namingDiskMetadataNotes = advancedNamingDialog->getMetadataNotes();
+    }
+
+    // Change the file suffix based on the selected capture format
+    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked)
+    {
+        captureFilePath += ".lds";
+    }
+    else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned)
+    {
+        captureFilePath += ".raw";
+    }
+    else
+    {
+        captureFilePath += ".cds";
+    }
+
+    // Disable functions during capture
+    ui->capturePushButton->setText(tr("Stop Capture"));
+    ui->capturePushButton->setStyleSheet("background-color: red");
+    ui->actionTest_mode->setEnabled(false);
+    ui->actionPreferences->setEnabled(false);
+
+    // Make sure the configuration dialogue is closed
+    configurationDialog->hide();
+
+    // Reset the capture statistics
+    ui->numberOfTransfersLabel->setText(tr("0"));
+
+    // Determine the capture format
+    UsbDeviceBase::CaptureFormat captureFormat = UsbDeviceBase::CaptureFormat::Signed16Bit;
+    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked)
+    {
+        qDebug() << "MainWindow::StartCapture(): Starting transfer - 10-bit packed";
+        captureFormat = UsbDeviceBase::CaptureFormat::Unsigned10Bit;
+    }
+    else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitCdPacked)
+    {
+        qDebug() << "MainWindow::StartCapture(): Starting transfer - 10-bit packed 4:1 decimated";
+        captureFormat = UsbDeviceBase::CaptureFormat::Unsigned10Bit4to1Decimation;
+    }
+    else
+    {
+        qDebug() << "MainWindow::StartCapture(): Starting transfer - 16-bit";
+        captureFormat = UsbDeviceBase::CaptureFormat::Signed16Bit;
+    }
+
+    // Initialize our transfer state settings
+    playerStopRequested = false;
+
+    // Determine the USB transer settings. Unless a small USB transfer queue is selected, we assume we can buffer up to
+    // the disk buffer limit. Currently this would be up to 512mb of memory. Small transfer queue mode is done for the
+    // benefit of linux, where the "usbfs_memory_mb" kernel setting is often 16mb for the entire system. If a small
+    // queue is selected, we assume no more than 12mb of memory can be queued, which is 3/4 of that limit.
+    const size_t smallUsbTransferQueueSize = 12 * 1024 * 1024;
+    size_t maxDiskBufferQueueSizeInBytes = configuration->getDiskBufferQueueSize();
+    size_t maxUsbTransferQueueSizeInBytes = (configuration->getUseSmallUsbTransferQueue() ? smallUsbTransferQueueSize : maxDiskBufferQueueSizeInBytes);
+    bool useSmallUsbTransfers = configuration->getUseSmallUsbTransfers();
+    bool useAsyncFileIo = configuration->getUseAsyncFileIo();
+
+    // Attempt to start the capture process
+    qDebug() << "MainWindow::StartCapture(): Starting capture to file:" << captureFilePath;
+    if (!usbDevice->StartCapture(captureFilePath, captureFormat, configuration->getUsbPreferredDevice().toStdString(), isTestMode, useSmallUsbTransfers, useAsyncFileIo, maxUsbTransferQueueSizeInBytes, maxDiskBufferQueueSizeInBytes))
+    {
+        // Show an error based on the transfer result
+        qDebug() << "MainWindow::StartCapture(): Failed to begin the capture process";
+        QMessageBox messageBox;
+        auto transferResult = usbDevice->GetTransferResult();
+        std::string errorMessage = "Failed to start capture. An internal program error occurred. Please run with --debug and check the logs.";
+        switch (transferResult)
+        {
+            case UsbDeviceBase::TransferResult::Running:
+                errorMessage = "Failed to start capture. A capture was already in progress.";
+                break;
+            case UsbDeviceBase::TransferResult::FileCreationError:
+                errorMessage = "Failed to start capture. The target file could not be created.";
+                break;
+            case UsbDeviceBase::TransferResult::ConnectionFailure:
+                errorMessage = "Failed to start capture. A connection could not be established to the USB capture device.";
+                break;
+        }
+        messageBox.critical(this, "Error", errorMessage.c_str());
+        messageBox.setFixedSize(500, 200);
+
+        // Restore the UI state since capture won't be starting
+        if (ui->actionTest_mode->isChecked())
+        {
+            ui->capturePushButton->setText(tr("Test data capture"));
+        }
+        else
+        {
+            ui->capturePushButton->setText(tr("Capture"));
+        }
+        ui->capturePushButton->setStyleSheet("background-color: none");
+        ui->actionTest_mode->setEnabled(true);
+        ui->actionPreferences->setEnabled(true);
+        return;
+    }
+    captureStartTime = std::chrono::steady_clock::now();
+    isCaptureRunning = true;
+    isCaptureStopping = false;
+    qDebug() << "MainWindow::StartCapture(): Transfer started";
+
+    // Start a timer to display the capture statistics
+    ui->durationLabel->setText(tr("00:00:00"));
+    captureStatusUpdateTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
+
+    // Start graph processing
+    amplitudeTimer->start(1000);
+}
+
 // Main window - capture button clicked
-QString captureFilename;
 void MainWindow::on_capturePushButton_clicked()
 {
-    if (!isCaptureRunning) {
-        // Start capture
-
-        // Ensure that the test mode option matches the device configuration
-        bool isTestMode = ui->actionTest_mode->isChecked();
-        qDebug() << "MainWindow::on_capturePushButton_clicked(): Setting device's test mode flag to" << isTestMode;
-        usbDevice->sendConfigurationCommand(isTestMode);
-
-        // Construct the capture file path and name
-
-        // Use the advanced naming dialogue to generate the capture file name
-        captureFilename = configuration->getCaptureDirectory() +
-                advancedNamingDialog->getFileName(isTestMode);
-
-        // Change the suffix depending on if the data is 10 or 16 bit
-        if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) captureFilename += ".lds";
-        else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned) captureFilename += ".raw";
-        else captureFilename += ".cds";
-
-        qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting capture to file:" << captureFilename;
-        updateGuiForCaptureStart();
-        isCaptureRunning = true;
-
-        if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked) {
-            qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer - 10-bit packed";
-            usbDevice->startCapture(captureFilename, true, false, isTestMode);
-        } else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitCdPacked) {
-            qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer - 10-bit packed 4:1 decimated";
-            usbDevice->startCapture(captureFilename, true, true, isTestMode);
-        } else {
-            qDebug() << "MainWindow::on_capturePushButton_clicked(): Starting transfer - 16-bit";
-            usbDevice->startCapture(captureFilename, false, false, isTestMode);
-        }
-
-        qDebug() << "MainWindow::on_capturePushButton_clicked(): Transfer started";
-
-        // Start a timer to display the capture statistics
-        ui->durationLabel->setText(tr("00:00:00"));
-        captureStatusUpdateTimer->start(100); // Update 10 times a second (1000 / 10 = 100)
-
-        // Start the capture duration timer
-        captureElapsedTime = QTime::fromString("00:00:00", "hh:mm:ss");
-        captureDurationTimer->start(1000); // Update 1 time per second
-
-        // Connect to the transfer failure notification signal
-        connect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
-
-        // Start graph processing
-        amplitudeTimer->start(1000);
-    } else {
-        // Stop capture
-        playerControl->stopAutomaticCapture(); // Stop auto-capture if in progress
-        usbDevice->stopCapture();
-        isCaptureRunning = false;
-        captureStatusUpdateTimer->stop();
-        amplitudeTimer->stop();
-        captureDurationTimer->stop();
-        disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
-        // Rename output file if duration checkbox is clicked
-        if (advancedNamingDialog->getDurationChecked()) {
-            qDebug() << "ainWindow::on_capturePushButton_clicked(): Starting attempt to append duration";
-            // Make sure output file is closed
-            if (!UsbCapture::getOkToRename()) {
-                qDebug() << "MainWindow::on_capturePushButton_clicked(): Not ok to rename, disk buffers still writing";
-                while (!UsbCapture::getOkToRename()) {
-                    // Wait until finished
-                }
-            }
-            QString durationFilename = captureFilename;
-            QString finalDuration = captureElapsedTime.toString("hh'H'mm'M'ss'S'");
-            finalDuration.prepend("_");
-            // Get "." before extension and save as index
-            int durationIndex = durationFilename.lastIndexOf(".");
-            durationFilename.insert(durationIndex, finalDuration);
-            QFile::rename(captureFilename, durationFilename);
-            qDebug() << "MainWindow::on_capturePushButton_clicked(): Renamed file to" << durationFilename;
-        }
-        updateGuiForCaptureStop();
+    if (!isCaptureRunning)
+    {
+        StartCapture();
+    }
+    else
+    {
+        StopCapture();
     }
 }
 
@@ -754,50 +1289,6 @@ void MainWindow::on_limitDurationCheckBox_stateChanged(int arg1)
         // Unchecked
         ui->durationLimitTimeEdit->setEnabled(false);
     }
-}
-
-// Transfer failed notification signal handler
-void MainWindow::transferFailedSignalHandler()
-{
-    // Stop capture - something has gone wrong
-    usbDevice->stopCapture();
-    isCaptureRunning = false;
-    captureStatusUpdateTimer->stop();
-    captureDurationTimer->stop();
-    disconnect(usbDevice, &UsbDevice::transferFailed, this, &MainWindow::transferFailedSignalHandler);
-    updateGuiForCaptureStop();
-
-    // Show an error
-    QMessageBox messageBox;
-    messageBox.critical(this, "Error", usbDevice->getLastError());
-    messageBox.setFixedSize(500, 200);
-}
-
-// Update the GUI when capture starts
-void MainWindow::updateGuiForCaptureStart()
-{
-    // Disable functions during capture
-    ui->capturePushButton->setText(tr("Stop Capture"));
-    ui->capturePushButton->setStyleSheet("background-color: red");
-    ui->actionTest_mode->setEnabled(false);
-    ui->actionPreferences->setEnabled(false);
-
-    // Make sure the configuration dialogue is closed
-    configurationDialog->hide();
-
-    // Reset the capture statistics
-    ui->numberOfTransfersLabel->setText(tr("0"));
-}
-
-// Update the GUI when capture stops, and flip rename var back to false
-void MainWindow::updateGuiForCaptureStop()
-{
-    // Disable functions after capture
-    if (ui->actionTest_mode->isChecked()) ui->capturePushButton->setText(tr("Test data capture"));
-    else ui->capturePushButton->setText(tr("Capture"));
-    ui->capturePushButton->setStyleSheet("background-color: none");
-    ui->actionTest_mode->setEnabled(true);
-    ui->actionPreferences->setEnabled(true);
 }
 
 // Update the player remote control dialogue
@@ -843,10 +1334,26 @@ void MainWindow::updatePlayerRemoteDialog()
     }
 }
 
-// Timer callback to update amplitude display
+void MainWindow::updateAmplitudeDataBuffer()
+{
+    const size_t bufferSampleSizeInBytes = 2 * 1024;
+    std::vector<uint8_t> bufferSample;
+    if (usbDevice->GetNextBufferSample(bufferSample))
+    {
+        ui->am->updateBuffer(bufferSample);
+    }
+    usbDevice->QueueBufferSampleRequest(bufferSampleSizeInBytes);
+}
+
+// Timer callback to update amplitude display and record
 void MainWindow::updateAmplitudeLabel()
 {
-    ui->meanAmplitudeLabel->setText(QString::number(ui->am->getMeanAmplitude(), 'f', 3));
+    auto amplitude = ui->am->getMeanAmplitude();
+    if (isCaptureRunning && !isCaptureStopping)
+    {
+        amplitudeRecord.push_back({ std::chrono::steady_clock::now(), amplitude });
+    }
+    ui->meanAmplitudeLabel->setText(QString::number(amplitude, 'f', 3));
 }
 
 // Update amplitude UI elements
@@ -854,26 +1361,26 @@ void MainWindow::updateAmplitudeUI()
 {
     // If any amplitude display is enabled, capture amplitude data
     if (configuration->getAmplitudeLabelEnabled() || configuration->getAmplitudeChartEnabled()) {
-        connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(updateBuffer()));
+        connect(amplitudeTimer.get(), SIGNAL(timeout()), this, SLOT(updateAmplitudeDataBuffer()));
     } else {
-        disconnect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(updateBuffer()));
+        disconnect(amplitudeTimer.get(), SIGNAL(timeout()), this, SLOT(updateAmplitudeDataBuffer()));
     }
 
     // Update amplitude label, driven by timer
     if (configuration->getAmplitudeLabelEnabled()) {
         ui->meanAmplitudeLabel->setText("0.000");
-        connect(amplitudeTimer, SIGNAL(timeout()), this, SLOT(updateAmplitudeLabel()));
+        connect(amplitudeTimer.get(), SIGNAL(timeout()), this, SLOT(updateAmplitudeLabel()));
     } else {
-        disconnect(amplitudeTimer, SIGNAL(timeout()), this, SLOT(updateAmplitudeLabel()));
+        disconnect(amplitudeTimer.get(), SIGNAL(timeout()), this, SLOT(updateAmplitudeLabel()));
         ui->meanAmplitudeLabel->setText("N/A");
     }
 
     // Update amplitude graph
     if (configuration->getAmplitudeChartEnabled()) {
         ui->am->setVisible(true);
-        connect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(plotGraph()));
+        connect(amplitudeTimer.get(), SIGNAL(timeout()), ui->am, SLOT(plotGraph()));
     } else {
-        disconnect(amplitudeTimer, SIGNAL(timeout()), ui->am, SLOT(plotGraph()));
+        disconnect(amplitudeTimer.get(), SIGNAL(timeout()), ui->am, SLOT(plotGraph()));
         ui->am->setVisible(false);
     }
 }

@@ -24,10 +24,7 @@
     Email: simon.inns@gmail.com
 
 ************************************************************************/
-
-#ifndef AMPLITUDEMEASUREMENT_H
-#define AMPLITUDEMEASUREMENT_H
-
+#pragma once
 #include <QVector>
 #include <array>
 #include <vector>
@@ -42,7 +39,7 @@ public:
     double getMeanAmplitude();
 
 public slots:
-    void updateBuffer();
+    void updateBuffer(const std::vector<uint8_t>& bufferSample);
     void plotGraph();
 
 private:
@@ -51,5 +48,3 @@ private:
     std::array<double, 20> rollingAmp;
     QCPGraph *wavePlot;
 };
-
-#endif // AMPLITUDEMEASUREMENT_H

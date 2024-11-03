@@ -24,13 +24,11 @@
     Email: simon.inns@gmail.com
 
 ************************************************************************/
-
-#ifndef AUTOMATICCAPTUREDIALOG_H
-#define AUTOMATICCAPTUREDIALOG_H
-
+#pragma once
 #include <QDialog>
 #include <QMessageBox>
 #include <QDebug>
+#include <memory>
 
 namespace Ui {
 class AutomaticCaptureDialog;
@@ -72,10 +70,8 @@ private slots:
     void on_startClvCapturePushButton_clicked();
 
 private:
-    Ui::AutomaticCaptureDialog *ui;
+    std::unique_ptr<Ui::AutomaticCaptureDialog> ui;
 
     bool captureInProgress;
     CaptureType captureType;
 };
-
-#endif // AUTOMATICCAPTUREDIALOG_H
