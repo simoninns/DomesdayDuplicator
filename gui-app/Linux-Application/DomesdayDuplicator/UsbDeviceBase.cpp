@@ -50,14 +50,13 @@ const ILogger& UsbDeviceBase::Log() const
 //----------------------------------------------------------------------------------------------------------------------
 void UsbDeviceBase::SendConfigurationCommand(const std::string& preferredDevicePath, bool testMode)
 {
-    uint16_t configurationFlags = 0;
-
-    configurationFlags |= (testMode ? 0x0001 : 0x0000); // Bit 0: Set test mode
+    // Bit 0: Set test mode
     // Bit 1: Unused
     // Bit 2: Unused
     // Bit 3: Unused
     // Bit 4: Unused
-
+    uint16_t configurationFlags = 0b00000;
+    configurationFlags |= (testMode ? 0b00001 : 0b00000);
     SendVendorSpecificCommand(preferredDevicePath, 0xB6, configurationFlags);
 }
 
@@ -69,14 +68,14 @@ bool UsbDeviceBase::StartCapture(const std::filesystem::path& filePath, CaptureF
     // If we're already performing a capture, abort any further processing.
     if (transferInProgress)
     {
-        Log().Error("startCapture(): Capture was currently in progress");
+        Log().Error("StartCapture(): Capture was currently in progress");
         return false;
     }
 
     // Attempt to connect to the target device
     if (!ConnectToDevice(preferredDevicePath))
     {
-        Log().Error("startCapture(): Failed to connect to the target device");
+        Log().Error("StartCapture(): Failed to connect to the target device");
         captureResult = TransferResult::ConnectionFailure;
         return false;
     }
@@ -107,7 +106,7 @@ bool UsbDeviceBase::StartCapture(const std::filesystem::path& filePath, CaptureF
         captureOutputFile.open(filePath, std::ios::out | std::ios::trunc | std::ios::binary);
         if (!captureOutputFile.is_open())
         {
-            Log().Error("startCapture(): Failed to create the output file at path {0}", filePath);
+            Log().Error("StartCapture(): Failed to create the output file at path {0}", filePath);
             captureResult = TransferResult::FileCreationError;
             return false;
         }
@@ -174,7 +173,7 @@ void UsbDeviceBase::StopCapture()
     // If a transfer isn't currently in progress, abort any further processing.
     if (!transferInProgress)
     {
-        Log().Error("stopCapture(): No capture was currently in progress");
+        Log().Error("StopCapture(): No capture was currently in progress");
         return;
     }
 
@@ -219,7 +218,7 @@ void UsbDeviceBase::StopCapture()
     DisconnectFromDevice();
 
     // Record that the capture process has completed
-    Log().Info("stopCapture(): Ended capture process");
+    Log().Info("StopCapture(): Ended capture process");
     transferInProgress = false;
 }
 
@@ -265,11 +264,11 @@ void UsbDeviceBase::CaptureThread()
     boostedProcessPriority = SetCurrentProcessRealtimePriority(processPriorityRestoreInfo);
     if (!boostedProcessPriority)
     {
-        Log().Warning("captureThread(): Failed to boost process priority");
+        Log().Warning("CaptureThread(): Failed to boost process priority");
     }
 
     // Record that a capture process is starting
-    Log().Info("captureThread(): Starting capture process");
+    Log().Info("CaptureThread(): Starting capture process");
 
     usbTransferRunning.test_and_set();
     processingRunning.test_and_set();
@@ -572,7 +571,7 @@ void UsbDeviceBase::ProcessingThread()
     std::shared_ptr<void> currentThreadPriorityReducer;
     if (!boostedThreadPriority)
     {
-        Log().Warning("processingThread(): Failed to boost thread priority");
+        Log().Warning("ProcessingThread(): Failed to boost thread priority");
     }
     else
     {
@@ -687,7 +686,7 @@ void UsbDeviceBase::ProcessingThread()
                 captureOutputFile.write((const char*)currentConversionBuffer.data(), currentConversionBuffer.size());
                 if (!captureOutputFile.good())
                 {
-                    Log().Error("processingThread(): An error occurred when writing to the output file");
+                    Log().Error("ProcessingThread(): An error occurred when writing to the output file");
                     SetProcessingFinished(TransferResult::FileWriteError);
                     processingFailure = true;
                     continue;
@@ -736,7 +735,7 @@ void UsbDeviceBase::ProcessingThread()
                 auto& lastConversionBuffer = conversionBuffers[lastConversionBufferIndex];
                 if (bytesTransferred != lastConversionBuffer.size())
                 {
-                    Log().Error("processingThread(): Expected {0} bytes written to disk but only {1} bytes were saved from buffer index {2}.", lastConversionBuffer.size(), bytesTransferred, lastBufferIndex);
+                    Log().Error("ProcessingThread(): Expected {0} bytes written to disk but only {1} bytes were saved from buffer index {2}.", lastConversionBuffer.size(), bytesTransferred, lastBufferIndex);
                     SetProcessingFinished(TransferResult::FileWriteError);
                     processingFailure = true;
                     continue;
@@ -836,12 +835,12 @@ bool UsbDeviceBase::ProcessSequenceMarkersAndUpdateSampleMetrics(size_t diskBuff
         // If no sequence numbers were detected, disable sequence checking, otherwise activate it.
         if (sequenceCounter == 0xFFFFFFFF)
         {
-            Log().Warning("processSequenceMarkersAndUpdateSampleMetrics(): Data does not include sequence numbers");
+            Log().Warning("ProcessSequenceMarkersAndUpdateSampleMetrics(): Data does not include sequence numbers");
             sequenceState = SequenceState::Disabled;
         }
         else
         {
-            Log().Trace("processSequenceMarkersAndUpdateSampleMetrics(): Synchronised with data sequence numbers");
+            Log().Trace("ProcessSequenceMarkersAndUpdateSampleMetrics(): Synchronised with data sequence numbers");
             sequenceState = SequenceState::Running;
         }
     }
@@ -858,7 +857,7 @@ bool UsbDeviceBase::ProcessSequenceMarkersAndUpdateSampleMetrics(size_t diskBuff
             uint32_t sequenceNumber = (uint32_t)(diskBuffer[i + 1] >> 2);
             if (sequenceNumber != expected)
             {
-                Log().Error("processSequenceMarkersAndUpdateSampleMetrics(): Sequence number mismatch! Expecting {0} but got {1}", expected, sequenceNumber);
+                Log().Error("ProcessSequenceMarkersAndUpdateSampleMetrics(): Sequence number mismatch! Expecting {0} but got {1}", expected, sequenceNumber);
                 sequenceState = SequenceState::Failed;
                 savedSequenceCounter = sequenceCounter;
                 return false;
@@ -928,7 +927,7 @@ bool UsbDeviceBase::VerifyTestSequence(size_t diskBufferIndex)
         if (expectedValue != actualValue)
         {
             // Data error
-            Log().Error("verifyTestSequence(): Data error in test data verification! Expecting {0} but got {1}", expectedValue, actualValue);
+            Log().Error("VerifyTestSequence(): Data error in test data verification! Expecting {0} but got {1}", expectedValue, actualValue);
             return false;
         }
 
@@ -1021,7 +1020,7 @@ bool UsbDeviceBase::ConvertRawSampleData(size_t diskBufferIndex, CaptureFormat c
     }
     else
     {
-        Log().Error("convertRawSampleData(): Unknown capture format {0} specified", captureFormat);
+        Log().Error("ConvertRawSampleData(): Unknown capture format {0} specified", captureFormat);
         return false;
     }
     return true;
@@ -1233,13 +1232,14 @@ bool UsbDeviceBase::SetCurrentThreadRealtimePriority(ThreadPriorityRestoreInfo& 
 #ifndef _WIN32
 bool UsbDeviceBase::SetCurrentThreadRealtimePriority(ThreadPriorityRestoreInfo& priorityRestoreInfo)
 {
+    // Retrieve the current scheduling policy for the calling thread
     int oldSchedPolicy;
     sched_param oldSchedParam;
     pthread_getschedparam(pthread_self(), &oldSchedPolicy, &oldSchedParam);
-
     priorityRestoreInfo.oldSchedPolicy = oldSchedPolicy;
     priorityRestoreInfo.oldSchedParam = oldSchedParam;
 
+    // Attempt to increase the thread scheduling policy to realtime
     int targetPolicy = SCHED_RR;
     int minSchedPriority = sched_get_priority_min(targetPolicy);
     int maxSchedPriority = sched_get_priority_max(targetPolicy);
@@ -1253,7 +1253,6 @@ bool UsbDeviceBase::SetCurrentThreadRealtimePriority(ThreadPriorityRestoreInfo& 
         // Put the priority about 3/4 of the way through its range
         schedParams.sched_priority = (minSchedPriority + (3 * maxSchedPriority)) / 4;
     }
-
     if (pthread_setschedparam(pthread_self(), targetPolicy, &schedParams) == 0)
     {
         Log().Info("SetCurrentThreadRealtimePriority: Thread priority set with policy SCHED_RR");
