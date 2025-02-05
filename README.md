@@ -16,6 +16,12 @@ The samples the DdD capture can be used with the family of decoders that make th
 
 [LaserDisc Decode](https://github.com/happycube/ld-decode) / [VHS-Decode (Videotape)](https://github.com/oyvindln/vhs-decode/wiki/) / [CVBS (Composite) Decode](CVBS-Composite-Decode) / [HiFi Decode](HiFi-Decode) / [RTLSDR HiFi Decode](RTLSDR) / [MUSE-Decode](https://bitbucket.org/staffanulfberg/ldaudio/src/master/musecpp/) / [CD-Decode](https://github.com/happycube/cd-decode) / [FL2K TBC Player](TBC-To-Analogue)
 
+# 3D Printed Case 
+
+The DomesDay Duplicator also has a [3D models](https://github.com/simoninns/DomesdayDuplicator-Case) and ready to use data for producing 3D printed cases, to protect from dust or line with copper tape for affordable EMI shielding for example.
+
+<img src="Graphics/DdD-case1.png" width="400" height="">
+
 ## Authors
 
 Domesday Duplicator was written & designed by [Simon Inns](https://github.com/simoninns).
