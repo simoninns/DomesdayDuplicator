@@ -1,44 +1,30 @@
-# Domesday Duplicator
-The Domesday Duplicator is a USB3 based DAQ capable of 40 million samples per second acquisition of analogue RF data.
+# Domesday Duplicator (DdD)
 
 Please see the [Project Wiki](https://github.com/simoninns/DomesdayDuplicator/wiki) for details of the project and for access to the project documentation.
 
-## Author
-Domesday Duplicator is written and maintained by Simon Inns.
+<img src="https://user-images.githubusercontent.com/56382624/183899501-a1914f3f-0710-4095-8f0e-b84e6d266d1c.png" width="400" height="">
 
-## Software License (GPLv3)
+The Domesday Duplicator is a LaserDisc capture focused, USB 3.0 based DAQ capable of 40 million samples per second acquisition of analogue RF data at 10-bits resolution, the data being in generic PCM style stream format is ready for [FLAC compression](https://github.com/oyvindln/vhs-decode/wiki/RF-Compression-&-Decompression-Guide) or direct use with a wide range of decoders.
 
-    Domesday Duplicator is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+Capture is via a easy to use GUI capture application.
 
-    Domesday Duplicator is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+<img src="https://user-images.githubusercontent.com/56382624/219953404-2ad85772-7fe3-40e8-a4b3-9ea61443736d.gif" width="350" height="">
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# The Decode Family 
 
-## Hardware License (Creative Commons BY-SA 4.0)
-Please see the following link for details: https://creativecommons.org/licenses/by-sa/4.0/
+The samples the DdD capture can be used with the family of decoders that make the FM RF Archival workflow ready to use today.
 
-You are free to:
+[LaserDisc Decode](https://github.com/happycube/ld-decode) / [VHS-Decode (Videotape)](https://github.com/oyvindln/vhs-decode/wiki/) / [CVBS (Composite) Decode](CVBS-Composite-Decode) / [HiFi Decode](HiFi-Decode) / [RTLSDR HiFi Decode](RTLSDR) / [MUSE-Decode](https://bitbucket.org/staffanulfberg/ldaudio/src/master/musecpp/) / [CD-Decode](https://github.com/happycube/cd-decode) / [FL2K TBC Player](TBC-To-Analogue)
 
-Share - copy and redistribute the material in any medium or format
-Adapt - remix, transform, and build upon the material
-for any purpose, even commercially.
+## Authors
 
-This license is acceptable for Free Cultural Works.
+Domesday Duplicator was written & designed by [Simon Inns](https://github.com/simoninns).
 
-The licensor cannot revoke these freedoms as long as you follow the license terms.
+Current documentation & fabrication is maintained by [Harry Munday](https://github.com/harrypm). 
 
-Under the following terms:
 
-Attribution - You must give appropriate credit, provide a link to the license, and indicate if changes were made. You may do so in any reasonable manner, but not in any way that suggests the licensor endorses you or your use.
+## Licences
 
-ShareAlike - If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original.
 
-No additional restrictions - You may not apply legal terms or technological measures that legally restrict others from doing anything the license permits.
-
+- [Software License - (Creative Commons BY-SA 4.0)](https://github.com/simoninns/DomesdayDuplicator/blob/master/LICENSE)
+- [Hardware License - (GPLv3)](https://creativecommons.org/licenses/by-sa/4.0/)
