@@ -507,7 +507,7 @@ bool UsbDeviceBase::UsbTransferStopRequested() const
 //----------------------------------------------------------------------------------------------------------------------
 UsbDeviceBase::DiskBufferEntry& UsbDeviceBase::GetDiskBuffer(size_t bufferNo)
 {
-    assert(bufferNo < bufferCount);
+    assert(bufferNo < totalDiskBufferEntryCount);
     return diskBufferEntries[bufferNo];
 }
 
