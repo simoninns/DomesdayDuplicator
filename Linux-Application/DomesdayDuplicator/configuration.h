@@ -96,6 +96,8 @@ public:
     bool getAmplitudeLabelEnabled() const;
     void setAmplitudeChartEnabled(bool enabled);
     bool getAmplitudeChartEnabled() const;
+    void setShowAdvancedCaptureStats(bool enabled);
+    bool getShowAdvancedCaptureStats() const;
 
     void setMainWindowGeometry(QByteArray mainWindowGeometry);
     QByteArray getMainWindowGeometry() const;
@@ -144,6 +146,7 @@ private:
         bool perSideMintEnabled;
         bool amplitudeLabelEnabled;
         bool amplitudeChartEnabled;
+        bool showAdvancedCaptureStats;
     };
 
     // Window geometry and settings

@@ -172,6 +172,9 @@ MainWindow::MainWindow(const ILogger& log, QWidget* parent) :
     advancedNamingDialog->restoreGeometry(configuration->getAdvancedNamingDialogGeometry());
     automaticCaptureDialog->restoreGeometry(configuration->getAutomaticCaptureDialogGeometry());
     configurationDialog->restoreGeometry(configuration->getConfigurationDialogGeometry());
+
+    // Update control visibility
+    RefreshControlVisibility();
 }
 
 MainWindow::~MainWindow()
@@ -202,6 +205,30 @@ MainWindow::~MainWindow()
     qDebug() << "MainWindow::~MainWindow(): All threads stopped; done.";
 }
 
+void MainWindow::RefreshControlVisibility()
+{
+    // Update the advanced capture stats visibility
+    bool showAdvancedCaptureStats = configuration->getShowAdvancedCaptureStats();
+    ui->sampleCountPreLabel->setVisible(showAdvancedCaptureStats);
+    ui->sampleCountLabel->setVisible(showAdvancedCaptureStats);
+    ui->minValuePreLabel->setVisible(showAdvancedCaptureStats);
+    ui->minValueLabel->setVisible(showAdvancedCaptureStats);
+    ui->minValueClippedPreLabel->setVisible(showAdvancedCaptureStats);
+    ui->minValueClippedLabel->setVisible(showAdvancedCaptureStats);
+    ui->maxValuePreLabel->setVisible(showAdvancedCaptureStats);
+    ui->maxValueLabel->setVisible(showAdvancedCaptureStats);
+    ui->maxValueClippedPreLabel->setVisible(showAdvancedCaptureStats);
+    ui->maxValueClippedLabel->setVisible(showAdvancedCaptureStats);
+    ui->recentMinValuePreLabel->setVisible(showAdvancedCaptureStats);
+    ui->recentMinValueLabel->setVisible(showAdvancedCaptureStats);
+    ui->recentMinValueClippedPreLabel->setVisible(showAdvancedCaptureStats);
+    ui->recentMinValueClippedLabel->setVisible(showAdvancedCaptureStats);
+    ui->recentMaxValuePreLabel->setVisible(showAdvancedCaptureStats);
+    ui->recentMaxValueLabel->setVisible(showAdvancedCaptureStats);
+    ui->recentMaxValueClippedPreLabel->setVisible(showAdvancedCaptureStats);
+    ui->recentMaxValueClippedLabel->setVisible(showAdvancedCaptureStats);
+}
+
 // Signal handlers ----------------------------------------------------------------------------------------------------
 
 // Configuration changed signal handler
@@ -221,6 +248,9 @@ void MainWindow::configurationChangedSignalHandler()
     // Update advanced naming UI
     advancedNamingDialog->setPerSideNotesEnabled(configuration->getPerSideNotesEnabled());
     advancedNamingDialog->setPerSideMintEnabled(configuration->getPerSideMintEnabled());
+
+    // Update control visibility
+    RefreshControlVisibility();
 
     // Update amplitude UI
     updateAmplitudeUI();

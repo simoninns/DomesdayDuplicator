@@ -119,6 +119,7 @@ private:
     };
 
 private:
+    void RefreshControlVisibility();
     void StopCapture();
     void StartCapture();
 
