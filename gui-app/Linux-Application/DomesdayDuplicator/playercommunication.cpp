@@ -404,12 +404,12 @@ qint32 PlayerCommunication::getCurrentTimeCode(bool& inLeadIn, bool& inLeadOut)
     if (response.startsWith("<"))
     {
         inLeadIn = true;
-        response.removeFirst();
+        response.remove(0, 1);
     }
     else if (response.startsWith(">"))
     {
         inLeadOut = true;
-        response.removeFirst();
+        response.remove(0, 1);
     }
 
     qint32 timeCode;
