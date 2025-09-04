@@ -1058,7 +1058,7 @@ void MainWindow::updatePlayerControlInformation()
     {
         std::stringstream physicalPositionStream;
         physicalPositionStream << std::fixed << std::setprecision(2) << physicalPosition;
-        playerPositionString.append(" [" + physicalPositionStream.str() + "mm]");
+        playerPositionString.append((std::string(" [") + physicalPositionStream.str() + "mm]").c_str());
     }
 
     // Display the position information string
