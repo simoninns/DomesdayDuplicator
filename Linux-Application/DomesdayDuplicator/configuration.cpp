@@ -71,6 +71,7 @@ void Configuration::writeConfiguration()
     configuration->setValue("perSideMintEnabled", settings.ui.perSideMintEnabled);
     configuration->setValue("amplitudeEnabled", settings.ui.amplitudeLabelEnabled);
     configuration->setValue("graphType", settings.ui.amplitudeChartEnabled ? 1 : 0);
+    configuration->setValue("showAdvancedCaptureStats", settings.ui.showAdvancedCaptureStats);
     configuration->endGroup();
 
     // USB
@@ -124,6 +125,7 @@ void Configuration::readConfiguration()
     settings.ui.perSideMintEnabled = configuration->value("perSideMintEnabled").toBool();
     settings.ui.amplitudeLabelEnabled = configuration->value("amplitudeEnabled").toBool();
     settings.ui.amplitudeChartEnabled = configuration->value("graphType").toInt() > 0;
+    settings.ui.showAdvancedCaptureStats = configuration->value("showAdvancedCaptureStats").toBool();
     configuration->endGroup();
 
     // USB
@@ -169,6 +171,7 @@ void Configuration::setDefault()
     settings.ui.perSideMintEnabled = false;
     settings.ui.amplitudeLabelEnabled = false;
     settings.ui.amplitudeChartEnabled = false;
+    settings.ui.showAdvancedCaptureStats = false;
 
     // USB
     settings.usb.vid = 0x1D50;
@@ -422,6 +425,16 @@ void Configuration::setAmplitudeChartEnabled(bool enabled)
 bool Configuration::getAmplitudeChartEnabled() const
 {
     return settings.ui.amplitudeChartEnabled;
+}
+
+void Configuration::setShowAdvancedCaptureStats(bool enabled)
+{
+    settings.ui.showAdvancedCaptureStats = enabled;
+}
+
+bool Configuration::getShowAdvancedCaptureStats() const
+{
+    return settings.ui.showAdvancedCaptureStats;
 }
 
 // Windows

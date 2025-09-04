@@ -36,6 +36,7 @@
 #include <QQueue>
 #include <QDebug>
 #include <atomic>
+#include <mutex>
 #include <memory>
 #include "playercommunication.h"
 
@@ -52,13 +53,22 @@ public:
             QString serialDevice,
             PlayerCommunication::SerialSpeed serialSpeed);
 
+    QString getPlayerModelCode();
     QString getPlayerModelName();
     QString getPlayerVersionNumber();
     QString getSerialBaudRate();
     bool getPlayerConnected();
     qint32 getCurrentTimeCode();
     qint32 getCurrentFrameNumber();
+    bool getInLeadIn();
+    bool getInLeadOut();
+    float getPhysicalPosition();
     PlayerCommunication::DiscType getDiscType();
+    QString getDiscStatus();
+    void requestStandardUserCodeRead();
+    void requestPioneerUserCodeRead();
+    QString getStandardUserCode();
+    QString getPioneerUserCode();
     PlayerCommunication::PlayerState getPlayerState();
     QString getManualCommandResponse();
 
@@ -123,11 +133,22 @@ private:
     bool reconnect;
     bool abort;
 
+    std::mutex cachedDataMutex;
     std::atomic<bool> isPlayerConnected;
     std::atomic<PlayerCommunication::PlayerState> playerState;
     std::atomic<PlayerCommunication::DiscType> discType;
     std::atomic<qint32> timeCode;
     std::atomic<qint32> frameNumber;
+    std::atomic<bool> inLeadIn;
+    std::atomic<bool> inLeadOut;
+    std::atomic<float> physicalPosition;
+    std::atomic_flag standardUserCodeReadRequestPending;
+    std::atomic_flag standardUserCodeAvailable;
+    std::atomic_flag pioneerUserCodeReadRequestPending;
+    std::atomic_flag pioneerUserCodeAvailable;
+    QString standardUserCodeCached;
+    QString pioneerUserCodeCached;
+    QString discStatusCached;
 
     QString serialDevice;
     PlayerCommunication::SerialSpeed serialSpeed;

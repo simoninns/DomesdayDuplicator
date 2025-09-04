@@ -72,6 +72,9 @@ public:
     void setPerSideMintEnabled(bool enabled);
 
 private slots:
+    void on_filenameAutoRadioButton_clicked();
+    void on_filenameAutoWithMetadataRadioButton_clicked();
+    void on_filenameManualRadioButton_clicked();
     void on_discTitleCheckBox_clicked();
     void on_discTypeCheckBox_clicked();
     void on_formatCheckBox_clicked();

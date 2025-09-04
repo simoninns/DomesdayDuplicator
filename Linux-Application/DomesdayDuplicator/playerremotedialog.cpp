@@ -27,6 +27,8 @@
 
 #include "playerremotedialog.h"
 #include "ui_playerremotedialog.h"
+#include <sstream>
+#include <iomanip>
 
 PlayerRemoteDialog::PlayerRemoteDialog(QWidget *parent) :
     QDialog(parent)
@@ -152,7 +154,51 @@ void PlayerRemoteDialog::setDisplayMode(DisplayMode displayModeParam)
 void PlayerRemoteDialog::setPlayerResponseToManualCommand(QString response)
 {
     response.replace('\r', "\\r");
-    ui->manualResponseString->setText(response);
+    if (ui->manualResponseString->text() != response)
+    {
+        ui->manualResponseString->setText(response);
+    }
+}
+
+void PlayerRemoteDialog::setStandardUserCode(QString response)
+{
+    if (ui->userCodeStandardString->text() != response)
+    {
+        ui->userCodeStandardString->setText(response);
+    }
+}
+
+void PlayerRemoteDialog::setPioneerUserCode(QString response)
+{
+    if (lastPioneerUserCode == response)
+    {
+        return;
+    }
+
+    lastPioneerUserCode = response;
+
+    std::string playerCode = response.toStdString();
+    std::string userCodePrintable;
+    for (size_t i = 0; i < playerCode.size(); ++i)
+    {
+        if (playerCode[i] == '\\')
+        {
+            userCodePrintable.push_back('\\');
+            userCodePrintable.push_back('\\');
+        }
+        else if (!std::isprint((unsigned char)playerCode[i]))
+        {
+            std::stringstream stream;
+            stream << "\\x" << std::hex << std::setfill('0') << std::setw(2) << (unsigned int)playerCode[i];
+            userCodePrintable.append(stream.str());
+        }
+        else
+        {
+            userCodePrintable.push_back(playerCode[i]);
+        }
+    }
+
+    ui->userCodePioneerString->setText(QString::fromStdString(userCodePrintable));
 }
 
 // Add a value to the position display
@@ -344,4 +390,9 @@ void PlayerRemoteDialog::on_sendManualCommand_clicked()
     }
     modifiedCommandString.replace("\\r", "\r");
     emit remoteControlManualSerialCommand(modifiedCommandString);
+}
+
+void PlayerRemoteDialog::on_readUserCodes_clicked()
+{
+    emit remoteControlReadUserCodes();
 }

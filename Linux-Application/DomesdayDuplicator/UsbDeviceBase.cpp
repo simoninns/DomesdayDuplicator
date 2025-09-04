@@ -147,10 +147,15 @@ bool UsbDeviceBase::StartCapture(const std::filesystem::path& filePath, CaptureF
     transferCount = 0;
     transferBufferWrittenCount = 0;
     transferFileSizeWrittenInBytes = 0;
+    processedSampleCount = 0;
     minSampleValue = std::numeric_limits<decltype(minSampleValue.load())>::max();
     maxSampleValue = 0;
     clippedMinSampleCount = 0;
     clippedMaxSampleCount = 0;
+    recentMinSampleValue = std::numeric_limits<decltype(recentMinSampleValue.load())>::max();
+    recentMaxSampleValue = 0;
+    recentClippedMinSampleCount = 0;
+    recentClippedMaxSampleCount = 0;
     captureThreadStopRequested.clear();
     captureThreadRunning.test_and_set();
     captureThreadRunning.notify_all();
@@ -463,6 +468,12 @@ size_t UsbDeviceBase::GetFileSizeWrittenInBytes() const
 }
 
 //----------------------------------------------------------------------------------------------------------------------
+size_t UsbDeviceBase::GetProcessedSampleCount() const
+{
+    return processedSampleCount;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
 size_t UsbDeviceBase::GetMinSampleValue() const
 {
     return minSampleValue;
@@ -484,6 +495,30 @@ size_t UsbDeviceBase::GetClippedMinSampleCount() const
 size_t UsbDeviceBase::GetClippedMaxSampleCount() const
 {
     return clippedMaxSampleCount;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+size_t UsbDeviceBase::GetRecentMinSampleValue() const
+{
+    return recentMinSampleValue;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+size_t UsbDeviceBase::GetRecentMaxSampleValue() const
+{
+    return recentMaxSampleValue;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+size_t UsbDeviceBase::GetRecentClippedMinSampleCount() const
+{
+    return recentClippedMinSampleCount;
+}
+
+//----------------------------------------------------------------------------------------------------------------------
+size_t UsbDeviceBase::GetRecentClippedMaxSampleCount() const
+{
+    return recentClippedMaxSampleCount;
 }
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -622,9 +657,10 @@ void UsbDeviceBase::ProcessingThread()
             // Verify and strip the sequence markers from the sample data, and update our sample metrics.
             uint16_t minValue = std::numeric_limits<uint16_t>::max();
             uint16_t maxValue = std::numeric_limits<uint16_t>::min();
+            size_t samplesProcessedForBuffer = 0;
             size_t minClippedCount = 0;
             size_t maxClippedCount = 0;
-            if (!ProcessSequenceMarkersAndUpdateSampleMetrics(currentDiskBuffer, minValue, maxValue, minClippedCount, maxClippedCount))
+            if (!ProcessSequenceMarkersAndUpdateSampleMetrics(currentDiskBuffer, samplesProcessedForBuffer, minValue, maxValue, minClippedCount, maxClippedCount))
             {
                 SetProcessingFinished(TransferResult::SequenceMismatch);
                 processingFailure = true;
@@ -634,6 +670,11 @@ void UsbDeviceBase::ProcessingThread()
             maxSampleValue = std::max(maxSampleValue.load(), maxValue);
             clippedMinSampleCount += minClippedCount;
             clippedMaxSampleCount += maxClippedCount;
+            recentMinSampleValue = minValue;
+            recentMaxSampleValue = maxValue;
+            recentClippedMinSampleCount = minClippedCount;
+            recentClippedMaxSampleCount = maxClippedCount;
+            processedSampleCount += samplesProcessedForBuffer;
 
             // If a buffer sample has been requested, capture it now.
             if (bufferSampleRequestPending.test() && (bufferSamplingRequestedLengthInBytes <= diskBufferSizeInBytes))
@@ -787,7 +828,7 @@ void UsbDeviceBase::ProcessingThread()
 }
 
 //----------------------------------------------------------------------------------------------------------------------
-bool UsbDeviceBase::ProcessSequenceMarkersAndUpdateSampleMetrics(size_t diskBufferIndex, uint16_t& minValue, uint16_t& maxValue, size_t& minClippedCount, size_t& maxClippedCount)
+bool UsbDeviceBase::ProcessSequenceMarkersAndUpdateSampleMetrics(size_t diskBufferIndex, size_t& processedSampleCount, uint16_t& minValue, uint16_t& maxValue, size_t& minClippedCount, size_t& maxClippedCount)
 {
     // If sequence checking has already failed, return false immediately. This condition should not occur, as a
     // sequence failure is treated as an unrecoverable error and aborts the capture process. If this is to be changed,
@@ -891,6 +932,9 @@ bool UsbDeviceBase::ProcessSequenceMarkersAndUpdateSampleMetrics(size_t diskBuff
             ++maxClippedCount;
         }
     }
+
+    // Set the processed sample count for this buffer
+    processedSampleCount += diskBufferSizeInBytes / 2;
 
     // Save the resulting sequence counter so we can continue checking from the same position in the next buffer
     savedSequenceCounter = sequenceCounter;

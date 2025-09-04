@@ -36,6 +36,7 @@ class AmplitudeMeasurement : public QCustomPlot
 
 public:
     AmplitudeMeasurement(QWidget *parent = Q_NULLPTR);
+    void clearBuffer();
     double getMeanAmplitude();
 
 public slots:

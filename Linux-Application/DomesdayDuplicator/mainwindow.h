@@ -63,6 +63,7 @@ private slots:
     void remoteControlCommandSignalHandler(PlayerRemoteDialog::RemoteButtons button);
     void remoteControlSearchSignalHandler(qint32 position, PlayerRemoteDialog::PositionMode positionMode);
     void remoteControlManualSerialCommandHandler(QString commandString);
+    void remoteControlReadUserCodesCommandHandler();
     void startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog::CaptureType captureType,
                                                               qint32 startAddress, qint32 endAddress,
                                                               AutomaticCaptureDialog::DiscType discTypeParam);
@@ -103,14 +104,22 @@ private:
     {
         std::chrono::time_point<std::chrono::steady_clock> sampleTime;
         qint32 timeCodeOrFrameNumber;
+        bool inLeadIn;
+        bool inLeadOut;
     };
     struct PlayerStatusRecord
     {
         std::chrono::time_point<std::chrono::steady_clock> sampleTime;
         PlayerCommunication::PlayerState playerState;
     };
+    struct PhysicalPositionRecord
+    {
+        std::chrono::time_point<std::chrono::steady_clock> sampleTime;
+        float physicalPosition;
+    };
 
 private:
+    void RefreshControlVisibility();
     void StopCapture();
     void StartCapture();
 
@@ -128,7 +137,6 @@ private:
     std::unique_ptr<PlayerRemoteDialog> playerRemoteDialog;
     std::unique_ptr<PlayerControl> playerControl;
     std::unique_ptr<AdvancedNamingDialog> advancedNamingDialog;
-    std::unique_ptr<AmplitudeMeasurement> amplitudeMeasurement;
 
     std::atomic<bool> isCaptureRunning = false;
     bool isCaptureStopping = false;
@@ -145,15 +153,21 @@ private:
     std::vector<AmplitudeRecord> amplitudeRecord;
     std::vector<TimeCodeRecord> playerTimeCodeRecord;
     std::vector<PlayerStatusRecord> playerStatusRecord;
+    std::vector<PhysicalPositionRecord> playerPhysicalPositionRecord;
 
     bool isPlayerConnected = false;
     bool usbDevicePresentLastCheck = false;
     bool isPlayerConnectedLastCheck = false;
-    std::atomic<PlayerCommunication::DiscType> playerDiscTypeCached = PlayerCommunication::DiscType::unknownDiscType;
-    std::atomic<qint32> minPlayerTimeCode = -1;
-    std::atomic<qint32> maxPlayerTimeCode = -1;
-    std::atomic<qint32> minPlayerFrameNumber = -1;
-    std::atomic<qint32> maxPlayerFrameNumber = -1;
+    PlayerCommunication::DiscType playerDiscTypeCached = PlayerCommunication::DiscType::unknownDiscType;
+    std::optional<QString> playerDiscStatusCached;
+    std::optional<QString> playerStandardUserCodeCached;
+    std::optional<QString> playerPioneerUserCodeCached;
+    qint32 minPlayerTimeCode = -1;
+    qint32 maxPlayerTimeCode = -1;
+    qint32 minPlayerFrameNumber = -1;
+    qint32 maxPlayerFrameNumber = -1;
+    float minPlayerPhysicalPosition = -1;
+    float maxPlayerPhysicalPosition = -1;
 
     // Saved disk naming/notes metadata
     std::optional<QString> namingDiskTitle;
@@ -174,8 +188,4 @@ private:
     void startPlayerControl();
     void updatePlayerRemoteDialog();
     void updateAmplitudeUI();
-
-signals:
-    void plotAmplitude();
-    void bufferAmplitude();
 };

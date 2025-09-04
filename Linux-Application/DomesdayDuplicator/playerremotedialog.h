@@ -100,11 +100,14 @@ public:
     void setDisplayMode(DisplayMode displayModeParam);
 
     void setPlayerResponseToManualCommand(QString response);
+    void setStandardUserCode(QString response);
+    void setPioneerUserCode(QString response);
 
 signals:
     void remoteControlCommand(RemoteButtons button);
     void remoteControlSearch(qint32 position, PlayerRemoteDialog::PositionMode positionMode);
     void remoteControlManualSerialCommand(QString commandString);
+    void remoteControlReadUserCodes();
 
 private slots:
     void on_rejectPushButton_clicked();
@@ -135,6 +138,7 @@ private slots:
     void on_searchPushButton_clicked();
     void on_chapFramePushButton_clicked();
     void on_sendManualCommand_clicked();
+    void on_readUserCodes_clicked();
 
 private:
     std::unique_ptr<Ui::PlayerRemoteDialog> ui;
@@ -145,6 +149,7 @@ private:
 
     QString position;
     QString display;
+    QString lastPioneerUserCode;
 
     void updateGui();
     void positionAddValue(qint32 value);
