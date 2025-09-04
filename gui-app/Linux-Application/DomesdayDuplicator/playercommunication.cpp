@@ -26,6 +26,7 @@
 ************************************************************************/
 
 #include "playercommunication.h"
+#include <stdlib.h>
 
 // The timeout for normal commands is 5 seconds (these are commands that
 // they player usually responds to quickly, like framecode request).
@@ -52,7 +53,8 @@ PlayerCommunication::~PlayerCommunication()
 // getCurrentFrame() - Returns the current frame number
 // getCurrentTimeCode() - Returns the current time code
 // getDiscType() - Returns the disc type as unknown, CAV or CLV
-// getUserCode() - Returns the user-code for the disc
+// getStandardUserCode() - Returns the standard user-code for the disc
+// getPioneerUserCode() - Returns the Pioneer user-code for the disc
 // getMaximumFrameNumber() - Returns the number of frames on the disc
 // getMaximumTimeCode() - Returns the length of the disc
 //
@@ -172,7 +174,7 @@ bool PlayerCommunication::connect(QString serialDevice, SerialSpeed serialSpeed)
     unsigned int baudRateIndex = 0;
     unsigned int baudRateSearchEnd = 0;
     unsigned int maxConnectAttempts = 1;
-    qint32 serialQueryTimeout = 1500;
+    qint32 serialQueryTimeout = 2500;
     switch (serialSpeed)
     {
     case SerialSpeed::autoDetect:
@@ -244,13 +246,22 @@ bool PlayerCommunication::connect(QString serialDevice, SerialSpeed serialSpeed)
     qDebug() << "PlayerCommunication::connect(): Response string " << responseString << " received";
 
     // Save information on the player and the connection
+    QString playerModelCode = responseString.mid(0, 7);
     QString playerCode = responseString.mid(3, 2);
-    QString playerVersionNumber = responseString.mid(5);
+    QString playerVersionNumber = responseString.mid(5, 2);
     PlayerType detectedPlayerType = playerCodeToType(playerCode);
     currentSerialSpeed = detectedSerialSpeed;
+    currentPlayerModelCode = playerModelCode;
     currentPlayerType = detectedPlayerType;
     currentPlayerName = playerCodeToName(playerCode);
-    currentPlayerVersionNumber = playerVersionNumber.trimmed();
+    currentPlayerVersionNumber = playerVersionNumber;
+
+    // Check if this player supports physical read position information
+    supportsPhysicalPosition = false;
+    if ((detectedPlayerType == PlayerType::pioneerLDV8000) && (playerVersionNumber == "A9"))
+    {
+        supportsPhysicalPosition = true;
+    }
 
     return true;
 }
@@ -280,6 +291,11 @@ PlayerCommunication::TrayState PlayerCommunication::getTrayState()
     }
 
     return TrayState::closed;
+}
+
+QString PlayerCommunication::getPlayerModelCode()
+{
+    return currentPlayerModelCode;
 }
 
 PlayerCommunication::PlayerType PlayerCommunication::getPlayerType()
@@ -320,7 +336,7 @@ PlayerCommunication::PlayerState PlayerCommunication::getPlayerState()
     } else if (response.contains("P03")) {
         // P03 = Disc unloading
         return PlayerState::stop;;
-    } else if (response.contains("P04")) {
+    } else if (response.contains("P04") || response.contains("P42")) {
         // P04 = Play
         return PlayerState::play;
     } else if (response.contains("P05")) {
@@ -350,10 +366,23 @@ PlayerCommunication::PlayerState PlayerCommunication::getPlayerState()
 }
 
 // Return the current frame or -1 if communication fails
-qint32 PlayerCommunication::getCurrentFrame()
+qint32 PlayerCommunication::getCurrentFrame(bool& inLeadIn, bool& inLeadOut)
 {
     sendSerialCommand("?F\r");
     QString response = getSerialResponse(N_TIMEOUT);
+
+    inLeadIn = false;
+    inLeadOut = false;
+    if (response.startsWith("<"))
+    {
+        inLeadIn = true;
+        response.removeFirst();
+    }
+    else if (response.startsWith(">"))
+    {
+        inLeadOut = true;
+        response.removeFirst();
+    }
 
     qint32 frameNumber;
     if (!response.isEmpty()) frameNumber = static_cast<int>(response.left(5).toUInt());
@@ -363,16 +392,66 @@ qint32 PlayerCommunication::getCurrentFrame()
 }
 
 // Return the current timeCode or -1 if communication fails
-qint32 PlayerCommunication::getCurrentTimeCode()
+qint32 PlayerCommunication::getCurrentTimeCode(bool& inLeadIn, bool& inLeadOut)
 {
     sendSerialCommand("?F\r");
     QString response = getSerialResponse(N_TIMEOUT);
+
+    inLeadIn = false;
+    inLeadOut = false;
+    if (response.startsWith("<"))
+    {
+        inLeadIn = true;
+        response.removeFirst();
+    }
+    else if (response.startsWith(">"))
+    {
+        inLeadOut = true;
+        response.removeFirst();
+    }
 
     qint32 timeCode;
     if (!response.isEmpty()) timeCode = static_cast<int>(response.left(7).toUInt());
     else timeCode = -1;
 
     return timeCode;
+}
+
+bool PlayerCommunication::getSupportsPhysicalPosition()
+{
+    return supportsPhysicalPosition;
+}
+
+float PlayerCommunication::getPhysicalPosition()
+{
+    sendSerialCommand("2962MQ\r");
+    QString response = getSerialResponse(N_TIMEOUT);
+
+    // Check for response
+    if (response.isEmpty()) {
+        qDebug() << "PlayerCommunication::getPhysicalPosition(): No response from player";
+        return 0;
+    }
+    if (response.size() < 4)
+    {
+        qDebug() << "PlayerCommunication::getPhysicalPosition(): Invalid response of" << response;
+        return 0;
+    }
+
+    // Convert the position data to a position in mm. The source register is the slider position in units of 10
+    // micrometers, IE, 1 = 0.01mm. This comes back in native byte order, however since the V25 in the LD-V8000 is
+    // little endian, we need to byteswap the result.
+    unsigned long positionAsUInt = 0;
+    try
+    {
+        positionAsUInt = std::stoul(response.toStdString(), nullptr, 16);
+    }
+    catch (std::exception&)
+    {
+    }
+    positionAsUInt = ((positionAsUInt & 0xFF00) >> 8) | ((positionAsUInt & 0x00FF) << 8);
+    float positionAsFloat = (float)positionAsUInt / 100.0;
+    return positionAsFloat;
 }
 
 PlayerCommunication::DiscType PlayerCommunication::getDiscType()
@@ -383,6 +462,12 @@ PlayerCommunication::DiscType PlayerCommunication::getDiscType()
     // Check for response
     if (response.isEmpty()) {
         qDebug() << "PlayerCommunication::getDiscType(): No response from player";
+        return DiscType::unknownDiscType;
+    }
+
+    if (response.size() < 2)
+    {
+        qDebug() << "PlayerCommunication::getDiscType(): Unknown response" << response;
         return DiscType::unknownDiscType;
     }
 
@@ -399,10 +484,37 @@ PlayerCommunication::DiscType PlayerCommunication::getDiscType()
     return DiscType::unknownDiscType;
 }
 
-QString PlayerCommunication::getUserCode()
+QString PlayerCommunication::getDiscStatus()
+{
+    sendSerialCommand("?D\r");
+    auto response = getSerialResponse(N_TIMEOUT);
+    if (response.endsWith('\r'))
+    {
+        response.chop(1);
+    }
+    return response;
+}
+
+QString PlayerCommunication::getStandardUserCode()
 {
     sendSerialCommand("$Y\r");
-    return getSerialResponse(N_TIMEOUT);
+    auto response = getSerialResponse(N_TIMEOUT);
+    if (response.endsWith('\r'))
+    {
+        response.chop(1);
+    }
+    return response;
+}
+
+QString PlayerCommunication::getPioneerUserCode()
+{
+    sendSerialCommand("?U\r");
+    auto response = getSerialResponse(N_TIMEOUT);
+    if (response.endsWith('\r'))
+    {
+        response.chop(1);
+    }
+    return response;
 }
 
 qint32 PlayerCommunication::getMaximumFrameNumber()
@@ -410,7 +522,9 @@ qint32 PlayerCommunication::getMaximumFrameNumber()
     sendSerialCommand("FR60000SE\r"); // Frame seek to impossible frame number
 
     // Return the current frame number
-    return getCurrentFrame();
+    bool inLeadIn;
+    bool inLeadOut;
+    return getCurrentFrame(inLeadIn, inLeadOut);
 }
 
 qint32 PlayerCommunication::getMaximumTimeCode()
@@ -418,7 +532,9 @@ qint32 PlayerCommunication::getMaximumTimeCode()
     sendSerialCommand("FR1595900SE\r"); // Frame seek to impossible time-code frame number
 
     // Return the current time code
-    return getCurrentTimeCode();
+    bool inLeadIn;
+    bool inLeadOut;
+    return getCurrentTimeCode(inLeadIn, inLeadOut);
 }
 
 QString PlayerCommunication::getManualCommandResponse()
@@ -758,8 +874,44 @@ bool PlayerCommunication::setSpeed(qint32 speed)
 
 bool PlayerCommunication::sendManualCommand(QString command)
 {
-    sendSerialCommand(command);
-    manualCommandResponse = getSerialResponse(L_TIMEOUT);
+    if (command == "ReadUserCode\r")
+    {
+        sendSerialCommand("?U\r");
+        std::string commandResponse = getSerialResponse(N_TIMEOUT).toStdString();
+        std::string userCodePrintable;
+        for (size_t i = 0; i < commandResponse.size() - 1; ++i)
+        {
+            if (commandResponse[i] == '\\')
+            {
+                userCodePrintable.push_back('\\');
+                userCodePrintable.push_back('\\');
+            }
+            else if (!std::isprint((unsigned char)commandResponse[i]))
+            {
+                std::stringstream stream;
+                stream << "\\x" << std::hex << std::setfill('0') << std::setw(2) << (unsigned int)commandResponse[i];
+                userCodePrintable.append(stream.str());
+            }
+            else
+            {
+                userCodePrintable.push_back(commandResponse[i]);
+            }
+        }
+        manualCommandResponse = QString::fromStdString(userCodePrintable);
+    }
+    else
+    {
+        command.replace("\\r", "\r");
+        if (!command.endsWith('\r'))
+        {
+            command.append('\r');
+        }
+        int expectedResponseCount = command.count('\r');
+        command.replace("\r", "");
+        command.append('\r');
+        sendSerialCommand(command);
+        manualCommandResponse = getSerialResponse(L_TIMEOUT, expectedResponseCount);
+    }
     return true;
 }
 
@@ -776,7 +928,7 @@ void PlayerCommunication::sendSerialCommand(QString command)
 }
 
 // Receive a response via the serial connection
-QString PlayerCommunication::getSerialResponse(qint32 timeoutInMilliseconds)
+QString PlayerCommunication::getSerialResponse(qint32 timeoutInMilliseconds, int expectedResponseCount)
 {
     QString response;
 
@@ -792,7 +944,7 @@ QString PlayerCommunication::getSerialResponse(qint32 timeoutInMilliseconds)
             response.append(serialPort->readAll());
 
             // Check for command response terminator (CR)
-            if (response.contains('\r')) responseComplete = true;
+            if (response.count('\r') == expectedResponseCount) responseComplete = true;
         }
 
         // Check for response timeout

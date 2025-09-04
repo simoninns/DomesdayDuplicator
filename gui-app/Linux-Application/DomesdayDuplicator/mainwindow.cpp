@@ -33,6 +33,9 @@
 #endif
 #include "amplitudemeasurement.h"
 #include <QFile>
+#include <cmath>
+#include <cctype>
+#include <sstream>
 #ifdef _WIN32
 // It'd be nice to use this on Linux, but under linux the max version of GCC is bound to the OS version, and libstdc++
 // was very slow to add C++20 features, including format. This means a lot of recent Linux OS installs, like Ubuntu
@@ -67,8 +70,10 @@ MainWindow::MainWindow(const ILogger& log, QWidget* parent) :
     connect(playerRemoteDialog.get(), &PlayerRemoteDialog::remoteControlCommand, this, &MainWindow::remoteControlCommandSignalHandler);
     connect(playerRemoteDialog.get(), &PlayerRemoteDialog::remoteControlSearch, this, &MainWindow::remoteControlSearchSignalHandler);
     connect(playerRemoteDialog.get(), &PlayerRemoteDialog::remoteControlManualSerialCommand, this, &MainWindow::remoteControlManualSerialCommandHandler);
+    connect(playerRemoteDialog.get(), &PlayerRemoteDialog::remoteControlReadUserCodes, this, &MainWindow::remoteControlReadUserCodesCommandHandler);
     playerRemoteDialog->setEnabled(false); // Disable the dialogue until a player is connected
     ui->stopPlayerWhenCaptureStops->setEnabled(false);
+    ui->stopCaptureWhenPlayerStops->setEnabled(false);
 
     // Create the automatic capture dialogue
     automaticCaptureDialog.reset(new AutomaticCaptureDialog(this));
@@ -362,6 +367,12 @@ void MainWindow::remoteControlManualSerialCommandHandler(QString commandString)
     playerControl->sendManualCommand(commandString);
 }
 
+void MainWindow::remoteControlReadUserCodesCommandHandler()
+{
+    playerControl->requestStandardUserCodeRead();
+    playerControl->requestPioneerUserCodeRead();
+}
+
 // Automatic capture dialogue signals that capture should start
 void MainWindow::startAutomaticCaptureDialogSignalHandler(AutomaticCaptureDialog::CaptureType captureType,
                                                           qint32 startAddress, qint32 endAddress,
@@ -445,6 +456,7 @@ void MainWindow::playerConnectedSignalHandler()
 
     // Enable the stop player option
     if (ui->capturePushButton->isEnabled()) ui->stopPlayerWhenCaptureStops->setEnabled(true);
+    if (ui->capturePushButton->isEnabled()) ui->stopCaptureWhenPlayerStops->setEnabled(true);
 
     isPlayerConnected = true;
 }
@@ -461,6 +473,7 @@ void MainWindow::playerDisconnectedSignalHandler()
 
     // Disable the stop player option
     ui->stopPlayerWhenCaptureStops->setEnabled(false);
+    ui->stopCaptureWhenPlayerStops->setEnabled(false);
 
     isPlayerConnected = false;
 }
@@ -471,6 +484,15 @@ void MainWindow::updateCaptureStatus()
     size_t mbWritten = usbDevice->GetFileSizeWrittenInBytes() / (1024 * 1024);
     ui->dataCapturedLabel->setText(QString::number(mbWritten) + (tr(" MiB")));
     ui->numberOfTransfersLabel->setText(QString::number(usbDevice->GetNumberOfTransfers()));
+    ui->sampleCountLabel->setText(std::to_string(usbDevice->GetProcessedSampleCount()).c_str());
+    ui->minValueLabel->setText(std::to_string(usbDevice->GetMinSampleValue()).c_str());
+    ui->maxValueLabel->setText(std::to_string(usbDevice->GetMaxSampleValue()).c_str());
+    ui->minValueClippedLabel->setText(std::to_string(usbDevice->GetClippedMinSampleCount()).c_str());
+    ui->maxValueClippedLabel->setText(std::to_string(usbDevice->GetClippedMaxSampleCount()).c_str());
+    ui->recentMinValueLabel->setText(std::to_string(usbDevice->GetRecentMinSampleValue()).c_str());
+    ui->recentMaxValueLabel->setText(std::to_string(usbDevice->GetRecentMaxSampleValue()).c_str());
+    ui->recentMinValueClippedLabel->setText(std::to_string(usbDevice->GetRecentClippedMinSampleCount()).c_str());
+    ui->recentMaxValueClippedLabel->setText(std::to_string(usbDevice->GetRecentClippedMaxSampleCount()).c_str());
 
     // If the capture process was requeted to stop and has now in fact stopped, perform our final tasks for this capture
     // and return the UI state to normal.
@@ -522,9 +544,10 @@ void MainWindow::updateCaptureStatus()
         nlohmann::json infoFile;
 
         // Populate the player serial info
+        infoFile["serialInfo"]["playerModelCode"] = playerControl->getPlayerModelCode().toStdString();
         infoFile["serialInfo"]["playerModelName"] = playerControl->getPlayerModelName().toStdString();
         infoFile["serialInfo"]["playerVesionNumber"] = playerControl->getPlayerVersionNumber().toStdString();
-        auto discType = playerDiscTypeCached.load();
+        auto discType = playerDiscTypeCached;
         if (discType == PlayerCommunication::DiscType::CAV)
         {
             infoFile["serialInfo"]["discType"] = "CAV";
@@ -533,21 +556,61 @@ void MainWindow::updateCaptureStatus()
         {
             infoFile["serialInfo"]["discType"] = "CLV";
         }
-        if (minPlayerTimeCode.load() >= 0)
+        if (playerDiscStatusCached.has_value())
         {
-            infoFile["serialInfo"]["minTimeCode"] = minPlayerTimeCode.load();
+            infoFile["serialInfo"]["discStatus"] = playerDiscStatusCached.value().toStdString();
         }
-        if (maxPlayerTimeCode.load() >= 0)
+        if (playerStandardUserCodeCached.has_value())
         {
-            infoFile["serialInfo"]["maxTimeCode"] = maxPlayerTimeCode.load();
+            infoFile["serialInfo"]["discStandardUserCode"] = playerStandardUserCodeCached.value().toStdString();
         }
-        if (minPlayerFrameNumber.load() >= 0)
+        if (playerPioneerUserCodeCached.has_value())
         {
-            infoFile["serialInfo"]["minFrameNumber"] = minPlayerFrameNumber.load();
+            std::string playerCode = playerPioneerUserCodeCached.value().toStdString();
+            std::string userCodePrintable;
+            for (size_t i = 0; i < playerCode.size(); ++i)
+            {
+                if (playerCode[i] == '\\')
+                {
+                    userCodePrintable.push_back('\\');
+                    userCodePrintable.push_back('\\');
+                }
+                else if (!std::isprint((unsigned char)playerCode[i]))
+                {
+                    std::stringstream stream;
+                    stream << "\\x" << std::hex << std::setfill('0') << std::setw(2) << (unsigned int)playerCode[i];
+                    userCodePrintable.append(stream.str());
+                }
+                else
+                {
+                    userCodePrintable.push_back(playerCode[i]);
+                }
+            }
+            infoFile["serialInfo"]["discPioneerUserCode"] = userCodePrintable;
         }
-        if (maxPlayerFrameNumber.load() >= 0)
+        if (minPlayerTimeCode >= 0)
         {
-            infoFile["serialInfo"]["maxFrameNumber"] = maxPlayerFrameNumber.load();
+            infoFile["serialInfo"]["minTimeCode"] = minPlayerTimeCode;
+        }
+        if (maxPlayerTimeCode >= 0)
+        {
+            infoFile["serialInfo"]["maxTimeCode"] = maxPlayerTimeCode;
+        }
+        if (minPlayerFrameNumber >= 0)
+        {
+            infoFile["serialInfo"]["minFrameNumber"] = minPlayerFrameNumber;
+        }
+        if (maxPlayerFrameNumber >= 0)
+        {
+            infoFile["serialInfo"]["maxFrameNumber"] = maxPlayerFrameNumber;
+        }
+        if (minPlayerPhysicalPosition >= 0)
+        {
+            infoFile["serialInfo"]["minPhysicalPosition"] = minPlayerPhysicalPosition;
+        }
+        if (maxPlayerPhysicalPosition >= 0)
+        {
+            infoFile["serialInfo"]["maxPhysicalPosition"] = maxPlayerPhysicalPosition;
         }
 
         // Populate the manually entered naming info
@@ -604,11 +667,13 @@ void MainWindow::updateCaptureStatus()
         infoFile["captureInfo"]["transferCount"] = usbDevice->GetNumberOfTransfers();
         infoFile["captureInfo"]["numberOfDiskBuffersWritten"] = usbDevice->GetNumberOfDiskBuffersWritten();
         infoFile["captureInfo"]["fileSizeWrittenInBytes"] = usbDevice->GetFileSizeWrittenInBytes();
+        infoFile["captureInfo"]["sampleCount"] = usbDevice->GetProcessedSampleCount();
         infoFile["captureInfo"]["minSampleValue"] = usbDevice->GetMinSampleValue();
         infoFile["captureInfo"]["maxSampleValue"] = usbDevice->GetMaxSampleValue();
         infoFile["captureInfo"]["clippedMinSampleCount"] = usbDevice->GetClippedMinSampleCount();
         infoFile["captureInfo"]["clippedMaxSampleCount"] = usbDevice->GetClippedMaxSampleCount();
         infoFile["captureInfo"]["sequenceMarkersPresent"] = usbDevice->GetTransferHadSequenceNumbers();
+        infoFile["captureInfo"]["creationTimestamp"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString();
 
         // Helper function to turn our sample times into a millisecond count since the start of the capture process,
         // encoded as fixed-length strings with 8 characters. This is enough to keep the indexes in numeric order for
@@ -635,7 +700,23 @@ void MainWindow::updateCaptureStatus()
         for (const auto& entry : playerTimeCodeRecord)
         {
             auto sampleTimeString = sampleTimeToString(entry.sampleTime);
-            infoFile["timeSampledData"]["timeCodeRecord"][sampleTimeString] = entry.timeCodeOrFrameNumber;
+            std::string timeCodeString = std::to_string(entry.timeCodeOrFrameNumber);
+            if (entry.inLeadIn)
+            {
+                timeCodeString = "<" + timeCodeString;
+            }
+            else if (entry.inLeadOut)
+            {
+                timeCodeString = ">" + timeCodeString;
+            }
+            infoFile["timeSampledData"]["timeCodeRecord"][sampleTimeString] = timeCodeString;
+        }
+
+        // Populate the player physical position record
+        for (const auto& entry : playerPhysicalPositionRecord)
+        {
+            auto sampleTimeString = sampleTimeToString(entry.sampleTime);
+            infoFile["timeSampledData"]["physicalPositionRecord"][sampleTimeString] = entry.physicalPosition;
         }
 
         // Populate the player state record
@@ -680,7 +761,16 @@ void MainWindow::updateCaptureStatus()
         return;
     }
 
-    // If the capture is stopping but the stopping process isn't complete, there's not much to do.
+    // Update the current capture time
+    auto captureElapsedTime = std::chrono::steady_clock::now() - captureStartTime;
+#ifdef _WIN32
+    std::string captureElapsedTimeAsString = std::format("{:%H:%M:%S}", std::chrono::floor<std::chrono::seconds>(captureElapsedTime));
+#else
+    std::string captureElapsedTimeAsString = QTime(0, 0, 0, 0).addSecs(std::chrono::floor<std::chrono::seconds>(captureElapsedTime).count()).toString("hh:mm:ss").toStdString();
+#endif
+    ui->durationLabel->setText(captureElapsedTimeAsString.c_str());
+
+    // If the capture is stopping but the stopping process isn't complete, abort any further processing.
     if (isCaptureStopping)
     {
         return;
@@ -737,15 +827,6 @@ void MainWindow::updateCaptureStatus()
         return;
     }
 
-    // Since the capture process isn't in a stopping or error state, update the current capture time.
-    auto captureElapsedTime = std::chrono::steady_clock::now() - captureStartTime;
-#ifdef _WIN32
-    std::string captureElapsedTimeAsString = std::format("{:%H:%M:%S}", std::chrono::floor<std::chrono::seconds>(captureElapsedTime));
-#else
-    std::string captureElapsedTimeAsString = QTime(0, 0, 0, 0).addSecs(std::chrono::floor<std::chrono::seconds>(captureElapsedTime).count()).toString("hh:mm:ss").toStdString();
-#endif
-    ui->durationLabel->setText(captureElapsedTimeAsString.c_str());
-
     // If time-limited capture is enabled, stop the capture if we've exceeded the target time.
     if (ui->limitDurationCheckBox->isChecked())
     {
@@ -755,6 +836,12 @@ void MainWindow::updateCaptureStatus()
         {
             StopCapture();
         }
+    }
+
+    // If the player has stopped playing, and capture has been requested to stop in that case, stop the capture process.
+    if (ui->stopCaptureWhenPlayerStops->isChecked() && (playerControl->getPlayerState() == PlayerCommunication::PlayerState::stop))
+    {
+        StopCapture();
     }
 }
 
@@ -790,6 +877,7 @@ void MainWindow::updateDeviceStatus()
 
         // Disable the stop player option
         ui->stopPlayerWhenCaptureStops->setEnabled(false);
+        ui->stopCaptureWhenPlayerStops->setEnabled(false);
 
         // Disable the test mode option
         ui->actionTest_mode->setEnabled(false);
@@ -812,6 +900,7 @@ void MainWindow::updateDeviceStatus()
 
         // Enable the stop player option
         if (isPlayerConnected) ui->stopPlayerWhenCaptureStops->setEnabled(true);
+        if (isPlayerConnected) ui->stopCaptureWhenPlayerStops->setEnabled(true);
 
         // Enable the test mode option
         ui->actionTest_mode->setEnabled(true);
@@ -839,9 +928,15 @@ void MainWindow::updatePlayerControlInformation()
     // Retrieve the current player status info
     bool isPlayerConnected = playerControl->getPlayerConnected();
     auto discType = playerControl->getDiscType();
+    auto discStatus = playerControl->getDiscStatus();
+    auto standardUserCode = playerControl->getStandardUserCode();
+    auto pioneerUserCode = playerControl->getPioneerUserCode();
     auto playerState = playerControl->getPlayerState();
-    auto frameNumber = playerControl->getCurrentFrameNumber();
-    auto timeCode = playerControl->getCurrentTimeCode();
+    bool inLeadIn = playerControl->getInLeadIn();
+    bool inLeadOut = playerControl->getInLeadOut();
+    qint32 frameNumber = playerControl->getCurrentFrameNumber();
+    qint32 timeCode = playerControl->getCurrentTimeCode();
+    float physicalPosition = playerControl->getPhysicalPosition();
 
     // Update the player status information for the capture metadata record
     if (isCaptureRunning && !isCaptureStopping && isPlayerConnected)
@@ -849,23 +944,50 @@ void MainWindow::updatePlayerControlInformation()
         if (discType != PlayerCommunication::DiscType::unknownDiscType)
         {
             playerDiscTypeCached = discType;
+            if (!playerDiscStatusCached.has_value())
+            {
+                if (!discStatus.isEmpty())
+                {
+                    playerDiscStatusCached = discStatus;
+                }
+            }
+            if (!playerStandardUserCodeCached.has_value())
+            {
+                if (!standardUserCode.isEmpty())
+                {
+                    playerStandardUserCodeCached = standardUserCode;
+                }
+            }
+            if (!playerPioneerUserCodeCached.has_value())
+            {
+                if (!pioneerUserCode.isEmpty())
+                {
+                    playerPioneerUserCodeCached = pioneerUserCode;
+                }
+            }
         }
         if (discType == PlayerCommunication::DiscType::CAV)
         {
-            minPlayerFrameNumber = (minPlayerFrameNumber.load() < 0) ? frameNumber : std::min(frameNumber, minPlayerFrameNumber.load());
-            maxPlayerFrameNumber = (maxPlayerFrameNumber.load() < 0) ? frameNumber : std::max(frameNumber, maxPlayerFrameNumber.load());
-            playerTimeCodeRecord.push_back({ std::chrono::steady_clock::now(), frameNumber });
+            minPlayerFrameNumber = (minPlayerFrameNumber < 0) ? frameNumber : std::min(frameNumber, minPlayerFrameNumber);
+            maxPlayerFrameNumber = (maxPlayerFrameNumber < 0) ? frameNumber : std::max(frameNumber, maxPlayerFrameNumber);
+            playerTimeCodeRecord.push_back({ std::chrono::steady_clock::now(), frameNumber, inLeadIn, inLeadOut });
         }
         else if (discType == PlayerCommunication::DiscType::CLV)
         {
-            minPlayerTimeCode = (minPlayerTimeCode.load() < 0) ? timeCode : std::min(timeCode, minPlayerTimeCode.load());
-            maxPlayerTimeCode = (maxPlayerTimeCode.load() < 0) ? timeCode : std::max(timeCode, maxPlayerTimeCode.load());
-            playerTimeCodeRecord.push_back({ std::chrono::steady_clock::now(), timeCode });
+            minPlayerTimeCode = (minPlayerTimeCode < 0) ? timeCode : std::min(timeCode, minPlayerTimeCode);
+            maxPlayerTimeCode = (maxPlayerTimeCode < 0) ? timeCode : std::max(timeCode, maxPlayerTimeCode);
+            playerTimeCodeRecord.push_back({ std::chrono::steady_clock::now(), timeCode, inLeadIn, inLeadOut });
         }
     }
     playerStatusRecord.push_back({ std::chrono::steady_clock::now(), (isPlayerConnected ? playerState : (PlayerCommunication::PlayerState)-1)});
+    if (physicalPosition != 0)
+    {
+        minPlayerPhysicalPosition = (minPlayerPhysicalPosition < 0) ? physicalPosition : std::min(physicalPosition, minPlayerPhysicalPosition);
+        maxPlayerPhysicalPosition = (maxPlayerPhysicalPosition < 0) ? physicalPosition : std::max(physicalPosition, maxPlayerPhysicalPosition);
+        playerPhysicalPositionRecord.push_back({ std::chrono::steady_clock::now(), physicalPosition });
+    }
 
-    // Display the position information based on disc type and player status
+    // Build the position information string based on disc type and player status
     QString playerPositionString;
     if (!isPlayerConnected)
     {
@@ -880,6 +1002,18 @@ void MainWindow::updatePlayerControlInformation()
         if (discType == PlayerCommunication::DiscType::CAV)
         {
             playerPositionString = QString::number(frameNumber);
+
+            // Add lead-in/lead-out designation if known
+            if (inLeadIn)
+            {
+                playerPositionString.prepend("<");
+                playerPositionString.append(" (lead-in)");
+            }
+            else if (inLeadOut)
+            {
+                playerPositionString.prepend(">");
+                playerPositionString.append(" (lead-out)");
+            }
         }
         else if (discType == PlayerCommunication::DiscType::CLV)
         {
@@ -887,6 +1021,7 @@ void MainWindow::updatePlayerControlInformation()
             QString hourString;
             QString minuteString;
             QString secondString;
+            QString frameString;
 
             // Get the full 7 character time-code string
             timeCodeString = QString("%1").arg(timeCode, 7, 10, QChar('0'));
@@ -895,15 +1030,38 @@ void MainWindow::updatePlayerControlInformation()
             hourString = timeCodeString.left(1);
             minuteString = timeCodeString.left(3).right(2);
             secondString = timeCodeString.left(5).right(2);
+            frameString = timeCodeString.left(7).right(2);
 
-            // Display time-code (without frame number)
-            playerPositionString = ("0" + hourString + ":" + minuteString + ":" + secondString);
+            // Display time-code
+            playerPositionString = ("0" + hourString + ":" + minuteString + ":" + secondString + ":" + frameString);
+
+            // Add lead-in/lead-out designation if known
+            if (inLeadIn)
+            {
+                playerPositionString.prepend("<");
+                playerPositionString.append(" (lead-in)");
+            }
+            else if (inLeadOut)
+            {
+                playerPositionString.prepend(">");
+                playerPositionString.append(" (lead-out)");
+            }
         }
         else
         {
             playerPositionString = "Unknown disc type";
         }
     }
+
+    // Append the physical position if known to the position information string
+    if (physicalPosition > 0)
+    {
+        std::stringstream physicalPositionStream;
+        physicalPositionStream << std::fixed << std::setprecision(2) << physicalPosition;
+        playerPositionString.append(" [" + physicalPositionStream.str() + "mm]");
+    }
+
+    // Display the position information string
     ui->playerPositionLabel->setText(playerPositionString);
 
     // Display the player status information based on disc type and player status
@@ -925,6 +1083,8 @@ void MainWindow::updatePlayerControlInformation()
 
     // Update the displayed response to the last manual command
     playerRemoteDialog->setPlayerResponseToManualCommand(playerControl->getManualCommandResponse());
+    playerRemoteDialog->setStandardUserCode(standardUserCode);
+    playerRemoteDialog->setPioneerUserCode(pioneerUserCode);
 }
 
 // Update the storage information labels
@@ -1090,6 +1250,9 @@ void MainWindow::StartCapture()
     qDebug() << "MainWindow::StartCapture(): Setting device's test mode flag to" << isTestMode;
     usbDevice->SendConfigurationCommand(configuration->getUsbPreferredDevice().toStdString(), isTestMode);
 
+    // Reset the amplitude buffer
+    ui->am->clearBuffer();
+
     // Use the advanced naming dialogue to generate the capture file name
     captureFilePath = std::filesystem::path((char8_t const*)configuration->getCaptureDirectory().toUtf8().data());
     captureFilePath += std::filesystem::path((char8_t const*)advancedNamingDialog->getFileName(isTestMode).toUtf8().data());
@@ -1106,13 +1269,20 @@ void MainWindow::StartCapture()
     playerTimeCodeRecord.reserve(24 * 60 * 60 * 10);
     playerStatusRecord.clear();
     playerStatusRecord.reserve(24 * 60 * 60 * 10);
+    playerPhysicalPositionRecord.clear();
+    playerPhysicalPositionRecord.reserve(24 * 60 * 60 * 10);
 
     // Reset our cached serial control info
     playerDiscTypeCached = PlayerCommunication::DiscType::unknownDiscType;
+    playerDiscStatusCached.reset();
+    playerStandardUserCodeCached.reset();
+    playerPioneerUserCodeCached.reset();
     minPlayerTimeCode = -1;
     maxPlayerTimeCode = -1;
     minPlayerFrameNumber = -1;
     maxPlayerFrameNumber = -1;
+    minPlayerPhysicalPosition = -1;
+    maxPlayerPhysicalPosition = -1;
 
     // Store fields from the advanced naming dialog for metadata saving later
     namingDiskTitle.reset();
@@ -1214,7 +1384,7 @@ void MainWindow::StartCapture()
     bool useAsyncFileIo = configuration->getUseAsyncFileIo();
 
     // Attempt to start the capture process
-    qDebug() << "MainWindow::StartCapture(): Starting capture to file:" << captureFilePath;
+    qDebug() << "MainWindow::StartCapture(): Starting capture to file:" << captureFilePath.string();
     if (!usbDevice->StartCapture(captureFilePath, captureFormat, configuration->getUsbPreferredDevice().toStdString(), isTestMode, useSmallUsbTransfers, useAsyncFileIo, maxUsbTransferQueueSizeInBytes, maxDiskBufferQueueSizeInBytes))
     {
         // Show an error based on the transfer result

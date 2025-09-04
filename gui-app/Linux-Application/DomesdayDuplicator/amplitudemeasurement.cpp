@@ -56,6 +56,12 @@ AmplitudeMeasurement::AmplitudeMeasurement(QWidget *parent)
     std::fill(rollingAmp.begin(), rollingAmp.end(), 0.0);
 }
 
+void AmplitudeMeasurement::clearBuffer()
+{
+    inputSamples.clear();
+    std::fill(rollingAmp.begin(), rollingAmp.end(), 0.0);
+}
+
 // Get a buffer from UsbCapture, and update the statistics
 void AmplitudeMeasurement::updateBuffer(const std::vector<uint8_t>& bufferSample)
 {
@@ -67,8 +73,9 @@ void AmplitudeMeasurement::updateBuffer(const std::vector<uint8_t>& bufferSample
         uint16_t originalValue = (uint16_t)bufferSample[inPos] | ((uint16_t)bufferSample[inPos + 1] << 8);
 
         // Sign and scale the data to 16-bits
-        uint16_t signedValue = (uint16_t)((int16_t)originalValue - 0x0200) << 6;
-        inputSamples[outPos] = (qint16)signedValue;
+        auto centeredValue = (int16_t)originalValue - 0x0200;
+        uint16_t signedValue = (qint16)(((uint16_t)(centeredValue) << 6) | ((uint16_t)(centeredValue) >> 4));
+        inputSamples[outPos] = signedValue;
     }
 }
 

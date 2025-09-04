@@ -59,10 +59,15 @@ public:
     size_t GetNumberOfTransfers() const;
     size_t GetNumberOfDiskBuffersWritten() const;
     size_t GetFileSizeWrittenInBytes() const;
+    size_t GetProcessedSampleCount() const;
     size_t GetMinSampleValue() const;
     size_t GetMaxSampleValue() const;
     size_t GetClippedMinSampleCount() const;
     size_t GetClippedMaxSampleCount() const;
+    size_t GetRecentMinSampleValue() const;
+    size_t GetRecentMaxSampleValue() const;
+    size_t GetRecentClippedMinSampleCount() const;
+    size_t GetRecentClippedMaxSampleCount() const;
     bool GetTransferHadSequenceNumbers() const;
 
     // Buffer sampling methods
@@ -145,7 +150,7 @@ private:
 
     // Processing methods
     void ProcessingThread();
-    bool ProcessSequenceMarkersAndUpdateSampleMetrics(size_t diskBufferIndex, uint16_t& minValue, uint16_t& maxValue, size_t& minClippedCount, size_t& maxClippedCount);
+    bool ProcessSequenceMarkersAndUpdateSampleMetrics(size_t diskBufferIndex, size_t& processedSampleCount, uint16_t& minValue, uint16_t& maxValue, size_t& minClippedCount, size_t& maxClippedCount);
     bool VerifyTestSequence(size_t diskBufferIndex);
     bool ConvertRawSampleData(size_t diskBufferIndex, CaptureFormat captureFormat, std::vector<uint8_t>& outputBuffer) const;
 
@@ -171,10 +176,15 @@ private:
     std::atomic<size_t> transferCount = 0;
     std::atomic<size_t> transferBufferWrittenCount = 0;
     std::atomic<size_t> transferFileSizeWrittenInBytes = 0;
+    std::atomic<size_t> processedSampleCount = 0;
     std::atomic<uint16_t> minSampleValue = 0;
     std::atomic<uint16_t> maxSampleValue = 0;
     std::atomic<size_t> clippedMinSampleCount = 0;
     std::atomic<size_t> clippedMaxSampleCount = 0;
+    std::atomic<uint16_t> recentMinSampleValue = 0;
+    std::atomic<uint16_t> recentMaxSampleValue = 0;
+    std::atomic<size_t> recentClippedMinSampleCount = 0;
+    std::atomic<size_t> recentClippedMaxSampleCount = 0;
     std::atomic_flag captureThreadRunning;
     std::atomic_flag captureThreadStopRequested;
     std::atomic_flag usbTransferRunning;
