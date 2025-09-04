@@ -36,6 +36,7 @@
 #include <cmath>
 #include <cctype>
 #include <sstream>
+#include <iomanip>
 #ifdef _WIN32
 // It'd be nice to use this on Linux, but under linux the max version of GCC is bound to the OS version, and libstdc++
 // was very slow to add C++20 features, including format. This means a lot of recent Linux OS installs, like Ubuntu
