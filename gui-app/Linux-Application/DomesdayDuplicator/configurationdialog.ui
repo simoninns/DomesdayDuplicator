@@ -29,7 +29,7 @@
       </size>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>3</number>
      </property>
      <widget class="QWidget" name="capture">
       <attribute name="title">
@@ -437,7 +437,7 @@
        <item>
         <widget class="QLabel" name="amplitudeLabel">
          <property name="text">
-          <string>RF signal amplitude display:</string>
+          <string>Capture statistics and quality monitoring:</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
@@ -455,6 +455,13 @@
         <widget class="QCheckBox" name="amplitudeChartCheckBox">
          <property name="text">
           <string>Show RMS amplitude as chart (higher CPU usage)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="advancedCaptureStatsCheckBox">
+         <property name="text">
+          <string>Show advanced capture statistics</string>
          </property>
         </widget>
        </item>
