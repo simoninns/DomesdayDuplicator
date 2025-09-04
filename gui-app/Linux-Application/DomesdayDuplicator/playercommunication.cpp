@@ -27,6 +27,8 @@
 
 #include "playercommunication.h"
 #include <stdlib.h>
+#include <sstream>
+#include <iomanip>
 
 // The timeout for normal commands is 5 seconds (these are commands that
 // they player usually responds to quickly, like framecode request).
@@ -376,12 +378,12 @@ qint32 PlayerCommunication::getCurrentFrame(bool& inLeadIn, bool& inLeadOut)
     if (response.startsWith("<"))
     {
         inLeadIn = true;
-        response.removeFirst();
+        response.remove(0, 1);
     }
     else if (response.startsWith(">"))
     {
         inLeadOut = true;
-        response.removeFirst();
+        response.remove(0, 1);
     }
 
     qint32 frameNumber;
