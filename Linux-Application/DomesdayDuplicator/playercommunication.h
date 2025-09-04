@@ -122,16 +122,21 @@ public:
 
     bool connect(QString serialDevice, SerialSpeed serialSpeed);
     void disconnect();
+    QString getPlayerModelCode();
     PlayerType getPlayerType();
     QString getPlayerName();
     QString getPlayerVersionNumber();
     SerialSpeed getSerialSpeed();
     TrayState getTrayState();
     PlayerState getPlayerState();
-    qint32 getCurrentFrame();
-    qint32 getCurrentTimeCode();
+    qint32 getCurrentFrame(bool& inLeadIn, bool& inLeadOut);
+    qint32 getCurrentTimeCode(bool& inLeadIn, bool& inLeadOut);
+    bool getSupportsPhysicalPosition();
+    float getPhysicalPosition();
     DiscType getDiscType();
-    QString getUserCode();
+    QString getDiscStatus();
+    QString getStandardUserCode();
+    QString getPioneerUserCode();
     qint32 getMaximumFrameNumber();
     qint32 getMaximumTimeCode();
     QString getManualCommandResponse();
@@ -168,10 +173,12 @@ private:
     PlayerType currentPlayerType;
     QString currentPlayerName;
     QString currentPlayerVersionNumber;
+    QString currentPlayerModelCode;
     QString manualCommandResponse;
+    bool supportsPhysicalPosition = false;
 
     void sendSerialCommand(QString command);
-    QString getSerialResponse(qint32 timeoutInMilliseconds);
+    QString getSerialResponse(qint32 timeoutInMilliseconds, int expectedResponseCount = 1);
 
 public slots:
 };
