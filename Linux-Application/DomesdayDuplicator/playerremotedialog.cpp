@@ -27,6 +27,8 @@
 
 #include "playerremotedialog.h"
 #include "ui_playerremotedialog.h"
+#include <sstream>
+#include <iomanip>
 
 PlayerRemoteDialog::PlayerRemoteDialog(QWidget *parent) :
     QDialog(parent)
