@@ -39,6 +39,8 @@ PlayerControl::PlayerControl(QObject *parent) : QThread(parent)
     discType = PlayerCommunication::DiscType::unknownDiscType;
     timeCode = -1;
     frameNumber = -1;
+    inLeadIn = false;
+    inLeadOut = false;
 
     // Initialise the player communication object
     playerCommunication.reset(new PlayerCommunication());
@@ -103,6 +105,8 @@ void PlayerControl::run()
     discType = PlayerCommunication::DiscType::unknownDiscType;
     timeCode = -1;
     frameNumber = -1;
+    inLeadIn = false;
+    inLeadOut = false;
 
     // Process the player control loop until abort
     while(!abort) {
@@ -121,6 +125,7 @@ void PlayerControl::run()
         }
 
         // If the player is connected, perform processing
+        bool cachedStatusInvalidated = false;
         if (isPlayerConnected) {
             // Perform player control processing here
 
@@ -130,17 +135,84 @@ void PlayerControl::run()
             // If we get an unknown state from the player, attempt to reconnect
             if (playerState == PlayerCommunication::PlayerState::unknownPlayerState) reconnect = true;
 
-            // Get the disc type
-            discType = playerCommunication->getDiscType();
+            // Update the physical position
+            physicalPosition = (playerCommunication->getSupportsPhysicalPosition() ? playerCommunication->getPhysicalPosition() : 0);
+
+            // Update the user code if requested
+            if (standardUserCodeReadRequestPending.test())
+            {
+                std::lock_guard<std::mutex> lock(cachedDataMutex);
+                if (standardUserCodeReadRequestPending.test())
+                {
+                    auto userCode = playerCommunication->getStandardUserCode();
+                    if (!userCode.isEmpty() && (userCode[0] == 'Y'))
+                    {
+                        standardUserCodeCached = userCode;
+                        standardUserCodeAvailable.test_and_set();
+                        standardUserCodeAvailable.notify_all();
+                    }
+                    standardUserCodeReadRequestPending.clear();
+                }
+            }
+            if (pioneerUserCodeReadRequestPending.test())
+            {
+                std::lock_guard<std::mutex> lock(cachedDataMutex);
+                if (pioneerUserCodeReadRequestPending.test())
+                {
+                    pioneerUserCodeCached = playerCommunication->getPioneerUserCode();
+                    pioneerUserCodeAvailable.test_and_set();
+                    pioneerUserCodeAvailable.notify_all();
+                    pioneerUserCodeReadRequestPending.clear();
+                }
+            }
+
+            // Get the disc status and check disc type
+            auto discStatus = playerCommunication->getDiscStatus();
+            bool discStatusValid = true;
+            if (discStatus.isEmpty()) {
+                qDebug() << "PlayerCommunication::getDiscType(): No response from player";
+                discType = PlayerCommunication::DiscType::unknownDiscType;
+                discStatusValid = false;
+            }
+            else if (discStatus.size() < 2)
+            {
+                qDebug() << "PlayerCommunication::getDiscType(): Unknown response" << discStatus;
+                discType = PlayerCommunication::DiscType::unknownDiscType;
+                discStatusValid = false;
+            }
+            else if (discStatus.at(1) == '0') {
+                //qDebug() << "PlayerCommunication::getDiscType(): Disc is CAV";
+                discType = PlayerCommunication::DiscType::CAV;
+            }
+            else if (discStatus.at(1) == '1') {
+                //qDebug() << "PlayerCommunication::getDiscType(): Disc is CLV";
+                discType = PlayerCommunication::DiscType::CLV;
+            }
+            else
+            {
+                //qDebug() << "PlayerCommunication::getDiscType(): Unknown disc type";
+                discType = PlayerCommunication::DiscType::unknownDiscType;
+            }
+
+            // Update the cached disc status
+            if (discStatusValid)
+            {
+                std::lock_guard<std::mutex> lock(cachedDataMutex);
+                discStatusCached = discStatus;
+            }
 
             // Check we are in a valid state to read the frame/timecode
-            if (playerState == PlayerCommunication::PlayerState::pause ||
-                    playerState == PlayerCommunication::PlayerState::play ||
-                    playerState == PlayerCommunication::PlayerState::stillFrame) {
+            bool playerInValidPlayState = (playerState == PlayerCommunication::PlayerState::pause) || (playerState == PlayerCommunication::PlayerState::play) || (playerState == PlayerCommunication::PlayerState::stillFrame);
+            if (playerInValidPlayState) {
 
                 // Get the frame or time code
-                if (discType == PlayerCommunication::DiscType::CAV) {
-                    frameNumber = playerCommunication->getCurrentFrame();
+                if (discType == PlayerCommunication::DiscType::CAV)
+                {
+                    bool inLeadInTemp = false;
+                    bool inLeadOutTemp = false;
+                    frameNumber = playerCommunication->getCurrentFrame(inLeadInTemp, inLeadOutTemp);
+                    inLeadIn = inLeadInTemp;
+                    inLeadOut = inLeadOutTemp;
 
                     if (frameNumber == -1) {
                         qDebug() << "PlayerControl::run(): Lost communication with player";
@@ -148,14 +220,26 @@ void PlayerControl::run()
                     }
                 }
 
-                if (discType == PlayerCommunication::DiscType::CLV) {
-                    timeCode = playerCommunication->getCurrentTimeCode();
+                if (discType == PlayerCommunication::DiscType::CLV)
+                {
+                    bool inLeadInTemp = false;
+                    bool inLeadOutTemp = false;
+                    timeCode = playerCommunication->getCurrentTimeCode(inLeadInTemp, inLeadOutTemp);
+                    inLeadIn = inLeadInTemp;
+                    inLeadOut = inLeadOutTemp;
 
-                    if (timeCode == -1) {
+                    if (timeCode == -1)
+                    {
                         qDebug() << "PlayerControl::run(): Lost communication with player";
                         reconnect = true;
                     }
                 }
+            }
+
+            // Flag player cached state invalidation if required
+            if (!playerInValidPlayState || !discStatusValid)
+            {
+                cachedStatusInvalidated = true;
             }
 
             // Process the command queue
@@ -173,13 +257,23 @@ void PlayerControl::run()
             playerCommunication->disconnect();
         }
 
+        // Invalidate the cached player state if required
+        if (!isPlayerConnected || cachedStatusInvalidated)
+        {
+            std::lock_guard<std::mutex> lock(cachedDataMutex);
+            standardUserCodeAvailable.clear();
+            standardUserCodeCached.clear();
+            pioneerUserCodeAvailable.clear();
+            pioneerUserCodeCached.clear();
+        }
+
         // Sleep the thread to save CPU
         if (isPlayerConnected) {
             // Sleep the thread for 100uS
             this->usleep(100);
         } else {
-            // Sleep the thread for 0.2 seconds
-            this->msleep(200);
+            // Sleep the thread for 0.1 seconds
+            this->msleep(100);
         }
     }
 
@@ -193,6 +287,11 @@ void PlayerControl::stop()
 {
     qDebug() << "PlayerControl::stop(): Stopping player control thread";
     abort = true;
+}
+
+QString PlayerControl::getPlayerModelCode()
+{
+    return playerCommunication->getPlayerModelCode();
 }
 
 QString PlayerControl::getPlayerModelName()
@@ -238,10 +337,61 @@ qint32 PlayerControl::getCurrentFrameNumber()
     return frameNumber;
 }
 
+bool PlayerControl::getInLeadIn()
+{
+    return inLeadIn;
+}
+
+bool PlayerControl::getInLeadOut()
+{
+    return inLeadOut;
+}
+
+float PlayerControl::getPhysicalPosition()
+{
+    return physicalPosition;
+}
+
 // Get the disc type (CAV/CLV/unknown)
 PlayerCommunication::DiscType PlayerControl::getDiscType()
 {
     return discType;
+}
+
+QString PlayerControl::getDiscStatus()
+{
+    std::lock_guard<std::mutex> lock(cachedDataMutex);
+    return discStatusCached;
+}
+
+void PlayerControl::requestStandardUserCodeRead()
+{
+    standardUserCodeReadRequestPending.test_and_set();
+}
+
+QString PlayerControl::getStandardUserCode()
+{
+    std::lock_guard<std::mutex> lock(cachedDataMutex);
+    if (!standardUserCodeAvailable.test())
+    {
+        return "";
+    }
+    return standardUserCodeCached;
+}
+
+void PlayerControl::requestPioneerUserCodeRead()
+{
+    pioneerUserCodeReadRequestPending.test_and_set();
+}
+
+QString PlayerControl::getPioneerUserCode()
+{
+    std::lock_guard<std::mutex> lock(cachedDataMutex);
+    if (!pioneerUserCodeAvailable.test())
+    {
+        return "";
+    }
+    return pioneerUserCodeCached;
 }
 
 PlayerCommunication::PlayerState PlayerControl::getPlayerState()
@@ -676,8 +826,8 @@ void PlayerControl::setSpeed(qint32 speed)
 
 void PlayerControl::sendManualCommand(QString command)
 {
-    commandQueue.enqueue(Commands::cmdSendManualCommand);
     stringParameterQueue.enqueue(command);
+    commandQueue.enqueue(Commands::cmdSendManualCommand);
 }
 
 // Automatic capture methods ------------------------------------------------------------------------------------------
@@ -860,11 +1010,13 @@ PlayerControl::AcStates PlayerControl::acStateGetLength()
     }
 
     // CAV?
+    bool inLeadIn;
+    bool inLeadOut;
     if (acDiscType == PlayerCommunication::DiscType::CAV) {
         // Seek to an impossible CAV frame number
         if (playerCommunication->setPositionFrame(60000)) {
             // Successful, get the current frame number
-            qint32 discEndAddress = playerCommunication->getCurrentFrame();
+            qint32 discEndAddress = playerCommunication->getCurrentFrame(inLeadIn, inLeadOut);
             qDebug() << "PlayerControl::acStateGetLength(): CAV Disc length" << discEndAddress << "frames";
 
             if (acCaptureWholeDisc) acEndAddress = discEndAddress;
@@ -887,7 +1039,7 @@ PlayerControl::AcStates PlayerControl::acStateGetLength()
         // Seek to an impossible CLV time code
         if (playerCommunication->setPositionTimeCode(1595900)) {
             // Successful, get the current time code
-            qint32 discEndAddress = playerCommunication->getCurrentTimeCode();
+            qint32 discEndAddress = playerCommunication->getCurrentTimeCode(inLeadIn, inLeadOut);
             qDebug() << "PlayerControl::acStateGetLength(): CLV Disc length" << discEndAddress << "time code";
 
             if (acCaptureWholeDisc) acEndAddress = discEndAddress;
@@ -1075,8 +1227,10 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress()
         }
     }
 
+    bool inLeadIn;
+    bool inLeadOut;
     if (acDiscType == PlayerCommunication::DiscType::CAV) {
-        qint32 currentAddress = playerCommunication->getCurrentFrame();
+        qint32 currentAddress = playerCommunication->getCurrentFrame(inLeadIn, inLeadOut);
         if (currentAddress >= acEndAddress) {
             // Target frame number reached
             emit stopCapture();
@@ -1102,8 +1256,8 @@ PlayerControl::AcStates PlayerControl::acStateWaitForEndAddress()
         }
         acLastSeenAddress = currentAddress;
     } else {
-        qint32 currentAddress = playerCommunication->getCurrentTimeCode();
-        if (playerCommunication->getCurrentTimeCode() >= acEndAddress) {
+        qint32 currentAddress = playerCommunication->getCurrentTimeCode(inLeadIn, inLeadOut);
+        if (currentAddress >= acEndAddress) {
             // Target time code reached
             emit stopCapture();
 

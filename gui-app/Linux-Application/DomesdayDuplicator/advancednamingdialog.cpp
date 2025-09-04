@@ -43,12 +43,9 @@ AdvancedNamingDialog::AdvancedNamingDialog(QWidget *parent) :
     ui->notesCheckBox->setChecked(false);
     ui->mintCheckBox->setChecked(false);
     ui->durationCheckBox->setChecked(false);
+    ui->filenameAutoRadioButton->setChecked(true);
 
     // Set line edit validation to A-Z, a-z, 0-9 and space, minus and underscore
-    ui->discTitleLineEdit->setValidator(new QRegularExpressionValidator(
-                                            QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_()-]+)*$"), this ));
-    ui->notesLineEdit->setValidator(new QRegularExpressionValidator(
-                                        QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_()-]+)*$"), this ));
     ui->mintLineEdit->setValidator(new QRegularExpressionValidator(
                                         QRegularExpression("^[a-zA-Z0-9_-]+( [a-zA-Z0-9_-]+)*$"), this ));
     updateGui();
@@ -64,61 +61,82 @@ QString AdvancedNamingDialog::getFileName(bool isTestData) const
 {
     QString fileName;
 
-    if (isTestData) {
+    if (isTestData)
+    {
         // For test data we ignore the disc details (as test data never has any)
-        fileName = "/TestData_";
-        fileName += QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
-    } else {
+        fileName = "/TestData";
+    }
+    else if (ui->filenameManualRadioButton->isChecked() && !ui->manualFilenameLineEdit->text().isEmpty())
+    {
+        // Use a manually specified file name if one is present
+        fileName += "/" + ui->manualFilenameLineEdit->text();
+    }
+    else
+    {
         // Construct the file name according to the enabled options
         if (ui->discTitleCheckBox->isChecked() && !ui->discTitleLineEdit->text().isEmpty())
+        {
             fileName += "/" + ui->discTitleLineEdit->text();
-        else fileName += "/RF-Sample";
-
-        if (ui->discTypeCheckBox->isChecked()) {
-            if (ui->typeCavRadioButton->isChecked()) fileName += "_CAV";
-            if (ui->typeClvRadioButton->isChecked()) fileName += "_CLV";
+        }
+        else
+        {
+            fileName += "/RF-Sample";
         }
 
-        if (ui->formatCheckBox->isChecked()) {
-            if (ui->formatNtscRadioButton->isChecked()) fileName += "_NTSC";
-            if (ui->formatPalRadioButton->isChecked()) fileName += "_PAL";
+        if (ui->filenameAutoWithMetadataRadioButton->isChecked())
+        {
+            if (ui->discTypeCheckBox->isChecked())
+            {
+                if (ui->typeCavRadioButton->isChecked()) fileName += "_CAV";
+                if (ui->typeClvRadioButton->isChecked()) fileName += "_CLV";
+            }
+
+            if (ui->formatCheckBox->isChecked())
+            {
+                if (ui->formatNtscRadioButton->isChecked()) fileName += "_NTSC";
+                if (ui->formatPalRadioButton->isChecked()) fileName += "_PAL";
+            }
+
+            if (ui->audioCheckBox->isChecked())
+            {
+                if (ui->audioAnalogueRadioButton->isChecked()) fileName += "_ANA";
+                if (ui->audioAc3RadioButton->isChecked()) fileName += "_AC3";
+                if (ui->audioDtsRadioButton->isChecked()) fileName += "_DTS";
+            }
+
         }
 
-        if (ui->audioCheckBox->isChecked()) {
-            if (ui->audioAnalogueRadioButton->isChecked()) fileName += "_ANA";
-            if (ui->audioAc3RadioButton->isChecked()) fileName += "_AC3";
-            if (ui->audioDtsRadioButton->isChecked()) fileName += "_DTS";
-        }
-
-        if (ui->discSideCheckBox->isChecked()) {
+        if (ui->discSideCheckBox->isChecked())
+        {
             fileName += QString("_side%1").arg(ui->discSideSpinBox->value());
         }
 
-        if (ui->notesCheckBox->isChecked()) {
-            fileName += "_" + ui->notesLineEdit->text();
-        }
+        if (ui->filenameAutoWithMetadataRadioButton->isChecked())
+        {
+            if (ui->notesCheckBox->isChecked())
+            {
+                fileName += "_" + ui->notesLineEdit->text();
+            }
 
-        if (ui->mintCheckBox->isChecked()) {
-            fileName += "_" + ui->mintLineEdit->text();
+            if (ui->mintCheckBox->isChecked())
+            {
+                fileName += "_" + ui->mintLineEdit->text();
+            }
         }
+    }
 
-        // Add the date/time stamp
+    // Add the date/time stamp
+    if (isTestData || !ui->filenameManualRadioButton->isChecked())
+    {
         fileName += "_" + QDateTime::currentDateTime().toString("yyyy-MM-dd_hh-mm-ss");
     }
 
     return fileName;
 }
 
-// Function to return if duration checkbox is set
 bool AdvancedNamingDialog::getDurationChecked() const
 {
-    bool fileDurationBox = false;
-
-    if (ui->durationCheckBox->isChecked()) {
-        fileDurationBox = true;
-    }
-
-    return fileDurationBox;
+    return ui->durationCheckBox->isChecked();
 }
 
 bool AdvancedNamingDialog::getDiskTitleChecked() const
@@ -275,6 +293,7 @@ void AdvancedNamingDialog::updateGui()
         ui->mintLineEdit->setEnabled(false);
     }
 
+    ui->manualFilenameLineEdit->setEnabled(ui->filenameManualRadioButton->isChecked());
 }
 
 // Update the GUI and hold values from previous side input
@@ -291,6 +310,21 @@ void AdvancedNamingDialog::updateSideHoldings()
     }
 
     discSideSpinBoxPrevVal = ui->discSideSpinBox->value();
+}
+
+void AdvancedNamingDialog::on_filenameAutoRadioButton_clicked()
+{
+    updateGui();
+}
+
+void AdvancedNamingDialog::on_filenameAutoWithMetadataRadioButton_clicked()
+{
+    updateGui();
+}
+
+void AdvancedNamingDialog::on_filenameManualRadioButton_clicked()
+{
+    updateGui();
 }
 
 void AdvancedNamingDialog::on_discTitleCheckBox_clicked()

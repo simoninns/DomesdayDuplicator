@@ -137,9 +137,10 @@ void ConfigurationDialog::loadConfiguration(const Configuration& configuration)
     ui->perSideNotesCheckBox->setChecked(configuration.getPerSideNotesEnabled());
     ui->perSideMintCheckBox->setChecked(configuration.getPerSideMintEnabled());
 
-    // Amplitude
+    // Capture statistics
     ui->amplitudeLabelCheckBox->setChecked(configuration.getAmplitudeLabelEnabled());
     ui->amplitudeChartCheckBox->setChecked(configuration.getAmplitudeChartEnabled());
+    ui->advancedCaptureStatsCheckBox->setChecked(configuration.getShowAdvancedCaptureStats());
 }
 
 // Save the configuration settings from the UI widgets
@@ -174,9 +175,10 @@ void ConfigurationDialog::saveConfiguration(Configuration& configuration)
     configuration.setPerSideNotesEnabled(ui->perSideNotesCheckBox->isChecked());
     configuration.setPerSideMintEnabled(ui->perSideMintCheckBox->isChecked());
 
-    // Amplitude
+    // Capture statistics
     configuration.setAmplitudeLabelEnabled(ui->amplitudeLabelCheckBox->isChecked());
     configuration.setAmplitudeChartEnabled(ui->amplitudeChartCheckBox->isChecked());
+    configuration.setShowAdvancedCaptureStats(ui->advancedCaptureStatsCheckBox->isChecked());
 
     // Save the configuration to disk
     configuration.writeConfiguration();
