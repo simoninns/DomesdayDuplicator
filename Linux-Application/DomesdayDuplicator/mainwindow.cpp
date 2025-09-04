@@ -1384,7 +1384,7 @@ void MainWindow::StartCapture()
     bool useAsyncFileIo = configuration->getUseAsyncFileIo();
 
     // Attempt to start the capture process
-    qDebug() << "MainWindow::StartCapture(): Starting capture to file:" << captureFilePath.string();
+    qDebug() << "MainWindow::StartCapture(): Starting capture to file:" << captureFilePath.string().c_str();
     if (!usbDevice->StartCapture(captureFilePath, captureFormat, configuration->getUsbPreferredDevice().toStdString(), isTestMode, useSmallUsbTransfers, useAsyncFileIo, maxUsbTransferQueueSizeInBytes, maxDiskBufferQueueSizeInBytes))
     {
         // Show an error based on the transfer result
