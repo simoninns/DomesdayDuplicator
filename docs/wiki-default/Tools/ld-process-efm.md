@@ -1,6 +1,6 @@
 ## ld-process-efm
 
-Note: This tool is depreciated - use the [efm-decoder](efm-decoder.md) tools instead
+Note: This tool is depreciated - use the [efm-decoder](../EFM-Tools/efm-decoder.md) tools instead
 
 
 | Format       | Info           | Sample Rate | Bit-Depth    | Extention |
