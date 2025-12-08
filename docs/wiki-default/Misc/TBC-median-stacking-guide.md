@@ -102,7 +102,7 @@ By changing the last line in the script to `a.set_output()`, `b.set_output()`, a
 If the numbers still do not match after alignment, some of the TBCs may have missing or extra fields. the median filter can try to search for the matching fields by setting the sync parameter to the range to search for.
 
 Once aligned, you can preview how the result will look by changing the bottom line to `frameout.set_output()` and pressing F5 or selecting Preview from the Script menu. It will show frame output similar to ld-analyse. The number of frames should now match the reference TBC as viewed in ld-analyse. Note that the frame numbers will be off by 1, due to vapoursynth counting from 0. If your source is NTSC telecined material, you can also preview reverse pulldown by changing the bottom line to `ivtc.set_output()`
-You can change the preview from the median to any individual tbc by changing the line `frameout = median` to `frameout = a` or the one you wish to view. 
+You can change the preview from the median to any individual tbc by changing the line `frameout = median` to `frameout = a` or the one you wish to view.
 
 
 ld-analyse reference tbc, vsedit median preview:
@@ -115,4 +115,3 @@ Once satisfied, set the bottom line to median.set_output(), save, and close vsed
 
 The median TBC can now be saved with `vspipe medianstack.vpy output.tbc`
 Pair with a copy of the chosen reference TBC's json and proceed with normal processing.
-

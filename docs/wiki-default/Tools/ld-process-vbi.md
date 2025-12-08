@@ -14,7 +14,7 @@ While ld-decode and vhs-decode extract some of this information during decoding,
 Syntax:
 
 ld-process-vbi \<options> \<input TBC file name>
-  
+
 ```
 Options:
   -h, --help                Displays this help.
@@ -30,4 +30,3 @@ Options:
 Arguments:
   input                     Specify input TBC file
 ```
-  

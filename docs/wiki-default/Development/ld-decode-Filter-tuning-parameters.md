@@ -14,8 +14,9 @@ For pictures like https://github.com/happycube/ld-decode/issues/206:
 
 - If that does not work, use --WibbleRemover to reduce color waviness caused by bad data above 4.2mhz.  This has side effects on later/sharper disks, so only use when necessary.
 
+
 ### PAL
 
-In some cases, captures from LD-V4300D players in PAL mode have a spurious raw RF signal around 8.46mhz.  
+In some cases, captures from LD-V4300D players in PAL mode have a spurious raw RF signal around 8.46mhz.
 
 Since it is above the white tip of 7.9mhz, it is possible to selectively remove the signal without severe side effects, which is the PAL version of --WibbleRemover.

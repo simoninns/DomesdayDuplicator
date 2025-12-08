@@ -30,8 +30,8 @@ Field ordering and line number counting gets very confusing, especially since PA
 - Line numbering begins with the equalization pulse 1H after the last display HSYNC.
 - The first field has it's final EQ pulse at 9.5H, second at 9.0H.
 - Vertical blank interval is officially 20H.
-  
-For color NTSC, there is a 4 field sequence:  (table goes here) 
+
+For color NTSC, there is a 4 field sequence:  (table goes here)
 
 - Field 1: First field, positive chroma phase at on even lines
 - Field 2: Second field, negative chroma phase at on even lines
@@ -53,9 +53,9 @@ The framer code takes (at least some) advantage of the fact that unlike an LD pl
 
 - Internally the NTSC line numbering system is used, with line 0 set to the last line in the previous field.
   - This is corrected on output for PAL.
-  
+
 - The framing code expects the last 2-3 lines of the previous field through the VSYNC of the next field.  If this is not found, field decoding is aborted and the next seek address given will read the appropriate data.
-  
+
 ### Frame detection/framing overview
 
 First a list of sync pulses is built up using numpy magic, which consists of areas between -20 to -50IRE (NTSC, PAL is similar).  This filters out spikes and dropouts.  Then a search within those is made for core VSYNC blocks.
@@ -74,4 +74,3 @@ Then the list of sync pulses can be processed.  Any valid pulses are added to a 
 - [DOC:TEK] Tektronix "NTSC Systems/Television Measurements" - contains lots of good info, including the official NTSC specs as an appendix.  A similar one exists for PAL but is less comprehensive and the diagrams are all pixelated.
 
 - [BOOK:VDEM] Video Demystified (1st edition is best for analog, but later ones are easier to get digitally...)
-

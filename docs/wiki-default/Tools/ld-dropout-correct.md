@@ -4,7 +4,7 @@ This application uses the drop-out information in the JSON metadata file to perf
 Syntax:
 
 ld-dropout-correct \<options> \<input TBC file name> \<output TBC file name>
-  
+
 ```
 Options:
   -h, --help                Displays this help.

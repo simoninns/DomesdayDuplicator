@@ -316,7 +316,7 @@ Thus, each Channel Frame representing a F3-Frame comprises 588 Channel bits.
 These Channel bits are recorded on the (CD) disk along a Physical Track. A ONE Channel bit shall be represented by a change of pit to land or land to pit in the reflective layer. A ZERO Channel bit shall be represented by no change in the reflective layer.
 
 ## F3 Frames
-The F3 Frame consists of 33 symbols each of 8-bits in length which result from the initial EFM data processing.  The total of 33 symbols of 8-bits in length gives a total of 264 bits per frame. 
+The F3 Frame consists of 33 symbols each of 8-bits in length which result from the initial EFM data processing.  The total of 33 symbols of 8-bits in length gives a total of 264 bits per frame.
 
 Each F3 frame consists of (since each symbol is 8-bits, one symbol is equivalent to one byte):
 
@@ -354,7 +354,7 @@ Once an F2 Frame has passed through error correction (as well as delay-lines and
 ## Data24
 When handing raw data (such as input data or input WAV data) the tools use data24 to represent chunks of data. The reason for this is that F1 Frames take 24 bytes as input, so the data24 is a convenient way of handling incoming data. Data24 is not part of the ECMA-130 definitions.  Data24 sections consist of 98 data24 frames.  A Data24 frame is basically an F1 Frame with the byte order of the data corrected.
 
-Note: data24 * 98 frames represents 1/75th of a second 
+Note: data24 * 98 frames represents 1/75th of a second
 
 ## Sections of 98 frames
 A section is a group of 98 F2 Frames representing 1/75th of a second of user-data (audio or other data) or a lead-in/lead-out section.
@@ -377,4 +377,3 @@ These requirements mean you need a minimum of 98 F2 Frames in order to produce a
 A 44.1 kHz, 16-bit, stereo sample requires **176,400 bytes per second**.
 
 Since the original IEC specification is audio based and the supported sample type is 16-bit, 44.1 KHz every second of audio requires 176,400 bytes.  The minimum time window allowed is a "section" which is 98x24 bytes = 2352 bytes.  176,400 / 2,352 bytes = 75 (i.e. a section represents a time period of 1/75th of a second).
-

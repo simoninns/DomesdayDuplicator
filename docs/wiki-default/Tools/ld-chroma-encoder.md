@@ -4,7 +4,6 @@ This application does the opposite of ld-chroma-**de**coder.  It reads a stream 
 The input is assumed to be either 928x576 for PAL (top field first) or 758x486 for NTSC (bottom field first).
 
 
-
 Syntax:
 
 ld-chroma-encoder \<options> \<input file name> \<output TBC file name> [\<output chroma TBC file name>]

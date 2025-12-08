@@ -80,7 +80,7 @@ Video Insert Test Signal metrics:
 | `wSNR` | Double | White Signal-to-Noise ratio |
 | `bPSNR` | Double | Black line PSNR |
 
-#### vbi Object (Optional) 
+#### vbi Object (Optional)
 Vertical Blanking Interval data:
 
 | Field | Type | Description |
@@ -128,7 +128,7 @@ RF dropout detection data:
 # Purpose
 
 
-The decode projects are made up of a series of decoders and tools which form a processing tool-chain for processing, analysing decoded RF samples.  In order for each tool in the chain to communicate in an efficient manner a JSON metadata file is used to store and communicate information about the decoded RF capture and any data that has been determined.  
+The decode projects are made up of a series of decoders and tools which form a processing tool-chain for processing, analysing decoded RF samples.  In order for each tool in the chain to communicate in an efficient manner a JSON metadata file is used to store and communicate information about the decoded RF capture and any data that has been determined.
 
 Tools should (as appropriate) be able to accept metadata as well as output metadata.
 
@@ -295,17 +295,17 @@ Additional fields With --verboseVITS:
 | clvFrameNr              | Integer     | Computed CLV Frame # from VITS (if clvSeconds is present)                                                                                                      |
 
 
-> [!NOTE]  
+> [!NOTE]
 >  This object is preliminary, and is subject to change as features are implemented within the decoders or vbi-processing tool or newer tools.
 
 
 ## vbi
 
 
-> [!NOTE]  
+> [!NOTE]
 >  See IEC 60857-1986 and IEC 60856-1986 for details.
 
-> [!NOTE]  
+> [!NOTE]
 >  See IEC 60857-1986 Amendment 2 and IEC 60856-1986 Amendment 2 for details.
 
 | **Name** | **Type**      | **Description**                                           |
@@ -313,7 +313,7 @@ Additional fields With --verboseVITS:
 | vbiData  | Integer Array | The field line 16, 17 and 18 raw VBI data (as 3 elements) |
 | vp       | Array         | Array containing the VBI parameters (see below            |
 
-> [!NOTE]  
+> [!NOTE]
 >  For ld-decode rev6 'vp' is removed and only vbiData is contained in the JSON.
 
 The vp array contains the following values:
@@ -426,7 +426,7 @@ number (32-bit integer)
 soundModes
 number (32-bit integer)
 
-> [!NOTE]  
+> [!NOTE]
 > See IEC 60857-1986 and IEC 60856-1986 for details.
 
 | **Name**             | **Value** |

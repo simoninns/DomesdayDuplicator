@@ -1,12 +1,12 @@
 # Introduction
 
-ld-analyse is a graphical application originally designed to assist with the analysis of LaserDisc images decoded by ld-decode but now supports a wider range of uses including analysis of video tapes and decoded raw composite sources.  
+ld-analyse is a graphical application originally designed to assist with the analysis of LaserDisc images decoded by ld-decode but now supports a wider range of uses including analysis of video tapes and decoded raw composite sources.
 
-The primary file-type is TBC (time-base corrected) video files containing the raw NTSC or PAL fields.  
+The primary file-type is TBC (time-base corrected) video files containing the raw NTSC or PAL fields.
 
-TBC files are usually identified by the `.tbc` & `_chroma.tbc` file-extensions.  
+TBC files are usually identified by the `.tbc` & `_chroma.tbc` file-extensions.
 
-The application also presents source and tool-chain metadata (supplied by JSON files) that provide additional details about the TBC file's contents such as VBI data and TV System. 
+The application also presents source and tool-chain metadata (supplied by JSON files) that provide additional details about the TBC file's contents such as VBI data and TV System.
 
 
 # Command line
@@ -18,7 +18,7 @@ Dark Mode Is automatic on Linux/MacOS with QT but is currently not on Windows bu
 
     ld-analyse -style fusion
 
-This also applys to the DdD capture app. 
+This also applys to the DdD capture app.
 
 Syntax:
 
@@ -213,9 +213,9 @@ This view is useful as only dropouts in the visible area will be noticeable to t
 
 ## Black SNR analysis
 
-The Black SNR analysis window shows the reported black peak SNR across the whole TBC video file (the black lines) and the average (the red line).  Black SNR (Signal to Noise Ratio) gives a view of the quality of the original source (and the capture set-up).  
+The Black SNR analysis window shows the reported black peak SNR across the whole TBC video file (the black lines) and the average (the red line).  Black SNR (Signal to Noise Ratio) gives a view of the quality of the original source (and the capture set-up).
 
-Higher values represent a better source signal and can be gained by the use of clean, undamaged source material as well as carefully calibrated and tested capture environments.  
+Higher values represent a better source signal and can be gained by the use of clean, undamaged source material as well as carefully calibrated and tested capture environments.
 
 A rule of thumb scale is as follows:
 

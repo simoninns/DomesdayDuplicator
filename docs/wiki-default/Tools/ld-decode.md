@@ -75,4 +75,3 @@ options:
 FREQ can be a bare number in MHz, or a number with one of the case-insensitive suffixes Hz, kHz, MHz, GHz, fSC (meaning NTSC) or
 fSCPAL.
 ```
-  

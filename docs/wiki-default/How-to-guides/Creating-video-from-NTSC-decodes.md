@@ -7,7 +7,7 @@ The following is a series of notes about how to use FFmpeg to convert the output
 # Identifying NTSC Material
 
 
-| TV System | Lines | Full-Frame 4fsc | Frequency      | Frame Rate | Field Rate | 
+| TV System | Lines | Full-Frame 4fsc | Frequency      | Frame Rate | Field Rate |
 |-----------|-------|-----------------|----------------|------------|------------|
 | PAL       | 625   | 1135x624        | 17727262 Hz    | 25i        | 50         |
 | NTSC      | 525   | 910x524         | 14318181 Hz    | 29.97i     | 59.94      |
@@ -62,13 +62,13 @@ To convert the TBC output to playable video, you need to do the following:
 4. Tell FFmpeg the required output format
 
 
-## Examples 
+## Examples
 
 
 Just edit the `input.doc.tbc` & `input.efm.pcm` with your input file names and `output.mkv` with your desired output name.
 
 
-### Uncompressed Export 
+### Uncompressed Export
 
 
 V210 4:2:2 YUV Uncompressed - The universal standard for uncompressed capture and encoding and is a supported codec in broadcast, sutible for editing or playback in the QuickTime MOV container.
@@ -86,7 +86,7 @@ While FFmpeg's video filters are convenient, for better results one can compress
 
 This example will convert the video to YUV422P10 (equivalent to 10-bit 4:2:2 SDI) and compress it losslessly with FFV1 in the `.mkv` mastroska container with `FLAC` 2:1 lossless compressed audio.
 
-Smaller files are possible using `-g 30` and removing `-slices 8`, but decoding will require more CPU power. 
+Smaller files are possible using `-g 30` and removing `-slices 8`, but decoding will require more CPU power.
 
 You can replace `ffv1` with `huffyuv` to use Huffyuv (another lossless intra codec) if FFV1 is not supported.
 
@@ -139,8 +139,8 @@ clip.set_output()
 
 `vspipe qtgmc.vpy - -y | ffmpeg -i - -f s16le -r 44.1k -ac 2 -i input.efm.pcm -vcodec libx264 -preset slow -crf 16 -acodec flac -compression_level 8 -pix_fmt yuv420p -aspect 4:3 output.qtgmc.mp4 -y`
 
-> [!CAUTION]  
-> Requires [havsfunc](https://github.com/HomeOfVapourSynthEvolution/havsfunc) and its dependencies. 
+> [!CAUTION]
+> Requires [havsfunc](https://github.com/HomeOfVapourSynthEvolution/havsfunc) and its dependencies.
 
 
 ### Pull-Down Material
@@ -175,6 +175,5 @@ clip.set_output()
 
 `vspipe deblend.vpy - -y | ffmpeg -i - -f s16le -r 44.1k -ac 2 -i input.efm.pcm -vcodec libx264 -preset slow -crf 16 -acodec flac -compression_level 8 -pix_fmt yuv420p -aspect 4:3 output.deblended.mp4 -y`
 
-> [!CAUTION]  
+> [!CAUTION]
 > Requires [havsfunc](https://github.com/HomeOfVapourSynthEvolution/havsfunc) and its dependencies.
-

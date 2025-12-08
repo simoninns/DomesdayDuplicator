@@ -4,7 +4,7 @@ This application can accept 10-bit packed format .lds files and convert them to 
 Syntax:
 
 ld-lds-converter \<options>
-  
+
 ```
 Options:
   -h, --help           Displays this help.

@@ -1,6 +1,6 @@
 # ld-decode on the web
 
-The Domesday86, ld-decode & vhs-decode projects have been featured on various web-sites 
+The Domesday86, ld-decode & vhs-decode projects have been featured on various web-sites
 
 (if you'd like to add a site to this list please use raise an issue on the github requesting inclusion)
 

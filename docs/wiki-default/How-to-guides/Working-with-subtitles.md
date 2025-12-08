@@ -33,4 +33,3 @@ To convert the SCC format file into SRT (and other common formats) you can use a
 ![](assets/ttconv_example1.png)
 
 This tool is available from [the ttconv github](https://github.com/sandflow/ttconv), the test page is available from [this link](https://ttconv.sandflow.com/)
-

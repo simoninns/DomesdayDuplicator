@@ -5,4 +5,3 @@ ld-ldf-reader is a streaming decompressor for .ldf files that can jump to a spec
 NOTE: This program only exists because of an ffmpeg CLI program bug preventing seeking deep into a file, so it may (or may not) go away after the move to Ubuntu 20.04.
 
 usage: ld-ldf-reader infile [seek location] | (consumer)
-

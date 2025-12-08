@@ -1,12 +1,10 @@
 # Supported Operating Systems
 
-
-ld-decode and the various included tools are designed for (and tested on) Ubuntu 22.04 LTS (20.04 LTS no longer works). 
+ld-decode and the various included tools are designed for (and tested on) Ubuntu 22.04 LTS (20.04 LTS no longer works).
 
 It is possible to compile and run ld-decode in other Linux environments however this is not regularly tested by the projects. But do read the [Linux Compatability Doc](https://docs.google.com/document/d/132ycIMMNvdKvrNZSzbckXVEPQVLTnH_YX0Oh3lqtkkQ/edit).
 
 For first-time users using a self contained combined build will be the most simple, just like installing or deploying any other piece of portable software this maintained from the [vhs-decode repository](https://github.com/oyvindln/vhs-decode/releases) which also contains hifi-decode and a cross code developed composite decoder cvbs-decode.
-
 
 ### Self Contained Builds
 
@@ -17,15 +15,14 @@ For first-time users using a self contained combined build will be the most simp
 
 - [MacOS Builds](https://github.com/oyvindln/vhs-decode/wiki/MacOS-Build)
 
-
 # System requirements
 
 
-ld-decode performs complex mathematics on huge datasets and therefore requires a fairly high-end PC for any expedient use, with AVX2 support notably helpful.  
+ld-decode performs complex mathematics on huge datasets and therefore requires a fairly high-end PC for any expedient use, with AVX2 support notably helpful.
 
 A Haswell (or newer) i9/i7 or Ryzen with 16-64Gb of RAM and 2TB of soild state & 8TB of hard-drive storage is recommended, however the minimum requirements are a Sandy Bridge i5 with 8Gb RAM and 512Gb of hard-drive.
 
-Blu-Ray BDXL Optical discs 100-128GB (M-Disc/DataLifePlus) and LTO5 tapes can be recommended as relatively affordable long term archival storage formats. 
+Blu-Ray BDXL Optical discs 100-128GB (M-Disc/DataLifePlus) and LTO5 tapes can be recommended as relatively affordable long term archival storage formats.
 
 Decoding in simple terms is single core bias, so faster higher speed integrated CPUs like those found in the Apple M1 Max, and AMDs x3D line and newer are today's fastest chips, the decoders today wont be more efficient past 6 threads. (excluding the chroma-decoder and hifi-decode)
 
@@ -36,19 +33,19 @@ Decoding in simple terms is single core bias, so faster higher speed integrated 
 For dedicated stations it is *highly* recommended that you install the recommended environment; if a bare-metal installation is not available, you can use tools such as virtualbox or VMware to install ld-decode in a virtual machine or container.
 
 
-There is also the project combined builds found in the 
+There is also the project combined builds found in the
 
 
 # Pre-installation
 
 
-Before attempting to directly install and deploy ld-decode ensure you have a sane (preferably fresh) Ubuntu installation that is up to date.  
+Before attempting to directly install and deploy ld-decode ensure you have a sane (preferably fresh) Ubuntu installation that is up to date.
 
 Use the following commands to ensure you have the latest software packages:
 
     sudo apt update; sudo apt upgrade
 
-`SoX` can also be quite useful to install for use with scripts and secondary tools. 
+`SoX` can also be quite useful to install for use with scripts and secondary tools.
 
     sudo apt install sox
 
@@ -85,7 +82,7 @@ Configure cmake for building
 
     cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .`
 
------ 
+-----
 
     make
 
@@ -100,7 +97,7 @@ The `make` stage will take the most time. You can speed this up considerably by 
 ## Ubuntu 25.04
 
 
-First install dependencies 
+First install dependencies
 
     sudo apt install git qt5-qmake qtbase5-dev libqwt-qt5-dev libqt5svg5-dev libfftw3-dev python3-tk libavformat-dev libavcodec-dev libavutil-dev ffmpeg openssl pv pkg-config cmake make python3-setuptools
 
@@ -116,7 +113,7 @@ Go to the directory you wish to install ld-decode into normally username/home
 
     cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .`
 
------ 
+-----
 
     make
 

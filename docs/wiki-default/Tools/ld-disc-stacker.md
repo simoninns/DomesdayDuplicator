@@ -48,7 +48,6 @@ Arguments:
                                     piped output)
 
 
-
 --help-mode:
 
     (-1) auto            : select mode depending on the number off frame available (2f: mean, 3~4f: smart mean, 5+f: smart-neighbor)

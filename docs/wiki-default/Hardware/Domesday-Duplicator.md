@@ -1,5 +1,4 @@
-# Domesday Duplicator 
-
+# Domesday Duplicator
 
 <img src="assets/Domes-Day-Duplicator-Rev3-Trasparent-ver-harrypm.png" width="400" height="">
 
@@ -8,7 +7,7 @@ The Domesday Duplicator (DdD) is a USB 3.0 hardware solution originally built fo
 
 > [!CAUTION]
 > - The DdD is also suitable for use capturing many other single channel FM RF based formats, such as Video8/Hi8 & Betamax NTSC.
-> 
+>
 > - However VHS, Betamax PAL and other formats require multiple ADC channels for Video RF & HiFi audio (Also Baseband or Linear audio) please look at the [Clockgen Mod](https://github.com/oyvindln/vhs-decode/wiki/Clockgen-Mod) & the new [MISRC](https://github.com/Stefan-Olt/MISRC/) for this as the DdD only has a single ADC channel.
 
 
@@ -27,8 +26,7 @@ The Domesday Duplicator (DdD) is a USB 3.0 hardware solution originally built fo
 
 The DdD documentation originally lived on [Domesday86.com project pages](https://www.domesday86.com/?page_id=978) but is now moved entirely onto GitHub.
 
-
-## Physical Gain Control 
+## Physical Gain Control
 
 
 <img src="assets/Domes-Day-Duplicator-Rev3-Gain-Dip-Adjustment-harrypm.jpeg" width="300" height="">
@@ -58,8 +56,7 @@ All selected in this up position is 1111 or 2.02 Minimum Gain When dip’s 2-3-4
 | 4               | 0100              | 6      |
 | 8               | 1000              | 8.5    |
 
-
-# Software 
+# Software
 
 
 The software is a GUI based capture tool, with a serial control interface for LaserDisc players.
@@ -71,7 +68,7 @@ The software is a GUI based capture tool, with a serial control interface for La
 
 <img src="assets/Domes-Day-Duplicator-Capture-App-Live-Capture.gif" width="400" height="">
 
-> [!TIP]  
+> [!TIP]
 > Enable RMS Measurement to have a live readout.
 
 
@@ -108,7 +105,7 @@ Download The Software
     cd ~/github
     git clone https://github.com/simoninns/DomesdayDuplicator
 
-Build The Software 
+Build The Software
 
     cd ~/github/DomesdayDuplicator/Linux-Application
     sudo cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo .
@@ -148,4 +145,3 @@ If you get `Segmentation fault (core dumped)` try using:
 Desktop File (App Icon Fix)
 
     desktop-file-install
-

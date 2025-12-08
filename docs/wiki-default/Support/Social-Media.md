@@ -1,6 +1,6 @@
-# Social Media 
+# Social Media
 
-You can follow the primary ld-decode developers on social media: 
+You can follow the primary ld-decode developers on social media:
 
 [Chad](https://twitter.com/happysphere) - Original creator of ld-decode and primary developer of all the clever RF signal processing software.
 
@@ -8,7 +8,7 @@ You can follow the primary ld-decode developers on social media:
 
 ## Discord
 
-There is a quite active Discord server of which most current development and usage of the project is discussed and home to other software decoding projects such as `vhs-decode`/`cvbs-decode`/`hifi-decode` & `FL2k TBC Player` 
+There is a quite active Discord server of which most current development and usage of the project is discussed and home to other software decoding projects such as `vhs-decode`/`cvbs-decode`/`hifi-decode` & `FL2k TBC Player`
 
 [The Domesday86 Discord Server](https://discord.com/invite/pVVrrxd)
 

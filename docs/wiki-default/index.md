@@ -8,7 +8,7 @@ The project aims to take high-quality FM RF Archival captures of LaserDiscs, ide
 
 The decoding process (like a real LaserDisc player) is a multi-stage process.  The raw RF must be demodulated (from the original FM signal) and filtered into video, audio and EFM data. This data is then framed and passed through a digital time-base correction (TBC) process which attempts to remove errors caused by the mechanical nature of a LaserDisc player during capture.
 
-The resulting lossless 4fsc sampled TBC output is then run through a chroma-decoder (a 'comb-filter' in NTSC speak) which recovers the original color and can encode it as a digital RGB or YUV stream.  
+The resulting lossless 4fsc sampled TBC output is then run through a chroma-decoder (a 'comb-filter' in NTSC speak) which recovers the original color and can encode it as a digital RGB or YUV stream.
 
 This raw stream can be directly output to a Y4M file via the `ld-chroma-decoder` for example, but typically will be exported as lossless FFV1 or uncompressed v210 in 10-bit 4:2:2 YUV via [tbc-video-export](https://github.com/JuniorIsAJitterbug/tbc-video-export). This automates 90% of the commands to interact with the chroma-decoder and FFmpeg to encode and wrap your audio/video streams into a container like MKV or MOV, ready for viewing using media players such as [VLC](https://www.videolan.org/) or [MPC](https://github.com/clsid2/mpc-hc) or for further post-processing such as de-interlacing and upscaling for modern display use.
 
@@ -20,7 +20,7 @@ An overview of how a LaserDisc player functions (which can help you to understan
 # Current status
 
 
-ld-decode revision 7 is the current release of the decoder and associated tools.  ld-decode is capable of decoding a wide-range of PAL and NTSC LaserDiscs with support for both analog and digital sound tracks (as well as EFM data tracks as used in Interactive Video systems such as the BBC Domesday system) 
+ld-decode revision 7 is the current release of the decoder and associated tools.  ld-decode is capable of decoding a wide-range of PAL and NTSC LaserDiscs with support for both analog and digital sound tracks (as well as EFM data tracks as used in Interactive Video systems such as the BBC Domesday system)
 
 The tools suite, decoders, and DomesDay Duplicators [capture app](Hardware/Domesday-Duplicator.md) now also have self contained builds for [Windows](https://github.com/oyvindln/vhs-decode/Windows-Build), [MacOS](https://github.com/oyvindln/vhs-decode/MacOS-Build) & [Linux](https://github.com/oyvindln/vhs-decode/Linux-Build) bundled alongside with [vhs-decode](https://github.com/oyvindln/vhs-decode/wiki/) (*supports a wide range of tape formats), [cvbs-decode](https://github.com/oyvindln/vhs-decode/wiki/CVBS-Composite-Decode) & [hifi-decode](https://github.com/oyvindln/vhs-decode/hifi-decode) projects.
 

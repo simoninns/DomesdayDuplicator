@@ -9,7 +9,7 @@ Syntax:
 
 `ld-chroma-decoder [options] <input TBC file name> [output file name]`
 
-> [!NOTE]  
+> [!NOTE]
 > This is mostly automated with FFmpeg profiles today with [tbc-video-export](https://github.com/JuniorIsAJitterbug/tbc-video-export#readme).
 
 
@@ -59,9 +59,9 @@ The `mono` filter treats the whole signal as luma, so it's the best choice when 
 ### First Active Field Line
 
 
-`--first-active-field-line int`, `--ffll int`  
+`--first-active-field-line int`, `--ffll int`
 
-The first visible line of a field.  
+The first visible line of a field.
 
 Ranges:
 
@@ -74,9 +74,9 @@ Ranges:
 ### Last Active Field Line
 
 
-`--last-active-field-line int`, `--lfll int`  
+`--last-active-field-line int`, `--lfll int`
 
-The last visible line of a field.  
+The last visible line of a field.
 
 Ranges:
 
@@ -89,9 +89,9 @@ Ranges:
 ### First Active Frame Line
 
 
-`--first-active-frame-line int`, `--ffrl int`  
+`--first-active-frame-line int`, `--ffrl int`
 
-The first visible line of a field.  
+The first visible line of a field.
 
 Ranges:
 
@@ -104,9 +104,9 @@ Ranges:
 ### Last Active Frame Line
 
 
-`--last-active-frame-line int`, `--lfrl int`  
+`--last-active-frame-line int`, `--lfrl int`
 
-The last visible line of a field.  
+The last visible line of a field.
 
 
 Ranges:
@@ -123,13 +123,13 @@ Ranges:
 ### Luma Decoder
 
 
-`--chroma-decoder-luma decoder`  
+`--chroma-decoder-luma decoder`
 
 Chroma decoder to use for the luma instance.
 
 
 >[!CAUTION]
-> It is unlikely you need to adjust this.  
+> It is unlikely you need to adjust this.
 
 Available decoders:
 
@@ -148,9 +148,9 @@ Available decoders:
 ### Chroma Decoder
 
 
-`--chroma-decoder decoder`  
+`--chroma-decoder decoder`
 
-Chroma decoder to use.  
+Chroma decoder to use.
 
 Available decoders:
 
@@ -169,14 +169,14 @@ Available decoders:
 ### Chroma Gain
 
 
-`--chroma-gain 0`  
+`--chroma-gain 0`
 
-Gain factor applied to chroma components normally you will not adjust this over `1~3` in value. 
+Gain factor applied to chroma components normally you will not adjust this over `1~3` in value.
 
 ### Chroma Phase
 
 
-`--chroma-phase float`  
+`--chroma-phase float`
 
 Phase rotation applied to chroma components (degrees `0~360`).
 
@@ -184,13 +184,13 @@ Phase rotation applied to chroma components (degrees `0~360`).
 ### Luma NR
 
 
-`--luma-nr float`  
+`--luma-nr float`
 
-Luma noise reduction level in dB.  
+Luma noise reduction level in dB.
 
 >[!CAUTION]
-> It is unlikely you need to adjust this.  
-> We recommend applying noise reduction in post via avisynth. vapoursynth or tools like Resolve. 
+> It is unlikely you need to adjust this.
+> We recommend applying noise reduction in post via avisynth. vapoursynth or tools like Resolve.
 
 
 # Help Page
@@ -218,7 +218,7 @@ Options:
                                               components (default 1.0)
   --chroma-phase <number>                     Phase rotation applied to chroma
                                               components (degrees; default 0.0)
-  
+
   -p, --output-format <output-format>         Output format (rgb, yuv, y4m;
                                               default rgb); RGB48, YUV444P16,
                                               GRAY16 pixel formats are supported

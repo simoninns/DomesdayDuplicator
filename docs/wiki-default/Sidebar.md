@@ -15,7 +15,7 @@
 - [CD Decode](Related-Projects/CD-Decode.md)
 - [MUSE Decode](Related-Projects/MUSE-Decode.md)
 
-## Hardware 
+## Hardware
 
 - [Domesday Duplicator - DdD](Hardware/Domesday-Duplicator.md)
 - [CX Cards & CXADC](Hardware/CX-Cards.md)

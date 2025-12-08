@@ -53,7 +53,7 @@ For NTSC sources this application also processes items from the IEC NTSC specifi
 Syntax:
 
 ld-process-vbi \<options> \<input TBC file name>
-  
+
 ```
 Options:
   -h, --help                Displays this help.
@@ -69,7 +69,7 @@ Options:
 Arguments:
   input                     Specify input TBC file
 ```
-  
+
 
 ## ld-export-metadata
 This application reads an ld-decode JSON metadata file, typically as produced by ld-process-vbi, and exports information in standard formats that other tools can read. At present, it can export:
@@ -102,7 +102,7 @@ This application uses the drop-out information in the JSON metadata file to perf
 Syntax:
 
 ld-dropout-correct \<options> \<input TBC file name> \<output TBC file name>
-  
+
 ```
 Options:
   -h, --help                Displays this help.
@@ -130,7 +130,7 @@ This application takes the PAL or NTSC TBC input video and performs chroma decod
 Syntax:
 
 ld-chroma-decoder \<options> \<input TBC file name> (\<output RGB file name>)
-  
+
 The output RGB file name is optional.  If omitted the output will be sent to stdout (for pipe-lining).
 
 Most of the options here correspond to settings in ld-analyse's 'Chroma decoder configuration' window, so you can experiment with them interactively using ld-analyse. For more information on what the settings mean, see the [ld-analyse User Guide](https://github.com/happycube/ld-decode/wiki/ld-analyse-User-Guide).
@@ -187,7 +187,7 @@ Syntax:
 
 ld-chroma-encoder \<options> \<input RGB file name> \<output TBC file name>
 
-Specify the input filename as `-` to make it read from standard input. 
+Specify the input filename as `-` to make it read from standard input.
 
 ```
 Options:
@@ -209,7 +209,7 @@ Arguments:
   input                        Specify input RGB file (- for piped input)
   output                       Specify output TBC file
 ```
-  
+
 ## ld-analyse
 This GUI application provides a range of features for examining TBC output including drop-out detection, video extent, line scope and VBI data.  The application works with NTSC and PAL TBC output files.
 
@@ -238,7 +238,7 @@ This application processes the .efm output from ld-decode into either digital au
 Syntax:
 
 ld-process-efm \<options> \<input EFM file name> \<output data file name>
-  
+
 ```
 Options:
   -h, --help             Displays help on commandline options.
@@ -293,7 +293,7 @@ This application can accept 10-bit packed format .lds files and convert them to 
 Syntax:
 
 ld-lds-converter \<options>
-  
+
 ```
 Options:
   -h, --help           Displays this help.

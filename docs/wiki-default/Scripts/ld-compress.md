@@ -29,7 +29,7 @@ Flaccl does not presently support ogg file containers, so the the output will be
 
 Requires FLAC [Installed in path](https://github.com/oyvindln/vhs-decode/wiki/Windows-Build#install-ffmpegsoxflac-inside-windows) / [FLACLDF](https://github.com/TokugawaHeavyIndustries/FlaLDF) Installed in the directory of tools.
 
-Save files to `.bat` to make them drag and drop scripts. 
+Save files to `.bat` to make them drag and drop scripts.
 
 CPU (Native)
 

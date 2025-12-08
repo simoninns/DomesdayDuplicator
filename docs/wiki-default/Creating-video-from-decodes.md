@@ -1,11 +1,9 @@
-# Creating Video Files 
+# Creating Video Files
 
+This is a manual guide for people looking for a more "I want to tweak" or implement their own FFmpeg profiles or tools to do this process or just if you feel like learning how everything works behind the automated scripting today!
 
-This is a manual guide for people looking for a more "I want to tweak" or implement their own FFmpeg profiles or tools to do this process or just if you feel like learning how everything works behind the automated scripting today! 
-
-> [!TIP]  
+> [!TIP]
 > If your lazy [tbc-video-export](https://github.com/oyvindln/vhs-decode/wiki/TBC-to-Video-Export-Guide) handles pretty much everything below automatically, with profiles for codecs & frame sizes and easier handling of metadata.
-
 
 ## The TBC Format
 
@@ -15,8 +13,7 @@ This is a manual guide for people looking for a more "I want to tweak" or implem
 | PAL       | 625   | 1135x624        | 17727262 Hz    | 25i        | 50         |
 | NTSC      | 525   | 910x524         | 14318181 Hz    | 29.97i     | 59.94      |
 
-
-## Conversion TBC to Video 
+## Conversion TBC to Video
 
 
 `ld-chroma-decoder` --> `pipe` --> `FFmpeg` --> `Video Files`
@@ -28,14 +25,10 @@ To convert the TBC output to playable video, you need to do the following:
 3. Tell FFmpeg if/how you want to process the video (deinterlace, 3:2 removal etc.)
 4. Tell FFmpeg the required output format
 
+## Chroma-Decoder basic use
 
-## Chroma-Decoder basic use 
-
-
-> [!NOTE]  
-> See the [ld-chroma-decoder wiki page](Tools/ld-chroma-decoder.md) for full possible options.
-
-The majority of users today will just want to use a YUV stream via y4m output from the chroma-decoder and a pipe to FFmpeg allowing easy creation of standard video files.
+> [!NOTE]
+> See the [ld-chroma-decoder wiki page](Tools/ld-chroma-decoder.md) for full possible options.The majority of users today will just want to use a YUV stream via y4m output from the chroma-decoder and a pipe to FFmpeg allowing easy creation of standard video files.
 
 
 ## Full Breakdown Command Example
@@ -43,7 +36,7 @@ The majority of users today will just want to use a YUV stream via y4m output fr
 
 Lets breakdown a combined command that decodes the chroma and encodes a V210 uncompressed video file via FFmpeg and pipes ready for playback and editing with virtually any software.
 
-`INPUT.tbc` & `OUTPUT.mov` just need to be changed to use this command right now on your decoded media! 
+`INPUT.tbc` & `OUTPUT.mov` just need to be changed to use this command right now on your decoded media!
 
 `ld-chroma-decoder --decoder transform3d -p y4m -q INPUT.tbc| ffmpeg -i - -c:v v210 -f mov -top 1 -vf setfield=tff -flags +ilme+ildct -pix_fmt yuv422p10le -color_primaries bt470bg -color_trc bt709 -colorspace bt470bg -color_range tv -vf setdar=4/3,setfield=tff OUTPUT.mov`
 
@@ -75,11 +68,11 @@ The 3'rd stage is the actual FFmpeg command that makes the video file
 
 Video Codec: `-c:v v210 -f mov`
 
-Interlaced Flag: `-top 1 -vf setfield=tff -flags +ilme+ildct` - Interlaced Top Field first "tff" 
+Interlaced Flag: `-top 1 -vf setfield=tff -flags +ilme+ildct` - Interlaced Top Field first "tff"
 
 Pixel Format: `-pix_fmt yuv422p10le` - 10-bit 4:2:2
 
-Colour Space & Transfer: 
+Colour Space & Transfer:
 
 `-color_primaries smpte170m -color_trc bt709 -colorspace smpte170m` - Sets origin as NTSC and transfer to HDTV.
 
@@ -103,7 +96,7 @@ NTSC options `ntsc1d`, `ntsc2d`, `ntsc3d`, `ntsc3dnoadapt`, `mono`
 ### Advanced Options
 
 
-> [!WARNING]  
+> [!WARNING]
 > The noise reduction tools are emulating LD decoder hardware, modern software filters are far more powerful./
 
 `--chroma-nr <number> `     NTSC: Chroma noise reduction level in dB (default 0.0)
@@ -115,16 +108,16 @@ NTSC options `ntsc1d`, `ntsc2d`, `ntsc3d`, `ntsc3dnoadapt`, `mono`
 `--chroma-phase <number>`   Phase rotation applied to chroma components (degrees; default 0.0)
 
 
-> [!TIP]  
+> [!TIP]
 > Phase/Gain can be tweaked visually in ld-analyse then when the json is saved the chroma-decoder use its adjusted values.
 
 
-## Decide Frame Size 
+## Decide Frame Size
 
 
 If you wish to have just the active or vbi area included just use the following commands.
 
-> [!NOTE]  
+> [!NOTE]
 > Y4M Only.
 
 You can use these 2 commands.

@@ -8,9 +8,9 @@
 | Dolby DTS    | Surround 5.1   | 44.1KHz     | 16/24-bit    | .dts      |
 
 
-This application processes the raw digital `.efm` output from ld-decode into either digital audio or data.  
+This application processes the raw digital `.efm` output from ld-decode into either digital audio or data.
 
-ld-process-efm implements both audio and data error detection and correction. 
+ld-process-efm implements both audio and data error detection and correction.
 
 
 ## Dolby AC-3 Audio
@@ -32,21 +32,20 @@ This can be 2.0 Stereo or 4.0, 5.1 Surround
 AC-3 discs take the Right channel analog track area, so Left channel may contain an mono analog audio track.
 
 
-LaserDisc digital audio is based on the standards used for CDs (stereo 44.1KHz 16-bit PCM), which require the digital audio stream to contain periodic timestamps so the player can tell where it is on the disc. 
+LaserDisc digital audio is based on the standards used for CDs (stereo 44.1KHz 16-bit PCM), which require the digital audio stream to contain periodic timestamps so the player can tell where it is on the disc.
 
-Since LaserDisc players get this information from the video instead, quite a lot of LaserDiscs don't bother to include audio timestamps. 
+Since LaserDisc players get this information from the video instead, quite a lot of LaserDiscs don't bother to include audio timestamps.
 
 You can tell if you're decoding a disc like this by looking at the statistics printed by ld-process-efm: if no data is coming out of the <q>F3 frame synchronisation</q> phase, try using the `--time` option to not require timestamps. (The downside of this is that it makes error padding less effective, so only use it if you need to.)
 
 
-## Dolby DTS Audio 
+## Dolby DTS Audio
 
 
 <img src="assets/dts_5.1.png" width="130" height="">
 
 
-
-If you have a DTS disc, use the `--dts` option: this disables audio error concealment, and makes ld-process-efm accept a variation of the CD audio standard (a different F3 Sync 0 sequence) used by some DTS discs. Many DTS discs need `--time` too. 
+If you have a DTS disc, use the `--dts` option: this disables audio error concealment, and makes ld-process-efm accept a variation of the CD audio standard (a different F3 Sync 0 sequence) used by some DTS discs. Many DTS discs need `--time` too.
 
 The output will be a `.dts` file.
 
@@ -60,19 +59,19 @@ The channel map is as follows for surround 5.1
 6. LFE (Subwoofer)
 
 
-## Note 
+## Note
 
 Note: you can convert the `.pcm` analog audio to standard `.wav` with:
 
 `ffmpeg -f s16le -ar 44.1k -ac 2 -i input.pcm output_file.wav`
 
 
-## Help 
+## Help
 
 Syntax:
 
 ld-process-efm \<options> \<input EFM file name> \<output data file name>
-  
+
 ```
 Options:
   -h, --help             Displays help on commandline options.
@@ -125,4 +124,3 @@ CLI options:
   * F2 to F1 Frame decoding debug
   * F1 Frame to audio samples debug
   * F1 Frame to data sector debug
-
