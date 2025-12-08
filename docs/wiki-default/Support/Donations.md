@@ -1,0 +1,1 @@
+Donations to the Domesday86 project are always gratefully received.  If you'd like to help us out financially, head over to the [Domesday86 project website](https://www.domesday86.com/) and use the PayPal donations button on the top-right of the page.

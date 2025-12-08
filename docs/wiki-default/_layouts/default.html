@@ -1,0 +1,399 @@
+<!--
+  WARNING: This file contains pre-configured layout and search functionality.
+  DO NOT EDIT unless you are modifying the site's core layout, styling, or search features.
+  
+  To update navigation links, edit: wiki-default/Sidebar.md
+  To add/edit documentation pages, add/edit .md files in wiki-default/
+-->
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: "en-US" }}">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% assign depth = page.url | split: '/' | size | minus: 2 %}
+    {% if depth <= 0 %}
+      {% assign prefix = '' %}
+    {% elsif depth == 1 %}
+      {% assign prefix = '../' %}
+    {% elsif depth == 2 %}
+      {% assign prefix = '../../' %}
+    {% else %}
+      {% assign prefix = '../../../' %}
+    {% endif %}
+    <link rel="stylesheet" href="{{ prefix }}assets/css/style.css?v=">
+    <link rel="icon" type="image/x-icon" href="{{ prefix }}assets/favicon.ico">
+    <title>{% if page.title %}{{ page.title | escape }}{% else %}{{ site.title | default: site.github.repository_name }}{% endif %}</title>
+  </head>
+  <body>
+    <div class="wrapper">
+      <aside class="sidebar">
+        <h2><a href="{{ prefix }}index.html">ld-decode</a></h2>
+        
+        <!-- Search Box -->
+        <div class="search-container">
+          <input type="text" id="search-input" placeholder="Search documentation..." autocomplete="off">
+          <div id="search-results"></div>
+        </div>
+        
+        <!-- Navigation from _Sidebar.md -->
+        {% include sidebar-nav.html %}
+      </aside>
+      
+      <section class="main-content">
+        {{ content }}
+      </section>
+    </div>
+    
+    <!-- Footer from Footer.md -->
+    {% include footer-nav.html %}
+    
+    <style>
+      :root {
+        --bg-color: #ffffff;
+        --text-color: #24292e;
+        --sidebar-bg: #f6f8fa;
+        --border-color: #e1e4e8;
+        --link-color: #0366d6;
+        --link-hover: #0056b3;
+        --heading-color: #24292e;
+      }
+      
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-color: #0d1117;
+          --text-color: #c9d1d9;
+          --sidebar-bg: #161b22;
+          --border-color: #30363d;
+          --link-color: #58a6ff;
+          --link-hover: #79c0ff;
+          --heading-color: #f0f6fc;
+        }
+      }
+      
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+      }
+      
+      .wrapper {
+        display: flex;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      
+      .sidebar {
+        width: 250px;
+        min-width: 250px;
+        margin-right: 30px;
+        font-size: 14px;
+        background-color: var(--sidebar-bg);
+        padding: 20px;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+      }
+      
+      .sidebar h2 {
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: var(--heading-color);
+      }
+      
+      .sidebar h3 {
+        font-size: 16px;
+        margin-top: 20px;
+        margin-bottom: 10px;
+        font-weight: bold;
+        color: var(--heading-color);
+      }
+      
+      .sidebar ul {
+        list-style: none;
+        padding-left: 0;
+        margin: 0 0 10px 0;
+      }
+      
+      .sidebar li {
+        margin: 5px 0;
+      }
+      
+      .sidebar a {
+        text-decoration: none;
+        color: var(--link-color);
+      }
+      
+      .sidebar a:hover {
+        text-decoration: underline;
+        color: var(--link-hover);
+      }
+      
+      .main-content {
+        flex: 1;
+        min-width: 0;
+      }
+      
+      .main-content h1,
+      .main-content h2,
+      .main-content h3,
+      .main-content h4,
+      .main-content h5,
+      .main-content h6 {
+        color: var(--heading-color);
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 0.3em;
+      }
+      
+      .main-content a {
+        color: var(--link-color);
+      }
+      
+      .main-content a:hover {
+        color: var(--link-hover);
+      }
+      
+      .main-content code {
+        background-color: var(--sidebar-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 3px;
+        font-size: 85%;
+      }
+      
+      .main-content pre {
+        background-color: var(--sidebar-bg);
+        padding: 16px;
+        border-radius: 6px;
+        overflow: auto;
+        border: 1px solid var(--border-color);
+      }
+      
+      .main-content img {
+        max-width: 100%;
+        height: auto;
+      }
+      
+      @media screen and (max-width: 768px) {
+        .wrapper {
+          flex-direction: column;
+        }
+        
+        .sidebar {
+          width: 100%;
+          margin-right: 0;
+          margin-bottom: 20px;
+        }
+      }
+      
+      /* Search Styles */
+      .search-container {
+        margin-bottom: 20px;
+      }
+      
+      #search-input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      
+      #search-input:focus {
+        outline: none;
+        border-color: var(--link-color);
+      }
+      
+      #search-results {
+        margin-top: 10px;
+        max-height: 400px;
+        overflow-y: auto;
+        display: none;
+      }
+      
+      #search-results.active {
+        display: block;
+      }
+      
+      .search-result-item {
+        padding: 8px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        background-color: var(--bg-color);
+        border: 1px solid var(--border-color);
+      }
+      
+      .search-result-item:hover {
+        background-color: var(--sidebar-bg);
+      }
+      
+      .search-result-title {
+        font-weight: bold;
+        color: var(--link-color);
+        text-decoration: none;
+        display: block;
+        margin-bottom: 4px;
+      }
+      
+      .search-result-title:hover {
+        text-decoration: underline;
+      }
+      
+      .search-result-category {
+        font-size: 12px;
+        color: var(--text-color);
+        opacity: 0.7;
+      }
+      
+      .search-result-snippet {
+        font-size: 12px;
+        color: var(--text-color);
+        opacity: 0.7;
+        margin-top: 4px;
+      }
+      
+      .footer {
+        margin-top: 60px;
+        padding: 30px 20px;
+        border-top: 1px solid var(--border-color);
+        text-align: center;
+        font-size: 14px;
+        color: var(--text-color);
+      }
+      
+      .footer img {
+        max-width: 200px;
+        margin-bottom: 15px;
+        background-color: white;
+        padding: 5px;
+        border-radius: 4px;
+      }
+    </style>
+    
+    <!-- Lunr.js Library -->
+    <script src="https://unpkg.com/lunr/lunr.js"></script>
+    
+    <!-- Search Functionality -->
+    <script>
+      (function() {
+        var searchInput = document.getElementById('search-input');
+        var searchResults = document.getElementById('search-results');
+        var searchIndex = null;
+        var searchData = null;
+        
+        // Calculate the correct path to search.json based on current page depth
+        var depth = '{{ depth }}';
+        var prefix = '{{ prefix }}';
+        var searchJsonPath = prefix + 'search.json';
+        
+        // Load search index
+        fetch(searchJsonPath)
+          .then(response => response.json())
+          .then(data => {
+            searchData = data;
+            searchIndex = lunr(function() {
+              this.ref('url');
+              this.field('title', { boost: 10 });
+              this.field('content');
+              this.field('category', { boost: 5 });
+              
+              data.forEach(function(doc) {
+                this.add(doc);
+              }, this);
+            });
+          })
+          .catch(error => console.error('Error loading search index:', error));
+        
+        // Search on input
+        searchInput.addEventListener('input', function() {
+          var query = this.value.trim();
+          
+          if (query.length < 2) {
+            searchResults.innerHTML = '';
+            searchResults.classList.remove('active');
+            return;
+          }
+          
+          if (!searchIndex) {
+            searchResults.innerHTML = '<div class="search-result-item">Search index loading...</div>';
+            searchResults.classList.add('active');
+            return;
+          }
+          
+          try {
+            var results = searchIndex.search(query + '*');
+            
+            if (results.length === 0) {
+              searchResults.innerHTML = '<div class="search-result-item">No results found</div>';
+              searchResults.classList.add('active');
+              return;
+            }
+            
+            var html = '';
+            results.slice(0, 10).forEach(function(result) {
+              var doc = searchData.find(function(d) { return d.url === result.ref; });
+              if (doc) {
+                var snippet = doc.content.substring(0, 150) + '...';
+                // Use the URL directly from search.json (already has correct baseurl)
+                html += '<div class="search-result-item">';
+                html += '<a href="' + doc.url + '" class="search-result-title">' + doc.title + '</a>';
+                html += '<div class="search-result-category">' + doc.category + '</div>';
+                html += '<div class="search-result-snippet">' + snippet + '</div>';
+                html += '</div>';
+              }
+            });
+            
+            searchResults.innerHTML = html;
+            searchResults.classList.add('active');
+          } catch (e) {
+            console.error('Search error:', e);
+          }
+        });
+        
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+          if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.classList.remove('active');
+          }
+        });
+        
+        // Show results again when clicking on input
+        searchInput.addEventListener('focus', function() {
+          if (this.value.trim().length >= 2) {
+            searchResults.classList.add('active');
+          }
+        });
+      })();
+      
+      // Mark external links with [external] indicator and open in new tab
+      (function() {
+        var links = document.querySelectorAll('a[href^="http://"], a[href^="https://"]');
+        links.forEach(function(link) {
+          // Skip if already has external indicator
+          if (link.textContent.includes('[external]')) {
+            return;
+          }
+          // Skip certain domains that are part of the documentation
+          var href = link.getAttribute('href');
+          if (href.includes('happycube.github.io/ld-decode-docs')) {
+            return;
+          }
+          // Open in new tab
+          link.setAttribute('target', '_blank');
+          link.setAttribute('rel', 'noopener noreferrer');
+          // Add [external] indicator
+          var span = document.createElement('span');
+          span.textContent = ' [external]';
+          span.style.fontSize = '0.85em';
+          span.style.opacity = '0.7';
+          link.appendChild(span);
+        });
+      })();
+    </script>
+  </body>
+</html>

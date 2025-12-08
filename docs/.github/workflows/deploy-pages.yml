@@ -1,0 +1,72 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'wiki-default/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Only deploy main branch to GitHub Pages
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Validate navigation links
+        run: |
+          echo "Checking for external links in navigation sidebar..."
+          
+          # Check if Sidebar.md exists
+          if [ ! -f "wiki-default/Sidebar.md" ]; then
+            echo "Error: Sidebar.md not found"
+            exit 1
+          fi
+          
+          # Extract all markdown links from Sidebar.md and check for external URLs
+          # Look for patterns like [text](http:// or [text](https://
+          if grep -oE '\]\(https?://[^)]+\)' wiki-default/Sidebar.md > /dev/null; then
+            echo "❌ ERROR: External links found in navigation sidebar!"
+            echo ""
+            echo "The following external links were detected:"
+            grep -oE '\]\(https?://[^)]+\)' wiki-default/Sidebar.md
+            echo ""
+            echo "External links in the navigation are not allowed - Deployment failed"
+            echo "Please create local placeholder pages and link to those instead."
+            exit 1
+          fi
+          
+          echo "✓ Navigation validation passed - no external links found"
+      
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build site with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./wiki-default
+          destination: ./_site
+      
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
