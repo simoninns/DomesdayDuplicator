@@ -14,7 +14,7 @@ The following is a series of notes about how to use FFmpeg to convert the output
 
 NTSC - National TV Standards Committee (affectionately referred to as Never The Same Colour)
 
-Used primariy in North Armerica but Japan there is the NTSC-J standard with 0 IRE black levels.
+Used primarily in North America but Japan there is the NTSC-J standard with 0 IRE black levels.
 
 NTSC video is displayed at 29.97 frames per second, that is 59.94 fields per second (each frame being made of two fields). Except for progressive 29.97 material (commonly referred to as 30p), properly viewing it on modern displays will require some form of deinterlacing and the deinterlacing technique depends on the source.
 
@@ -38,7 +38,7 @@ There is now the [TBC-Video-Export](https://github.com/oyvindln/vhs-decode/wiki/
 
 Which has pre-made easy to edit FFmpeg profiles and allows quick and simple exporting of CVBS & Y/C TBC files from ld-decode & vhs-decode and automatic encoding of the chroma-decoded output to ready to use interlaced or progressive video files.
 
-This provies a very hands off inital export experiance sutiable for users new or ones just looking to save some time.
+This provides a very hands off initial export experience suitable for users new or ones just looking to save some time.
 
 FFV1 10-bit 4:2:2 is the stock export profile.
 

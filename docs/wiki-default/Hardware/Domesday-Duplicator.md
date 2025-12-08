@@ -9,7 +9,7 @@ The Domesday Duplicator (DdD) is a USB 3.0 hardware solution originally built fo
 > [!CAUTION]
 > - The DdD is also suitable for use capturing many other single channel FM RF based formats, such as Video8/Hi8 & Betamax NTSC.
 > 
-> - However VHS, Betamax PAL and other formats require multible ADC channels for Video RF & HiFi audio (Also Baseband or Linear audio) please look at the [Clockgen Mod](https://github.com/oyvindln/vhs-decode/wiki/Clockgen-Mod) & the new [MISRC](https://github.com/Stefan-Olt/MISRC/) for this as the DdD only has a single ADC channel.
+> - However VHS, Betamax PAL and other formats require multiple ADC channels for Video RF & HiFi audio (Also Baseband or Linear audio) please look at the [Clockgen Mod](https://github.com/oyvindln/vhs-decode/wiki/Clockgen-Mod) & the new [MISRC](https://github.com/Stefan-Olt/MISRC/) for this as the DdD only has a single ADC channel.
 
 
 # Docs

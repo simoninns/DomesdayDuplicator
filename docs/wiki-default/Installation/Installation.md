@@ -5,7 +5,7 @@ ld-decode and the various included tools are designed for (and tested on) Ubuntu
 
 It is possible to compile and run ld-decode in other Linux environments however this is not regularly tested by the projects. But do read the [Linux Compatability Doc](https://docs.google.com/document/d/132ycIMMNvdKvrNZSzbckXVEPQVLTnH_YX0Oh3lqtkkQ/edit).
 
-For first-time users using a self contained combined build will be the most simple, just like installing or deploying any outher piece of portable software this maintained from the [vhs-decode repository](https://github.com/oyvindln/vhs-decode/releases) witch also contains hifi-decode and a cross code developed composite decoder cvbs-decode.
+For first-time users using a self contained combined build will be the most simple, just like installing or deploying any other piece of portable software this maintained from the [vhs-decode repository](https://github.com/oyvindln/vhs-decode/releases) which also contains hifi-decode and a cross code developed composite decoder cvbs-decode.
 
 
 ### Self Contained Builds
@@ -27,7 +27,7 @@ A Haswell (or newer) i9/i7 or Ryzen with 16-64Gb of RAM and 2TB of soild state &
 
 Blu-Ray BDXL Optical discs 100-128GB (M-Disc/DataLifePlus) and LTO5 tapes can be recommended as relatively affordable long term archival storage formats. 
 
-Decoding in simple terms is single core bias, so faster higher speed intergrated CPUs like those found in the Apple M1 Max, and AMDs x3D line and newer are today's fastest chips, the decoders today wont be more efficient past 6 threads. (excluding the chroma-decoder and hifi-decode)
+Decoding in simple terms is single core bias, so faster higher speed integrated CPUs like those found in the Apple M1 Max, and AMDs x3D line and newer are today's fastest chips, the decoders today wont be more efficient past 6 threads. (excluding the chroma-decoder and hifi-decode)
 
 
 # Dedicated Install
@@ -104,7 +104,7 @@ First install dependencies
 
     sudo apt install git qt5-qmake qtbase5-dev libqwt-qt5-dev libqt5svg5-dev libfftw3-dev python3-tk libavformat-dev libavcodec-dev libavutil-dev ffmpeg openssl pv pkg-config cmake make python3-setuptools
 
-Go to the directory you wish to insall ld-decode into normally username/home
+Go to the directory you wish to install ld-decode into normally username/home
 
     git clone https://github.com/happycube/ld-decode ld-decode
 

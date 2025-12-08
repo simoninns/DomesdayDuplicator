@@ -2,7 +2,7 @@
 
 Welcome to the ld-decode documentation site.
 
-ld-decode is an open-source effort to provide a "software defined LaserDisc player".  The project is completely open and we welcome your contributions to both [the project source code](https://github.com/happycube/ld-decode) as well as [this documentation](Support/Contributing-to-documentation.md) as both are available on Github for you to use, enjoy and extend.
+ld-decode is an open-source effort to provide a "software defined LaserDisc player".  The project is completely open and we welcome your contributions to both [the project source code](https://github.com/happycube/ld-decode) as well as [this documentation](Support/Contributing-to-documentation.md) as both are available on GitHub for you to use, enjoy and extend.
 
 The project aims to take high-quality FM RF Archival captures of LaserDiscs, ideally captured by the [Domesday Duplicator](Hardware/Domesday-Duplicator.md) hardware and software (as its designed for LaserDisc RF in mind), but can also take captures from other RF capture devices that make PCM style samples such as the [CX Cards](https://github.com/oyvindln/vhs-decode/wiki/CX-Cards), [MISRC](https://github.com/Stefan-Olt/MISRC), [Hsdaoh](https://github.com/oyvindln/vhs-decode/wiki/RF-Capture-Hardware#hsdaoh-method) and decode the RF back into usable component parts such as composite video, analogue audio and digital data and audio too.
 

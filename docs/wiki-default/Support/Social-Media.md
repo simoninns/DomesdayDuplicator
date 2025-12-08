@@ -8,7 +8,7 @@ You can follow the primary ld-decode developers on social media:
 
 ## Discord
 
-There is a quite active Discord server of which most current development and usage of the project is disscussed and home to outher software decoding projects such as `vhs-decode`/`cvbs-decode`/`hifi-decode` & `FL2k TBC Player` 
+There is a quite active Discord server of which most current development and usage of the project is discussed and home to other software decoding projects such as `vhs-decode`/`cvbs-decode`/`hifi-decode` & `FL2k TBC Player` 
 
 [The Domesday86 Discord Server](https://discord.com/invite/pVVrrxd)
 
@@ -22,7 +22,7 @@ There is a project group available on Facebook which you are welcome to join for
 
 We still have an IRC that is linked to the Discord for those interested but do not wish to join Discord.
 
-However this is limited to only one channel of sevreal inside the server and lacks access to the years of serchable messages.
+However this is limited to only one channel of several inside the server and lacks access to the years of searchable messages.
 
 [Libera IRC](https://web.libera.chat/) #domesday86
 

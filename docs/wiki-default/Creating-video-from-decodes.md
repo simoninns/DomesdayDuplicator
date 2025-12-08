@@ -1,7 +1,7 @@
 # Creating Video Files 
 
 
-This is a manual guide for people looking for a more "I want to tweak" or implement there own FFmpeg profiles or tools to do this process or just if you feel like learning how everything works behind the automated scripting today! 
+This is a manual guide for people looking for a more "I want to tweak" or implement their own FFmpeg profiles or tools to do this process or just if you feel like learning how everything works behind the automated scripting today! 
 
 > [!TIP]  
 > If your lazy [tbc-video-export](https://github.com/oyvindln/vhs-decode/wiki/TBC-to-Video-Export-Guide) handles pretty much everything below automatically, with profiles for codecs & frame sizes and easier handling of metadata.

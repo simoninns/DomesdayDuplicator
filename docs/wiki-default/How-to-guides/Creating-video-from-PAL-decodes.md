@@ -82,7 +82,7 @@ The first stage is the chroma-decoder arguments.
 
 `ld-chroma-decoder` - Calls the application a `./` might be needed at the start (ld-chroma-decoder.exe in windows)
 
-`--decoder transform3d` - Tells the chroma-decoder to use the PAL Trasform 3D decoder on the signal.
+`--decoder transform3d` - Tells the chroma-decoder to use the PAL Transform 3D decoder on the signal.
 
 `--output-format y4m` - Tells the chroma-decoder to output uncompressed YUV (`-p` short hand command option)
 
@@ -110,7 +110,7 @@ Colour Space & Transfer: `-color_primaries bt470bg -color_trc bt709 -colorspace 
 
 Colour Range: `-color_range tv` sets the black levels to 16-255 limited TV range. (ware as pc would do 0-255 full range)
 
-Aspect Ratio: `-vf setdar=4/3,setfield=tff` - This sets it to 4:3 standard, also added is an redundent field flag to ensure field store is set to interlaced.
+Aspect Ratio: `-vf setdar=4/3,setfield=tff` - This sets it to 4:3 standard, also added is a redundant field flag to ensure field store is set to interlaced.
 
 Container: is defined by the final item in the command `OUTPUT.mov` so .mov for Quicktime or .mkv for Mastroska.
 
