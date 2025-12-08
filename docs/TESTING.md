@@ -76,6 +76,39 @@ This script searches all `.md` files for external links (http:// or https://) in
 > [!Important]
 > Pay attention to your use of external links and consider any complexities around linking to forks of this documentation repository.  Wherever possible content should be local and forks can then modify content as required.
 
+### Validating Internal Links
+
+Before committing changes, verify that all internal markdown links are valid:
+
+```bash
+# Check all internal .md links
+./check-internal-linkage.sh
+```
+
+This script scans all `.md` files in `wiki-default/` and verifies that:
+- All internal markdown links point to existing files
+- Links include the `.md` extension
+- Relative and absolute paths are correct
+- No broken links exist
+
+The script will report any broken links with the source file and expected target location. It exits with code 1 if broken links are found, making it suitable for CI/CD integration.
+
+### Finding Orphaned Pages
+
+To identify documentation pages that exist but aren't linked in the navigation sidebar:
+
+```bash
+# Find pages not linked in Sidebar.md
+./check-orphans.sh
+```
+
+This script helps maintain documentation organization by finding:
+- Pages that exist in `wiki-default/` but aren't in `Sidebar.md`
+- Content that may be inaccessible to users
+- Candidates for the `Orphans/` directory
+
+The output shows which pages are orphaned so you can decide whether to add them to the sidebar or move them to an appropriate location.
+
 ### Important Notes
 
 - The `mockup/` folder is in `.gitignore` - it will never be committed
