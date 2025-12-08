@@ -8,6 +8,7 @@
 
 ## The Decode Family
 
+- [LaserDisc Decode](index.md)
 - [VHS (Tape Media) Decode](Related-Projects/VHS-Decode.md)
 - [Composite (CVBS) Decode](Related-Projects/CVBS-Decode.md)
 - [HiFi Decode](Related-Projects/HiFi-Decode.md)
