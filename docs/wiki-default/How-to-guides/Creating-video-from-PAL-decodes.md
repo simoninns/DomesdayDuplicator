@@ -60,7 +60,7 @@ To convert the TBC output to playable video, you need to do the following:
 ## Chroma-Decoder basic use 
 
 
-See the [ld-chroma-decoder wiki page](ld-chroma-decoder) for full possible options.
+See the [ld-chroma-decoder wiki page](../Tools/ld-chroma-decoder.md) for full possible options.
 
 The majorty of users today will just want to use a YUV stream via y4m output from the chroma-decoder and a pipe to FFmpeg allowing easy creation of standard video files.
 

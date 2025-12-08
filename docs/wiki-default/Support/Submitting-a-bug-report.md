@@ -36,4 +36,4 @@ Once submitted you will be automatically included in to the ld-decode extended f
 
 # More information needed?
 
-If you have any questions, you are always welcome on the project's [freenode IRC channel](IRC-channel) or [Discord server](https://discord.gg/pVVrrxd).
+If you have any questions, you are always welcome on the project's [freenode IRC channel](Social-Media.md) or [Discord server](https://discord.gg/pVVrrxd).

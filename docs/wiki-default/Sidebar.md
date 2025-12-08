@@ -58,7 +58,7 @@
 - [JSON metadata](Development/JSON-Metadata-format.md)
 - [File formats](Development/File-formats.md)
 - [ld-decode Filter tuning](Development/ld-decode-Filter-tuning-parameters.md)
-- [ld-decode Framing](Orphans/ld-decode-Framing-(technical-notes).md)
+- [ld-decode Framing](Orphans/ld-decode-Framing-technical-notes.md)
 - [Download & Contribute Test Samples](Development/Test-Samples.md)
 
 ## Support

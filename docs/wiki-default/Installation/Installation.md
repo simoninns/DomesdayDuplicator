@@ -220,7 +220,7 @@ source "$VDIR/bin/activate"
 # Post-installation
 
 
-For basic use instructions please see the [basic usage](Basic-usage-of-ld-decode) instructions on this wiki.  For more advanced topics please  browse the wiki contents using the navigation pane on the right of this page.
+For basic use instructions please see the [basic usage](../How-to-guides/Basic-usage-of-ld-decode.md) instructions on this wiki.  For more advanced topics please  browse the wiki contents using the navigation pane on the right of this page.
 
 
 # Upgrading the existing installation

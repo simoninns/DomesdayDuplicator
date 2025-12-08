@@ -2,7 +2,7 @@
 
 Important: If you are looking for information on how to perform disc stacking using the ld-decode tool-chain (recommended unless you know what you are doing) please use the following link rather than this article:
 
-[Working with multiple discs](Working-with-multiple-discs)
+[Working with multiple discs](../How-to-guides/Working-with-multiple-discs.md)
 
 The following is a guide on how to use the [vapoursynth-median](https://github.com/dubhater/vapoursynth-median) plugin for [Vapoursynth](http://www.vapoursynth.com/) to reduce noise and dropouts and improve detail by using multiple copies of a disc. It requires a working vapoursynth installation, the plugin, and [vsedit](https://bitbucket.org/mystery_keeper/vapoursynth-editor).
 

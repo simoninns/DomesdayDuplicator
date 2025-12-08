@@ -300,7 +300,7 @@ T11 = 10000000000
 The initial bit-stream is formed by simply concatenating the T-value bit equivalents together.  For example, T3+T6+T9 would be `100100000100000000`.
 
 ## Channel frames
-The bit-steam is then split into "channel frames" - each channel frame consists of 27 sync pattern bits and 33 EFM data symbols (of 17 bits per symbol) totalling 588 bits per [channel frame](Channel-Frames).
+The bit-steam is then split into "channel frames" - each channel frame consists of 27 sync pattern bits and 33 EFM data symbols (of 17 bits per symbol) totalling 588 bits per channel frame.
 
 A channel frame has the following structure:
 
