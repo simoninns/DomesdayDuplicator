@@ -46,7 +46,16 @@
 - [ld-process-vits](Tools/ld-process-vits.md)
 - [ld-lds-converter](Tools/ld-lds-converter.md)
 - [ld-chroma-encoder](Tools/ld-chroma-encoder.md)
-- [efm-decoder](Tools/efm-decoder.md)
+
+## EFM Tools
+- [efm-decoder](EFM-Tools/efm-decoder.md)
+- [efm-decoder-f2](EFM-Tools/efm-decoder-f2.md)
+- [efm-decoder-d24](EFM-Tools/efm-decoder-d24.md)
+- [efm-decoder-audio](EFM-Tools/efm-decoder-audio.md)
+- [efm-decoder-data](EFM-Tools/efm-decoder-data.md)
+- [efm-stacker-f2](EFM-Tools/efm-stacker-f2.md)
+- [vfs-verifier](EFM-Tools/vfs-verifier.md)
+
 
 ## Scripts
 
@@ -56,6 +65,7 @@
 
 ## Development
 
+- [Tools metadata format](Development/tools-metadata-format.md)
 - [JSON metadata](Development/JSON-Metadata-format.md)
 - [File formats](Development/File-formats.md)
 - [ld-decode Filter tuning](Development/ld-decode-Filter-tuning-parameters.md)
