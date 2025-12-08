@@ -1,3 +1,7 @@
 # MacOS Installation
 
-Not created yet - awaiting content - Steve Jobs is waiting for YOU
+This section needs some care and attention (but most of all - content).
+
+[Help us out!](Support/Contributing-to-documentation.md)
+
+

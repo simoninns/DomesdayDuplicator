@@ -1,14 +1,14 @@
 # ld-decode Documentation
 
-Welcome to the ld-decode Wiki.
+Welcome to the ld-decode documentation site.
 
-ld-decode is an open-source effort to provide a "software defined LaserDisc player".  
+ld-decode is an open-source effort to provide a "software defined LaserDisc player".  The project is completely open and we welcome your contributions to both [the project source code](https://github.com/happycube/ld-decode) as well as [this documentation](Support/Contributing-to-documentation.md) as both are available on Github for you to use, enjoy and extend.
 
-The project aims to take RAW FM RF Archival captures of LaserDiscs, ideally captured by the [Domesday Duplicator](Hardware/Domesday-Duplicator.md) hardware and software (as its desgined for LaserDisc RF in mind), but can also take captures from other RF capture devices that make PCM style samples such as the [CX Cards](https://github.com/oyvindln/vhs-decode/wiki/CX-Cards), [MISRC](https://github.com/Stefan-Olt/MISRC), [Hsdaoh](https://github.com/oyvindln/vhs-decode/wiki/RF-Capture-Hardware#hsdaoh-method) and decode the RF back into usable component parts such as composite video, analogue audio and digital data and audio too.
+The project aims to take high-quality FM RF Archival captures of LaserDiscs, ideally captured by the [Domesday Duplicator](Hardware/Domesday-Duplicator.md) hardware and software (as its designed for LaserDisc RF in mind), but can also take captures from other RF capture devices that make PCM style samples such as the [CX Cards](https://github.com/oyvindln/vhs-decode/wiki/CX-Cards), [MISRC](https://github.com/Stefan-Olt/MISRC), [Hsdaoh](https://github.com/oyvindln/vhs-decode/wiki/RF-Capture-Hardware#hsdaoh-method) and decode the RF back into usable component parts such as composite video, analogue audio and digital data and audio too.
 
 The decoding process (like a real LaserDisc player) is a multi-stage process.  The raw RF must be demodulated (from the original FM signal) and filtered into video, audio and EFM data. This data is then framed and passed through a digital time-base correction (TBC) process which attempts to remove errors caused by the mechanical nature of a LaserDisc player during capture.
 
-The resulting lossless 4fsc sampled TBC output is then run through a chroma-decoder (comb-filter in NTSC speak) which recovers the original color and can encode it as a digital RGB or YUV stream.  
+The resulting lossless 4fsc sampled TBC output is then run through a chroma-decoder (a 'comb-filter' in NTSC speak) which recovers the original color and can encode it as a digital RGB or YUV stream.  
 
 This raw stream can be directly output to a Y4M file via the `ld-chroma-decoder` for example, but typically will be exported as lossless FFV1 or uncompressed v210 in 10-bit 4:2:2 YUV via [tbc-video-export](https://github.com/JuniorIsAJitterbug/tbc-video-export). This automates 90% of the commands to interact with the chroma-decoder and FFmpeg to encode and wrap your audio/video streams into a container like MKV or MOV, ready for viewing using media players such as [VLC](https://www.videolan.org/) or [MPC](https://github.com/clsid2/mpc-hc) or for further post-processing such as de-interlacing and upscaling for modern display use.
 

@@ -1,3 +1,5 @@
 # Windows Installation
 
-Not created yet - awaiting content
+This section needs some care and attention (but most of all - content).
+
+[Help us out!](Support/Contributing-to-documentation.md)

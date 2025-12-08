@@ -64,6 +64,7 @@
 
 ## Support
 
+- [Contributing to documentation](Support/Contributing-to-documentation.md)
 - [Submitting a bug report](Support/Submitting-a-bug-report.md)
 - [Discord / IRC / Facebook](Support/Social-Media.md)
 - [ld-decode on the web](Support/ld-decode-on-the-web.md)
