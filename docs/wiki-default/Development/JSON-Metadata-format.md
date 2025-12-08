@@ -1,4 +1,6 @@
-# Overview
+# JSON Metadata format
+
+Note: This format has been superceded by SQLite.  This documentation page needs updating.
 
 The ld-decode JSON metadata format consists of a root object containing three main sections: `videoParameters`, `pcmAudioParameters` (optional), and `fields` (array). This format is used to store comprehensive metadata about decoded LaserDisc captures and other analog video sources.
 

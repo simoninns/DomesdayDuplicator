@@ -1,3 +1,5 @@
+# ld-decode filter tuning
+
 These ld-decode parameters can be useful for handling disks with bandwidth issues.  The default settings decode with wide bandwidth which works with most disks, but some require different settings...
 
 --video_bpf_high (in mhz) (defaults: PAL 13.5mhz, NTSC 13.8mhz) - reduce this to 12.2 if you see the herringbone conditions seen in issue 206, and the disk does not suffer from crosstalk.

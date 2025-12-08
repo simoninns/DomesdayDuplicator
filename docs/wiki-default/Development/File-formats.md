@@ -1,4 +1,6 @@
-# ld-decode.py
+# File formats
+
+## ld-decode.py
 
 The ld-decode.py application accepts FM RF captures input in '10-bit packed' format. This is a bit-stream of 10-bit unsigned integers produced by the Domesday Duplicator's capture GUI (typically with the .lds file extension).  The input bit-stream is expected to be the raw LaserDisc RF captured at 40 Million Samples Per Second (MSPS) with each sample being 10-bits.
 
@@ -18,13 +20,13 @@ PAL - 17727262 Hz
 
 NTSC - 14318181 Hz
 
-# ld-chroma-decoder
+## ld-chroma-decoder
 
 The NTSC and PAL chroma-decoders (a.k.a. comb filters) accept .tbc files from the ld-decode.py application and produces a raw RGB bit-stream with 16 bits per color value in the order RGB16-16-16 giving 48-bits per pixel.  The file extension is .rgb (and can be used by applications such as ffmpeg by specifying the raw RGB format with a depth of 16).
 
 Examples of pre-made export commands for FFV1/V210/V410 & ProRes-HQ/ProRes4444XQ codecs can be found [here](https://github.com/oyvindln/vhs-decode/wiki/Command-List#ld-chroma-decoder-export-commands)
 
-# Example file sizes
+## Example file sizes
 
 The following file sizes show the typical disc usage consumed by an end-to-end capture and decode of a LaserDisc.
 
