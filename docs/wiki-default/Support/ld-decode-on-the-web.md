@@ -1,22 +1,4 @@
-# Social media
-
-
-You can follow the primary ld-decode developers on social media: 
-
-[Chad](https://twitter.com/happysphere) - Original creator of ld-decode and primary developer of all the clever RF signal processing software.
-
-[Simon](https://mastodon.online/@simoni) - Member of the Domesday86 project and primary developer of the ld-decode post-processing tool-chain.
-
-## CX Cards / vhs-decode / hifi-decode / cvbs-decode media:
-
-Run by [Harry](https://github.com/harrypm) - Documentation writer across the decode projects and tools.
-
-- [Twitter](https://twitter.com/vhsdecode)
-- [Instagram](https://www.instagram.com/vhsdecode/)
-- [Odysee](https://odysee.com/@vhs-decode:7)
-
-# External Written Articles about the project
-
+# ld-decode on the web
 
 The Domesday86, ld-decode & vhs-decode projects have been featured on various web-sites 
 

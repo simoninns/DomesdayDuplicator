@@ -1,4 +1,4 @@
-# Overview
+# NTSC decode guide
 
 
 The following is a series of notes about how to use FFmpeg to convert the output from ld-decode (and ld-chroma-decoder) into usable video that can be watched using any compatible video player such as [VLC](https://www.videolan.org/) or [MPC](https://mpc-hc.org/).

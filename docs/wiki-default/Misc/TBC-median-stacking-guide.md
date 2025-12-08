@@ -1,4 +1,4 @@
-# Overview
+# Vapoursynth median stacking guide
 
 Important: If you are looking for information on how to perform disc stacking using the ld-decode tool-chain (recommended unless you know what you are doing) please use the following link rather than this article:
 
