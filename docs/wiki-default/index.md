@@ -1,27 +1,26 @@
-# ld-decode Documentation
-
-Welcome to the ld-decode documentation site.
-
-ld-decode is an open-source effort to provide a "software defined LaserDisc player".  The project is completely open and we welcome your contributions to both [the project source code](https://github.com/happycube/ld-decode) as well as [this documentation](Support/Contributing-to-documentation.md) as both are available on GitHub for you to use, enjoy and extend.
-
-The project aims to take high-quality FM RF Archival captures of LaserDiscs, ideally captured by the [Domesday Duplicator](Hardware/Domesday-Duplicator.md) hardware and software (as its designed for LaserDisc RF in mind), but can also take captures from other RF capture devices that make PCM style samples such as the [CX Cards](https://github.com/oyvindln/vhs-decode/wiki/CX-Cards), [MISRC](https://github.com/Stefan-Olt/MISRC), [Hsdaoh](https://github.com/oyvindln/vhs-decode/wiki/RF-Capture-Hardware#hsdaoh-method) and decode the RF back into usable component parts such as composite video, analogue audio and digital data and audio too.
-
-The decoding process (like a real LaserDisc player) is a multi-stage process.  The raw RF must be demodulated (from the original FM signal) and filtered into video, audio and EFM data. This data is then framed and passed through a digital time-base correction (TBC) process which attempts to remove errors caused by the mechanical nature of a LaserDisc player during capture.
-
-The resulting lossless 4fsc sampled TBC output is then run through a chroma-decoder (a 'comb-filter' in NTSC speak) which recovers the original color and can encode it as a digital RGB or YUV stream.
-
-This raw stream can be directly output to a Y4M file via the `ld-chroma-decoder` for example, but typically will be exported as lossless FFV1 or uncompressed v210 in 10-bit 4:2:2 YUV via [tbc-video-export](https://github.com/JuniorIsAJitterbug/tbc-video-export). This automates 90% of the commands to interact with the chroma-decoder and FFmpeg to encode and wrap your audio/video streams into a container like MKV or MOV, ready for viewing using media players such as [VLC](https://www.videolan.org/) or [MPC](https://github.com/clsid2/mpc-hc) or for further post-processing such as de-interlacing and upscaling for modern display use.
-
-Please see the [Installation guide](Installation/Installation.md) for details of how to download and install ld-decode and the [basic usage guide](How-to-guides/Basic-usage-of-ld-decode.md) for instructions on how to use ld-decode.
-
-An overview of how a LaserDisc player functions (which can help you to understand the component parts of ld-decode) is available from [this link](https://www.domesday86.com/?page_id=1379).
+# Domesday Duplicator (DdD) Wiki
 
 
-# Current status
+The Domesday Duplicator was purpose built to allow high-quality back-ups of the analogue information contained on the LaserDiscs by bypassing most of the 40-year-old electronics in the players.  
 
+This leverages the simplistic method of direct FM RF capture (FM RF Archival) allowing all original signals information on the LaserDiscs or any single FM RF channel media format (such as Video8/Hi8 or Betamax NTSC) to be stored (unlike conventional RGB sampling of the video output).  
 
-ld-decode revision 7 is the current release of the decoder and associated tools.  ld-decode is capable of decoding a wide-range of PAL and NTSC LaserDiscs with support for both analog and digital sound tracks (as well as EFM data tracks as used in Interactive Video systems such as the BBC Domesday system)
+Since AIV LaserDiscs are a combination of video, pictures, sound and data (as well as numerous VBI streams), direct RF sampling is the preferred method of preservation, as it is for most analog media formats in the signal domain such as videotape.
 
-The tools suite, decoders, and DomesDay Duplicators [capture app](Hardware/Domesday-Duplicator.md) now also have self contained builds for [Windows](https://github.com/oyvindln/vhs-decode/Windows-Build), [MacOS](https://github.com/oyvindln/vhs-decode/MacOS-Build) & [Linux](https://github.com/oyvindln/vhs-decode/Linux-Build) bundled alongside with [vhs-decode](https://github.com/oyvindln/vhs-decode/wiki/) (*supports a wide range of tape formats), [cvbs-decode](https://github.com/oyvindln/vhs-decode/wiki/CVBS-Composite-Decode) & [hifi-decode](https://github.com/oyvindln/vhs-decode/hifi-decode) projects.
+The Domesday Duplicator is a USB3-based DAQ capable of 40 million samples per second acquisition of analogue RF data.
 
-![Release Highlights](Misc/assets/rev6_release.jpg)
+![](assets/domesday_duplicator_3_photo.jpg)
+
+>The Domesday Duplicator (DdD) Rev 3.0
+
+The hardware is a USB 3.0 based 10-bit analogue to digital converter designed to allow the backup of Domesday AIV LaserDiscs (as well as generic LaserDiscs) through the direct sampling of the RF data from the optical head (laser) of a LaserDisc player.
+
+The hardware/software solution is designed to act as a sampling front-end to the [ld-decode](https://github.com/happycube/ld-decode) (software decoder of LaserDiscs) project, which replaces the generic TV capture card to provide the entire 4fsc sampled picture frame and any data contained above its active "picture" area.
+
+There are 3 main components that make up the Domesday Duplicator:
+
+A custom ADC board based around the Texas Instruments ADS825 10-Bit, 40MSPS analogue to digital converter.  This board contains an RF amplifier and conditioner (to amplify the output from the LaserDiscs player RF tap and condition it for the single-ended ADC chip) as well as headers for both the DE0-Nano FPGA development board and Cypress FX3 SuperSpeed Explorer board.  RF input is physically provided by a BNC connector.
+
+Terasic DE0-Nano FPGA development board - The DE0-Nano is a low-cost FPGA development board containing an Altera Cyclone IV FPGA.  The DE0-Nano is used to process the raw 10-bit ADC data stream and provides FIFO buffering (towards the FX3) and sample conversion from unsigned 10-bit to scaled 16-bit signed data.  The FPGA provides a dual-clock FIFO; receiving ADC data at a maximum of 40 MSPS (million samples per second) and transmitting the data to the FX3 at a maximum of 60 MSPS.  This is to ensure that no data is lost during sustained transfers (as RF sampling of a disc can take more than 40 minutes).
+
+Cypress FX3 SuperSpeed Explorer board - The FX3 is a low-cost USB3 development board from Cypress.  The FX3 is used to buffer data from the FPGA and provide it to a host computer using USB3.  USB3 is required for this application due to the high-data bandwidth necessary for high-speed/high-resolution sampling.

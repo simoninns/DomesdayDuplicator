@@ -1,4 +1,4 @@
-# ld-decode documentation testing
+# DomesdayDuplicator documentation testing
 
 ## Testing Changes Locally
 

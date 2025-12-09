@@ -1,5 +1,7 @@
-# HiFi Decode
+# HiFi-Decode - HiFi FM Audio Decoding
 
-For more information on HiFi-Decode, please see the following external page:
+HiFi-Decode handles decoding of HiFi FM audio tracks found on LaserDiscs and other media.
 
-[VHS-Decode Wiki - HiFi Decode](https://github.com/oyvindln/vhs-decode/wiki/HiFi-Decode)
+Visit the project:
+
+[HiFi-Decode on GitHub](https://github.com/oyvindln/vhs-decode/wiki/hifi-decode)

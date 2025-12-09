@@ -1,5 +1,7 @@
-# VHS (Tape Media) Decode
+# VHS-Decode - VideoTape Decoding
 
-For more information on VHS-Decode, please see the following external page:
+VHS-Decode is a software decoder for VHS and other analog videotape formats, part of the broader RF archival ecosystem.
 
-[VHS-Decode GitHub Repository](https://github.com/oyvindln/vhs-decode#readme)
+Visit the project:
+
+[VHS-Decode on GitHub](https://github.com/oyvindln/vhs-decode)

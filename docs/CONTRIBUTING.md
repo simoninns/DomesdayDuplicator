@@ -1,4 +1,4 @@
-# ld-decode documentation contributing
+# DomesdayDuplicator documentation contributing
 
 ## Contributing
 
@@ -14,8 +14,8 @@ To contribute to the documentation:
 1. **Fork the repository** - Click the "Fork" button at the top right of this repository to create your own copy
 2. **Clone your fork** - Clone your forked repository to your local machine:
    ```bash
-   git clone https://github.com/YOUR-USERNAME/ld-decode-docs.git
-   cd ld-decode-docs
+   git clone https://github.com/YOUR-USERNAME/DomesdayDuplicator-docs.git
+   cd DomesdayDuplicator-docs
    ```
 3. **Create a branch** - Create a new branch for your changes:
    ```bash

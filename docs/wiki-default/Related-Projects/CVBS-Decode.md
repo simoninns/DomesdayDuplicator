@@ -1,5 +1,7 @@
-# Composite (CVBS) Decode
+# CVBS-Decode - Composite Decoding
 
-For more information on CVBS-Decode, please see the following external page:
+CVBS-Decode is for decoding composite video signals from various sources.
 
-[VHS-Decode Wiki - CVBS Composite Decode](https://github.com/oyvindln/vhs-decode/wiki/CVBS-Composite-Decode)
+Visit the project:
+
+[CVBS-Decode on GitHub](https://github.com/oyvindln/vhs-decode/wiki/CVBS-Composite-Decode)

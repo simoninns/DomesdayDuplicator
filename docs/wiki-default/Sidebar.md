@@ -1,88 +1,49 @@
 - [Home](index.md)
 
-## Installation
+## General
 
-- ![Linux](assets/linux-icon.png)  [Linux](Installation/Installation.md)
-- ![Windows](assets/windows-icon.png)  [Windows](Installation/Windows-Build.md)
-- ![MacOS](assets/macos-icon.png)  [MacOS](Installation/MacOS-Build.md)
+- [Overview](Misc/Overview.md)
+- [User Guide](Misc/User-Guide.md)
+- [LaserDisc player description](Misc/Laserdisc-Player.md)
+- [Why not just use video capture?](Misc/Digital-Media-Preservation.md)
+
+## Ordering and building
+
+- [How to Order](Misc/How-To-Order.md)
+- [How to Firmware Flash (Windows)](Misc/How-To-Flash-Firmware.md)
+
+## Capture Application
+
+- [User Guide for Linux](Misc/User-Guide.md)
+- [Windows](Misc/Windows-Releases.md)
+- [MacOS](Misc/MacOS-Releases.md)
 
 ## The Decode Family
 
-- [LaserDisc Decode](index.md)
-- [VHS (Tape Media) Decode](Related-Projects/VHS-Decode.md)
-- [Composite (CVBS) Decode](Related-Projects/CVBS-Decode.md)
-- [HiFi Decode](Related-Projects/HiFi-Decode.md)
-- [CD Decode](Related-Projects/CD-Decode.md)
-- [MUSE Decode](Related-Projects/MUSE-Decode.md)
+- [LD-Decode - LaserDisc Decoding](Related-Projects/LD-Decode.md)
+- [VHS-Decode - VideoTape Decoding](Related-Projects/VHS-Decode.md)
+- [HiFi-Decode - HiFi FM Audio Decoding](Related-Projects/HiFi-Decode.md)
+- [CVBS-Decode - Composite Decoding](Related-Projects/CVBS-Decode.md)
+- [MUSE-Decode - HD Analog HDVS/Hi-Vision/MUSE](Related-Projects/MUSE-Decode.md)
+- [CD Decoding](Related-Projects/CD-Decode.md)
 
-## Hardware
+## Development Guides
 
-- [Domesday Duplicator - DdD](Hardware/Domesday-Duplicator.md)
-- [CX Cards & CXADC](Hardware/CX-Cards.md)
-- [FL2K TBC to CVBS/S-Video Playback](Hardware/FL2K-Playback.md)
+- [Hardware Guide](Hardware/Hardware-Guide.md)
+- [Software Guide](Misc/Software-Guide.md)
 
-## How-to guides
+## Pioneer LD-V4300D
 
-- [Basic usage](How-to-guides/Basic-usage-of-ld-decode.md)
-- [TBC Video Export](How-to-guides/TBC-Video-Export.md)
-- [PAL decode guide](How-to-guides/Creating-video-from-PAL-decodes.md)
-- [NTSC decode guide](How-to-guides/Creating-video-from-NTSC-decodes.md)
-- [Working with multiple discs](How-to-guides/Working-with-multiple-discs.md)
-- [Working with subtitles](How-to-guides/Working-with-subtitles.md)
-- [Archiving LaserActive Discs](How-to-guides/LaserActive-Archiving.md)
-- [Disc images to download](How-to-guides/Disc-images-to-download.md)
-
-## Tools
-
-- [ld-decode](Tools/ld-decode.md)
-- [ld-analyse](Tools/ld-analyse.md)
-- [ld-chroma-decoder](Tools/ld-chroma-decoder.md)
-- [ld-process-vbi](Tools/ld-process-vbi.md)
-- [ld-export-metadata](Tools/ld-export-metadata.md)
-- [ld-dropout-correct](Tools/ld-dropout-correct.md)
-- [ld-process-efm](Tools/ld-process-efm.md)
-- [ld-discmap](Tools/ld-discmap.md)
-- [ld-disc-stacker](Tools/ld-disc-stacker.md)
-- [ld-process-vits](Tools/ld-process-vits.md)
-- [ld-lds-converter](Tools/ld-lds-converter.md)
-- [ld-chroma-encoder](Tools/ld-chroma-encoder.md)
-
-## EFM Tools
-- [efm-decoder](EFM-Tools/efm-decoder.md)
-- [efm-decoder-f2](EFM-Tools/efm-decoder-f2.md)
-- [efm-decoder-d24](EFM-Tools/efm-decoder-d24.md)
-- [efm-decoder-audio](EFM-Tools/efm-decoder-audio.md)
-- [efm-decoder-data](EFM-Tools/efm-decoder-data.md)
-- [efm-stacker-f2](EFM-Tools/efm-stacker-f2.md)
-- [vfs-verifier](EFM-Tools/vfs-verifier.md)
-
-
-## Scripts
-
-- [ld-compress](Scripts/ld-compress.md)
-- [ld-cut](Scripts/ld-cut.md)
-- [ld-ldf-reader](Scripts/ld-ldf-reader.md)
-
-## Development
-
-- [Tools metadata format](Development/tools-metadata-format.md)
-- [JSON metadata](Development/JSON-Metadata-format.md)
-- [File formats](Development/File-formats.md)
-- [ld-decode Filter tuning](Development/ld-decode-Filter-tuning-parameters.md)
-- [ld-decode Framing](Orphans/ld-decode-Framing-technical-notes.md)
-- [Download & Contribute Test Samples](Development/Test-Samples.md)
+- [Overview](Hardware/LDV4300D-Overview.md)
+- [Cleaning](Hardware/LDV4300D-Cleaning.md)
+- [Adding an RF output](Hardware/LDV4300D-RF-Output.md)
+- [Calibration](Hardware/LDV4300D-Calibration.md)
+- [Power Supply Recapping](Hardware/LDV4300D-PSU-Recap.md)
+- [GGV1069](Hardware/GGV1069-Description.md)
+- [RMC12010 Service Remote](Hardware/RMC12010-Remote.md)
 
 ## Support
 
-- [Contributing to documentation](Support/Contributing-to-documentation.md)
 - [Submitting a bug report](Support/Submitting-a-bug-report.md)
-- [Discord / IRC / Facebook](Support/Social-Media.md)
-- [ld-decode on the web](Support/ld-decode-on-the-web.md)
+- [Community](Misc/Community.md)
 - [Donations](Support/Donations.md)
-
-## Misc
-
-- [Vapoursynth median stacking guide](Misc/TBC-median-stacking-guide.md)
-- [Tony's GNU Radio Scripts](Misc/GNU-Radio-Scripts.md)
-- [Tony's GNU Tools](Misc/GNU-Tools.md)
-- [Release highlights](Misc/Release-Highlights.md)
