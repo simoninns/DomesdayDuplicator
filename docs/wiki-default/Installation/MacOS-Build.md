@@ -1,5 +1,5 @@
 # MacOS Installation
 
-This section needs some care and attention (but most of all - content).
+Binary builds for Apple MacOS are being maintained by the vhs-decode project.
 
-[Help us out!](../Support/Contributing-to-documentation.md)
+[Follow this link for information](https://github.com/oyvindln/vhs-decode/wiki/MacOS-Build) about downloading and installing from a pre-built binary.
