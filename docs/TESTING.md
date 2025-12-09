@@ -73,6 +73,23 @@ You can verify that no external links have been accidentally added to the docume
 
 This script searches all `.md` files for external links (http:// or https://) in markdown-style links, HTML anchor tags, and image tags. The output will show which files contain external links and what they are. This is useful for quality assurance before committing changes.
 
+**Validating External Links:**
+
+You can also validate the HTTP status codes of all external links to catch broken links:
+
+```bash
+# Check external links with HTTP status validation
+./show-external-links.sh --check
+
+# With custom timeout (default is 5 seconds)
+./show-external-links.sh --check --timeout 10
+```
+
+Status codes:
+- 🟢 `✓` = Valid (HTTP 200)
+- 🟡 `⚠` = Warning (HTTP 3xx redirects)
+- 🔴 `✗` = Error (HTTP 4xx/5xx or connection failed)
+
 > [!Important]
 > Pay attention to your use of external links and consider any complexities around linking to forks of this documentation repository.  Wherever possible content should be local and forks can then modify content as required.
 
@@ -127,3 +144,16 @@ The script is also integrated into CI/CD to prevent deployment with improperly l
 - The navigation sidebar must not contain external links (validation enforced by CI)
 - Use relative links for internal documentation pages
 - Orphaned pages must be in the `Orphans/` directory (validation enforced by CI)
+- External link HTTP status checking is available locally with `./show-external-links.sh --check`
+
+## CI/CD Validation
+
+The following checks are automatically run on every push to the main branch via GitHub Actions:
+
+1. **Navigation Link Validation** - Ensures no external links exist in `Sidebar.md`
+2. **Internal Link Checking** - Validates all internal `.md` links point to existing files
+3. **Orphan Page Validation** - Ensures orphaned pages are only in the `Orphans/` directory
+4. **Jekyll Build** - Builds the site to ensure no build errors
+5. **Deployment** - Deploys to GitHub Pages only if all checks pass
+
+If any validation fails, deployment is prevented and the PR cannot be merged until issues are resolved.
