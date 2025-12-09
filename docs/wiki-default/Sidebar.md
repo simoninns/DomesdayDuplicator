@@ -20,12 +20,7 @@
 
 ## The Decode Family
 
-- [LD-Decode - LaserDisc Decoding](Related-Projects/LD-Decode.md)
-- [VHS-Decode - VideoTape Decoding](Related-Projects/VHS-Decode.md)
-- [HiFi-Decode - HiFi FM Audio Decoding](Related-Projects/HiFi-Decode.md)
-- [CVBS-Decode - Composite Decoding](Related-Projects/CVBS-Decode.md)
-- [MUSE-Decode - HD Analog HDVS/Hi-Vision/MUSE](Related-Projects/MUSE-Decode.md)
-- [CD Decoding](Related-Projects/CD-Decode.md)
+- [The ld-decode Family](Related-Projects/The-ld-decode-Family.md)
 
 ## Development Guides
 
