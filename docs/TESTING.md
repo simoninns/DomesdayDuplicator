@@ -102,12 +102,23 @@ To identify documentation pages that exist but aren't linked in the navigation s
 ./check-orphans.sh
 ```
 
-This script helps maintain documentation organization by finding:
+This script enforces documentation organization by checking:
 - Pages that exist in `wiki-default/` but aren't in `Sidebar.md`
-- Content that may be inaccessible to users
-- Candidates for the `Orphans/` directory
+- Whether orphaned pages are properly located in the `Orphans/` directory
 
-The output shows which pages are orphaned so you can decide whether to add them to the sidebar or move them to an appropriate location.
+**Orphaned Page Rules:**
+- Pages not linked in `Sidebar.md` are considered "orphaned"
+- Orphaned pages **must** be placed in `wiki-default/Orphans/` directory
+- Orphaned pages outside `Orphans/` will cause the script to fail (exit code 1)
+- This ensures all pages are either:
+  1. Accessible through navigation, OR
+  2. Explicitly marked as orphaned by location
+
+**How to Fix Orphaned Pages:**
+1. Add the page to `Sidebar.md` navigation, OR
+2. Move the page to `wiki-default/Orphans/` directory
+
+The script is also integrated into CI/CD to prevent deployment with improperly located orphaned pages.
 
 ### Important Notes
 
@@ -115,3 +126,4 @@ The output shows which pages are orphaned so you can decide whether to add them 
 - Always build locally before pushing changes
 - The navigation sidebar must not contain external links (validation enforced by CI)
 - Use relative links for internal documentation pages
+- Orphaned pages must be in the `Orphans/` directory (validation enforced by CI)

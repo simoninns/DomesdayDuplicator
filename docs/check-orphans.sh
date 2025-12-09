@@ -83,13 +83,43 @@ if [[ ${#orphaned_pages[@]} -eq 0 ]]; then
     echo -e "${GREEN}✓ No orphaned pages found - all pages are linked in Sidebar.md${NC}"
     exit 0
 else
-    echo -e "${YELLOW}⚠ Found ${#orphaned_pages[@]} orphaned page(s):${NC}"
-    echo ""
+    # Separate orphaned pages into allowed (in Orphans/) and disallowed
+    allowed_orphans=()
+    disallowed_orphans=()
+    
     for page in "${orphaned_pages[@]}"; do
-        echo -e "  ${BLUE}•${NC} $page"
+        if [[ "$page" == Orphans/* ]]; then
+            allowed_orphans+=("$page")
+        else
+            disallowed_orphans+=("$page")
+        fi
     done
-    echo ""
-    echo -e "${YELLOW}Note: These pages exist but are not accessible through the sidebar navigation.${NC}"
-    echo -e "${YELLOW}Consider adding them to Sidebar.md or moving them to the Orphans/ directory.${NC}"
-    exit 0
+    
+    # Report allowed orphans if any
+    if [[ ${#allowed_orphans[@]} -gt 0 ]]; then
+        echo -e "${YELLOW}ℹ Found ${#allowed_orphans[@]} orphaned page(s) in Orphans/ directory (allowed):${NC}"
+        echo ""
+        for page in "${allowed_orphans[@]}"; do
+            echo -e "  ${BLUE}•${NC} $page"
+        done
+        echo ""
+    fi
+    
+    # Check for disallowed orphans
+    if [[ ${#disallowed_orphans[@]} -gt 0 ]]; then
+        echo -e "${RED}✗ Found ${#disallowed_orphans[@]} orphaned page(s) outside Orphans/ directory:${NC}"
+        echo ""
+        for page in "${disallowed_orphans[@]}"; do
+            echo -e "  ${RED}•${NC} $page"
+        done
+        echo ""
+        echo -e "${RED}ERROR: Orphaned pages are only allowed in the Orphans/ directory.${NC}"
+        echo -e "${RED}Please either:${NC}"
+        echo -e "${RED}  1. Add these pages to Sidebar.md navigation, or${NC}"
+        echo -e "${RED}  2. Move them to wiki-default/Orphans/ directory${NC}"
+        exit 1
+    else
+        echo -e "${GREEN}✓ All orphaned pages are properly located in Orphans/ directory${NC}"
+        exit 0
+    fi
 fi

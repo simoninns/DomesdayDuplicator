@@ -55,6 +55,16 @@ jobs:
           
           echo "✓ Navigation validation passed - no external links found"
       
+      - name: Check internal markdown links
+        run: |
+          chmod +x check-internal-linkage.sh
+          ./check-internal-linkage.sh
+      
+      - name: Check for orphaned pages
+        run: |
+          chmod +x check-orphans.sh
+          ./check-orphans.sh
+      
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
