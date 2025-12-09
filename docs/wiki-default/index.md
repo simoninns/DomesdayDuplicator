@@ -1,11 +1,11 @@
-# Domesday Duplicator (DdD) Wiki
+# The Domesday Duplicator (DdD) Documentation
 
 
-The Domesday Duplicator was purpose built to allow high-quality back-ups of the analogue information contained on the LaserDiscs by bypassing most of the 40-year-old electronics in the players.  
+The Domesday Duplicator was purpose built to allow high-quality back-ups of the analogue information contained on the LaserDiscs by bypassing most of the 40-year-old electronics in LaserDisc players.  
 
-This leverages the simplistic method of direct FM RF capture (FM RF Archival) allowing all original signals information on the LaserDiscs or any single FM RF channel media format (such as Video8/Hi8 or Betamax NTSC) to be stored (unlike conventional RGB sampling of the video output).  
+This leverages the simplistic method of direct FM RF capture (FM RF Archival) allowing all original signals information on the LaserDiscs (or any single FM RF channel media format (such as Video8/Hi8 or Betamax NTSC)) to be stored (unlike conventional RGB sampling of the video output).  
 
-Since AIV LaserDiscs are a combination of video, pictures, sound and data (as well as numerous VBI streams), direct RF sampling is the preferred method of preservation, as it is for most analog media formats in the signal domain such as videotape.
+Since LaserDiscs are a combination of video, pictures, sound and data (as well as numerous VBI streams), direct RF sampling is the preferred method of preservation, as it is for most analog media formats in the signal domain such as videotape.
 
 The Domesday Duplicator is a USB3-based DAQ capable of 40 million samples per second acquisition of analogue RF data.
 
