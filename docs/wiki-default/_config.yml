@@ -1,8 +1,8 @@
-title: LD-Decode Documentation
-description: Documentation for ld-decode and related tools
+title: DomesdayDuplicator Documentation
+description: Documentation for DomesdayDuplicator and related tools
 remote_theme: just-the-docs/just-the-docs
-baseurl: "/ld-decode-docs"
-url: "https://happycube.github.io"
+baseurl: "/DomesdayDuplicator-docs"
+url: "https://simoninns.github.io"
 
 # Just the Docs configuration
 search_enabled: true
