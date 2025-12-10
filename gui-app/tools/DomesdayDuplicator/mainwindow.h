@@ -159,6 +159,7 @@ private:
     bool usbDevicePresentLastCheck = false;
     bool isPlayerConnectedLastCheck = false;
     PlayerCommunication::DiscType playerDiscTypeCached = PlayerCommunication::DiscType::unknownDiscType;
+    std::optional<PlayerCommunication::PlayerState> lastRecordedPlayerState;
     std::optional<QString> playerDiscStatusCached;
     std::optional<QString> playerStandardUserCodeCached;
     std::optional<QString> playerPioneerUserCodeCached;

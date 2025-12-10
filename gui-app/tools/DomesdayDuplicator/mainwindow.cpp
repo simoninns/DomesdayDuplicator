@@ -44,7 +44,9 @@
 // build it from source and run an unsupported config.
 #include <format>
 #endif
-#include "json/json.hpp"
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonDocument>
 
 MainWindow::MainWindow(const ILogger& log, QWidget* parent) :
     QMainWindow(parent),
@@ -572,28 +574,35 @@ void MainWindow::updateCaptureStatus()
         }
 
         // Build our json metadata
-        nlohmann::json infoFile;
+        QJsonObject infoFile;
+        QJsonObject serialInfoObj;
+        QJsonObject namingInfoObj;
+        QJsonObject captureInfoObj;
+        QJsonObject timeSampledDataObj;
+        QJsonObject timeCodeRecordObj;
+        QJsonObject physicalPositionRecordObj;
+        QJsonObject statusRecordObj;
 
         // Populate the player serial info
-        infoFile["serialInfo"]["playerModelCode"] = playerControl->getPlayerModelCode().toStdString();
-        infoFile["serialInfo"]["playerModelName"] = playerControl->getPlayerModelName().toStdString();
-        infoFile["serialInfo"]["playerVersionNumber"] = playerControl->getPlayerVersionNumber().toStdString();
+        serialInfoObj["playerModelCode"] = QString::fromStdString(playerControl->getPlayerModelCode().toStdString());
+        serialInfoObj["playerModelName"] = QString::fromStdString(playerControl->getPlayerModelName().toStdString());
+        serialInfoObj["playerVersionNumber"] = QString::fromStdString(playerControl->getPlayerVersionNumber().toStdString());
         auto discType = playerDiscTypeCached;
         if (discType == PlayerCommunication::DiscType::CAV)
         {
-            infoFile["serialInfo"]["discType"] = "CAV";
+            serialInfoObj["discType"] = "CAV";
         }
         else if (discType == PlayerCommunication::DiscType::CLV)
         {
-            infoFile["serialInfo"]["discType"] = "CLV";
+            serialInfoObj["discType"] = "CLV";
         }
         if (playerDiscStatusCached.has_value())
         {
-            infoFile["serialInfo"]["discStatus"] = playerDiscStatusCached.value().toStdString();
+            serialInfoObj["discStatus"] = playerDiscStatusCached.value();
         }
         if (playerStandardUserCodeCached.has_value())
         {
-            infoFile["serialInfo"]["discStandardUserCode"] = playerStandardUserCodeCached.value().toStdString();
+            serialInfoObj["discStandardUserCode"] = playerStandardUserCodeCached.value();
         }
         if (playerPioneerUserCodeCached.has_value())
         {
@@ -617,94 +626,94 @@ void MainWindow::updateCaptureStatus()
                     userCodePrintable.push_back(playerCode[i]);
                 }
             }
-            infoFile["serialInfo"]["discPioneerUserCode"] = userCodePrintable;
+            serialInfoObj["discPioneerUserCode"] = QString::fromStdString(userCodePrintable);
         }
         if (minPlayerTimeCode >= 0)
         {
-            infoFile["serialInfo"]["minTimeCode"] = minPlayerTimeCode;
+            serialInfoObj["minTimeCode"] = minPlayerTimeCode;
         }
         if (maxPlayerTimeCode >= 0)
         {
-            infoFile["serialInfo"]["maxTimeCode"] = maxPlayerTimeCode;
+            serialInfoObj["maxTimeCode"] = maxPlayerTimeCode;
         }
         if (minPlayerFrameNumber >= 0)
         {
-            infoFile["serialInfo"]["minFrameNumber"] = minPlayerFrameNumber;
+            serialInfoObj["minFrameNumber"] = minPlayerFrameNumber;
         }
         if (maxPlayerFrameNumber >= 0)
         {
-            infoFile["serialInfo"]["maxFrameNumber"] = maxPlayerFrameNumber;
+            serialInfoObj["maxFrameNumber"] = maxPlayerFrameNumber;
         }
         if (minPlayerPhysicalPosition >= 0)
         {
-            infoFile["serialInfo"]["minPhysicalPosition"] = minPlayerPhysicalPosition;
+            serialInfoObj["minPhysicalPosition"] = minPlayerPhysicalPosition;
         }
         if (maxPlayerPhysicalPosition >= 0)
         {
-            infoFile["serialInfo"]["maxPhysicalPosition"] = maxPlayerPhysicalPosition;
+            serialInfoObj["maxPhysicalPosition"] = maxPlayerPhysicalPosition;
         }
 
         // Populate the manually entered naming info
         if (namingDiskTitle.has_value())
         {
-            infoFile["namingInfo"]["title"] = namingDiskTitle.value().toStdString();
+            namingInfoObj["title"] = namingDiskTitle.value();
         }
         if (namingDiskIsCav.has_value())
         {
-            infoFile["namingInfo"]["type"] = (namingDiskIsCav.value() ? "CAV" : "CLV");
+            namingInfoObj["type"] = (namingDiskIsCav.value() ? "CAV" : "CLV");
         }
         if (namingDiskIsNtsc.has_value())
         {
-            infoFile["namingInfo"]["format"] = (namingDiskIsNtsc.value() ? "NTSC" : "PAL");
+            namingInfoObj["format"] = (namingDiskIsNtsc.value() ? "NTSC" : "PAL");
         }
         if (namingDiskAudioType.has_value())
         {
             switch (namingDiskAudioType.value())
             {
             case AdvancedNamingDialog::AudioType::Analog:
-                infoFile["namingInfo"]["audioType"] = "Analog";
+                namingInfoObj["audioType"] = "Analog";
                 break;
             case AdvancedNamingDialog::AudioType::AC3:
-                infoFile["namingInfo"]["audioType"] = "AC3";
+                namingInfoObj["audioType"] = "AC3";
                 break;
             case AdvancedNamingDialog::AudioType::DTS:
-                infoFile["namingInfo"]["audioType"] = "DTS";
+                namingInfoObj["audioType"] = "DTS";
                 break;
             case AdvancedNamingDialog::AudioType::Default:
-                infoFile["namingInfo"]["audioType"] = "Default";
+                namingInfoObj["audioType"] = "Default";
                 break;
             }
         }
         if (namingDiskSide.has_value())
         {
-            infoFile["namingInfo"]["side"] = namingDiskSide.value();
+            namingInfoObj["side"] = namingDiskSide.value();
         }
         if (namingDiskMintMarks.has_value())
         {
-            infoFile["namingInfo"]["mintMarks"] = namingDiskMintMarks.value().toStdString();
+            namingInfoObj["mintMarks"] = namingDiskMintMarks.value();
         }
         if (namingDiskNotes.has_value())
         {
-            infoFile["namingInfo"]["notes"] = namingDiskNotes.value().toStdString();
+            namingInfoObj["notes"] = namingDiskNotes.value();
         }
         if (namingDiskMetadataNotes.has_value())
         {
-            infoFile["namingInfo"]["metadataNotes"] = namingDiskMetadataNotes.value().toStdString();
+            namingInfoObj["metadataNotes"] = namingDiskMetadataNotes.value();
         }
 
         // Populate the capture info
-        infoFile["captureInfo"]["transferResult"] = (int)usbDevice->GetTransferResult();
-        infoFile["captureInfo"]["durationInMilliseconds"] = std::chrono::round<std::chrono::milliseconds>(captureElapsedTime).count();
-        infoFile["captureInfo"]["transferCount"] = usbDevice->GetNumberOfTransfers();
-        infoFile["captureInfo"]["numberOfDiskBuffersWritten"] = usbDevice->GetNumberOfDiskBuffersWritten();
-        infoFile["captureInfo"]["fileSizeWrittenInBytes"] = usbDevice->GetFileSizeWrittenInBytes();
-        infoFile["captureInfo"]["sampleCount"] = usbDevice->GetProcessedSampleCount();
-        infoFile["captureInfo"]["minSampleValue"] = usbDevice->GetMinSampleValue();
-        infoFile["captureInfo"]["maxSampleValue"] = usbDevice->GetMaxSampleValue();
-        infoFile["captureInfo"]["clippedMinSampleCount"] = usbDevice->GetClippedMinSampleCount();
-        infoFile["captureInfo"]["clippedMaxSampleCount"] = usbDevice->GetClippedMaxSampleCount();
-        infoFile["captureInfo"]["sequenceMarkersPresent"] = usbDevice->GetTransferHadSequenceNumbers();
-        infoFile["captureInfo"]["creationTimestamp"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString();
+        captureInfoObj["transferResult"] = (int)usbDevice->GetTransferResult();
+        captureInfoObj["durationInMilliseconds"] = static_cast<qint64>(std::chrono::round<std::chrono::milliseconds>(captureElapsedTime).count());
+        captureInfoObj["transferCount"] = static_cast<qint64>(usbDevice->GetNumberOfTransfers());
+        captureInfoObj["numberOfDiskBuffersWritten"] = static_cast<qint64>(usbDevice->GetNumberOfDiskBuffersWritten());
+        captureInfoObj["fileSizeWrittenInBytes"] = static_cast<qint64>(usbDevice->GetFileSizeWrittenInBytes());
+        captureInfoObj["sampleCount"] = static_cast<qint64>(usbDevice->GetProcessedSampleCount());
+        captureInfoObj["minSampleValue"] = static_cast<qint64>(usbDevice->GetMinSampleValue());
+        captureInfoObj["maxSampleValue"] = static_cast<qint64>(usbDevice->GetMaxSampleValue());
+        captureInfoObj["clippedMinSampleCount"] = static_cast<qint64>(usbDevice->GetClippedMinSampleCount());
+        captureInfoObj["clippedMaxSampleCount"] = static_cast<qint64>(usbDevice->GetClippedMaxSampleCount());
+        captureInfoObj["sequenceMarkersPresent"] = usbDevice->GetTransferHadSequenceNumbers();
+        captureInfoObj["creationTimestamp"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
 
         // Helper function to turn our sample times into a millisecond count since the start of the capture process,
         // encoded as fixed-length strings with 8 characters. This is enough to keep the indexes in numeric order for
@@ -716,16 +725,6 @@ void MainWindow::updateCaptureStatus()
                 sampleTimeAsFixedLengthString << std::setfill('0') << std::setw(8) << sampleTimeSinceCaptureStart.count();
                 return sampleTimeAsFixedLengthString.str();
             };
-
-        // Populate the amplitude record
-        for (const auto& entry : amplitudeRecord)
-        {
-            if (!std::isnan(entry.amplitude) && !std::isinf(entry.amplitude))
-            {
-                auto sampleTimeString = sampleTimeToString(entry.sampleTime);
-                infoFile["timeSampledData"]["amplitudeRecord"][sampleTimeString] = entry.amplitude;
-            }
-        }
 
         // Populate the timecode/frame number record
         for (const auto& entry : playerTimeCodeRecord)
@@ -740,27 +739,46 @@ void MainWindow::updateCaptureStatus()
             {
                 timeCodeString = ">" + timeCodeString;
             }
-            infoFile["timeSampledData"]["timeCodeRecord"][sampleTimeString] = timeCodeString;
+            timeCodeRecordObj[QString::fromStdString(sampleTimeString)] = QString::fromStdString(timeCodeString);
         }
 
         // Populate the player physical position record
         for (const auto& entry : playerPhysicalPositionRecord)
         {
             auto sampleTimeString = sampleTimeToString(entry.sampleTime);
-            infoFile["timeSampledData"]["physicalPositionRecord"][sampleTimeString] = entry.physicalPosition;
+            physicalPositionRecordObj[QString::fromStdString(sampleTimeString)] = static_cast<qint64>(entry.physicalPosition);
         }
 
         // Populate the player state record
         for (const auto& entry : playerStatusRecord)
         {
             auto sampleTimeString = sampleTimeToString(entry.sampleTime);
-            infoFile["timeSampledData"]["statusRecord"][sampleTimeString] = entry.playerState;
+            statusRecordObj[QString::fromStdString(sampleTimeString)] = entry.playerState;
         }
 
-        // Turn the json structure into a string. We "prettify" this json with an indent to make it easier to visually
-        // inspect.
-        const int jsonIndentLevel = 4;
-        std::string jsonString = infoFile.dump(jsonIndentLevel);
+        // Build the nested JSON structure
+        if (!playerTimeCodeRecord.empty())
+        {
+            timeSampledDataObj["timeCodeRecord"] = timeCodeRecordObj;
+        }
+        if (!playerPhysicalPositionRecord.empty())
+        {
+            timeSampledDataObj["physicalPositionRecord"] = physicalPositionRecordObj;
+        }
+        if (isPlayerConnected || playerDiscTypeCached != PlayerCommunication::DiscType::unknownDiscType)
+        {
+            timeSampledDataObj["statusRecord"] = statusRecordObj;
+        }
+
+        infoFile["serialInfo"] = serialInfoObj;
+        infoFile["namingInfo"] = namingInfoObj;
+        infoFile["captureInfo"] = captureInfoObj;
+        infoFile["timeSampledData"] = timeSampledDataObj;
+
+        // Convert to JSON document and prettify
+        QJsonDocument jsonDoc(infoFile);
+        QByteArray jsonBytes = jsonDoc.toJson(QJsonDocument::Indented);
+        QString jsonString = QString::fromUtf8(jsonBytes);
 
         // Write the json metadata to our metadata output file
         std::filesystem::path metadataFilePath = usedCaptureFilePath;
@@ -773,7 +791,7 @@ void MainWindow::updateCaptureStatus()
         }
         else
         {
-            metadataFile.write(jsonString.data(), jsonString.size());
+            metadataFile.write(jsonString.toStdString().data(), jsonString.toStdString().size());
         }
 
         // Update the gui state now that capturing is complete
@@ -1010,7 +1028,15 @@ void MainWindow::updatePlayerControlInformation()
             playerTimeCodeRecord.push_back({ std::chrono::steady_clock::now(), timeCode, inLeadIn, inLeadOut });
         }
     }
-    playerStatusRecord.push_back({ std::chrono::steady_clock::now(), (isPlayerConnected ? playerState : (PlayerCommunication::PlayerState)-1)});
+    
+    // Only record player status when it changes or at the start of capture
+    PlayerCommunication::PlayerState currentStatus = isPlayerConnected ? playerState : (PlayerCommunication::PlayerState)-1;
+    if (!lastRecordedPlayerState.has_value() || lastRecordedPlayerState.value() != currentStatus)
+    {
+        playerStatusRecord.push_back({ std::chrono::steady_clock::now(), currentStatus });
+        lastRecordedPlayerState = currentStatus;
+    }
+    
     if (physicalPosition != 0)
     {
         minPlayerPhysicalPosition = (minPlayerPhysicalPosition < 0) ? physicalPosition : std::min(physicalPosition, minPlayerPhysicalPosition);
@@ -1308,6 +1334,7 @@ void MainWindow::StartCapture()
     playerDiscStatusCached.reset();
     playerStandardUserCodeCached.reset();
     playerPioneerUserCodeCached.reset();
+    lastRecordedPlayerState.reset();
     minPlayerTimeCode = -1;
     maxPlayerTimeCode = -1;
     minPlayerFrameNumber = -1;
