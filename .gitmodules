@@ -1,0 +1,9 @@
+[submodule "hardware"]
+	path = hardware
+	url = git@github.com:simoninns/DomesdayDuplicator-hardware.git
+[submodule "firmware"]
+	path = firmware
+	url = git@github.com:simoninns/DomesdayDuplicator-firmware.git
+[submodule "gui-app"]
+	path = gui-app
+	url = git@github.com:simoninns/DomesdayDuplicator-gui-app.git
