@@ -895,7 +895,7 @@ void MainWindow::updateDeviceStatus()
     // Update the UI state to reflect the new device/player connection status
     if (!usbDevicePresent)
     {
-        qDebug() << "MainWindow::updateDeviceStatus(): Domesday Duplicator USB device has been detached";
+        qInfo() << "Domesday Duplicator USB device has been detached";
 
         // Show the device status in the status bar
         usbStatusLabel->setText(tr("No USB capture device is attached"));
@@ -915,7 +915,7 @@ void MainWindow::updateDeviceStatus()
     }
     else
     {
-        qDebug() << "MainWindow::deviceAttachedSignalHandler(): Domesday Duplicator USB device has been attached";
+        qInfo() << "Domesday Duplicator USB device has been attached";
 
         // Show the device status in the status bar
         usbStatusLabel->setText(tr("Domesday Duplicator is connected via USB"));

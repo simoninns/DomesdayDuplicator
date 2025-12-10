@@ -64,7 +64,7 @@ bool UsbDeviceWinUsb::DevicePresent(const std::string& preferredDevicePath) cons
     WINUSB_INTERFACE_HANDLE winUsbInterfaceHandle;
     if (!ConnectToDevice(deviceInstancePath, deviceHandle, winUsbInterfaceHandle))
     {
-        Log().Warning("DevicePresent(): Failed to connect to device with instance path {0}", deviceInstancePath);
+        // Silently return false - the internal failure is already logged at Trace level
         return false;
     }
     DisconnectFromDevice(deviceHandle, winUsbInterfaceHandle);
@@ -416,7 +416,7 @@ bool UsbDeviceWinUsb::FindDomesdayDeviceInstancePath(const std::wstring& preferr
     // Ensure we found at least one Domesday Duplicator device
     if (matchingDeviceInstancePaths.empty())
     {
-        Log().Info("No Domesday Duplicator USB devices found");
+        Log().Trace("No Domesday Duplicator USB devices found");
         return false;
     }
 

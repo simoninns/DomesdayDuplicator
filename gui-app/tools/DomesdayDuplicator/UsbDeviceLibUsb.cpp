@@ -75,7 +75,7 @@ bool UsbDeviceLibUsb::DevicePresent(const std::string& preferredDevicePath) cons
     libusb_device_handle* usbDeviceHandle = nullptr;
     if (!ConnectToDevice(preferredDevicePath, usbDevice, usbDeviceHandle))
     {
-        Log().Warning("DevicePresent(): Failed to connect to device");
+        // Silently return false - the internal failure is already logged at Trace level
         return false;
     }
     DisconnectFromDevice(usbDevice, usbDeviceHandle);
@@ -263,7 +263,7 @@ bool UsbDeviceLibUsb::ConnectToDevice(const std::string& preferredDevicePath, li
     // Ensure we found at least one Domesday Duplicator device
     if (matchingDevices.empty())
     {
-        Log().Info("No Domesday Duplicator USB devices found");
+        Log().Trace("No Domesday Duplicator USB devices found");
         return false;
     }
 

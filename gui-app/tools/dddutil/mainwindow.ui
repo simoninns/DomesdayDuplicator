@@ -190,9 +190,6 @@
      <property name="displayFormat">
       <string>HH:mm:ss</string>
      </property>
-     <property name="timeSpec">
-      <enum>Qt::UTC</enum>
-     </property>
      <property name="time">
       <time>
        <hour>0</hour>
@@ -231,9 +228,6 @@
      </property>
      <property name="displayFormat">
       <string>HH:mm:ss</string>
-     </property>
-     <property name="timeSpec">
-      <enum>Qt::UTC</enum>
      </property>
      <property name="time">
       <time>

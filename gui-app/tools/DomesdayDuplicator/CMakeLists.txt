@@ -22,6 +22,11 @@ qt_add_resources(DomesdayDuplicator_SOURCES resources.qrc)
 add_executable(DomesdayDuplicator WIN32 MACOSX_BUNDLE
     ${DomesdayDuplicator_SOURCES})
 
+# Suppress deprecation warnings for third-party QCustomPlot library
+set_source_files_properties(qcustomplot.cpp PROPERTIES
+    COMPILE_FLAGS "-Wno-deprecated-declarations"
+)
+
 target_compile_definitions(DomesdayDuplicator PRIVATE
     QT_DEPRECATED_WARNINGS
 )
