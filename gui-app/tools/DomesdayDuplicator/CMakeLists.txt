@@ -52,6 +52,7 @@ if(WIN32)
 
     target_link_libraries(DomesdayDuplicator PRIVATE
         AdvAPI32
+        cfgmgr32
         onecoreuap
         winusb
     )
