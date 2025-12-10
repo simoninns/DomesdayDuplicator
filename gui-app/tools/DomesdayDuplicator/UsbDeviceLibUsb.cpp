@@ -310,7 +310,6 @@ void UsbDeviceLibUsb::DisconnectFromDevice()
     // If we're not currently connected to the device, abort any further processing.
     if (!connectedToDevice)
     {
-        Log().Error("DisconnectFromDevice() called when no device was connected");
         return;
     }
 
