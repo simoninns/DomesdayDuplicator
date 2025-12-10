@@ -12,6 +12,21 @@ Capture is via a easy to use GUI capture application.
 
 <img src="https://user-images.githubusercontent.com/56382624/219953404-2ad85772-7fe3-40e8-a4b3-9ea61443736d.gif" width="350" height="">
 
+# Cloning the DomesdayDuplicator GitHub
+
+The Domesday Duplicator project uses git sub-modules to cleanly separate the distinct parts of the project:
+
+- DomesdayDuplicator → system / integration
+- DomesdayDuplicator-hardware → PCB / KiCad / fabrication
+- DomesdayDuplicator-firmware → FPGA / GPIF / USB3
+- DomesdayDuplicator-gui-app → GUI / Host USB
+
+To clone this repo and all the sub-modules use the following command:
+
+```
+git clone --recursive git@github.com:simoninns/DomesdayDuplicator.git
+```
+
 # The Decode Family 
 
 The samples the DdD capture can be used with the whole family of decoders that make the FM RF Archival workflow ready to use today.
