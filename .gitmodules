@@ -7,3 +7,6 @@
 [submodule "gui-app"]
 	path = gui-app
 	url = git@github.com:simoninns/DomesdayDuplicator-gui-app.git
+[submodule "docs"]
+	path = docs
+	url = https://github.com/simoninns/DomesdayDuplicator-docs

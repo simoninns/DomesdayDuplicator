@@ -20,6 +20,7 @@ The Domesday Duplicator project uses git sub-modules to cleanly separate the dis
 - DomesdayDuplicator-hardware → PCB / KiCad / fabrication
 - DomesdayDuplicator-firmware → FPGA / GPIF / USB3
 - DomesdayDuplicator-gui-app → GUI / Host USB
+- DomesdayDuplicator-gui-docs → Documentation website contents and deployment
 
 To clone this repo and all the sub-modules use the following command:
 
