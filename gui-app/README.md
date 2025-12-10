@@ -6,7 +6,7 @@ This directory contains the graphical user interface application for controlling
 
 ## Components
 
-### Linux-Application
+### tools
 Cross-platform GUI application built with Qt. Includes:
 - **DomesdayDuplicator** - Main capture application for controlling the hardware
 - **dddutil** - Utility for analyzing and converting captured data
@@ -14,22 +14,7 @@ Cross-platform GUI application built with Qt. Includes:
 
 ## Building
 
-The application can be built using either CMake or Qt Creator:
-
-```bash
-cd Linux-Application
-mkdir build && cd build
-cmake ..
-make
-```
-
-Or open the `.pro` files in Qt Creator.
-
-## Requirements
-
-- Qt 5 or later
-- LibUSB
-- C++11 compatible compiler
+See [BUILD.md](BUILD.md) for detailed build instructions and requirements.
 
 ## Documentation
 
