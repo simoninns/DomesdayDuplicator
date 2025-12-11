@@ -19,14 +19,14 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-arm-none-eabi cmake build-essential
+        sudo apt-get install -y gcc-arm-none-eabi cmake build-essential pkg-config libusb-1.0-0-dev
         
     - name: Verify ARM toolchain
       run: |
         arm-none-eabi-gcc --version
         cmake --version
         
-    - name: Configure CMake
+    - name: Configure CMake for firmware
       working-directory: fx3-firmware
       run: |
         mkdir -p build
@@ -37,12 +37,24 @@ jobs:
       working-directory: fx3-firmware/build
       run: make
       
-    - name: Verify build artifacts
-      working-directory: fx3-firmware/build
+    - name: Configure CMake for programmer
+      working-directory: fx3/fx3-programmer
       run: |
-        ls -lh firmware.elf firmware.img firmware.map
-        file firmware.elf
-        file firmware.img
+        mkdir -p build
+        cd build
+        cmake ..
+        
+    - name: Build programmer
+      working-directory: fx3/fx3-programmer/build
+      run: make
+      
+    - name: Verify build artifacts
+      run: |
+        ls -lh fx3-firmware/build/firmware.elf fx3-firmware/build/firmware.img fx3-firmware/build/firmware.map
+        file fx3-firmware/build/firmware.elf
+        file fx3-firmware/build/firmware.img
+        ls -lh fx3/fx3-programmer/build/fx3-programmer
+        file fx3/fx3-programmer/build/fx3-programmer
         
     - name: Upload firmware artifacts
       uses: actions/upload-artifact@v4
@@ -52,6 +64,7 @@ jobs:
           fx3-firmware/build/firmware.elf
           fx3-firmware/build/firmware.img
           fx3-firmware/build/firmware.map
+          fx3/fx3-programmer/build/fx3-programmer
         retention-days: 30
 
   build-fedora:
@@ -65,14 +78,14 @@ jobs:
       
     - name: Install dependencies
       run: |
-        dnf install -y arm-none-eabi-gcc-cs arm-none-eabi-newlib cmake make gcc gcc-c++ file
+        dnf install -y arm-none-eabi-gcc-cs arm-none-eabi-newlib cmake make gcc gcc-c++ file pkg-config libusb1-devel
         
     - name: Verify ARM toolchain
       run: |
         arm-none-eabi-gcc --version
         cmake --version
         
-    - name: Configure CMake
+    - name: Configure CMake for firmware
       working-directory: fx3-firmware
       run: |
         mkdir -p build
@@ -83,12 +96,24 @@ jobs:
       working-directory: fx3-firmware/build
       run: make
       
-    - name: Verify build artifacts
-      working-directory: fx3-firmware/build
+    - name: Configure CMake for programmer
+      working-directory: fx3/fx3-programmer
       run: |
-        ls -lh firmware.elf firmware.img firmware.map
-        file firmware.elf
-        file firmware.img
+        mkdir -p build
+        cd build
+        cmake ..
+        
+    - name: Build programmer
+      working-directory: fx3/fx3-programmer/build
+      run: make
+      
+    - name: Verify build artifacts
+      run: |
+        ls -lh fx3-firmware/build/firmware.elf fx3-firmware/build/firmware.img fx3-firmware/build/firmware.map
+        file fx3-firmware/build/firmware.elf
+        file fx3-firmware/build/firmware.img
+        ls -lh fx3/fx3-programmer/build/fx3-programmer
+        file fx3/fx3-programmer/build/fx3-programmer
         
     - name: Upload firmware artifacts
       uses: actions/upload-artifact@v4
@@ -98,4 +123,5 @@ jobs:
           fx3-firmware/build/firmware.elf
           fx3-firmware/build/firmware.img
           fx3-firmware/build/firmware.map
+          fx3/fx3-programmer/build/fx3-programmer
         retention-days: 30
