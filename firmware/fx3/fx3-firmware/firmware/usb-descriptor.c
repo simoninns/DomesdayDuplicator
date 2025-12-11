@@ -87,7 +87,7 @@ const uint8_t USBBOSDscr[] __attribute__ ((aligned (32))) = {
     0x07,                           // Descriptor size
     CY_U3P_DEVICE_CAPB_DESCR,       // Device capability type descriptor
     CY_U3P_USB2_EXTN_CAPB_TYPE,     // USB 2.0 extension capability type
-    0x02,0x00,0x00,0x00,            // Supported device level features: LPM support
+    0x00,0x00,0x00,0x00,            // Supported device level features: NO LPM (causing suspend crashes)
 
     // SuperSpeed device capability
     0x0A,                           // Descriptor size
@@ -96,8 +96,8 @@ const uint8_t USBBOSDscr[] __attribute__ ((aligned (32))) = {
     0x00,                           // Supported device level features
     0x0E,0x00,                      // Speeds supported by the device : SS, HS and FS
     0x03,                           // Functionality support
-    0x00,                           // U1 Device Exit latency (Disable Low Power Management)
-    0x00,0x00                       // U2 Device Exit latency (Disable LPM)
+    0x0A,                           // U1 Device Exit latency: 10us (proper LPM support)
+    0xFF,0x07                       // U2 Device Exit latency: 2047us (proper LPM support)
 };
 
 // Standard device qualifier descriptor
@@ -122,7 +122,7 @@ const uint8_t USBSSConfigDscr[] __attribute__ ((aligned (32))) = {
     0x01,                           // Number of interfaces
     0x01,                           // Configuration number
     0x00,                           // COnfiguration string index
-    0x80,                           // Configuration characteristics - Bus powered
+    0xA0,                           // Configuration characteristics - Bus powered, Remote Wakeup
     0x32,                           // Max power consumption of device (in 8mA unit) : 400mA
 
     // Interface descriptor
@@ -161,7 +161,7 @@ const uint8_t USBHSConfigDscr[] __attribute__ ((aligned (32))) = {
     0x01,                           // Number of interfaces
     0x01,                           // Configuration number
     0x00,                           // COnfiguration string index
-    0x80,                           // Configuration characteristics - bus powered
+    0xA0,                           // Configuration characteristics - bus powered, Remote Wakeup
     0x32,                           // Max power consumption of device (in 2mA unit) : 100mA
 
     // Interface descriptor
@@ -193,7 +193,7 @@ const uint8_t USBFSConfigDscr[] __attribute__ ((aligned (32))) = {
     0x01,                           // Number of interfaces
     0x01,                           // Configuration number
     0x00,                           // COnfiguration string index
-    0x80,                           // Configuration characteristics - bus powered
+    0xA0,                           // Configuration characteristics - bus powered, Remote Wakeup
     0x32,                           // Max power consumption of device (in 2mA unit) : 100mA
 
     // Interface descriptor

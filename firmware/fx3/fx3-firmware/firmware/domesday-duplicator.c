@@ -948,6 +948,39 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
         domDupStartApplication();
         break;
 
+    case CY_U3P_USB_EVENT_SUSPEND:
+        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_SUSPEND received\r\n");
+        
+        // Always handle suspend properly - stop data collection if active
+        if (dataCollectionFlag) {
+            CyU3PDebugPrint(8, "domDupUSBEventCB(): Stopping active data collection for suspend\r\n");
+            CyU3PGpioSetValue(19, CyFalse); // collectData GPIO low
+            dataCollectionFlag = CyFalse;
+        }
+        
+        // Clear all input flags
+        input0Flag = CyFalse;
+        input1Flag = CyFalse;
+        input2Flag = CyFalse;
+        input3Flag = CyFalse;
+        input0HandledFlag = CyFalse;
+        input1HandledFlag = CyFalse;
+        input2HandledFlag = CyFalse;
+        input3HandledFlag = CyFalse;
+        
+        // Flush and reset DMA channel only if application is active
+        if (glIsApplnActive) {
+            CyU3PDmaMultiChannelReset(&glDmaMultiChHandle);
+            CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
+        }
+        break;
+
+    case CY_U3P_USB_EVENT_RESUME:
+        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_RESUME received\r\n");
+        // Device has resumed - ready to accept new commands from host
+        // Data collection will be restarted by host via vendor command if needed
+        break;
+
     case CY_U3P_USB_EVENT_RESET:
     case CY_U3P_USB_EVENT_DISCONNECT:
         glForceLinkU2 = CyFalse;
@@ -971,9 +1004,24 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
     }
 }
 
-// Callback function to handle LPM requests (unused, always returns true)
+// Callback function to handle LPM requests
 CyBool_t domDupLPMRequestCB(CyU3PUsbLinkPowerMode linkMode)
 {
+    // Handle Link Power Management requests from the USB 3.0 host
+    // linkMode: CyU3PUsbLPM_U0 = fully active, CyU3PUsbLPM_U1 = light sleep, 
+    //           CyU3PUsbLPM_U2 = deeper sleep, CyU3PUsbLPM_U3 = suspend
+    
+    // Reject U2/U3 while actively collecting data to prevent data corruption
+    // and ensure reliable high-speed streaming
+    if (dataCollectionFlag) {
+        if (linkMode >= CyU3PUsbLPM_U2) {
+            CyU3PDebugPrint(8, "domDupLPMRequestCB(): Rejecting LPM %d - data collection active\r\n", linkMode);
+            return CyFalse;  // Reject U2/U3 entry
+        }
+    }
+    
+    // Accept U1 (very brief, minimal impact on streaming)
+    // Accept all power states when idle
     return CyTrue;
 }
 
