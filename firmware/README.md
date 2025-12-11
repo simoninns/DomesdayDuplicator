@@ -9,14 +9,17 @@ This directory contains the firmware for the Domesday Duplicator hardware.
 ### DE0-NANO
 FPGA firmware for the Terasic DE0-NANO board. This handles the high-speed data acquisition and buffering.
 
-### FX3-Firmware
-Firmware for the Cypress FX3 USB 3.0 controller. This manages the USB communication between the FPGA and the host computer.
+### FX3
+Cypress FX3 USB 3.0 controller firmware and programming tools:
+- **fx3/fx3-firmware/** - FX3 firmware that manages USB communication between the FPGA and host
+- **fx3/fx3-programmer/** - Host-side tool to program the FX3 device
 
 ## Building
 
 Please refer to the individual component directories for specific build instructions:
 - [DE0-NANO](DE0-NANO/)
-- [FX3-Firmware](FX3-Firmware/)
+- [FX3 Firmware](fx3/fx3-firmware/)
+- [FX3 Programmer](fx3/fx3-programmer/)
 
 ## Documentation
 
