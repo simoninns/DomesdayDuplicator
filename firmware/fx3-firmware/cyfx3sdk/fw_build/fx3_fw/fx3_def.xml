@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdtprojectproperties>
+<section name="org.eclipse.cdt.internal.ui.wizards.settingswizards.IncludePaths">
+<language name="Assembly Source File">
+<includepath>${FX3_INSTALL_PATH}\firmware\u3p_firmware\inc</includepath>
+
+</language>
+<language name="C Source File">
+<includepath>${FX3_INSTALL_PATH}\firmware\u3p_firmware\inc</includepath>
+<includepath>${FX3_INSTALL_PATH}\firmware\basic_examples\cyfxbulklpauto</includepath>
+
+</language>
+<language name="Object File">
+
+</language>
+</section>
+<section name="org.eclipse.cdt.internal.ui.wizards.settingswizards.Macros">
+<language name="Assembly Source File">
+
+</language>
+<language name="C Source File">
+<macro>
+<name>TX_ENABLE_EVENT_TRACE</name><value/>
+</macro>
+<macro>
+<name>DEBUG</name><value/>
+</macro>
+<macro>
+<name>CYU3P_FX3</name><value>1</value>
+</macro>
+<macro>
+<name>__CYU3P_TX__</name><value>1</value>
+</macro>
+
+</language>
+<language name="Object File">
+
+</language>
+</section>
+</cdtprojectproperties>

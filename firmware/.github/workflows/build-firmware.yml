@@ -1,0 +1,101 @@
+name: Build FX3 Firmware
+
+on:
+  push:
+    branches: [ main, master, fxsdk-202512 ]
+  pull_request:
+    branches: [ main, master, fxsdk-202512 ]
+  workflow_dispatch:
+
+jobs:
+  build-ubuntu:
+    name: Build on Ubuntu
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-arm-none-eabi cmake build-essential
+        
+    - name: Verify ARM toolchain
+      run: |
+        arm-none-eabi-gcc --version
+        cmake --version
+        
+    - name: Configure CMake
+      working-directory: fx3-firmware
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake ..
+        
+    - name: Build firmware
+      working-directory: fx3-firmware/build
+      run: make
+      
+    - name: Verify build artifacts
+      working-directory: fx3-firmware/build
+      run: |
+        ls -lh firmware.elf firmware.img firmware.map
+        file firmware.elf
+        file firmware.img
+        
+    - name: Upload firmware artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: firmware-ubuntu
+        path: |
+          fx3-firmware/build/firmware.elf
+          fx3-firmware/build/firmware.img
+          fx3-firmware/build/firmware.map
+        retention-days: 30
+
+  build-fedora:
+    name: Build on Fedora
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        dnf install -y arm-none-eabi-gcc-cs arm-none-eabi-newlib cmake make gcc gcc-c++ file
+        
+    - name: Verify ARM toolchain
+      run: |
+        arm-none-eabi-gcc --version
+        cmake --version
+        
+    - name: Configure CMake
+      working-directory: fx3-firmware
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake ..
+        
+    - name: Build firmware
+      working-directory: fx3-firmware/build
+      run: make
+      
+    - name: Verify build artifacts
+      working-directory: fx3-firmware/build
+      run: |
+        ls -lh firmware.elf firmware.img firmware.map
+        file firmware.elf
+        file firmware.img
+        
+    - name: Upload firmware artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: firmware-fedora
+        path: |
+          fx3-firmware/build/firmware.elf
+          fx3-firmware/build/firmware.img
+          fx3-firmware/build/firmware.map
+        retention-days: 30

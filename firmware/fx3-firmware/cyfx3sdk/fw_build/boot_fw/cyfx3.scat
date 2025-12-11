@@ -1,0 +1,40 @@
+;## Copyright Cypress Semiconductor Corporation, 2010-2023,
+;## All Rights Reserved
+;## UNPUBLISHED, LICENSED SOFTWARE.
+;##
+;## CONFIDENTIAL AND PROPRIETARY INFORMATION 
+;## WHICH IS THE PROPERTY OF CYPRESS.
+;##
+;## Use of this file is governed 
+;## by the license agreement included in the file 
+;##
+;##	<install>/license/license.txt
+;##
+;## where <install> is the Cypress software
+;## installation root directory path.
+;## 
+
+;## This is the scatter file for FX3 Boot code
+
+; The last 32KB (0x40078000 to 0x40080000 is reserved for Fx3 Boot loader.
+; Descriptor area Base: 0x40000000 Size: 8KB
+; Tmp Buffer area Base: 0x40077000 Size: 4KB
+; Code area       Base: 0x40078000 Size: 28KB
+; Data area       Base: 0x4007F000 Size: 4KB
+
+; The first 256 bytes of ITCM are reserved for Exception Vectors.
+; These vectors will be loaded to ITCM 0x0 as part of the Device Init.
+
+SYS_MEM_LOAD 0x40078000 0x8000
+{
+    CODE 0x40078000 0x7000
+    {
+        * (+RO)
+    }
+
+    DATA +0 0x1000
+    {
+        * (+RW, +ZI)
+    }
+}
+
