@@ -65,7 +65,7 @@ jobs:
       
     - name: Install dependencies
       run: |
-        dnf install -y arm-none-eabi-gcc-cs arm-none-eabi-newlib cmake make gcc gcc-c++
+        dnf install -y arm-none-eabi-gcc-cs arm-none-eabi-newlib cmake make gcc gcc-c++ file
         
     - name: Verify ARM toolchain
       run: |
