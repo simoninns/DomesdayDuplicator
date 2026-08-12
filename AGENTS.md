@@ -81,10 +81,17 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 
 ```
 ├── AGENTS.md                  # this file
+├── TESTING.md                 # test tiers, and the hardware-in-the-loop procedure
 ├── CONTRIBUTING.md
 ├── LICENSE                    # GPLv3 — software
 ├── README.md
 ├── .editorconfig              # repository-wide formatting
+├── .envrc                     # direnv: `use flake` (opt-in)
+├── flake.nix                  # aggregator: packages, dev shells, checks, NixOS module
+├── nix/
+│   ├── lib.nix                # supported systems, shared pkgs config
+│   ├── shell.nix              # the default dev shell
+│   └── modules/udev.nix       # NixOS device permissions
 ├── docs/
 │   ├── content/               # the documentation site's markdown
 │   └── .github/workflows/
@@ -199,10 +206,28 @@ touched rather than in one sweeping commit. Do not add a long-form header to a n
 
 ## 7. Development environment
 
-Every component builds today with ordinary, distribution-packaged tools. Nix flakes per
-component are being added — see
-[docs-tech/nix-flake-design.md](docs-tech/nix-flake-design.md) — but **Nix is not required**
-and no build may be made Nix-only.
+Every component builds with ordinary, distribution-packaged tools. There are also per-component
+Nix flakes — but **Nix is not required**, and no build may be made Nix-only.
+
+```bash
+nix develop                  # all free components in one shell
+nix develop .#gui            # or .#fx3, .#fpga, .#hardware
+nix build .#gui .#fx3-programmer
+nix flake check              # build everything and run the T1-T4 tests
+```
+
+Each component has a `flake.nix` that is a thin wrapper over a shared `package.nix` and
+`shell.nix`; the root flake `callPackage`s the same files. There is therefore exactly one
+definition of each component and no cross-flake inputs. Design notes:
+[docs-tech/nix-flake-design.md](docs-tech/nix-flake-design.md).
+
+`fpga/` is the exception: Quartus is unfree, x86_64-linux only and not redistributable, so it
+stays behind its own flake and is never aggregated into the root one. `nix develop .#fpga`
+gives the *free* tools — Verilog lint, simulation and a language server — with no Quartus
+download at all.
+
+NixOS users get device permissions from `nixosModules.udev`:
+`hardware.domesdayDuplicator.enable = true;`
 
 ### 7.1 Editor independence
 
@@ -220,6 +245,9 @@ Quartus GUI, and each brought a build definition that drifted from the real one.
   the build.
 - Do not add IDE project files. `.vscode/`, `.idea/`, `.project`, `.cproject`, `*.pro.user`
   and friends are gitignored at the root specifically so they cannot drift back in.
+
+Per-editor instructions — VS Code, Neovim, Emacs, Helix, Qt Creator, CLion, KDevelop — are in
+[docs-tech/editor-setup.md](docs-tech/editor-setup.md).
 
 ### 7.2 Common commands
 
@@ -244,20 +272,34 @@ Build directories are `build/` under each component and are gitignored. Never bu
 
 ## 8. Testing
 
-**There are currently no automated tests** — no `enable_testing()`, no `add_test()`, no
-GoogleTest, Catch2 or QTest anywhere in the repository. Do not write documentation, comments
-or PR descriptions that imply otherwise.
+Read [TESTING.md](TESTING.md). It defines five tiers — `unit`, `golden`, `sim`, `static`,
+`hil` — attached to every test as a CTest label, and documents the hardware-in-the-loop
+capture-integrity procedure that is the most important test in the project.
+
+```bash
+nix flake check                    # everything, on a clean machine
+ctest --test-dir gui/build         # one component
+```
+
+**What exists today: 44 tests across two components** — 21 in `gui/` (UTF-8 conversion, the
+10-bit/16-bit sample codec) and 23 in `fx3/programmer/` (EEPROM/flash paging arithmetic,
+secondary-loader path resolution). `fx3/firmware/`, `fpga/`, `hardware/` and `docs/` have
+**no automated coverage yet**; TESTING.md §4.3 says what is planned and in which phase.
+
+Do not write documentation, comments or PR descriptions implying coverage that does not
+exist. Where a change needs manual verification, state plainly what you did — which component
+you built, on what, and what you observed. "Should work" is not verification.
 
 Two things that look like tests are not:
 
 - `gui/src/dddutil/analysetestdata.cpp` is a *product feature* that analyses captured
   test-pattern data. It is the host half of the §4 integrity oracle, not a test of the code.
-- `docs/TESTING.md` is a manual site-preview guide.
+- `docs/TESTING.md` is a manual site-preview guide, superseded at the repository root.
 
-A `TESTING.md` describing per-component test tiers is planned; the design is in
-[docs-tech/agents-and-testing.md](docs-tech/agents-and-testing.md) §3. Until it exists, state
-plainly how you verified a change — which component you built, on what, and what you
-observed. "Should work" is not verification.
+When adding logic, put it somewhere it can be tested. The pure parts of this codebase live in
+`gui/src/dddconv/samplecodec.h`, `fx3/programmer/src/fx3-paging.h` and
+`fx3/programmer/src/fx3-flashprog.c` precisely so they can be exercised without Qt, libusb or
+hardware — extend that pattern rather than adding logic inside an I/O loop.
 
 ## 9. Licensing
 

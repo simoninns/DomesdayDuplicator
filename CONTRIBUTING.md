@@ -18,6 +18,15 @@ Thank you for your interest in improving Domesday Duplicator. Please follow the 
 - If you spot documentation gaps while working on code or hardware, fix them in the same pull
   request where that makes sense — they are now the same repository.
 
+## Before you open a pull request
+
+- Run the tests for anything you touched: `nix flake check`, or `ctest --test-dir <component>/build`.
+- Describe how you verified the change. For gateware, FX3 firmware or anything on the capture
+  path, a green build is not sufficient — see the hardware-in-the-loop procedure in
+  [TESTING.md](TESTING.md).
+- [AGENTS.md](AGENTS.md) records the project conventions, and applies to people as much as to
+  automated assistants.
+
 ## Where things live
 
 See the repository layout table in [README.md](README.md). Engineering-process documentation

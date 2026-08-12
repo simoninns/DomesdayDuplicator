@@ -1,7 +1,6 @@
 /*
  * fx3-programmer.c - Minimal FX3 firmware programmer
- * 
-    int fd, ret, bytes_sent = 0;
+ *
  * A minimal, libusb-based tool to:
  * - Discover connected FX3 devices
  * - Upload firmware to FX3 RAM/EEPROM/Flash
@@ -22,6 +21,9 @@
 #include <sys/stat.h>
 #include <libusb-1.0/libusb.h>
 
+#include "fx3-flashprog.h"
+#include "fx3-paging.h"
+
 #define FX3_VENDOR_ID       0x04b4
 #define FX3_BOOTLOADER_ID   0x0080
 #define FX3_PROD_ID         0x00f3
@@ -36,11 +38,15 @@
 #define FX3_SPI_FLASH_ERASE  0xC4  // Flash programmer erase/status command
 #define FX3_I2C_WRITE_CMD    0xBA  // Flash programmer I2C write
 #define FX3_I2C_READ_CMD     0xBB  // Flash programmer I2C read/verify
-#define MAX_WRITE_SIZE       2048
-#define SPI_FLASH_PAGE_SIZE  256   // SPI flash page size for FX3
-#define SPI_FLASH_SECTOR_SIZE (64 * 1024)
-#define I2C_PAGE_SIZE        64
-#define I2C_SLAVE_SIZE       (64 * 1024)
+
+// Flash and EEPROM geometry, plus the arithmetic over it, lives in fx3-paging.h so it can
+// be unit tested. These aliases keep the call sites below reading as they always have.
+#define MAX_WRITE_SIZE        FX3_MAX_WRITE_SIZE
+#define SPI_FLASH_PAGE_SIZE   FX3_SPI_FLASH_PAGE_SIZE
+#define SPI_FLASH_SECTOR_SIZE FX3_SPI_FLASH_SECTOR_SIZE
+#define I2C_PAGE_SIZE         FX3_I2C_PAGE_SIZE
+#define I2C_SLAVE_SIZE        FX3_I2C_SLAVE_SIZE
+
 #define FLASH_PROG_MAGIC     "FX3PROG"
 #define GET_LSW(x)           ((x) & 0xFFFF)
 #define GET_MSW(x)           ((x) >> 16)
@@ -71,7 +77,7 @@ static int fx3_i2c_write(libusb_device_handle *h, unsigned char *buf, int devAdd
     int size;
 
     while (len > 0) {
-        size = (len > MAX_WRITE_SIZE) ? MAX_WRITE_SIZE : len;
+        size = fx3_transfer_size(len);
         r = libusb_control_transfer(h, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_OUT,
                                     FX3_I2C_WRITE_CMD, devAddr, address, &buf[index], size, USB_TIMEOUT_MS);
         if (r != size) {
@@ -96,7 +102,7 @@ static int fx3_i2c_read_verify(libusb_device_handle *h, unsigned char *expData, 
     unsigned char tmpBuf[MAX_WRITE_SIZE];
 
     while (len > 0) {
-        size = (len > MAX_WRITE_SIZE) ? MAX_WRITE_SIZE : len;
+        size = fx3_transfer_size(len);
         r = libusb_control_transfer(h, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_IN,
                                     FX3_I2C_READ_CMD, devAddr, address, tmpBuf, size, USB_TIMEOUT_MS);
         if (r != size) {
@@ -133,37 +139,6 @@ static int is_flash_programmer(libusb_device_handle *handle) {
     return 0;
 }
 
-/* Locate cyfxflashprog.img: env override, then the install location compiled in by
- * CMake, then paths relative to the working directory for in-tree use. */
-static char *find_flashprog_image(void) {
-    const char *env = getenv("FX3_FLASH_PROG");
-    const char *candidates[] = {
-        env,
-#ifdef FLASHPROG_INSTALL_PATH
-        FLASHPROG_INSTALL_PATH,
-#endif
-        "cyfxflashprog.img",
-        "../cyfxflashprog.img",
-        "../../../../../cyusb_linux/fx3_images/cyfxflashprog.img",
-        "../../cyusb_linux/fx3_images/cyfxflashprog.img",
-        "../fx3_images/cyfxflashprog.img",
-        "../../fx3_images/cyfxflashprog.img",
-    };
-    struct stat st;
-
-    for (size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); i++) {
-        const char *path = candidates[i];
-        if (!path) {
-            continue;
-        }
-        if (stat(path, &st) == 0 && S_ISREG(st.st_mode)) {
-            return strdup(path);
-        }
-    }
-
-    return NULL;
-}
-
 /* Download flash programmer to RAM (from bootloader) and return handle to it. */
 static int load_flash_programmer(int device_idx, libusb_device_handle **out_handle) {
     if (device_idx < 0 || device_idx >= num_devices) {
@@ -184,12 +159,12 @@ static int load_flash_programmer(int device_idx, libusb_device_handle **out_hand
         return -1;
     }
 
-    char *img = find_flashprog_image();
+    char *img = fx3_find_flashprog_image();
     if (!img) {
         fprintf(stderr, "Error: cyfxflashprog.img not found.\n");
         fprintf(stderr, "  Set FX3_FLASH_PROG to its full path, or place it in the current directory.\n");
 #ifdef FLASHPROG_INSTALL_PATH
-        fprintf(stderr, "  The installed copy is expected at: %s\n", FLASHPROG_INSTALL_PATH);
+        fprintf(stderr, "  The installed copy is expected at: %s\n", fx3_flashprog_install_path());
 #endif
         return -1;
     }
@@ -515,7 +490,7 @@ int fx3_program_prom(int device_idx, const char *filename) {
     }
 
     size = st.st_size;
-    bytes_to_write = ((size + I2C_PAGE_SIZE - 1) / I2C_PAGE_SIZE) * I2C_PAGE_SIZE;
+    bytes_to_write = fx3_pad_to_i2c_page(size);
     printf("Programming %s (%d bytes, padded to %d) to FX3 I2C EEPROM...\n", filename, size, bytes_to_write);
 
     firmware_buf = calloc(1, bytes_to_write);
@@ -537,7 +512,7 @@ int fx3_program_prom(int device_idx, const char *filename) {
     int remaining = bytes_to_write;
     int offset = 0;
     while (remaining > 0) {
-        int chunk = (remaining > I2C_SLAVE_SIZE) ? I2C_SLAVE_SIZE : remaining;
+        int chunk = fx3_i2c_slave_chunk(remaining);
         int devAddr = address; /* flash programmer handles address translation */
 
         ret = fx3_i2c_write(prog_handle, firmware_buf, devAddr, offset, chunk);
@@ -607,7 +582,7 @@ int fx3_verify_firmware(int device_idx, const char *filename) {
     }
 
     size = st.st_size;
-    bytes_to_verify = ((size + I2C_PAGE_SIZE - 1) / I2C_PAGE_SIZE) * I2C_PAGE_SIZE;
+    bytes_to_verify = fx3_pad_to_i2c_page(size);
     printf("Verifying %s against FX3 I2C EEPROM (%d bytes, padded to %d)...\n", filename, size, bytes_to_verify);
 
     firmware_buf = calloc(1, bytes_to_verify);
@@ -629,7 +604,7 @@ int fx3_verify_firmware(int device_idx, const char *filename) {
     int remaining = bytes_to_verify;
     int offset = 0;
     while (remaining > 0) {
-        int chunk = (remaining > I2C_SLAVE_SIZE) ? I2C_SLAVE_SIZE : remaining;
+        int chunk = fx3_i2c_slave_chunk(remaining);
         int devAddr = address; /* flash programmer handles address translation */
 
         ret = fx3_i2c_read_verify(prog_handle, firmware_buf + offset, devAddr, chunk);

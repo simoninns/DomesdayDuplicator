@@ -59,8 +59,8 @@ parallel. P7 needs whichever flakes exist.
 
 ## Defect register
 
-Ten issues found during the survey, plus the two additional ones found while writing this
-plan. Each is assigned to a phase.
+Ten issues found during the survey, plus the two found while writing this plan, plus those
+found during execution (D19). Each is assigned to a phase.
 
 | # | Issue | Where | Phase | Status |
 | --- | --- | --- | --- | --- |
@@ -81,7 +81,8 @@ plan. Each is assigned to a phase.
 | D15 | No `CMAKE_EXPORT_COMPILE_COMMANDS` anywhere, so no `compile_commands.json` and no working clangd in any editor | all `CMakeLists.txt` | P2-12 | **Closed** P2 |
 | D16 | Sole `.editorconfig` is buried in `gui-app/tools/DomesdayDuplicator/`; `.vscode`/`.idea` ignore rules exist only in `gui-app/.gitignore` | repo root | P2-13 | **Closed** P2 |
 | D17 | The two licence names are **transposed**: `LICENSE` is GPLv3 and the hardware file is CC BY-SA 4.0, but the README labels software as CC BY-SA (linking to the GPLv3 file) and hardware as GPLv3 (linking to the CC BY-SA URL) | `README.md` licence block | P2-14 | **Closed** P2 |
-| D18 | No test infrastructure of any kind — no `enable_testing()`, `add_test()`, GoogleTest, Catch2 or QTest anywhere in the tree | repo-wide | P3-6 | Open |
+| D18 | No test infrastructure of any kind — no `enable_testing()`, `add_test()`, GoogleTest, Catch2 or QTest anywhere in the tree | repo-wide | P3-6 | **Closed** P3 |
+| D19 | udev rules match Cypress VID `04b4` only, so the device is root-only once firmware is loaded and it re-enumerates as `1d50:603b` — the capture GUI cannot open it. Both rules also `RUN+=` a `cy_renumerate.sh` that is never installed and belongs to a daemon this project does not ship | `fx3/programmer/configs/88-cyusb.rules` | P3-3 | **Closed** P3 |
 
 ---
 
@@ -610,7 +611,12 @@ Defect-by-defect evidence:
 
 CI is not part of this gate: no workflow runs on this branch (see *Branching* above).
 
-## Phase 3 — Nix foundation and the easy flakes
+## Phase 3 — Nix foundation and the easy flakes — **DONE**
+
+Executed 2026-08-12 on `20260812-002`. All seven tasks complete; **D18 is closed** — the
+repository has automated tests for the first time, 44 of them across two components.
+
+Deviations and findings are recorded after P3-7 below.
 
 ### P3-1 `nix/lib.nix` and the root flake (M)
 
@@ -694,6 +700,85 @@ component can and cannot be tested with, and — most importantly — the
 **hardware-in-the-loop capture-integrity procedure** built on the FPGA's test-pattern
 generator and `dddutil`'s analyser (§4). Mark clearly what exists versus what is planned;
 do not describe tests that have not been written.
+
+### Deviations and findings
+
+**1. Testable logic had to be extracted before it could be tested (P3-6).** The plan named
+four test targets without noting that three of them were unreachable: `dddconv`'s conversion
+lives inside `packFile()`/`unpackFile()` behind 20 MiB of buffering and file I/O, and
+`find_flashprog_image()` plus the paging arithmetic were `static` inside a 793-line file with
+`main()` and a libusb dependency. Three small, behaviour-preserving extractions were made:
+
+| New file | Contents | Extracted from |
+| --- | --- | --- |
+| `gui/src/dddconv/samplecodec.h` | Pure 4-sample ↔ 5-byte pack/unpack | `dataconversion.cpp` |
+| `fx3/programmer/src/fx3-paging.h` | Page padding, slave chunking, transfer sizing, sector counts | `fx3-programmer.c` |
+| `fx3/programmer/src/fx3-flashprog.{c,h}` | Secondary-loader path resolution | `fx3-programmer.c` |
+
+The `dddconv` extraction was verified as behaviour-preserving two ways: a 4000-sample
+pack/unpack round trip through the real binary is byte-identical, and all 5000 packed bytes
+match an independent implementation of the *original* expressions. This is the "push new logic
+into testable helpers" shape AGENTS.md §5.2 asks for, applied retroactively.
+
+**2. The udev rules did not cover the device (new defect, D19).** P3-3's gate is "a plugged-in
+FX3 gets the expected permissions", which the shipped rules could not meet. Two problems:
+
+- The rules matched Cypress VID `04b4` only. Once the FX3 has firmware it re-enumerates as
+  `1d50:603b` and stops being a Cypress device, so **the capture GUI could not open the
+  running hardware without root** — on every Linux distribution, not just NixOS.
+- Both rules ran `RUN+="/usr/local/bin/cy_renumerate.sh"`, a script that signals a `cyusb`
+  daemon belonging to the full cyusb_linux suite. That suite is not in this project and CMake
+  never installed the script, so the hook only ever produced udev errors.
+
+Rewritten to match both VID/PID pairs and to add `TAG+="uaccess"` for systemd-logind systems,
+keeping `MODE="0666"` so behaviour does not regress where logind is absent.
+
+**3. `x86_64-darwin` was dropped from the supported systems.** nixpkgs 26.11 removed support
+for it, and *evaluating any attribute* for that system now throws — so including it broke
+`nix flake show` outright. Intel Macs remain covered by the Homebrew-based CI jobs, which
+P0-7 already made the authoritative macOS coverage.
+
+**4. `fx3-firmware` and `docs-site` are not in the root flake yet**, as planned — they arrive
+with P5 and P4. `bitstream` never will: Quartus is unfree, x86_64-linux only and not
+redistributable, so it stays behind `fpga/flake.nix` (P6). `fpga/shell.nix` exists now and is
+free-tools-only, so Verilog can be edited, linted and simulated without Quartus.
+
+**5. Two CMake traps worth recording**, both found by testing rather than by reading:
+
+- `gtest_discover_tests(... PROPERTIES LABELS "unit;golden")` silently applies **only the
+  first label**. CMake expands the list in the generated `set_tests_properties()` call and
+  reads `golden` as a property name. The separator must be escaped: `string(REPLACE ";" "\\;" ...)`.
+- The root flake's `forAllSystems (...) // forLinux (...)` looked right and was wrong: `//`
+  is a shallow update, so the Linux attrset replaced the portable one wholesale and `gui`
+  disappeared on Linux — the only systems that can build both. Merged per system instead.
+
+### Gate — **met**
+
+| Gate | Result |
+| --- | --- |
+| P3-2 `nix build .#gui` | Builds; `wrapQtAppsHook` applied (`.DomesdayDuplicator-wrapped` present); starts under `QT_QPA_PLATFORM=offscreen` with no xcb plugin error |
+| P3-2 `nix develop .#gui` | Enters; gives a working CMake build tree |
+| P3-3 `nix build .#fx3-programmer` | Builds. Installs `bin/fx3-programmer`, `share/domesday-duplicator/cyfxflashprog.img` and `lib/udev/rules.d/88-cyusb.rules` |
+| P3-4 `nix develop .#hardware` | Enters with KiCad on `PATH` |
+| P3-5 clangd, LSP tooling | `clangd` 21.1.8, `verible-verilog-ls`, `verilator` 5.050, `iverilog` 13.0, `arm-none-eabi-gcc` 15.2.rel1 all present in `nix develop` |
+| P3-6 `nix flake check` | **all checks passed** — both suites run inside the sandbox: 21/21 GUI, 23/23 programmer |
+| All five dev shells | `default`, `gui`, `fx3`, `fpga`, `hardware` all enter cleanly |
+
+D13 end-to-end under Nix: the built binary's compiled-in loader path points into its own
+store path, and the file exists there — so `nix run .#fx3-programmer` can find the secondary
+loader from any working directory. The remaining half of D13 is a hardware check (P5).
+
+The free FPGA shell lints `statusLED.v`, `dataGenerator.v` and `fx3StateMachine.v` cleanly.
+`buffer.v` does not elaborate standalone — it reaches `IPfifo.v`'s `dcfifo` instantiation,
+which needs Altera simulation models. That is the documented limitation from
+[nix-flake-design.md](nix-flake-design.md) §6, not a defect, and it is why P6-7's testbench
+plan covers the hand-written modules rather than the whole design.
+
+**Not verified, and cannot be here:** the NixOS half of P3-3's gate — that a plugged-in FX3
+gets the expected permissions on a host with `hardware.domesdayDuplicator.enable = true`, and
+that a **flash** (not RAM) operation completes from the Nix-installed binary. Both need real
+hardware and a NixOS rebuild. The module evaluates (`nix flake check` checks it as a NixOS
+module) and the rule installs to the right location, but that is as far as it goes.
 
 ## Phase 4 — docs: convert to MkDocs Material, then flake it
 

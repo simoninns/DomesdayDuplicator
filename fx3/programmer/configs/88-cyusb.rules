@@ -1,5 +1,26 @@
-# Cypress USB driver for FX2 and FX3 (C) Cypress Semiconductor Corporation / ATR-LABS
-# Rules written by V. Radhakrishnan ( rk@atr-labs.com )
-# Cypress USB vendor ID = 0x04b4
-KERNEL=="*", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ACTION=="add", ATTR{idVendor}=="04b4", MODE="666", TAG="cyusb_dev", RUN+="/usr/local/bin/cy_renumerate.sh A"
-KERNEL=="*", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ACTION=="remove", TAG=="cyusb_dev", RUN+="/usr/local/bin/cy_renumerate.sh R"
+# Device permissions for the Domesday Duplicator and the Cypress FX3 it is built around.
+#
+# Originally from Cypress Semiconductor / ATR-LABS (rules by V. Radhakrishnan, rk@atr-labs.com),
+# rewritten for this project. Two changes from the Cypress original:
+#
+#   1. The Domesday Duplicator's own VID:PID is matched. Once the FX3 has been programmed it
+#      re-enumerates as 1d50:603b and stops being a Cypress device, so the vendor rule alone
+#      left the running device root-only and the capture GUI could not open it.
+#
+#   2. The RUN+= hooks calling /usr/local/bin/cy_renumerate.sh are gone. That script signals
+#      a `cyusb` daemon which is part of the full cyusb_linux suite and is not in this
+#      project; the path was never installed, so the hook only ever produced udev errors.
+#
+# TAG+="uaccess" grants access to the user at the active seat on any systemd-logind system,
+# including NixOS. MODE is kept at 0666 to preserve the behaviour of the Cypress original on
+# systems without logind; tighten it to 0660 if uaccess covers all of your users.
+
+# Cypress FX3 in bootloader mode — this is what fx3-programmer talks to.
+# 04b4:00f3 is the FX3 bootloader; the wildcard covers the other Cypress bootloader PIDs
+# (00f0, 0080 and friends) that a partially programmed device can present.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04b4", MODE="0666", TAG+="uaccess", TAG+="cyusb_dev"
+
+# Domesday Duplicator in application mode — this is what the capture GUI opens.
+# The VID/PID pair is set in fx3/firmware/src/usb-descriptor.c and defaulted in
+# gui/src/DomesdayDuplicator/configuration.cpp; all three must agree.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1d50", ATTR{idProduct}=="603b", MODE="0666", TAG+="uaccess", TAG+="ddd_dev"

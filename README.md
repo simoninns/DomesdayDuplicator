@@ -39,6 +39,18 @@ to the old repositories will not reach the project.
 | [docs/](docs/) | Source of the project documentation website |
 | [docs-tech/](docs-tech/) | Engineering-process documentation for this repository |
 
+Each component builds with ordinary distribution packages — see its `README.md`. There are
+also Nix flakes if you prefer them:
+
+```
+nix develop                          # all components, one shell
+nix build .#gui .#fx3-programmer     # build the host software
+nix flake check                      # build everything and run the tests
+```
+
+[AGENTS.md](AGENTS.md) records the project conventions and [TESTING.md](TESTING.md) the test
+tiers, including the hardware-in-the-loop capture-integrity procedure.
+
 # The Decode Family 
 
 The samples the DdD capture can be used with the whole family of decoders that make the FM RF Archival workflow ready to use today.

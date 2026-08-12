@@ -107,3 +107,6 @@ compile_commands.json
 
 # direnv
 .direnv/
+
+# direnv machine-local overrides
+.envrc.local

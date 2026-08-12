@@ -17,9 +17,12 @@ pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 # Include directories
 include_directories(${LIBUSB_INCLUDE_DIRS})
 
-# FX3 programmer tool
+# FX3 programmer tool.
+# fx3-flashprog.c is separate from fx3-programmer.c so the path-resolution logic can be
+# linked into a test without dragging in main() and libusb.
 set(PROG_SOURCES
     src/fx3-programmer.c
+    src/fx3-flashprog.c
 )
 
 # Cypress secondary loader, needed for permanent (EEPROM/SPI) programming
@@ -54,3 +57,17 @@ install(FILES
     configs/88-cyusb.rules
     DESTINATION lib/udev/rules.d
 )
+
+# Tests. On by default when this is the top-level project, so `cmake -B build` gives a
+# contributor the suite without having to know a flag; off when consumed as a subproject.
+include(CTest)
+
+if(BUILD_TESTING)
+    # The tool is C, but GoogleTest is C++. Enable it only when tests are being built, so
+    # a build without them still needs nothing but a C compiler.
+    enable_language(CXX)
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    add_subdirectory(tests)
+endif()

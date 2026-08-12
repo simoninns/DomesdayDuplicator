@@ -25,3 +25,11 @@ endif()
 add_subdirectory(src/DomesdayDuplicator)
 add_subdirectory(src/dddconv)
 add_subdirectory(src/dddutil)
+
+# Tests. On by default when this is the top-level project, so `cmake -B build` gives a
+# contributor the suite without having to know a flag; off when consumed as a subproject.
+include(CTest)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
