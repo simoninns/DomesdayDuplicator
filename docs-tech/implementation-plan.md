@@ -16,11 +16,31 @@ concrete: which file, what change, how you know it worked.
 Both are stated in full, with explicit command and forbidden-string lists, in
 [agents-and-testing.md](agents-and-testing.md), and P2-15 puts them at the top of `AGENTS.md`.
 
+**Branching (decided 2026-08-12)**
+
+The whole reorganisation runs on the long-lived branch **`20260812-002`**, which already
+carries Phase 1. `master` is not touched until every phase is complete.
+
+- One phase = one or more commits on this branch, **not** a PR per phase. Phase gates still
+  apply — they just gate the next batch of commits rather than the next merge.
+- `master` is currently **0 commits ahead**, so the final landing stays a clean fast-forward:
+  `git checkout master && git merge --ff-only 20260812-002`. Keep it that way — anything
+  committed to `master` during the reorganisation forces a real merge and has to be ported
+  across the re-layout by hand.
+- **No CI runs on this branch.** The three inherited workflows now sit at
+  `docs/.github/`, `firmware/.github/` and `gui-app/.github/`, and GitHub only reads the
+  repository root, so nothing triggers. That is convenient while paths are moving — no red
+  crosses from workflows pointing at directories that no longer exist — but it means there is
+  no automated safety net until P7-1 creates the root workflow. Until then, verification is
+  local and manual.
+- Consequence for anyone cloning: `master` still has the old submodule layout, including the
+  `git clone --recursive` instructions that fail without an SSH key (D11). That stays true
+  for the duration.
+
 **Conventions**
 
-- One phase = one PR (except phase 1, which is its own merge commit — see
-  [submodule-migration.md](submodule-migration.md)).
-- Each phase has a **gate**. Do not open the next PR until the gate passes on `master`.
+- Each phase has a **gate**. Do not start the next phase's commits until the gate passes on
+  `20260812-002`.
 - Tasks are `P<phase>-<n>`. Size is S (< 1 hr), M (a few hours), L (a day or more, or
   blocked on hardware/external answers).
 - `HW` marks a task that cannot be signed off without testing on real hardware.
@@ -255,7 +275,7 @@ carry into Phase 1 prep: fast-forward the firmware submodule (P0-1) and refresh 
 
 ## Phase 1 — Merge the submodules — **DONE (local, unpushed)**
 
-Executed 2026-08-12 on local branch `monorepo-merge`, branched from `20260812-001` at
+Executed 2026-08-12 on local branch `20260812-002`, branched from `20260812-001` at
 `bcd53a0`. **Nothing has been pushed.**
 
 Imported from the **local** submodule object stores at the superproject's pinned commits, per
@@ -284,7 +304,7 @@ Verification, all passing:
 - Clone size **180 MB**, well under the ~400 MB estimate, because only single branches and no
   tags were imported
 
-Rollback: `git checkout 20260812-001 && git branch -D monorepo-merge`. Pre-merge HEAD was
+Rollback: `git checkout 20260812-001 && git branch -D 20260812-002`. Pre-merge HEAD was
 `bcd53a0`; `origin` is untouched.
 
 Still untracked, deliberately left for a separate commit: `docs-tech/` and the five vendored

@@ -2,8 +2,9 @@
 
 Companion to [reorganisation-plan.md](reorganisation-plan.md) §6, phases 0–2.
 
-**Do this on a scratch clone first.** Every command below rewrites history in some way, and
-step 4 is a force-push.
+**Executed 2026-08-12 — see the note in §3.0.** No force-push was needed: the merge landed on
+a new branch rather than rewriting an existing one, so `master` and `20260812-001` were never
+touched.
 
 ## 1. What we are merging
 
@@ -36,9 +37,10 @@ straightforward. Acceptable if `filter-repo` is unavailable; not recommended.
 
 > ## Executed 2026-08-12 — this document is now a record, not a plan
 >
-> The merge was performed on local branch `monorepo-merge` and **has not been pushed**. What
-> was actually done differs from the procedure drafted below in two ways, both following
-> P0-1's revision:
+> The merge was performed on branch `20260812-002` (originally created as `monorepo-merge`
+> and renamed) and has been pushed to `origin`. `master` is untouched and will stay that way
+> until the whole reorganisation is complete. What was actually done differs from the
+> procedure drafted below in two ways, both following P0-1's revision:
 >
 > 1. **Sources were the local `.git/modules/<m>` object stores, not GitHub clones** — which
 >    guarantees the exact pinned commits and needs no network.
@@ -158,7 +160,7 @@ the desired outcome for phase 1. They get consolidated in phase 2.
 
 ```bash
 cd /path/to/domesdayduplicator
-git checkout -b monorepo-merge master
+git checkout -b 20260812-002 master
 
 # Deregister the submodules and free the paths, but keep .git/modules until the merge
 # is verified — it is the local backup of the pinned commits.
@@ -210,7 +212,7 @@ anyone without a GitHub key.
 ### 3.4 Land it
 
 ```bash
-git push origin monorepo-merge
+git push origin 20260812-002
 # open a PR, then merge with a MERGE COMMIT — not squash, not rebase.
 ```
 
