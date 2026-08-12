@@ -23,7 +23,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Copy source into temp build context
-rsync -a wiki-default/ "$TMP_SRC/"
+rsync -a content/ "$TMP_SRC/"
 
 # Ensure every markdown file is processed by Jekyll without changing the originals
 find "$TMP_SRC" -name "*.md" -type f ! -path "*/_*" | while read -r f; do

@@ -45,7 +45,7 @@ broken_links=0
 error_links=()
 
 # Find all .md files and search for external links
-find wiki-default -name "*.md" -type f | while read -r file; do
+find content -name "*.md" -type f | while read -r file; do
     # Search for markdown-style links with http:// or https://
     markdown_links=$(grep -oP '\[([^\]]+)\]\((https?://[^\)]+)\)' "$file" 2>/dev/null || true)
     

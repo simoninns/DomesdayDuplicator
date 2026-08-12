@@ -1,0 +1,11 @@
+# Editor, IDE and build-tree ignores live in the repository root .gitignore.
+# Only programmer-specific artefacts belong here.
+
+# In-tree build leftovers from `cmake .` rather than `cmake -B build`
+cmake_install.cmake
+CMakeCache.txt
+CMakeFiles/
+Makefile
+
+# The binary, if built directly in the source directory
+fx3-programmer

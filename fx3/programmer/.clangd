@@ -1,0 +1,8 @@
+# clangd configuration for the FX3 programmer.
+#
+# This is a host tool, so the default compiler is correct. CompilationDatabase points at
+# the conventional build directory, so no symlink is needed:
+#   cmake -B build
+
+CompileFlags:
+  CompilationDatabase: build

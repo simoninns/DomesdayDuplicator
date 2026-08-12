@@ -1,0 +1,86 @@
+; Editor-neutral formatting for the whole repository.
+; Promoted from gui/src/DomesdayDuplicator/ and extended to the other languages in the tree.
+; end_of_line is lf rather than the crlf the GUI copy used: .gitattributes normalises with
+; `* text=auto`, so lf is what git actually stores.
+
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+end_of_line = lf
+insert_final_newline = true
+max_line_length = 120
+
+# C, C++ and the FX3 firmware sources
+[*.{c,h,cpp,hpp,inl,S}]
+indent_size = 4
+
+# Verilog / SystemVerilog gateware
+[*.{v,sv,svh,vh}]
+indent_size = 4
+
+# Timing constraints are read alongside the Verilog
+[*.sdc]
+indent_size = 4
+
+[*.SDC]
+indent_size = 4
+
+# CMake
+[{CMakeLists.txt,*.cmake}]
+indent_size = 4
+
+# Nix
+[*.nix]
+indent_size = 2
+
+# Python (mkdocs hooks and helper scripts)
+[*.py]
+indent_size = 4
+
+# YAML cannot use tabs, and 2 is the near-universal convention
+[*.{yml,yaml}]
+indent_size = 2
+
+# Shell scripts
+[*.sh]
+indent_size = 4
+
+# Markdown: trailing whitespace is a hard line break, so leave it alone
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+# Generated, vendored or tool-owned formats: do not reformat
+[fx3/sdk/**]
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = false
+insert_final_newline = unset
+max_line_length = off
+
+[hardware/pcb/**]
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = false
+insert_final_newline = unset
+max_line_length = off
+
+[*.{qsf,qpf,qip,cof,cdf,ppf,qdf}]
+indent_style = unset
+trim_trailing_whitespace = false
+insert_final_newline = unset
+max_line_length = off
+
+[*.ui]
+indent_size = 1
+max_line_length = off
+
+[gui/src/DomesdayDuplicator/qcustomplot.{cpp,h}]
+indent_style = unset
+indent_size = unset
+trim_trailing_whitespace = false
+max_line_length = off

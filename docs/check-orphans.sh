@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-SIDEBAR_FILE="wiki-default/Sidebar.md"
+SIDEBAR_FILE="content/Sidebar.md"
 
 # Check if Sidebar.md exists
 if [[ ! -f "$SIDEBAR_FILE" ]]; then
@@ -20,7 +20,7 @@ if [[ ! -f "$SIDEBAR_FILE" ]]; then
     exit 1
 fi
 
-echo "Checking for orphaned pages in wiki-default/..."
+echo "Checking for orphaned pages in content/..."
 echo ""
 
 # Extract all .md file links from Sidebar.md (normalize paths)
@@ -32,20 +32,20 @@ while IFS= read -r link; do
     # Remove leading/trailing whitespace
     link=$(echo "$link" | xargs)
     
-    # Normalize path - remove leading ./ and wiki-default/
+    # Normalize path - remove leading ./ and content/
     link="${link#./}"
-    link="${link#wiki-default/}"
+    link="${link#content/}"
     
     linked_pages+=("$link")
 done < <(perl -nle 'while (/\]\(([^)]+(?:\([^)]*\)[^)]*)*)\)/g) { print $1 }' "$SIDEBAR_FILE" 2>/dev/null | grep '\.md$')
 
-# Find all .md files in wiki-default (excluding Sidebar.md, Footer.md, _* files)
+# Find all .md files in content (excluding Sidebar.md, Footer.md, _* files)
 orphaned_pages=()
 total_pages=0
 
 while IFS= read -r -d '' md_file; do
-    # Get relative path from wiki-default/
-    rel_path="${md_file#wiki-default/}"
+    # Get relative path from content/
+    rel_path="${md_file#content/}"
     
     # Skip special files
     if [[ "$rel_path" == "Sidebar.md" ]] || \
@@ -69,7 +69,7 @@ while IFS= read -r -d '' md_file; do
     if [[ "$found" == false ]]; then
         orphaned_pages+=("$rel_path")
     fi
-done < <(find wiki-default -name "*.md" -type f -print0)
+done < <(find content -name "*.md" -type f -print0)
 
 echo "===================="
 echo "Summary:"
@@ -116,7 +116,7 @@ else
         echo -e "${RED}ERROR: Orphaned pages are only allowed in the Orphans/ directory.${NC}"
         echo -e "${RED}Please either:${NC}"
         echo -e "${RED}  1. Add these pages to Sidebar.md navigation, or${NC}"
-        echo -e "${RED}  2. Move them to wiki-default/Orphans/ directory${NC}"
+        echo -e "${RED}  2. Move them to content/Orphans/ directory${NC}"
         exit 1
     else
         echo -e "${GREEN}✓ All orphaned pages are properly located in Orphans/ directory${NC}"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to check internal markdown links in the wiki-default directory
+# Script to check internal markdown links in the content directory
 # Verifies that all internal .md links point to existing files
 
 set -e
@@ -16,10 +16,10 @@ total_links=0
 broken_links=0
 missing_files=()
 
-echo "Checking internal markdown links in wiki-default/..."
+echo "Checking internal markdown links in content/..."
 echo ""
 
-# Find all .md files in wiki-default directory
+# Find all .md files in content directory
 while IFS= read -r -d '' md_file; do
     # Get the directory of the current file for resolving relative paths
     file_dir=$(dirname "$md_file")
@@ -69,8 +69,8 @@ while IFS= read -r -d '' md_file; do
         
         # Resolve the path relative to the current file's directory
         if [[ "$link_without_anchor" =~ ^/ ]]; then
-            # Absolute path from wiki-default root
-            target_file="wiki-default${link_without_anchor}"
+            # Absolute path from content root
+            target_file="content${link_without_anchor}"
         else
             # Relative path
             target_file="${file_dir}/${link_without_anchor}"
@@ -103,7 +103,7 @@ while IFS= read -r -d '' md_file; do
         perl -nle 'while (/\]\(([^)]+(?:\([^)]*\)[^)]*)*)\)/g) { print $1 }' "$md_file" 2>/dev/null || true
     )
     
-done < <(find wiki-default -name "*.md" -type f -print0)
+done < <(find content -name "*.md" -type f -print0)
 
 echo "===================="
 echo "Summary:"

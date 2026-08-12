@@ -19,10 +19,22 @@ Nothing in here is published to GitHub Pages.
 Read `reorganisation-plan.md` for the *what* and *why*; `implementation-plan.md` for the
 *how* and in what order.
 
-Status: **Phase 0 complete**. Written 2026-08-12 against commit `bcd53a0` (branch
-`20260812-001`). No code has changed; Phase 0 produces decisions only, and all seven are
-recorded in [decisions.md](decisions.md).
+Status: **Phases 0, 1 and 2 complete.** Written 2026-08-12 against commit `bcd53a0`; the work
+runs on branch `20260812-002`, and `master` is untouched until every phase is done.
 
-Two maintainer actions carry into Phase 1 prep: fast-forward the `firmware` submodule onto
-`fpgaupdate-202512` (P0-1), and refresh the Cypress SDK from the vendor download (P0-2,
-placement instructions in the decision log). P0-3's hardware verification is a Phase 6 gate.
+| Phase | State |
+| --- | --- |
+| 0 — Decisions and spikes | Done. All seven decisions in [decisions.md](decisions.md) |
+| 1 — Merge the submodules | Done. Four repositories folded in with history; no submodules remain |
+| 2 — Re-layout and defect fixes | Done. Target directory structure in place; **D1–D8 and D13–D17 closed** |
+| 3 — Nix foundation and easy flakes | Next |
+| 4–8 | Not started |
+
+Outstanding items carried forward:
+
+- **P0-3 hardware verification** — a Phase 6 gate, not a blocker.
+- **`fpgaupdate-202512` was not imported.** P0-1 was reversed: only the pinned submodule
+  commits came in. That branch's Quartus 25.1 upgrade, hand-written Gray-code FIFO and
+  `IPfifo_tb.v` testbench are still only in the old `firmware` repository, and would need
+  re-applying as a patch series if wanted.
+- **`.envrc`** is deferred from P2-13 to Phase 3, where the root flake it refers to exists.

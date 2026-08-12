@@ -10,6 +10,16 @@ Thank you for your interest in improving Domesday Duplicator. Please follow the 
 - Follow existing coding style in the area you touch and avoid unnecessary whitespace-only changes.
 
 ## Documentation Contributions
-- The project documentation now lives in the dedicated docs repository: https://github.com/simoninns/DomesdayDuplicator-docs
-- Use that repository for any documentation issues or pull requests. Keep PRs concise and include screenshots or before/after comparisons when UI or visual changes are involved.
-- If you spot documentation gaps while working here, feel free to open an issue in the docs repo with context and links to relevant code or hardware changes.
+- The project documentation lives in [docs/](docs/) **in this repository**. It was previously
+  in a separate `DomesdayDuplicator-docs` repository; that repository is no longer the source
+  of truth, and pull requests opened against it will not reach the published site.
+- Edit the markdown under [docs/content/](docs/content/). Keep PRs concise and include
+  screenshots or before/after comparisons when UI or visual changes are involved.
+- If you spot documentation gaps while working on code or hardware, fix them in the same pull
+  request where that makes sense — they are now the same repository.
+
+## Where things live
+
+See the repository layout table in [README.md](README.md). Engineering-process documentation
+for the repository itself — the reorganisation plan, decisions and per-component testing — is
+in [docs-tech/](docs-tech/).

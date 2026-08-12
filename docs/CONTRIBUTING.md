@@ -21,7 +21,7 @@ To contribute to the documentation:
    ```bash
    git checkout -b improve-documentation
    ```
-4. **Make your changes** - Edit the markdown files in the `wiki-default/` directory
+4. **Make your changes** - Edit the markdown files in the `content/` directory
    - All documentation is written in Markdown format
    - Keep `.md` extensions in links - they are automatically converted to `.html` during build
 5. **Test locally** (optional but recommended) - See [Testing](TESTING.md) for instructions

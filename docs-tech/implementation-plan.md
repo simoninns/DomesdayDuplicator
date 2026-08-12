@@ -27,9 +27,9 @@ carries Phase 1. `master` is not touched until every phase is complete.
   `git checkout master && git merge --ff-only 20260812-002`. Keep it that way — anything
   committed to `master` during the reorganisation forces a real merge and has to be ported
   across the re-layout by hand.
-- **No CI runs on this branch.** The three inherited workflows now sit at
-  `docs/.github/`, `firmware/.github/` and `gui-app/.github/`, and GitHub only reads the
-  repository root, so nothing triggers. That is convenient while paths are moving — no red
+- **No CI runs on this branch.** The three inherited workflows sit at `docs/.github/`,
+  `fx3/.github/` and `gui/.github/`, and GitHub only reads the repository root, so nothing
+  triggers. That is convenient while paths are moving — no red
   crosses from workflows pointing at directories that no longer exist — but it means there is
   no automated safety net until P7-1 creates the root workflow. Until then, verification is
   local and manual.
@@ -62,26 +62,26 @@ parallel. P7 needs whichever flakes exist.
 Ten issues found during the survey, plus the two additional ones found while writing this
 plan. Each is assigned to a phase.
 
-| # | Issue | Where | Phase |
-| --- | --- | --- | --- |
-| D1 | CI `working-directory: fx3-firmware`, actual path `fx3/fx3-firmware` — job cannot pass | `firmware/.github/workflows/build-firmware.yml` | P2-3 |
-| D2 | Two near-identical CMake front-ends; only one is used | `gui-app/CMakeLists.txt`, `gui-app/tools/CMakeLists.txt` | P2-4 |
-| D3 | `install(FILES ... DESTINATION /etc/udev/rules.d)` escapes the install prefix | `fx3-programmer/CMakeLists.txt` | P2-5 |
-| D4 | `git rev-parse` at configure time → version silently becomes `unknown` in any sandbox | `fx3-firmware/CMakeLists.txt` | P2-6 |
-| D5 | `elf2img` built via `ExternalProject_Add` (nested configure, rebuilt per firmware build) | `fx3-firmware/CMakeLists.txt` | P2-7 |
-| D6 | ~45 MB of unreferenced SDK library profiles committed | `cyfx3sdk/fw_lib/1_3_5/fx3_{debug,profile_debug,profile_release}` | P2-8 |
-| D7 | `version.c` is dead code: not in `C_SOURCES`, and `#include "version.h"` — that header does not exist anywhere in the tree | `fx3-firmware/firmware/version.c` | P2-6 |
-| D8 | `TOSTRING(FIRMWARE_GIT_COMMIT)` double-stringifies an already-quoted macro, so `firmware_version_string` reads `Domesday Duplicator ("abc12345")` with literal quote characters. **Confirmed by build:** the symbol is 0x21 (33) bytes — the length *with* the stray quotes. **Latent only** — it is unreferenced and `--gc-sections` discards it, so it never reaches the device | `fx3-firmware/firmware/usb-descriptor.c:233` | P2-6 |
-| D9 | `remote_theme: just-the-docs/just-the-docs` fetches the theme over the network at build time — impossible in a Nix sandbox | `docs/wiki-default/_config.yml:3` | P4-4 (dissolved by the MkDocs move) |
-| D10 | `baseurl: "/DomesdayDuplicator-docs"` hard-codes the *old repo's* Pages URL; after the merge the site moves and every external link to it breaks | `docs/wiki-default/_config.yml:4`, `README.md:3,37` | P0-4, P4-8 |
-| D11 | Three of four submodule URLs are SSH, so the README's `git clone --recursive` fails without a GitHub key | `.gitmodules` | P1 (dissolved) |
-| D12 | `build-local.sh` injects front matter that `_config.yml` `defaults:` already supplies, and its error message names `jekyll-theme-cayman` — a theme the site no longer uses | `docs/build-local.sh` | P4-4 (dissolved by the MkDocs move) |
-| D13 | Permanent (EEPROM/SPI) programming needs a Cypress secondary loader, `cyfxflashprog.img`. **File now vendored** (2026-08-12) at the programmer's directory root, where the existing `../cyfxflashprog.img` candidate finds it from `build/`. **Code half remains:** every candidate path is working-directory-relative, so installed binaries still cannot locate it | `fx3-programmer/src/fx3-programmer.c:136` | P2-10, P3-3 |
-| D14 | Four qmake `.pro` files duplicate the CMake build definition and exist only for Qt Creator; `BUILD.md` steers contributors to them | `gui-app/tools/**/*.pro` | P2-11 |
-| D15 | No `CMAKE_EXPORT_COMPILE_COMMANDS` anywhere, so no `compile_commands.json` and no working clangd in any editor | all `CMakeLists.txt` | P2-12 |
-| D16 | Sole `.editorconfig` is buried in `gui-app/tools/DomesdayDuplicator/`; `.vscode`/`.idea` ignore rules exist only in `gui-app/.gitignore` | repo root | P2-13 |
-| D17 | The two licence names are **transposed**: `LICENSE` is GPLv3 and the hardware file is CC BY-SA 4.0, but the README labels software as CC BY-SA (linking to the GPLv3 file) and hardware as GPLv3 (linking to the CC BY-SA URL) | `README.md` licence block | P2-14 |
-| D18 | No test infrastructure of any kind — no `enable_testing()`, `add_test()`, GoogleTest, Catch2 or QTest anywhere in the tree | repo-wide | P3-6 |
+| # | Issue | Where | Phase | Status |
+| --- | --- | --- | --- | --- |
+| D1 | CI `working-directory: fx3-firmware`, actual path `fx3/fx3-firmware` — job cannot pass | `firmware/.github/workflows/build-firmware.yml` | P2-3 | **Closed** P2 |
+| D2 | Two near-identical CMake front-ends; only one is used | `gui-app/CMakeLists.txt`, `gui-app/tools/CMakeLists.txt` | P2-4 | **Closed** P2 |
+| D3 | `install(FILES ... DESTINATION /etc/udev/rules.d)` escapes the install prefix | `fx3-programmer/CMakeLists.txt` | P2-5 | **Closed** P2 |
+| D4 | `git rev-parse` at configure time → version silently becomes `unknown` in any sandbox | `fx3-firmware/CMakeLists.txt` | P2-6 | **Closed** P2 |
+| D5 | `elf2img` built via `ExternalProject_Add` (nested configure, rebuilt per firmware build) | `fx3-firmware/CMakeLists.txt` | P2-7 | **Closed** P2 |
+| D6 | ~45 MB of unreferenced SDK library profiles committed | `cyfx3sdk/fw_lib/1_3_5/fx3_{debug,profile_debug,profile_release}` | P2-8 | **Closed** P2 |
+| D7 | `version.c` is dead code: not in `C_SOURCES`, and `#include "version.h"` — that header does not exist anywhere in the tree | `fx3-firmware/firmware/version.c` | P2-6 | **Closed** P2 |
+| D8 | `TOSTRING(FIRMWARE_GIT_COMMIT)` double-stringifies an already-quoted macro, so `firmware_version_string` reads `Domesday Duplicator ("abc12345")` with literal quote characters. **Confirmed by build:** the symbol is 0x21 (33) bytes — the length *with* the stray quotes. **Latent only** — it is unreferenced and `--gc-sections` discards it, so it never reaches the device | `fx3-firmware/firmware/usb-descriptor.c:233` | P2-6 | **Closed** P2 |
+| D9 | `remote_theme: just-the-docs/just-the-docs` fetches the theme over the network at build time — impossible in a Nix sandbox | `docs/wiki-default/_config.yml:3` | P4-4 (dissolved by the MkDocs move) | Open |
+| D10 | `baseurl: "/DomesdayDuplicator-docs"` hard-codes the *old repo's* Pages URL; after the merge the site moves and every external link to it breaks | `docs/wiki-default/_config.yml:4`, `README.md:3,37` | P0-4, P4-8 | Open |
+| D11 | Three of four submodule URLs are SSH, so the README's `git clone --recursive` fails without a GitHub key | `.gitmodules` | P1 (dissolved) | **Closed** P1 |
+| D12 | `build-local.sh` injects front matter that `_config.yml` `defaults:` already supplies, and its error message names `jekyll-theme-cayman` — a theme the site no longer uses | `docs/build-local.sh` | P4-4 (dissolved by the MkDocs move) | Open |
+| D13 | Permanent (EEPROM/SPI) programming needs a Cypress secondary loader, `cyfxflashprog.img`. **File now vendored** (2026-08-12) at the programmer's directory root, where the existing `../cyfxflashprog.img` candidate finds it from `build/`. **Code half remains:** every candidate path is working-directory-relative, so installed binaries still cannot locate it | `fx3-programmer/src/fx3-programmer.c:136` | P2-10, P3-3 | **Closed** P2 (hardware check in P5) |
+| D14 | Four qmake `.pro` files duplicate the CMake build definition and exist only for Qt Creator; `BUILD.md` steers contributors to them | `gui-app/tools/**/*.pro` | P2-11 | **Closed** P2 |
+| D15 | No `CMAKE_EXPORT_COMPILE_COMMANDS` anywhere, so no `compile_commands.json` and no working clangd in any editor | all `CMakeLists.txt` | P2-12 | **Closed** P2 |
+| D16 | Sole `.editorconfig` is buried in `gui-app/tools/DomesdayDuplicator/`; `.vscode`/`.idea` ignore rules exist only in `gui-app/.gitignore` | repo root | P2-13 | **Closed** P2 |
+| D17 | The two licence names are **transposed**: `LICENSE` is GPLv3 and the hardware file is CC BY-SA 4.0, but the README labels software as CC BY-SA (linking to the GPLv3 file) and hardware as GPLv3 (linking to the CC BY-SA URL) | `README.md` licence block | P2-14 | **Closed** P2 |
+| D18 | No test infrastructure of any kind — no `enable_testing()`, `add_test()`, GoogleTest, Catch2 or QTest anywhere in the tree | repo-wide | P3-6 | Open |
 
 ---
 
@@ -273,10 +273,10 @@ outstanding, and that is a Phase 6 gate rather than a blocker — **Phase 1 can 
 carry into Phase 1 prep: fast-forward the firmware submodule (P0-1) and refresh the SDK
 (P0-2). P0-3's hardware verification is a Phase 6 gate.
 
-## Phase 1 — Merge the submodules — **DONE (local, unpushed)**
+## Phase 1 — Merge the submodules — **DONE**
 
-Executed 2026-08-12 on local branch `20260812-002`, branched from `20260812-001` at
-`bcd53a0`. **Nothing has been pushed.**
+Executed 2026-08-12 on branch `20260812-002`, branched from `20260812-001` at `bcd53a0`, and
+since pushed to `origin`. `master` is untouched.
 
 Imported from the **local** submodule object stores at the superproject's pinned commits, per
 P0-1's revision — not from GitHub, and not at the remote tips. Sources were reduced to a
@@ -323,10 +323,13 @@ submodule `pre-monorepo`, rewrite each with
 - Merged to `master` with a **merge commit** — squash or rebase destroys the imported
   histories.
 
-## Phase 2 — Re-layout and defect fixes
+## Phase 2 — Re-layout and defect fixes — **DONE**
 
-One PR. The renames must be a single commit so `git log --follow` stays usable; the fixes can
-be separate commits within the same PR.
+Executed 2026-08-12 on `20260812-002`. All fifteen tasks complete; **D1–D8 and D13–D17 are
+closed**. Four deviations from the plan as written are recorded at the end of this section.
+
+The renames must land in a single commit so `git log --follow` stays usable; the fixes can be
+separate commits on the same branch.
 
 ### P2-1 Directory renames (M)
 
@@ -542,9 +545,70 @@ history rewrite and force-push.
 - `fx3/sdk/README.md`: SDK version, origin, and the P0-2 licence verdict.
 - Add per-component `README.md` stubs; keep `BUILD.md`'s non-Nix instructions accurate.
 
-**Gate:** all four components build from source using the *existing* non-Nix instructions,
-on a machine with no Nix. `cmake --install` writes nothing outside its prefix. CI (still the
-old workflows, path-fixed) is green.
+### Deviations from the plan as written
+
+**1. `elf2img` is host-compiled directly, not `add_subdirectory`d (P2-7).** The plan's
+fallback cannot work: `CMAKE_TOOLCHAIN_FILE` applies to the entire build tree, so an
+`add_subdirectory(../sdk/util/elf2img)` inside the firmware project would cross-compile the
+tool for ARM and produce a binary that cannot run on the build host. That is precisely why
+the original author reached for `ExternalProject_Add`. The implemented form keeps
+`find_program(ELF2IMG elf2img)` as the primary path — which is what the P5 flake will
+satisfy — and falls back to one `add_custom_command` invoking a host compiler found via
+`find_program(HOST_CC NAMES cc gcc clang)` on the single self-contained `elf2img.c`. This
+removes the nested configure that D5 objected to without introducing a broken binary.
+`fx3/sdk/util/elf2img/CMakeLists.txt` is retained for standalone builds and for P5.
+
+**2. `.envrc` is deferred to Phase 3 (P2-13).** The plan has P2-13 add `.envrc` containing
+`use flake`, but no flake exists until P3-1. Committing it now gives every direnv user an
+error on entering the directory. It lands with the root flake instead.
+
+**3. `compile_commands.json` is located by `.clangd`, not by a committed symlink (P2-12).**
+The plan called for symlinking `build/compile_commands.json` to each component root, but that
+file is gitignored — it embeds absolute paths — so the symlink could not be committed and
+would have to be recreated by hand after every clone. Each component instead carries a
+`.clangd` with `CompilationDatabase: build`, which clangd resolves relative to the config
+file. Same result, nothing generated, nothing to recreate. `fx3/firmware/.clangd` also sets
+`Compiler: arm-none-eabi-gcc`, as the plan specified.
+
+**4. The three inherited workflows moved with their components.** P2-1 did not say where
+`firmware/.github/` and `gui-app/.github/` should go once those directories were dissolved.
+They are now at `fx3/.github/` and `gui/.github/`, alongside what they build. All three remain
+inert — GitHub only reads the repository root — until P7-1 replaces them. Their paths were
+fixed anyway so none is knowingly broken, and two stale branch triggers
+(`fxsdk-202512`, `automation001-202512`, both submodule-era branches that no longer exist)
+were dropped.
+
+### Gate — **met**
+
+All three buildable components were built from source with the *existing* non-Nix
+instructions, using nothing but a compiler, CMake and their declared dependencies:
+
+| Component | Result |
+| --- | --- |
+| `fx3/firmware` | `firmware.elf`, `firmware.img`, `firmware.map` produced; `elf2img` host-compiled in one step |
+| `fx3/programmer` | `fx3-programmer` links against libusb-1.0 |
+| `gui` | `DomesdayDuplicator`, `dddconv`, `dddutil` all link against Qt 6.11 |
+
+`cmake --install` to a clean prefix wrote **nothing outside that prefix** for either CMake
+component — the D3 check.
+
+Defect-by-defect evidence:
+
+- **D4** — `cmake -DFIRMWARE_VERSION=deadbeef` produces `// Commit: deadbeef` in the
+  generated descriptor; with the flag absent, the git fallback still yields the real hash.
+- **D5** — configure log reads `elf2img: building the SDK copy with .../bin/cc`, and the
+  build shows a single `Building host tool elf2img` step. No nested configure.
+- **D8** — `.rodata.firmware_version_string` is now **0x1f (31) bytes** in the linker map,
+  down from 0x21 (33): exactly the two stray quote characters removed, as predicted. It
+  remains in *Discarded input sections*, so this was and is a latent source defect.
+- **D13** — an installed `fx3-programmer` carries
+  `/<prefix>/share/domesday-duplicator/cyfxflashprog.img` as a compiled-in candidate, and
+  `make install` places the image there. Verified by extracting the string table of the
+  installed binary and confirming the file exists at that path. The full flash operation
+  needs hardware and is a Phase 5 check.
+- **D15** — `compile_commands.json` is emitted by all three CMake components.
+
+CI is not part of this gate: no workflow runs on this branch (see *Branching* above).
 
 ## Phase 3 — Nix foundation and the easy flakes
 

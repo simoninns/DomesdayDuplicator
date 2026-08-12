@@ -14,19 +14,30 @@ Capture is via a easy to use GUI capture application.
 
 # Cloning the DomesdayDuplicator GitHub
 
-The Domesday Duplicator project uses git sub-modules to cleanly separate the distinct parts of the project:
-
-- DomesdayDuplicator → system / integration
-- DomesdayDuplicator-hardware → PCB / KiCad / fabrication
-- DomesdayDuplicator-firmware → FPGA / GPIF / USB3
-- DomesdayDuplicator-gui-app → GUI / Host USB
-- DomesdayDuplicator-gui-docs → Documentation website contents and deployment
-
-To clone this repo and all the sub-modules use the following command:
+Everything is in this one repository. There are no git submodules, so a plain clone gives
+you the complete project:
 
 ```
-git clone --recursive git@github.com:simoninns/DomesdayDuplicator.git
+git clone https://github.com/simoninns/DomesdayDuplicator.git
 ```
+
+The project was previously split across five repositories
+(`DomesdayDuplicator-hardware`, `-firmware`, `-gui-app` and `-gui-docs`). Their history has
+been imported here, and **this repository is now the only place to work** — changes pushed
+to the old repositories will not reach the project.
+
+## Repository layout
+
+| Directory | Contents |
+| --- | --- |
+| [hardware/](hardware/) | KiCad design for the custom DdD board, plus hardware documentation |
+| [fpga/](fpga/) | Verilog gateware for the Terasic DE0-NANO (Cyclone IV) |
+| [fx3/firmware/](fx3/firmware/) | Cypress FX3 USB 3.0 controller firmware |
+| [fx3/programmer/](fx3/programmer/) | Host-side tool for programming the FX3 |
+| [fx3/sdk/](fx3/sdk/) | Vendored Cypress FX3 SDK the firmware builds against |
+| [gui/](gui/) | Qt 6 capture application, plus the `dddconv` and `dddutil` tools |
+| [docs/](docs/) | Source of the project documentation website |
+| [docs-tech/](docs-tech/) | Engineering-process documentation for this repository |
 
 # The Decode Family 
 
@@ -51,5 +62,6 @@ Additional documentation supplied by [Harry Munday](https://github.com/harrypm).
 
 ## Licences
 
-- [Software License - (Creative Commons BY-SA 4.0)](https://github.com/simoninns/DomesdayDuplicator/blob/master/LICENSE)
-- [Hardware License - (GPLv3)](https://creativecommons.org/licenses/by-sa/4.0/)
+- [Software Licence — GPLv3](LICENSE)
+- [Hardware Licence — Creative Commons BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+  (full text in [hardware/pcb/LICENSE.txt](hardware/pcb/LICENSE.txt))

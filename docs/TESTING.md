@@ -36,7 +36,7 @@ This creates a `mockup/` folder with the built site ready for local testing.
 
 ### Adding or Editing Documentation
 
-You can add plain Markdown files under `wiki-default/` without any front matter. The build pipeline automatically copies the files into a temporary workspace and injects minimal front matter so Jekyll will render them to HTML. Your source files stay untouched in the repository.
+You can add plain Markdown files under `content/` without any front matter. The build pipeline automatically copies the files into a temporary workspace and injects minimal front matter so Jekyll will render them to HTML. Your source files stay untouched in the repository.
 
 ### Viewing the Site
 
@@ -102,7 +102,7 @@ Before committing changes, verify that all internal markdown links are valid:
 ./check-internal-linkage.sh
 ```
 
-This script scans all `.md` files in `wiki-default/` and verifies that:
+This script scans all `.md` files in `content/` and verifies that:
 - All internal markdown links point to existing files
 - Links include the `.md` extension
 - Relative and absolute paths are correct
@@ -120,12 +120,12 @@ To identify documentation pages that exist but aren't linked in the navigation s
 ```
 
 This script enforces documentation organization by checking:
-- Pages that exist in `wiki-default/` but aren't in `Sidebar.md`
+- Pages that exist in `content/` but aren't in `Sidebar.md`
 - Whether orphaned pages are properly located in the `Orphans/` directory
 
 **Orphaned Page Rules:**
 - Pages not linked in `Sidebar.md` are considered "orphaned"
-- Orphaned pages **must** be placed in `wiki-default/Orphans/` directory
+- Orphaned pages **must** be placed in `content/Orphans/` directory
 - Orphaned pages outside `Orphans/` will cause the script to fail (exit code 1)
 - This ensures all pages are either:
   1. Accessible through navigation, OR
@@ -133,7 +133,7 @@ This script enforces documentation organization by checking:
 
 **How to Fix Orphaned Pages:**
 1. Add the page to `Sidebar.md` navigation, OR
-2. Move the page to `wiki-default/Orphans/` directory
+2. Move the page to `content/Orphans/` directory
 
 The script is also integrated into CI/CD to prevent deployment with improperly located orphaned pages.
 

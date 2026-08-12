@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'wiki-default/**'
-      - '.github/workflows/deploy-pages.yml'
+      - 'docs/content/**'
+      - 'docs/.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -26,27 +26,32 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # The docs tree used to be its own repository, so the shell steps below are all
+        # written relative to it rather than to the repository root
+        working-directory: docs
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Validate navigation links
         run: |
           echo "Checking for external links in navigation sidebar..."
           
           # Check if Sidebar.md exists
-          if [ ! -f "wiki-default/Sidebar.md" ]; then
+          if [ ! -f "content/Sidebar.md" ]; then
             echo "Error: Sidebar.md not found"
             exit 1
           fi
           
           # Extract all markdown links from Sidebar.md and check for external URLs
           # Look for patterns like [text](http:// or [text](https://
-          if grep -oE '\]\(https?://[^)]+\)' wiki-default/Sidebar.md > /dev/null; then
+          if grep -oE '\]\(https?://[^)]+\)' content/Sidebar.md > /dev/null; then
             echo "❌ ERROR: External links found in navigation sidebar!"
             echo ""
             echo "The following external links were detected:"
-            grep -oE '\]\(https?://[^)]+\)' wiki-default/Sidebar.md
+            grep -oE '\]\(https?://[^)]+\)' content/Sidebar.md
             echo ""
             echo "External links in the navigation are not allowed - Deployment failed"
             echo "Please create local placeholder pages and link to those instead."
@@ -71,7 +76,7 @@ jobs:
       - name: Build site with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
-          source: ./wiki-default
+          source: ./docs/content
           destination: ./_site
       
       - name: Upload Pages artifact
