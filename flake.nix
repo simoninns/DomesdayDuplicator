@@ -15,7 +15,11 @@
       # Not here, deliberately:
       #   fx3-firmware  — Phase 5, needs the ARM cross build packaged
       #   bitstream     — Phase 6, and never aggregated: Quartus is unfree, x86_64-linux
-      #                   only and not redistributable, so it stays behind fpga/flake.nix
+      #                   only and redistributable = false, so it can never come from a
+      #                   binary cache. It stays behind fpga/flake.nix and, by the same
+      #                   reasoning, out of CI — the bitstream is built locally and attached
+      #                   to releases by hand. See docs-tech/implementation-plan.md,
+      #                   "Release artefacts and provenance".
       # Merged per system, not with `//` across two forAllSystems/forLinux calls: `//` is
       # a shallow update, so the Linux set would replace the portable one wholesale and
       # `gui` would silently disappear on exactly the systems that can build it.

@@ -17,9 +17,22 @@
    editor works. Details: [ide-independence.md](ide-independence.md).
 5. **Stop the layout from drifting.** Today the CI workflows, the READMEs and the actual
    directory layout disagree with each other in several places (see §3).
+6. **Every shipped artefact comes from CI, and a release contains exactly the artefacts
+   built from the release commit.** The GUI, the FX3 firmware and the programmer are built on
+   every commit and published on tag; each names the commit it came from. This is stricter
+   than "CI builds things" — it means artefacts are *retained and published*, because for the
+   FPGA in particular, regenerating means pinning an unfree GB-scale toolchain, so the
+   archived artefact plus published digests is the practical route. Model and tasks:
+   [implementation-plan.md](implementation-plan.md) → *Release artefacts and provenance*,
+   Phase 7.
 
 Non-goals for this plan: rewriting any firmware or application code, migrating the KiCad
 project to a newer file format (flagged as a follow-up), or changing what the project does.
+
+Deferred, deliberately: **building the FPGA bitstream in CI.** Quartus is unfree,
+`redistributable = false` and GB-scale, so it can never come from a binary cache. Decided
+2026-08-12 to leave it out for now and keep attaching a locally built bitstream to releases;
+the options and their trade-offs are recorded so the decision can be revisited.
 
 ## 2. Current state
 
@@ -242,8 +255,10 @@ Two open decisions, both for the maintainer:
    can be regenerated headlessly.
 2. **Headless build.** There is currently no build script. The flake should add a
    `quartus_sh --flow compile DomesdayDuplicator` wrapper plus `quartus_cpf` for the `.jic`.
-   Bit-for-bit reproducibility across runs is *not* expected from Quartus; treat the packaged
-   output as a convenience, and the dev shell as the primary deliverable.
+   Quartus fitting *is* deterministic for a fixed seed and toolchain; what is not guaranteed
+   is byte-identity of the output file, since a compile timestamp is embedded in the bitstream
+   header. Pin the seed explicitly and measure the difference (P6-9) rather than assuming
+   either way. The dev shell remains the primary deliverable.
 
 ### 5.2 KiCad (PCB)
 
@@ -304,28 +319,33 @@ should land together so inbound links break once.
 
 ## 6. Phasing
 
-Each phase is independently mergeable and independently revertible. Do not start a phase
-until the previous one is on `master` and CI is green.
+Each phase is independently revertible and has a gate that must pass before the next one
+starts. All of it runs on the long-lived branch `20260812-002`; `master` is untouched until
+every phase is complete, so there is no per-phase merge and no CI signal until Phase 7 (see
+[implementation-plan.md](implementation-plan.md) → *Branching*).
 
-| Phase | Work | Done when |
-| --- | --- | --- |
-| **0. Prep** | Decisions ([decisions.md](decisions.md)); land `fpgaupdate-202512`; push every submodule's outstanding work; tag each submodule repo `pre-monorepo`; ensure the superproject pins the tip of each default branch, not a detached mid-branch commit (`docs` and `gui-app` are currently detached) | All seven decisions recorded; four tags exist; `git submodule status` shows branch tips |
-| **1. Merge histories** | Fold all four submodules in at their *current* paths, history preserved; delete `.gitmodules`. The four upstream repos are **left alone** (P0-6) — the monorepo README carries the "work here" notice instead | `git clone` (no `--recursive`, no SSH key) yields a complete tree; `git log --follow` works on a file from each former submodule |
-| **2. Re-layout** | Apply the §3 renames in one commit; fix the stale `firmware` CI paths; dedup the `gui-app` CMake front-ends; fix the absolute `/etc/udev/rules.d` install; update every README and `CONTRIBUTING.md` | Existing non-Nix build instructions in `BUILD.md` still work verbatim |
-| **3. Easy flakes** | `gui/`, `fx3/programmer/`, `docs/`, `hardware/` (dev shell only), plus `nix/lib.nix` and the root aggregator | `nix build .#gui`, `.#fx3-programmer`, `.#docs-site` all succeed on a clean machine |
-| **4. FX3 firmware flake** | Inject version instead of `git rev-parse`; split out `elf2img`; prune SDK profiles; cross-compile derivation | `nix build .#fx3-firmware` produces an `.img` that flashes and enumerates on real hardware |
-| **5. FPGA flake** | Quartus decision from §5.1; headless compile flow; `nix develop .#fpga` | Bitstream built from the flake captures correctly on real hardware |
-| **6. CI** | Single path-filtered workflow using the flakes; keep the Pages deploy; add `nix flake check` | One workflow file replaces the three; no job references a path that does not exist |
-| **7. Cleanup** | Retire `BUILD.md` duplication in favour of per-component READMEs pointing at the flakes; consider LFS or history pruning for the large blobs | — |
+Phase numbers here match [implementation-plan.md](implementation-plan.md), which is the
+authoritative task list.
 
-Project-convention documents (`AGENTS.md`, `TESTING.md`) and the first test suites are folded
-into phases 2 and 3 — see [agents-and-testing.md](agents-and-testing.md). `AGENTS.md` lands
-with the re-layout so it describes the final structure, and leads with two absolute rules: no
-git operations that change repository state without an explicit request, and no AI attribution
-in commits, PRs, code or documentation.
+| Phase | Work | Done when | State |
+| --- | --- | --- | --- |
+| **0. Decisions** | Decisions ([decisions.md](decisions.md)); tag each submodule repo `pre-monorepo`; confirm the superproject pins the tip of each default branch | All seven decisions recorded | **Done** |
+| **1. Merge histories** | Fold all four submodules in at their *current* paths, history preserved; delete `.gitmodules`. The four upstream repos are **left alone** (P0-6) — the monorepo README carries the "work here" notice instead | `git clone` (no `--recursive`, no SSH key) yields a complete tree; `git log --follow` works on a file from each former submodule | **Done** |
+| **2. Re-layout** | Apply the §3 renames in one commit; fix the stale CI paths; dedup the GUI CMake front-ends; fix the absolute `/etc/udev/rules.d` install; author `AGENTS.md`; update every README | Existing non-Nix build instructions still work verbatim | **Done** |
+| **3. Nix foundation** | `nix/lib.nix` and the root aggregator; `gui/`, `fx3/programmer/`, `hardware/` and `fpga/` (free tools) shells; test scaffolding and the first unit tests; `TESTING.md` | `nix build .#gui .#fx3-programmer` succeed; `nix flake check` runs the suite | **Done** |
+| **4. Documentation** | Jekyll → MkDocs Material; content reorganised to match the navigation; `docs/` flake; the site URL move | `nix build .#docs-site` succeeds under `--strict`; every page renders with working images | **Done** |
+| **5. FX3 firmware flake** | Cross-compile derivation; `elf2img` as its own derivation; stamp the GUI with its commit (D21) | `nix build .#fx3-firmware` produces an `.img` that flashes and enumerates on real hardware | Next |
+| **6. FPGA flake** | Quartus decision from §5.1; headless compile flow; gateware lint and testbenches; bitstream provenance record | Bitstream built from the flake captures correctly on real hardware | — |
+| **7. CI and releases** | One path-filtered `build.yml` producing the GUI, FX3 firmware and programmer **on every commit**; a tag-triggered `release.yml` publishing them with checksums and provenance; keep the native Windows/macOS matrix, which Nix cannot replace | A `v*` tag yields a release whose every asset reports the tagged commit, and none reports `unknown` | — |
+| **8. Cleanup and release** | Per-component READMEs in place of `BUILD.md` duplication; SPDX header convention; tag the first monorepo release | — | — |
 
-Phases 4 and 5 both require hardware-in-the-loop verification and must not be merged on the
-strength of a successful compile alone.
+Project-convention documents (`AGENTS.md`, `TESTING.md`) and the first test suites landed in
+phases 2 and 3 — see [agents-and-testing.md](agents-and-testing.md). `AGENTS.md` leads with
+two absolute rules: no git operations that change repository state without an explicit
+request, and no AI attribution in commits, PRs, code or documentation.
+
+Phases 5 and 6 both require hardware-in-the-loop verification and must not be signed off on
+the strength of a successful compile alone.
 
 ## 7. Risks
 

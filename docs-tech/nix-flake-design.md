@@ -368,9 +368,14 @@ ships **no** udev rules, so that rule belongs in `nix/modules/udev.nix` next to 
 
 Caveats to document in `fpga/README.md`:
 
-- Quartus is **not** bit-reproducible; two builds of the same source differ. The derivation
-  is a convenience, not a guarantee. The dev shell (`nix develop ./fpga`) is the primary
-  deliverable.
+- **Reproducibility, stated accurately.** Quartus *fitting* is deterministic: for a given
+  Fitter seed (a fixed project setting, default 1) and `Maximum processors allowed`, the fit
+  is the same run to run regardless of machine or core count. Identical results do require
+  the same Quartus version, the same 32/64-bit build and the same CPU architecture. Separately,
+  a compile timestamp is embedded in the bitstream header, so identical configuration content
+  can still land in non-identical *files*. Treat the packaged output as reproducible in
+  content but not assumed byte-identical until measured — P6-9. The dev shell
+  (`nix develop ./fpga`) remains the primary deliverable.
 - The download is multi-gigabyte and cannot come from a binary cache
   (`redistributable = false`), so the first build is slow.
 - `quartus_sh` needs a writable `$HOME`; set `export HOME=$TMPDIR` in the build.
@@ -400,8 +405,25 @@ Replace the three workflows with one path-filtered job set:
 - run: nix build .#gui .#fx3-firmware .#fx3-programmer .#docs-site
 ```
 
-`.#bitstream` stays out of CI: unfree, multi-gigabyte, x86_64-linux only, and slow. Build it
-locally and attach the artefact to releases.
+That job runs **on every commit**, and its outputs are the artefacts a release publishes —
+see [implementation-plan.md](implementation-plan.md) → *Release artefacts and provenance*.
+Two consequences for the derivations sketched above:
+
+- **Version must be injectable, not discovered.** A Nix build from a tag has no `.git`, so
+  anything that shells out to `git rev-parse` silently yields `unknown`. The firmware already
+  takes `-DFIRMWARE_VERSION=` (D4); the GUI needs the same treatment (**D21**, task P5-6).
+  The release workflow fails if any artefact reports `unknown`.
+- **Nix does not cover Windows.** The existing native build matrix stays alongside the flake
+  builds — it is the only way the Windows binary gets produced. Nix is additive here.
+
+`.#bitstream` stays out of CI: unfree, multi-gigabyte, x86_64-linux only, and — decisively —
+`redistributable = false`, so it can never be served from a binary cache and every cold run
+would re-fetch it from Intel. **Decided 2026-08-12 to leave the FPGA out of CI for now**; the
+bitstream is built locally and attached to releases by hand, together with a provenance record
+(task P6-8) and digests that make it verifiable (P6-10). Quartus fitting is deterministic
+given a pinned toolchain, so a rebuild *should* agree — but the embedded compile timestamp
+means the check must be made over a canonical form rather than the raw file, unless P6-9
+measures the `.sof` to be byte-identical.
 
 Pages deployment follows decode-orc's `deploy-docs.yml`: install Nix, `nix build .#docs-site`,
 then `upload-pages-artifact` with `path: ./result` and `deploy-pages`. That drops

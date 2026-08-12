@@ -192,7 +192,7 @@ Unique to this project, and non-negotiable:
 
 ### 5.4 Licence headers
 
-The project is **GPLv3 for software** and **CC BY-SA 4.0 for hardware** (§9).
+The project is **GPLv3 for software** and **CC BY-SA 4.0 for hardware** (§10).
 
 Nine of the 69 source files currently carry SPDX identifiers; the rest use the long-form GPL
 notice. The convention is to **adopt SPDX**, converting files opportunistically as they are
@@ -302,7 +302,45 @@ When adding logic, put it somewhere it can be tested. The pure parts of this cod
 `fx3/programmer/src/fx3-flashprog.c` precisely so they can be exercised without Qt, libusb or
 hardware — extend that pattern rather than adding logic inside an I/O loop.
 
-## 9. Licensing
+## 9. Releases and artefact provenance
+
+Every artefact a user installs is built by CI, and **a release contains exactly the artefacts
+built from the release commit** — not a rebuild of roughly that source.
+
+| Artefact | Built by | When |
+| --- | --- | --- |
+| GUI (Linux x64/ARM64, Windows x64, macOS x64/ARM64) | CI | Every commit |
+| `firmware.img` / `.elf` / `.map` | CI (`nix build .#fx3-firmware`) | Every commit |
+| `fx3-programmer` | CI (`nix build .#fx3-programmer`) | Every commit |
+| FPGA `.sof` / `.jic` | **Local build, attached by hand** | Per release |
+
+Two rules follow from this, and they constrain how you change build files:
+
+1. **Never make a version discoverable only at build time.** A Nix build from a tag has no
+   `.git`, so `git rev-parse` yields `unknown` and produces an untraceable release binary.
+   Versions are *injected* — `-DFIRMWARE_VERSION=`, `-DDDD_VERSION=` — with the git lookup as
+   a fallback for local developer builds only. The release workflow fails if any artefact
+   reports `unknown`.
+2. **Do not remove the native build matrix in favour of Nix.** Nix cannot produce the Windows
+   binary. The two paths coexist deliberately; deleting the native jobs would silently drop a
+   supported platform from every future release.
+
+The FPGA is the exception because Quartus is unfree, GB-scale and `redistributable = false`,
+so it can never come from a binary cache and every cold CI run would re-fetch it. It is
+therefore excluded from CI for now, built locally, and attached to releases with a provenance
+record and published digests.
+
+A note on reproducibility, since it is easy to get wrong in both directions: Quartus *fitting*
+is deterministic — same source, same seed, same toolchain gives the same placement and
+routing, regardless of the build machine. What is **not** guaranteed is byte-identity of the
+`.sof`, because a compile timestamp is embedded in the bitstream header. So do not assume a
+rebuild will hash-match the released file, and do not assume the design differs just because
+it does not.
+
+Full model: [docs-tech/implementation-plan.md](docs-tech/implementation-plan.md) →
+*Release artefacts and provenance*.
+
+## 10. Licensing
 
 | | Licence | File |
 | --- | --- | --- |
@@ -322,7 +360,7 @@ Third-party components keep their own licences:
 
 Do not add a dependency whose licence is incompatible with GPLv3 without raising it first.
 
-## 10. Documentation
+## 11. Documentation
 
 | Where | What |
 | --- | --- |
@@ -333,7 +371,7 @@ Do not add a dependency whose licence is incompatible with GPLv3 without raising
 Documentation changes belong in the same repository, and usually the same pull request, as
 the change they describe.
 
-## 11. Contribution hygiene
+## 12. Contribution hygiene
 
 - Keep changes focused. A re-layout and a behaviour change in one commit cannot be reviewed
   or reverted independently.
@@ -342,7 +380,7 @@ the change they describe.
 - Discuss significant changes in an issue first.
 - Describe how you verified the change: which component, which toolchain, what you observed.
 
-## 12. When to stop and ask
+## 13. When to stop and ask
 
 Stop and ask rather than guessing when:
 

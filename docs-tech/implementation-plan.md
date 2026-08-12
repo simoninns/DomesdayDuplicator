@@ -84,6 +84,7 @@ found during execution (D19). Each is assigned to a phase.
 | D18 | No test infrastructure of any kind — no `enable_testing()`, `add_test()`, GoogleTest, Catch2 or QTest anywhere in the tree | repo-wide | P3-6 | **Closed** P3 |
 | D19 | udev rules match Cypress VID `04b4` only, so the device is root-only once firmware is loaded and it re-enumerates as `1d50:603b` — the capture GUI cannot open it. Both rules also `RUN+=` a `cy_renumerate.sh` that is never installed and belongs to a daemon this project does not ship | `fx3/programmer/configs/88-cyusb.rules` | P3-3 | **Closed** P3 |
 | D20 | Raw `<img src="assets/…">` tags are passed through by MkDocs without path rewriting, so under directory URLs they resolve one level too shallow and 404. `--strict` cannot detect this because MkDocs never parses those paths — 18 tags across 3 pages were silently broken | `docs/content/{general,ordering}/*.md` | P4-10 | **Closed** P4 |
+| D21 | The GUI carries no version information: `project(DomesdayDuplicator VERSION 1.0)` is hardcoded and no commit hash reaches the binary or the About dialog, so a released GUI artefact cannot be traced back to the commit that produced it | `gui/CMakeLists.txt`, `gui/src/DomesdayDuplicator/aboutdialog.cpp` | P5-6 | Open |
 
 ---
 
@@ -238,6 +239,137 @@ Rather than work around it, the site converts to **MkDocs + Material +
 `python312.withPackages`. Nothing is fetched at build time, and there is no Ruby gem set to
 author or keep in sync with GitHub's `github-pages` bundle. Full detail:
 [docs-theme-migration.md](docs-theme-migration.md).
+
+---
+
+## Release artefacts and provenance
+
+**Requirement (maintainer, 2026-08-12):** every artefact a user needs — FPGA bitstream, FX3
+firmware, GUI application — is produced by CI, and *a release contains exactly the artefacts
+built from the release commit*. Not "a build of roughly that source": the specific binaries
+produced at that pin.
+
+This section defines the model. The tasks that implement it live in Phases 5, 6 and 7.
+
+### 1. What a release contains
+
+| Artefact | Built by | Platforms | Cadence |
+| --- | --- | --- | --- |
+| `DomesdayDuplicator`, `dddutil`, `dddconv` | CI | Linux x64, Linux ARM64, Windows x64, macOS x64, macOS ARM64 | **Every commit** |
+| `firmware.img`, `firmware.elf`, `firmware.map` | CI (`nix build .#fx3-firmware`) | n/a (cross-compiled) | **Every commit** |
+| `fx3-programmer` | CI (`nix build .#fx3-programmer`) | Linux x64, ARM64 | **Every commit** |
+| Documentation site | CI (`nix build .#docs-site`) | n/a | Every commit to `master` |
+| `DomesdayDuplicator.sof` / `.jic` | **Local build, attached manually** | n/a | Per release |
+
+The FPGA bitstream is the exception, and §4 explains why.
+
+### 2. Why "the exact artefacts" and not "rebuild from the tag"
+
+For the GUI and the FX3 firmware, rebuilding from the tag gives the same result — the Nix
+derivations pin their inputs, so given the same `flake.lock` the output is reproducible.
+
+**For the FPGA, the position is more nuanced than an earlier draft of this document claimed.**
+That draft said "Quartus is not bit-reproducible, because place-and-route seeds and timestamps
+vary". The seed part is **wrong**: the Fitter seed is a fixed project setting (default 1), not
+something that varies between runs. Correcting it, from Altera's own guidance and from
+published work on Cyclone bitstream formats:
+
+- **Fitting is deterministic.** For a given Fitter seed and `Maximum processors allowed`
+  setting, the fit is the same run to run, *independent of the machine and its core count*.
+  Same source and same seed means same placement and same routing.
+- **The caveats are about the toolchain, not the run.** Identical results require the same
+  Quartus version, the same 32/64-bit build, and the same CPU architecture — floating-point
+  differences across architectures can perturb results. Change any of those and you get
+  "seed noise": a different but equivalent-quality fit.
+- **File byte-identity is a separate question.** Quartus embeds a compile timestamp in the
+  bitstream header, so two runs can produce identical *configuration content* inside
+  non-identical *files*. The configuration state machine never reads those header bytes.
+
+So the honest statement is: **the configuration content is reproducible given a pinned
+toolchain; the `.sof` file may not be byte-identical.** This has not been verified for this
+project — Quartus is not installed here and Phase 6 has not run. **P6-9 makes it an
+experiment** rather than an assumption.
+
+The archive-the-artefact model survives, but on weaker and different grounds than that draft
+claimed. It is not "you cannot regenerate this". It is:
+
+- regenerating requires pinning an unfree, GB-scale, `x86_64-linux`-only toolchain, which is
+  a much higher bar than `nix build` from a lock file; and
+- if the file is not byte-identical, a plain hash comparison against a rebuild **fails even
+  when the rebuild is correct** — so hash equality is the wrong verification method unless
+  the digest is taken over a canonical form (§5).
+
+So: **build once, archive the result, and publish digests that make the artefact verifiable.**
+The requirement is stricter than "CI builds things" — artefacts must be *retained and
+published*, not produced and discarded after the 30-day `actions/upload-artifact` window.
+
+### 3. Traceability: every artefact names its commit
+
+An archived artefact is only useful if you can tell which commit produced it. Current state:
+
+| Component | Carries the commit? |
+| --- | --- |
+| FX3 firmware | **Yes** — `FIRMWARE_VERSION` reaches the USB product descriptor, so `lsusb -v` on a running device reports it (D4, fixed in P2-6) |
+| GUI | **No** — `project(DomesdayDuplicator VERSION 1.0)` is hardcoded and there is no commit stamp anywhere. **D21** |
+| FPGA bitstream | **No** — nothing in the `.sof`/`.jic` identifies the source |
+
+P5 and P7 close the GUI gap. The FPGA gap is handled by recording provenance alongside the
+artefact rather than inside it (§4).
+
+Every release also publishes a `SHA256SUMS` manifest and a short provenance note: the commit,
+the `flake.lock` nixpkgs revision, and — for the bitstream — the Quartus version and the
+machine that built it.
+
+### 4. The FPGA bitstream stays out of CI, for now
+
+**Decided 2026-08-12: leave the FPGA firmware out of CI for the time being.** The bitstream
+continues to be built locally and attached to releases by hand, as the plan already had it.
+
+The blocker is not technical difficulty, it is cost and a licence judgement. Recorded so the
+decision can be picked up later without re-deriving it:
+
+- `quartus-prime-lite` is `x86_64-linux` only, unfree, and **`redistributable = false`** — so
+  it can never be served from `cache.nixos.org`. Every cold CI run must fetch it afresh.
+- The fetch itself is unattended-friendly: plain `fetchurl` from
+  `downloads.intel.com/akdlm/software/acdsinst/…`, no login, no click-through. So CI *can*
+  do it.
+- Restricted to `supportedDevices = [ "Cyclone IV" ]` the download is still GB-scale, and the
+  unpacked store path is larger again — tight against a GitHub-hosted runner's ~14 GB disk.
+
+The three ways it could reach CI, when the time comes:
+
+| Option | Speed | Cost | Licence |
+| --- | --- | --- | --- |
+| **Self-hosted runner** with a warm Nix store | Minutes | A machine to run and maintain | Clean — nothing is redistributed |
+| GitHub-hosted, fetch from Intel each run | 20–40 min | None | Clean — fetched from source |
+| GitHub-hosted + private binary cache | 5–10 min | Cachix/S3 and credentials | **Judgement call** — `redistributable = false` is precisely about not redistributing these binaries |
+
+**Intended shape when adopted:** GUI and FX3 per commit; the bitstream on tags and manual
+dispatch only, so a release still gets a bitstream built from the release commit without
+paying for Quartus on every push.
+
+Until then, `docs-tech/` records the manual procedure and P8-3 covers attaching the artefact.
+
+### 5. Bitstream digests: verifiable without building it in CI
+
+Since the bitstream is not built by CI (§4), a release must still let someone confirm that
+what they downloaded is what was built, and — ideally — that a rebuild of the tagged source
+agrees with it. Two digests, because they answer different questions:
+
+| Digest | Over | Answers |
+| --- | --- | --- |
+| **Release digest** | The shipped `.sof` and `.jic`, byte for byte | "Did I download the file that was released, intact and untampered?" |
+| **Canonical digest** | The configuration payload with the header excluded | "Does a rebuild from this commit produce the same configuration, despite the embedded timestamp?" |
+
+The release digest lands in `SHA256SUMS` alongside every other asset and costs nothing. The
+canonical digest is what makes the FPGA artefact independently verifiable **without CI ever
+running Quartus** — the maintainer builds locally, publishes both digests, and anyone with
+the same pinned Quartus version can rebuild and compare the canonical one.
+
+If P6-9 finds the `.sof` *is* byte-identical across rebuilds on a pinned toolchain, the
+canonical digest becomes redundant and the release digest alone does both jobs. That is the
+better outcome, and it is worth measuring before building machinery for the harder case.
+
 
 ---
 
@@ -921,9 +1053,14 @@ Depends on P0-2 (licence) and P2-6/P2-7/P2-8.
 | **P5-3** SDK provenance | S | `fx3/sdk/README.md` (version, origin URL, refresh date) + `LICENSE.txt` copied from the SDK's `license/license.txt`. Mechanism settled by P0-2 — this is record-keeping only |
 | **P5-4** Hardware verification | M, **HW** | Flash the `nix build` output with `fx3-programmer`; device enumerates; `lsusb -v` product string shows the real commit hash (proves **D4**; D8 is unreachable dead code and not observable here); then run the **capture-integrity procedure** from TESTING.md — zero sequence breaks required |
 | **P5-5** Descriptor golden test | S | Host-side T2 test over `generate-descriptor.sh`: fixed commit string in, byte-for-byte comparison against a committed reference header. Protects the descriptor byte layout — the path the host actually reads, including the computed length byte. Note this does **not** cover D8, which lives on a separate, dead code path |
+| **P5-6** Stamp the GUI with its commit | S | **D21.** The GUI is the one shipped artefact that cannot be traced to a source revision. Mirror what the firmware already does: a `DDD_VERSION` cache variable defaulting to `git rev-parse --short=8 HEAD`, falling back to `"unknown"`, passed through `target_compile_definitions`, surfaced in the About dialog and in `--version`. The flake passes `-DDDD_VERSION=${self.shortRev or "dirty"}`. Without this, "the exact version produced at the release commit" is unverifiable for the component most users actually run |
 
 **Gate:** P5-4 passes. A firmware image that compiles but has not been flashed and
 capture-verified is not done.
+
+Additionally, `nix build .#fx3-firmware` must produce `firmware.img`, `firmware.elf` and
+`firmware.map` in `$out`, and the built image's descriptor must report the commit it was
+built from — that is what makes the CI artefact in P7 traceable.
 
 ## Phase 6 — FPGA flake
 
@@ -934,28 +1071,86 @@ Depends on P0-3.
 | **P6-1** Quartus flake | M | `import nixpkgs { config.allowUnfree = true; }` internally; `.override { supportedDevices = [ "Cyclone IV" ]; withQuesta = false; }`. Add the **USB-Blaster udev rule** to `nix/modules/udev.nix` alongside the FX3 one — the nixpkgs Quartus package ships no udev rules. Sketch in [nix-flake-design.md](nix-flake-design.md) §6 |
 | **P6-2** Headless compile, convert and program flow | M | `quartus_sh --flow compile DomesdayDuplicator`, then `quartus_cpf -c DomesdayDuplicator.cof`, then `quartus_pgm` driven by the already-committed `DomesdayDuplicator_write_{sof,jic}.cdf`. `export HOME=$TMPDIR` (Quartus needs a writable home). No GUI at any step — [ide-independence.md](ide-independence.md) §2.1 |
 | **P6-3** IP regeneration | L | **Contingency only.** `IPfifo.v` and `IPpllGenerator.v` are committed plain Verilog instantiating `dcfifo`/`altpll` with explicit `defparam`s, so nothing runs MegaWizard at build time. Needed only if 25.1 rejects the 2017-era parameters — see [ide-independence.md](ide-independence.md) §2.2 |
-| **P6-4** `fpga/README.md` | S | Canonical Quartus version, manual-install fallback, that Quartus is not bit-reproducible, that the dev shell is the deliverable, and that the generated `.v` files are **source of truth** rather than wizard output to be regenerated |
+| **P6-4** `fpga/README.md` | S | Canonical Quartus version, manual-install fallback, what reproducibility can and cannot be relied on (P6-9's finding), that the dev shell is the deliverable, and that the generated `.v` files are **source of truth** rather than wizard output to be regenerated |
 | **P6-5** Hardware verification | L, **HW** | Run the TESTING.md capture-integrity procedure with the flake-built bitstream (zero sequence breaks), then capture a known disc and compare against a capture from the shipped 18.0-built one. Keep the released `.jic` in-tree until this passes |
 | **P6-6** `verilator --lint-only` check | S | Lint the hand-written modules (`DomesdayDuplicator.v`, `buffer.v`, `dataGenerator.v`, `fx3StateMachine.v`, `statusLED.v`) as a `nix flake check`. Free, fast, cross-platform — so gateware gets *some* CI coverage even though bitstream builds cannot run there |
 | **P6-7** Gateware testbenches | M | T3 simulation for `dataGenerator.v` (assert the 0…1020 test ramp — the same sequence P6-5 verifies on silicon), `fx3StateMachine.v` (the handshake, highest-risk module) and `statusLED.v`. Note in TESTING.md that whole-design simulation needs vendor `dcfifo`/`altpll` models |
 
-**Gate:** P6-5 passes, and every step from source to programmed device runs from a shell.
-Note the packaged bitstream is *not* reproducible across runs — that is a property of
-Quartus, and the gate is functional equivalence, not hash equality.
+| **P6-8** Bitstream provenance record | S | The bitstream is built outside CI, so the artefact must carry its own provenance. Emit `bitstream-provenance.txt` alongside the `.sof`/`.jic`: source commit, **exact Quartus version and build (32/64-bit)**, host CPU architecture, Fitter seed, `Maximum processors allowed`, `.qsf` device string, and the SHA-256 of each output. `nix build .#bitstream` writes it into `$out`; a manual build writes it by hand. This is what P8-3 attaches to the release |
+| **P6-9** Measure reproducibility, do not assume it | S | Compile the same commit **twice** on the same pinned toolchain and `cmp` the `.sof`. Two possible findings, both useful: byte-identical (so a plain SHA-256 is a complete verification method, and P6-10 collapses to nothing), or differing only in the header region where Quartus embeds a compile timestamp (so the digest must be taken over a canonical form). Record the answer in `fpga/README.md`. This settles a question earlier drafts of this plan got wrong by assuming |
+| **P6-10** Publishable bitstream digest | S | Depends on P6-9. If the `.sof` is byte-identical, publish its SHA-256 and stop. If not, add a small script emitting a **canonical digest** over the configuration payload with the timestamped header excluded, so a third party with the same pinned Quartus can rebuild and verify without CI ever running Quartus. Both digests go in `bitstream-provenance.txt` and in the release `SHA256SUMS` |
+| **P6-11** Pin the determinism-relevant settings | S | Determinism depends on settings that are currently implicit. Set the Fitter seed explicitly in the `.qsf` rather than relying on the default, and record `Maximum processors allowed`. Consider `ROUTER_TIMING_OPTIMIZATION_LEVEL` if P6-9 shows routing variance. An unpinned seed is a reproducibility claim resting on a default that a future Quartus could change |
 
-## Phase 7 — CI consolidation
+**Gate:** P6-5 passes, and every step from source to programmed device runs from a shell.
+P6-9 has been run and its answer recorded, so the project states what reproducibility it
+actually has rather than assuming in either direction. The hardware gate remains functional
+equivalence — a capture with zero sequence breaks — not hash equality.
+
+### The bitstream is not built by CI
+
+Per the decision in [Release artefacts and provenance](#release-artefacts-and-provenance) §4,
+**the FPGA bitstream is built locally and attached to releases by hand.** Everything in this
+phase is still worth doing — `nix build .#bitstream` is what makes a *local* build
+repeatable and scriptable, and P6-6's `verilator --lint-only` check does run in CI, so the
+gateware is not entirely uncovered there.
+
+What makes this workable without CI is P6-10: **publish digests instead of building it
+there.** The maintainer builds locally and attaches the artefact plus its digests; anyone with
+the same pinned Quartus version can rebuild and check. That gets most of the value of a CI
+build — an independently verifiable artefact — without putting a GB-scale unfree toolchain on
+a runner. It depends on P6-9 having measured what a rebuild actually produces.
+
+## Phase 7 — CI: build every artefact on commit, publish them on release
+
+This phase carries the maintainer requirement from
+[Release artefacts and provenance](#release-artefacts-and-provenance): the GUI, the FX3
+firmware and the FX3 programmer are built by CI **on every commit**, and a release contains
+exactly the artefacts built from the release commit. The FPGA bitstream is deliberately
+excluded for now (§4 of that section); it is attached by hand in P8-3.
+
+### 7a. Build on commit
 
 | Task | Size | Detail |
 | --- | --- | --- |
-| **P7-1** Single path-filtered workflow | M | `nix-installer-action` + `magic-nix-cache-action`, then `nix build .#gui .#fx3-firmware .#fx3-programmer .#docs-site`. Replaces the three per-submodule workflows (including the one fixed in P2-3) |
-| **P7-2** Keep the native build matrix | M | The current GUI workflow builds Linux x64/ARM64, macOS and Windows artefacts. Nix does not cover Windows — **keep those jobs**, driven from the new paths. Nix is additive here, not a replacement |
-| **P7-3** Pages deploy | S | Already replaced in P4-9 with decode-orc's Nix-based workflow (`nix build .#docs-site` → `upload-pages-artifact` with `path: ./result` → `deploy-pages`). Nothing to do here beyond confirming the path filter matches `docs/**` |
-| **P7-4** `nix flake check` in CI | S | Excluding `bitstream`: unfree, multi-gigabyte, `x86_64-linux`-only, and too slow for hosted runners. Build it locally and attach to releases |
-| **P7-5** Delete per-component `.github/` dirs | S | Inert after P1 (GitHub only reads the repo root), but confusing |
-| **P7-6** Test lanes | S | Run tiers T1–T4 in the consolidated workflow. **T5 never runs in CI** — it needs a physical DdD, and a test that silently "passes" because no hardware was attached is worse than no test |
+| **P7-1** Single path-filtered `build.yml` | M | `nix-installer-action` + `magic-nix-cache-action`, then `nix build .#gui .#fx3-firmware .#fx3-programmer .#docs-site`. Replaces the three per-submodule workflows (including the one fixed in P2-3). Path filters so a `docs/`-only change does not rebuild firmware — but note the filters must **not** apply on `master` or on tags, where a complete artefact set is the point |
+| **P7-2** Keep the native build matrix | M | The current GUI workflow builds Linux x64/ARM64, macOS x64/ARM64 and Windows x64. **Nix cannot produce the Windows binary**, so those five jobs stay, driven from the new paths. Nix is additive here, not a replacement. This is why the GUI has two build paths and the firmware only one |
+| **P7-3** Pages deploy | S | Already done in P4-9: `nix build .#docs-site` → `upload-pages-artifact` with `path: ./result` → `deploy-pages`. Confirm the path filter still matches `docs/**` |
+| **P7-4** `nix flake check` in CI | S | Runs T1–T4 for every component. Excludes `bitstream` — unfree, GB-scale, `x86_64-linux` only |
+| **P7-5** Delete per-component `.github/` dirs | S | `fx3/.github/` and `gui/.github/` are inert (GitHub only reads the repository root) but actively misleading once `build.yml` exists |
+| **P7-6** Test lanes | S | Tiers T1–T4 in the consolidated workflow. **T5 never runs in CI** — it needs a physical DdD, and a test that silently "passes" because no hardware was attached is worse than no test |
+| **P7-7** Retain artefacts from every commit build | S | `actions/upload-artifact` with a name carrying the short SHA, so a build from any commit can be fetched without re-running CI. Default retention is 30 days; set it explicitly rather than inheriting it, and note in the workflow that this is **not** the release archive — GitHub expires these |
 
-**Gate:** one workflow file; no job references a non-existent path; a PR touching only
-`docs/` does not trigger firmware jobs.
+### 7b. Publish on release
+
+| Task | Size | Detail |
+| --- | --- | --- |
+| **P7-8** `release.yml`, triggered by `v*` tags | M | Checks out **the tag**, builds every CI-buildable artefact from it, and attaches them to the GitHub Release. Tag-triggered rather than branch-triggered so the artefacts are provably from the release commit and not from whatever `master` moved to afterwards. `workflow_dispatch` as well, for re-running a failed publish without re-tagging |
+| **P7-9** Version stamping is a release gate | S | The job fails if any artefact reports `unknown` as its version. Nix builds from a tag have no `.git`, so `-DFIRMWARE_VERSION=`/`-DDDD_VERSION=` must be passed explicitly (D4, D21) — a silent fallback to `unknown` would produce untraceable release binaries, which is exactly what this phase exists to prevent |
+| **P7-10** `SHA256SUMS` and a provenance note | S | Generated over every attached asset, plus a short note recording the source commit, the `flake.lock` nixpkgs revision, and the toolchain versions. Attached to the release alongside the binaries |
+| **P7-11** Document the FPGA hand-off | S | The release checklist states plainly that the bitstream is **not** produced by this workflow: build it locally per P6-2, then attach the `.sof`, `.jic`, P6-8's `bitstream-provenance.txt` and P6-10's digests by hand. Fold those digests into the release `SHA256SUMS` so every asset is covered by one manifest regardless of where it was built. A release must not be published with the other artefacts present and the bitstream quietly missing |
+
+### Release asset set
+
+What a complete `v*` release carries:
+
+```
+DomesdayDuplicator-<ver>-linux-x64.tar.gz        CI  (nix + native)
+DomesdayDuplicator-<ver>-linux-arm64.tar.gz      CI  (native)
+DomesdayDuplicator-<ver>-windows-x64.zip         CI  (native — Nix cannot build this)
+DomesdayDuplicator-<ver>-macos-x64.zip           CI  (native)
+DomesdayDuplicator-<ver>-macos-arm64.zip         CI  (native)
+firmware.img / firmware.elf / firmware.map       CI  (nix build .#fx3-firmware)
+fx3-programmer-<ver>-linux-x64                   CI  (nix build .#fx3-programmer)
+DomesdayDuplicator.sof / .jic                    MANUAL — local Quartus build
+bitstream-provenance.txt                         MANUAL — provenance + digests (P6-8, P6-10)
+SHA256SUMS                                       CI
+PROVENANCE.txt                                   CI
+```
+
+**Gate:** one `build.yml` and one `release.yml`; no job references a non-existent path; a PR
+touching only `docs/` does not trigger firmware jobs; a `v*` tag produces a release whose
+assets all report the tagged commit and none of which report `unknown`; `SHA256SUMS` covers
+every attached file.
 
 ## Phase 8 — Cleanup and release
 
@@ -963,7 +1158,7 @@ Quartus, and the gate is functional equivalence, not hash equality.
 | --- | --- | --- |
 | ~~**P8-1** Archive the four upstream repos~~ | — | **Removed** per P0-6 — the old repositories are left alone and cleaned up separately, outside this plan |
 | **P8-2** README rewrite | M | Nix quick-start per component alongside the existing native instructions |
-| **P8-3** Tag a release | S | First monorepo release; attach the GUI binaries, the FX3 `.img` and the FPGA `.jic` |
+| **P8-3** Tag a release | M | First monorepo release, and the first exercise of the P7-8 release workflow end to end. Tagging `v*` publishes the GUI binaries (5 platforms), `firmware.img`, `fx3-programmer`, `SHA256SUMS` and `PROVENANCE.txt` automatically. Then **build the bitstream locally and attach `.sof`, `.jic` and `bitstream-provenance.txt` by hand** (P7-11) — the release is not complete without them. Verify every asset reports the tagged commit and none reports `unknown` |
 | **P8-4** Update this plan | S | Mark it executed; fold anything still outstanding into issues |
 | **P8-5** SPDX header convention | M | Only 8 of 67 source files carry SPDX identifiers; the rest use long-form GPL notices. Adopt SPDX (machine-checkable, and matches decode-orc), add the T4 presence check, and convert files as they are touched rather than in one sweeping commit |
 | **P8-6** `--analyse-test-data` CLI mode | M | Optional follow-up: make step 4 of the capture-integrity procedure scriptable rather than GUI-driven, so the T5 gate becomes semi-automated |

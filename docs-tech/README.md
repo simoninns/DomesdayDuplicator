@@ -38,8 +38,22 @@ on branch `20260812-002`, and `master` is untouched until every phase is done.
 **All twenty registered defects are now closed**, though two carry hardware checks that
 cannot be done here (D13 in Phase 5, P0-3 in Phase 6).
 
+**Release model (added 2026-08-12).** Every shipped artefact is produced by CI and a release
+carries exactly the artefacts built from the release commit — see
+[implementation-plan.md](implementation-plan.md) → *Release artefacts and provenance*. The GUI,
+FX3 firmware and programmer build on every commit and publish on `v*` tags with checksums and
+a provenance note. **The FPGA bitstream is deliberately excluded from CI for now** and is
+still built locally and attached by hand; the options for changing that are recorded in §4 of
+that section.
+
 Outstanding items carried forward:
 
+- **D21 — the GUI carries no version information.** `VERSION 1.0` is hardcoded and no commit
+  reaches the binary, so a released GUI artefact cannot be traced to its source. Fixed in
+  P5-6; it gates the release workflow.
+- **FPGA in CI is deferred, not rejected.** Quartus is unfree, `redistributable = false` and
+  GB-scale, so it can never come from a binary cache. Intended shape when adopted: GUI and
+  FX3 per commit, bitstream on tags only.
 - **P0-3 hardware verification** — a Phase 6 gate, not a blocker.
 - **P3-3's NixOS half is unverified.** The udev module evaluates and the rule installs to the
   right place, but "a plugged-in FX3 gets the expected permissions, and a flash operation
