@@ -64,6 +64,12 @@ ui_*.h
 build/
 build-*/
 
+# Python bytecode. The only Python in the tree is the FPGA provenance tool and
+# its test, both of which import each other by path — which is enough to leave
+# a __pycache__ behind next to the sources.
+__pycache__/
+*.py[cod]
+
 # =========================
 # Editor and IDE files
 # =========================

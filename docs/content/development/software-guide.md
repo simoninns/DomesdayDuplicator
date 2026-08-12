@@ -17,29 +17,44 @@ The development environment for all parts of the Domesday Duplicator software is
 The DE0-Nano FPGA board is used to bridge the Domesday Duplicator's ADC hardware with the Cypress FX3 USB 3.0 board.  The code provides data manipulation, error checking and a 16K word FIFO ping-pong buffer to allow buffering in case of short constrictions of USB bandwidth to the host computer.  The FPGA code also contains a test data generation function that allows testing of the Domesday Duplicator with known test data (that can be verified as intact once received by the host application).
 
 ## Development environment
-The development environment for the FPGA code is Intel Quartus Prime Version 18.0.0 Build 614 Lite Edition running on Ubuntu 18.04 LTS.  In order to compile the FPGA code you will need to download Quartus from Intel's website and follow the vendor's installation instructions.  Once installed you can open the .qpf project file and build the FPGA image from source.
+The FPGA code is built with **Intel Quartus Prime Lite 25.1**. Quartus is free and needs no licence file, but it is a multi-gigabyte download and is `x86_64` Linux or Windows only.
+
+The project files were originally written by Quartus 16.0.2 and 18.0.0. Version 25.1 compiles them unchanged — no upgrade prompt and no source edits — although it does rewrite the `.qsf` in place to record the version that last touched it, which is why builds should be run out of tree.
+
+**The GUI is not required at any point.** Compiling, converting and programming are all command-line tools, and the repository provides a development shell that supplies them:
+
+```bash
+nix develop .#fpga-quartus     # Quartus, plus the free tooling below
+```
+
+For editing, linting and simulating the Verilog you need no Quartus at all — those tools are free and cross-platform:
+
+```bash
+nix develop .#fpga             # verible, verilator, iverilog, gtkwave
+./fpga/tests/run-lint.sh       # lint the hand-written modules
+./fpga/tests/run-sim.sh        # run the testbenches
+```
 
 ## USB device configuration
-In order to program the DE0-Nano it is necessary to provide user-space access to the USB programming device. To add the required rules create the following file:
+Programming the DE0-Nano needs user-space access to its onboard USB-Blaster. The repository ships the required udev rule, and the procedure — including the NixOS module that installs it alongside the FX3 rules — is on the **[Linux device access](../hardware-programming/linux-device-access.md)** page.
 
-```/etc/udev/rules.d/40-altera-usbblaster.rules```
+!!! warning "If you followed an older version of this page"
 
-Then place the following configuration in the rules file:
+    This section used to tell you to hand-write `/etc/udev/rules.d/40-altera-usbblaster.rules`. **Delete that file if you have it.** It grants access through `MODE="0666"` alone, which hands write access to every user and process on the machine rather than to the user at the console, and having two files matching the same device makes permission problems much harder to diagnose.
 
-```SUBSYSTEM=="usb", ATTRS{idVendor}=="09fb", ATTRS{idProduct}=="6001|6002|6003", OWNER="root", GROUP="root", MODE="0666", SYMLINK+="usbblaster"```
+## Building and programming the DE0-Nano
+Both steps are covered in full, with the output to expect at each stage and a troubleshooting table, on the **[FPGA bitstream](../hardware-programming/fpga-bitstream.md)** page. In brief:
 
-Then issue the following command to re-read the USB configuration rules:
+```bash
+nix build .#bitstream                              # or ./fpga/build-local.sh
+cd result
+quartus_pgm DomesdayDuplicator_write_sof.cdf       # volatile, lost on power cycle
+quartus_pgm DomesdayDuplicator_write_jic.cdf       # permanent, into the EPCS64
+```
 
-```sudo udevadm control --reload-rules```
+The `.cof` conversion setup and both `.cdf` programming files are committed, so no settings need entering by hand. Program the `.sof` first: it cannot leave the board in a bad state, so it is the safe way to test a bitstream before making it permanent.
 
-## Programming the DE0-Nano
-In order to program the DE0-Nano so that the Domesday Duplicator software is loaded and executed on power up, it is necessary to program the EPCS64 serial configuration device.  Instructions for programming the serial device can be found in the DE0-Nano user manual available from Terasic. 
-
-Firstly load the project and use Processing->Start Compilation to begin the compilation process and generate the .sof programming file.  To temporarily program the DE0-Nano simply use Tools->Programmer and flash the DE0-Nano board using the .sof file.  A file DomesdayDuplicator\_write\_sof.cdf is provided for .sof programming (note: you may need to modify this slightly for your own environment) - Double-clicking on this file (in the Files section of the project navigator) will open the programming window with the correct programming settings. 
-
-To program the DE0-Nano permanently follow the instructions given on page 146 of the DE0-Nano user guide - section 9.1 - Programming the Serial Configuration Device.  To make the process easier a Conversion Setup file DomesdayDuplicator.cof is provided.  From the Convert Programming File window click on the "Open Conversion Setup Data" button and select the .cof file and the conversion settings will be automatically loaded. 
-
-To write the JIC programming file to the DE0-Nano a DomesdayDuplicator\_write\_jic.cdf file is provided - Double-clicking on this file (in the Files section of the project navigator) will open the programming window with the correct programming settings.  You may need to switch to the "Files" view in the project navigator in order to see the included files. The DE0-Nano User Manual is available from [this link](http://www.ti.com/lit/ug/tidu737/tidu737.pdf).
+The DE0-Nano User Manual, which documents the EPCS64 serial configuration device in section 9.1, is available from Terasic.
 
 ## Source code modules
 ### DomesdayDuplicator.v

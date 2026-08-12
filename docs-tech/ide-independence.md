@@ -94,8 +94,11 @@ Consequences for the plan:
 
 - **P0-3 shrinks.** The spike is "does Quartus 25.1 compile the committed sources for
   Cyclone IV E", not "can we regenerate IP headlessly". Risk drops from High to Medium.
+  **Answered in Phase 6: it does**, unchanged, `0 errors`, in 16 seconds, with no upgrade
+  prompt. What remains of P0-3 is the hardware capture, which is the P6-5 gate.
 - **P6-3 (IP regeneration) is probably unnecessary.** Keep it as a contingency for the case
   where 25.1 rejects the 2017-era `intended_device_family` strings or deprecated parameters.
+  **It did not, so P6-3 was not done.**
 - Treat the generated `.v` files as **source of truth** from here on, and say so in
   `fpga/README.md`. They already are in practice.
 - If a genuine regeneration is ever needed headlessly, `qsys-script`, `qsys-generate` and

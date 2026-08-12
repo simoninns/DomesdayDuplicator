@@ -11,8 +11,8 @@
 #
 # Everything here is free software and cross-platform, so editing, linting and simulating
 # the Verilog needs no Quartus download at all. Quartus is only required to produce a
-# bitstream, and it arrives with the unfree shell added in Phase 6, which is x86_64-linux
-# only.
+# bitstream, and it lives in `nix develop .#fpga-quartus` (quartus-shell.nix), which is
+# x86_64-linux only and a multi-gigabyte first download.
 #
 # verible-verilog-ls is a language server, so any editor with an LSP client gets completion,
 # navigation and diagnostics in the Verilog sources.
@@ -38,14 +38,17 @@ pkgs.mkShell {
   shellHook = ''
     echo "Domesday Duplicator — FPGA gateware shell (free tools, no Quartus)"
     echo
-    echo "  verilator --lint-only -Wall src/dataGenerator.v      lint one module"
-    echo "  verible-verilog-lint src/*.v                          style lint"
-    echo "  verible-verilog-format --inplace src/statusLED.v      format"
+    echo "  ./fpga/tests/run-lint.sh              lint the hand-written modules (T4)"
+    echo "  ./fpga/tests/run-sim.sh               run the testbenches (T3)"
     echo
-    echo "IPfifo.v and IPpllGenerator.v instantiate Altera primitives and will not"
-    echo "elaborate standalone — lint them, do not try to simulate them."
+    echo "  verible-verilog-lint fpga/src/*.v            style lint"
+    echo "  verible-verilog-format --inplace <file>      format"
     echo
-    echo "Bitstream builds need Quartus: nix develop ./fpga#quartus (x86_64-linux only)."
+    echo "IPfifo.v and IPpllGenerator.v instantiate Altera primitives with no free"
+    echo "simulation model, so they are neither linted nor simulated — the black-box"
+    echo "declarations beside them are what let the top level elaborate."
+    echo
+    echo "Bitstream builds need Quartus: nix develop .#fpga-quartus (x86_64-linux only)."
     echo
   '';
 }

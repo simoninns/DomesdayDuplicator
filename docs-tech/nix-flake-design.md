@@ -342,7 +342,23 @@ Two things to get right:
 `check-internal-linkage.sh` and `check-orphans.sh` are not ported — `--strict` covers broken
 internal links, and `awesome-nav` errors when a `.nav.yml` names a missing file.
 
-## 6. `fpga/` — Quartus, unfree, x86_64-linux only
+## 6. `fpga/` — Quartus, unfree, x86_64-linux only — **implemented in Phase 6**
+
+Implemented largely as sketched. Three things the sketch got wrong, all recorded in the Phase
+6 findings of [implementation-plan.md](implementation-plan.md):
+
+- **There is no `output_files/`.** The project sets no `PROJECT_OUTPUT_DIRECTORY`, so Quartus
+  writes `DomesdayDuplicator.sof` into the project directory. `fpga/package.nix` installs from
+  there.
+- **The project files must be made writable first.** `quartus_sh` rewrites the `.qsf` in
+  place, so the derivation copies the source, `chmod -R u+w`s it, and builds in the copy.
+- **The shells are named `fpga` and `fpga-quartus`**, not `default` and `hdl`, because they
+  are attributes of the one root flake rather than of a flake of their own.
+
+The reproducibility caveat below was measured rather than assumed, and the answer is in the
+plan under "P6-9 in full": the `.jic` is byte-identical across rebuilds, and the `.sof`
+differs only in a per-run design hash, two copies of a compile timestamp, and the checksum
+covering them.
 
 Verified against `pkgs/by-name/qu/quartus-prime-lite/quartus.nix` in the current nixpkgs:
 `platforms = [ "x86_64-linux" ]`, `license = unfree`, `redistributable = false`, and it takes

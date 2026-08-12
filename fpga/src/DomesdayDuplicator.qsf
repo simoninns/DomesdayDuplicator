@@ -195,6 +195,22 @@ set_location_assignment PIN_J14 -to GPIO1[33]
 #============================================================
 
 
+#============================================================
+# Reproducibility (P6-11)
+#============================================================
+# The Fitter is deterministic for a given seed, so a rebuild of the same commit
+# on the same Quartus version reproduces the same placement and routing. Both
+# settings below are Quartus' own defaults; they are written out explicitly so
+# the guarantee rests on this file rather than on a default that a future
+# version could change.
+#
+# Measured, not assumed — see fpga/README.md "Reproducibility":
+# rebuilding this project twice produces a byte-identical .jic, and a .sof
+# differing only in a compile timestamp, a per-run design hash and the file
+# checksum that covers them.
+set_global_assignment -name SEED 1
+set_global_assignment -name NUM_PARALLEL_PROCESSORS 4
+
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"

@@ -3,10 +3,10 @@
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 44 across two
-components, plus a static check on the documentation site. That is a start, not a suite, and
-this document says so where it applies rather than describing an aspiration as though it were
-a fact.
+reorganisation there were **no automated tests at all**. There are now 78 across four
+components, plus three gateware testbenches, a lint pass over five Verilog modules, and a
+static check on the documentation site. That is a start, not a suite, and this document says
+so where it applies rather than describing an aspiration as though it were a fact.
 
 ---
 
@@ -67,6 +67,14 @@ ctest --test-dir gui/build --output-on-failure
 
 Tests are built by default. Pass `-DBUILD_TESTING=OFF` to skip them — the Nix packages do
 this when `doCheck` is false.
+
+The gateware has no CMake and so no `ctest`. Its checks are scripts, run either through the
+flake or directly:
+
+```bash
+nix develop .#fpga -c ./fpga/tests/run-lint.sh     # T4
+nix develop .#fpga -c ./fpga/tests/run-sim.sh      # T3
+```
 
 ## 4. What exists today
 
@@ -172,11 +180,47 @@ was migrated. **Use markdown image syntax**, `![](path){ width="600" }`, which M
 rewrite. If you need to check the built output directly, resolve every `href` and `src` in
 `result/` against the output tree.
 
-### 4.6 Everything else — nothing yet
+### 4.6 `fpga/` — three testbenches, a lint pass and a digest test
+
+Unlike every other component, the gateware has no `ctest` suite: there is no CMake here, and
+the tools are a linter and a simulator rather than a compiler. The checks are Nix derivations
+running the same scripts a developer runs, so the two cannot drift.
+
+| File | Covers | Tiers |
+| --- | --- | --- |
+| `tests/tb_dataGenerator.v` | The test-pattern generator: the 0…1020 ramp over three periods, ADC passthrough and its one-cycle registration, that test mode ignores the ADC bus, and the sequence number — including the wrap after exactly 63 sequences of 65536 samples | T3 |
+| `tests/tb_fx3StateMachine.v` | The GPIF II handshake: idle until asked, a packet of exactly 8192 clock cycles, that a single-cycle request is enough, the gap between back-to-back packets, and that a mid-packet reset abandons rather than resumes | T3 |
+| `tests/tb_statusLED.v` | The LED pattern: reset state, two full periods including both direction reversals, that the LEDs hold between steps, and that a reset restarts the walk upwards | T3 |
+| `tests/run-lint.sh` | `verilator --lint-only -Wall` over the five hand-written modules | T4 |
+| `tests/test_provenance.py` | The byte offsets the canonical bitstream digest masks, that a payload change is *not* masked, and that a moved field raises rather than digesting unmasked data | T1, T2 |
+
+Run them with `./fpga/tests/run-lint.sh` and `./fpga/tests/run-sim.sh` from
+`nix develop .#fpga`, or as the `fpga-lint`, `fpga-sim` and `fpga-provenance` flake checks.
+
+`tb_dataGenerator.v` is the simulation counterpart of §5: the ramp and sequence number it
+asserts are exactly what the capture-integrity procedure counts breaks in, so a defect
+introduced into the generator is caught before a bitstream is built rather than after a
+60-second capture.
+
+`tb_fx3StateMachine.v` is the one that earns its keep. The state machine has no visible
+failure mode — a packet of 8191 words instead of 8192 still completes a capture, and every
+sample after it is wrong. It also uses blocking assignments inside a clocked block, which can
+make simulation and synthesis disagree; the packet-length assertion is what turns "that is
+probably fine" into something checked.
+
+**What is not covered, and cannot be for free:** `buffer.v`, and therefore the design as a
+whole. See the caveat in §6.
+
+Lint runs with `-Wall`, and everything it reports is either a failure or a waiver carrying
+its reason in `fpga/verilator-waivers.vlt`. The waived findings — a blocking assignment in
+sequential logic, two incomplete `case` statements, an implicit width promotion, unused
+control-bus bits fixed by the PCB — are each pinned by one of the testbenches above rather
+than merely declared benign.
+
+### 4.7 Everything else — nothing yet
 
 | Component | Automated coverage | Why |
 | --- | --- | --- |
-| `fpga/` | **None** | Testbenches are planned for Phase 6 |
 | `hardware/` | **None**, and blocked | `kicad-cli` cannot read KiCad 5 legacy `.sch`, so ERC/DRC cannot be automated until the files are migrated. Manual for now |
 
 ## 5. The capture-integrity procedure (T5)
@@ -236,12 +280,12 @@ tied to a phase of the reorganisation plan in [docs-tech/](docs-tech/).
 
 | What | Tier | Phase | Notes |
 | --- | --- | --- | --- |
-| `verilator --lint-only` over all hand-written modules | T4 | 6 | Immediate value, near-zero effort |
-| `dataGenerator.v` testbench | T3 | 6 | Assert the ramp is exactly 0…1020 then wraps — the simulation counterpart of §5 |
-| `fx3StateMachine.v` testbench | T3 | 6 | The highest-risk module: the GPIF II handshake |
-| `statusLED.v` testbench | T3 | 6 | Simple timing logic, easy win |
 | CI test lanes | — | 7 | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
 | Licence-header check | T4 | 8 | Nine of 69 source files carry SPDX identifiers today |
+| `buffer.v` testbench | T3 | — | Needs a free `dcfifo` model, or a hand-written stand-in for it. See the caveat below; not scheduled |
+
+Phase 6 delivered the four gateware items that used to be on this list: the `-Wall` lint
+pass and the `dataGenerator`, `fx3StateMachine` and `statusLED` testbenches, all in §4.6.
 
 Further GUI targets worth having, not yet scheduled: `amplitudemeasurement` (pure computation
 over a sample buffer), the `analysetestdata` logic itself (it is the host half of the §5
@@ -255,6 +299,17 @@ abstraction, so it can be mocked and the orchestration tested without hardware.
 `IPfifo.v` and `IPpllGenerator.v`. Full elaboration therefore needs vendor simulation models.
 Either stub them or restrict simulation to the surrounding logic — but say which in the
 testbench. Do not claim whole-design simulation is free, because it is not.
+
+Phase 6 took the second route, and the cost is worth stating plainly: **`buffer.v` is
+untested.** It is the ping-pong FIFO pair between the ADC and FX3 clock domains — two
+`dcfifo` instances, the overflow detection, and the switch between them — which makes it one
+of the two modules where a defect would show up as dropped samples rather than as a device
+that does not work. It is linted (against black-box declarations, so the instantiations are
+checked for arity and width) and it is covered on hardware by §5, and that is all.
+
+Writing a stand-in `dcfifo` would make it simulable, but a hand-written model of a vendor
+primitive is a second implementation that can itself be wrong in the direction that makes the
+test pass. That is a real piece of work, not a gap to close in passing.
 
 ## 7. Conventions for new tests
 

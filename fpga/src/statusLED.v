@@ -12,10 +12,16 @@
 module statusLED (
 	input nReset,
 	input clock,
-	
+
 	// Outputs
 	output reg [7:0] leds
 );
+
+// Clock cycles between LED steps. At the 60 MHz FX3 clock this is a step
+// every 67 ms, which is the rate the board has always run at — the parameter
+// exists so a testbench can turn the same logic over in a few thousand cycles
+// instead of sixty million. Do not override it in the design.
+parameter timerLimit = 32'd4000000;
 
 // Control the status LEDs
 reg [31:0] timer;
@@ -31,7 +37,7 @@ always @ (posedge clock, negedge nReset) begin
 	end else begin
 		timer <= timer + 32'd1;
 		// Wait for the timer to elapse before updating LEDs
-		if (timer >= 32'd4000000) begin
+		if (timer >= timerLimit) begin
 			case(position)
 				4'd0:leds <= 8'b00000001;
 				4'd1:leds <= 8'b00000010;

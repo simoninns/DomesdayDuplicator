@@ -296,9 +296,15 @@ published work on Cyclone bitstream formats:
   non-identical *files*. The configuration state machine never reads those header bytes.
 
 So the honest statement is: **the configuration content is reproducible given a pinned
-toolchain; the `.sof` file may not be byte-identical.** This has not been verified for this
-project — Quartus is not installed here and Phase 6 has not run. **P6-9 makes it an
-experiment** rather than an assumption.
+toolchain; the `.sof` file may not be byte-identical.**
+
+**Phase 6 measured it, and that statement is exactly right.** Four compiles of the same
+commit — two locally, one with the Fitter settings pinned, one inside a Nix build sandbox —
+produced a **byte-identical `.jic`** and a `.sof` differing in 32–34 bytes of 704,015: a
+per-run design hash in two encodings, two copies of a compile timestamp, and the checksum
+covering them. No configuration data differs, and the identical `.jic` — which `quartus_cpf`
+derives from the `.sof`'s configuration payload — is the independent proof of that. Full
+detail in Phase 6, "P6-9 in full".
 
 The archive-the-artefact model survives, but on weaker and different grounds than that draft
 claimed. It is not "you cannot regenerate this". It is:
@@ -324,7 +330,9 @@ An archived artefact is only useful if you can tell which commit produced it. Cu
 | FPGA bitstream | **No** — nothing in the `.sof`/`.jic` identifies the source |
 
 P5-6 closed the GUI gap; P7-9 makes it a release gate. The FPGA gap is handled by recording
-provenance alongside the artefact rather than inside it (§4).
+provenance alongside the artefact rather than inside it (§4) — P6-8 emits
+`bitstream-provenance.txt` into the build output, and the derivation fails rather than
+installing one that reports an `unknown` commit.
 
 Every release also publishes a `SHA256SUMS` manifest and a short provenance note: the commit,
 the `flake.lock` nixpkgs revision, and — for the bitstream — the Quartus version and the
@@ -376,9 +384,13 @@ canonical digest is what makes the FPGA artefact independently verifiable **with
 running Quartus** — the maintainer builds locally, publishes both digests, and anyone with
 the same pinned Quartus version can rebuild and compare the canonical one.
 
-If P6-9 finds the `.sof` *is* byte-identical across rebuilds on a pinned toolchain, the
-canonical digest becomes redundant and the release digest alone does both jobs. That is the
-better outcome, and it is worth measuring before building machinery for the harder case.
+**P6-9 found both answers at once, one per artefact.** The `.jic` *is* byte-identical across
+rebuilds, so its release digest and its canonical digest are the same number and it needs no
+machinery at all — and since the `.jic` is the file programmed into the EPCS64 flash, the
+artefact that matters is the one that came out reproducible. The `.sof` is not, so it gets
+the canonical form: `fpga/bitstream-provenance.py` masks the per-run design hash, the two
+copies of the compile timestamp and the file checksum, and refuses to emit a digest at all if
+a future Quartus moves any of them.
 
 
 ---
@@ -407,7 +419,7 @@ outstanding, and that is a Phase 6 gate rather than a blocker — **Phase 1 can 
 | --- | --- | --- |
 | **P0-1** Outstanding branches | S | **Decided.** Land `fpgaupdate-202512` (4 ahead, 0 behind — a clean fast-forward carrying the Quartus 25.1 upgrade, a hand-written FIFO replacing the Intel `dcfifo` IP, and a 333-line testbench). Leave `release-2.x` alone: 2022-era, pre-split flat layout, content already in `master`. **Action outstanding:** fast-forward `firmware`'s `master`, push, update the superproject pointer — all *before* Phase 1 |
 | **P0-2** Cypress SDK | M | **Decided.** Vendor it regardless of the licence review — it is already widely mirrored. **Action outstanding:** refresh from the official download into `firmware/fx3/fx3-firmware/cyfx3sdk/` (later `fx3/sdk/`), preserving the project-authored `util/elf2img/CMakeLists.txt` and the `fw_lib/1_3_5/` version path. Exact layout in [decisions.md](decisions.md). *(P5-7 removed `util/` entirely — do not restore it on a future refresh; decisions.md carries the current instructions)* |
-| **P0-3** Quartus version | M, HW | **Decided (verification outstanding).** 25.1 accepted — the upgrade already exists on `fpgaupdate-202512`. What remains: run the capture-integrity procedure on real hardware, since that branch's last commit says "need to test". A **Phase 6 gate**, not a blocker |
+| **P0-3** Quartus version | M, HW | **Decided; software half verified in Phase 6, hardware half outstanding.** 25.1 accepted — the upgrade already exists on `fpgaupdate-202512`. Phase 6 showed 25.1 compiles the committed sources unchanged (`0 errors`, no upgrade prompt, no rejected parameters). What remains is the capture-integrity procedure on real hardware, since that branch's last commit says "need to test". That is the **P6-5 gate** |
 | **P0-4** Docs site URL | M | **Decided.** Move to `simoninns.github.io/domesdayduplicator`; **no redirect stub**. Old deep links will 404 — accepted. Simplifies P4-8 to `site_url` plus four in-repo links |
 | **P0-5** History size | S | **Decided.** Accept ~400 MB. `filter-repo` does path prefixing only — no `--strip-blobs-bigger-than`, no LFS |
 | **P0-6** Old repositories | S | **Decided.** Leave all four alone — not archived, not deleted. The maintainer will clean them up separately. **P8-1 is removed from this plan** |
@@ -1311,29 +1323,246 @@ hardware run that crosses the boundary those tests describe.
 
 A firmware image that boots but has not been capture-verified is not done.
 
-## Phase 6 — FPGA flake
+## Phase 6 — FPGA flake — **DONE except the hardware gate**
 
-Depends on P0-3.
+Executed 2026-08-12 on `20260812-002`. Ten of the eleven tasks are complete. **P6-5 is
+outstanding and cannot be closed here** — it needs a physical Domesday Duplicator and a
+known disc. The phase gate is P6-5, so *the gate is not met*; the gate section below lists
+exactly what has and has not been shown.
+
+P6-3 was not needed. Quartus 25.1 compiles the committed 2017-era sources unchanged, with no
+upgrade prompt and no rejected parameters, which is what the contingency existed for.
+
+Depends on P0-3, whose software half this phase verified.
 
 | Task | Size | Detail |
 | --- | --- | --- |
-| **P6-1** Quartus flake | M | `import nixpkgs { config.allowUnfree = true; }` internally; `.override { supportedDevices = [ "Cyclone IV" ]; withQuesta = false; }`. Add the **USB-Blaster udev rule** to `nix/modules/udev.nix` alongside the FX3 one — the nixpkgs Quartus package ships no udev rules. Sketch in [nix-flake-design.md](nix-flake-design.md) §6 |
-| **P6-2** Headless compile, convert and program flow | M | `quartus_sh --flow compile DomesdayDuplicator`, then `quartus_cpf -c DomesdayDuplicator.cof`, then `quartus_pgm` driven by the already-committed `DomesdayDuplicator_write_{sof,jic}.cdf`. `export HOME=$TMPDIR` (Quartus needs a writable home). No GUI at any step — [ide-independence.md](ide-independence.md) §2.1 |
-| **P6-3** IP regeneration | L | **Contingency only.** `IPfifo.v` and `IPpllGenerator.v` are committed plain Verilog instantiating `dcfifo`/`altpll` with explicit `defparam`s, so nothing runs MegaWizard at build time. Needed only if 25.1 rejects the 2017-era parameters — see [ide-independence.md](ide-independence.md) §2.2 |
-| **P6-4** `fpga/README.md` | S | Canonical Quartus version, manual-install fallback, what reproducibility can and cannot be relied on (P6-9's finding), that the dev shell is the deliverable, and that the generated `.v` files are **source of truth** rather than wizard output to be regenerated |
-| **P6-5** Hardware verification | L, **HW** | Run the TESTING.md capture-integrity procedure with the flake-built bitstream (zero sequence breaks), then capture a known disc and compare against a capture from the shipped 18.0-built one. Keep the released `.jic` in-tree until this passes |
-| **P6-6** `verilator --lint-only` check | S | Lint the hand-written modules (`DomesdayDuplicator.v`, `buffer.v`, `dataGenerator.v`, `fx3StateMachine.v`, `statusLED.v`) as a `nix flake check`. Free, fast, cross-platform — so gateware gets *some* CI coverage even though bitstream builds cannot run there |
-| **P6-7** Gateware testbenches | M | T3 simulation for `dataGenerator.v` (assert the 0…1020 test ramp — the same sequence P6-5 verifies on silicon), `fx3StateMachine.v` (the handshake, highest-risk module) and `statusLED.v`. Note in TESTING.md that whole-design simulation needs vendor `dcfifo`/`altpll` models |
+| **P6-1** Quartus flake ✅ | M | A second `import nixpkgs { config.allowUnfree = true; }` of the *same locked* input inside the root flake — no second `flake.lock`, no `--impure`. `.override { supportedDevices = [ "Cyclone IV" ]; withQuesta = false; }`. `packages.x86_64-linux.bitstream` and `devShells.x86_64-linux.fpga-quartus`, both guarded by system. The USB-Blaster rule is `fpga/configs/70-altera-usb-blaster.rules`, installed by `nix/modules/udev.nix` under a new `usbBlaster` option |
+| **P6-2** Headless compile, convert and program flow ✅ | M | `fpga/package.nix` runs `quartus_sh --flow compile` then `quartus_cpf -c`, with `HOME=$TMPDIR`; `fpga/build-local.sh` does the same out of tree for interactive work. No GUI at any step, and `quartus_pgm` reads the committed `.cdf` files, which the derivation installs alongside the bitstream so `$out` is enough on its own to program a board |
+| **P6-3** IP regeneration | L | **Not needed.** 25.1 accepted the committed `dcfifo`/`altpll` instantiations as they stand. Retained as a contingency for a future Quartus |
+| **P6-4** `fpga/README.md` ✅ | S | Rewritten: canonical version 25.1, the manual-install fallback, P6-9's measured answer in full, the dev shell as the deliverable, the generated `.v` files as source of truth, and what the lint waivers mean |
+| **P6-5** Hardware verification — **part one done, capture outstanding** | L, **HW** | The flake-built bitstream loads onto real silicon and the board survives it — bench session below. What remains is the TESTING.md capture-integrity procedure (zero sequence breaks) and a known-disc capture compared against one from the shipped 18.0-built bitstream |
+| **P6-6** `verilator --lint-only` check ✅ | S | `-Wall` over the five hand-written modules, via `fpga/tests/run-lint.sh`, as the `fpga-lint` flake check. Waivers with written reasons in `fpga/verilator-waivers.vlt` |
+| **P6-7** Gateware testbenches ✅ | M | `tb_dataGenerator.v`, `tb_fx3StateMachine.v` and `tb_statusLED.v` under Icarus Verilog, via `fpga/tests/run-sim.sh`, as the `fpga-sim` flake check. TESTING.md §6 records that `buffer.v` is consequently untested and why |
+| **P6-8** Bitstream provenance record ✅ | S | `fpga/bitstream-provenance.py` emits `bitstream-provenance.txt` into `$out`: commit, device and family, Quartus version and word size, host architecture, Fitter seed, parallel processors, and both digests per artefact |
+| **P6-9** Measure reproducibility, do not assume it ✅ | S | **Answered.** Four compiles of the same commit — two locally, one with the P6-11 settings pinned, one inside a Nix build sandbox — produce a **byte-identical `.jic`** and a `.sof` differing in 32–34 bytes of 704,015, every one of them header metadata. Detail below |
+| **P6-10** Publishable bitstream digest ✅ | S | Both digests, per artefact. For the `.jic` they are the same number; for the `.sof` the canonical one masks the four fields Quartus varies per run. Fail-loud, and the offsets are fixed by `fpga/tests/test_provenance.py` (the `fpga-provenance` check) |
+| **P6-11** Pin the determinism-relevant settings ✅ | S | `SEED 1` and `NUM_PARALLEL_PROCESSORS 4` in the `.qsf`. Both are Quartus' defaults; pinning them was verified inert — the `.jic` is unchanged. `ROUTER_TIMING_OPTIMIZATION_LEVEL` left alone, because P6-9 showed no routing variance to control |
 
-| **P6-8** Bitstream provenance record | S | The bitstream is built outside CI, so the artefact must carry its own provenance. Emit `bitstream-provenance.txt` alongside the `.sof`/`.jic`: source commit, **exact Quartus version and build (32/64-bit)**, host CPU architecture, Fitter seed, `Maximum processors allowed`, `.qsf` device string, and the SHA-256 of each output. `nix build .#bitstream` writes it into `$out`; a manual build writes it by hand. This is what P8-3 attaches to the release |
-| **P6-9** Measure reproducibility, do not assume it | S | Compile the same commit **twice** on the same pinned toolchain and `cmp` the `.sof`. Two possible findings, both useful: byte-identical (so a plain SHA-256 is a complete verification method, and P6-10 collapses to nothing), or differing only in the header region where Quartus embeds a compile timestamp (so the digest must be taken over a canonical form). Record the answer in `fpga/README.md`. This settles a question earlier drafts of this plan got wrong by assuming |
-| **P6-10** Publishable bitstream digest | S | Depends on P6-9. If the `.sof` is byte-identical, publish its SHA-256 and stop. If not, add a small script emitting a **canonical digest** over the configuration payload with the timestamped header excluded, so a third party with the same pinned Quartus can rebuild and verify without CI ever running Quartus. Both digests go in `bitstream-provenance.txt` and in the release `SHA256SUMS` |
-| **P6-11** Pin the determinism-relevant settings | S | Determinism depends on settings that are currently implicit. Set the Fitter seed explicitly in the `.qsf` rather than relying on the default, and record `Maximum processors allowed`. Consider `ROUTER_TIMING_OPTIMIZATION_LEVEL` if P6-9 shows routing variance. An unpinned seed is a reproducibility claim resting on a default that a future Quartus could change |
+### P6-9 in full: what a rebuild actually produces
 
-**Gate:** P6-5 passes, and every step from source to programmed device runs from a shell.
-P6-9 has been run and its answer recorded, so the project states what reproducibility it
-actually has rather than assuming in either direction. The hardware gate remains functional
-equivalence — a capture with zero sequence breaks — not hash equality.
+The question earlier drafts of this plan got wrong by assuming. The answer is better than
+either alternative the task anticipated.
+
+| Artefact | Across four builds |
+| --- | --- |
+| `DomesdayDuplicator.jic` | **Byte-identical.** 8,388,833 bytes, `sha256:95480a5f…` every time |
+| `DomesdayDuplicator.sof` | 32–34 differing bytes of 704,015. **Zero of them configuration data** |
+
+The `.sof` differences are enumerable in full:
+
+| Where | What | Bytes |
+| --- | --- | --- |
+| After `design_hash.bin` | A per-run design hash | 10 |
+| `md5_digest_80b="…"` | The same hash again, as ASCII hex in the SLD project info | 20 |
+| Two places | A 32-bit little-endian Unix compile timestamp, twice | 4 + 4 |
+| End of file | The file checksum, which covers all of the above | 2 |
+
+The timestamps decode to the wall-clock times of the builds, 54 seconds apart — which is what
+identifies them as timestamps rather than as anything to do with the design.
+
+**The identical `.jic` is the proof, and it was free.** `quartus_cpf` derives the `.jic` from
+the `.sof`'s configuration payload and drops the header, so `.jic` identity says the
+configuration content is identical without anyone having to trust a hand-derived mask. It is
+also the artefact that is actually programmed into the EPCS64 flash, so the reproducible one
+is the one that matters.
+
+Consequence for P6-10: **the `.jic`'s plain SHA-256 is already a canonical digest.** The
+`.sof` canonicaliser exists so the volatile-configuration file is verifiable too, not because
+the release depends on it.
+
+### Deviations and findings
+
+**1. Quartus 25.1 compiles the 2017-era project unchanged — P0-3's software half is
+verified.** `0 errors, 52–56 warnings`, in 16 seconds. No upgrade prompt, no rejected
+`intended_device_family`, no deprecated-parameter errors. P6-3 was written for the case where
+this failed, and it did not. P0-3's remaining half is the hardware capture, which is P6-5.
+
+**2. Quartus rewrites the `.qsf` in place, so no build may run in `fpga/src/`.** Every compile
+updates `LAST_QUARTUS_VERSION` from `18.0.0 Lite Edition` to `25.1std.0 Lite Edition` and
+drops about thirty build products beside the sources. That would dirty a tracked file on
+every build. Both build routes copy to a build directory first: the derivation into its
+sandbox, `build-local.sh` into `fpga/build/`. The README says so, and so does the Quartus
+shell's banner.
+
+**3. Quartus runs inside the Nix build sandbox, which was not a given.** nixpkgs packages it
+as a `buildFHSEnv`, which uses `bubblewrap`, and nested user namespaces inside the Nix
+sandbox are a common failure mode for FHS-env packages. It works here: `nix build .#bitstream`
+compiles, converts and installs, and produces a `.jic` byte-identical to a build run outside
+the sandbox entirely. That is a stronger reproducibility result than the plan asked for — two
+different environments, same output.
+
+**4. The design sketch's `installPhase` was wrong about where the outputs land.**
+[nix-flake-design.md](nix-flake-design.md) §6 has `cp output_files/*.sof`. There is no
+`output_files/` — the project sets no `PROJECT_OUTPUT_DIRECTORY`, so Quartus writes
+`DomesdayDuplicator.sof` into the project directory itself. The derivation installs from
+there, plus the reports and the two `.cdf` files.
+
+**5. One gateware change, and it is provably bit-neutral.** `statusLED.v` gained
+`parameter timerLimit = 32'd4000000;` in place of the hardcoded constant, because a testbench
+for it otherwise needs 56 million clock edges to see one full pattern — minutes of simulation
+for a module that can be checked in a few thousand cycles with the limit overridden. The
+default is the original value, and the claim that this changes nothing is not an argument:
+the `.jic` built after the change is byte-identical to the one built before it. The trailing
+newlines added to four sources for POSIX conformance are covered by the same comparison.
+
+**6. Lint findings are waived with reasons, not fixed.** `-Wall` reports nine things on this
+source: a blocking assignment in a clocked block (three sites), two incomplete `case`
+statements, three implicit width promotions, and unused `fx3_control` bits. All are correct
+as written, and all are in gateware that has been in the field since 2018. Fixing them is a
+change whose gate is a capture-integrity run, not a change that accompanies adding a linter —
+so `fpga/verilator-waivers.vlt` records each with its reason and each is pinned by a
+testbench. The blocking-assignment waiver is the one that carries real weight, and its
+rationale is the packet-length assertion in `tb_fx3StateMachine.v` rather than a claim.
+
+Waivers match on rule, file and message text rather than line number, so they survive edits
+above them; and a `.vlt` file cannot contain a comment whose first word is the linter's own
+name, which is parsed as a pragma.
+
+**7. The `.sof` canonicaliser was wrong on first write, and only a real pair of bitstreams
+caught it.** The ASCII-hash mask double-counted its anchor length and zeroed 20 bytes
+starting 16 too far in. Every symptom of that bug is silent: the anchor is found, the right
+number of bytes is zeroed, a well-formed digest comes out, and it matches nothing. It was
+found by running the tool over two real builds and noticing the canonical digests disagreed
+when the `.jic` files were identical. `tests/test_provenance.py` now fixes each field's
+offset against a synthetic header, and asserts the converse too — that a change to the
+configuration payload is *not* masked, which is what stops the masking growing until every
+bitstream looks the same.
+
+**8. `checks` is no longer "the packages".** It was `checks = forAllSystems (pkgs:
+self.packages.${system})`. `bitstream` must not be in it (P7-4), and the gateware checks are
+not packages, so it is now `removeAttrs … [ "bitstream" ]` plus the three `fpga-*` checks.
+`removeAttrs` rather than never adding it, so a future unfree package cannot reach `checks`
+by being forgotten about.
+
+**9. The USB-Blaster rule is a package, not `services.udev.extraRules`.** `extraRules` writes
+`99-local.rules`, and systemd consumes the `uaccess` tag in `73-seat-late.rules` — so the
+convenient route would have reintroduced D23 exactly, in a new file, with the same invisible
+half-working symptom. The rule is `70-`prefixed and installed through
+`services.udev.packages`.
+
+**10. `buffer.v` is untested, and that is the honest cost of free simulation.** It is two
+`dcfifo` instances and the ping-pong logic between them, and `dcfifo` has no free simulation
+model. It is one of the two modules where a defect shows up as dropped samples rather than as
+a device that does not work, so this is worth stating rather than leaving to be inferred from
+a list of three testbenches. Recorded in TESTING.md §6 with what it would take to close.
+
+### Gate — **not met; blocked on hardware**
+
+The gate is P6-5, and P6-5 needs a physical device and a known disc. Everything that can be
+verified without one has been, and is listed below so the remaining work is exactly one item
+and not a re-audit.
+
+| Check | Result |
+| --- | --- |
+| Quartus 25.1 compiles the committed sources | Yes, unchanged, `0 errors`, 16 seconds |
+| `nix build .#bitstream` | Builds in the sandbox. `$out` has `.sof` (704,015 bytes), `.jic` (8,388,833), `.map`, both `.cdf` files, `bitstream-provenance.txt` and eight compilation reports |
+| Bitstream reproducibility (P6-9) | `.jic` byte-identical across four builds in two environments; `.sof` differs only in 32–34 bytes of header metadata |
+| `.qsf` pinning is inert (P6-11) | `.jic` unchanged after adding `SEED 1` and `NUM_PARALLEL_PROCESSORS 4` on a 16-core machine — so the processor count does not affect the fit either |
+| Gateware edits are inert | `.jic` unchanged after the `statusLED.v` parameter and four trailing newlines |
+| Canonical digest agrees across rebuilds | `sha256:254e3535…` from all four `.sof` files, whose release digests are all different |
+| `installCheckPhase` | Fails the build if the `.sof`, `.jic` or provenance record is missing or empty, or if the record says `unknown` for the commit |
+| `fpga-lint` | 5 modules clean under `-Wall` |
+| `fpga-sim` | 3 testbenches pass, ~4.5 s |
+| `fpga-provenance` | 12 checks pass |
+| `nix flake check` | **all checks passed**, with `bitstream` correctly absent and the three `fpga-*` checks present |
+| NixOS module | Evaluates with `usbBlaster` on; `services.udev.packages` carries `altera-usb-blaster-udev-rules`, which installs `lib/udev/rules.d/70-altera-usb-blaster.rules` |
+| `nixfmt --check` | Clean on every new and modified `.nix` file |
+
+**Partly verified on live hardware, 2026-08-12.** A DE0-NANO was attached during the phase,
+which allowed the *need* for the rule to be demonstrated rather than assumed:
+
+| Check | Result |
+| --- | --- |
+| The board's blaster enumerates | `09fb:6001 Altera Blaster`, on bus 007 |
+| The rule's match keys against the real device | `SUBSYSTEM=="usb"`, `ATTR{idVendor}=="09fb"`, `ATTR{idProduct}=="6001"` all present on the device itself — so `ATTR{}` is correct and `ATTRS{}` would be wrong |
+| `udevadm verify` | Passes |
+| Any existing rule matching `09fb` | **None** on this machine, confirming nixpkgs' Quartus ships none |
+| Device node before the rule | `crw-rw-r-- root root`, `getfacl` shows no user entry, `CURRENT_TAGS=:seat:` — no `uaccess` |
+| `jtagconfig` as a non-root user | `1) USB-Blaster variant [7-3.2]` / `Unable to lock chain - Insufficient port permissions` |
+
+So the failure this rule fixes is observed, not predicted.
+
+**Then the rule was installed, the machine rebooted, and the same checks repeated — it
+works.** This is the claim D23 showed cannot be taken from a reading of the file, so it is
+the before-and-after that matters rather than the after alone:
+
+| Check | Before | After |
+| --- | --- | --- |
+| Device node | `crw-rw-r-- root root` | `crw-rw-rw-+` — note the `+` |
+| `getfacl` | no user entry | `user:sdi:rw-` |
+| `CURRENT_TAGS` | `:seat:` | `:uaccess:usb_blaster:seat:` |
+| `jtagconfig` | `USB-Blaster variant [7-3.2]` / `Unable to lock chain - Insufficient port permissions` | `USB-Blaster [7-3.2]` / `020F30DD  10CL025(Y\|Z)/EP3C25/EP4CE22` |
+
+Three details worth keeping:
+
+- **The `uaccess` half is doing the work, not the `MODE` fallback.** The ACL entry is present,
+  which is precisely what was absent for years under D23. A `0666` node with no user entry
+  would have looked identical to a caller and been the same latent bug in a new file.
+- **"USB-Blaster *variant*" was itself a permissions symptom.** Quartus could not open the
+  device far enough to identify the cable, so it fell back to a generic name. It reports the
+  real one now.
+- **The scanned IDCODE `020F30DD` is an `EP4CE22`** — the device the `.qsf` targets. So the
+  chain is not merely reachable, it is the expected part.
+
+The FX3 in application mode (`1d50:603b`) was checked in the same pass and also carries
+`user:sdi:rw-` and `:uaccess:ddd_dev:seat:`, so the Phase 5 rule is still intact after the
+change.
+
+The system side is `/etc/nixos/modules/domesday-duplicator.nix`, which now carries the
+USB-Blaster rules alongside the FX3 ones. They are duplicated by hand there rather than
+imported from `nixosModules.udev` because that module can only be reached through a
+resolvable flake URL, and this work is on an unpushed local branch; the module's own comment
+already forbids pointing a system config at a home directory. The repository's own rule file
+and NixOS module are the ones that ship — they are what a user of this project gets — and
+this machine is a hand-kept mirror of them until the branch lands.
+
+### Bench session, 2026-08-12 — P6-5 part one
+
+Run immediately after the udev verification above, on `titan`, with a DE0-NANO attached via
+its on-board USB-Blaster and the FX3 already running the Phase 5 firmware.
+
+The artefact programmed was **the derivation's own output**, copied out of
+`/nix/store/…-domesday-duplicator-bitstream-0/` — not a local compile — so this exercises
+`nix build .#bitstream` end to end rather than just Quartus.
+
+| Step | Result |
+| --- | --- |
+| Cable and device | `Using programming cable "USB-Blaster [7-3.2]"`, non-root |
+| Programming file | `./DomesdayDuplicator.sof`, checksum `0x001D67A1`, for `EP4CE22F17@1` |
+| JTAG ID read back | `0x020F30DD` — matches the `.qsf`'s `EP4CE22F17C6` |
+| Configuration | `Configuration succeeded -- 1 device(s) configured`, `0 errors, 0 warnings`, 1 second |
+| Board after reconfiguration | Still enumerated: `1d50:603b`, `bcdUSB 3.00`, **5000 Mbps SuperSpeed**, `iProduct Domesday Duplicator (d0566b3e-dirty)` |
+
+**What this proves:** a bitstream produced by the packaged, hermetic build loads onto real
+silicon through the documented headless path, and the board does not fall over when it does.
+Combined with the byte-identical `.jic` across five builds, the artefact the flake produces
+is both reproducible and accepted by the hardware.
+
+**What it explicitly does not prove, and the distinction matters:** that the capture path is
+intact. The FX3 had already enumerated *before* the FPGA was reconfigured — USB enumeration
+happens when the FX3 boots — so the device still being present at SuperSpeed afterwards is
+consistent with, but not evidence of, correct gateware. Only the capture-integrity procedure
+tests the path that actually carries samples, and dropped samples are the failure mode that
+does not announce itself. **P6-5 is not closed.**
+
+The `.sof` is volatile: a power cycle restores whatever the EPCS64 flash holds, so the board
+is not left in a modified state by this session. Nothing was written to flash.
+
+**Outstanding for the maintainer before the flake evaluates:** Nix reads only git-tracked
+files, so the new `fpga/*.nix`, `fpga/tests/`, `fpga/configs/` and `fpga/*.py`/`*.sh` files
+must be added to the index before `nix flake check` works from the repository itself. Every
+result above was obtained by building the same derivations from the working tree directly.
 
 ### The bitstream is not built by CI
 
@@ -1415,8 +1644,18 @@ every attached file.
 ## Summary of what needs hardware
 
 Four gates cannot be signed off from a green build alone: **P0-3** (Quartus spike), **P3-3**
-(udev rules), **P5-4** (firmware flash and enumerate), **P6-5** (bitstream capture). Schedule
-them together if bench access is limited — P0-3 and P6-5 in particular are the same setup.
+(udev rules), **P5-4** (firmware flash and enumerate), **P6-5** (bitstream capture).
+
+Three are now partly or wholly closed on real hardware. What is left is one bench session:
+
+| Outstanding | What it needs |
+| --- | --- |
+| **P5-4**, second half | The capture-integrity procedure ([TESTING.md](../TESTING.md) §5) with the flake-built firmware. The device enumerates and reports its commit; the capture path is unproven |
+| **P6-5** | The same procedure with a flake-built bitstream, then a known-disc capture compared against one from the shipped 18.0-built bitstream |
+~~**P6-1**, permissions half~~ | **Closed 2026-08-12.** With `70-altera-usb-blaster.rules` installed, `getfacl` shows `user:sdi:rw-`, the node carries `:uaccess:`, and `jtagconfig` locks the chain and reads back an `EP4CE22` IDCODE. Before/after table in the Phase 6 gate section |
+
+These are one session, not two — P5-4 and P6-5 are the same procedure on the same bench with
+the same disc. P0-3's software half was closed in Phase 6; its hardware half *is* P6-5.
 
 ## Deliberately out of scope
 

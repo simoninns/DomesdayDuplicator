@@ -100,7 +100,15 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 ├── docs-tech/                 # engineering-process docs for the repository itself
 ├── fpga/
 │   ├── README.md
-│   └── src/                   # Quartus project and Verilog
+│   ├── src/                   # Quartus project and Verilog
+│   ├── tests/                 # testbenches, lint and simulation runners
+│   ├── configs/               # USB-Blaster udev rules
+│   ├── verilator-waivers.vlt  # lint waivers, each with its reason
+│   ├── bitstream-provenance.py
+│   ├── build-local.sh         # out-of-tree local build
+│   ├── checks.nix             # fpga-lint, fpga-sim, fpga-provenance
+│   ├── package.nix            # the bitstream — unfree, x86_64-linux, not in CI
+│   └── quartus-shell.nix      # nix develop .#fpga-quartus
 ├── fx3/
 │   ├── README.md
 │   ├── .clangd                # per-component, see §7
@@ -201,6 +209,14 @@ Unique to this project, and non-negotiable:
 
 - Follow the existing style: `lowerCamelCase` signal names, `always @(posedge clock)`.
 - Explicit widths on all literals.
+- `./fpga/tests/run-lint.sh` must pass. It runs `verilator --lint-only -Wall`, so new code is
+  held to the whole warning set.
+- **Do not silence a lint finding without a reason.** `fpga/verilator-waivers.vlt` waives
+  nine pre-existing findings, each with a written justification and each pinned by a
+  testbench. A waiver with no reason is indistinguishable from a bug someone hid.
+- Changing gateware means the bitstream has to be rebuilt *and* re-verified on hardware
+  (TESTING.md §5). A change that is claimed to be behaviour-neutral can be shown to be: build
+  a `.jic` before and after and compare — it is byte-identical across rebuilds.
 
 ### 5.4 Licence headers
 
@@ -228,6 +244,7 @@ flake, so the directory you are in makes no difference; the `.#name` selects the
 ```bash
 nix develop                  # all free components in one shell
 nix develop .#gui            # or .#fx3, .#fpga, .#hardware, .#docs
+nix develop .#fpga-quartus   # adds Quartus; x86_64-linux only, multi-GB first download
 nix build .#gui .#fx3-firmware .#fx3-programmer .#fx3-mkimage
 nix flake check              # build everything and run the T1-T4 tests
 ```
@@ -292,11 +309,16 @@ cmake --build fx3/firmware/build
 cmake -B fx3/programmer/build -S fx3/programmer
 cmake --build fx3/programmer/build
 
-# FPGA bitstream (needs Quartus Prime Lite)
-cd fpga/src && quartus_sh --flow compile DomesdayDuplicator
+# FPGA bitstream (needs Quartus Prime Lite: nix develop .#fpga-quartus)
+./fpga/build-local.sh          # or, hermetically: nix build .#bitstream
 ```
 
 Build directories are `build/` under each component and are gitignored. Never build in-tree.
+
+That applies with particular force to `fpga/src/`: `quartus_sh` **rewrites the `.qsf` in
+place** to record `LAST_QUARTUS_VERSION`, so compiling there dirties a tracked file on every
+build and scatters thirty-odd products beside the sources. `build-local.sh` and
+`nix build .#bitstream` both copy to a build directory first.
 
 ## 8. Testing
 
@@ -312,9 +334,13 @@ ctest --test-dir gui/build         # one component
 **What exists today: 78 tests across four components** — 21 in `gui/` (UTF-8 conversion, the
 10-bit/16-bit sample codec), 24 in `fx3/programmer/` (EEPROM paging arithmetic,
 secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and one
-golden test in `fx3/firmware/` (the generated USB product descriptor). `fpga/` and
-`hardware/` have **no automated coverage yet**; `docs/` has a static check only. TESTING.md
-§6 says what is planned and in which phase.
+golden test in `fx3/firmware/` (the generated USB product descriptor). `fpga/` adds three
+Verilog testbenches, a `-Wall` lint pass over five modules and a bitstream-digest test, none
+of them under CTest — there is no CMake there. `hardware/` has **no automated coverage yet**;
+`docs/` has a static check only. TESTING.md §6 says what is planned and in which phase.
+
+`fpga/buffer.v` is deliberately uncovered: it is two Altera `dcfifo` instances, and `dcfifo`
+has no free simulation model. Do not describe the gateware as tested without that caveat.
 
 Do not write documentation, comments or PR descriptions implying coverage that does not
 exist. Where a change needs manual verification, state plainly what you did — which component
