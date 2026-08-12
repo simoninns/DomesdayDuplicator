@@ -28,11 +28,18 @@
 #include "aboutdialog.h"
 #include "ui_aboutdialog.h"
 
+#include <QCoreApplication>
+
 AboutDialog::AboutDialog(QWidget *parent) :
     QDialog(parent)
 {
     ui.reset(new Ui::AboutDialog());
     ui->setupUi(this);
+
+    // Set here rather than in the .ui file: the version carries the build's commit hash
+    // (D21), which is only known at compile time. main() has already put it on
+    // QCoreApplication, so there is one definition of it rather than two.
+    ui->versionLabel->setText(tr("Version %1").arg(QCoreApplication::applicationVersion()));
 }
 
 AboutDialog::~AboutDialog()

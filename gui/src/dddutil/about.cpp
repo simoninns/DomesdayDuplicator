@@ -28,11 +28,17 @@
 #include "about.h"
 #include "ui_about.h"
 
+#include <QCoreApplication>
+
 About::About(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::About)
 {
     ui->setupUi(this);
+
+    // Set here rather than in the .ui file: the version carries the build's commit hash
+    // (D21), which is only known at compile time.
+    ui->versionLabel->setText(tr("Version %1").arg(QCoreApplication::applicationVersion()));
 }
 
 About::~About()

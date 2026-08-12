@@ -54,7 +54,7 @@ install(FILES
 # prefix, which breaks staged and sandboxed installs. Distribution packagers should copy
 # or symlink from $PREFIX/lib/udev/rules.d into /etc/udev/rules.d — see README.md.
 install(FILES
-    configs/88-cyusb.rules
+    configs/70-domesday-duplicator.rules
     DESTINATION lib/udev/rules.d
 )
 

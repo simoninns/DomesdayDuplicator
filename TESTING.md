@@ -84,12 +84,19 @@ corruption is only detectable by comparing against an original that may no longe
 One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
 two bytes, which is Windows.
 
-### 4.2 `fx3/programmer/` — 23 tests
+### 4.2 `fx3/programmer/` — 24 tests
 
 | File | Covers | Tiers |
 | --- | --- | --- |
 | `tests/test_paging.cpp` | EEPROM and SPI flash paging arithmetic: page padding, I2C slave rollover at 64 KiB, transfer chunking, sector counts, and that the programming loop terminates and covers the image exactly | T1 |
 | `tests/test_flashprog.cpp` | Locating `cyfxflashprog.img`: search order, the compiled-in install path, empty and missing `$FX3_FLASH_PROG`, a directory masquerading as the image, and that the returned string is owned by the caller | T1 |
+| `tests/cli-contract.sh` | The command-line contract: that the help text does not promise SPI flash support the tool lacks, that it names the memory it actually writes, that removed options are neither advertised nor silently ignored, and that a bad device index is rejected rather than treated as device 0 | T2 |
+
+`cli-contract.sh` is the odd one out: it runs the built binary and asserts on its *promises*
+rather than its computations. It exists because D24 and D25 both survived for a long time —
+help text claiming SPI flash programming the tool has never implemented, and a `-r` that
+printed a message and slept. Nothing could fail while the words and the code disagreed, so
+now something does.
 
 These look like tests of trivial code, and are not. An off-by-one in the paging arithmetic
 rolls the I2C slave address at the wrong offset and writes firmware bytes over the wrong
@@ -97,7 +104,61 @@ device — which bricks the FX3, recoverable only via the PMODE jumper. The path
 tests guard the D13 fix, where every candidate path used to be relative to the working
 directory, so an installed binary could not find the secondary loader at all.
 
-### 4.3 `docs/` — one static check
+### 4.3 `fx3/firmware/` — one golden test
+
+| File | Covers | Tiers |
+| --- | --- | --- |
+| `tests/descriptor-golden.sh` | The generated USB product descriptor: two fixed commit strings in, byte-for-byte comparison against `tests/descriptor-{0123abcd,unknown}.h`, including the computed length byte | T2 |
+
+The generated header is the *only* path by which a version reaches the device — the FX3
+serves `USB_DESC_PRODUCT_BYTES` verbatim as its product string descriptor, so a wrong length
+byte or a wrong encoding is a defect the host sees and that nothing else in the build would
+catch. Two commit strings rather than one, of different lengths, because the interesting byte
+is computed rather than fixed.
+
+To change the descriptor deliberately, regenerate the references:
+
+```bash
+cd fx3/firmware
+for c in 0123abcd unknown; do
+    bash generate-descriptor.sh /tmp "$c" > "tests/descriptor-$c.h"
+done
+```
+
+This does **not** cover D8. That defect lives on `firmware_version_string`, a separate,
+unreferenced symbol that `--gc-sections` discards before it ever reaches the device; nothing
+host-side can observe it. See the Phase 2 notes in
+[docs-tech/implementation-plan.md](docs-tech/implementation-plan.md).
+
+There is no unit tier here and there cannot usefully be one: every source file in the
+component is freestanding ARM926EJ-S code calling into the Cypress SDK, so the build host
+cannot execute any of it. What *is* testable is the host-side tooling that decides what ends
+up in the image.
+
+### 4.4 `fx3/mkimage/` — 32 tests
+
+| File | Covers | Tiers |
+| --- | --- | --- |
+| `tests/test_bootimage.cpp` | FX3 boot image construction: header fields, checksum range and wrapping, vector-area trimming, 64 KiB section splitting, `.bss` zero-fill, word alignment, ELF validation and rejection, and golden byte vectors | T1, T2 |
+
+`fx3-mkimage` replaced the Cypress SDK's `elf2img` in Phase 5, and its acceptance check was a
+byte comparison against that tool on the project's own firmware — identical, 111,316 bytes.
+**That check cannot be re-run**, because the vendor tool has been deleted from the tree. This
+suite is what guards the format now, so it is deliberately more thorough than the size of the
+tool suggests.
+
+Two tests are worth knowing about individually:
+
+- `Checksum.MatchesTheWorkedExampleFromAN76405` reproduces the worked example in the public
+  specification, `0x6AF37AF2`. It checks the implementation against Infineon's own arithmetic
+  rather than against itself.
+- `Golden.*` pin complete images byte for byte, so a refactor that keeps the structure but
+  changes the encoding is caught.
+
+A wrong image here does not fail loudly — the bootloader either refuses it or runs something
+subtly wrong on a device that is expensive to recover.
+
+### 4.5 `docs/` — one static check
 
 `nix build .#docs-site` runs `mkdocs build --strict`, which fails on broken internal links,
 `.nav.yml` entries pointing at missing files, and orphaned pages. That replaces the three
@@ -111,11 +172,10 @@ was migrated. **Use markdown image syntax**, `![](path){ width="600" }`, which M
 rewrite. If you need to check the built output directly, resolve every `href` and `src` in
 `result/` against the output tree.
 
-### 4.4 Everything else — nothing yet
+### 4.6 Everything else — nothing yet
 
 | Component | Automated coverage | Why |
 | --- | --- | --- |
-| `fx3/firmware/` | **None** | Bare-metal ARM. The descriptor golden test (§6) is planned for Phase 5 |
 | `fpga/` | **None** | Testbenches are planned for Phase 6 |
 | `hardware/` | **None**, and blocked | `kicad-cli` cannot read KiCad 5 legacy `.sch`, so ERC/DRC cannot be automated until the files are migrated. Manual for now |
 
@@ -176,7 +236,6 @@ tied to a phase of the reorganisation plan in [docs-tech/](docs-tech/).
 
 | What | Tier | Phase | Notes |
 | --- | --- | --- | --- |
-| FX3 descriptor golden test | T2 | 5 | Feed `generate-descriptor.sh` a fixed commit string, compare the generated header byte-for-byte against a committed reference. Would have caught D8, and covers the length byte the host actually reads |
 | `verilator --lint-only` over all hand-written modules | T4 | 6 | Immediate value, near-zero effort |
 | `dataGenerator.v` testbench | T3 | 6 | Assert the ramp is exactly 0…1020 then wraps — the simulation counterpart of §5 |
 | `fx3StateMachine.v` testbench | T3 | 6 | The highest-risk module: the GPIF II handshake |

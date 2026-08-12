@@ -199,7 +199,9 @@ int main(int argc, char *argv[])
 
     // Set application name and version
     QCoreApplication::setApplicationName("DomesdayDuplicator");
-    QCoreApplication::setApplicationVersion("2.1");
+    // The commit is part of the version string rather than a separate field so that it
+    // reaches --version, the About dialog and Qt's own reporting through one assignment.
+    QCoreApplication::setApplicationVersion("2.1 (" DDD_VERSION ")");
     QCoreApplication::setOrganizationDomain("domesday86.com");
     QCoreApplication::setOrganizationName("Domesday86");
 

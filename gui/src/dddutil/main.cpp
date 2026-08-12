@@ -27,10 +27,30 @@
 
 #include "mainwindow.h"
 #include <QApplication>
+#include <QCommandLineParser>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+
+    // Named and versioned like the other two tools, so every shipped binary can be asked
+    // which commit it was built from (D21). --version is the only command-line option this
+    // one has; everything else it does is driven from the window.
+    QCoreApplication::setApplicationName("dddutil");
+    QCoreApplication::setApplicationVersion("1.0 (" DDD_VERSION ")");
+    QCoreApplication::setOrganizationDomain("domesday86.com");
+    QCoreApplication::setOrganizationName("Domesday86");
+
+    QCommandLineParser parser;
+    parser.setApplicationDescription(
+                "Domesday Duplicator analysis utilities\n"
+                "\n"
+                "(c)2019-2022 Simon Inns\n"
+                "GPLv3 Open-Source - https://www.domesday86.com");
+    parser.addHelpOption();
+    parser.addVersionOption();
+    parser.process(a);
+
     MainWindow w;
     w.show();
 

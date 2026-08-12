@@ -316,7 +316,8 @@ So the SDK stays vendored (71 MB), which is also the pragmatic choice. But:
   the official vendor download, with the vendor's `license.txt` shipped alongside so the
   headers' reference to it resolves. The `requireFile` alternative is documented but not
   taken.
-- **Split `elf2img` into its own derivation** rather than `ExternalProject_Add`, and pass
+- **Split the ELF-to-image tool into its own derivation** rather than `ExternalProject_Add`
+  (Phase 5 went further and replaced the vendor tool with `fx3/mkimage`), and pass
   it in via `nativeBuildInputs`.
 - **Deal with the second Cypress artefact.** `fx3-programmer` needs a secondary loader,
   `cyfxflashprog.img`, for EEPROM and SPI flash programming — and it is not in this
@@ -359,7 +360,7 @@ authoritative task list.
 | **2. Re-layout** | Apply the §3 renames in one commit; fix the stale CI paths; dedup the GUI CMake front-ends; fix the absolute `/etc/udev/rules.d` install; author `AGENTS.md`; update every README | Existing non-Nix build instructions still work verbatim | **Done** |
 | **3. Nix foundation** | `nix/lib.nix` and the root aggregator; `gui/`, `fx3/programmer/`, `hardware/` and `fpga/` (free tools) shells; test scaffolding and the first unit tests; `TESTING.md` | `nix build .#gui .#fx3-programmer` succeed; `nix flake check` runs the suite | **Done** |
 | **4. Documentation** | Jekyll → MkDocs Material; content reorganised to match the navigation; `docs/` flake; the site URL move | `nix build .#docs-site` succeeds under `--strict`; every page renders with working images | **Done** |
-| **5. FX3 firmware flake** | Cross-compile derivation; `elf2img` as its own derivation; stamp the GUI with its commit (D21) | `nix build .#fx3-firmware` produces an `.img` that flashes and enumerates on real hardware | Next |
+| **5. FX3 firmware flake** | Cross-compile derivation; the ELF-to-image tool as its own derivation — and then **replaced outright** by project-authored GPLv3 code (`fx3/mkimage`), deleting the SDK's proprietary `elf2img`; stamp the GUI with its commit (D21) | `nix build .#fx3-firmware` produces an `.img` that flashes and enumerates on real hardware | **Built; hardware gate outstanding** |
 | **6. FPGA flake** | Quartus decision from §5.1; headless compile flow; gateware lint and testbenches; bitstream provenance record | Bitstream built from the flake captures correctly on real hardware | — |
 | **7. CI and releases** | One path-filtered `build.yml` producing the GUI, FX3 firmware and programmer **on every commit**; a tag-triggered `release.yml` publishing them with checksums and provenance; keep the native Windows/macOS matrix, which Nix cannot replace | A `v*` tag yields a release whose every asset reports the tagged commit, and none reports `unknown` | — |
 | **8. Cleanup and release** | Per-component READMEs in place of `BUILD.md` duplication; SPDX header convention; tag the first monorepo release | — | — |

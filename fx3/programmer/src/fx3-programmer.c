@@ -34,16 +34,21 @@
 #define USB_TIMEOUT_MS      5000
 
 #define FX3_DL_CMD           0xA0  // RAM download command
-#define FX3_SPI_FLASH_CMD    0xC2  // Flash programmer write command
-#define FX3_SPI_FLASH_ERASE  0xC4  // Flash programmer erase/status command
 #define FX3_I2C_WRITE_CMD    0xBA  // Flash programmer I2C write
 #define FX3_I2C_READ_CMD     0xBB  // Flash programmer I2C read/verify
 
-// Flash and EEPROM geometry, plus the arithmetic over it, lives in fx3-paging.h so it can
-// be unit tested. These aliases keep the call sites below reading as they always have.
+// The Cypress secondary loader also implements SPI flash commands 0xC2 (write) and 0xC4
+// (erase/status). They are deliberately NOT defined here, because this tool implements no
+// SPI code path: the supported hardware is a SuperSpeed Explorer Kit, which boots from an
+// I2C EEPROM and has no SPI flash. Defining them while never issuing them previously made
+// the tool look like it supported SPI, and the help text claimed it did (D24). If an FX3
+// board with SPI flash is ever supported, add them back with an implementation and a
+// hardware test, not before.
+
+// EEPROM geometry, plus the arithmetic over it, lives in fx3-paging.h so it can be unit
+// tested. This alias keeps the call sites below reading as they always have. The SPI page
+// and sector aliases that used to sit here were removed: nothing referenced them.
 #define MAX_WRITE_SIZE        FX3_MAX_WRITE_SIZE
-#define SPI_FLASH_PAGE_SIZE   FX3_SPI_FLASH_PAGE_SIZE
-#define SPI_FLASH_SECTOR_SIZE FX3_SPI_FLASH_SECTOR_SIZE
 #define I2C_PAGE_SIZE         FX3_I2C_PAGE_SIZE
 #define I2C_SLAVE_SIZE        FX3_I2C_SLAVE_SIZE
 
@@ -62,7 +67,10 @@ typedef struct {
     int index;
 } fx3_device_t;
 
-static fx3_device_t fx3_devices[16];
+// Bound on the device table. Two FX3s on one host is already unusual; 16 is headroom.
+#define FX3_MAX_DEVICES 16
+
+static fx3_device_t fx3_devices[FX3_MAX_DEVICES];
 static int num_devices = 0;
 
 /* Forward declarations */
@@ -236,7 +244,7 @@ int fx3_discover_devices(void) {
 
     num_devices = 0;
 
-    for (i = 0; i < num && num_devices < 16; i++) {
+    for (i = 0; i < num && num_devices < FX3_MAX_DEVICES; i++) {
         libusb_get_device_descriptor(devices[i], &desc);
 
         /* Look for any Cypress FX3 device (bootloader/app/flashprog) or Domesday Duplicator firmware */
@@ -293,7 +301,7 @@ void fx3_list_devices(void) {
     printf("\n");
 }
 
-/* Download firmware to FX3 device */
+/* Download firmware to FX3 RAM. Requires the device to be in bootloader mode. */
 int fx3_download_firmware(int device_idx, const char *filename) {
     int fd, ret, bytes_sent = 0;
     struct stat st;
@@ -307,6 +315,19 @@ int fx3_download_firmware(int device_idx, const char *filename) {
 
     if (device_idx < 0 || device_idx >= num_devices) {
         fprintf(stderr, "Invalid device index\n");
+        return -1;
+    }
+
+    // The RAM download command (0xA0) is implemented by the FX3 boot ROM, not by whatever
+    // firmware is running. Once the device has booted an application the boot ROM is no
+    // longer in control and the request is simply not answered, which surfaced as an
+    // obscure libusb error rather than as the actionable message below. load_flash_programmer
+    // only reaches here with the device in bootloader mode, so the -p path is unaffected.
+    if (!fx3_devices[device_idx].is_bootloader) {
+        fprintf(stderr, "Error: device %d is not in bootloader mode.\n", device_idx);
+        fprintf(stderr, "  RAM download is a boot ROM command and is unavailable once the "
+                        "device is running firmware.\n");
+        fprintf(stderr, "  Fit the PMODE jumper (J4) and power cycle, then try again.\n");
         return -1;
     }
 
@@ -626,18 +647,6 @@ int fx3_verify_firmware(int device_idx, const char *filename) {
     return 0;
 }
 
-/* Reset FX3 device */
-int fx3_reset_device(int device_idx) {
-    if (device_idx < 0 || device_idx >= num_devices) {
-        fprintf(stderr, "Invalid device index\n");
-        return -1;
-    }
-
-    printf("Device will reset automatically after firmware download completes\n");
-    sleep(2);
-    return 0;
-}
-
 /* Print usage information */
 void print_usage(const char *prog) {
     printf("FX3 Firmware Programmer\n\n");
@@ -645,23 +654,27 @@ void print_usage(const char *prog) {
     printf("Options:\n");
     printf("  -l                 List connected FX3 devices\n");
     printf("  -d DEVICE_IDX      Target device index (default: 0)\n");
-    printf("  -u FIRMWARE_FILE   Upload firmware to device RAM\n");
-    printf("  -p FIRMWARE_FILE   Program firmware to SPI flash (persistent)\n");
-    printf("  -v                 Verify EEPROM contents against firmware file (use with -p)\n");
-    printf("  -r                 Reset device\n");
+    printf("  -u FIRMWARE_FILE   Upload firmware to device RAM (volatile)\n");
+    printf("  -p FIRMWARE_FILE   Program firmware to the I2C EEPROM (persistent)\n");
+    printf("  -v                 Verify the EEPROM after programming (use with -p)\n");
     printf("  -h                 Show this help message\n\n");
     printf("Examples:\n");
     printf("  %s -l                          List devices\n", prog);
     printf("  %s -u firmware.img             Upload firmware to RAM on device 0\n", prog);
-    printf("  %s -p firmware.img             Program firmware to SPI flash on device 0\n", prog);
+    printf("  %s -p firmware.img             Program the EEPROM on device 0\n", prog);
+    printf("  %s -p firmware.img -v          Program the EEPROM and verify it\n", prog);
     printf("  %s -d 1 -u firmware.img        Upload firmware to RAM on device 1\n", prog);
-    printf("  %s -d 0 -v                     Verify device 0 firmware\n", prog);
-    printf("  %s -d 0 -r                     Reset device 0\n", prog);
     printf("\n");
     printf("Notes:\n");
-    printf("  - SPI flash programming requires device to be in bootloader mode\n");
-    printf("  - Set the PMODE jumper (J4) and power cycle to enter bootloader\n");
-    printf("  - SPI flash-programmed firmware persists across power cycles\n");
+    printf("  - Both -u and -p need the device in bootloader mode (04b4:00f3).\n");
+    printf("    Fit the PMODE jumper (J4) and power cycle to get there.\n");
+    printf("  - -u loads to RAM and is lost on power down. -p writes the I2C EEPROM,\n");
+    printf("    which the device boots from with J4 removed.\n");
+    printf("  - -p first downloads a Cypress secondary loader into RAM, after which the\n");
+    printf("    device re-enumerates as 04b4:4720. That is expected.\n");
+    printf("  - There is no software reset. Changing boot mode, or returning to the\n");
+    printf("    bootloader, needs a physical power cycle.\n");
+    printf("  - This tool programs the I2C EEPROM only. It has no SPI flash support.\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -670,7 +683,6 @@ int main(int argc, char *argv[]) {
     const char *prom_file = NULL;
     int list_devices_flag = 0;
     int verify_flag = 0;
-    int reset_flag = 0;
     int upload_flag = 0;
     int prom_flag = 0;
 
@@ -681,14 +693,23 @@ int main(int argc, char *argv[]) {
     }
 
     /* Parse command line arguments */
-    while ((opt = getopt(argc, argv, "ld:u:p:vrh")) != -1) {
+    while ((opt = getopt(argc, argv, "ld:u:p:vh")) != -1) {
         switch (opt) {
         case 'l':
             list_devices_flag = 1;
             break;
-        case 'd':
-            device_idx = atoi(optarg);
+        case 'd': {
+            // strtol, not atoi: atoi maps "abc" to 0 and would silently target device 0.
+            char *end = NULL;
+            long v = strtol(optarg, &end, 10);
+            if (end == optarg || *end != '\0' || v < 0 || v >= FX3_MAX_DEVICES) {
+                fprintf(stderr, "Invalid device index '%s'\n", optarg);
+                libusb_exit(NULL);
+                return 1;
+            }
+            device_idx = (int)v;
             break;
+        }
         case 'u':
             firmware_file = optarg;
             upload_flag = 1;
@@ -700,16 +721,25 @@ int main(int argc, char *argv[]) {
         case 'v':
             verify_flag = 1;
             break;
-        case 'r':
-            reset_flag = 1;
-            break;
         case 'h':
             print_usage(argv[0]);
             libusb_exit(NULL);
             return 0;
         default:
-            fprintf(stderr, "Unknown option: -%c\n", opt);
-            print_usage(argv[0]);
+            // getopt returns '?' for anything unrecognised and leaves the actual character
+            // in optopt, so reporting `opt` printed a literal "-?" for every bad flag.
+            if (optopt == 'r') {
+                fprintf(stderr,
+                        "-r has been removed. It never reset anything: the implementation "
+                        "printed a message and returned.\n"
+                        "There is no software reset for the FX3 in this project. Power "
+                        "cycle the device instead,\n"
+                        "fitting or removing the PMODE jumper (J4) first to choose the "
+                        "boot mode you want.\n");
+            } else {
+                fprintf(stderr, "Unknown option: -%c\n", optopt);
+                print_usage(argv[0]);
+            }
             libusb_exit(NULL);
             return 1;
         }
@@ -738,7 +768,9 @@ int main(int argc, char *argv[]) {
         ret = fx3_download_firmware(device_idx, firmware_file);
     }
 
-    if (prom_flag && prom_file) {
+    // Guarded on ret: programming the EEPROM after a failed RAM upload would write to a
+    // device whose state is already not what the caller thinks it is.
+    if (prom_flag && prom_file && ret == 0) {
         ret = fx3_program_prom(device_idx, prom_file);
         if (verify_flag && ret == 0) {
             ret = fx3_verify_firmware(device_idx, prom_file);
@@ -749,10 +781,6 @@ int main(int argc, char *argv[]) {
     } else if (verify_flag) {
         fprintf(stderr, "Verify requires a firmware file. Use -p <file> -v to program and verify.\n");
         ret = -1;
-    }
-
-    if (reset_flag && ret == 0) {
-        ret = fx3_reset_device(device_idx);
     }
 
     /* Cleanup */

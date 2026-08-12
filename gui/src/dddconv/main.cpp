@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 
     // Set application name and version
     QCoreApplication::setApplicationName("dddconv");
-    QCoreApplication::setApplicationVersion("1.0");
+    QCoreApplication::setApplicationVersion("1.0 (" DDD_VERSION ")");
     QCoreApplication::setOrganizationDomain("domesday86.com");
 
     // Set up the command line parser

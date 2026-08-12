@@ -18,8 +18,13 @@
 
 let
   # Components differ in reach:
-  #   - gui, fx3/programmer, docs   → portable
-  #   - fx3/firmware                → cross-compiled from Linux only (see forLinux)
+  #   - gui, docs                   → portable
+  #   - fx3/programmer              → Linux only (udev rules, and libusb permissions)
+  #   - fx3/firmware                → portable in principle: nothing in the cross build is
+  #                                   host-specific and nixpkgs' gcc-arm-embedded covers all
+  #                                   three systems below. Only x86_64-linux has actually
+  #                                   been built, which P0-7 makes acceptable — macOS is
+  #                                   best-effort and not a CI gate
   #   - fpga (free tools)           → portable: lint and simulation need no Quartus
   #   - fpga (bitstream)            → x86_64-linux only; Quartus is unfree and Linux-x86 only
   # x86_64-darwin is deliberately absent: nixpkgs 26.11 dropped support for it, and

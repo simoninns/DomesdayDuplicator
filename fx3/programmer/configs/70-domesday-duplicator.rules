@@ -14,6 +14,21 @@
 # TAG+="uaccess" grants access to the user at the active seat on any systemd-logind system,
 # including NixOS. MODE is kept at 0666 to preserve the behaviour of the Cypress original on
 # systems without logind; tighten it to 0660 if uaccess covers all of your users.
+#
+# THE FILENAME IS LOAD-BEARING. udev processes rule files in lexical order, and systemd
+# consumes the uaccess tag in 73-seat-late.rules:
+#
+#     TAG=="uaccess", ENV{MAJOR}!="", RUN{builtin}+="uaccess"
+#
+# A rule that sets the tag in a file sorting after 73 sets it too late: 73 has already run,
+# nothing consumes it, and no ACL is applied. This file was called 88-cyusb.rules until
+# Phase 5, where exactly that was found on a live device — the rule was installed and active,
+# and `getfacl` on the device node showed no user entry. Only the MODE="0666" fallback was
+# doing any work. Anything below 73 is fine; 70- matches the convention systemd itself uses
+# for its own uaccess rules.
+#
+# MODE is not affected by ordering — udev accumulates it across all matching rules and
+# applies it when the node is created — which is why the bug stayed invisible.
 
 # Cypress FX3 in bootloader mode — this is what fx3-programmer talks to.
 # 04b4:00f3 is the FX3 bootloader; the wildcard covers the other Cypress bootloader PIDs

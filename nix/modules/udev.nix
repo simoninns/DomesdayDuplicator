@@ -37,7 +37,7 @@ in
         '');
       defaultText = lib.literalExpression "pkgs.domesday-duplicator-fx3-programmer";
       description = ''
-        Package supplying `lib/udev/rules.d/88-cyusb.rules`. This is normally the
+        Package supplying `lib/udev/rules.d/70-domesday-duplicator.rules`. This is normally the
         `fx3-programmer` package from this repository, which installs the rule as part of
         its ordinary install step.
       '';

@@ -76,7 +76,7 @@ found during execution (D19). Each is assigned to a phase.
 | D10 | `baseurl: "/DomesdayDuplicator-docs"` hard-codes the *old repo's* Pages URL; after the merge the site moves and every external link to it breaks | `docs/wiki-default/_config.yml:4`, `README.md:3,37` | P0-4, P4-8 | **Closed** P4 |
 | D11 | Three of four submodule URLs are SSH, so the README's `git clone --recursive` fails without a GitHub key | `.gitmodules` | P1 (dissolved) | **Closed** P1 |
 | D12 | `build-local.sh` injects front matter that `_config.yml` `defaults:` already supplies, and its error message names `jekyll-theme-cayman` — a theme the site no longer uses | `docs/build-local.sh` | P4-4 (dissolved by the MkDocs move) | **Closed** P4 |
-| D13 | Permanent (EEPROM/SPI) programming needs a Cypress secondary loader, `cyfxflashprog.img`. **File now vendored** (2026-08-12) at the programmer's directory root, where the existing `../cyfxflashprog.img` candidate finds it from `build/`. **Code half remains:** every candidate path is working-directory-relative, so installed binaries still cannot locate it | `fx3-programmer/src/fx3-programmer.c:136` | P2-10, P3-3 | **Closed** P2 (hardware check in P5) |
+| D13 | Permanent (EEPROM/SPI) programming needs a Cypress secondary loader, `cyfxflashprog.img`. **File now vendored** (2026-08-12) at the programmer's directory root, where the existing `../cyfxflashprog.img` candidate finds it from `build/`. **Code half remains:** every candidate path is working-directory-relative, so installed binaries still cannot locate it | `fx3-programmer/src/fx3-programmer.c:136` | P2-10, P3-3 | **Closed** — code in P2, **hardware-verified in P5**: the loader was found via the installed store path with `$FX3_FLASH_PROG` unset, from `/`, and an EEPROM write completed and verified |
 | D14 | Four qmake `.pro` files duplicate the CMake build definition and exist only for Qt Creator; `BUILD.md` steers contributors to them | `gui-app/tools/**/*.pro` | P2-11 | **Closed** P2 |
 | D15 | No `CMAKE_EXPORT_COMPILE_COMMANDS` anywhere, so no `compile_commands.json` and no working clangd in any editor | all `CMakeLists.txt` | P2-12 | **Closed** P2 |
 | D16 | Sole `.editorconfig` is buried in `gui-app/tools/DomesdayDuplicator/`; `.vscode`/`.idea` ignore rules exist only in `gui-app/.gitignore` | repo root | P2-13 | **Closed** P2 |
@@ -84,7 +84,11 @@ found during execution (D19). Each is assigned to a phase.
 | D18 | No test infrastructure of any kind — no `enable_testing()`, `add_test()`, GoogleTest, Catch2 or QTest anywhere in the tree | repo-wide | P3-6 | **Closed** P3 |
 | D19 | udev rules match Cypress VID `04b4` only, so the device is root-only once firmware is loaded and it re-enumerates as `1d50:603b` — the capture GUI cannot open it. Both rules also `RUN+=` a `cy_renumerate.sh` that is never installed and belongs to a daemon this project does not ship | `fx3/programmer/configs/88-cyusb.rules` | P3-3 | **Closed** P3 |
 | D20 | Raw `<img src="assets/…">` tags are passed through by MkDocs without path rewriting, so under directory URLs they resolve one level too shallow and 404. `--strict` cannot detect this because MkDocs never parses those paths — 18 tags across 3 pages were silently broken | `docs/content/{general,ordering}/*.md` | P4-10 | **Closed** P4 |
-| D21 | The GUI carries no version information: `project(DomesdayDuplicator VERSION 1.0)` is hardcoded and no commit hash reaches the binary or the About dialog, so a released GUI artefact cannot be traced back to the commit that produced it | `gui/CMakeLists.txt`, `gui/src/DomesdayDuplicator/aboutdialog.cpp` | P5-6 | Open |
+| D25 | `fx3-programmer -r` claims to "Reset device" but `fx3_reset_device()` is a stub: it prints "Device will reset automatically after firmware download completes", sleeps 2 seconds and returns 0. No reset is issued and no vendor command is sent, so a caller cannot get a running device back into bootloader mode without a physical power cycle | `fx3/programmer/src/fx3-programmer.c:630` | P5-10 | **Closed** P5 — option removed; using it now explains the power-cycle requirement |
+| D24 | `fx3-programmer`'s help text says `-p` programs **SPI flash** in four places, but `fx3_program_prom()` programs the **I2C EEPROM** (`0xBA`/`0xBB`) and says so in its own output. The SPI vendor commands `FX3_SPI_FLASH_CMD` (`0xC2`) and `FX3_SPI_FLASH_ERASE` (`0xC4`) are defined and never referenced — there is no SPI code path at all. Misleading documentation on a *destructive, permanent* operation, and it disagrees with the project's own flashing guide, which correctly says I2C EEPROM. The same help block also shows `-d 0 -v` as a standalone "Verify device 0 firmware" example, but `-v` is only a modifier for `-p` and errors out on its own | `fx3/programmer/src/fx3-programmer.c:649,656,662,664` | P5-10 | **Closed** P5 — help text corrected, dead SPI defines removed, guarded by a CLI contract test |
+| D23 | The udev rule's `TAG+="uaccess"` never took effect: the file was named `88-cyusb.rules`, but systemd consumes that tag in `73-seat-late.rules`, and udev processes rule files in lexical order — so the tag was set after anything looked for it and no ACL was ever applied. Found on live hardware, with the rule installed and active and `getfacl` on the device node showing no user entry. Only the `MODE="0666"` fallback was doing any work, which is why it stayed invisible. Renamed to `70-domesday-duplicator.rules` | `fx3/programmer/configs/70-domesday-duplicator.rules` | P5-9 | **Closed** P5 |
+| D22 | `fx3-programmer.c` states in a comment that it derives from Cypress `cyusb_linux` but carries **no copyright or licence header at all**. `cyusb_linux` is LGPL-2.1, which permits the relicensing to GPLv3 this project relies on, so this is a compliance gap rather than a licence problem. (`fx3/programmer/VENDOR.md` previously mis-numbered this as D20, which is the MkDocs image defect) | `fx3/programmer/src/fx3-programmer.c` | P8-5 | Open |
+| D21 | The GUI carries no version information: `project(DomesdayDuplicator VERSION 1.0)` is hardcoded and no commit hash reaches the binary or the About dialog, so a released GUI artefact cannot be traced back to the commit that produced it | `gui/CMakeLists.txt`, `gui/src/DomesdayDuplicator/aboutdialog.cpp` | P5-6 | **Closed** P5 |
 
 ---
 
@@ -136,8 +140,9 @@ Infineon's download is behind a login, so nixpkgs has no URL it can fetch unatte
 nixpkgs does not vendor multi-megabyte binary blobs. The nixpkgs-idiomatic answer for exactly
 this situation is `requireFile`, which is the fallback below.
 
-So the SDK stays in-tree (71 MB): `fw_build/fx3_fw/fx3.ld`,
-`fw_lib/1_3_5/{inc,fx3_release,…}`, `util/elf2img/`.
+So the SDK stays in-tree: `fw_build/fx3_fw/fx3.ld` and `fw_lib/1_3_5/{inc,fx3_release}`.
+(`util/elf2img/` was part of this list until P5-7 replaced it; the directory is now 17 MB
+after that removal and the pruning in P5-8.)
 
 **P0-2 decided this: vendor it regardless of the licence review**, on the basis that the SDK
 is already widely mirrored. The maintainer refreshes it from the official vendor download —
@@ -174,8 +179,13 @@ cyfx3sdk = pkgs.requireFile {
 …with the firmware build becoming opt-in and absent from CI. Since P0-2 chose vendoring, the
 firmware build stays in `nix flake check` and in CI as normal.
 
-`elf2img` is a single 13 KB C file with a project-authored `CMakeLists.txt` — it becomes its
-own tiny derivation regardless of which path is taken (D5).
+*Superseded in Phase 5.* This section originally continued: "`elf2img` is a single 13 KB C
+file with a project-authored `CMakeLists.txt` — it becomes its own tiny derivation regardless
+of which path is taken (D5)." It did, briefly. It has since been **replaced by
+`fx3/mkimage`**, a from-scratch GPLv3 implementation written against Infineon's public
+application note AN76405, and the vendored `elf2img` has been deleted. See P5-7 below. The
+SDK itself is unaffected and remains vendored: the ARM libraries, headers and `fx3.ld` are
+the binding constraint, and no host tool rewrite touches them.
 
 ### `cyfxflashprog.img` — a second Cypress artefact, and it is missing (D13)
 
@@ -310,11 +320,11 @@ An archived artefact is only useful if you can tell which commit produced it. Cu
 | Component | Carries the commit? |
 | --- | --- |
 | FX3 firmware | **Yes** — `FIRMWARE_VERSION` reaches the USB product descriptor, so `lsusb -v` on a running device reports it (D4, fixed in P2-6) |
-| GUI | **No** — `project(DomesdayDuplicator VERSION 1.0)` is hardcoded and there is no commit stamp anywhere. **D21** |
+| GUI | **Yes** — `DDD_VERSION` reaches `--version` and the About dialog of all three tools (D21, fixed in P5-6) |
 | FPGA bitstream | **No** — nothing in the `.sof`/`.jic` identifies the source |
 
-P5 and P7 close the GUI gap. The FPGA gap is handled by recording provenance alongside the
-artefact rather than inside it (§4).
+P5-6 closed the GUI gap; P7-9 makes it a release gate. The FPGA gap is handled by recording
+provenance alongside the artefact rather than inside it (§4).
 
 Every release also publishes a `SHA256SUMS` manifest and a short provenance note: the commit,
 the `flake.lock` nixpkgs revision, and — for the bitstream — the Quartus version and the
@@ -396,7 +406,7 @@ outstanding, and that is a Phase 6 gate rather than a blocker — **Phase 1 can 
 | Task | Size | Status |
 | --- | --- | --- |
 | **P0-1** Outstanding branches | S | **Decided.** Land `fpgaupdate-202512` (4 ahead, 0 behind — a clean fast-forward carrying the Quartus 25.1 upgrade, a hand-written FIFO replacing the Intel `dcfifo` IP, and a 333-line testbench). Leave `release-2.x` alone: 2022-era, pre-split flat layout, content already in `master`. **Action outstanding:** fast-forward `firmware`'s `master`, push, update the superproject pointer — all *before* Phase 1 |
-| **P0-2** Cypress SDK | M | **Decided.** Vendor it regardless of the licence review — it is already widely mirrored. **Action outstanding:** refresh from the official download into `firmware/fx3/fx3-firmware/cyfx3sdk/` (later `fx3/sdk/`), preserving the project-authored `util/elf2img/CMakeLists.txt` and the `fw_lib/1_3_5/` version path. Exact layout in [decisions.md](decisions.md) |
+| **P0-2** Cypress SDK | M | **Decided.** Vendor it regardless of the licence review — it is already widely mirrored. **Action outstanding:** refresh from the official download into `firmware/fx3/fx3-firmware/cyfx3sdk/` (later `fx3/sdk/`), preserving the project-authored `util/elf2img/CMakeLists.txt` and the `fw_lib/1_3_5/` version path. Exact layout in [decisions.md](decisions.md). *(P5-7 removed `util/` entirely — do not restore it on a future refresh; decisions.md carries the current instructions)* |
 | **P0-3** Quartus version | M, HW | **Decided (verification outstanding).** 25.1 accepted — the upgrade already exists on `fpgaupdate-202512`. What remains: run the capture-integrity procedure on real hardware, since that branch's last commit says "need to test". A **Phase 6 gate**, not a blocker |
 | **P0-4** Docs site URL | M | **Decided.** Move to `simoninns.github.io/domesdayduplicator`; **no redirect stub**. Old deep links will 404 — accepted. Simplifies P4-8 to `site_url` plus four in-repo links |
 | **P0-5** History size | S | **Decided.** Accept ~400 MB. `filter-repo` does path prefixing only — no `--strip-blobs-bigger-than`, no LFS |
@@ -920,6 +930,21 @@ that a **flash** (not RAM) operation completes from the Nix-installed binary. Bo
 hardware and a NixOS rebuild. The module evaluates (`nix flake check` checks it as a NixOS
 module) and the rule installs to the right location, but that is as far as it goes.
 
+*Update, 2026-08-12 (Phase 5 bench session).* **The permissions half is now verified, and
+verifying it found D23** — the rule had never actually granted anything through `uaccess`.
+With the corrected rule installed, both device identities get an ACL:
+
+```
+$ ls -la /dev/bus/usb/007/012            # 04b4:00f3, FX3 bootloader
+crw-rw-rw-+ 1 root root 189, 779
+$ getfacl /dev/bus/usb/007/012
+user:sdi:rw-
+```
+
+and the same for `1d50:603b` in application mode, which is what the capture GUI opens. A RAM
+download from a non-root shell then succeeded. **The flash (EEPROM/SPI) half of the gate
+remains outstanding** — that is a separate, deliberate act and was not exercised.
+
 ## Phase 4 — docs: convert to MkDocs Material, then flake it — **DONE**
 
 Executed 2026-08-12 on `20260812-002`. All ten tasks complete; **D9, D10 and D12 are closed**.
@@ -1049,25 +1074,242 @@ now:  simoninns.github.io/domesdayduplicator/related-projects/the-ld-decode-fami
 Per P0-4 there is **no redirect stub**. All five in-repo inbound links were updated
 (`README.md` ×2, `docs/README.md`, `fpga/`, `gui/` and `hardware/README.md`).
 
-## Phase 5 — FX3 firmware flake
+## Phase 5 — FX3 firmware flake — **DONE except the hardware gate**
+
+Executed 2026-08-12 on `20260812-002`. Seven of the eight tasks are complete and **D21 is
+closed**. Two tasks — P5-7 and P5-8 — were added mid-phase at the maintainer's request and
+removed the SDK's proprietary `elf2img` from the build path entirely. **P5-4 is outstanding
+and cannot be closed here** — it needs a physical Domesday Duplicator. The phase gate is
+P5-4, so *the gate is not met*; see the gate section below for exactly what has and has not
+been shown.
+
+Deviations and findings are recorded after the task table.
 
 Depends on P0-2 (licence) and P2-6/P2-7/P2-8.
 
 | Task | Size | Detail |
 | --- | --- | --- |
-| **P5-1** `elf2img` derivation | S | `fx3/firmware/elf2img.nix` over `fx3/sdk/util/elf2img` |
-| **P5-2** Firmware derivation | M | `gcc-arm-embedded`, `-DCMAKE_TOOLCHAIN_FILE=…`, `-DCYFX3SDK_PATH=${../sdk}`, `-DFIRMWARE_VERSION=${self.shortRev or "dirty"}`, `python3` in `nativeBuildInputs` for `generate-descriptor.sh`, `dontStrip`/`dontPatchELF`. If the link fails on `-nostartfiles`, add `hardeningDisable = [ "all" ]` — a freestanding ARM target and nixpkgs' default hardening flags do not mix. |
-| **P5-3** SDK provenance | S | `fx3/sdk/README.md` (version, origin URL, refresh date) + `LICENSE.txt` copied from the SDK's `license/license.txt`. Mechanism settled by P0-2 — this is record-keeping only |
-| **P5-4** Hardware verification | M, **HW** | Flash the `nix build` output with `fx3-programmer`; device enumerates; `lsusb -v` product string shows the real commit hash (proves **D4**; D8 is unreachable dead code and not observable here); then run the **capture-integrity procedure** from TESTING.md — zero sequence breaks required |
-| **P5-5** Descriptor golden test | S | Host-side T2 test over `generate-descriptor.sh`: fixed commit string in, byte-for-byte comparison against a committed reference header. Protects the descriptor byte layout — the path the host actually reads, including the computed length byte. Note this does **not** cover D8, which lives on a separate, dead code path |
-| **P5-6** Stamp the GUI with its commit | S | **D21.** The GUI is the one shipped artefact that cannot be traced to a source revision. Mirror what the firmware already does: a `DDD_VERSION` cache variable defaulting to `git rev-parse --short=8 HEAD`, falling back to `"unknown"`, passed through `target_compile_definitions`, surfaced in the About dialog and in `--version`. The flake passes `-DDDD_VERSION=${self.shortRev or "dirty"}`. Without this, "the exact version produced at the release commit" is unverifiable for the component most users actually run |
+| **P5-1** ELF-to-image derivation ✅ | S | Done as written (`fx3/firmware/elf2img.nix` over `fx3/sdk/util/elf2img`), then **superseded within the phase by P5-7**, which replaced the vendor tool with `fx3/mkimage/package.nix` and deleted both |
+| **P5-2** Firmware derivation ✅ | M | `gcc-arm-embedded`, `-DCMAKE_TOOLCHAIN_FILE=…`, `-DCYFX3SDK_PATH=${../sdk}`, `-DFIRMWARE_VERSION=${self.shortRev or "dirty"}`, `python3` in `nativeBuildInputs` for `generate-descriptor.sh`, `dontStrip`/`dontPatchELF`. If the link fails on `-nostartfiles`, add `hardeningDisable = [ "all" ]` — a freestanding ARM target and nixpkgs' default hardening flags do not mix. |
+| **P5-3** SDK provenance ✅ | S | `fx3/sdk/README.md` (version, origin URL, refresh date) + `LICENSE.txt` copied from the SDK's `license/license.txt`. Mechanism settled by P0-2 — this is record-keeping only |
+| **P5-4** Hardware verification — **OUTSTANDING, needs a bench** | M, **HW** | Flash the `nix build` output with `fx3-programmer`; device enumerates; `lsusb -v` product string shows the real commit hash (proves **D4**; D8 is unreachable dead code and not observable here); then run the **capture-integrity procedure** from TESTING.md — zero sequence breaks required |
+| **P5-5** Descriptor golden test ✅ | S | Host-side T2 test over `generate-descriptor.sh`: fixed commit string in, byte-for-byte comparison against a committed reference header. Protects the descriptor byte layout — the path the host actually reads, including the computed length byte. Note this does **not** cover D8, which lives on a separate, dead code path |
+| **P5-7** Replace `elf2img` with project-authored code ✅ | M | **Added mid-phase at the maintainer's request.** `fx3/mkimage/` — a from-scratch GPLv3 ELF-to-boot-image converter written against Infineon's public application note AN76405 §4.4, replacing the SDK's proprietary `elf2img`. Accepted on byte-identical output against the tool it replaces; the vendored copy is deleted |
+| **P5-10** Make the programmer's documented behaviour match its actual behaviour ✅ | M | **D24, D25**, found while attempting the P5-4 flash test. Help text and README rewritten to describe I2C EEPROM programming rather than nonexistent SPI flash; dead SPI vendor-command defines removed; `-r` removed; `-u` now refuses outside bootloader mode instead of failing obscurely; `-d` validated; a `cli-contract` test now fails if the help text promises what the tool cannot do |
+| **P5-9** Fix the udev rule filename ✅ | S | **D23**, found while preparing the P5-4 bench session. `88-cyusb.rules` → `70-domesday-duplicator.rules`, so the `uaccess` tag is set before `73-seat-late.rules` consumes it |
+| **P5-8** Prune unneeded vendored material ✅ | S | Four unused SDK archives (`libcy_as0260.a`, `libcy_ov5640.a`, `libcyu3mipicsi.a`, `libcyu3sport.a` — image sensor, MIPI-CSI, serial port; ~1.8 MB) and two dead `cyusb_linux` config files (`cy_renumerate.sh`, `cyusb.conf`) |
+| **P5-6** Stamp the GUI with its commit ✅ | S | **D21.** The GUI is the one shipped artefact that cannot be traced to a source revision. Mirror what the firmware already does: a `DDD_VERSION` cache variable defaulting to `git rev-parse --short=8 HEAD`, falling back to `"unknown"`, passed through `target_compile_definitions`, surfaced in the About dialog and in `--version`. The flake passes `-DDDD_VERSION=${self.shortRev or "dirty"}`. Without this, "the exact version produced at the release commit" is unverifiable for the component most users actually run |
 
-**Gate:** P5-4 passes. A firmware image that compiles but has not been flashed and
-capture-verified is not done.
+### Deviations and findings
 
-Additionally, `nix build .#fx3-firmware` must produce `firmware.img`, `firmware.elf` and
-`firmware.map` in `$out`, and the built image's descriptor must report the commit it was
-built from — that is what makes the CI artefact in P7 traceable.
+**1. `find_program` in a CMake toolchain file does not survive nixpkgs' cmake hook.** The
+design in [nix-flake-design.md](nix-flake-design.md) §4 said the toolchain file's
+`find_program(CMAKE_C_COMPILER arm-none-eabi-gcc)` would work as long as `gcc-arm-embedded`
+was in `nativeBuildInputs`. It does not: the setup hook passes `-DCMAKE_C_COMPILER=gcc` (plus
+host `CMAKE_AR`/`RANLIB`/`STRIP`) *before* the derivation's own `cmakeFlags`, and
+`find_program` is a no-op once the cache variable is set. The result is a configure that
+finds `arm-none-eabi-gcc` for ASM and host `gcc` for C, then dies on
+`The CMAKE_C_COMPILER: /build/source/build/gcc is not a full path`. All six tools are now
+named outright with absolute store paths, which also pins the derivation to that exact
+toolchain rather than to whatever is first on `PATH`. Full write-up in §4 of the design doc.
+
+**2. The `elf2img` licence problem was worked around, then removed outright (P5-7).** Worth
+recording as a sequence, because the intermediate state was shipped and then withdrawn within
+the phase.
+
+`elf2img` was pure vendor code carrying the Cypress "UNPUBLISHED... CONFIDENTIAL AND
+PROPRIETARY" header. Neither the project's GPLv3 nor any entry in `lib.licenses` described
+it, and nixpkgs treats anything not marked free *as* unfree — so a truthful `meta.license`
+would have made `nix build .#fx3-firmware` fail for every user without `allowUnfree`,
+contradicting P0-2's stated consequence that "the FX3 firmware build stays in `nix flake
+check` and in CI".
+
+1. **First it was left absent**, on the grounds that silence claimed nothing.
+2. **Then it was marked free** at the maintainer's direction — a named custom licence,
+   `shortName = "cypress-fx3-sdk"`, with `free = true`, rather than borrowing a real free
+   licence like MIT that would have stated something false about the file's origin. This was
+   a project decision, documented as such, not a legal determination.
+3. **Then the tool was replaced and the problem ceased to exist.** `fx3/mkimage` is the
+   project's own GPLv3 code and declares `gpl3Plus` truthfully. Nothing in `fx3/sdk/` is a
+   package any more — it is consumed as a `lib.fileset` input to the firmware derivation — so
+   no `meta.license` in the tree now describes vendor code.
+
+The lesson generalises: when packaging metadata cannot be both truthful and functional, that
+is a signal about the dependency, not about the metadata. Here the dependency turned out to
+be replaceable in a day. **The SDK itself is not**, and P0-2 stands unchanged.
+
+**3. P5-3 is complete, but its `LICENSE.txt` half is impossible.** The task says to copy the
+SDK's `license/license.txt` to `fx3/sdk/LICENSE.txt`. **That file does not exist in the
+vendor archive** — the installer generates it, and the headers point at a path
+(`<install>/license/license.txt`) that only exists after installation. `fx3/sdk/README.md`
+already recorded this; P5-3 added the vendor, product name and gated-portal origin URL, the
+refresh date, and a new section on how the Nix build reaches the directory.
+
+**4. The GUI version stamp went into three binaries, not one.** P5-6 names the About dialog
+and `--version`. `dddconv` already had a `QCommandLineParser` and needed one line; `dddutil`
+had neither a parser nor an application name, so it gained a minimal parser. All three now
+answer `--version` uniformly, which is what lets P7-9 check them with one loop rather than
+special-casing the tool that cannot be asked.
+
+**5. The About dialog needed a layout change, not just a new label.** Both dialogs use
+absolute positioning. In the capture GUI's dialog the existing children already reached
+y=281 in a tab page that is ~303 px tall, so a version label appended below would have been
+clipped by a few pixels — invisibly on some styles and not others. The logo label was
+trimmed from 141 to 133 px (the pixmap is exactly 250×133, so nothing is lost) and the text
+browser moved up 20 px, putting the version at y=265..284 with room to spare. Verified by
+rendering both dialogs offscreen and reading the resulting images, not by arithmetic.
+
+**6. `fx3/shell.nix` now ships the image tool.** Without it, every fresh build tree in the
+dev shell re-compiled it through the `find_program` fallback. Now the packaged tool is on
+`PATH`, so the interactive route takes the same path as the Nix build. (This first shipped
+the SDK's `elf2img`; after P5-7 it ships `fx3-mkimage`.)
+
+**7. The firmware output is flat, and the CMake default is unchanged.**
+`FIRMWARE_INSTALL_DIR` is a new cache variable defaulting to `bin`, so `cmake --install`
+behaves exactly as it did in Phase 2; the derivation passes `.` so `firmware.{img,elf,map}`
+sit at the root of `$out`.
+
+**8. `patchelf: cannot find section '.dynamic'` in the build log is expected.** nixpkgs'
+`auditTmpdir` hook runs `patchelf --print-rpath` over every ELF in the output, and
+`firmware.elf` is a statically linked bare-metal image with no dynamic section. It is a
+message on stderr, not a failure, and `dontPatchELF` does not suppress it.
+
+**9. The flake's hash is 7 characters, CMake's git fallback asks for 8.** `self.shortRev` is
+Nix's own abbreviation and is not configurable; `git rev-parse --short=8` is what
+`CMakeLists.txt` uses when nothing is passed. So a Nix-built artefact reports e.g.
+`(6ad9891)` and a local developer build of the same commit reports `(6ad9891a)`. Both
+identify the commit unambiguously and both are non-`unknown`, so P7-9's gate is unaffected —
+but a check written as string equality against `git rev-parse --short=8` would fail, and
+should compare prefixes instead.
+
+**10. `fx3-mkimage` reproduced the vendor tool byte for byte, and three of its behaviours are
+not in the specification (P5-7).** AN76405 §4.4 defines the container completely — signature,
+control and type bytes, `{length, address, payload}` sections, a zero-length terminator
+carrying the entry point, and a checksum explicitly excluding lengths, addresses and header.
+What it does *not* define is how an ELF becomes one. Three decisions were determined
+empirically from the vendor tool's own output and are required for byte-identical results:
+
+- the 0x00–0x100 ARM vector area is dropped by default (this one *is* in the SDK readme);
+- sections are split at **64 KiB** — AN76405 places no limit on section length, so this is
+  the vendor tool's choice, not the bootloader's;
+- **`p_memsz` is used, not `p_filesz`**, with the difference zero-filled — so `.bss` ships
+  pre-zeroed in the image.
+
+All three are documented in `fx3/mkimage/README.md` and pinned by tests. The SDK's own
+`readme.txt` was **not** usable as the specification: it documents the command line and the
+EEPROM control byte and contains no binary layout at all.
+
+**11. Deleting four SDK archives changed the firmware image not at all, and the ELF by 93
+bytes (P5-8).** The `.img` is byte-identical. The `.elf` differs in exactly 93 of 2,247,868
+bytes, all inside a DWARF line-table path string: pruning the archives changed the SDK
+fileset's hash and therefore its store path, which `-g` records in the debug info. Since the
+`.img` is derived solely from `PT_LOAD` content and the entry point, its identity is the
+proof that nothing loadable moved. Worth knowing before someone diffs two ELFs and concludes
+a prune broke the link.
+
+### Gate — **not met; blocked on hardware**
+
+The gate is P5-4, and P5-4 needs a physical device. It has not been run. Everything that can
+be verified without hardware has been, and is listed below so the remaining work is exactly
+one item and not a re-audit.
+
+| Check | Result |
+| --- | --- |
+| `nix build .#fx3-firmware` | Builds. `$out` contains `firmware.elf` (2.2 MB), `firmware.img` (111 KB), `firmware.map` (1.8 MB) and nothing else |
+| Version reaches the descriptor | `-- Firmware version: deadbeef` at configure; `Domesday Duplicator (deadbeef)` found **in `firmware.img` as UTF-16LE at offset 0x4b96**, preceded by size byte `0x3e` (62) and type `0x03` — 62 is the correct computed length for a 30-character string |
+| `fx3-mkimage` comes from its own derivation | `-- fx3-mkimage: using /nix/store/…-fx3-mkimage-1.0/bin/fx3-mkimage`. No host-compile fallback, so D5 is fully resolved on the Nix path |
+| P5-7 byte identity | `firmware.img` built with `fx3-mkimage` is byte-for-byte the image built with the vendored Cypress `elf2img`: both SHA-256 `4938a7d1…4bcd4`, 111,316 bytes, 4 sections. **Not repeatable** — the vendor tool has been deleted, which was the point |
+| P5-7 test suite | 32 tests pass, including one that reproduces AN76405's own worked checksum example (`0x6AF37AF2`) and two full-image golden vectors |
+| P5-8 pruning is inert | After removing four SDK archives and two dead config files, `firmware.img` is unchanged; `firmware.elf` differs in 93 of 2,247,868 bytes, all in a DWARF path string |
+| SDK from a narrowed store path | `-- Using CyFX3 SDK at: /nix/store/…-source`, containing only `inc`, `fx3_release` and `fx3.ld` |
+| P5-5 descriptor golden test | Passes, in the sandbox and in the dev shell. Two cases of different lengths, so the computed size byte is actually exercised |
+| `nix flake check` | **all checks passed** — 77 tests across four components |
+| Non-Nix build still works | `cmake` + `cmake --build` + `ctest` + `cmake --install` in `nix develop .#fx3`: firmware built, test passed, artefacts installed to `<prefix>/bin` as before. The git fallback produced the real hash (`d0566b3e`) |
+| `nix build .#gui` (P5-6) | Builds. `installCheckPhase` runs all three binaries: `DomesdayDuplicator 2.1 (deadbeef)`, `dddconv 1.0 (deadbeef)`, `dddutil 1.0 (deadbeef)` |
+| GUI non-Nix build (P5-6) | `-- Application version: d0566b3e`; all 21 tests pass; both `--version` outputs carry the real hash |
+| About dialogs (P5-6) | Rendered offscreen and inspected: "Version 2.1 (deadbeef)" and "Version 1.0 (deadbeef)" both fully visible, nothing clipped |
+
+**12. The udev `uaccess` tag was dead for ordering reasons, and the `MODE="0666"` fallback
+hid it (P5-9, D23).** P3-3's NixOS gate was left "not verified, and cannot be here" in Phase
+3. Verifying it on real hardware in Phase 5 found the rule was installed, active, matching —
+and applying no ACL at all. `udev` processes rule files in lexical order; systemd consumes
+the tag in `73-seat-late.rules`; the file was `88-cyusb.rules`. The tag was being set 15
+files too late.
+
+`MODE` is not affected by ordering — udev accumulates it across all matching rules and
+applies it when the node is created — so the rule *worked*, by the fallback the comments
+described as being for "systems without logind". The half that was supposed to be the modern,
+correct mechanism had never once run. **A rule that half-works is harder to find than one
+that fails**, which is the general lesson: the observable behaviour was right for the wrong
+reason on every machine it had been tried on.
+
+Renamed to `70-domesday-duplicator.rules`. The filename is now load-bearing and says so, in
+the rule file, in `package.nix`'s install check and in `nix/modules/udev.nix`.
+
+**13. A commit hash from a dirty tree names a commit that does not contain the build.** The
+version fallback added in P2-6 ran `git rev-parse --short=8 HEAD` and stopped there, so any
+developer build with uncommitted work stamped a clean commit hash. Caught at the bench: the
+tree had 42 changed or untracked paths — the whole of Phase 5 — and the firmware would have
+gone onto the device claiming to be `d0566b3e`, a commit predating all of it. Both
+`fx3/firmware/CMakeLists.txt` and `gui/CMakeLists.txt` now append `-dirty` when
+`git status --porcelain` is non-empty. Untracked files count deliberately: in this very tree
+`fx3/mkimage/` was untracked and part of the build. This does not affect Nix or CI builds,
+which pass the version in explicitly — it affects exactly the local builds most likely to end
+up on someone's bench.
+
+### Bench session, 2026-08-12 — P5-4 part one
+
+Run on a NixOS host (`titan`) with the corrected udev rules installed, PMODE jumper J4
+fitted, board on USB 3.
+
+| Step | Result |
+| --- | --- |
+| Device in bootloader mode | `04b4:00f3` — "FX3 micro-controller (DFU mode)" |
+| Non-root device access | `crw-rw-rw-+`, `getfacl` shows `user:sdi:rw-`. **First time the `uaccess` half of the rule has ever worked** — see D23 |
+| `fx3-programmer -l` | `[0] VID:PID=04b4:00f3 Bus=007 Device=012 Mode=Bootloader (FX3)`, from a non-root shell |
+| RAM download | `Successfully uploaded 111300 bytes`, program entry `0x400074e8` |
+| Re-enumeration | `04b4:00f3` → `1d50:603b`, negotiated **5000 Mbps (USB 3.00 SuperSpeed)** |
+| Product string | `iProduct 2 Domesday Duplicator (d0566b3e-dirty)` — the exact version built, replacing the `460d2a3f` previously flashed |
+| Application-mode permissions | `1d50:603b` also gets `user:sdi:rw-`, so the capture GUI can open it |
+
+**What this proves, and it is the thing byte-identity could not:** an image built by the
+project's own `fx3-mkimage` is accepted and executed by the FX3 boot ROM on real silicon.
+The checksum, the section layout, the vector trim, the 64 KiB split and the entry-point
+record are all correct against the hardware, not merely against the tool that used to
+produce them.
+
+It also closes the last observable part of **D4**: the commit reaches the USB product
+descriptor and `lsusb -v` reports it from a running device.
+
+**Still outstanding for the P5-4 gate:**
+
+1. **The capture-integrity procedure** from [TESTING.md](../TESTING.md) §5 — a capture with
+   the FPGA test-pattern generator and `dddutil` analysis, zero sequence breaks. Enumeration
+   proves the device boots; it says nothing about whether the capture path is intact.
+2. ~~**A flash (EEPROM/SPI) operation**~~ — **done, see below.**
+
+### Bench session, 2026-08-12 — permanent programming, and D13 closed
+
+Run at the maintainer's explicit request. The hardware is a **Cypress FX3 SuperSpeed Explorer
+Kit (CYUSB3KIT-003)** plugged into the main board's GPIF II headers; it boots from an **I2C
+EEPROM** on the kit, and there is no SPI flash in this setup (D24).
+
+| Step | Result |
+| --- | --- |
+| Secondary loader located | `/nix/store/…-fx3-programmer-1.0/share/domesday-duplicator/cyfxflashprog.img`, with `$FX3_FLASH_PROG` **unset** and the command run from `/`. **This is D13's fix working on hardware** — every candidate path used to be working-directory relative, so an installed binary could not find it at all |
+| Loader downloaded and detected | 106,408 bytes to RAM; device re-enumerated `04b4:00f3` → `04b4:4720`; `Found FX3 flash programmer` |
+| EEPROM programmed | 111,348 bytes padded to 111,360, written as **two 64 KB I2C slave chunks** — so the slave-address rollover in `fx3-paging.h` was genuinely exercised, not bypassed |
+| Inline verify | Each chunk read back and compared during the write |
+| Independent verify | `-p <file> -v`: `Verification successful: EEPROM matches` |
+
+**D13 is closed.** The remaining half of that defect was always "can an installed binary find
+the secondary loader?", and it now demonstrably can, from a store path, from any working
+directory, with no `cyusb_linux` checkout present.
+
+The paging arithmetic tested in `fx3/programmer/tests/test_paging.cpp` is now backed by a
+hardware run that crosses the boundary those tests describe.
+
+A firmware image that boots but has not been capture-verified is not done.
 
 ## Phase 6 — FPGA flake
 

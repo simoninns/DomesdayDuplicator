@@ -15,13 +15,19 @@
     { self, nixpkgs }:
     let
       inherit (import ./nix/lib.nix { inherit nixpkgs; }) forAllSystems;
+
+      # The commit the working tree is at, for artefacts that carry their own provenance:
+      # the FX3 firmware's USB product descriptor (D4) and the GUI's About dialog and
+      # --version (D21). A build from a tag or a tarball has no .git for CMake's fallback
+      # to consult, so passing it explicitly is what stops a release artefact silently
+      # reporting "unknown" — which P7-9 makes a release gate.
+      version = self.shortRev or self.dirtyShortRev or "unknown";
     in
     {
       # Components are callPackage'd from the same .nix files their own flakes use, so there
       # is exactly one definition of each and no cross-flake inputs to keep in step.
       #
       # Not here, deliberately:
-      #   fx3-firmware  — Phase 5, needs the ARM cross build packaged
       #   bitstream     — Phase 6. Quartus is unfree, x86_64-linux only and
       #                   redistributable = false, so it can never come from a binary cache,
       #                   and it stays out of CI — the bitstream is built locally and
@@ -37,8 +43,18 @@
       packages = forAllSystems (
         pkgs:
         rec {
-          gui = pkgs.qt6Packages.callPackage ./gui/package.nix { };
+          gui = pkgs.qt6Packages.callPackage ./gui/package.nix { dddVersion = version; };
           docs-site = pkgs.callPackage ./docs/package.nix { };
+
+          # fx3-mkimage is exposed rather than hidden inside the firmware derivation
+          # because a contributor building the firmware outside Nix needs it on PATH too —
+          # without it CMakeLists.txt falls back to compiling it from source each time.
+          fx3-mkimage = pkgs.callPackage ./fx3/mkimage/package.nix { dddVersion = version; };
+          fx3-firmware = pkgs.callPackage ./fx3/firmware/package.nix {
+            inherit fx3-mkimage;
+            firmwareVersion = version;
+          };
+
           default = gui;
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
@@ -69,7 +85,9 @@
       overlays.default =
         final: _prev:
         {
-          domesday-duplicator-gui = final.qt6Packages.callPackage ./gui/package.nix { };
+          domesday-duplicator-gui = final.qt6Packages.callPackage ./gui/package.nix {
+            dddVersion = version;
+          };
         }
         // final.lib.optionalAttrs final.stdenv.hostPlatform.isLinux {
           domesday-duplicator-fx3-programmer = final.callPackage ./fx3/programmer/package.nix { };

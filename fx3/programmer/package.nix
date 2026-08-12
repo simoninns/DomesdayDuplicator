@@ -55,8 +55,10 @@ stdenv.mkDerivation (finalAttrs: {
       echo "cyfxflashprog.img was not installed — EEPROM programming would fail at runtime" >&2
       exit 1
     fi
-    if [ ! -f "$out/lib/udev/rules.d/88-cyusb.rules" ]; then
-      echo "88-cyusb.rules was not installed — the NixOS module would silently do nothing" >&2
+    # The filename matters, not just the presence: a uaccess rule sorting after
+    # 73-seat-late.rules never has its tag consumed. See the comment in the rule itself.
+    if [ ! -f "$out/lib/udev/rules.d/70-domesday-duplicator.rules" ]; then
+      echo "70-domesday-duplicator.rules was not installed — the NixOS module would silently do nothing" >&2
       exit 1
     fi
   '';

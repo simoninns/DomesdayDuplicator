@@ -65,8 +65,8 @@ outputs = { self, nixpkgs }:
       gui            = pkgs.qt6Packages.callPackage ./gui/package.nix { };
       fx3-programmer = pkgs.callPackage ./fx3/programmer/package.nix { };
       docs-site      = pkgs.callPackage ./docs/package.nix { };
-    }) // forLinux (pkgs: {
-      fx3-firmware   = pkgs.callPackage ./fx3/firmware/package.nix { };
+      fx3-mkimage    = pkgs.callPackage ./fx3/mkimage/package.nix { };
+      fx3-firmware   = pkgs.callPackage ./fx3/firmware/package.nix { inherit fx3-mkimage; };
       # NB: fpga is deliberately NOT here — see §6
     });
 
@@ -167,10 +167,11 @@ in {
 This is the single biggest quality-of-life win for NixOS users of the project, and it is
 independent of everything else in the plan.
 
-## 4. `fx3/firmware/` — ARM cross build
+## 4. `fx3/firmware/` — ARM cross build — **implemented in Phase 5**
 
-Uses `gcc-arm-embedded` (15.2.rel1 in nixpkgs) plus the vendored SDK. Three changes to the
-build are needed:
+Uses `gcc-arm-embedded` (15.2.rel1 in nixpkgs) plus the vendored SDK. The sketch below is
+what was designed; **the as-built notes at the end of this section record where it differed.**
+Three changes to the build were needed:
 
 **(a) Version injection.** `CMakeLists.txt` runs `git rev-parse --short=8 HEAD` at configure
 time. There is no `.git` in a Nix sandbox, so this yields `"unknown"` and the USB descriptor
@@ -187,35 +188,44 @@ endif()
 
 and pass `-DFIRMWARE_VERSION=${self.shortRev or "dirty"}` from the flake.
 
-**(b) `elf2img` as its own derivation**, replacing `ExternalProject_Add`:
+**(b) The ELF-to-image tool as its own derivation**, replacing `ExternalProject_Add`.
+
+*As designed*, this wrapped the SDK's vendored `elf2img`. **As built, the tool was replaced
+outright** — `fx3/mkimage/` is project-authored GPLv3 code written against Infineon's public
+AN76405, and `fx3/sdk/util/elf2img/` has been deleted (P5-7):
 
 ```nix
-# fx3/firmware/elf2img.nix
-{ stdenv, cmake }:
+# fx3/mkimage/package.nix
+{ lib, stdenv, cmake, gtest, ... }:
 stdenv.mkDerivation {
-  pname = "cyfx3-elf2img";
-  version = "1.3.5";
-  src = ../sdk/util/elf2img;
+  pname = "fx3-mkimage";
+  version = "1.0";
+  src = ...;                          # this component's own sources
   nativeBuildInputs = [ cmake ];
+  meta.license = lib.licenses.gpl3Plus;
 }
 ```
 
-Then in `package.nix`, `nativeBuildInputs = [ cmake elf2img ]` and have CMake call `elf2img`
-from `PATH` rather than from `${CMAKE_CURRENT_BINARY_DIR}/tools/bin/`.
+Then in `package.nix`, `nativeBuildInputs = [ cmake fx3-mkimage ]` and have CMake call
+`fx3-mkimage` from `PATH` rather than from `${CMAKE_CURRENT_BINARY_DIR}/tools/bin/`.
+
+The reason it is a separate derivation is unchanged and is the important part:
+`CMAKE_TOOLCHAIN_FILE` applies to a whole build tree, so a host tool cannot be a target
+inside a cross-compiled project.
 
 **(c) SDK path.** `CYFX3SDK_PATH` is already a cache variable defaulting to
 `${CMAKE_CURRENT_SOURCE_DIR}/cyfx3sdk` — point it at `../sdk` after the re-layout, or at a
 store path if the SDK ever becomes a separate derivation.
 
 ```nix
-{ stdenv, cmake, gcc-arm-embedded, elf2img, firmwareVersion ? "unknown" }:
+{ stdenv, cmake, gcc-arm-embedded, fx3-mkimage, firmwareVersion ? "unknown" }:
 
 stdenv.mkDerivation {
   pname = "domesday-duplicator-fx3-firmware";
   version = firmwareVersion;
   src = ./.;
 
-  nativeBuildInputs = [ cmake gcc-arm-embedded elf2img ];
+  nativeBuildInputs = [ cmake gcc-arm-embedded fx3-mkimage ];
 
   cmakeFlags = [
     "-DCMAKE_TOOLCHAIN_FILE=${./arm-none-eabi-toolchain.cmake}"
@@ -229,10 +239,47 @@ stdenv.mkDerivation {
 }
 ```
 
-The toolchain file uses `find_program(CMAKE_C_COMPILER arm-none-eabi-gcc)`, which works as
-long as `gcc-arm-embedded` is in `nativeBuildInputs`. Watch for nixpkgs' `stdenv` hardening
-flags leaking into a freestanding build — if the link fails on `-nostartfiles`, set
-`hardeningDisable = [ "all" ]`.
+### As built (Phase 5) — three differences worth knowing
+
+**1. `find_program` in the toolchain file is not enough, and the failure is confusing.** The
+sketch above says the toolchain file's `find_program(CMAKE_C_COMPILER arm-none-eabi-gcc)`
+works as long as `gcc-arm-embedded` is in `nativeBuildInputs`. It does not. nixpkgs' cmake
+setup hook passes `-DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++` — along with host
+`CMAKE_AR`, `CMAKE_RANLIB` and `CMAKE_STRIP` — *before* the derivation's own `cmakeFlags`,
+and `find_program` is a no-op when the cache variable is already set. So C is configured with
+the host compiler while ASM (which the hook does not preset) correctly finds
+`arm-none-eabi-gcc`, and configure dies with `The CMAKE_C_COMPILER: /build/source/build/gcc
+is not a full path to an existing compiler tool`. The fix is to name all six tools outright
+in `cmakeFlags` with absolute store paths, which also removes the `PATH` lookup — the
+derivation then depends on that exact toolchain rather than on whichever `arm-none-eabi-gcc`
+happens to be first. The binutils matter as much as the compiler here, because the toolchain
+file's `CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY` makes CMake's compiler check archive
+ARM objects with them.
+
+**2. `hardeningDisable = [ "all" ]` was set pre-emptively, not in response to a failure.** The
+sketch offers it as a remedy if the link fails on `-nostartfiles`. It has not been observed
+to be *required* — `arm-none-eabi-gcc` is found by the toolchain file rather than through the
+cc-wrapper, so the hardening flags have no obvious route in — but the assumption behind them
+(a hosted libc, a wrapped compiler) is false for this target either way, so leaving them
+enabled would be relying on an accident.
+
+**3. The SDK is passed as a narrowed `lib.fileset`, not as `${../sdk}`.** The whole directory
+is 19 MB, most of it link libraries the build never opens, and any edit to `fx3/sdk/README.md`
+would invalidate the derivation. `CYFX3SDK_PATH` instead points at a fileset containing
+exactly `fw_lib/1_3_5/inc`, `fw_lib/1_3_5/fx3_release` and `fw_build/fx3_fw/fx3.ld` — the
+three paths `CMakeLists.txt` asserts on. The refresh consequence is recorded in
+`fx3/sdk/README.md`: adding a file the build needs means naming it in that fileset too.
+
+Two smaller things:
+
+- **Output layout is flat.** `FIRMWARE_INSTALL_DIR` is a new cache variable defaulting to
+  `bin`, so an ordinary `cmake --install` is unchanged; the derivation passes `.` so
+  `firmware.{img,elf,map}` land at the root of the store path and CI can upload the directory
+  without knowing the layout.
+- **`patchelf: cannot find section '.dynamic'` appears in the build log and is expected.**
+  It comes from nixpkgs' `auditTmpdir` hook running `patchelf --print-rpath` over
+  `firmware.elf`, which is a statically linked bare-metal image. It is a message, not a
+  failure.
 
 ## 5. `docs/` — MkDocs Material
 

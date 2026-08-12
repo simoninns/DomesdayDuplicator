@@ -1,0 +1,5 @@
+nav:
+  - Overview: index.md
+  - Linux device access: linux-device-access.md
+  - FX3 firmware: fx3-firmware.md
+  - FPGA bitstream: fpga-bitstream.md

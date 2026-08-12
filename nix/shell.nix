@@ -22,7 +22,7 @@ pkgs.mkShell {
   packages =
     with pkgs;
     [
-      # Host C/C++ toolchain — the GUI, the programmer and elf2img
+      # Host C/C++ toolchain — the GUI, the programmer and fx3-mkimage
       cmake
       ninja
       pkg-config

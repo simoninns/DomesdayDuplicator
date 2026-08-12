@@ -52,10 +52,25 @@ Two consequences worth noting:
 - LGPL-2.1 permits relicensing under the GNU GPL (LGPL-2.1 §3), so the derived
   `fx3-programmer.c` sits comfortably under this project's GPLv3.
 - `src/fx3-programmer.c` currently carries **no copyright or licence header at all**, despite
-  stating in a comment that it derives from `cyusb_linux`. That is tracked as **D20** and is
-  fixed in P8-5's SPDX rollout.
+  stating in a comment that it derives from `cyusb_linux`. That is tracked as **D22** and is
+  fixed in P8-5's SPDX rollout. (An earlier revision of this file called it D20, which is a
+  different defect entirely — the MkDocs raw-`<img>` breakage closed in Phase 4.)
 
 `cyfxflashprog.img` itself is a compiled Cypress SDK example (`cyfxflashprog.txt` identifies
 it as such) that ships inside the LGPL-licensed `cyusb_linux` package; it is vendored here
 under the same project decision that covers the SDK — see
 [`docs-tech/decisions.md`](../../docs-tech/decisions.md) (P0-2).
+
+## Vendored files removed in Phase 5
+
+Two files came across from `cyusb_linux` with the rest of `configs/` and were dead on
+arrival in this project:
+
+| File | Why it went |
+| --- | --- |
+| `configs/cy_renumerate.sh` | Signals a running `cyusb` daemon with `SIGUSR1`. This project does not ship that daemon, CMake never installed the script, and the `RUN+=` hooks that invoked it were removed from the udev rules in Phase 3 (D19) |
+| `configs/cyusb.conf` | The `cyusb` daemon's VID/PID device list. Nothing in this project reads it |
+
+`cyfxflashprog.img` and `cyfxflashprog.txt` stay: the secondary loader is required for
+EEPROM and SPI programming and cannot be replaced without writing FX3 firmware to do the
+same job, and both are LGPL-2.1.

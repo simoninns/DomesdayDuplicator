@@ -10,7 +10,7 @@ This project is based on the [Cypress cyusb_linux](https://github.com/Cypress-Se
 - Eliminated FX2 (legacy) support
 - Stripped unnecessary utilities and examples
 - Streamlined to a single 22KB CLI binary using pure libusb-1.0
-- Maintained full FX3 firmware upload, verification, and reset functionality
+- Maintained FX3 firmware upload to RAM, EEPROM programming and verification
 
 ## Table of Contents
 
@@ -64,7 +64,7 @@ sudo make install
 This installs:
 - `/usr/local/bin/fx3-programmer` - Programming tool
 - `/usr/local/share/domesday-duplicator/cyfxflashprog.img` - Cypress secondary loader
-- `/usr/local/lib/udev/rules.d/88-cyusb.rules` - udev rules for USB device access
+- `/usr/local/lib/udev/rules.d/70-domesday-duplicator.rules` - udev rules for USB device access
 
 ### Activate the udev Rules
 
@@ -72,7 +72,7 @@ The rules install under the CMake prefix rather than directly into `/etc`, so th
 never writes outside the directory it was told to install into. Link them into place:
 
 ```bash
-sudo ln -sf /usr/local/lib/udev/rules.d/88-cyusb.rules /etc/udev/rules.d/88-cyusb.rules
+sudo ln -sf /usr/local/lib/udev/rules.d/70-domesday-duplicator.rules /etc/udev/rules.d/70-domesday-duplicator.rules
 sudo udevadm control --reload
 sudo udevadm trigger
 ```
@@ -84,7 +84,7 @@ post-install step rather than having CMake write to an absolute path.
 
 ### The Cypress secondary loader
 
-Permanent (EEPROM/SPI flash) programming needs `cyfxflashprog.img`, a Cypress-supplied
+Permanent (I2C EEPROM) programming needs `cyfxflashprog.img`, a Cypress-supplied
 secondary loader that runs on the FX3 and performs the flash write. RAM-only programming
 does not need it.
 
@@ -136,31 +136,49 @@ fx3-programmer -u firmware.img
 fx3-programmer -d 1 -u firmware.img
 ```
 
-The firmware will be loaded into RAM, parsed, and executed. The device will automatically reset and boot into the application mode (if properly configured in firmware).
+The firmware is loaded into RAM, parsed, and executed: the bootloader transfers control to the image's entry point once the download completes. The device then re-enumerates in application mode — for this project's firmware, as `1d50:603b`. This is not a reset; the FX3 is never rebooted.
 
 After successful upload, the device may enumerate with a new VID:PID pair (e.g., 1d50:603b for Domesday Duplicator).
 
 ### Verify Firmware Upload
 
 ```bash
-fx3-programmer -d 0 -v
+fx3-programmer -d 0 -p firmware.img -v
 ```
 
-### Reset Device
+`-v` is a modifier for `-p`, not a standalone operation: verification compares the EEPROM
+against a firmware file, so it needs one. Running `-v` on its own reports that.
+
+### No software reset
+
+There is no `-r`, and there is no way to reset the FX3 from the host in this project.
+
+The option used to exist and did nothing: `fx3_reset_device()` printed "Device will reset
+automatically after firmware download completes", slept for two seconds and returned success
+(D25). Nothing was ever sent to the device.
+
+A real implementation is not available either. The FX3 boot ROM offers no reset vendor
+command, and this project's firmware implements only `0xB5` and `0xB6` — capture control.
+A `libusb_reset_device()` would re-enumerate the USB device without rebooting the FX3 or
+changing its boot mode, which would look like a reset while not being one.
+
+**Changing boot mode requires a physical power cycle**, with J4 fitted or removed to choose
+where the device boots from. Running `-r` now fails and says so.
+
+### Complete workflow
 
 ```bash
-fx3-programmer -d 0 -r
-```
-
-### Complete Workflow
-
-```bash
-# List devices
+# List devices — confirm it is in bootloader mode
 fx3-programmer -l
 
-# Upload firmware and verify
-fx3-programmer -d 0 -u firmware.img -v -r
+# Volatile: load into RAM, lost on power down
+fx3-programmer -d 0 -u firmware.img
+
+# Permanent: write the I2C EEPROM and verify it
+fx3-programmer -d 0 -p firmware.img -v
 ```
+
+Then remove J4 and power cycle to boot the programmed firmware.
 
 ## Programming the FX3 with Domesday Duplicator Firmware
 
@@ -184,7 +202,7 @@ This section describes how to program the FX3 device with firmware built from th
 3. **FX3 Device Requirements**:
    - Cypress FX3 development board or compatible hardware
    - USB cable (USB 3.0 recommended)
-   - Access to the PMODE (Program Mode) jumper if flashing to EEPROM/Flash
+   - Access to the PMODE (Program Mode) jumper, J4, for any programming operation
 
 ### Step-by-Step Programming
 
@@ -232,8 +250,9 @@ Found 1 FX3 device(s):
 [0] VID:PID=1d50:603b Bus=007 Device=014 Mode=Application (Domesday Duplicator)
 ```
 
-- **Bootloader mode**: Ready to program - firmware will be written to persistent storage (EEPROM/Flash). The device shows as `VID:PID=04b4:00f3` with product name `FX3`.
-- **Application mode**: Currently running firmware (Domesday Duplicator shows as `VID:PID=1d50:603b`). You can program, but it writes to **RAM only** and will be **lost on power cycle**. To make changes permanent, enter Bootloader mode first.
+- **Bootloader mode**: the only mode in which the device can be programmed at all. `-u` writes RAM, `-p` writes the I2C EEPROM. Shows as `VID:PID=04b4:00f3`.
+- **Application mode**: running firmware — the Domesday Duplicator shows as `VID:PID=1d50:603b`. **Neither `-u` nor `-p` works here.** Both rely on the FX3 boot ROM, which is no longer in control once firmware is running. Fit J4 and power cycle to get back to the bootloader.
+- **Flash programmer**: a transient mode, `VID:PID=04b4:4720`, entered automatically while `-p` runs. Nothing to do with it; it goes away on the next power cycle.
 
 Note the device index (usually 0 if you have one device).
 
@@ -247,7 +266,7 @@ This:
 - `-d 0` - Targets device 0
 - `-u /path/to/firmware.img` - Uploads the firmware image
 
-**Note:** Reset and verify flags (-r, -v) are provided for compatibility but are not currently used. The bootloader automatically executes the firmware after upload completes.
+**Note:** the bootloader executes the firmware automatically once the upload completes — there is no separate "start" step. `-v` verifies an EEPROM write and is only meaningful alongside `-p`. There is no `-r`: see *No software reset* below.
 
 #### 4. Complete Workflow Example
 
@@ -340,8 +359,7 @@ If in bootloader mode still, try programming again. If stuck in bootloader, you 
 
 - ✅ Discover connected FX3 devices
 - ✅ Upload firmware via USB
-- ✅ Verify firmware upload
-- ✅ Reset device
+- ✅ Verify an EEPROM write against the source image
 - ✅ No Qt dependency
 - ✅ No legacy code
 - ✅ Single binary, ~22KB

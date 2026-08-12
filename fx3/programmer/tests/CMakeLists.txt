@@ -36,3 +36,13 @@ ddd_add_test(test_flashprog "unit" test_flashprog.cpp ../src/fx3-flashprog.c)
 target_compile_definitions(test_flashprog PRIVATE
     FLASHPROG_INSTALL_PATH="${CMAKE_INSTALL_FULL_DATADIR}/domesday-duplicator/${FLASHPROG_IMAGE}"
 )
+
+# T2 — the command-line contract. Not a unit test: it runs the built binary and asserts the
+# help text does not promise behaviour the tool lacks. D24 and D25 both lived for a long
+# time because words and code could disagree with nothing to catch it.
+add_test(
+    NAME cli-contract
+    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/cli-contract.sh $<TARGET_FILE:fx3-programmer>
+)
+
+set_tests_properties(cli-contract PROPERTIES LABELS "golden")

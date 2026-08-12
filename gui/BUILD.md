@@ -30,6 +30,26 @@ sudo cmake --install build
 
 Pass `--prefix` to install somewhere other than `/usr/local`.
 
+#### Version stamping
+
+All three programs report the commit they were built from, through `--version` and their
+About dialogs:
+
+```
+$ DomesdayDuplicator --version
+DomesdayDuplicator 2.1 (a1b2c3d4)
+```
+
+The build asks `git` for the hash, but only as a fallback. Any build without a `.git` beside
+it — Nix, a release tarball, a shallow CI clone — must pass the value in:
+
+```bash
+cmake -B build -DDDD_VERSION=a1b2c3d4
+```
+
+Letting it fall back to `unknown` produces a binary that cannot be traced to its source, so
+the release workflow treats that as a failure rather than a warning.
+
 ### Editor and IDE support
 
 There is only one build definition — the CMake one. The qmake `.pro` files that used to sit

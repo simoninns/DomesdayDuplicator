@@ -16,6 +16,24 @@ if(NOT DEFINED FIRMWARE_VERSION OR FIRMWARE_VERSION STREQUAL "")
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET
     )
+
+    # A commit hash alone describes the build only if the tree matches that commit.
+    # Without this, a developer build with uncommitted work stamps a hash whose source
+    # does not contain that work — the image says one thing and is another, which is
+    # exactly the untraceability the version stamp exists to prevent. Untracked files
+    # count: they are not noise here, they can be part of the build.
+    if(FIRMWARE_VERSION)
+        execute_process(
+            COMMAND git status --porcelain
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            OUTPUT_VARIABLE FIRMWARE_GIT_STATUS
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(NOT FIRMWARE_GIT_STATUS STREQUAL "")
+            set(FIRMWARE_VERSION "${FIRMWARE_VERSION}-dirty")
+        endif()
+    endif()
 endif()
 
 if(NOT FIRMWARE_VERSION)
@@ -156,46 +174,54 @@ target_link_libraries(${PROJECT_NAME}.elf PRIVATE
     gcc
 )
 
-# elf2img converts the linked .elf into the boot-loadable image the FX3 expects. It is a
-# host tool, not a cross-compiled one, so it must not be built with this project's ARM
-# toolchain. Prefer one already on PATH — that is what the Nix build and any packaged
-# toolchain provide — and only fall back to building the copy vendored in the SDK.
-find_program(ELF2IMG elf2img)
+# fx3-mkimage converts the linked .elf into the boot-loadable image the FX3 expects. It is
+# a host tool, not a cross-compiled one, so it must not be built with this project's ARM
+# toolchain. Prefer one already on PATH — that is what the Nix build and the dev shell
+# provide — and only fall back to compiling the sources in ../mkimage directly.
+set(MKIMAGE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../mkimage)
 
-if(ELF2IMG)
-    set(ELF2IMG_DEP "")
-    message(STATUS "elf2img: using ${ELF2IMG}")
+find_program(FX3_MKIMAGE fx3-mkimage)
+
+if(FX3_MKIMAGE)
+    set(FX3_MKIMAGE_DEP "")
+    message(STATUS "fx3-mkimage: using ${FX3_MKIMAGE}")
 else()
-    # CMAKE_TOOLCHAIN_FILE applies to the entire build tree, so elf2img cannot be built
-    # as a normal target here — it would be cross-compiled for ARM and could not run.
-    # It is a single self-contained C file, so compile it directly with a host compiler.
-    # This replaces an ExternalProject_Add() that ran a full nested CMake configure.
+    # CMAKE_TOOLCHAIN_FILE applies to the entire build tree, so fx3-mkimage cannot be
+    # built as a normal target here — it would be cross-compiled for ARM and could not
+    # run. Compile it directly with a host compiler instead; it is two self-contained C
+    # files with no dependencies beyond libc.
     find_program(HOST_CC NAMES cc gcc clang)
     if(NOT HOST_CC)
         message(FATAL_ERROR
-            "elf2img is not on PATH and no host C compiler was found to build the copy in "
-            "${CYFX3SDK_PATH}/util/elf2img. Install a host C compiler, or put elf2img on PATH.")
+            "fx3-mkimage is not on PATH and no host C compiler was found to build it from "
+            "${MKIMAGE_DIR}. Install a host C compiler, or put fx3-mkimage on PATH.")
     endif()
-    set(ELF2IMG ${CMAKE_CURRENT_BINARY_DIR}/elf2img)
+    set(FX3_MKIMAGE ${CMAKE_CURRENT_BINARY_DIR}/fx3-mkimage)
+    set(MKIMAGE_SOURCES
+        ${MKIMAGE_DIR}/src/fx3-bootimage.c
+        ${MKIMAGE_DIR}/src/main.c
+    )
     add_custom_command(
-        OUTPUT ${ELF2IMG}
-        COMMAND ${HOST_CC} -O2 -Wall -o ${ELF2IMG} ${CYFX3SDK_PATH}/util/elf2img/elf2img.c
-        DEPENDS ${CYFX3SDK_PATH}/util/elf2img/elf2img.c
-        COMMENT "Building host tool elf2img"
+        OUTPUT ${FX3_MKIMAGE}
+        COMMAND ${HOST_CC} -std=c11 -O2 -Wall -I${MKIMAGE_DIR}/src
+                -DFX3_MKIMAGE_VERSION="${FIRMWARE_VERSION}"
+                -o ${FX3_MKIMAGE} ${MKIMAGE_SOURCES}
+        DEPENDS ${MKIMAGE_SOURCES}
+        COMMENT "Building host tool fx3-mkimage"
         VERBATIM
     )
-    set(ELF2IMG_DEP ${ELF2IMG})
-    message(STATUS "elf2img: building the SDK copy with ${HOST_CC}")
+    set(FX3_MKIMAGE_DEP ${FX3_MKIMAGE})
+    message(STATUS "fx3-mkimage: building from ${MKIMAGE_DIR} with ${HOST_CC}")
 endif()
 
 # Custom command to generate .img file from .elf
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.img
-    COMMAND ${ELF2IMG}
+    COMMAND ${FX3_MKIMAGE}
         -i ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.elf
         -o ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.img
         -v
-    DEPENDS ${PROJECT_NAME}.elf ${ELF2IMG_DEP}
+    DEPENDS ${PROJECT_NAME}.elf ${FX3_MKIMAGE_DEP}
     COMMENT "Generating boot-loadable binary image"
     VERBATIM
 )
@@ -205,10 +231,26 @@ add_custom_target(${PROJECT_NAME}_img ALL
     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.img
 )
 
-# Install targets
+# Install targets.
+#
+# `bin` by default so an ordinary `cmake --install` behaves as it always has. The Nix
+# derivation passes `.` so the three artefacts land at the root of the store path, where
+# CI can upload the directory without knowing the layout.
+set(FIRMWARE_INSTALL_DIR "bin" CACHE STRING
+    "Directory under the install prefix to receive firmware.{elf,img,map}")
+
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.elf
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.img
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.map
-    DESTINATION bin
+    DESTINATION ${FIRMWARE_INSTALL_DIR}
 )
+
+# Tests. On by default when this is the top-level project, matching gui/ and
+# fx3/programmer/. Everything here is host-side — the cross toolchain cannot run its own
+# output, so nothing in this project can be tested by executing it.
+include(CTest)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

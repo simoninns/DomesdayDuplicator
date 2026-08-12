@@ -22,14 +22,19 @@ pkgs.mkShell {
     # Cross toolchain for the firmware (ARM926EJ-S, bare metal)
     gcc-arm-embedded
 
-    # Host toolchain for the programmer and for elf2img
+    # fx3-mkimage, the project's ELF-to-boot-image converter. Having it on PATH is what
+    # makes firmware/CMakeLists.txt's find_program(FX3_MKIMAGE fx3-mkimage) succeed, so the
+    # build skips the fallback that compiles it from source on every fresh build tree.
+    (callPackage ./mkimage/package.nix { })
+
+    # Host toolchain for the programmer and mkimage, and for the mkimage fallback
     stdenv.cc
     cmake
     ninja
     pkg-config
     libusb1
 
-    # elf2img needs python3 only for generate-descriptor.sh
+    # generate-descriptor.sh runs at firmware configure time and shells out to python3
     python3
 
     # Test
@@ -49,6 +54,12 @@ pkgs.mkShell {
     echo "    cmake -B firmware/build -S firmware \\"
     echo "          -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake"
     echo "    cmake --build firmware/build"
+    echo "    ctest --test-dir firmware/build"
+    echo
+    echo "  mkimage (host tool, builds the boot image from the ELF):"
+    echo "    cmake -B mkimage/build -S mkimage"
+    echo "    cmake --build mkimage/build"
+    echo "    ctest --test-dir mkimage/build"
     echo
     echo "  programmer:"
     echo "    cmake -B programmer/build -S programmer"

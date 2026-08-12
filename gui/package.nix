@@ -12,6 +12,12 @@
   libusb1,
   wrapQtAppsHook,
   gtest,
+  # The commit these binaries were built from. It reaches --version and the About dialog
+  # of all three tools, which is the only way a released GUI artefact can be traced back
+  # to its source (D21). There is no .git in a Nix sandbox, so CMake's own git fallback
+  # cannot fire and this must be passed — the flake passes self.shortRev. A build that
+  # reports "unknown" fails P7-9's release gate.
+  dddVersion ? "unknown",
   # Set false to skip the test suite (it needs an offscreen Qt platform plugin)
   doCheck ? true,
 }:
@@ -49,6 +55,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   cmakeFlags = [
     (lib.cmakeBool "BUILD_TESTING" finalAttrs.doCheck)
+    (lib.cmakeFeature "DDD_VERSION" dddVersion)
   ];
 
   inherit doCheck;
@@ -63,6 +70,30 @@ stdenv.mkDerivation (finalAttrs: {
     runHook preCheck
     ctest --output-on-failure --label-exclude 'hil'
     runHook postCheck
+  '';
+
+  # D21 end to end: ask each installed binary what it is. This runs after fixupPhase, so
+  # it exercises the wrapped executables users actually get, and it fails the build rather
+  # than shipping an artefact that cannot be traced to a commit.
+  doInstallCheck = true;
+
+  installCheckPhase = ''
+    runHook preInstallCheck
+
+    export QT_QPA_PLATFORM=offscreen
+    for tool in DomesdayDuplicator dddconv dddutil; do
+      reported=$("$out/bin/$tool" --version)
+      echo "$tool: $reported"
+      case "$reported" in
+        *"(${dddVersion})"*) ;;
+        *)
+          echo "$tool reports '$reported', which does not carry the build version '${dddVersion}'" >&2
+          exit 1
+          ;;
+      esac
+    done
+
+    runHook postInstallCheck
   '';
 
   meta = {
