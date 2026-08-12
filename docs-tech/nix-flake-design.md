@@ -4,7 +4,10 @@ Companion to [reorganisation-plan.md](reorganisation-plan.md) §4. Sketches are 
 not tested — they show the intended structure and the specific gotchas found in this
 codebase.
 
-## 1. The core pattern: thin flakes over shared `.nix` files
+## 1. The core pattern: one flake over shared `.nix` files
+
+**There is exactly one `flake.nix`, at the repository root, and exactly one `flake.lock`.**
+Components carry `package.nix` and `shell.nix` and no flake of their own.
 
 The trap with "a flake per component in one repo" is that the root aggregator ends up either
 (a) duplicating every component definition, or (b) declaring each component as a flake
@@ -16,39 +19,41 @@ Avoid both by keeping the *logic* out of `flake.nix`:
 ```
 gui/
 ├── package.nix     # { lib, stdenv, cmake, qt6, libusb1, ... }: stdenv.mkDerivation { ... }
-├── shell.nix       # { pkgs }: pkgs.mkShell { ... }
-└── flake.nix       # ~20 lines, wraps the two above
+└── shell.nix       # { pkgs }: pkgs.mkShell { ... }
 ```
 
-`gui/flake.nix`:
+Both are plain functions of `{ pkgs }` — importable, testable, and reusable from anywhere
+without a flake boundary in the way.
 
-```nix
-{
-  description = "Domesday Duplicator capture GUI and tools";
+### Why not a thin flake per component as well?
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+An earlier revision of this document proposed exactly that: a ~20-line `gui/flake.nix`
+wrapping the two files above, purely so that `cd gui && nix develop` would work. It was
+implemented in Phase 3, and it was a mistake.
 
-  outputs = { self, nixpkgs }:
-    let
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      forAll = nixpkgs.lib.genAttrs systems;
-      pkgsFor = system: nixpkgs.legacyPackages.${system};
-    in {
-      packages = forAll (system:
-        let pkgs = pkgsFor system; in {
-          default = self.packages.${system}.domesday-duplicator-gui;
-          domesday-duplicator-gui = pkgs.qt6Packages.callPackage ./package.nix { };
-        });
+Each such flake declared its own `inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable"`.
+That is an unpinned reference, resolved at evaluation time against a *separate* lock file
+which Nix creates silently on first use — and, in a git working tree, `git add`s for you.
+The consequence: entering the tree through a component gave you whatever `nixos-unstable`
+pointed at that day, not the revision pinned in the root `flake.lock`, with nothing on the
+terminal to say the two had diverged. A reproducibility guarantee that only holds when you
+enter from one specific directory is not a guarantee.
 
-      devShells = forAll (system: {
-        default = import ./shell.nix { pkgs = pkgsFor system; };
-      });
-    };
-}
-```
+`nixpkgs.follows` cannot fix this — there is no parent flake to follow when the component
+flake is the entry point. `path:..` inputs would work but re-introduce the cross-flake
+coupling this section exists to avoid.
 
-The root `flake.nix` imports the *same* `./gui/package.nix` via `callPackage`. No cross-flake
-inputs, no duplication:
+Nothing was actually lost by deleting them. Nix walks *up* from the current directory to find
+the enclosing flake, so `nix develop .#gui` resolves against the root flake from any
+subdirectory. Only bare `nix develop` changes meaning: it always gives the all-components
+default shell, never the component you are standing in.
+
+**Do not reintroduce component flakes.**
+
+### The root flake
+
+It imports each component's `package.nix` via `callPackage`. No cross-flake inputs, no
+duplication:
 
 ```nix
 # /flake.nix (sketch)
@@ -296,30 +301,33 @@ Verified against `pkgs/by-name/qu/quartus-prime-lite/quartus.nix` in the current
 `platforms = [ "x86_64-linux" ]`, `license = unfree`, `redistributable = false`, and it takes
 `supportedDevices` (default six families) and `withQuesta ? true`.
 
-```nix
-# fpga/flake.nix
-{
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+Unfree does **not** mean "needs its own flake" — that would bring back the second lock file
+§1 exists to prevent. It means "needs its own `pkgs`", which is a second `import nixpkgs` of
+the *same locked* input, inside the root flake:
 
-  outputs = { self, nixpkgs }:
-    let
-      system = "x86_64-linux";
-      # allowUnfree is set on OUR OWN nixpkgs import, so consumers do not need --impure
-      # or NIXPKGS_ALLOW_UNFREE. Evaluation stays pure.
-      pkgs = import nixpkgs {
-        inherit system;
-        config.allowUnfree = true;
-      };
-      quartus = pkgs.quartus-prime-lite.override {
-        supportedDevices = [ "Cyclone IV" ];   # EP4CE22F17C6 on the DE0-Nano
-        withQuesta = false;                    # no simulation in this project
-      };
-    in {
-      packages.${system}.bitstream = pkgs.callPackage ./package.nix { inherit quartus; };
-      devShells.${system}.default  = pkgs.mkShell { packages = [ quartus ]; };
-    };
+```nix
+# in the root flake.nix, alongside the free outputs
+let
+  system = "x86_64-linux";
+  # allowUnfree is set on a second import of the SAME locked nixpkgs, so consumers do not
+  # need --impure or NIXPKGS_ALLOW_UNFREE, evaluation stays pure, the unfree dependency
+  # cannot leak into any free output, and there is still exactly one flake.lock.
+  unfreePkgs = import nixpkgs {
+    inherit system;
+    config.allowUnfree = true;
+  };
+  quartus = unfreePkgs.quartus-prime-lite.override {
+    supportedDevices = [ "Cyclone IV" ];   # EP4CE22F17C6 on the DE0-Nano
+    withQuesta = false;                    # no simulation in this project
+  };
+in {
+  packages.${system}.bitstream = unfreePkgs.callPackage ./fpga/package.nix { inherit quartus; };
+  devShells.${system}.fpga-quartus = unfreePkgs.mkShell { packages = [ quartus ]; };
 }
 ```
+
+Note both attributes are guarded to `x86_64-linux` and neither appears in `checks`, so
+`nix flake check` and every other system are untouched by it.
 
 Setting `config.allowUnfree` inside the flake's own `import nixpkgs` is the pattern that
 keeps `nix build` working without `--impure` — the alternative (`nixConfig` or telling users
@@ -375,7 +383,8 @@ Caveats to document in `fpga/README.md`:
   a compile timestamp is embedded in the bitstream header, so identical configuration content
   can still land in non-identical *files*. Treat the packaged output as reproducible in
   content but not assumed byte-identical until measured — P6-9. The dev shell
-  (`nix develop ./fpga`) remains the primary deliverable.
+  (`nix develop .#fpga-quartus`, from anywhere in the working tree) remains the primary
+  deliverable.
 - The download is multi-gigabyte and cannot come from a binary cache
   (`redistributable = false`), so the first build is slow.
 - `quartus_sh` needs a writable `$HOME`; set `export HOME=$TMPDIR` in the build.

@@ -37,7 +37,7 @@ regression.
 
 nixpkgs' `quartus-prime-lite` wrapper wraps **everything** in `${unwrapped}/quartus/bin/*`
 plus `qsys-{generate,edit,script}` and symlinks it all into `$out/bin` (verified in
-`pkgs/by-name/qu/quartus-prime-lite/package.nix`). So `nix develop ./fpga` puts
+`pkgs/by-name/qu/quartus-prime-lite/package.nix`). So `nix develop .#fpga-quartus` puts
 `quartus_sh`, `quartus_map`, `quartus_fit`, `quartus_asm`, `quartus_sta`, `quartus_cpf`,
 `quartus_pgm` and `jtagd` on `PATH`. The `quartus` GUI is one binary among many — available
 if wanted, never required. Quartus Prime **Lite** needs no licence file, so there is no

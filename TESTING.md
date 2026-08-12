@@ -46,6 +46,10 @@ memory on the device.
 
 ## 3. Running the tests
 
+**From the repository root** — `nix flake check` itself works from any subdirectory, since
+Nix walks up to the single root `flake.nix`, but the `cmake` paths below are relative to the
+root:
+
 ```bash
 nix flake check                      # everything, on a clean machine
 ```

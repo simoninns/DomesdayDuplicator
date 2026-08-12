@@ -1,6 +1,13 @@
 # Development shell for the GUI component.
 #
-#   nix develop ./gui        (or `nix develop .#gui` from the repository root)
+# Where to run it: anywhere in the working tree.
+#
+#   nix develop .#gui
+#
+# There is a single flake.nix at the repository root and a single flake.lock beside it.
+# Nix walks up to find them, so `.#gui` resolves identically from `gui/` and from the root.
+# A bare `nix develop` gives the all-components default shell, not this one, whatever
+# directory you happen to be in.
 #
 # Carries the build dependencies plus the editor tooling, so a contributor gets working
 # completion and diagnostics from the shell rather than from a per-developer install.

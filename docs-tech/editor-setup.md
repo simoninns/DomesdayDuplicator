@@ -24,6 +24,11 @@ to install per developer.
 
 Get the toolchain, then configure each component you intend to work on.
 
+**Run all of this from the repository root.** The `nix develop` line would work from any
+subdirectory — there is one `flake.nix`, at the root, and Nix walks up to find it — but the
+`cmake` lines below use paths relative to the root, so the root is the one place every
+command here is correct.
+
 ```bash
 nix develop                      # everything free, across all components
 cmake -B gui/build -S gui

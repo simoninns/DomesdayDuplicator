@@ -39,14 +39,19 @@ to the old repositories will not reach the project.
 | [docs/](docs/) | Source of the project documentation website |
 | [docs-tech/](docs-tech/) | Engineering-process documentation for this repository |
 
-Each component builds with ordinary distribution packages — see its `README.md`. There are
-also Nix flakes if you prefer them:
+Each component builds with ordinary distribution packages — see its `README.md`. There is
+also a Nix flake if you prefer it. **Run these from anywhere in the working tree** — there is
+one `flake.nix`, at the repository root, and Nix walks up to find it:
 
 ```
 nix develop                          # all components, one shell
+nix develop .#gui                    # or .#fx3, .#fpga, .#hardware, .#docs
 nix build .#gui .#fx3-programmer     # build the host software
 nix flake check                      # build everything and run the tests
 ```
+
+A bare `nix develop` gives the all-components shell whichever directory you are in; use
+`.#name` to select a single component.
 
 [AGENTS.md](AGENTS.md) records the project conventions and [TESTING.md](TESTING.md) the test
 tiers, including the hardware-in-the-loop capture-integrity procedure.

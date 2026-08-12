@@ -1,6 +1,13 @@
 # The default development shell: everything free, across every component.
 #
+# Where to run it: anywhere in the working tree.
+#
 #   nix develop
+#
+# There is a single flake.nix at the repository root and a single flake.lock beside it —
+# components carry package.nix and shell.nix but no flakes of their own, so there is one
+# pinned nixpkgs for the whole repository however you enter it. Nix walks up to find the
+# root flake, so both `nix develop` and `nix develop .#gui` work from any subdirectory.
 #
 # Use this to move between components without switching shells. It deliberately excludes
 # Quartus (unfree, multi-gigabyte, x86_64-linux only) and KiCad (large, and only needed for
@@ -62,6 +69,8 @@ pkgs.mkShell {
 
   shellHook = ''
     echo "Domesday Duplicator — development shell (all free components)"
+    echo
+    echo "Component shells (run from anywhere in the working tree):"
     echo
     echo "  nix develop .#gui         Qt 6 capture GUI and tools"
     echo "  nix develop .#fx3         FX3 firmware and programmer"

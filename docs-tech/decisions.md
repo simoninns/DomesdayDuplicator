@@ -522,6 +522,57 @@ if you would rather Nix-on-macOS be a first-class supported path.
 
 ---
 
+## P4-x — Component flakes: removed
+
+**Question:** should each component keep a thin `flake.nix` of its own, so that
+`cd gui && nix develop` works?
+
+### Evidence
+
+The Phase 3 design gave root, `gui/`, `fx3/programmer/`, `hardware/` and `docs/` a flake
+each — ~20 lines, wrapping the shared `package.nix` / `shell.nix`. Four were built. They were
+sound in every respect except the one that matters most here.
+
+Each declared `inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable"`. That is an
+unpinned reference resolved against a **separate lock file per component**, which Nix creates
+silently on first evaluation and, inside a git working tree, stages for you. Observed
+directly: running `nix eval` from four component directories produced four new
+`flake.lock` files, all `git add`ed without being asked.
+
+The consequence is not cosmetic. The root `flake.lock` pins nixpkgs `2fcb964d` (2026-08-10).
+A developer running `cd docs && nix develop` got whatever `nixos-unstable` pointed at *that
+day* instead, with nothing on the terminal to say the two had diverged. Reproducibility that
+holds only when you enter from one specific directory is not reproducibility.
+
+`nixpkgs.follows` cannot fix it — there is no parent flake to follow when the component flake
+*is* the entry point. A `path:..` input would work, but re-introduces exactly the cross-flake
+coupling the design was built to avoid.
+
+### Decision
+
+**`DECIDED` 2026-08-12 — remove them; one `flake.nix` and one `flake.lock`, at the root.**
+Maintainer's call, on the grounds that reproducibility outranks the shorthand.
+
+Nothing was lost. Nix walks *up* from the working directory to the enclosing flake, so
+`nix develop .#gui`, `nix build .#docs-site` and `nix flake check` all resolve against the
+root flake from any subdirectory — verified from `docs/`, `gui/`, `hardware/`,
+`fx3/programmer/`, `fx3/` and `fpga/`. Only bare `nix develop` changed meaning: it now always
+gives the all-components default shell, never the component you are standing in. Every
+`shell.nix` header, `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `TESTING.md` and
+`editor-setup.md` states where its commands are meant to be run.
+
+Consequence for Phase 6: Quartus being unfree, `x86_64-linux`-only and
+`redistributable = false` was the strongest remaining argument for a separate `fpga/` flake,
+and it does not survive either. Containing an unfree dependency needs a separate **`pkgs`**,
+not a separate **flake** — a second `import nixpkgs { config.allowUnfree = true; }` of the
+already-locked input, with the outputs guarded by system and kept out of `checks`. Same
+containment, same lock file.
+
+**This decision is recorded in [AGENTS.md](../AGENTS.md) §7 as a standing rule.** Component
+flakes must not be reintroduced.
+
+---
+
 ## Incidental findings from this evidence pass
 
 Not decisions, but recorded here so they are not lost:

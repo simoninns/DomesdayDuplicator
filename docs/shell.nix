@@ -1,7 +1,14 @@
 # Development shell for the documentation site.
 #
-#   nix develop ./docs       (or `nix develop .#docs` from the repository root)
+# Where to run it: anywhere in the working tree.
+#
+#   nix develop .#docs
 #   mkdocs serve             live preview on http://127.0.0.1:8000
+#
+# There is a single flake.nix at the repository root and a single flake.lock beside it.
+# Nix walks up to find them, so `.#docs` resolves identically from `docs/` and from the
+# root. A bare `nix develop` gives the all-components default shell, not this one, whatever
+# directory you happen to be in.
 #
 # This is the replacement for the old build-local.sh, which rebuilt the whole Jekyll site
 # into a temporary directory on every edit.

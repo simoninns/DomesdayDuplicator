@@ -87,7 +87,8 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 ├── README.md
 ├── .editorconfig              # repository-wide formatting
 ├── .envrc                     # direnv: `use flake` (opt-in)
-├── flake.nix                  # aggregator: packages, dev shells, checks, NixOS module
+├── flake.nix                  # the ONLY flake: packages, dev shells, checks, NixOS module
+├── flake.lock                 # the ONLY lock — components never carry either file
 ├── nix/
 │   ├── lib.nix                # supported systems, shared pkgs config
 │   ├── shell.nix              # the default dev shell
@@ -207,25 +208,40 @@ touched rather than in one sweeping commit. Do not add a long-form header to a n
 
 ## 7. Development environment
 
-Every component builds with ordinary, distribution-packaged tools. There are also per-component
-Nix flakes — but **Nix is not required**, and no build may be made Nix-only.
+Every component builds with ordinary, distribution-packaged tools. There is also a Nix flake
+— but **Nix is not required**, and no build may be made Nix-only.
+
+**Run every one of these from anywhere in the working tree.** Nix walks up to find the root
+flake, so the directory you are in makes no difference; the `.#name` selects the component.
 
 ```bash
 nix develop                  # all free components in one shell
-nix develop .#gui            # or .#fx3, .#fpga, .#hardware
+nix develop .#gui            # or .#fx3, .#fpga, .#hardware, .#docs
 nix build .#gui .#fx3-programmer
 nix flake check              # build everything and run the T1-T4 tests
 ```
 
-Each component has a `flake.nix` that is a thin wrapper over a shared `package.nix` and
-`shell.nix`; the root flake `callPackage`s the same files. There is therefore exactly one
-definition of each component and no cross-flake inputs. Design notes:
+A bare `nix develop` always gives the all-components default shell, in any directory. It
+does *not* pick up the component you happen to be standing in.
+
+### One flake, one lock
+
+**There is exactly one `flake.nix`, at the repository root, and exactly one `flake.lock`.**
+Components carry `package.nix` and `shell.nix`; they must not carry a `flake.nix`.
+
+This is a reproducibility rule, and it is load-bearing. An earlier layout gave each component
+a thin flake so `cd gui && nix develop` would work. Every one of those flakes declared
+`nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable"` and grew a lock file of its own, so
+entering the tree through a component resolved whatever `nixos-unstable` pointed at that day
+— a different nixpkgs from the root pin, with no warning that it had happened. **Do not
+reintroduce component flakes.** Design notes:
 [docs-tech/nix-flake-design.md](docs-tech/nix-flake-design.md).
 
-`fpga/` is the exception: Quartus is unfree, x86_64-linux only and not redistributable, so it
-stays behind its own flake and is never aggregated into the root one. `nix develop .#fpga`
-gives the *free* tools — Verilog lint, simulation and a language server — with no Quartus
-download at all.
+Quartus is unfree, x86_64-linux only and not redistributable, so the bitstream build is
+guarded by system and never runs in CI — but it still comes from the root flake, fed by a
+second import of the *same locked* nixpkgs with `allowUnfree` set. Containing an unfree
+dependency does not require a second lock file. `nix develop .#fpga` gives the *free* tools —
+Verilog lint, simulation and a language server — with no Quartus download at all.
 
 NixOS users get device permissions from `nixosModules.udev`:
 `hardware.domesdayDuplicator.enable = true;`

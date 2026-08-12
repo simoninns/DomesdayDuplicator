@@ -1,11 +1,18 @@
 # Development shell for the FPGA gateware — **free tools only, no Quartus**.
 #
-#   nix develop ./fpga       (or `nix develop .#fpga` from the repository root)
+# Where to run it: anywhere in the working tree.
+#
+#   nix develop .#fpga
+#
+# There is a single flake.nix at the repository root and a single flake.lock beside it.
+# Nix walks up to find them, so `.#fpga` resolves identically from `fpga/` and from the
+# root. A bare `nix develop` gives the all-components default shell, not this one, whatever
+# directory you happen to be in.
 #
 # Everything here is free software and cross-platform, so editing, linting and simulating
 # the Verilog needs no Quartus download at all. Quartus is only required to produce a
-# bitstream, and it arrives with the unfree shell added in Phase 6 (fpga/flake.nix), which
-# is x86_64-linux only.
+# bitstream, and it arrives with the unfree shell added in Phase 6, which is x86_64-linux
+# only.
 #
 # verible-verilog-ls is a language server, so any editor with an LSP client gets completion,
 # navigation and diagnostics in the Verilog sources.

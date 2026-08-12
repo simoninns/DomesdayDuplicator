@@ -757,9 +757,9 @@ Deviations and findings are recorded after P3-7 below.
 Root `flake.nix` `callPackage`s each component's `package.nix` directly — no cross-flake
 inputs. Structure and sketches: [nix-flake-design.md](nix-flake-design.md) §1.
 
-### P3-2 `gui/` flake (M)
+### P3-2 `gui/` packaging (M)
 
-`gui/package.nix` + `gui/shell.nix` + `gui/flake.nix`. `qt6Packages.callPackage` with
+`gui/package.nix` + `gui/shell.nix`, both reached from the root flake. `qt6Packages.callPackage` with
 `wrapQtAppsHook` (without it the binary dies on the missing `xcb` platform plugin).
 Use `lib.fileset` for `src` so README edits do not trigger rebuilds.
 *Watch:* the hand-rolled `cmake/FindLibUSB.cmake` is the first suspect if configure fails —
@@ -768,7 +768,7 @@ Use `lib.fileset` for `src` so README edits do not trigger rebuilds.
 **Gate:** `nix build .#gui` then `./result/bin/DomesdayDuplicator` opens a window on a clean
 machine; `nix develop .#gui` gives a working CMake build tree.
 
-### P3-3 `fx3/programmer/` flake + NixOS udev module (M)
+### P3-3 `fx3/programmer/` packaging + NixOS udev module (M)
 
 Depends on P2-5 and P2-10. `nix/modules/udev.nix` exposing
 `hardware.domesdayDuplicator.enable` → `services.udev.packages`. Sketch in
@@ -784,13 +784,13 @@ operation users actually need.
 plugged-in FX3 gets the expected permissions, and a **flash** (not just RAM) operation
 completes from the Nix-installed binary with no `cyusb_linux` checkout present (HW).
 
-### P3-4 `hardware/` flake (S)
+### P3-4 `hardware/` dev shell (S)
 
 Dev shell with `kicad` only. Packaged `kicad-cli` export stays blocked on the KiCad 5 → 10
 file-format migration (`kicad-cli` cannot read legacy `.sch`); file that as a follow-up
 issue, not part of this plan.
 
-**Gate:** `nix develop ./hardware` opens `hardware/pcb/` in KiCad.
+**Gate:** `nix develop .#hardware` opens `hardware/pcb/` in KiCad.
 
 ### P3-5 Editor-agnostic tooling in the dev shells (M)
 
@@ -872,9 +872,16 @@ for it, and *evaluating any attribute* for that system now throws — so includi
 P0-7 already made the authoritative macOS coverage.
 
 **4. `fx3-firmware` and `docs-site` are not in the root flake yet**, as planned — they arrive
-with P5 and P4. `bitstream` never will: Quartus is unfree, x86_64-linux only and not
-redistributable, so it stays behind `fpga/flake.nix` (P6). `fpga/shell.nix` exists now and is
-free-tools-only, so Verilog can be edited, linted and simulated without Quartus.
+with P5 and P4. `bitstream` arrives with P6, guarded to `x86_64-linux` and excluded from
+`checks`: Quartus is unfree, x86_64-linux only and not redistributable, so it is fed by a
+second `import nixpkgs { config.allowUnfree = true; }` of the same locked input rather than
+by a flake of its own. `fpga/shell.nix` exists now and is free-tools-only, so Verilog can be
+edited, linted and simulated without Quartus.
+
+*(Superseded: this paragraph originally said the bitstream would stay behind `fpga/flake.nix`.
+Component flakes were removed after Phase 4 — each carried an unpinned `nixos-unstable` input
+and its own lock, so entering the tree through a component diverged from the root pin. See
+[nix-flake-design.md](nix-flake-design.md) §1.)*
 
 **5. Two CMake traps worth recording**, both found by testing rather than by reading:
 

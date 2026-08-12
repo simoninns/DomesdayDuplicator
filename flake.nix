@@ -1,3 +1,11 @@
+# The only flake in the repository, and so the only flake.lock.
+#
+# Components carry package.nix and shell.nix, never a flake.nix of their own. An earlier
+# layout gave each component a thin flake so that `cd gui && nix develop` worked; every one
+# of those resolved `nixos-unstable` into its own lock file, so entering the tree through a
+# component quietly got a different nixpkgs from the pin here. Reproducibility is worth more
+# than the shorthand, and nothing is lost: Nix walks up to find this file, so
+# `nix develop .#gui` works from any subdirectory.
 {
   description = "Domesday Duplicator — LaserDisc RF capture hardware, gateware, firmware and software";
 
@@ -14,12 +22,15 @@
       #
       # Not here, deliberately:
       #   fx3-firmware  — Phase 5, needs the ARM cross build packaged
-      #   bitstream     — Phase 6, and never aggregated: Quartus is unfree, x86_64-linux
-      #                   only and redistributable = false, so it can never come from a
-      #                   binary cache. It stays behind fpga/flake.nix and, by the same
-      #                   reasoning, out of CI — the bitstream is built locally and attached
-      #                   to releases by hand. See docs-tech/implementation-plan.md,
-      #                   "Release artefacts and provenance".
+      #   bitstream     — Phase 6. Quartus is unfree, x86_64-linux only and
+      #                   redistributable = false, so it can never come from a binary cache,
+      #                   and it stays out of CI — the bitstream is built locally and
+      #                   attached to releases by hand. It will appear here as its own
+      #                   attribute, guarded by system and fed from a second import of this
+      #                   same locked nixpkgs with allowUnfree set, so the unfree dependency
+      #                   is contained without a second lock file. See
+      #                   docs-tech/implementation-plan.md, "Release artefacts and
+      #                   provenance".
       # Merged per system, not with `//` across two forAllSystems/forLinux calls: `//` is
       # a shallow update, so the Linux set would replace the portable one wholesale and
       # `gui` would silently disappear on exactly the systems that can build it.

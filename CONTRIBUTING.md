@@ -21,6 +21,9 @@ Thank you for your interest in improving Domesday Duplicator. Please follow the 
 ## Before you open a pull request
 
 - Run the tests for anything you touched: `nix flake check`, or `ctest --test-dir <component>/build`.
+  Nix commands resolve the single root `flake.nix` from anywhere in the tree, so `nix flake check`
+  and `nix develop .#gui` work whichever directory you are standing in; a bare `nix develop`
+  always gives the all-components shell, not the component you are in.
 - Describe how you verified the change. For gateware, FX3 firmware or anything on the capture
   path, a green build is not sufficient — see the hardware-in-the-loop procedure in
   [TESTING.md](TESTING.md).

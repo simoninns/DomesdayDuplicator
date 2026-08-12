@@ -1,7 +1,14 @@
 # Development shell for the PCB design.
 #
-#   nix develop ./hardware   (or `nix develop .#hardware` from the repository root)
+# Where to run it: anywhere in the working tree.
+#
+#   nix develop .#hardware
 #   kicad hardware/pcb/"Domesday Duplicator.pro"
+#
+# There is a single flake.nix at the repository root and a single flake.lock beside it.
+# Nix walks up to find them, so `.#hardware` resolves identically from `hardware/` and from
+# the root. A bare `nix develop` gives the all-components default shell, not this one,
+# whatever directory you happen to be in.
 #
 # Dev shell only, no packaged export. `kicad-cli`-driven Gerber/PDF/BOM generation is
 # blocked on migrating the KiCad 5 project files to the current format — kicad-cli cannot

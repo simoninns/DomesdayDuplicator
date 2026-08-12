@@ -95,7 +95,7 @@ added.
 | 4 Testing & QA | **Rewrite** — point at the per-component tiers in §3 below |
 | 5 C++ coding standards | **Adapt** — DdD's existing style is long-form GPL headers, not SPDX (§5) |
 | 6 Performance | **Adapt** — the relevant budget is sustained 40 Msps capture without dropped samples, not Big-O |
-| 7 Dev environment & build | **Rewrite** for per-component flakes (`nix develop ./gui`) |
+| 7 Dev environment & build | **Rewrite** for the single root flake (`nix develop .#gui`, from anywhere in the tree) |
 | 8 Project structure | **Rewrite** for the post-reorganisation layout |
 | 9 SDK & plugin rules | **Drop** — no plugins in DdD |
 | 10 Documentation & specs | **Adapt** — point at `docs-tech/` and the docs site |
@@ -246,7 +246,7 @@ that matters and the one that is invisible in normal use.
 
 TESTING.md must document it as the canonical T5 procedure:
 
-1. `nix develop ./gui` and build, or use a released binary
+1. `nix develop .#gui` and build, or use a released binary
 2. Enable test mode in the capture application
 3. Capture for a defined duration (specify one — long enough to exercise buffer wrap)
 4. `dddutil` → analyse test data

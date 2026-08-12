@@ -73,7 +73,7 @@ the URL move.
 | **Delete** | `_layouts/`, `_includes/`, `_config.yml`, `Sidebar.md`, `Footer.md`, `search.json`, `build-local.sh`, `check-internal-linkage.sh`, `check-orphans.sh`, `show-external-links.sh` |
 | **Delete (6 MB)** | `Unused-Assets/` — it is unreferenced by name, and MkDocs copies everything under `docs_dir` into the site. If it must be kept, use `exclude_docs:` rather than letting it ship |
 | **Move** | The 24 `.md` files and their per-folder `assets/` directories, plus `favicon.ico` |
-| **Create** | `docs/mkdocs.yml`, `docs/flake.nix`, `docs/package.nix`, one `.nav.yml` per content directory, `docs/content/assets/custom.css` |
+| **Create** | `docs/mkdocs.yml`, `docs/package.nix`, one `.nav.yml` per content directory, `docs/content/assets/custom.css` |
 
 The three shell scripts are replaced by **`mkdocs build --strict`**, which fails the build on
 broken internal links — the job `check-internal-linkage.sh` was doing by hand. `awesome-nav`
@@ -90,7 +90,7 @@ and `site_dir` collide and MkDocs will refuse to build.
 [reorganisation-plan.md](reorganisation-plan.md) §3 has been corrected accordingly.
 
 decode-orc puts `mkdocs.yml` at its repo root with `docs_dir: docs`. DdD deviates
-deliberately: `mkdocs.yml` lives in `docs/` so the docs component flake is self-contained
+deliberately: `mkdocs.yml` lives in `docs/` so the docs component is self-contained
 (`src = ./docs`) and does not have to pull in the whole repo. Build with
 `mkdocs build -f docs/mkdocs.yml`. The theme, extensions and plugins — the part that was
 actually asked for — are identical.
@@ -224,7 +224,7 @@ plugins:
 
 ## 5. Target `docs/package.nix` and flake
 
-Same shape as decode-orc's `decode-orc-docs` derivation, adapted to the per-component flake
+Same shape as decode-orc's `decode-orc-docs` derivation, adapted to the per-component `package.nix`
 pattern from [nix-flake-design.md](nix-flake-design.md) §1:
 
 ```nix
@@ -330,7 +330,7 @@ policy still matters, re-add it as a grep over the `.nav.yml` files.
 | **P4-3** Author `.nav.yml` files | S | Transcribe `Sidebar.md`, then delete it |
 | **P4-4** Delete the Jekyll machinery | S | §3.1 — layouts, includes, `_config.yml`, `Sidebar.md`, `Footer.md`, `search.json`, and the four shell scripts. Resolves **D9** and **D12** |
 | **P4-5** Delete `Unused-Assets/` | S | 6 MB that would otherwise ship in the site |
-| **P4-6** `docs/package.nix`, `shell.nix`, `flake.nix` | M | §5 |
+| **P4-6** `docs/package.nix`, `shell.nix` | M | §5 |
 | **P4-7** Branding assets | S | §6 — logo into `content/assets/`, `custom.css`, favicon |
 | **P4-8** Fix `site_url` and every inbound link | M | §3.4 + P0-4's decision. **D10** |
 | **P4-9** Replace the Pages workflow | S | §7. Can land with P7 instead if preferred |

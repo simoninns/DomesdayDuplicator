@@ -22,12 +22,17 @@ stay relative and short.
 
 ## Editing
 
-Live preview, with rebuild-on-save:
+Live preview, with rebuild-on-save. The `nix` commands work from anywhere in the working
+tree — there is one `flake.nix`, at the repository root, and Nix walks up to find it — but
+the `mkdocs` invocation below assumes you are **at the repository root**:
 
 ```bash
 nix develop .#docs
 mkdocs serve -f docs/mkdocs.yml     # http://127.0.0.1:8000
 ```
+
+From inside `docs/` it is `mkdocs serve` with no `-f`. Either way, `nix develop .#docs` is
+the same command in both places; only the `mkdocs` path changes.
 
 Or build the site exactly as it is published:
 

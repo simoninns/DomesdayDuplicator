@@ -9,8 +9,12 @@
 2. **One command per component to get a working build environment**, on any Linux machine
    with Nix, including for the proprietary tools (Intel/Altera Quartus, the Cypress/Infineon
    FX3 SDK).
-3. **Per-component flakes, not one mega-flake.** Someone who only wants to build the GUI
-   should not have to evaluate — let alone download — a 20 GB unfree FPGA toolchain.
+3. **Per-component outputs from a single flake.** Someone who only wants to build the GUI
+   should not have to evaluate — let alone download — a 20 GB unfree FPGA toolchain. That is
+   achieved by giving each component its own `package.nix` / `shell.nix` and its own flake
+   *attribute*, not its own `flake.nix`: one `flake.lock` means the pinned nixpkgs is the
+   same however you enter the tree. (Goal 3 originally read "per-component flakes, not one
+   mega-flake"; those flakes were built in Phase 3 and removed after Phase 4 — see §4.)
 4. **No dependency on any IDE.** Quartus ships a proprietary GUI and the FX3 flow is
    traditionally Eclipse-based; neither may be required to build, test, program or
    contribute. Every step runs from a shell, and language support comes from LSP so any
@@ -131,8 +135,8 @@ IDE-coupling items (D14–D16) are broken out in
 
 ```
 domesdayduplicator/
-├── flake.nix                     # thin aggregator: dev shells + `nix flake check`
-├── flake.lock                    # the single lock for the whole repo
+├── flake.nix                     # the ONLY flake: packages, dev shells, `nix flake check`
+├── flake.lock                    # the ONLY lock — no component carries either file
 ├── README.md
 ├── CONTRIBUTING.md
 ├── LICENSE
@@ -144,29 +148,32 @@ domesdayduplicator/
 │       └── udev.nix              # NixOS module for the FX3/DdD udev rules
 ├── graphics/                     # project logos/screenshots used by READMEs
 ├── hardware/
-│   ├── flake.nix                 # kicad dev shell + gerber/PDF/BOM export
+│   ├── shell.nix                 # kicad dev shell (root flake: `.#hardware`)
 │   ├── pcb/                      # was: hardware/KiCAD/Domesday Duplicator/
 │   └── doc/                      # was: hardware/Documentation/
 ├── fpga/
-│   ├── flake.nix                 # quartus (unfree) dev shell + bitstream build
+│   ├── shell.nix                 # free Verilog tools (root flake: `.#fpga`)
+│   ├── package.nix               # bitstream; unfree quartus, x86_64-linux only
 │   ├── src/                      # was: firmware/DE0-NANO/DomesdayDuplicator/
 │   └── README.md
 ├── fx3/
 │   ├── firmware/
-│   │   ├── flake.nix             # arm-none-eabi cross build → .elf/.img
+│   │   ├── package.nix           # arm-none-eabi cross build → .elf/.img
 │   │   ├── src/                  # was: firmware/fx3/fx3-firmware/firmware/
 │   │   └── gpif/                 # was: GPIF_II/
 │   ├── programmer/
-│   │   ├── flake.nix
+│   │   ├── package.nix
 │   │   └── src/
 │   └── sdk/                      # vendored CyFX3 SDK, pruned (see §5.3)
 ├── gui/
-│   ├── flake.nix                 # Qt6 app + dddconv + dddutil
+│   ├── package.nix               # Qt6 app + dddconv + dddutil
+│   ├── shell.nix                 # dev shell (root flake: `.#gui`)
 │   ├── CMakeLists.txt            # single front-end (dedup of the current two)
 │   ├── cmake/FindLibUSB.cmake
 │   └── src/{DomesdayDuplicator,dddconv,dddutil}/
 ├── docs/
-│   ├── flake.nix                 # mkdocs dev shell + site build
+│   ├── package.nix               # site build (root flake: `.#docs-site`)
+│   ├── shell.nix                 # mkdocs dev shell (root flake: `.#docs`)
 │   ├── mkdocs.yml                # Material theme, matching decode-orc
 │   └── content/                  # was: wiki-default/ — NOT "site/", which would
 │                                 # collide with mkdocs' default site_dir
@@ -196,26 +203,44 @@ with an in-flight branch, so they should all land in a single commit, announced.
 
 Full design and sketches: [nix-flake-design.md](nix-flake-design.md). The shape:
 
-- **Seven flakes**: root, `hardware/`, `fpga/`, `fx3/firmware/`, `fx3/programmer/`,
-  `gui/`, `docs/`.
+- **One flake, one lock.** Exactly one `flake.nix`, at the repository root, and exactly one
+  `flake.lock`. No component carries either file.
 - **Logic lives in plain `.nix` files, not in `flake.nix`.** Each component has a
-  `package.nix` / `shell.nix` taking `{ pkgs, ... }`. The component `flake.nix` is a
-  ~20-line wrapper, and the root flake `import`s the *same* files. This is the key decision:
-  it means the root aggregator does not duplicate the component definitions, and there is no
-  need for cross-flake `inputs` (with their extra lock files and `follows` boilerplate)
-  between parts of the same repo.
-- **One `flake.lock` at the root** is authoritative. Component flakes each get their own
-  lock, but CI resolves everything through the root flake so versions cannot skew.
-- **Nothing unfree is reachable from the root flake's default outputs.** `fpga` is exposed
-  as `packages.x86_64-linux.bitstream` and `devShells.x86_64-linux.fpga` only, and
-  `nix flake check` skips it. A contributor fixing a GUI typo must never be asked to
+  `package.nix` / `shell.nix` taking `{ pkgs, ... }`, and the root flake `callPackage`s or
+  `import`s them. This is the key decision: the root flake does not duplicate the component
+  definitions, and there is no need for cross-flake `inputs` — with their extra lock files
+  and `follows` boilerplate — between parts of the same repo.
+- **Nothing unfree is reachable from the root flake's default outputs.** The bitstream is
+  exposed as `packages.x86_64-linux.bitstream` and a `x86_64-linux`-only Quartus dev shell,
+  built from a second `import nixpkgs` of the same locked input with `allowUnfree` set, and
+  `nix flake check` skips both. A contributor fixing a GUI typo must never be asked to
   download Quartus.
 
-Why per-component rather than one flake, concretely: the FPGA flake pulls a multi-gigabyte,
-`redistributable = false` unfree download that no binary cache can serve, is
-`x86_64-linux`-only, and cannot be built in GitHub's hosted CI within reasonable time or
-disk. Coupling it to the GUI build would make the GUI build unusable on macOS and on any
-CI runner.
+### Corrected: this section used to say "seven flakes"
+
+Earlier revisions specified a thin `flake.nix` per component — root, `hardware/`, `fpga/`,
+`fx3/firmware/`, `fx3/programmer/`, `gui/`, `docs/` — so that `cd gui && nix develop` worked.
+It was implemented in Phase 3 and removed once its cost became visible.
+
+The justification given here was: *"One `flake.lock` at the root is authoritative. Component
+flakes each get their own lock, but CI resolves everything through the root flake so versions
+cannot skew."* The first half is fine; the conclusion does not follow. CI is not the only
+consumer. Every component flake declared unpinned `nixos-unstable`, so a **developer**
+entering through a component got whatever that resolved to on the day, silently diverging
+from the root pin — and Nix creates and `git add`s those component locks without being asked.
+Reproducibility that only holds on one entry path is not reproducibility.
+
+Nothing was lost in removing them: Nix walks up to the enclosing flake, so `nix develop .#gui`
+works from any subdirectory. Only bare `nix develop` changed meaning — it always gives the
+all-components shell now, not the component you are standing in. See
+[nix-flake-design.md](nix-flake-design.md) §1.
+
+The unfree/`x86_64-linux`-only nature of Quartus was the strongest argument for a separate
+`fpga/` flake, and it does not survive either: the FPGA build does pull a multi-gigabyte,
+`redistributable = false` download that no binary cache can serve and that cannot run in
+GitHub's hosted CI. But containing that needs a separate **`pkgs`**, not a separate **flake**
+— a second `import nixpkgs { config.allowUnfree = true; }` of the already-locked input, with
+the outputs guarded by system and kept out of `checks`. Same containment, same lock file.
 
 ## 5. Known-hard cases
 

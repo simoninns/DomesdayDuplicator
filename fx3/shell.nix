@@ -1,7 +1,14 @@
 # Development shell covering both FX3 components — the cross-compiled firmware and the
 # host-side programmer.
 #
-#   nix develop ./fx3        (or `nix develop .#fx3` from the repository root)
+# Where to run it: anywhere in the working tree.
+#
+#   nix develop .#fx3
+#
+# There is a single flake.nix at the repository root and a single flake.lock beside it.
+# Nix walks up to find them, so `.#fx3` resolves identically from `fx3/` and from the root.
+# A bare `nix develop` gives the all-components default shell, not this one, whatever
+# directory you happen to be in.
 #
 # One shell rather than two, because the normal workflow is to build the firmware and then
 # immediately load it with the programmer.
