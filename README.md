@@ -1,6 +1,6 @@
 # Domesday Duplicator (DdD)
 
-Please see the [Project Documentation](https://simoninns.github.io/DomesdayDuplicator-docs) for details of the project and for access to the project documentation.
+Please see the [Project Documentation](https://simoninns.github.io/domesdayduplicator) for details of the project and for access to the project documentation.
 
 For contributing guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -57,7 +57,7 @@ The samples the DdD capture can be used with the whole family of decoders that m
 
 The original design was for the wide bandwidth of LaserDisc RF - making it suitable for all of the more bandwidth restricted mediums too (that have a single stream of RF).
 
-[Please see the documentation for more details](https://simoninns.github.io/DomesdayDuplicator-docs/Related-Projects/The-ld-decode-Family.html)
+[Please see the documentation for more details](https://simoninns.github.io/domesdayduplicator/related-projects/the-ld-decode-family/)
 
 # 3D Printed Case 
 

@@ -3,9 +3,10 @@
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 44, covering two
-components. That is a start, not a suite, and this document says so where it applies rather
-than describing an aspiration as though it were a fact.
+reorganisation there were **no automated tests at all**. There are now 44 across two
+components, plus a static check on the documentation site. That is a start, not a suite, and
+this document says so where it applies rather than describing an aspiration as though it were
+a fact.
 
 ---
 
@@ -92,14 +93,27 @@ device — which bricks the FX3, recoverable only via the PMODE jumper. The path
 tests guard the D13 fix, where every candidate path used to be relative to the working
 directory, so an installed binary could not find the secondary loader at all.
 
-### 4.3 Everything else — nothing yet
+### 4.3 `docs/` — one static check
+
+`nix build .#docs-site` runs `mkdocs build --strict`, which fails on broken internal links,
+`.nav.yml` entries pointing at missing files, and orphaned pages. That replaces the three
+hand-written shell scripts the Jekyll site used.
+
+**It has one blind spot worth knowing about.** MkDocs only validates links it parses, and it
+does not parse raw HTML. A raw `<img src="assets/...">` is passed through untouched, and
+because pages are served from directory URLs the path resolves one level too shallow and
+404s — with the build still green. Eighteen such images were silently broken when the site
+was migrated. **Use markdown image syntax**, `![](path){ width="600" }`, which MkDocs does
+rewrite. If you need to check the built output directly, resolve every `href` and `src` in
+`result/` against the output tree.
+
+### 4.4 Everything else — nothing yet
 
 | Component | Automated coverage | Why |
 | --- | --- | --- |
 | `fx3/firmware/` | **None** | Bare-metal ARM. The descriptor golden test (§6) is planned for Phase 5 |
 | `fpga/` | **None** | Testbenches are planned for Phase 6 |
 | `hardware/` | **None**, and blocked | `kicad-cli` cannot read KiCad 5 legacy `.sch`, so ERC/DRC cannot be automated until the files are migrated. Manual for now |
-| `docs/` | **None** | `mkdocs build --strict` becomes a T4 check in Phase 4 |
 
 ## 5. The capture-integrity procedure (T5)
 
@@ -163,7 +177,6 @@ tied to a phase of the reorganisation plan in [docs-tech/](docs-tech/).
 | `dataGenerator.v` testbench | T3 | 6 | Assert the ramp is exactly 0…1020 then wraps — the simulation counterpart of §5 |
 | `fx3StateMachine.v` testbench | T3 | 6 | The highest-risk module: the GPIF II handshake |
 | `statusLED.v` testbench | T3 | 6 | Simple timing logic, easy win |
-| `mkdocs build --strict` | T4 | 4 | Subsumes the old link and orphan shell scripts |
 | CI test lanes | — | 7 | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
 | Licence-header check | T4 | 8 | Nine of 69 source files carry SPDX identifiers today |
 

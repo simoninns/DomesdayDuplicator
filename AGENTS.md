@@ -73,7 +73,7 @@ gateware, firmware, host software and documentation.
 | [fx3/firmware/](fx3/firmware/) | C, bare metal | `arm-none-eabi-gcc` + CMake | Cypress FX3 (ARM926EJ-S) |
 | [fx3/programmer/](fx3/programmer/) | C | host compiler + CMake, libusb-1.0 | Developer machine |
 | [gui/](gui/) | C++20 | Qt 6.2+ + CMake | Developer / user machine |
-| [docs/](docs/) | Markdown | static site generator | GitHub Pages |
+| [docs/](docs/) | Markdown | MkDocs + Material | GitHub Pages |
 
 Five toolchains, four target architectures. Assume nothing transfers between them.
 
@@ -92,9 +92,10 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 │   ├── lib.nix                # supported systems, shared pkgs config
 │   ├── shell.nix              # the default dev shell
 │   └── modules/udev.nix       # NixOS device permissions
+├── .github/workflows/         # deploy-docs.yml — builds the site with Nix
 ├── docs/
-│   ├── content/               # the documentation site's markdown
-│   └── .github/workflows/
+│   ├── mkdocs.yml             # site config; docs_dir is "content", never "site"
+│   └── content/               # the site's markdown, one directory per nav section
 ├── docs-tech/                 # engineering-process docs for the repository itself
 ├── fpga/
 │   ├── README.md
@@ -325,7 +326,7 @@ Do not add a dependency whose licence is incompatible with GPLv3 without raising
 
 | Where | What |
 | --- | --- |
-| [docs/content/](docs/content/) | The published project website — user-facing |
+| [docs/content/](docs/content/) | The published project website — user-facing. Markdown images only; see [docs/README.md](docs/README.md) |
 | [docs-tech/](docs-tech/) | Engineering-process documentation for this repository: the reorganisation plan, decision log, flake design, defect register |
 | Component `README.md` | How to build and use that one component |
 

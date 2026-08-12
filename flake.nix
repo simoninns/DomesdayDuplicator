@@ -14,7 +14,6 @@
       #
       # Not here, deliberately:
       #   fx3-firmware  — Phase 5, needs the ARM cross build packaged
-      #   docs-site     — Phase 4, needs the MkDocs migration first
       #   bitstream     — Phase 6, and never aggregated: Quartus is unfree, x86_64-linux
       #                   only and not redistributable, so it stays behind fpga/flake.nix
       # Merged per system, not with `//` across two forAllSystems/forLinux calls: `//` is
@@ -24,6 +23,7 @@
         pkgs:
         rec {
           gui = pkgs.qt6Packages.callPackage ./gui/package.nix { };
+          docs-site = pkgs.callPackage ./docs/package.nix { };
           default = gui;
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
@@ -37,6 +37,7 @@
         fx3 = import ./fx3/shell.nix { inherit pkgs; };
         fpga = import ./fpga/shell.nix { inherit pkgs; };
         hardware = import ./hardware/shell.nix { inherit pkgs; };
+        docs = import ./docs/shell.nix { inherit pkgs; };
       });
 
       # Every package doubles as a check: each one runs its own ctest suite during

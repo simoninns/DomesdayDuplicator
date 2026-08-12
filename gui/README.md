@@ -36,4 +36,4 @@ required.
 ## Documentation
 
 For detailed documentation, please see the
-[main project documentation](https://simoninns.github.io/DomesdayDuplicator-docs).
+[main project documentation](https://simoninns.github.io/domesdayduplicator).

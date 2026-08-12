@@ -1,0 +1,41 @@
+/*
+ * Domesday Duplicator documentation — theme overrides.
+ *
+ * The filename matches decode-orc's deliberately, so the two sites' styling can be diffed
+ * directly. Keep this small: the closer both stay to stock Material, the less there is to
+ * keep in step.
+ */
+
+/* The header logo is a wordmark rather than a square icon, so give it room and let it use
+   its natural aspect ratio instead of Material's default square-ish sizing. */
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 1.8rem;
+  width: auto;
+}
+
+/* Documentation screenshots and photographs are the substance of several pages here —
+   circuit boards, oscilloscope traces, player teardowns. Give them a subtle boundary so
+   they read as figures rather than as part of the running text. */
+.md-typeset img {
+  border-radius: 2px;
+  max-width: 100%;
+}
+
+/* Many pages caption their images with a following blockquote. Style it as a caption
+   rather than as a pull quote. */
+.md-typeset img + blockquote,
+.md-typeset p > img + blockquote {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+/* Several hardware tables carry long part numbers and measured values; stop them wrapping
+   mid-value, and let the table scroll rather than the page. */
+.md-typeset__table {
+  min-width: 100%;
+}
+
+.md-typeset table:not([class]) {
+  display: table;
+}

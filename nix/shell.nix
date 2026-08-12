@@ -30,8 +30,12 @@ pkgs.mkShell {
       # FX3 firmware cross toolchain
       gcc-arm-embedded
 
-      # generate-descriptor.sh
-      python3
+      # generate-descriptor.sh, plus the documentation site toolchain
+      (python312.withPackages (ps: [
+        ps.mkdocs
+        ps.mkdocs-material
+        ps.mkdocs-awesome-nav
+      ]))
 
       # Test
       gtest
@@ -63,8 +67,9 @@ pkgs.mkShell {
     echo "  nix develop .#fx3         FX3 firmware and programmer"
     echo "  nix develop .#fpga        Verilog lint and simulation (no Quartus)"
     echo "  nix develop .#hardware    KiCad"
+    echo "  nix develop .#docs        MkDocs documentation site"
     echo
-    echo "  nix build .#gui .#fx3-programmer"
+    echo "  nix build .#gui .#fx3-programmer .#docs-site"
     echo "  nix flake check           build everything and run the T1-T4 tests"
     echo
     echo "See docs-tech/editor-setup.md for editor configuration."

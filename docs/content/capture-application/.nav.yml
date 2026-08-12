@@ -1,0 +1,4 @@
+nav:
+  - User Guide for Linux: user-guide.md
+  - Windows: windows-releases.md
+  - MacOS: macos-releases.md

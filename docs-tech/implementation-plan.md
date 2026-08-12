@@ -72,10 +72,10 @@ found during execution (D19). Each is assigned to a phase.
 | D6 | ~45 MB of unreferenced SDK library profiles committed | `cyfx3sdk/fw_lib/1_3_5/fx3_{debug,profile_debug,profile_release}` | P2-8 | **Closed** P2 |
 | D7 | `version.c` is dead code: not in `C_SOURCES`, and `#include "version.h"` — that header does not exist anywhere in the tree | `fx3-firmware/firmware/version.c` | P2-6 | **Closed** P2 |
 | D8 | `TOSTRING(FIRMWARE_GIT_COMMIT)` double-stringifies an already-quoted macro, so `firmware_version_string` reads `Domesday Duplicator ("abc12345")` with literal quote characters. **Confirmed by build:** the symbol is 0x21 (33) bytes — the length *with* the stray quotes. **Latent only** — it is unreferenced and `--gc-sections` discards it, so it never reaches the device | `fx3-firmware/firmware/usb-descriptor.c:233` | P2-6 | **Closed** P2 |
-| D9 | `remote_theme: just-the-docs/just-the-docs` fetches the theme over the network at build time — impossible in a Nix sandbox | `docs/wiki-default/_config.yml:3` | P4-4 (dissolved by the MkDocs move) | Open |
-| D10 | `baseurl: "/DomesdayDuplicator-docs"` hard-codes the *old repo's* Pages URL; after the merge the site moves and every external link to it breaks | `docs/wiki-default/_config.yml:4`, `README.md:3,37` | P0-4, P4-8 | Open |
+| D9 | `remote_theme: just-the-docs/just-the-docs` fetches the theme over the network at build time — impossible in a Nix sandbox | `docs/wiki-default/_config.yml:3` | P4-4 (dissolved by the MkDocs move) | **Closed** P4 |
+| D10 | `baseurl: "/DomesdayDuplicator-docs"` hard-codes the *old repo's* Pages URL; after the merge the site moves and every external link to it breaks | `docs/wiki-default/_config.yml:4`, `README.md:3,37` | P0-4, P4-8 | **Closed** P4 |
 | D11 | Three of four submodule URLs are SSH, so the README's `git clone --recursive` fails without a GitHub key | `.gitmodules` | P1 (dissolved) | **Closed** P1 |
-| D12 | `build-local.sh` injects front matter that `_config.yml` `defaults:` already supplies, and its error message names `jekyll-theme-cayman` — a theme the site no longer uses | `docs/build-local.sh` | P4-4 (dissolved by the MkDocs move) | Open |
+| D12 | `build-local.sh` injects front matter that `_config.yml` `defaults:` already supplies, and its error message names `jekyll-theme-cayman` — a theme the site no longer uses | `docs/build-local.sh` | P4-4 (dissolved by the MkDocs move) | **Closed** P4 |
 | D13 | Permanent (EEPROM/SPI) programming needs a Cypress secondary loader, `cyfxflashprog.img`. **File now vendored** (2026-08-12) at the programmer's directory root, where the existing `../cyfxflashprog.img` candidate finds it from `build/`. **Code half remains:** every candidate path is working-directory-relative, so installed binaries still cannot locate it | `fx3-programmer/src/fx3-programmer.c:136` | P2-10, P3-3 | **Closed** P2 (hardware check in P5) |
 | D14 | Four qmake `.pro` files duplicate the CMake build definition and exist only for Qt Creator; `BUILD.md` steers contributors to them | `gui-app/tools/**/*.pro` | P2-11 | **Closed** P2 |
 | D15 | No `CMAKE_EXPORT_COMPILE_COMMANDS` anywhere, so no `compile_commands.json` and no working clangd in any editor | all `CMakeLists.txt` | P2-12 | **Closed** P2 |
@@ -83,6 +83,7 @@ found during execution (D19). Each is assigned to a phase.
 | D17 | The two licence names are **transposed**: `LICENSE` is GPLv3 and the hardware file is CC BY-SA 4.0, but the README labels software as CC BY-SA (linking to the GPLv3 file) and hardware as GPLv3 (linking to the CC BY-SA URL) | `README.md` licence block | P2-14 | **Closed** P2 |
 | D18 | No test infrastructure of any kind — no `enable_testing()`, `add_test()`, GoogleTest, Catch2 or QTest anywhere in the tree | repo-wide | P3-6 | **Closed** P3 |
 | D19 | udev rules match Cypress VID `04b4` only, so the device is root-only once firmware is loaded and it re-enumerates as `1d50:603b` — the capture GUI cannot open it. Both rules also `RUN+=` a `cy_renumerate.sh` that is never installed and belongs to a daemon this project does not ship | `fx3/programmer/configs/88-cyusb.rules` | P3-3 | **Closed** P3 |
+| D20 | Raw `<img src="assets/…">` tags are passed through by MkDocs without path rewriting, so under directory URLs they resolve one level too shallow and 404. `--strict` cannot detect this because MkDocs never parses those paths — 18 tags across 3 pages were silently broken | `docs/content/{general,ordering}/*.md` | P4-10 | **Closed** P4 |
 
 ---
 
@@ -780,7 +781,12 @@ that a **flash** (not RAM) operation completes from the Nix-installed binary. Bo
 hardware and a NixOS rebuild. The module evaluates (`nix flake check` checks it as a NixOS
 module) and the rule installs to the right location, but that is as far as it goes.
 
-## Phase 4 — docs: convert to MkDocs Material, then flake it
+## Phase 4 — docs: convert to MkDocs Material, then flake it — **DONE**
+
+Executed 2026-08-12 on `20260812-002`. All ten tasks complete; **D9, D10 and D12 are closed**.
+The site builds under `--strict` and all 22 pages render with working images.
+
+Deviations and findings are recorded after the task table.
 
 **Full detail: [docs-theme-migration.md](docs-theme-migration.md).** Summarised here.
 
@@ -816,9 +822,93 @@ produced `…/Related-Projects/The-ld-decode-Family.html`; MkDocs produces
 fails on broken internal links, and `awesome-nav` errors on `.nav.yml` entries pointing at
 missing files. The sidebar external-link check becomes moot once `Sidebar.md` is gone.
 
-**Gate:** `nix build .#docs-site` succeeds under `--strict`; all 24 pages render with working
-images; navigation matches the old sidebar's grouping and order; the deployed artefact is the
-`nix build` output.
+### Deviations and findings
+
+**1. Raw `<img>` tags silently broke every image on three pages — and `--strict` could not
+see it.** This is the substantive finding of the phase, and exactly what P4-10 exists for.
+
+MkDocs rewrites relative paths inside markdown `![](…)` syntax, but passes raw HTML through
+verbatim. Because pages are served from **directory** URLs (`general/foo.md` →
+`general/foo/index.html`), a raw `src="assets/x.png"` that Jekyll resolved from `general/`
+now resolves from `general/foo/` — one level too shallow — and 404s. MkDocs never parses
+those paths, so `--strict` reports nothing and the build passes with 18 broken images.
+
+Found by walking the *built* site and resolving every `href`/`src` against the output tree,
+not by reading the markdown. All 18 tags were converted to markdown images with `attr_list`
+sizing (`![](path){ width="600" }`), which preserves the dimensions and lets MkDocs rewrite
+the path. `attr_list` was already in the extensions list.
+
+The trap is documented in [docs/README.md](../docs/README.md) so it is not reintroduced.
+
+**2. Two extension-less wiki links.** `--strict` caught these immediately: Jekyll's
+`jekyll-relative-links` resolved `[text](User-Guide)` without an extension; MkDocs does not.
+Two occurrences, both now explicit relative `.md` paths. This is precisely the class of
+defect `check-internal-linkage.sh` was written to find and missed.
+
+**3. Content reorganised with lowercased filenames.** The plan specified nav-shaped
+directories but not the file naming. Filenames are lowercased so URLs are consistent
+(`/ldv4300d/rf-output/`), and the `LDV4300D-` prefix is dropped inside `ldv4300d/` where it
+was redundant. Asset *directory* names are unchanged and moved beside the pages that
+reference them, so the relative image links inside the markdown needed no edits at all.
+
+**4. `Misc/assets/DdD-Firmware/` is unreferenced but kept.** 824 KB, 16 images, referenced by
+no page — evidently from an earlier revision of the firmware-flashing guide. Moved to
+`ordering/assets/DdD-Firmware/`, beside the page it belongs with, rather than deleted. It
+does ship with the site. `Unused-Assets/` (6 MB) was deleted as planned.
+
+**5. Four more docs-submodule leftovers removed.** Not in the plan, but all three gave
+actively wrong instructions once docs folded into the monorepo:
+
+| File | Why |
+| --- | --- |
+| `docs/CONTRIBUTING.md` | Told contributors to clone the old separate docs repository |
+| `docs/TESTING.md` | The Ruby/Jekyll local-preview guide that `mkdocs serve` replaces |
+| `docs/.gitignore` | Every path it named (`mockup/`, `assets/medianguide/`) is gone |
+| `docs/content/favicon.ico` | Byte-identical duplicate of `content/assets/favicon.ico` |
+
+`docs/README.md` was rewritten as the component README.
+
+**Left alone, and flagged:** `docs/LICENSE` is a GPLv3 copy inherited from the docs
+submodule, but the site's own footer — now `copyright:` in `mkdocs.yml` — states the content
+is **CC BY-SA 4.0**. The two contradict each other. It is not byte-identical to the root
+`LICENSE`, so it is not simply a stray duplicate. Changing a licence file is the maintainer's
+call, so it is noted in `docs/README.md` rather than edited.
+
+**6. `flake.lock` created.** Without it, every CI run resolves `nixos-unstable` afresh and
+the deployed site is not reproducible. Pinned to `2fcb964d` (2026-08-10).
+
+**7. The Pages workflow now sits at the repository root.** `docs/.github/workflows/` never
+ran — GitHub only reads the root. `.github/workflows/deploy-docs.yml` is the first workflow
+this repository has that will actually execute, and it triggers only on `push` to `master`,
+so it stays inert on this branch as intended.
+
+### Gate — **met**
+
+| Gate | Result |
+| --- | --- |
+| `nix build .#docs-site` under `--strict` | Builds clean |
+| All pages render | **22 pages**, 119 MB site |
+| Working images and links | **969 local links resolved, 0 missing** — verified against the built output, not the source |
+| Navigation matches the old sidebar | All 8 sections in `Sidebar.md` order, same labels, same page order — including the deliberate LD-V4300D Overview → Cleaning → RF-output → Calibration → PSU-recap progression |
+| Deployed artefact is the `nix build` output | The workflow uploads `./result` directly |
+| `nix flake check` | all checks passed |
+| `nix develop .#docs` | `mkdocs serve` works; `mkdocs build` completes in 0.52 s |
+
+Page-by-page render review (P4-10): 7 tables across 5 pages, 5 code blocks, and every page's
+images all render; no literal markdown or unrendered `attr_list` braces leak into the output.
+
+The duplicated `User-Guide.md` nav entry is resolved as the plan suggested — it lives under
+*Capture Application*, and *Overview* cross-links to it.
+
+**URL change.** Inbound deep links break exactly once, as designed:
+
+```
+was:  simoninns.github.io/DomesdayDuplicator-docs/Related-Projects/The-ld-decode-Family.html
+now:  simoninns.github.io/domesdayduplicator/related-projects/the-ld-decode-family/
+```
+
+Per P0-4 there is **no redirect stub**. All five in-repo inbound links were updated
+(`README.md` ×2, `docs/README.md`, `fpga/`, `gui/` and `hardware/README.md`).
 
 ## Phase 5 — FX3 firmware flake
 
