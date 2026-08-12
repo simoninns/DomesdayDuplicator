@@ -1,0 +1,41 @@
+# Build directories
+build/
+build-*/
+
+# Qt generated files
+*.autosave
+*.user
+*.user.*
+.qmake.cache
+.qmake.stash
+
+# Compiled files
+*.o
+*.obj
+*.so
+*.so.*
+*.a
+*.lib
+*.dll
+*.dylib
+*.exe
+
+# Qt specific
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qm
+Makefile*
+*_pch.h.cpp
+
+# IDE files
+.vscode/
+.idea/
+*.creator.user*
+
+# OS files
+.DS_Store
+Thumbs.db
+*~
+*.swp
