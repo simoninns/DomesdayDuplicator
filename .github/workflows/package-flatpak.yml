@@ -119,6 +119,15 @@ jobs:
           # desktop file, an application ID mismatch. Checking the binary answers
           # --version also proves the commit stamp survived into the packaged build.
           flatpak install --user -y --bundle "dist/DomesdayDuplicator-${{ steps.version.outputs.version }}.flatpak"
+
+          # flatpak run keeps its per-instance state under XDG_RUNTIME_DIR, and a hosted
+          # runner has no logind session to create /run/user/<uid>. Without a usable one
+          # the launch fails with "Unable to allocate instance id" before the application
+          # is reached, which reads as a broken package rather than a missing directory.
+          # Private, 0700 and inside the job's temporary space, as the specification asks.
+          XDG_RUNTIME_DIR="$(mktemp -d)"
+          export XDG_RUNTIME_DIR
+
           reported=$(flatpak run --command=DomesdayDuplicator io.github.simoninns.DomesdayDuplicator --version)
           echo "Packaged application reports: ${reported}"
           case "${reported}" in
