@@ -65,6 +65,24 @@ target_link_libraries(ddd_capture_tests PRIVATE
 )
 target_include_directories(ddd_capture_tests PRIVATE support)
 
+# T1 — the display mathematics. Links no Qt either, for the same reason ddd_capture_tests
+# does not: a QPainter cannot be unit tested, and everything worth testing about a plot is
+# the arithmetic behind it rather than the pixels it produced.
+ddd_add_test(ddd_analysis_tests "unit"
+    analysis/test_front_end_gain.cpp
+    analysis/test_waveform_mapping.cpp
+    analysis/test_amplitude_history.cpp
+    analysis/test_signal_levels.cpp
+    analysis/test_fourier_transform.cpp
+    analysis/test_spectrum_analyser.cpp
+    analysis/test_spectrogram_history.cpp
+)
+target_link_libraries(ddd_analysis_tests PRIVATE
+    ddd_analysis
+    GTest::gtest
+    GTest::gtest_main
+)
+
 # T1 + T2 — the writer and the reader, round-tripped against each other and against
 # what a FLAC file is required to look like on disk. Labelled golden as well as unit
 # because some of it checks bytes at fixed offsets in the container, which is a
@@ -120,6 +138,8 @@ ddd_add_test(ddd_gui_tests "unit"
     gui/unit/test_application_logger.cpp
     gui/unit/test_capture_settings.cpp
     gui/unit/test_capture_controller.cpp
+    gui/unit/test_statistics_presenter.cpp
+    gui/unit/test_analysis_worker.cpp
 )
 target_link_libraries(ddd_gui_tests PRIVATE
     ddd_gui_lib
@@ -134,8 +154,12 @@ target_include_directories(ddd_gui_tests PRIVATE support)
 ddd_add_test(ddd_gui_widget_tests "unit"
     support/widget_test_main.cpp
     gui/widget/test_main_window_panels.cpp
+    gui/widget/test_about_dialog.cpp
     gui/widget/test_capture_panel.cpp
     gui/widget/test_statistics_panel.cpp
+    gui/widget/test_waveform_panel.cpp
+    gui/widget/test_spectrum_panel.cpp
+    gui/widget/test_amplitude_panel.cpp
 )
 target_link_libraries(ddd_gui_widget_tests PRIVATE
     ddd_gui_lib

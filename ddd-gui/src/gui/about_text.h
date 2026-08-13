@@ -2,7 +2,7 @@
 
     about_text.h
 
-    Text of the About dialog, including the build provenance
+    What the About dialog says, and the artwork it says it with
     Domesday Duplicator - LaserDisc RF sampler
     SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
@@ -11,21 +11,33 @@
 
 #pragma once
 
+#include <QIcon>
+#include <QPixmap>
 #include <QString>
 
 namespace ddd::gui {
 
-// The body of the About dialog, as rich text.
+// The About dialog's text, as rich text.
 //
-// A free function rather than dialog code so that what it promises can be
-// tested: the text must carry the commit this binary was built from, and a
-// modal dialog cannot be asserted on.
+// It carries the build's commit, which is one of only two routes to it — the
+// other is `--version`, and on Windows a GUI application started from a
+// shortcut has no console to print it to. That makes this the route that always
+// works, and the reason the About dialog is a stated requirement rather than a
+// courtesy.
 //
-// That version line is a requirement, not decoration. It is the second of two
-// routes to the build's identity, and on Windows it is the only one that works
-// — the application is linked as a GUI subsystem executable, so `--version`
-// writes to a console nobody is attached to. A user reporting a bad capture has
-// to be able to say which build made it.
+// It also carries the author, the copyright and the licence, because the GPL
+// asks an interactive program to show appropriate legal notices and this is
+// where a user goes to look for them.
 QString AboutText();
+
+// The project's logo, at a size suited to a dialog.
+//
+// Returns a null pixmap if the resource is missing, which a caller should treat
+// as "no logo" rather than as an error: a missing decoration is not a reason to
+// withhold the version and licence text underneath it.
+QPixmap AboutLogo();
+
+// The application icon, in every size the artwork provides.
+QIcon ApplicationIcon();
 
 }  // namespace ddd::gui

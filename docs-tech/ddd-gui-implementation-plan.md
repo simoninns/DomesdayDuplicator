@@ -85,10 +85,10 @@ pipeline can never wait on the GUI.
 - **Every dependency must carry a GPLv3-compatible licence.** This is a hard requirement
   on all of them, direct or vendored, at every phase — checked before adoption, not after
   (AGENTS.md §10). The baseline set qualifies: Qt 6 (LGPL-3.0), libusb (LGPL-2.1),
-  libFLAC (BSD-3-Clause), GoogleTest (BSD-3-Clause). The FFT proposed in Phase 4 is
-  vendored KissFFT or pocketfft (both BSD-3-Clause) — confirm at that phase, do not
-  assume. A dependency whose licence position is unclear is raised before use, per
-  AGENTS.md §13.
+  libFLAC (BSD-3-Clause), GoogleTest (BSD-3-Clause). The FFT proposed for Phase 4 was
+  vendored KissFFT or pocketfft (both BSD-3-Clause), to be confirmed at that phase rather
+  than assumed; it was confirmed, and then not vendored at all — see Task 4.4. A
+  dependency whose licence position is unclear is raised before use, per AGENTS.md §13.
 - No file, target, branch or symbol named after a plan phase (AGENTS.md §6).
 
 ## Architecture overview
@@ -103,10 +103,13 @@ ddd-gui/
 │   ├── capture/            ddd::capture — Qt-free engine library (static)
 │   │                       device sources, ring buffer, sequence validation, codecs,
 │   │                       writers, stats, monitor taps
+│   ├── analysis/           ddd::analysis — Qt-free display mathematics (static)
+│   │                       front-end gain, waveform mapping, amplitude history, FFT
 │   └── gui/                ddd::gui — Qt6 application `ddd-gui`
 │                           main window, theme system, dock panels, presenters
 └── tests/
     ├── unit/               T1 — engine and presenter tests, no I/O
+    ├── analysis/           T1 — display mathematics, linking no Qt
     ├── gui/                T1 — Qt layer: models, controllers (unit/) and widgets (widget/)
     ├── golden/             T2 — capture-format checks against the bytes on disk
     ├── functional/         T1-labelled soak/pipeline tests using the synthetic source
@@ -553,57 +556,176 @@ mapping mathematics split into Qt-free, unit-tested modules. All analysis runs o
 GUI-side worker fed by tap snapshots; panel refresh is throttled (target 15–30 Hz,
 degrading by dropping frames, never by backpressuring).
 
-### Task 4.1 — Waveform scope panel
+The Qt-free modules became a third library, `ddd_analysis` in `src/analysis/`, rather than
+living in either of the existing two. Not in the engine, because none of it is needed to
+make a capture and `src/capture/` is defined by what a capture needs; not in the GUI,
+because a Qt-free file inside a Qt library is a rule nothing enforces. As its own library
+with its own test binary linking no Qt, the boundary is checked by the linker on every
+build — the same mechanism that has kept the engine Qt-free.
+
+### Task 4.1 — Front-end gain declaration
+
+Every amplitude figure in this phase is either a voltage at the BNC or it is a bare ADC
+code, and the application cannot work out which on its own. The Domesday Duplicator's
+analogue front end is an OPA690 whose feedback resistance is set by **SW401**, a four-way
+DIP switch selecting 1 kΩ5, 1 kΩ, 680 Ω and 560 Ω in parallel against a fixed 200 Ω, so
+the gain is `1 + Rf‖ / 200`. It is a mechanical switch with no electrical path to the
+FPGA or the FX3: nothing in the sample stream, the descriptors or the vendor requests
+reveals its position. The setting therefore has to be **declared** by the user, and the
+work of this task is as much about being honest when it has not been as about the
+arithmetic when it has.
+
+The ADC's full scale is 2 V p-p at the amplifier output, so the largest input the board
+can take without clipping is `2000 mV / gain`. The fifteen usable positions — all four
+switches open is not a setting, since it leaves no feedback path — derived from
+`hardware/doc/DdD Gain and filter calculations.xlsx`, sheet "Gain Setting", which remains
+the source of truth:
+
+| Switches closed | Rf‖ (Ω) | Gain | Full-scale input (mV p-p) |
+| --- | --- | --- | --- |
+| 1 | 1500.0 | 8.50 | 235 |
+| 2 | 1000.0 | 6.00 | 333 |
+| 3 | 680.0 | 4.40 | 455 |
+| 1, 2 | 600.0 | 4.00 | 500 |
+| 4 | 560.0 | 3.80 | 526 |
+| 1, 3 | 467.9 | 3.34 | 599 |
+| 1, 4 | 407.8 | 3.04 | 658 |
+| 2, 3 | 404.8 | 3.02 | 661 |
+| 2, 4 | 359.0 | 2.79 | 716 |
+| 1, 2, 3 | 318.8 | 2.59 | 771 |
+| 3, 4 | 307.1 | 2.54 | 789 |
+| 1, 2, 4 | 289.7 | 2.45 | 817 |
+| 1, 3, 4 | 254.9 | 2.27 | 879 |
+| 2, 3, 4 | 234.9 | 2.17 | 920 |
+| 1, 2, 3, 4 | 203.1 | 2.02 | 992 |
+
+The module computes from the four resistor values rather than carrying that table
+transcribed, so the switch pattern is the only thing configured and the gain and
+full-scale figures are derived. The table above is the derived result, rounded for
+reading.
+
+A Qt-free `front_end_gain`-style module holds the resistor values, the switch-pattern to
+gain mapping, and the conversion from a 10-bit code to millivolts at the BNC. Nothing in
+`src/capture/` learns about any of it: the engine's job is to deliver samples unaltered,
+and a display calibration that reached it could only do harm.
+
+**Three rules that make a declared figure trustworthy rather than merely present.**
+
+Undeclared means undeclared. The setting has no default gain — it defaults to *not
+stated*, and while it is unstated every panel shows ADC codes and percentage of full
+scale, never a voltage. A plausible-looking default would produce authoritative-looking
+millivolt figures that are wrong by up to a factor of four, which is worse than showing
+nothing, because the user has no way to tell.
+
+Clipping never depends on it. A clipped sample is one whose code has reached 0 or 1023;
+that is a property of the converter, not of the declared gain, so clip counts, the clip
+ticks on the amplitude history and the "reduce the gain" guidance stay correct whether the
+declaration is absent, right or wrong. This is what keeps the application useful to
+somebody who has never opened the settings dialog.
+
+The declaration is a display calibration, not an acquisition parameter. Histories,
+snapshots and captures all store 10-bit codes; the conversion happens at draw time. So a
+user who realises mid-session that they declared the wrong switches can correct it and the
+existing amplitude history re-scales retroactively — nothing has been lost, because
+nothing was ever stored in the derived units.
+
+The setting lives in the Settings dialog under a hardware group, described by the switch
+positions as they are printed on the board rather than by a gain number, because reading
+the switch is what the user is actually doing. The declared gain is also shown
+persistently on the amplitude panel, so a figure on screen always says what it was
+computed with.
+
+**Acceptance criteria**
+- T1 tests: gain and full-scale input for all fifteen switch patterns against the
+  spreadsheet's own figures; the code→millivolt conversion at zero, mid and both extremes;
+  the all-open pattern rejected rather than silently treated as unity.
+- T1: with no declaration, no presenter emits a voltage anywhere; with one, both units are
+  available from the same stored codes.
+- T1: clip counting is bit-identical across undeclared, correct and deliberately wrong
+  declarations.
+- Changing the declaration re-scales an existing amplitude history in place, verified
+  against synthetic-source ground truth.
+
+### Task 4.2 — Waveform scope panel
 
 Time-domain scope over the latest snapshot: 10-bit sample space with grid lines at zero,
 mid, and clip levels; selectable time span; persistence/brightness-accumulation mode
 (decode-orc's `WaveformMonitorWidget` approach) for eyeballing FM carrier envelope; cursor
-readout (sample value, time offset). Mapping math in a `waveform_mapping`-style pure
-module.
+readout (sample value and time offset, with the millivolt equivalent when the front-end
+gain has been declared). Mapping math in a `waveform_mapping`-style pure module.
 
 **Acceptance criteria**
 - T1 tests for mapping (sample→pixel, span/zoom, cursor inverse mapping).
 - Scope stays fluid during a full-rate monitor with no measurable effect on pipeline
   stats (compare soak metrics with panel hidden vs. visible).
 
-### Task 4.2 — Amplitude history panel
+The second of those is a manual check with a display and a device, and it **has not been
+done**. What is established without it: the analysis runs on its own thread, the snapshot
+publisher it reads through is wait-free on the writer's side and tested to be, and the
+pipeline soak already measures that a consumer reading flat out costs the pipeline nothing.
+None of that is the same as watching the panels during a real capture, and this stays open
+until somebody has.
+
+### Task 4.3 — Amplitude history panel
 
 Rolling RMS-over-time strip (minutes of history at ~10 Hz resolution) with min/max
 envelope and clip-event ticks, replacing the old 1 Hz RMS number/chart. History ring and
 statistics in a pure module; clipping events also mirrored as a count in the Statistics
-panel.
+panel. The vertical axis is labelled in millivolts at the BNC once the front-end gain has
+been declared (Task 4.1) and in ADC codes and percent of full scale until then; the ring
+itself always holds codes, which is what lets a corrected declaration re-label history
+that has already been recorded.
 
 **Acceptance criteria**
 - T1 tests: RMS/envelope aggregation, ring wraparound, clip-event edge cases (exact 0 and
   1023 samples).
 - An amplitude step injected by the synthetic source appears in the history at the correct
   time offset.
+- The same injected step reads as the correct millivolt figure under a declared gain, and
+  as codes with no voltage claimed when undeclared.
 
-### Task 4.3 — Spectrum panel
+### Task 4.4 — Spectrum panel
 
 FFT magnitude display, DC to 20 MHz: windowed (Hann) power spectrum from snapshots,
 averaging with adjustable decay, log magnitude scale, peak-hold trace, frequency cursor
-readout — enough to see LaserDisc FM carriers and interference at a glance. Requires the
-vendored FFT (KissFFT or pocketfft, BSD-3-Clause): confirm licence position per
-AGENTS.md §10 *before* vendoring, record the decision in `ddd-gui/README.md`.
+readout — enough to see LaserDisc FM carriers and interference at a glance.
+
+**On the FFT, the plan proposed vendoring and the implementation did not.** The licence
+position was confirmed as the plan required and was not the problem: KissFFT and pocketfft
+are both BSD-3-Clause and both fine in a GPLv3 application. What settled it was the cost on
+the other side. The format and lint gates run over every file under `src/` as errors, and
+vendored code fails both immediately, so carrying it would have meant building an exemption
+mechanism into the quality gates and then maintaining it — for a transform whose entire cost
+here is thirty 4,096-point passes a second on a thread nothing waits for. What was written
+instead is a radix-2 Cooley-Tukey transform of about eighty lines, checked in the tests
+against a directly evaluated DFT that shares no code with it. The decision is recorded in
+`ddd-gui/README.md`, as the plan asked.
 
 **Acceptance criteria**
 - T1 tests: a synthetic single-tone snapshot yields a peak in the correct bin at the
   correct level; window normalisation verified against an analytically known input.
 - FFT cost measured and documented; runs entirely on the analysis worker.
 
-### Task 4.4 — Statistics panel completion
+### Task 4.5 — Statistics panel completion
 
 Full live statistics: elapsed time, throughput, transfer count, sequence-protection state
 (protected / legacy-unprotected / failed), ring-buffer fill high-water mark, samples
-processed, min/max, per-extreme clipped counts with recent window, device link speed, and
-— during capture — bytes written, encoder backlog, and free-space time remaining.
+processed, min/max (in codes, and in millivolts when the front-end gain is declared),
+per-extreme clipped counts with recent window, the declared front-end gain itself, device
+link speed, and — during capture — bytes written, encoder backlog, and free-space time
+remaining.
 
 **Acceptance criteria**
 - Every displayed figure comes from the versioned stats block; nothing on any panel reads
   pipeline state directly.
 - Values verified against synthetic-source ground truth in a functional test at the
   presenter level (T1, headless `QCoreApplication` gtest main, the videosynth pattern).
+
+Three of the figures listed above are capture-only and arrive with Phase 5, because there
+is no writer for them to describe until then: encoder backlog, free-space time remaining,
+and a bytes-written figure that is anything other than zero. The row for bytes written is
+in place and reads as blank in monitor mode, which is the honest answer — nothing was meant
+to be written, so nothing was.
 
 ---
 
@@ -627,7 +749,10 @@ extension **`.ddd.flac`** (e.g. `RF-Sample_2026-08-13_12-00-00.ddd.flac`): the `
 marker makes the sample's origin visible in the filename while the file remains a plain
 `.flac` to every importer, and ld-decode's extension dispatch (`endswith(".flac")`) still
 matches. Captures carry the provenance Vorbis comments (TITLE, ENCODER, DDD_VERSION,
-DDD_SAMPLE_RATE_HZ, DDD_TEST_MODE, DATE).
+DDD_SAMPLE_RATE_HZ, DDD_TEST_MODE, DATE), and — only when it has actually been declared —
+DDD_FRONT_END_GAIN, so the calibration needed to read the samples as volts travels with
+them. It is written as a declaration, not a measurement: the switch position the user
+stated, never a value the application inferred.
 
 **Acceptance criteria**
 - Start from idle (opens device, monitors, records) and start from monitor (sink attach)
@@ -700,9 +825,10 @@ Every user-facing feature of [gui/](../gui/), with where it lands. Four disposit
 | Settings persistence with versioned migration | Phase 1 onward (new settings file; migration *from* the old app's INI is **Future**, if ever wanted) |
 
 New in this plan, with no old-application equivalent: **monitor mode** (Phase 3), the
-real-time waveform/spectrum/amplitude panels (Phase 4), the **FX3 firmware version check
-with warning modal** (Task 3.1), SuperSpeed enforcement (Task 3.1), and the panel/theming
-shell (Phase 1).
+real-time waveform/spectrum/amplitude panels (Phase 4), the **front-end gain declaration**
+that lets those panels show volts rather than ADC codes (Task 4.1), the **FX3 firmware
+version check with warning modal** (Task 3.1), SuperSpeed enforcement (Task 3.1), and the
+panel/theming shell (Phase 1).
 
 ### Superseded
 

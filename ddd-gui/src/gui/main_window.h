@@ -19,7 +19,9 @@ namespace ddd::gui {
 
 class ApplicationLogger;
 class CaptureController;
+class AmplitudePanel;
 class LogMessageModel;
+class SpectrumPanel;
 class ThemeController;
 
 // The application window. Every display is a QDockWidget, so any of them can be
@@ -30,8 +32,9 @@ class ThemeController;
 // There is deliberately no central widget. A QMainWindow normally gives its
 // centre to one dominant view and treats docks as accessories, but here no
 // panel is more important than the others — during a capture the operator may
-// want the spectrum filling the window, or the statistics alone. A zero-size
-// central widget lets the docks own the whole window instead.
+// want the spectrum filling the window, or the statistics alone. A zero-*width*
+// central widget lets the docks own the whole window instead; its height is
+// left unbounded on purpose, for the reason set out in the constructor.
 //
 // Thread-safety: NOT thread-safe. GUI thread only.
 class MainWindow : public QMainWindow {
@@ -80,6 +83,12 @@ class MainWindow : public QMainWindow {
   QDockWidget* spectrum_dock_ = nullptr;
   QDockWidget* amplitude_dock_ = nullptr;
   QDockWidget* log_dock_ = nullptr;
+
+  // Held so the two can be related to one another after both exist: the
+  // Amplitude panel can be asked to keep pace with the spectrogram, and neither
+  // panel knows about the other.
+  SpectrumPanel* spectrum_panel_ = nullptr;
+  AmplitudePanel* amplitude_panel_ = nullptr;
 };
 
 }  // namespace ddd::gui

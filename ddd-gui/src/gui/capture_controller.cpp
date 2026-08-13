@@ -26,7 +26,8 @@ CaptureController::CaptureController(capture::IUsbDevice* device,
       device_(device),
       logger_(logger),
       settings_(LoadCaptureSettings()),
-      pipeline_(std::make_unique<capture::CapturePipeline>(logger)) {
+      pipeline_(std::make_unique<capture::CapturePipeline>(logger)),
+      analysis_(std::make_unique<AnalysisWorker>()) {
   qRegisterMetaType<capture::CaptureStats>();
   qRegisterMetaType<std::vector<capture::DeviceInfo>>();
 
@@ -40,6 +41,9 @@ CaptureController::~CaptureController() {
   // pipeline is torn down after, and its own destructor aborts and joins.
   if (monitor_ != nullptr) {
     monitor_->Stop();
+  }
+  if (analysis_ != nullptr) {
+    analysis_->Stop();
   }
   if (pipeline_ != nullptr) {
     pipeline_->Abort();
@@ -69,6 +73,7 @@ void CaptureController::Start() {
 void CaptureController::SetSettings(const CaptureSettings& settings) {
   settings_ = settings;
   SaveCaptureSettings(settings_);
+  emit SettingsChanged(settings_);
 }
 
 void CaptureController::OnDevicesChanged(
@@ -164,6 +169,13 @@ void CaptureController::StartMonitoring() {
     return;
   }
 
+  // Started only for the duration of a run. A worker thread polling thirty
+  // times a second for snapshots that cannot arrive is nothing measurable, but
+  // it is also nothing at all, and a thread that only exists while it has work
+  // is one fewer thing to explain in a stack trace.
+  analysis_->Start();
+  analysis_->SetSource(&pipeline_->snapshots());
+
   monitoring_ = true;
   stats_timer_.start();
   emit MonitoringChanged(true);
@@ -190,6 +202,11 @@ void CaptureController::Tick() {
 void CaptureController::FinishRun() {
   stats_timer_.stop();
   monitoring_ = false;
+
+  // First, and before the pipeline is touched: the next run builds a new
+  // snapshot publisher, and this is what guarantees nothing is reading the old
+  // one when it goes.
+  analysis_->Stop();
 
   // Returns immediately — Running() is already false — and joins the threads.
   pipeline_->Wait();

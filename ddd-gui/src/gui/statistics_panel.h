@@ -12,8 +12,13 @@
 #pragma once
 
 #include <QWidget>
+#include <vector>
 
+#include "capture_metatypes.h"
+#include "front_end_gain.h"
 #include "monitor_tap.h"
+#include "statistics_presenter.h"
+#include "usb_device_info.h"
 
 class QLabel;
 class QProgressBar;
@@ -24,13 +29,17 @@ class CaptureController;
 
 // The panel that answers "is this working?".
 //
-// Every figure here comes from the wait-free tap, so reading them cannot slow
-// the capture down — which is what makes it reasonable to show this much of it
-// at 20 Hz. The choice of what to show is deliberate: throughput and buffer
-// fill say whether the machine is keeping up, the sequence state says whether
-// the data is intact, and the sample extremes say whether the RF gain is right.
-// Those are the three questions a user actually has, and the old application
-// could only answer the first.
+// Every measured figure here comes from the wait-free tap, so reading them
+// cannot slow the capture down — which is what makes it reasonable to show this
+// much of it at 20 Hz. The choice of what to show is deliberate: throughput and
+// buffer fill say whether the machine is keeping up, the sequence state says
+// whether the data is intact, and the sample extremes say whether the RF gain
+// is right. Those are the three questions a user actually has, and the old
+// application could only answer the first.
+//
+// The panel itself holds no logic worth the name. Everything it displays is
+// produced by PresentStatistics, which is where the figures can be tested
+// without a display.
 class StatisticsPanel : public QWidget {
   Q_OBJECT
 
@@ -42,39 +51,41 @@ class StatisticsPanel : public QWidget {
   static constexpr const char* kSequenceLabelName = "statistics_sequence";
   static constexpr const char* kBufferBarName = "statistics_buffer_fill";
   static constexpr const char* kAmplitudeLabelName = "statistics_amplitude";
+  static constexpr const char* kExtremesLabelName = "statistics_extremes";
   static constexpr const char* kClippingLabelName = "statistics_clipping";
   static constexpr const char* kTransfersLabelName = "statistics_transfers";
+  static constexpr const char* kSamplesLabelName = "statistics_samples";
   static constexpr const char* kElapsedLabelName = "statistics_elapsed";
+  static constexpr const char* kWrittenLabelName = "statistics_written";
+  static constexpr const char* kLinkSpeedLabelName = "statistics_link_speed";
+  static constexpr const char* kGainLabelName = "statistics_front_end_gain";
 
  public slots:
   void OnStatsUpdated(const ddd::capture::CaptureStats& stats);
   void OnMonitoringChanged(bool monitoring);
+  void OnDevicesChanged(const std::vector<ddd::capture::DeviceInfo>& devices);
 
  private:
-  void Clear();
+  void Apply(const StatisticsView& view);
+  void ShowIdle();
 
   QLabel* throughput_ = nullptr;
   QLabel* sequence_ = nullptr;
   QProgressBar* buffer_fill_ = nullptr;
   QLabel* amplitude_ = nullptr;
+  QLabel* extremes_ = nullptr;
   QLabel* clipping_ = nullptr;
   QLabel* transfers_ = nullptr;
+  QLabel* samples_ = nullptr;
   QLabel* elapsed_ = nullptr;
+  QLabel* written_ = nullptr;
+  QLabel* link_speed_ = nullptr;
+  QLabel* gain_ = nullptr;
+
+  CaptureController* controller_ = nullptr;
+
+  analysis::FrontEndGain declared_gain_;
+  capture::DeviceSpeed link_ = capture::DeviceSpeed::kUnknown;
 };
-
-// How a throughput figure is put to a user: megabytes per second alongside the
-// sample rate it corresponds to.
-//
-// Both, because they answer different questions. MB/s is what a disk is
-// specified in and what tells someone whether their storage can keep up; Msps
-// is what the device is specified in and what tells them whether they are
-// getting all of the signal. Showing only one leaves the other to be worked out
-// with a calculator.
-QString FormatThroughput(double bytes_per_second);
-
-// A sample range as a proportion of the 10-bit scale, which is the form the
-// number is actually used in: a user adjusting RF gain wants to know how much
-// of the range is being used, not what the raw counts are.
-QString FormatAmplitude(const ddd::capture::SampleMetricsSnapshot& metrics);
 
 }  // namespace ddd::gui

@@ -14,6 +14,7 @@
 #include <QWidget>
 #include <vector>
 
+#include "capture_metatypes.h"
 #include "usb_device_info.h"
 
 class QCheckBox;

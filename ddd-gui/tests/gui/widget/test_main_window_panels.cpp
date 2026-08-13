@@ -17,8 +17,10 @@
 #include <QList>
 #include <QMenu>
 #include <QMenuBar>
+#include <QPoint>
 #include <QSettings>
 #include <QStringList>
+#include <QTest>
 
 #include "application_logger.h"
 #include "main_window.h"
@@ -239,6 +241,123 @@ TEST_F(MainWindowTest, AFirstRunWithNoSavedLayoutShowsTheDefaultArrangement) {
     EXPECT_EQ(dock->isHidden(), should_be_hidden)
         << "unexpected initial visibility: " << name.toStdString();
     EXPECT_FALSE(dock->isFloating()) << name.toStdString();
+  }
+}
+
+// Docks stacked in a column can only be resized against one another as far as
+// their minimum heights allow, and nothing about that failure announces itself:
+// the separator is drawn, the cursor changes over it, and dragging does
+// nothing. It is only visible as "I can resize horizontally but not
+// vertically", which is exactly how it was found.
+//
+// So the property is asserted directly. A panel that insists on being
+// comfortable takes the adjustability of every panel sharing its column, and
+// the three signal panels share one.
+TEST_F(MainWindowTest, NoPanelDemandsSoMuchHeightThatItsColumnCannotBeResized) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+  window->resize(1280, 800);
+  window->show();
+
+  // The right-hand column at the default layout: waveform above spectrum above
+  // amplitude history.
+  const QStringList stacked{QStringLiteral("waveform_dock"),
+                            QStringLiteral("spectrum_dock"),
+                            QStringLiteral("amplitude_dock")};
+
+  int demanded = 0;
+  for (const QString& name : stacked) {
+    QDockWidget* const dock = DockNamed(*window, name);
+    ASSERT_NE(dock, nullptr);
+
+    const int minimum = dock->minimumSizeHint().height();
+
+    // Roughly a fifth of an ordinary window, each. A plot's size policy is
+    // Expanding, so a small minimum costs it nothing when there is room and is
+    // the whole of what lets it get out of the way when there is not.
+    EXPECT_LE(minimum, 160)
+        << name.toStdString() << " demands " << minimum << " px of height";
+    demanded += minimum;
+  }
+
+  // Half the window, for three panels, leaving the other half to distribute
+  // between them. Below this the separators have so little travel that dragging
+  // one reads as broken.
+  EXPECT_LE(demanded, 400) << "the signal column demands " << demanded
+                           << " px of an 800 px window";
+}
+
+// The one that was found by using the application rather than by testing it,
+// and that no amount of looking at the layout would have caught: a central
+// widget whose *height* was capped at zero pinned QMainWindow's centre row at
+// its minimum, so every panel sharing that row sat at its own minimum height
+// and the separator above the bottom dock would not move in either direction.
+//
+// Horizontal resizing worked throughout, which is what made it so odd to
+// report: capping the central widget's width only stops a central view taking
+// space the docks divide between themselves anyway, while capping its height
+// stops the docks getting any.
+//
+// Asserted by dragging, because the layout was never the thing that was broken:
+// resizeDocks() moved these panels perfectly well while the mouse could not.
+TEST_F(MainWindowTest, TheBottomPanelSeparatorCanBeDraggedInBothDirections) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+  window->resize(1280, 800);
+  window->show();
+
+  QDockWidget* const log = DockNamed(*window, QStringLiteral("log_dock"));
+  QDockWidget* const above =
+      DockNamed(*window, QStringLiteral("amplitude_dock"));
+  ASSERT_NE(log, nullptr);
+  ASSERT_NE(above, nullptr);
+
+  log->show();
+  QApplication::processEvents();
+
+  const auto drag_separator = [&](int by) {
+    // The separator lies between the lowest dock of the row above and the
+    // bottom dock area.
+    const int y = (above->geometry().bottom() + log->geometry().top()) / 2;
+    const int x = window->width() / 2;
+
+    QTest::mousePress(window.get(), Qt::LeftButton, {}, QPoint(x, y));
+    QApplication::processEvents();
+    QTest::mouseMove(window.get(), QPoint(x, y + (by / 2)));
+    QApplication::processEvents();
+    QTest::mouseMove(window.get(), QPoint(x, y + by));
+    QApplication::processEvents();
+    QTest::mouseRelease(window.get(), Qt::LeftButton, {}, QPoint(x, y + by));
+    QApplication::processEvents();
+  };
+
+  const int started_at = log->height();
+
+  drag_separator(-120);
+  const int taller = log->height();
+  EXPECT_GT(taller, started_at)
+      << "dragging the separator up did not make the bottom panel taller";
+
+  drag_separator(200);
+  EXPECT_LT(log->height(), taller)
+      << "dragging the separator down did not make the bottom panel shorter";
+}
+
+// The other half of the same failure: with the centre row pinned, every panel
+// in it sat at exactly its minimum height. Proportional sizing is what says the
+// row is being given space rather than merely tolerated.
+TEST_F(MainWindowTest, PanelsGetMoreThanTheirMinimumHeightWhenThereIsRoom) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+  window->resize(1280, 800);
+  window->show();
+  DockNamed(*window, QStringLiteral("log_dock"))->show();
+  QApplication::processEvents();
+
+  for (const QString& name :
+       {QStringLiteral("waveform_dock"), QStringLiteral("spectrum_dock"),
+        QStringLiteral("amplitude_dock")}) {
+    QDockWidget* const dock = DockNamed(*window, name);
+    ASSERT_NE(dock, nullptr);
+    EXPECT_GT(dock->height(), dock->minimumSizeHint().height())
+        << name.toStdString() << " is pinned at its minimum height";
   }
 }
 

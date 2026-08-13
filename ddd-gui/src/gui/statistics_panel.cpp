@@ -14,89 +14,60 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QProgressBar>
+#include <QScrollArea>
 #include <QVBoxLayout>
 
 #include "capture_controller.h"
-#include "sample_format.h"
 
 namespace ddd::gui {
-namespace {
-
-const char* kNoValue = "—";
-
-QString DescribeSequenceState(const ddd::capture::CaptureStats& stats) {
-  switch (stats.sequence_state) {
-    case ddd::capture::SequenceState::kSynchronising:
-      return StatisticsPanel::tr("Synchronising");
-    case ddd::capture::SequenceState::kRunning:
-      return StatisticsPanel::tr("Verified — no samples lost");
-    case ddd::capture::SequenceState::kDisabled:
-      return StatisticsPanel::tr(
-          "Not available — this gateware does not send sequence markers");
-    case ddd::capture::SequenceState::kFailed:
-      return StatisticsPanel::tr("Broken — samples have been lost");
-  }
-  return StatisticsPanel::tr("Unknown");
-}
-
-}  // namespace
-
-QString FormatThroughput(double bytes_per_second) {
-  if (bytes_per_second <= 0.0) {
-    return QString::fromUtf8(kNoValue);
-  }
-
-  const double megabytes = bytes_per_second / (1024.0 * 1024.0);
-  const double megasamples =
-      bytes_per_second / static_cast<double>(ddd::capture::kBytesPerSample) /
-      1'000'000.0;
-
-  return StatisticsPanel::tr("%1 MB/s  (%2 Msps)")
-      .arg(megabytes, 0, 'f', 1)
-      .arg(megasamples, 0, 'f', 2);
-}
-
-QString FormatAmplitude(const ddd::capture::SampleMetricsSnapshot& metrics) {
-  if (metrics.sample_count == 0) {
-    return QString::fromUtf8(kNoValue);
-  }
-
-  const double span = static_cast<double>(metrics.recent_maximum_value) -
-                      static_cast<double>(metrics.recent_minimum_value);
-  const double proportion =
-      span / static_cast<double>(ddd::capture::kMaximumSampleValue) * 100.0;
-
-  return StatisticsPanel::tr("%1 to %2 of 1023  (%3% of range)")
-      .arg(metrics.recent_minimum_value)
-      .arg(metrics.recent_maximum_value)
-      .arg(proportion, 0, 'f', 1);
-}
 
 StatisticsPanel::StatisticsPanel(CaptureController* controller, QWidget* parent)
-    : QWidget(parent) {
-  auto* layout = new QVBoxLayout(this);
+    : QWidget(parent), controller_(controller) {
+  // Inside a scroll area, because this panel is a list that grows: it went from
+  // seven rows to twelve with Phase 4 and will gain three more when there is a
+  // writer to describe. Without one its minimum height is the height of every
+  // row, which it then demands from the dock column it shares — and the
+  // separators above and below it stop moving.
+  auto* outer = new QVBoxLayout(this);
+  outer->setContentsMargins(0, 0, 0, 0);
+
+  auto* scroll = new QScrollArea(this);
+  scroll->setWidgetResizable(true);
+  scroll->setFrameShape(QFrame::NoFrame);
+  scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  outer->addWidget(scroll);
+
+  auto* contents = new QWidget(scroll);
+  scroll->setWidget(contents);
+
+  auto* layout = new QVBoxLayout(contents);
   layout->setContentsMargins(12, 12, 12, 12);
 
   auto* form = new QFormLayout();
   form->setLabelAlignment(Qt::AlignLeft);
 
-  const auto add_row = [&](const QString& label, const char* object_name) {
-    auto* value = new QLabel(QString::fromUtf8(kNoValue), this);
+  // Word wrap is opt-in rather than the default. A wrapped label's minimum
+  // height grows as the panel narrows, so wrapping every row makes the whole
+  // panel demand more vertical space the narrower it gets — which is the
+  // opposite of what a dock that can be dragged narrow needs. Only the rows
+  // that carry a sentence get it.
+  const auto add_row = [&](const QString& label, const char* object_name,
+                           bool wrap = false) {
+    auto* value = new QLabel(contents);
     value->setObjectName(QLatin1String(object_name));
     value->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    value->setWordWrap(wrap);
     form->addRow(label, value);
     return value;
   };
 
   throughput_ = add_row(tr("Throughput"), kThroughputLabelName);
-  sequence_ = add_row(tr("Integrity"), kSequenceLabelName);
-  sequence_->setWordWrap(true);
+  sequence_ = add_row(tr("Integrity"), kSequenceLabelName, true);
 
-  buffer_fill_ = new QProgressBar(this);
+  buffer_fill_ = new QProgressBar(contents);
   buffer_fill_->setObjectName(QLatin1String(kBufferBarName));
   buffer_fill_->setRange(0, 100);
   buffer_fill_->setValue(0);
-  buffer_fill_->setFormat(QString::fromUtf8(kNoValue));
   buffer_fill_->setToolTip(
       tr("How much of the buffer queue is waiting to be processed. A healthy "
          "capture sits near zero; a figure that climbs and stays up means this "
@@ -104,71 +75,83 @@ StatisticsPanel::StatisticsPanel(CaptureController* controller, QWidget* parent)
   form->addRow(tr("Buffer queue"), buffer_fill_);
 
   amplitude_ = add_row(tr("Signal level"), kAmplitudeLabelName);
+  extremes_ = add_row(tr("Extremes"), kExtremesLabelName);
   clipping_ = add_row(tr("Clipping"), kClippingLabelName);
   transfers_ = add_row(tr("Transfers"), kTransfersLabelName);
+  samples_ = add_row(tr("Samples"), kSamplesLabelName);
   elapsed_ = add_row(tr("Elapsed"), kElapsedLabelName);
+  written_ = add_row(tr("Written"), kWrittenLabelName);
+  link_speed_ = add_row(tr("Link speed"), kLinkSpeedLabelName);
+  gain_ = add_row(tr("Front-end gain"), kGainLabelName, true);
 
   layout->addLayout(form);
   layout->addStretch();
 
-  if (controller != nullptr) {
-    connect(controller, &CaptureController::StatsUpdated, this,
+  if (controller_ != nullptr) {
+    declared_gain_ = controller_->settings().DeclaredGain();
+
+    connect(controller_, &CaptureController::StatsUpdated, this,
             &StatisticsPanel::OnStatsUpdated);
-    connect(controller, &CaptureController::MonitoringChanged, this,
+    connect(controller_, &CaptureController::MonitoringChanged, this,
             &StatisticsPanel::OnMonitoringChanged);
+    connect(controller_, &CaptureController::DevicesChanged, this,
+            &StatisticsPanel::OnDevicesChanged);
+    connect(controller_, &CaptureController::SettingsChanged, this,
+            [this](const CaptureSettings& settings) {
+              declared_gain_ = settings.DeclaredGain();
+              // Only the labels change. Nothing is re-measured, and a run in
+              // progress does not notice.
+              ShowIdle();
+            });
   }
+
+  ShowIdle();
 }
 
 void StatisticsPanel::OnStatsUpdated(const ddd::capture::CaptureStats& stats) {
-  throughput_->setText(FormatThroughput(stats.throughput_bytes_per_second));
-  sequence_->setText(DescribeSequenceState(stats));
-
-  if (stats.slot_count > 0) {
-    const int percent =
-        static_cast<int>(stats.slots_in_use * 100 / stats.slot_count);
-    buffer_fill_->setValue(percent);
-    // The peak is in the text rather than a second widget because it is the
-    // figure that matters after the fact: a capture that was fine except for
-    // one stall thirty minutes in reads as perfect from the live value alone.
-    buffer_fill_->setFormat(tr("%1 of %2 buffers  (peak %3)")
-                                .arg(stats.slots_in_use)
-                                .arg(stats.slot_count)
-                                .arg(stats.peak_slots_in_use));
-  }
-
-  amplitude_->setText(FormatAmplitude(stats.metrics));
-
-  if (stats.metrics.sample_count == 0) {
-    clipping_->setText(QString::fromUtf8(kNoValue));
-  } else {
-    clipping_->setText(tr("%1 low, %2 high")
-                           .arg(stats.metrics.clipped_low_count)
-                           .arg(stats.metrics.clipped_high_count));
-  }
-
-  transfers_->setText(tr("%1 transfers, %2 buffers")
-                          .arg(stats.transfers_completed)
-                          .arg(stats.buffers_processed));
-
-  elapsed_->setText(tr("%1 s").arg(stats.elapsed_seconds, 0, 'f', 1));
+  Apply(PresentStatistics(stats, declared_gain_, link_));
 }
 
 void StatisticsPanel::OnMonitoringChanged(bool monitoring) {
   if (monitoring) {
-    Clear();
+    ShowIdle();
   }
 }
 
-void StatisticsPanel::Clear() {
-  const QString none = QString::fromUtf8(kNoValue);
-  throughput_->setText(none);
-  sequence_->setText(none);
-  amplitude_->setText(none);
-  clipping_->setText(none);
-  transfers_->setText(none);
-  elapsed_->setText(none);
-  buffer_fill_->setValue(0);
-  buffer_fill_->setFormat(none);
+void StatisticsPanel::OnDevicesChanged(
+    const std::vector<ddd::capture::DeviceInfo>& devices) {
+  const QString preferred = controller_ != nullptr
+                                ? controller_->settings().preferred_device_path
+                                : QString();
+
+  const capture::DeviceInfo* const selected =
+      capture::SelectDevice(devices, preferred.toStdString());
+
+  link_ =
+      selected != nullptr ? selected->speed : capture::DeviceSpeed::kUnknown;
+  gain_->setText(PresentIdleStatistics(declared_gain_, link_).front_end_gain);
+  link_speed_->setText(PresentIdleStatistics(declared_gain_, link_).link_speed);
+}
+
+void StatisticsPanel::ShowIdle() {
+  Apply(PresentIdleStatistics(declared_gain_, link_));
+}
+
+void StatisticsPanel::Apply(const StatisticsView& view) {
+  throughput_->setText(view.throughput);
+  sequence_->setText(view.integrity);
+  amplitude_->setText(view.signal_level);
+  extremes_->setText(view.extremes);
+  clipping_->setText(view.clipping);
+  transfers_->setText(view.transfers);
+  samples_->setText(view.samples);
+  elapsed_->setText(view.elapsed);
+  written_->setText(view.bytes_written);
+  link_speed_->setText(view.link_speed);
+  gain_->setText(view.front_end_gain);
+
+  buffer_fill_->setValue(view.buffer_percent);
+  buffer_fill_->setFormat(view.buffer);
 }
 
 }  // namespace ddd::gui

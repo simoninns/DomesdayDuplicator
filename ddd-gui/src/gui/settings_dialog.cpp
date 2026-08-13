@@ -18,6 +18,8 @@
 #include <QVBoxLayout>
 
 #include "disk_buffer_ring.h"
+#include "front_end_gain.h"
+#include "gain_choices.h"
 
 namespace ddd::gui {
 namespace {
@@ -84,11 +86,43 @@ SettingsDialog::SettingsDialog(
   }
   form->addRow(tr("Preferred device"), device_);
 
+  front_end_gain_ = new QComboBox(this);
+  front_end_gain_->setObjectName(QLatin1String(kFrontEndGainComboName));
+
+  // First in the list and the default, and it is not a placeholder: an
+  // application that has not been told the switch positions genuinely does not
+  // know them, and every level display says so by staying in converter codes
+  // until it has been told. Offering a guess here would put millivolt figures
+  // on screen that could be wrong by a factor of four with nothing to reveal
+  // it.
+  front_end_gain_->addItem(
+      tr("Not declared — show converter codes"),
+      static_cast<uint>(ddd::analysis::kUndeclaredSwitchPattern));
+  for (const GainChoice& choice : FrontEndGainChoices()) {
+    front_end_gain_->addItem(choice.label,
+                             static_cast<uint>(choice.switch_pattern));
+    if (choice.switch_pattern == settings_.front_end_gain_switches) {
+      front_end_gain_->setCurrentIndex(front_end_gain_->count() - 1);
+    }
+  }
+  front_end_gain_->setToolTip(
+      tr("The SW401 gain switch on the Domesday Duplicator board. It is "
+         "mechanical and the application cannot read it, so signal levels are "
+         "shown in converter codes until it is set here. Getting it wrong "
+         "changes only what the levels are labelled — never what is captured, "
+         "and never whether clipping is detected."));
+  form->addRow(tr("Front-end gain"), front_end_gain_);
+
   layout->addLayout(form);
 
+  // The distinction matters and is worth the sentence: the buffer and transfer
+  // settings resize things a running capture is using and so cannot take effect
+  // until the next one, while the gain declaration only changes what a number
+  // is labelled and takes effect immediately.
   auto* note = new QLabel(
-      tr("Changes apply to the next capture. Nothing here can be changed while "
-         "one is running."),
+      tr("The buffer and transfer settings apply to the next capture. The "
+         "front-end gain applies at once, including to a capture already "
+         "running."),
       this);
   note->setWordWrap(true);
   note->setForegroundRole(QPalette::PlaceholderText);
@@ -107,6 +141,8 @@ CaptureSettings SettingsDialog::Settings() const {
       static_cast<size_t>(queue_size_->currentData().toULongLong());
   result.small_transfers = transfer_mode_->currentData().toBool();
   result.preferred_device_path = device_->currentData().toString();
+  result.front_end_gain_switches =
+      static_cast<uint8_t>(front_end_gain_->currentData().toUInt() & 0xFFU);
   return result;
 }
 

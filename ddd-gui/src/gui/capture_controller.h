@@ -17,6 +17,8 @@
 #include <memory>
 #include <vector>
 
+#include "analysis_worker.h"
+#include "capture_metatypes.h"
 #include "capture_pipeline.h"
 #include "capture_settings.h"
 #include "device_monitor.h"
@@ -61,6 +63,12 @@ class CaptureController : public QObject {
 
   const CaptureSettings& settings() const { return settings_; }
 
+  // The signal panels' source of waveform and spectrum frames. Owned here
+  // rather than by a panel because it is tied to the run rather than to any one
+  // display: it is attached when a run starts and detached when it ends, and
+  // three panels share what it produces.
+  AnalysisWorker* analysis() { return analysis_.get(); }
+
   // Applying settings while a capture is running changes what the next one will
   // do, not this one. Nothing here can be changed mid-stream without stopping,
   // and pretending otherwise would mean a ring that was resized underneath a
@@ -87,6 +95,12 @@ class CaptureController : public QObject {
   void MonitoringChanged(bool monitoring);
   void StatsUpdated(const ddd::capture::CaptureStats& stats);
 
+  // The settings changed. Emitted for the panels rather than for the engine:
+  // the front-end gain declaration is a display calibration, so a panel that
+  // has already drawn a level in converter codes has to be told to draw it
+  // again in millivolts without anything being re-acquired.
+  void SettingsChanged(const CaptureSettings& settings);
+
   // A device whose firmware build differs from this application's. Raised once
   // per connection and never blocking — see firmware_version.h.
   void FirmwareWarning(const QString& message);
@@ -109,6 +123,11 @@ class CaptureController : public QObject {
   std::unique_ptr<capture::CapturePipeline> pipeline_;
   std::unique_ptr<capture::ISampleSource> source_;
 
+  // Declared after the pipeline so that it is destroyed before it: the worker
+  // reads through a publisher the pipeline owns, and the reverse order would
+  // free the publisher first.
+  std::unique_ptr<AnalysisWorker> analysis_;
+
   QTimer stats_timer_;
 
   std::vector<capture::DeviceInfo> devices_;
@@ -122,8 +141,3 @@ class CaptureController : public QObject {
 };
 
 }  // namespace ddd::gui
-
-// Declared so that QSignalSpy can carry them, which is how the tests observe
-// what this class emits without a window to look at.
-Q_DECLARE_METATYPE(ddd::capture::CaptureStats)
-Q_DECLARE_METATYPE(std::vector<ddd::capture::DeviceInfo>)

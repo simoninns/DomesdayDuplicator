@@ -21,6 +21,7 @@ constexpr const char* kPreferredDeviceKey = "capture/preferred_device";
 constexpr const char* kQueueSizeKey = "capture/queue_size_bytes";
 constexpr const char* kSmallTransfersKey = "capture/small_transfers";
 constexpr const char* kTransferQueueKey = "capture/transfer_queue_bytes";
+constexpr const char* kFrontEndGainKey = "hardware/front_end_gain_switches";
 
 // The transfer queue is bounded on both sides. Below one slot there is never
 // more than a single transfer outstanding, which defeats the point of it; above
@@ -35,6 +36,10 @@ capture::UsbSourceOptions CaptureSettings::UsbOptions() const {
   options.small_transfers = small_transfers;
   options.transfer_queue_bytes = transfer_queue_bytes;
   return options;
+}
+
+analysis::FrontEndGain CaptureSettings::DeclaredGain() const {
+  return analysis::FrontEndGain::FromSwitchPattern(front_end_gain_switches);
 }
 
 CaptureSettings LoadCaptureSettings() {
@@ -65,6 +70,13 @@ CaptureSettings LoadCaptureSettings() {
               .toULongLong()),
       kMinimumTransferQueueBytes, kMaximumTransferQueueBytes);
 
+  // Not clamped like the others, because there is no nearest sensible value to
+  // clamp a switch pattern to: FromSwitchPattern reads anything outside 1..15
+  // as undeclared, which is the only safe reading of a setting that would
+  // otherwise put a wrong voltage on the screen.
+  loaded.front_end_gain_switches = static_cast<uint8_t>(
+      settings.value(QLatin1String(kFrontEndGainKey), 0).toUInt() & 0xFFU);
+
   return loaded;
 }
 
@@ -77,6 +89,8 @@ void SaveCaptureSettings(const CaptureSettings& settings) {
   store.setValue(QLatin1String(kSmallTransfersKey), settings.small_transfers);
   store.setValue(QLatin1String(kTransferQueueKey),
                  static_cast<qulonglong>(settings.transfer_queue_bytes));
+  store.setValue(QLatin1String(kFrontEndGainKey),
+                 static_cast<uint>(settings.front_end_gain_switches));
 }
 
 }  // namespace ddd::gui

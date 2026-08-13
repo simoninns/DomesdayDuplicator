@@ -50,6 +50,32 @@ TEST(AboutTextTest, NamesTheApplicationAndItsLicence) {
   EXPECT_TRUE(text.contains(QStringLiteral("General Public License")));
 }
 
+TEST(AboutTextTest, NamesTheAuthorAndTheCopyright) {
+  const QString text = AboutText();
+
+  EXPECT_TRUE(text.contains(QStringLiteral("Simon Inns")))
+      << "About text does not say who wrote it";
+  EXPECT_TRUE(text.contains(QStringLiteral("©")))
+      << "About text carries no copyright notice";
+}
+
+TEST(AboutTextTest, CarriesTheNoticesTheLicenceAsksFor) {
+  // The GPL asks an interactive program to show appropriate legal notices: the
+  // copyright, the licence, and the absence of a warranty. The About dialog is
+  // where a user goes to look for them, so it is where they are.
+  const QString text = AboutText();
+
+  EXPECT_TRUE(text.contains(QStringLiteral("version 3")));
+  EXPECT_TRUE(text.contains(QStringLiteral("warranty")));
+  EXPECT_TRUE(text.contains(QStringLiteral("free software")));
+}
+
+TEST(AboutTextTest, PointsAtTheSource) {
+  // The licence entitles a user to the source. A licence notice that does not
+  // say where it is leaves them to guess.
+  EXPECT_TRUE(AboutText().contains(QStringLiteral("github.com/simoninns")));
+}
+
 TEST(AboutTextTest, IsStable) {
   // Called once per dialog opening; nothing in it may vary between calls, or
   // two users reading it aloud would not agree.

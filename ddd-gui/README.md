@@ -27,15 +27,35 @@ measured and displayed while nothing is written anywhere. The Capture panel find
 as they are plugged in and unplugged, refuses one attached at a speed that cannot carry
 80 MB/s, and offers the gateware's test-pattern mode; the Statistics panel shows
 throughput in both MB/s and Msps, sequence-marker integrity, buffer-queue depth with its
-high-water mark, signal level as a proportion of the range, clipping counts and transfer
-counts, all read from the wait-free tap.
+high-water mark, signal level, whole-run extremes, clipping counts, samples processed,
+link speed and the declared front-end gain, all read from the wait-free tap.
+
+**The signal displays**. A time-domain scope with selectable span, persistence and a
+cursor readout; a spectrum with adjustable averaging, peak hold and a frequency cursor, in
+either a live trace or a spectrogram — level as colour, frequency up the side
+and time running left to right over a fixed window labelled in seconds, which is what makes a
+drifting carrier or an intermittent interferer visible at all — over a range topping out at 14, 16, 18 or 20 MHz
+(14 by default, which puts the board's 13.2 MHz filter corner just inside the
+edge); and an amplitude history strip holding five minutes of min/max envelope,
+RMS drawn either side of 0 V, clip events, the 75% nominal-level bounds marked
+on both sides, a Clear for starting the history again after a change, and a span that
+shows everything held or narrows to match the spectrogram so the two scroll at
+the same pace.
+All of them are QPainter-painted in the window's own colours, and all
+of the analysis behind them runs on a worker thread that the pipeline never waits for.
+
+**The front-end gain declaration**. SW401 on the Domesday Duplicator board is a mechanical
+switch with no path to the FPGA, so the application cannot read it. The switch block is written as the board shows it —
+`1010` is switches 1 and 3 closed, the rest open. Declare it in
+*File → Settings…* and every level reads in millivolts at the BNC; leave it undeclared and
+they read in converter codes, because a default would produce authoritative-looking
+figures wrong by up to a factor of four. Clipping detection never depends on it.
 
 **Both USB backends**: libusb on Linux and macOS, WinUSB on Windows, chosen at configure
 time. Both refuse a device below SuperSpeed with a specific error rather than opening it
 and failing later, which the old application did not.
 
-**Not yet**: writing a capture to disk. The Waveform, Spectrum and Amplitude History
-panels are still placeholders.
+**Not yet**: writing a capture to disk.
 
 That the engine can be tested at all without hardware is the point of the split. The old
 application could only be proven by attaching a device and hoping a fault reproduced;
@@ -98,9 +118,12 @@ cmake -B build -S . -DDDD_ENABLE_CLANG_FORMAT=OFF -DDDD_ENABLE_CLANG_TIDY=OFF
 
 ```
 src/capture/      ddd::capture — the engine. Qt-free, by rule.
+src/analysis/     ddd::analysis — the display mathematics. Qt-free, for the same reason.
 src/gui/          ddd::gui — the Qt layer, built as a static library, plus main().
+src/gui/resources/ the application's graphics, compiled in (a local copy, AGENTS.md §2)
 cmake/            FindFLAC.cmake, a component-local copy (AGENTS.md §2)
 tests/unit/       T1, engine. Links no Qt at all.
+tests/analysis/   T1, display mathematics. Links no Qt either.
 tests/golden/     T2, the capture file format checked against what it must be on disk.
 tests/functional/ T1, the whole pipeline at the device's rate. Minutes, not seconds.
 tests/gui/unit/   T1, Qt layer. Runs under a QCoreApplication; no display needed.
@@ -108,6 +131,11 @@ tests/gui/widget/ T1, widgets. Needs a QApplication and the offscreen platform p
 tests/hardware/   T5, needs a device attached. Labelled `hil`; never runs in CI.
 tests/support/    Fixtures shared between test binaries.
 ```
+
+`src/analysis/` is separate from the engine because none of it is needed to make a
+capture, and separate from the GUI because a QPainter cannot be unit tested while the
+arithmetic behind it can. `ddd_analysis_tests` links no Qt, which is what keeps that
+boundary enforceable rather than aspirational.
 
 The functional tier is not part of the ordinary edit-build-test loop. `ctest -L unit`
 skips it; a bare `ctest` runs it, and so does CI. Each soak runs for a minute by default —
@@ -132,6 +160,21 @@ a 40 MHz converter, so a working one delivers 80 MB/s and physically cannot deli
 a higher figure means the samples are not coming from the ADC at all — an unprogrammed
 FPGA, or gateware that is not the sampler. That is a diagnosis no amount of looking at
 sample values would produce.
+
+### The FFT
+
+The spectrum panel needs a Fourier transform, and the plan proposed vendoring KissFFT or
+pocketfft. Both are BSD-3-Clause and both would be fine in a GPLv3 application, so the
+licence position (AGENTS.md §10) was not what decided it. The cost on the other side was:
+the format and lint gates below run over every file under `src/` as errors, and vendored
+code fails both immediately, so carrying it would mean building an exemption mechanism
+into the gates and then maintaining it.
+
+`src/analysis/fourier_transform.cpp` is a radix-2 Cooley-Tukey transform written for this
+project instead — about eighty lines, checked in the tests against a directly evaluated
+DFT that shares no code with it. The performance argument for a vendored one does not
+arise here: the panel asks for at most thirty 4,096-point transforms a second, which is a
+few milliseconds of one core, on a thread nothing waits for.
 
 The Qt-free rule on `src/capture/` is load-bearing rather than tidy. Everything a capture
 needs — device discovery, the transfer pipeline, validation, writers — belongs there, so

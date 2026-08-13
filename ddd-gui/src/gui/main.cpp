@@ -14,6 +14,7 @@
 #include <QString>
 #include <memory>
 
+#include "about_text.h"
 #include "application_logger.h"
 #include "capture_controller.h"
 #include "logger.h"
@@ -34,6 +35,7 @@ int main(int argc, char* argv[]) {
   // capture application's, so the two do not share a settings file.
   QApplication::setOrganizationName(QStringLiteral("Domesday86"));
   QApplication::setOrganizationDomain(QStringLiteral("domesday86.com"));
+  QApplication::setWindowIcon(ddd::gui::ApplicationIcon());
   QApplication::setApplicationName(QStringLiteral("ddd-gui"));
 
   const auto version = ddd::capture::Version();

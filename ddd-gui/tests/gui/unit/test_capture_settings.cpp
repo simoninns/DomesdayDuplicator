@@ -115,5 +115,51 @@ TEST_F(CaptureSettingsTest, TheSettingsBecomeTheEngineOptions) {
   EXPECT_EQ(options.transfer_queue_bytes, size_t{6} << 20);
 }
 
+TEST_F(CaptureSettingsTest, NoFrontEndGainIsDeclaredUntilOneIsChosen) {
+  // The default that keeps a wrong voltage off the screen. A plausible one
+  // would produce millivolt figures wrong by up to a factor of four, with
+  // nothing on screen to reveal it.
+  EXPECT_FALSE(CaptureSettings().DeclaredGain().declared());
+  EXPECT_FALSE(LoadCaptureSettings().DeclaredGain().declared());
+}
+
+TEST_F(CaptureSettingsTest, TheDeclaredGainSurvivesARestart) {
+  // Unlike test mode, which is deliberately forgotten: a gain switch stays
+  // where it was put, and asking again every session for something that has not
+  // changed is how a setting ends up ignored.
+  CaptureSettings settings;
+  settings.front_end_gain_switches = 0b1010;
+  SaveCaptureSettings(settings);
+
+  const CaptureSettings loaded = LoadCaptureSettings();
+  EXPECT_EQ(loaded.front_end_gain_switches, 0b1010);
+  EXPECT_NEAR(loaded.DeclaredGain().Gain(), 3.34, 0.005);
+}
+
+TEST_F(CaptureSettingsTest, AnImpossibleGainSettingReadsAsNoDeclaration) {
+  // Settings files get edited by hand. Anything that cannot mean a switch
+  // pattern means nobody has declared one — never a guess at what was intended.
+  {
+    QSettings store;
+    store.setValue(QStringLiteral("hardware/front_end_gain_switches"), 99);
+  }
+
+  EXPECT_FALSE(LoadCaptureSettings().DeclaredGain().declared());
+}
+
+TEST_F(CaptureSettingsTest, TheGainIsNotPassedToTheEngine) {
+  // It is a display calibration, not an acquisition parameter. Nothing below
+  // the GUI reads it, and the options handed to the USB source are the proof.
+  CaptureSettings declared;
+  declared.front_end_gain_switches = 0b1111;
+
+  const capture::UsbSourceOptions with = declared.UsbOptions();
+  const capture::UsbSourceOptions without = CaptureSettings().UsbOptions();
+
+  EXPECT_EQ(with.small_transfers, without.small_transfers);
+  EXPECT_EQ(with.transfer_queue_bytes, without.transfer_queue_bytes);
+  EXPECT_EQ(with.discard_slots, without.discard_slots);
+}
+
 }  // namespace
 }  // namespace ddd::gui

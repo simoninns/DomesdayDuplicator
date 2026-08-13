@@ -9,28 +9,40 @@
 # reach.
 
 add_library(ddd_gui_lib STATIC
+    resources/ddd_gui_resources.qrc
+    about_dialog.cpp
     about_text.cpp
+    amplitude_panel.cpp
+    analysis_worker.cpp
     application_logger.cpp
     capture_controller.cpp
     capture_panel.cpp
     capture_settings.cpp
+    gain_choices.cpp
     log_message_model.cpp
     log_panel.cpp
     main_window.cpp
-    panel_placeholder.cpp
     settings_dialog.cpp
+    spectrum_panel.cpp
     statistics_panel.cpp
+    statistics_presenter.cpp
     theme_controller.cpp
     theme_manager.cpp
+    waveform_panel.cpp
 )
 
-set_target_properties(ddd_gui_lib PROPERTIES AUTOMOC ON)
+# AUTORCC compiles the .qrc listed above into the library. The resource is then
+# registered by a static initialiser, which a linker may drop from a static
+# library nothing references — see the Q_INIT_RESOURCE call in about_text.cpp,
+# which is what makes the graphics reliably present.
+set_target_properties(ddd_gui_lib PROPERTIES AUTOMOC ON AUTORCC ON)
 
 target_include_directories(ddd_gui_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(ddd_gui_lib
     PUBLIC
         ddd_capture
+        ddd_analysis
         Qt6::Core
         Qt6::Gui
         Qt6::Widgets

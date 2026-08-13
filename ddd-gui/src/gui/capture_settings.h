@@ -15,6 +15,7 @@
 #include <cstddef>
 
 #include "disk_buffer_ring.h"
+#include "front_end_gain.h"
 #include "usb_device.h"
 
 namespace ddd::gui {
@@ -41,6 +42,17 @@ struct CaptureSettings {
   size_t transfer_queue_bytes =
       capture::UsbSourceOptions{}.transfer_queue_bytes;
 
+  // The SW401 switch pattern the user says their board is set to, or zero for
+  // "not declared". Persisted, unlike test mode: a gain switch stays where it
+  // was put, and asking again every session for something that has not changed
+  // is how a setting ends up ignored.
+  //
+  // Carried in this struct because it is user configuration and this is where
+  // user configuration lives — not because the engine sees it. UsbOptions()
+  // does not pass it on and nothing below the GUI reads it; it changes what a
+  // figure is labelled, never what is captured.
+  uint8_t front_end_gain_switches = analysis::kUndeclaredSwitchPattern;
+
   // Put the gateware into test-pattern mode. Not persisted: it is a diagnostic,
   // and an application that silently started in test mode because of something
   // the user did last week would produce a capture full of ramps.
@@ -51,6 +63,7 @@ struct CaptureSettings {
            queue_size_bytes == other.queue_size_bytes &&
            small_transfers == other.small_transfers &&
            transfer_queue_bytes == other.transfer_queue_bytes &&
+           front_end_gain_switches == other.front_end_gain_switches &&
            test_mode == other.test_mode;
   }
   bool operator!=(const CaptureSettings& other) const {
@@ -59,6 +72,10 @@ struct CaptureSettings {
 
   // The engine-side options these settings imply.
   capture::UsbSourceOptions UsbOptions() const;
+
+  // The declared front-end gain, or the undeclared state. Named DeclaredGain
+  // rather than FrontEndGain so the accessor cannot shadow the type it returns.
+  analysis::FrontEndGain DeclaredGain() const;
 };
 
 // Read the saved settings, falling back to the defaults above for anything

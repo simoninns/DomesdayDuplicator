@@ -21,7 +21,8 @@ class QComboBox;
 
 namespace ddd::gui {
 
-// The settings that affect how a capture is moved off the device.
+// The settings that affect how a capture is moved off the device, and the one
+// thing about the board the application cannot discover for itself.
 //
 // A dialog rather than a panel, because none of it is worth screen space during
 // a capture: these are set once for a machine and then left alone. The panels
@@ -41,6 +42,8 @@ class SettingsDialog : public QDialog {
   static constexpr const char* kTransferModeComboName =
       "settings_transfer_mode";
   static constexpr const char* kDeviceComboName = "settings_device";
+  static constexpr const char* kFrontEndGainComboName =
+      "settings_front_end_gain";
 
  private:
   CaptureSettings settings_;
@@ -48,6 +51,7 @@ class SettingsDialog : public QDialog {
   QComboBox* queue_size_ = nullptr;
   QComboBox* transfer_mode_ = nullptr;
   QComboBox* device_ = nullptr;
+  QComboBox* front_end_gain_ = nullptr;
 };
 
 }  // namespace ddd::gui

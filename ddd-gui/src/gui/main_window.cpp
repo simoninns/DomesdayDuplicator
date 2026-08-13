@@ -21,16 +21,19 @@
 #include <QSettings>
 #include <QStatusBar>
 
+#include "about_dialog.h"
 #include "about_text.h"
+#include "amplitude_panel.h"
 #include "application_logger.h"
 #include "capture_controller.h"
 #include "capture_panel.h"
 #include "log_message_model.h"
 #include "log_panel.h"
-#include "panel_placeholder.h"
 #include "settings_dialog.h"
+#include "spectrum_panel.h"
 #include "statistics_panel.h"
 #include "theme_controller.h"
+#include "waveform_panel.h"
 
 namespace ddd::gui {
 namespace {
@@ -63,9 +66,24 @@ MainWindow::MainWindow(ThemeController* theme_controller,
 
   // See the class comment: the docks own the window, so the central widget is
   // present only because QMainWindow's layout requires one, and is squeezed to
-  // nothing.
+  // nothing horizontally.
+  //
+  // Its height is deliberately left unbounded, and that is the whole of this
+  // comment. QMainWindow arranges its dock areas around the central widget in a
+  // three-by-three grid, and the left and right dock areas share the centre row
+  // with it. Capping the central widget's height caps that row — so the row can
+  // never be given more than the docks' own minimum heights force it to take.
+  // Every panel in it then sits at exactly its minimum, the bottom dock area
+  // keeps all the space that is left, and the separator between them will not
+  // move in either direction.
+  //
+  // What that looks like to a user is a window whose panels resize horizontally
+  // and not vertically, which is a strange enough symptom to be worth naming:
+  // the width is capped too, but capping the width only stops a *central view*
+  // from taking space the docks divide between themselves anyway, while capping
+  // the height stops the docks getting any.
   auto* central = new QWidget(this);
-  central->setMaximumSize(0, 0);
+  central->setMaximumWidth(0);
   setCentralWidget(central);
 
   BuildCaptureDock();
@@ -128,21 +146,16 @@ void MainWindow::BuildStatisticsDock() {
 void MainWindow::BuildWaveformDock() {
   waveform_dock_ = new QDockWidget(tr("Waveform"), this);
   waveform_dock_->setObjectName(QStringLiteral("waveform_dock"));
-  waveform_dock_->setWidget(new PanelPlaceholder(
-      tr("Waveform"),
-      tr("Time-domain view of the incoming samples, with clip levels and a "
-         "cursor readout."),
-      waveform_dock_));
+  waveform_dock_->setWidget(
+      new WaveformPanel(capture_controller_, waveform_dock_));
   addDockWidget(Qt::RightDockWidgetArea, waveform_dock_);
 }
 
 void MainWindow::BuildSpectrumDock() {
   spectrum_dock_ = new QDockWidget(tr("Spectrum"), this);
   spectrum_dock_->setObjectName(QStringLiteral("spectrum_dock"));
-  spectrum_dock_->setWidget(new PanelPlaceholder(
-      tr("Spectrum"),
-      tr("Frequency content from DC to 20 MHz, with averaging and peak hold."),
-      spectrum_dock_));
+  spectrum_panel_ = new SpectrumPanel(capture_controller_, spectrum_dock_);
+  spectrum_dock_->setWidget(spectrum_panel_);
   addDockWidget(Qt::RightDockWidgetArea, spectrum_dock_);
   splitDockWidget(waveform_dock_, spectrum_dock_, Qt::Vertical);
 }
@@ -150,10 +163,13 @@ void MainWindow::BuildSpectrumDock() {
 void MainWindow::BuildAmplitudeDock() {
   amplitude_dock_ = new QDockWidget(tr("Amplitude History"), this);
   amplitude_dock_->setObjectName(QStringLiteral("amplitude_dock"));
-  amplitude_dock_->setWidget(new PanelPlaceholder(
-      tr("Amplitude History"),
-      tr("Signal level over time, with the min/max envelope and clip events."),
-      amplitude_dock_));
+  amplitude_panel_ = new AmplitudePanel(capture_controller_, amplitude_dock_);
+  amplitude_dock_->setWidget(amplitude_panel_);
+
+  // The one place the two panels are related. Neither knows about the other,
+  // and this is the object that owns both.
+  connect(spectrum_panel_, &SpectrumPanel::TimeWindowChanged, amplitude_panel_,
+          &AmplitudePanel::SetMatchedWindowSeconds);
   addDockWidget(Qt::RightDockWidgetArea, amplitude_dock_);
   splitDockWidget(spectrum_dock_, amplitude_dock_, Qt::Vertical);
 }
@@ -223,7 +239,8 @@ void MainWindow::BuildMenus() {
 }
 
 void MainWindow::ShowAboutDialog() {
-  QMessageBox::about(this, tr("About Domesday Duplicator"), AboutText());
+  AboutDialog about(this);
+  about.exec();
 }
 
 void MainWindow::ShowSettingsDialog() {

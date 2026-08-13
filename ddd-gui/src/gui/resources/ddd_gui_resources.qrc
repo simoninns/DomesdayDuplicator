@@ -1,0 +1,25 @@
+<!--
+    ddd_gui_resources.qrc
+
+    The application's graphics, compiled into the binary
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+    Component-local copies of the graphics gui/ uses, not references to them
+    (AGENTS.md §2). The two applications ship independently and either may
+    change its artwork without the other having to agree.
+-->
+<RCC>
+    <qresource prefix="/graphics">
+        <file>logo-250.png</file>
+        <file>logo-150.png</file>
+        <file>icon-16.png</file>
+        <file>icon-24.png</file>
+        <file>icon-32.png</file>
+        <file>icon-48.png</file>
+        <file>icon-64.png</file>
+        <file>icon-128.png</file>
+        <file>icon-256.png</file>
+    </qresource>
+</RCC>

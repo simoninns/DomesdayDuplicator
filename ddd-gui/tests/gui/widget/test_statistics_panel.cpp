@@ -21,59 +21,17 @@
 #include "sample_format.h"
 #include "statistics_panel.h"
 
+// The formatting these labels display is tested in
+// tests/gui/unit/test_statistics_presenter.cpp, against a pipeline running on
+// synthetic data. What is left here is what only a widget can answer: that the
+// text reaches the right label, and that starting and stopping do the right
+// thing to what is on screen.
+
 namespace ddd::gui {
 namespace {
 
 QLabel* LabelNamed(const StatisticsPanel& panel, const char* name) {
   return panel.findChild<QLabel*>(QLatin1String(name));
-}
-
-// --- Formatting ----------------------------------------------------------
-
-// Both units, because they answer different questions. MB/s is what a disk is
-// specified in and says whether the storage can keep up; Msps is what the
-// device is specified in and says whether all of the signal is arriving.
-TEST(StatisticsFormatTest, ThroughputIsGivenInBothUnitsAUserCaresAbout) {
-  const QString text = FormatThroughput(ddd::capture::kWireBytesPerSecond);
-
-  EXPECT_TRUE(text.contains(QStringLiteral("MB/s"))) << text.toStdString();
-  EXPECT_TRUE(text.contains(QStringLiteral("Msps"))) << text.toStdString();
-
-  // 80,000,000 bytes per second is 76.3 MiB/s and exactly 40 Msps.
-  EXPECT_TRUE(text.contains(QStringLiteral("76.3"))) << text.toStdString();
-  EXPECT_TRUE(text.contains(QStringLiteral("40.00"))) << text.toStdString();
-}
-
-TEST(StatisticsFormatTest, NoThroughputYetIsBlankRatherThanZero) {
-  // A hard zero reads as "it is running and delivering nothing", which is a
-  // different and much more alarming statement than "it has not started".
-  EXPECT_EQ(FormatThroughput(0.0), QString::fromUtf8("—"));
-}
-
-TEST(StatisticsFormatTest, TheAmplitudeIsGivenAsAProportionOfTheRange) {
-  ddd::capture::SampleMetricsSnapshot metrics;
-  metrics.sample_count = 1000;
-  metrics.recent_minimum_value = 0;
-  metrics.recent_maximum_value = ddd::capture::kMaximumSampleValue;
-
-  const QString text = FormatAmplitude(metrics);
-  EXPECT_TRUE(text.contains(QStringLiteral("100.0"))) << text.toStdString();
-  EXPECT_TRUE(text.contains(QStringLiteral("1023"))) << text.toStdString();
-}
-
-TEST(StatisticsFormatTest, HalfTheRangeReadsAsHalfTheRange) {
-  ddd::capture::SampleMetricsSnapshot metrics;
-  metrics.sample_count = 1000;
-  metrics.recent_minimum_value = 256;
-  metrics.recent_maximum_value = 767;
-
-  EXPECT_TRUE(FormatAmplitude(metrics).contains(QStringLiteral("50.0")))
-      << FormatAmplitude(metrics).toStdString();
-}
-
-TEST(StatisticsFormatTest, NoSamplesYetIsBlank) {
-  const ddd::capture::SampleMetricsSnapshot metrics;
-  EXPECT_EQ(FormatAmplitude(metrics), QString::fromUtf8("—"));
 }
 
 // --- The panel -----------------------------------------------------------
