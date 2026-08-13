@@ -103,23 +103,44 @@ jobs:
           # windeployqt follows Qt only. libFLAC, libogg and libusb come from the MSYS2
           # prefix, which does not exist on a user's machine, so they are copied
           # explicitly — this is the omission that builds green and then fails to launch.
-          for dll in libFLAC.dll libogg.dll libusb-1.0.dll; do
-            if [[ -f "/ucrt64/bin/${dll}" ]]; then
-              cp "/ucrt64/bin/${dll}" stage/
-            else
-              echo "Expected runtime library ${dll} was not found in /ucrt64/bin" >&2
+          #
+          # Matched as patterns rather than by exact file name because MSYS2 carries the
+          # soname in the name: the libogg package ships libogg-0.dll, not libogg.dll, and
+          # an upstream soname bump would break a hardcoded list the same way again.
+          for pattern in 'libFLAC*.dll' 'libogg*.dll' 'libusb-1.0*.dll'; do
+            matches=(/ucrt64/bin/${pattern})
+            if [[ ! -e "${matches[0]}" ]]; then
+              echo "No runtime library matching ${pattern} was found in /ucrt64/bin" >&2
               exit 1
             fi
+            cp "${matches[@]}" stage/
           done
 
           # The compiler runtime and everything else the binary pulls in transitively.
-          # ldd inside MSYS2 resolves the MinGW dependency chain, and anything still
-          # pointing into /ucrt64 after this loop would be missing at run time.
-          for i in 1 2 3; do
+          # ldd inside MSYS2 resolves the MinGW dependency chain. This runs to a fixed
+          # point rather than a fixed number of passes: the chain is as deep as it is, and
+          # a pass count one short stages an application that fails to launch.
+          while :; do
+            before="$(find stage -type f | wc -l)"
             while read -r dll; do
               [[ -f "${dll}" ]] && cp -n "${dll}" stage/ || true
             done < <(ldd stage/*.exe stage/*.dll 2>/dev/null | grep -oP '/ucrt64/bin/\S+\.dll' | sort -u)
+            [[ "$(find stage -type f | wc -l)" == "${before}" ]] && break
           done
+
+          # Every library resolved out of the MSYS2 prefix must now have a copy in stage.
+          # That prefix does not exist on a user's machine, so one left behind is a launch
+          # failure on someone else's computer — the Windows counterpart of the check for
+          # leftover Homebrew references in the macOS packaging job.
+          missing=()
+          while read -r dll; do
+            [[ -f "stage/$(basename "${dll}")" ]] || missing+=("$(basename "${dll}")")
+          done < <(ldd stage/*.exe stage/*.dll 2>/dev/null | grep -oP '/ucrt64/bin/\S+\.dll' | sort -u)
+          if (( ${#missing[@]} > 0 )); then
+            echo "These libraries are resolved from the MSYS2 prefix but were not staged:" >&2
+            printf '  %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
 
           echo "== Staged files =="
           ls -la stage

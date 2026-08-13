@@ -45,11 +45,22 @@ jobs:
           echo "ddd_version=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
 
       - name: Install flatpak-builder
+        shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder
           sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          sudo flatpak install -y flathub org.kde.Platform//6.9 org.kde.Sdk//6.9
+
+          # Read from the manifest rather than repeating it here. Two copies of a runtime
+          # version drift, and the failure that follows is a build against a runtime nobody
+          # meant to use.
+          MANIFEST=gui/packaging/flatpak/io.github.simoninns.DomesdayDuplicator.yml
+          RUNTIME_VERSION="$(sed -n "s/^runtime-version: *'\(.*\)'/\1/p" "${MANIFEST}")"
+          [[ -n "${RUNTIME_VERSION}" ]] || { echo "no runtime-version in ${MANIFEST}" >&2; exit 1; }
+          echo "Installing the KDE runtime and SDK ${RUNTIME_VERSION}"
+          sudo flatpak install -y flathub \
+            "org.kde.Platform//${RUNTIME_VERSION}" "org.kde.Sdk//${RUNTIME_VERSION}"
 
       - name: Validate desktop and AppStream metadata
         run: |

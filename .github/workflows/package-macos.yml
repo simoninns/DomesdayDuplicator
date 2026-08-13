@@ -55,7 +55,10 @@ jobs:
             sleep 15
           done || echo "brew update failed; continuing with the existing metadata"
 
-          brew install cmake ninja pkg-config qt@6 libusb flac dylibbundler
+          # googletest is a build dependency here, not just a developer convenience: this
+          # job configures with -DBUILD_TESTING=ON and runs the suite before packaging, so
+          # without it the configure step fails outright.
+          brew install cmake ninja pkg-config qt@6 libusb flac googletest dylibbundler
 
       - name: Configure and build
         shell: bash

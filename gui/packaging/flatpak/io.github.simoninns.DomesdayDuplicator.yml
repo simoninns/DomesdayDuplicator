@@ -3,6 +3,12 @@
 # Runtime is org.kde.Platform because the application is Qt 6; the KDE runtime carries Qt
 # itself, libusb and libFLAC, so this manifest builds one module and nothing else.
 #
+# 6.11 is a floor, not a preference. libusb reached the freedesktop-sdk base the KDE runtime
+# is built on in 25.08, so 6.9 and earlier carry libFLAC but no libusb, and the build fails
+# at the find_package for it. 6.11 is also the Qt every other platform builds against, so
+# this is the version that keeps the Flatpak from being the odd one out rather than a bump
+# for its own sake. The packaging workflow reads this value rather than repeating it.
+#
 # The .desktop file, the AppStream metadata and the icons are installed by the CMake build
 # (see src/DomesdayDuplicator/CMakeLists.txt) rather than copied here, so there is one
 # definition of the application ID rather than two that can drift apart.
@@ -11,7 +17,7 @@
 
 app-id: io.github.simoninns.DomesdayDuplicator
 runtime: org.kde.Platform
-runtime-version: '6.9'
+runtime-version: '6.11'
 sdk: org.kde.Sdk
 command: DomesdayDuplicator
 
