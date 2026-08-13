@@ -73,7 +73,7 @@ Set the generator to:
 | --- | --- |
 | Waveform | Sine |
 | Output load / termination | **50 Ohm** |
-| DC offset | 0 V |
+| DC offset | **0 mV** |
 | Modulation, sweep, burst | Off |
 | Amplitude | See the table below |
 
@@ -85,6 +85,15 @@ Set the generator to:
     every reading in this test will come out at 1.5 rather than 0.75 — with the signal
     clipping hard against both ends of the ADC range. The right-hand column of the table
     below gives the equivalent High-Z setting for generators that cannot be switched.
+
+!!! warning "Set the DC offset to 0 mV"
+
+    The generator's DC offset must be **0 mV** so that its output is centred around 0 V. The
+    Duplicator's input stage adds its own 2.5 V bias to place the signal at the centre of the
+    ADC's range, so any offset the AWG adds is passed on and shifts the captured signal away
+    from code 512. That eats into the headroom on one side and can clip the peaks on that
+    side while the amplitude readout still looks close to correct. A symmetrical pair of
+    `RecentMin:` and `RecentMax:` readouts about 512 is the check that the offset is right.
 
 The amplitude required depends only on the gain configuration set on the DIP switch. Switch
 positions are given in the order 1-2-3-4, where up is 1 and down is 0.
@@ -159,8 +168,8 @@ aliasing that cannot be removed afterwards.
    application. Confirm the application reports the device as connected.
 2. Note the DIP switch setting on the PCB and look up its gain and required AWG amplitude in
    the table above.
-3. Set the AWG to sine, 50 Ohm output load, 0 V DC offset, the amplitude from the table and
-   1 MHz. Leave the output **off** for now.
+3. Set the AWG to sine, 50 Ohm output load, **0 mV DC offset** so the output is centred
+   around 0 V, the amplitude from the table and 1 MHz. Leave the output **off** for now.
 4. Connect the AWG to the Duplicator's BNC input with the coaxial lead, then enable the AWG
    output.
 5. Start a capture and let the amplitude readout settle — it is a rolling average, so give it
@@ -194,7 +203,7 @@ investigating.
 | All readings low or high by the same proportion, at every frequency | Wrong gain assumed — check the DIP switch against the table; check the AWG amplitude with an oscilloscope |
 | 1 MHz correct, high frequencies far too low | Filter component value or solder-joint fault in the LPF stage; or the AWG's own output rolling off |
 | 16 MHz reading close to the reference | Filter not attenuating — check the LPF inductors and capacitors. Do not use the board for captures until this is resolved |
-| `RecentMin` and `RecentMax` not symmetrical about 512 | DC offset fault — check the input stage divider (R402/R403) and the ADC reference divider (R301/R302) |
+| `RecentMin` and `RecentMax` not symmetrical about 512 | AWG DC offset not set to 0 mV; if the generator is correct, a DC offset fault — check the input stage divider (R402/R403) and the ADC reference divider (R301/R302) |
 | Clipped counts rising with the reading near 0.75 | Excessive noise or distortion riding on the signal; check grounding, cable length and shielding |
 | Reading unstable or drifting at all frequencies | Poor connection, unterminated cable, or interference reaching the input |
 
