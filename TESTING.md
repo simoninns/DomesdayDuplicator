@@ -3,7 +3,7 @@
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 212 across five
+reorganisation there were **no automated tests at all**. There are now 309 across five
 components, plus three gateware testbenches, a lint pass over five Verilog modules, a static
 check on the documentation site and a licence-header check over the whole tree. That is a
 start, not a suite, and this document says so where it applies rather than describing an
@@ -82,10 +82,15 @@ T5 that the real-time design holds, and they are the reason `ctest -L unit` exis
 everyday loop — the functional tier takes minutes where the rest takes seconds.
 
 ```bash
-ctest --test-dir ddd-gui/build -L unit          # the everyday loop, ~2 seconds
-ctest --test-dir ddd-gui/build                  # everything, including the soaks
+ctest --test-dir ddd-gui/build -L unit          # the everyday loop, ~5 seconds
+ctest --test-dir ddd-gui/build -LE hil          # everything but the hardware tier
+ctest --test-dir ddd-gui/build -L hil           # the hardware tier, device attached
 DDD_SOAK_SECONDS=10 ctest --test-dir ddd-gui/build -L functional   # a shorter soak
 ```
+
+Note the `-LE hil`: unlike every other component, `ddd-gui/` has a T5 tier that is a gtest
+binary rather than a manual procedure, so a bare `ctest` here would try to talk to a device.
+CI and the Nix build both exclude it explicitly.
 
 `DDD_SOAK_SECONDS` sets each soak's duration, defaulting to 60. Whatever it ends up as is
 printed in the test output, so a shortened run cannot be mistaken for a full one. The
@@ -94,7 +99,9 @@ encoder, and says so in its output rather than passing quietly at a quarter spee
 
 **What the soak does not cover.** Everything past the host's memory: the USB stack, the
 cable, the FX3 and the gateware. A pipeline that passes here can still lose samples to a
-bad cable, which is why §5 exists and why passing this is not a substitute for it.
+bad cable, which is why §5 exists and why passing this is not a substitute for it. The
+`hil` tier reaches some of that — enough to tell a working device from a misbehaving one in
+one command — but not the hour-long soak with a player attached that §5 describes.
 
 Its build additionally runs clang-format and clang-tidy as gates, so a formatting or lint
 regression fails the build before any test runs. That is deliberate — it is a new component
@@ -135,7 +142,7 @@ corruption is only detectable by comparing against an original that may no longe
 One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
 two bytes, which is Windows.
 
-### 4.2 `ddd-gui/` — 134 tests
+### 4.2 `ddd-gui/` — 231 tests (225 without hardware)
 
 The replacement capture application. Split by what a test needs rather than by what it
 covers: `ddd_capture_tests` links no Qt at all, which is what makes the engine's Qt-free
@@ -150,12 +157,20 @@ rule enforceable — if the engine ever grows a Qt dependency, that binary stops
 | `tests/unit/test_disk_buffer_ring.cpp` | The producer-to-consumer handoff: geometry rounding, overflow detection, fill-level accounting, a contended run of 4,000 slots checked serial-by-serial, and that an abort releases waiters on **both** sides | T1 |
 | `tests/unit/test_monitor_tap.cpp` | The wait-free publishers: 200,000 stats publications against a hammering reader with no torn read, triple-buffered snapshots never seen half-written, a slow reader dropping snapshots rather than delaying the writer, and the writer's own publish cost measured with four readers hammering and with none | T1 |
 | `tests/unit/test_capture_pipeline.cpp` | The orchestrator: start/stop/abort, error latching precedence, injected faults surfacing as their own codes, a stalled source declared stalled rather than waited for, and a sink attached mid-stream receiving whole buffers with no sample lost or repeated | T1 |
+| `tests/unit/test_usb_device.cpp` | The SuperSpeed rule, preferred-device selection, and the USB transfer layout: transfers a whole number of packets, dividing a buffer exactly, the queue capped at the usbfs limit — and a simulation walking the transfers through several laps of the ring to prove buffers are handed over in the order the consumer reads them | T1 |
+| `tests/unit/test_firmware_version.cpp` | The firmware version comparison: commits parsed out of the USB product string, dirty builds on either side, stamps of differing length from one commit still matching, and an application that cannot name its own commit staying quiet | T1 |
+| `tests/unit/test_device_monitor.cpp` | Hot-plug detection: attach and detach reported, an attach noticed inside 500 ms, nothing reported while nothing changes, a failed enumeration not mistaken for an empty one, and enumeration suspended while streaming | T1 |
 | `tests/golden/test_flac_round_trip.cpp` | The capture format: lossless round trip, that the file is native FLAC (`fLaC`) and not Ogg (`OggS`), the sample-rate label ld-decode requires, provenance tags surviving into the file, and the `.raw` reader | T1, T2 |
 | `tests/functional/test_pipeline_soak.cpp` | The whole pipeline at 80 MB/s for a minute, with null and FLAC sinks, and a tap consumer reading flat out | T1 (`functional`) |
 | `tests/gui/unit/*.cpp` | Theme resolution across every mode/scheme/fallback combination, the bounded log model, the engine-to-GUI logging bridge, the About text's build provenance | T1 |
+| `tests/gui/unit/test_capture_settings.cpp` | Settings persistence: what was saved comes back, out-of-range values clamped rather than refused, and test mode deliberately not remembered | T1 |
+| `tests/gui/unit/test_capture_controller.cpp` | The whole monitor-mode path against a fake USB backend: devices reaching the GUI, the firmware warning raised once per connection, statistics published, nothing written, enumeration pausing while streaming, and a cable pulled mid-monitor leaving an application that can monitor again | T1 |
 | `tests/gui/widget/test_main_window_panels.cpp` | The dock panel framework: every panel present, floatable, toggled from the View menu, and a layout that survives a restart | T1 |
+| `tests/gui/widget/test_capture_panel.cpp` | The capture controls: the device list, a USB 2 device named as such and refused, the one button reading as the next thing that will happen, and device and test mode locked while streaming | T1 |
+| `tests/gui/widget/test_statistics_panel.cpp` | The live figures: throughput in both MB/s and Msps, signal level as a proportion of the range, the four integrity states reading differently, and a new run clearing the last one's numbers | T1 |
+| `tests/hardware/test_device_capture.cpp` | An attached device: found at a usable speed, reporting a readable firmware commit, delivering at the ADC's rate and no faster, aborting within two seconds, streaming with no samples lost, and its test ramp arriving intact | T5 (`hil`) |
 
-Two of these are worth singling out.
+Three of these are worth singling out.
 
 **The sink-swap test** is the one the synthetic source exists for. It runs the pipeline in
 monitor mode, attaches a recording sink mid-stream, and then checks the recorded values are
@@ -167,6 +182,24 @@ recording" lost nothing.
 delivering without failing a transfer raises no error and returns from no call, so the
 application simply waits — and a frozen progress figure looks exactly like a slow disc. The
 new engine has a watchdog on the transfer count, and this is what proves it fires.
+
+**The hardware tier** is the only one that needs a device, and it is run deliberately:
+`ctest --test-dir build -L hil`. It refuses rather than skips when nothing is attached,
+because a hardware test that "passes" because there was no hardware is worse than no test.
+Nothing in it reprogrammes anything — it streams and sends the `0xB6` configuration
+request, which is what the application does in normal use (AGENTS.md §4). Its
+rate check is diagnostic in its own right: the device's output is clocked by a 40 MHz
+converter, so a working one delivers 80 MB/s and cannot deliver more, and a higher figure
+means the samples are not coming from the ADC at all. That is not hypothetical — the first
+device this tier ran against was delivering a 16-bit counter at 117 MB/s from an FPGA that
+was not running the sampler, and the rate check is what named the cause where the
+sequence-mismatch error only reported a symptom.
+
+Measured against a device running gateware built from this tree: 79.2 MB/s over 800 MB
+(99% of the wire rate), 6,103 sequence-counter periods every one exactly 65,536 samples,
+121,634,816 test-pattern samples unbroken, peak ring depth 1 buffer of 128, and an abort
+returning in 10 ms. This tier is twenty seconds and does not replace §5 — it is what makes
+starting §5 worthwhile.
 
 ### 4.3 `fx3/programmer/` — 24 tests
 

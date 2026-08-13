@@ -36,9 +36,12 @@ pkgs.mkShell {
     pkg-config
     qt6.qtbase
 
-    # The capture engine's only non-Qt dependency. BSD-3-Clause, so linking it into a
-    # GPLv3 application is fine (AGENTS.md §10).
+    # The capture engine's non-Qt dependencies. libFLAC is BSD-3-Clause and libusb is
+    # LGPL-2.1-or-later, so linking either into a GPLv3 application is fine
+    # (AGENTS.md §10). Not needed on Windows, where the WinUSB backend uses libraries
+    # that ship with the system.
     flac
+    libusb1
 
     # Test
     gtest

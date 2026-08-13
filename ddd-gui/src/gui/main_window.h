@@ -18,6 +18,7 @@ class QDockWidget;
 namespace ddd::gui {
 
 class ApplicationLogger;
+class CaptureController;
 class LogMessageModel;
 class ThemeController;
 
@@ -37,8 +38,14 @@ class MainWindow : public QMainWindow {
   Q_OBJECT
 
  public:
-  // Neither pointer is owned; both must outlive the window.
+  // None of the pointers are owned; all must outlive the window.
+  //
+  // The controller may be null, and the widget tests pass null deliberately.
+  // Every panel then builds and lays out exactly as it does in the real
+  // application but drives nothing, which is what lets the layout, the menus
+  // and the persistence be tested without a USB subsystem to stand up.
   MainWindow(ThemeController* theme_controller, ApplicationLogger* logger,
+             CaptureController* capture_controller = nullptr,
              QWidget* parent = nullptr);
 
   // Reveals the Log dock. Used by --debug, where the point of the run is to
@@ -58,9 +65,13 @@ class MainWindow : public QMainWindow {
   void BuildMenus();
   void RestoreWindowLayout();
   void ShowAboutDialog();
+  void ShowSettingsDialog();
+  void ShowFirmwareWarning(const QString& message);
+  void ShowFailure(const QString& title, const QString& detail);
 
   ThemeController* theme_controller_;
   ApplicationLogger* logger_;
+  CaptureController* capture_controller_;
   LogMessageModel* log_model_;
 
   QDockWidget* capture_dock_ = nullptr;

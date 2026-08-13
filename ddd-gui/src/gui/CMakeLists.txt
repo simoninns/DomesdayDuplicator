@@ -11,10 +11,15 @@
 add_library(ddd_gui_lib STATIC
     about_text.cpp
     application_logger.cpp
+    capture_controller.cpp
+    capture_panel.cpp
+    capture_settings.cpp
     log_message_model.cpp
     log_panel.cpp
     main_window.cpp
     panel_placeholder.cpp
+    settings_dialog.cpp
+    statistics_panel.cpp
     theme_controller.cpp
     theme_manager.cpp
 )

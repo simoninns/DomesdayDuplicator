@@ -401,14 +401,16 @@ nix flake check                    # everything, on a clean machine
 ctest --test-dir gui/build         # one component
 ```
 
-**What exists today: 212 tests across five components** — 21 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec), 134 in `ddd-gui/` (the capture engine — sample and wire
+**What exists today: 309 tests across five components** — 21 in `gui/` (UTF-8 conversion, the
+10-bit/16-bit sample codec), 231 in `ddd-gui/` (the capture engine — sample and wire
 formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
 metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
-against each other, the wait-free monitor tap, and the pipeline orchestrator driven by a
+against each other, the wait-free monitor tap, the USB transfer-layout arithmetic and
+firmware version check, hot-plug detection, and the pipeline orchestrator driven by a
 synthetic source that can be told to produce specific faults — plus theme resolution, the
-log model, the engine-to-GUI logging bridge, the About text's build provenance, and the
-dock panel framework with its layout persistence; there is still no *device* code there),
+log model, the engine-to-GUI logging bridge, the About text's build provenance, the dock
+panel framework with its layout persistence, and the monitor-mode GUI driven end to end
+against a fake USB backend; six of those need a device attached and are labelled `hil`),
 24 in `fx3/programmer/` (EEPROM paging arithmetic,
 secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and one
 golden test in `fx3/firmware/` (the generated USB product descriptor). `fpga/` adds three

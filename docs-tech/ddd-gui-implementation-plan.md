@@ -107,8 +107,10 @@ ddd-gui/
 │                           main window, theme system, dock panels, presenters
 └── tests/
     ├── unit/               T1 — engine and presenter tests, no I/O
+    ├── gui/                T1 — Qt layer: models, controllers (unit/) and widgets (widget/)
     ├── golden/             T2 — capture-format checks against the bytes on disk
     ├── functional/         T1-labelled soak/pipeline tests using the synthetic source
+    ├── hardware/           T5 — labelled `hil`, needs a device attached, never run in CI
     └── support/            fixtures shared between test binaries
 ```
 
@@ -148,7 +150,8 @@ doing it in the wrong place.
 **Monitor → capture is a sink swap.** Starting a capture attaches the writer at the next
 disk-buffer boundary without stopping the USB stream; stopping detaches it and finalises
 the file. The device's dormant start/stop vendor request (`0xB5`) stays unused, matching
-current gateware behaviour (it samples continuously).
+current gateware behaviour (it samples continuously) and matching the old application,
+which never sends it either.
 
 ---
 
@@ -410,6 +413,28 @@ An unparseable product string gets the same warning, not a failure. (The matchin
 of the FPGA gateware version is a forward requirement — see *Forward requirements* — as
 it needs a protocol addition the current gateware does not have.)
 
+**Detection is polled, not hot-plug, and that is a choice.** libusb has
+`libusb_hotplug_register_callback`, but it is unsupported on Windows and its macOS
+behaviour has depended on the libusb build; WinUSB has no equivalent short of a window
+handle and a device-notification message pump. Polling is the one mechanism that behaves
+identically on all three platforms, and at 200 ms it costs an enumeration five times a
+second — microseconds — to meet a 500 ms requirement with room to spare. It runs on its
+own thread, because reading a product string means opening the device and doing a control
+transfer, and on the GUI thread that is a visible stutter five times a second. It is
+suspended while streaming: enumeration opens devices, and doing that to one that is
+delivering data is avoidable bus traffic for an answer that is already obvious.
+
+**The version comparison is on a prefix, and the reason is not cosmetic.** The firmware
+asks git for eight characters; the application's stamp comes from whichever build system
+produced it, and Nix supplies seven. Comparing the strings whole would report a mismatch
+between two artefacts of the *same* commit — a warning that fires when nothing is wrong,
+which is worse than no warning at all because it teaches the user to dismiss the dialog
+unread. Both sides also go through the same `-dirty` stripping: the FX3's CMake asks git
+exactly as the application's does, so a development device reports
+`Domesday Duplicator (bb65470-dirty)` and rejecting that as unparseable would warn on
+every connection. An application that cannot name its own commit says nothing at all,
+rather than accusing the firmware of being unknown when it is equally unknown itself.
+
 **Acceptance criteria**
 - Device attach/detach reflected in the GUI within 500 ms; T5: a device on a USB 2 port
   is reported as "connected at insufficient speed", not opened.
@@ -427,11 +452,69 @@ panel gains Monitor / Stop; Statistics panel shows live throughput (MB/s and eff
 MSPS), transfer count, sequence status, ring-buffer fill, min/max/clipping from the tap.
 Settings panel/dialog for queue size, transfer mode, preferred device.
 
+**The transfer geometry becomes a pure function.** The old engine worked out transfer
+size, count, stride and starting slot inline in each backend, and the two copies had
+subtly different starting-index arithmetic. Both now call one `PlanTransferLayout()` that
+takes a slot size, a slot count and an endpoint packet size and returns the whole layout.
+This is the most intricate arithmetic in either backend and the least observable on
+hardware: a stride wrong by one produces a capture that is subtly *interleaved* rather
+than one that fails, and the only way to notice that with a device attached is for a disc
+to sound wrong. As arithmetic over a struct it is simply checked — including a simulation
+that walks the transfers through several laps of the ring and asserts the buffers come out
+in the order the consumer reads them.
+
+**The completion callback may block, and must.** When a transfer completes and the slot it
+would be resubmitted into is still full, the callback waits for the consumer, and libusb's
+event handling waits with it. That is intentional and inherited: dropping the transfer
+instead would silently lose samples, which is the one thing the sequence markers exist to
+make impossible. If the consumer genuinely cannot keep up, the transfers already submitted
+keep being filled by the kernel, the device's 64 KB FIFO overruns, and the validator
+reports exactly that — a stall becomes a reported error rather than a quiet corruption.
+
 **Acceptance criteria**
 - T5 on Linux: monitor mode sustains ≥ 1 hour with zero sequence errors, GUI live
   throughout; ring-fill indicator behaves sanely under induced CPU load.
 - Pulling the cable mid-monitor produces a clean, specific error and a recoverable
   application state (re-attach and monitor again without restart).
+- T5: aborting mid-stream returns the transfer thread within two seconds. See the
+  hardware tier below — this is the one that caught a real hang.
+
+### Task 3.4 — A hardware tier that runs
+
+Every acceptance criterion above is a T5 procedure, and a procedure nobody runs is a
+comment. `tests/hardware/` is a gtest binary labelled `hil`, excluded from every ordinary
+run and from CI, that turns them into something a maintainer executes in one command with
+a device plugged in:
+
+    ctest --test-dir build -L hil
+
+It refuses rather than skips when nothing is attached — a hardware test that "passes"
+because there was no hardware is worse than no test. Nothing in it reprogrammes anything:
+it streams and sends the `0xB6` configuration request, which is what the application does
+in normal use, and writing the FX3 EEPROM or the FPGA flash stays a manual procedure
+(AGENTS.md §4).
+
+One of its checks is on the *rate*, not the data, and it earns its place: the device's
+output is clocked by a 40 MHz converter, so a working device delivers 80 MB/s and
+physically cannot deliver more. A higher figure means the samples are not coming from the
+ADC — an unprogrammed FPGA, or gateware that is not the sampler — and that is a diagnosis
+no amount of staring at sample values would produce. It earned it immediately: the first
+device it ran against was delivering a 16-bit counter at 117 MB/s, and the rate check is
+what named the cause where the sequence-mismatch error only reported a symptom.
+
+**Measured on hardware**, once that device was running gateware built from this tree
+(Quartus 25.1, programmed to EPCS64 and cold-booted from it):
+
+| | |
+| --- | --- |
+| Transfer rate, 800 MB | 79.2 MB/s — 99% of the wire rate |
+| Sequence markers | 6,103 counter periods, every one exactly 65,536 samples |
+| Test pattern | 121,634,816 samples checked against the ramp, unbroken |
+| Peak ring depth | 1 buffer of 128 |
+| Abort mid-stream | 10 ms |
+
+The hour-long soak in TESTING.md §5 is still a manual procedure and still the release
+gate; this is what a maintainer can get in twenty seconds before starting one.
 
 ### Task 3.3 — WinUSB source and macOS validation
 
@@ -439,6 +522,22 @@ Port the WinUSB backend (RAW_IO, `MAXIMUM_TRANSFER_SIZE` query, overlapped reap 
 explicit underflow probe) with the SuperSpeed check added. Validate the libusb backend on
 macOS (Intel and Apple Silicon), where the old app has no platform-specific capture code —
 confirm that remains true or document what was needed.
+
+**Two departures from the old WinUSB backend, both deliberate.**
+
+The wait for a completion is bounded rather than indefinite. The old code called
+`WinUsb_GetOverlappedResult` with the wait flag set, which returns when the transfer
+completes and never otherwise — so a device that stopped delivering without failing left
+the transfer thread blocked in the kernel with no way back, and the application hung. This
+waits on the event with a timeout and looks around between waits, which is what lets the
+stall watchdog from Task 2.4 actually stop the thread rather than merely report it.
+
+The SuperSpeed check has to be made a different way, because WinUSB cannot answer the
+question directly. Its `DEVICE_SPEED` query uses the driver's own three-value enumeration,
+which stops at `HighSpeed` — there is no SuperSpeed constant, so a USB 3 device reports
+`HighSpeed` and the query cannot distinguish the two. The bulk endpoint's maximum packet
+size can: 512 bytes at High-speed and 1024 at SuperSpeed, fixed by the specification. That
+is what the check reads.
 
 **Acceptance criteria**
 - T5 monitor soak (≥ 1 hour, zero sequence errors) on Windows and macOS.

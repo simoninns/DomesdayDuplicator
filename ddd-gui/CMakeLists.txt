@@ -78,6 +78,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # application is fine (AGENTS.md §10).
 find_package(FLAC REQUIRED)
 
+# libusb, for talking to the device on Linux and macOS. Not needed on Windows, where the
+# WinUSB backend uses libraries that ship with the system. LGPL-2.1-or-later, so linking
+# it into a GPLv3 application is fine (AGENTS.md §10).
+if(NOT WIN32)
+    find_package(LibUSB REQUIRED)
+endif()
+
 # The engine runs its own threads. Named explicitly rather than left to the compiler
 # default, because a static library that pulls in std::thread without -pthread links on
 # some platforms and fails at run time on others.

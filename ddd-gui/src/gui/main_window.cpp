@@ -23,9 +23,13 @@
 
 #include "about_text.h"
 #include "application_logger.h"
+#include "capture_controller.h"
+#include "capture_panel.h"
 #include "log_message_model.h"
 #include "log_panel.h"
 #include "panel_placeholder.h"
+#include "settings_dialog.h"
+#include "statistics_panel.h"
 #include "theme_controller.h"
 
 namespace ddd::gui {
@@ -37,10 +41,12 @@ constexpr const char* kStateSettingsKey = "main_window/state";
 }  // namespace
 
 MainWindow::MainWindow(ThemeController* theme_controller,
-                       ApplicationLogger* logger, QWidget* parent)
+                       ApplicationLogger* logger,
+                       CaptureController* capture_controller, QWidget* parent)
     : QMainWindow(parent),
       theme_controller_(theme_controller),
       logger_(logger),
+      capture_controller_(capture_controller),
       log_model_(new LogMessageModel(this)) {
   setWindowTitle(tr("Domesday Duplicator"));
 
@@ -73,6 +79,30 @@ MainWindow::MainWindow(ThemeController* theme_controller,
 
   statusBar()->showMessage(tr("No capture device attached"));
 
+  if (capture_controller_ != nullptr) {
+    // The status bar says the same thing the Capture panel does, because the
+    // panel can be closed and the status bar cannot. Someone who has hidden
+    // every panel but the spectrum should still be able to see that the device
+    // has been unplugged.
+    connect(capture_controller_, &CaptureController::DevicesChanged, this,
+            [this](const std::vector<ddd::capture::DeviceInfo>& devices) {
+              statusBar()->showMessage(
+                  devices.empty()
+                      ? tr("No capture device attached")
+                      : tr("%1 device(s) attached").arg(devices.size()));
+            });
+    connect(capture_controller_, &CaptureController::MonitoringChanged, this,
+            [this](bool monitoring) {
+              if (monitoring) {
+                statusBar()->showMessage(tr("Monitoring"));
+              }
+            });
+    connect(capture_controller_, &CaptureController::FirmwareWarning, this,
+            &MainWindow::ShowFirmwareWarning);
+    connect(capture_controller_, &CaptureController::Failed, this,
+            &MainWindow::ShowFailure);
+  }
+
   RestoreWindowLayout();
 }
 
@@ -81,22 +111,16 @@ void MainWindow::BuildCaptureDock() {
   // Object names are what saveState()/restoreState() match docks by. Without
   // one, a dock is silently dropped from the restored layout.
   capture_dock_->setObjectName(QStringLiteral("capture_dock"));
-  capture_dock_->setWidget(new PanelPlaceholder(
-      tr("Capture"),
-      tr("Device selection, monitor and capture controls, destination and "
-         "format."),
-      capture_dock_));
+  capture_dock_->setWidget(
+      new CapturePanel(capture_controller_, capture_dock_));
   addDockWidget(Qt::LeftDockWidgetArea, capture_dock_);
 }
 
 void MainWindow::BuildStatisticsDock() {
   statistics_dock_ = new QDockWidget(tr("Statistics"), this);
   statistics_dock_->setObjectName(QStringLiteral("statistics_dock"));
-  statistics_dock_->setWidget(new PanelPlaceholder(
-      tr("Statistics"),
-      tr("Throughput, transfer counts, sequence-marker state, buffer fill and "
-         "sample extremes."),
-      statistics_dock_));
+  statistics_dock_->setWidget(
+      new StatisticsPanel(capture_controller_, statistics_dock_));
   addDockWidget(Qt::LeftDockWidgetArea, statistics_dock_);
   splitDockWidget(capture_dock_, statistics_dock_, Qt::Vertical);
 }
@@ -151,6 +175,9 @@ void MainWindow::ShowLogPanel() {
 
 void MainWindow::BuildMenus() {
   QMenu* file_menu = menuBar()->addMenu(tr("&File"));
+  file_menu->addAction(tr("&Settings…"), QKeySequence::Preferences, this,
+                       &MainWindow::ShowSettingsDialog);
+  file_menu->addSeparator();
   file_menu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
   QMenu* view_menu = menuBar()->addMenu(tr("&View"));
@@ -197,6 +224,30 @@ void MainWindow::BuildMenus() {
 
 void MainWindow::ShowAboutDialog() {
   QMessageBox::about(this, tr("About Domesday Duplicator"), AboutText());
+}
+
+void MainWindow::ShowSettingsDialog() {
+  if (capture_controller_ == nullptr) {
+    return;
+  }
+
+  SettingsDialog dialog(capture_controller_->settings(),
+                        capture_controller_->devices(), this);
+  if (dialog.exec() == QDialog::Accepted) {
+    capture_controller_->SetSettings(dialog.Settings());
+  }
+}
+
+void MainWindow::ShowFirmwareWarning(const QString& message) {
+  // A warning and not a critical error, and it does not stop anything. See
+  // firmware_version.h: differing builds are worth mentioning and are not known
+  // to be broken, and a modal that blocked capture would be punishing a user
+  // for a device that works.
+  QMessageBox::warning(this, tr("Firmware version"), message);
+}
+
+void MainWindow::ShowFailure(const QString& title, const QString& detail) {
+  QMessageBox::critical(this, title, detail);
 }
 
 void MainWindow::RestoreWindowLayout() {

@@ -17,13 +17,25 @@ panels that can be floated into windows of their own, a View menu built from the
 themselves, persistent window and layout state, and a log panel fed through the engine's
 logging seam.
 
-**The capture engine**, complete except for the device. The ring buffer, the sequence
-validator, the metrics, the monitor tap, the FLAC writer and reader, and the orchestrator
-that runs them all on their own threads are here and tested — driven by a synthetic source
-that generates the device's stream in software at its real 80 MB/s.
+**The capture engine**. The ring buffer, the sequence validator, the metrics, the monitor
+tap, the FLAC writer and reader, and the orchestrator that runs them all on their own
+threads — driven either by a real device or by a synthetic source that generates the
+device's stream in software at its real 80 MB/s.
 
-**There is no device code yet**, and the panels are still placeholders that say so. The
-GUI does not start the engine; the engine is exercised only by its tests.
+**Monitor mode**. Attach a device, press *Start monitoring*, and the signal is validated,
+measured and displayed while nothing is written anywhere. The Capture panel finds devices
+as they are plugged in and unplugged, refuses one attached at a speed that cannot carry
+80 MB/s, and offers the gateware's test-pattern mode; the Statistics panel shows
+throughput in both MB/s and Msps, sequence-marker integrity, buffer-queue depth with its
+high-water mark, signal level as a proportion of the range, clipping counts and transfer
+counts, all read from the wait-free tap.
+
+**Both USB backends**: libusb on Linux and macOS, WinUSB on Windows, chosen at configure
+time. Both refuse a device below SuperSpeed with a specific error rather than opening it
+and failing later, which the old application did not.
+
+**Not yet**: writing a capture to disk. The Waveform, Spectrum and Amplitude History
+panels are still placeholders.
 
 That the engine can be tested at all without hardware is the point of the split. The old
 application could only be proven by attaching a device and hoping a fault reproduced;
@@ -47,8 +59,14 @@ ctest --test-dir build
 **libFLAC** is needed too — 1.4.0 or later, and 1.5.0 or later to encode on more than one
 core. It is BSD-3-Clause, so linking it into a GPLv3 application is fine.
 
-libusb is still absent, and deliberately: it arrives with the device backends, and until
-then requiring it would mean a build that needs a library nothing links against.
+**libusb 1.0** is needed on Linux and macOS, and not on Windows: the WinUSB backend uses
+`winusb` and `cfgmgr32`, which ship with the toolchain. It is LGPL-2.1-or-later, so
+linking it into a GPLv3 application is fine.
+
+On Linux the device needs a udev rule before a non-root user can open it — without one,
+enumeration finds the device but opening it fails. See
+the rule shipped with the FX3 programmer,
+[`fx3/programmer/configs/70-domesday-duplicator.rules`](../fx3/programmer/configs/70-domesday-duplicator.rules).
 
 With Nix, from anywhere in the working tree:
 
@@ -86,6 +104,8 @@ tests/unit/       T1, engine. Links no Qt at all.
 tests/golden/     T2, the capture file format checked against what it must be on disk.
 tests/functional/ T1, the whole pipeline at the device's rate. Minutes, not seconds.
 tests/gui/unit/   T1, Qt layer. Runs under a QCoreApplication; no display needed.
+tests/gui/widget/ T1, widgets. Needs a QApplication and the offscreen platform plugin.
+tests/hardware/   T5, needs a device attached. Labelled `hil`; never runs in CI.
 tests/support/    Fixtures shared between test binaries.
 ```
 
@@ -94,6 +114,24 @@ skips it; a bare `ctest` runs it, and so does CI. Each soak runs for a minute by
 `DDD_SOAK_SECONDS` shortens that for a quick local check or lengthens it for an overnight
 run, and whichever it ends up as is printed, so a shortened run cannot be mistaken for a
 full one.
+
+The hardware tier is the one that needs a device, and it is run deliberately:
+
+```bash
+ctest --test-dir build -L hil
+```
+
+It refuses rather than skips when nothing is attached — a hardware test that "passes"
+because there was no hardware is worse than no test. Nothing in it reprogrammes anything:
+it streams and sends the `0xB6` configuration request, which is what the application does
+in normal use, and writing the FX3 EEPROM or the FPGA flash stays a manual procedure
+([AGENTS.md](../AGENTS.md) §4).
+
+One of its checks is on the *rate* rather than the data. The device's output is clocked by
+a 40 MHz converter, so a working one delivers 80 MB/s and physically cannot deliver more;
+a higher figure means the samples are not coming from the ADC at all — an unprogrammed
+FPGA, or gateware that is not the sampler. That is a diagnosis no amount of looking at
+sample values would produce.
 
 The Qt-free rule on `src/capture/` is load-bearing rather than tidy. Everything a capture
 needs — device discovery, the transfer pipeline, validation, writers — belongs there, so

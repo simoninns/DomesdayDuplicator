@@ -45,6 +45,17 @@ enum class TransferResult {
   // whole number of packets, so a short one is data loss and not a boundary.
   kUsbTransferFailure,
 
+  // Windows only. A read request completed before its successor was submitted,
+  // so for a moment nothing was listening to the pipe and the device had
+  // nowhere to put its data.
+  //
+  // Distinct from kBufferOverflow, which is the ring filling up because the
+  // disk could not keep up. This is the host briefly not asking for data at
+  // all, and the remedy is different: fewer, larger transfers, or a machine
+  // less busy elsewhere. Windows does not report it — the samples are simply
+  // gone — so the backend probes for it, and this is what the probe says.
+  kHostUnderflow,
+
   // Linux only. The kernel's usbfs memory limit is lower than the queue the
   // capture asked for. Distinct from a generic transfer failure because the fix
   // is one sysfs write, and saying so is the difference between a solved

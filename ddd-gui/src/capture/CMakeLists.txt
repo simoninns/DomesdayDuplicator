@@ -7,11 +7,29 @@
 # Nothing here may link or include Qt. That is what lets the engine be unit tested without
 # a display, and what will let a headless command-line capture tool reuse it unchanged.
 
+# The USB backend is chosen at configure time rather than at run time: a build for
+# one platform has no use for the other's dependency, and compiling both would mean
+# requiring libusb on Windows to reach code that would never run there.
+if(WIN32)
+    set(ddd_capture_usb_sources
+        winusb_device.cpp
+        winusb_source.cpp
+    )
+else()
+    set(ddd_capture_usb_sources
+        libusb_device.cpp
+        libusb_source.cpp
+    )
+endif()
+
 add_library(ddd_capture STATIC
+    ${ddd_capture_usb_sources}
     capture_format.cpp
     capture_pipeline.cpp
     capture_reader.cpp
+    device_monitor.cpp
     disk_buffer_ring.cpp
+    firmware_version.cpp
     flac_sink.cpp
     flac_writer.cpp
     logger.cpp
@@ -24,6 +42,8 @@ add_library(ddd_capture STATIC
     test_pattern_verifier.cpp
     thread_priority.cpp
     transfer_result.cpp
+    usb_device.cpp
+    usb_device_info.cpp
     version.cpp
 )
 
@@ -33,6 +53,18 @@ target_compile_options(ddd_capture PRIVATE -Wall -Wextra)
 
 target_include_directories(ddd_capture SYSTEM PUBLIC ${FLAC_INCLUDE_DIRS})
 target_link_libraries(ddd_capture PUBLIC ${FLAC_LIBRARIES} Threads::Threads)
+
+# The USB backend's own dependencies. On Windows both libraries ship with the SDK and
+# with mingw-w64, so there is nothing to find; everywhere else libusb comes from
+# pkg-config. LGPL-2.1-or-later, so linking it into a GPLv3 application is fine
+# (AGENTS.md §10).
+if(WIN32)
+    target_link_libraries(ddd_capture PUBLIC winusb cfgmgr32)
+    target_compile_definitions(ddd_capture PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
+else()
+    target_include_directories(ddd_capture SYSTEM PUBLIC ${LibUSB_INCLUDE_DIRS})
+    target_link_libraries(ddd_capture PUBLIC ${LibUSB_LIBRARIES})
+endif()
 
 # Only this target sees the version stamp, so a new commit rebuilds one object file rather
 # than every Qt translation unit in the application.

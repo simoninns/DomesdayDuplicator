@@ -29,6 +29,8 @@ const char* TransferResultName(TransferResult result) {
       return "connection-failure";
     case TransferResult::kUsbTransferFailure:
       return "usb-transfer-failure";
+    case TransferResult::kHostUnderflow:
+      return "host-underflow";
     case TransferResult::kUsbMemoryLimit:
       return "usb-memory-limit";
     case TransferResult::kSequenceMismatch:
@@ -67,6 +69,11 @@ const char* TransferResultDescription(TransferResult result) {
     case TransferResult::kUsbTransferFailure:
       return "A USB transfer failed. Try a different cable or a port connected "
              "directly to the computer rather than through a hub.";
+    case TransferResult::kHostUnderflow:
+      return "This machine did not keep a read request outstanding, so the "
+             "device had nowhere to put its data and samples were lost. Try "
+             "larger USB transfers, or close whatever else is competing for "
+             "the CPU.";
     case TransferResult::kUsbMemoryLimit:
       return "The kernel's usbfs memory limit is too low for the requested "
              "buffer queue. Raise "

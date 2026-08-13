@@ -12,11 +12,14 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QString>
+#include <memory>
 
 #include "application_logger.h"
+#include "capture_controller.h"
 #include "logger.h"
 #include "main_window.h"
 #include "theme_controller.h"
+#include "usb_device.h"
 #include "version.h"
 
 int main(int argc, char* argv[]) {
@@ -57,13 +60,24 @@ int main(int argc, char* argv[]) {
   ddd::gui::ThemeController theme_controller(&app);
   theme_controller.Initialize();
 
-  ddd::gui::MainWindow window(&theme_controller, &logger);
+  // A null backend is survivable rather than fatal: the window opens, says why
+  // there is no device, and everything that does not need one still works.
+  const std::unique_ptr<ddd::capture::IUsbDevice> usb_device =
+      ddd::capture::MakeUsbDevice(&logger);
+
+  ddd::gui::CaptureController capture_controller(usb_device.get(), &logger);
+
+  ddd::gui::MainWindow window(&theme_controller, &logger, &capture_controller);
   if (parser.isSet(debug_option)) {
     window.ShowLogPanel();
   }
   window.show();
 
   logger.Info("Capture application started.");
+
+  // Started after the window is up so that the first device report lands on a
+  // window that already has panels to receive it.
+  capture_controller.Start();
 
   return QApplication::exec();
 }

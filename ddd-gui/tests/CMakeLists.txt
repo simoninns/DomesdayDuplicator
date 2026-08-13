@@ -54,6 +54,9 @@ ddd_add_test(ddd_capture_tests "unit"
     unit/test_disk_buffer_ring.cpp
     unit/test_monitor_tap.cpp
     unit/test_capture_pipeline.cpp
+    unit/test_firmware_version.cpp
+    unit/test_usb_device.cpp
+    unit/test_device_monitor.cpp
 )
 target_link_libraries(ddd_capture_tests PRIVATE
     ddd_capture
@@ -89,6 +92,24 @@ target_link_libraries(ddd_pipeline_soak_tests PRIVATE
     GTest::gtest_main
 )
 
+# T5 — the real device. Excluded from every ordinary run by its label, and it does not
+# skip when no device is attached: it fails. A hardware test that "passes" because there
+# was no hardware is worse than no test at all.
+#
+#   ctest --test-dir build -L hil
+#
+# Nothing here reprogrammes anything. These stream from the device and send the 0xB6
+# configuration request, which is what the application does in normal use; writing the
+# FX3 EEPROM or the FPGA flash stays a manual procedure (AGENTS.md §4).
+ddd_add_test(ddd_hardware_tests "hil"
+    hardware/test_device_capture.cpp
+)
+target_link_libraries(ddd_hardware_tests PRIVATE
+    ddd_capture
+    GTest::gtest
+    GTest::gtest_main
+)
+
 # T1 — the Qt layer. Its own main() builds a QCoreApplication, so queued connections and
 # timers are delivered when a test pumps the event loop.
 ddd_add_test(ddd_gui_tests "unit"
@@ -97,12 +118,15 @@ ddd_add_test(ddd_gui_tests "unit"
     gui/unit/test_theme_manager.cpp
     gui/unit/test_log_message_model.cpp
     gui/unit/test_application_logger.cpp
+    gui/unit/test_capture_settings.cpp
+    gui/unit/test_capture_controller.cpp
 )
 target_link_libraries(ddd_gui_tests PRIVATE
     ddd_gui_lib
     Qt6::Test
     GTest::gtest
 )
+target_include_directories(ddd_gui_tests PRIVATE support)
 
 # T1 — the widgets. Separate from ddd_gui_tests because these need a QApplication and a
 # platform plugin, where those need neither; keeping them apart means the cheaper binary
@@ -110,9 +134,12 @@ target_link_libraries(ddd_gui_tests PRIVATE
 ddd_add_test(ddd_gui_widget_tests "unit"
     support/widget_test_main.cpp
     gui/widget/test_main_window_panels.cpp
+    gui/widget/test_capture_panel.cpp
+    gui/widget/test_statistics_panel.cpp
 )
 target_link_libraries(ddd_gui_widget_tests PRIVATE
     ddd_gui_lib
     Qt6::Test
     GTest::gtest
 )
+target_include_directories(ddd_gui_widget_tests PRIVATE support)

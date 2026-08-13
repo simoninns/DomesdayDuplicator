@@ -20,6 +20,7 @@
   qt6,
   wrapQtAppsHook,
   flac,
+  libusb1,
   gtest,
   # The commit this binary was built from. It reaches --version and the About dialog, which
   # is the only way a released artefact can be traced back to its source. There is no .git
@@ -56,6 +57,7 @@ stdenv.mkDerivation (finalAttrs: {
   buildInputs = [
     qt6.qtbase
     flac
+    libusb1
   ];
 
   checkInputs = [ gtest ];
