@@ -1,29 +1,50 @@
 # KiCad format migration
 
-The project was authored in KiCad 4.0.7 in 2018 and is being moved to KiCad 10. This file
-records what has been done, what is left, and how each step was checked.
+The project was authored in KiCad 4.0.7 in 2018 and has been moved to KiCad 10. This file
+records what was done, how each step was checked, and what is still outstanding.
 
 ## Status
 
-| Part | Format | State |
-| --- | --- | --- |
-| `Domesday Duplicator.kicad_pcb` | `version 20260206`, generator 10.0 | **converted** |
-| `Domesday Duplicator.sch` and sub-sheets | `EESchema Schematic File Version 2` | **not converted** — needs the GUI |
-| `Domesday Duplicator.pro` | KiCad 4 project | **not converted** — becomes `.kicad_pro` with the schematics |
-| Symbol libraries (`*.lib`, `*-cache.lib`) | legacy | **not converted** — become `.kicad_sym` with the schematics |
+The migration is complete. Every file is on a current KiCad format.
 
-## Why the board went first
+| Part | Format |
+| --- | --- |
+| `Domesday Duplicator.kicad_pcb` | `version 20260206`, generator 10.0 |
+| `Domesday Duplicator.kicad_sch` and 4 sub-sheets | S-expression schematics |
+| `Domesday Duplicator.kicad_pro` | current project format |
+| 7 symbol libraries (`*.kicad_sym`) | current symbol format |
 
-`kicad-cli pcb upgrade` converts the board headlessly, so the conversion is scriptable,
-reviewable and repeatable. `kicad-cli sch upgrade` cannot do the same job: it only rewrites
-a file that is already in the S-expression format, and errors out on a legacy `.sch`
-because it tries to save the new format back to the `.sch` path.
+The legacy `*.sch`, `*.lib`, `*.dcm` and `*.pro` files have been deleted, along with the
+`rescue-backup/` directory KiCad wrote during the symbol rescue. All of it remains
+recoverable at the `hw/rev1.0-production` tag, which is the point of tagging it.
 
-Do not trust `kicad-cli` output taken from the legacy schematics either. It reads them well
-enough to plot symbol bodies and wires, but a netlist exported from the legacy `.sch` comes
-back with empty `(components)` and `(nets)`, and the plotted PDF has no text at all — no
-reference designators, no pin names, no title block. Anything derived from the legacy
-schematics through the CLI is unreliable as a before-and-after baseline.
+## How it was done
+
+The board went first, via `kicad-cli pcb upgrade`, which converts it headlessly so the
+conversion is scriptable, reviewable and repeatable.
+
+The schematics could not go the same way. `kicad-cli sch upgrade` only rewrites a file
+already in the S-expression format and errors out on a legacy `.sch`, because it tries to
+save the new format back to the `.sch` path. They were converted in the GUI, which also ran
+the symbol rescue.
+
+The symbol libraries were then converted with `kicad-cli sym upgrade`, one `.lib` to one
+`.kicad_sym`, and `sym-lib-table` was repointed at them with `type "KiCad"`. The library
+nicknames were kept exactly as they were, so every `lib_id` in the schematics stayed valid
+without touching a single symbol instance.
+
+### A caveat about baselines
+
+A netlist exported from a legacy `.sch` by KiCad 10 comes back with empty `(components)`
+and `(nets)`, against 59 components and 148 nets from the converted schematics. Do not use
+`kicad-cli` output taken from legacy schematics as a before-and-after baseline; it is not
+reliable enough to compare against.
+
+Do not read too much into a *plotted* legacy schematic either, but not because it is empty:
+plotting a legacy `.sch` produces a PDF that does contain text. If you rasterise one of
+these PDFs to eyeball it, note that Inkscape silently drops the text and shows only symbol
+bodies and wires. That is an Inkscape artifact, not a KiCad one. Check for text with the
+PDF's show-text operators rather than by looking at a rendered PNG.
 
 ## How the board conversion was verified
 
@@ -79,37 +100,59 @@ polygon boolean operations, which `gerber-compare.py` deliberately does not atte
 
 This is exactly why the originals are preserved rather than regenerated.
 
-## Remaining work
+## How the schematic conversion was verified
 
-1. **Convert the schematics in the GUI.** Open the project in KiCad 10, accept the
-   conversion, work through the symbol rescue dialogue, and save. This produces
-   `.kicad_sch` files, a `.kicad_pro`, and a project symbol library.
+The board is proven hardware, so it is the reference the schematics are checked against,
+not the other way round. Every reference designator in the converted schematics appears on
+the board, and the only thing on the board with no schematic symbol is `G***`, the logo
+graphic — which is correct, as it has no electrical existence.
 
-2. **Check the schematics against the board.** The board is proven, so use it as the
-   reference: run Tools → Update PCB from Schematic and confirm it reports no net or
-   footprint changes. That validates the converted schematics against known-good
-   connectivity, which is a far stronger check than anything the legacy exporter offers.
+```
+schematic refdes: 59    board refdes: 60
+in board only: ['G***']    in schematic only: []
+```
 
-3. **Refill the zones** (Edit → Fill All Zones) and re-run DRC. The clearance count should
-   drop close to zero.
+The schematics also now export a netlist of 59 components and 148 nets, where the legacy
+files gave 0 and 0.
 
-4. **Fix the footprint library table** so the `lib_footprint_issues` violations clear.
+ERC reports 62 violations: 58 `footprint_link_issues`, 2 `power_pin_not_driven` and 2
+`ground_pin_not_ground`. See below for the footprint links; the four power and ground pin
+violations are pre-existing and need a `PWR_FLAG` or equivalent, not a schematic fix.
 
-5. **Set up revision tracking**, below.
+## Outstanding
 
-6. **Delete the legacy files** once the converted project is committed and working:
-   `*.sch`, `*.pro`, `*.lib`, `*.dcm`, `*-cache.lib`, `*-rescue.lib`. They stay recoverable
-   at the `hw/rev1.0-production` tag.
+1. **Footprint library links.** The board's footprints name KiCad 4-era *global* libraries
+   — `Capacitors_SMD`, `Resistors_SMD`, `Housings_SSOP` and so on — which current KiCad
+   renamed (`Capacitor_SMD`, `Resistor_SMD`, `Package_SO`). That is what the 58 ERC
+   `footprint_link_issues` and 59 DRC `lib_footprint_issues` are reporting.
 
-7. **Extend `tools/plot-fab.sh`** to plot schematic PDFs and the BOM, which only becomes
-   possible once the schematics are converted.
+   This does not affect manufacturing. Footprints are embedded in the `.kicad_pcb`, so the
+   board is complete and plots correctly; only the link back to a library is broken, which
+   matters when you want to update a footprint from its library. Fixing it means remapping
+   around 60 footprints to current library names, which is a deliberate change deserving
+   its own commit and its own before-and-after connectivity check.
 
-## Revision tracking, once the project file exists
+   The two *project* footprint libraries, `Logo` and `BNC_Rosenberger`, are both correctly
+   registered in `fp-lib-table`.
 
-Define the revision **once** as a project text variable rather than typing it into each
-title block. The schematic and the board have separate title blocks and they will drift.
+2. **Refill the zones** (Edit → Fill All Zones) and re-run DRC. That should clear the 409
+   clearance violations left by the best-effort zone conversion.
 
-- File → Project Settings → Text Variables: add `HW_REV` = `2.0`.
+3. **Set the revision on the silkscreen**, below. `HW_REV` is defined but not yet
+   referenced from the board or the title blocks.
+
+## Revision tracking
+
+The revision is defined **once**, as the project text variable `HW_REV` in
+`Domesday Duplicator.kicad_pro`. It is currently `1.0`, because the design is still
+electrically identical to the board that was fabricated in 2018. Bump it with the first
+real design change.
+
+Defining it once matters: the schematic and the board have separate title blocks, so a
+revision typed into each will eventually disagree with itself.
+
+Still to wire up, in the GUI:
+
 - Reference `${HW_REV}` in the schematic title blocks and the board title block.
 - Add a text item reading `Rev ${HW_REV}` on **F.Silkscreen**. This is the single highest
   value change here: a rev 1.0 board tells you nothing about which revision it is, and
@@ -117,8 +160,9 @@ title block. The schematic and the board have separate title blocks and they wil
 
 Then, per fabricated revision:
 
-- `tools/plot-fab.sh <REV>` writes `fab/rev<REV>/` and its `SHA256SUMS`. It refuses to
-  write into a directory that already exists, so a proven revision cannot be clobbered.
+- `tools/plot-fab.sh <REV>` writes `fab/rev<REV>/` — Gerbers, drill, `schematic.pdf`,
+  `bom.csv` and `SHA256SUMS`. It refuses to write into a directory that already exists, so
+  a proven revision cannot be clobbered. Use `--scratch DIR` to plot for comparison.
 - Write `fab/rev<REV>/MANIFEST.md` from the rev 1.0 template.
 - Add an entry to `CHANGELOG.md`.
 - Tag the sources once boards are ordered: `git tag -a hw/rev<REV> -m "..."`.

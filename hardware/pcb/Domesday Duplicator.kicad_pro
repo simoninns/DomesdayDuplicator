@@ -1,0 +1,55 @@
+{
+  "board": {
+    "design_settings": {
+      "defaults": {},
+      "diff_pair_dimensions": [],
+      "drc_exclusions": [],
+      "rules": {},
+      "track_widths": [],
+      "via_dimensions": []
+    }
+  },
+  "boards": [],
+  "libraries": {
+    "pinned_footprint_libs": [],
+    "pinned_symbol_libs": []
+  },
+  "meta": {
+    "filename": "Domesday Duplicator.kicad_pro",
+    "version": 1
+  },
+  "net_settings": {
+    "classes": [],
+    "meta": {
+      "version": 0
+    }
+  },
+  "pcbnew": {
+    "page_layout_descr_file": ""
+  },
+  "sheets": [
+    [
+      "82d96da1-95de-4eb3-b5de-e688b718c250",
+      "Root"
+    ],
+    [
+      "00000000-0000-0000-0000-000059d0e979",
+      "Cypress Superspeed Interface"
+    ],
+    [
+      "00000000-0000-0000-0000-000059d1e34e",
+      "ADC"
+    ],
+    [
+      "00000000-0000-0000-0000-000059d276fc",
+      "RF Amplifier"
+    ],
+    [
+      "00000000-0000-0000-0000-00005b1b9700",
+      "Power Supply"
+    ]
+  ],
+  "text_variables": {
+    "HW_REV": "1.0"
+  }
+}

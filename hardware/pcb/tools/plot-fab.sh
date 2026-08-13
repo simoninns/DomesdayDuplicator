@@ -28,6 +28,7 @@ shift
 
 PCB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BOARD="$PCB_DIR/Domesday Duplicator.kicad_pcb"
+SCHEMATIC="$PCB_DIR/Domesday Duplicator.kicad_sch"
 
 SCRATCH=""
 case "${1:-}" in
@@ -51,6 +52,7 @@ else
 fi
 
 [ -f "$BOARD" ] || { echo "error: board file not found: $BOARD" >&2; exit 1; }
+[ -f "$SCHEMATIC" ] || { echo "error: schematic not found: $SCHEMATIC" >&2; exit 1; }
 
 echo "Plotting revision $REV to $OUT"
 
@@ -58,6 +60,11 @@ kicad-cli pcb export gerbers --no-x2 --no-netlist -o "$OUT" "$BOARD"
 # Millimetres, unlike the rev 1.0 drill file which went out in inches. Both are valid
 # Excellon; state the units in the revision's MANIFEST.md so the fabricator is not guessing.
 kicad-cli pcb export drill --format excellon --excellon-units mm -o "$OUT/" "$BOARD"
+
+# Documentation for the revision, so a fab directory is self-contained: what was sent,
+# and the schematic and parts list it was built from.
+kicad-cli sch export pdf -o "$OUT/schematic.pdf" "$SCHEMATIC"
+kicad-cli sch export bom --group-by Value,Footprint -o "$OUT/bom.csv" "$SCHEMATIC"
 
 ( cd "$OUT" && sha256sum ./* 2>/dev/null | grep -v 'SHA256SUMS' | sed 's|\./||' \
     | sort -k2 > SHA256SUMS.tmp && mv SHA256SUMS.tmp SHA256SUMS )

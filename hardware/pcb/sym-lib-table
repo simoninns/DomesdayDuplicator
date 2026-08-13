@@ -1,0 +1,10 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "Domesday-Duplicator-rescue") (type "KiCad") (uri "${KIPRJMOD}/Domesday Duplicator-rescue.kicad_sym") (options "") (descr "Symbols rescued from the original KiCad 4 project"))
+	(lib (name "ads825") (type "KiCad") (uri "${KIPRJMOD}/ads825.kicad_sym") (options "") (descr "TI ADS825 8-bit ADC"))
+	(lib (name "de0-nano_gpio") (type "KiCad") (uri "${KIPRJMOD}/de0-nano_gpio.kicad_sym") (options "") (descr "Terasic DE0-NANO GPIO headers"))
+	(lib (name "opa690") (type "KiCad") (uri "${KIPRJMOD}/opa690.kicad_sym") (options "") (descr "TI OPA690 wideband op-amp"))
+	(lib (name "gpifii_j7") (type "KiCad") (uri "${KIPRJMOD}/gpifii_j7.kicad_sym") (options "") (descr "Cypress FX3 GPIF II header J7"))
+	(lib (name "gpifii_j6") (type "KiCad") (uri "${KIPRJMOD}/gpifii_j6.kicad_sym") (options "") (descr "Cypress FX3 GPIF II header J6"))
+	(lib (name "bnc_rosenberger") (type "KiCad") (uri "${KIPRJMOD}/bnc_rosenberger.kicad_sym") (options "") (descr "Rosenberger BNC connector"))
+)

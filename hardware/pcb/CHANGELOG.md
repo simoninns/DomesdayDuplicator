@@ -14,11 +14,18 @@ No board changes. Design files only:
   to change no geometry other than a 42 ppm area change in the B.Cu ground pour, with
   IPC-D-356 connectivity identical before and after and DRC reporting 0 unconnected items.
   See [MIGRATION.md](MIGRATION.md).
+- Schematics converted to the KiCad 10 format, with the symbol rescue applied. Verified
+  against the proven board: all 59 schematic reference designators appear on it, and the
+  only board item without a schematic symbol is the `G***` logo graphic.
+- The 7 legacy symbol libraries converted to `.kicad_sym`, keeping their nicknames so every
+  `lib_id` stayed valid. `Domesday Duplicator.kicad_pro` created, defining `HW_REV`.
+  `BNC_Rosenberger.pretty` registered in `fp-lib-table`, which had been missing.
+- Legacy `*.sch`, `*.lib`, `*.dcm` and `*.pro` files, KiCad's `rescue-backup/` directory,
+  and the stale `PDF/` plots removed. All recoverable at the `hw/rev1.0-production` tag.
 - Fabrication outputs moved from `Gerber/` to `fab/rev1.0/` and documented with provenance
   and checksums, so future revisions can sit alongside them without ambiguity.
-- Added `tools/gerber-compare.py` and `tools/plot-fab.sh`.
-
-Schematics are still in the KiCad 4 format; conversion is outstanding.
+- Added `tools/gerber-compare.py` and `tools/plot-fab.sh`, the latter now also plotting the
+  schematic PDF and BOM into a revision's directory.
 
 ## rev 1.0 — fabricated 2018
 

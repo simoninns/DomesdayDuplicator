@@ -10,11 +10,16 @@ interconnect that sit between the RF source and the DE0-NANO/FX3 boards.
 | [pcb/](pcb/) | KiCad project: schematics, PCB layout, symbol and footprint libraries |
 | [pcb/fab/](pcb/fab/) | Fabrication outputs, one frozen directory per board revision |
 | [pcb/tools/](pcb/tools/) | Plotting and Gerber comparison scripts |
-| [pcb/PDF/](pcb/PDF/) | Plotted schematics and layers |
 | [doc/](doc/) | Hardware documentation, including the gain and filter calculations |
 
-Board revisions are recorded in [pcb/CHANGELOG.md](pcb/CHANGELOG.md). The KiCad format
-migration in progress is described in [pcb/MIGRATION.md](pcb/MIGRATION.md).
+The project is on the current KiCad format (10). Board revisions are recorded in
+[pcb/CHANGELOG.md](pcb/CHANGELOG.md), and [pcb/MIGRATION.md](pcb/MIGRATION.md) documents the
+conversion from the original KiCad 4 files, how it was verified, and what is still
+outstanding.
+
+Schematic PDFs and the BOM are not kept in the repository. They are build output, plotted
+per revision into `pcb/fab/rev<REV>/` by the script below, and can be regenerated from the
+project at any time.
 
 ## Design
 
@@ -28,9 +33,10 @@ The Domesday Duplicator hardware is based on:
 ## Manufacturing
 
 Each fabricated board revision has its own directory under `pcb/fab/`, holding the Gerbers
-and drill file exactly as sent out, with a `MANIFEST.md` recording provenance and a
-`SHA256SUMS`. These are a historical record, not build output: they are written once and
-never regenerated, because they are the reference for what the working board actually is.
+and drill file exactly as sent out, the schematic PDF and BOM they were built from, a
+`MANIFEST.md` recording provenance, and a `SHA256SUMS`. These are a historical record, not
+build output: they are written once and never regenerated, because they are the reference
+for what the working board actually is.
 
 `pcb/fab/rev1.0/` is the proven production board, plotted with KiCad 4.0.7 in 2018. A
 modern KiCad cannot reproduce it byte for byte — it encodes zone fills differently — which
