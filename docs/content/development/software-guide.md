@@ -6,11 +6,11 @@ The Domesday Duplicator is a completely open-source and open-hardware solution.�
 * FPGA Verilog HDL code for the DE0-Nano
 * GPIF II state-machine design for the FX3
 * FX3 firmware for the Cypress FX3 board
-* Linux (Ubuntu 18.04 LTS) GUI capture application
+* Qt 6 GUI capture application for Linux, Windows and macOS
 
 The Github repository is accessible via the following link: [Domesday Duplicator Github](https://github.com/simoninns/DomesdayDuplicator) 
 
-The development environment for all parts of the Domesday Duplicator software is Ubuntu 18.04 LTS with the exception of the Cypress FX3 GPIF design utility (which, despite Cypress stating Linux compatibility for their product, does not run on Linux (and is an essential part of their development tool-chain)).
+Every component builds with ordinary, distribution-packaged tools, and the repository provides a Nix flake that supplies them all — see [Building locally](building-locally.md). The one exception is Cypress GPIF II Designer, which produces the FX3's parallel-interface state machine and is Windows-only. Its output is committed to the repository, so it is only needed in order to change the state machine.
 
 # FPGA code
 ## Purpose
@@ -72,11 +72,11 @@ The lengths of the test sequence (1021) and the sequence number sequence (63) we
 (In versions of the firmware before June 2022, there were no sequence numbers, and the test sequence ran from 0 to 1023. The DomesdayDuplicator application will still work with older firmware.)
 
 ### buffer.v
-The buffering functionality is provided by two dual-clock FIFOs implemented using the Intel IP DCFIFO. The two FIFO buffers store 8K words of 10-bit ADC data each and are arranged in a 'ping-pong' buffer configuration where data is written to one buffer and read from the other.  Once the data available in a buffer is depleted the buffers are swapped. 
+The buffering functionality is provided by two dual-clock FIFOs implemented using the Intel IP DCFIFO. The two FIFO buffers store 8192 16-bit words each and are arranged in a 'ping-pong' buffer configuration where data is written to one buffer and read from the other. Once the data available in a buffer is depleted the buffers are swapped.
 
-Data is only written to the ping-pong buffers if the collectData flag is set.  Each FIFO buffer is 10-bits wide and 8192 words deep.  The buffer size is chosen to match the USB end-point buffer size provided by the FX3 (16 Kbytes which equates to 8192 16-bit words). 
+Each FIFO buffer is 16 bits wide and 8192 words deep. The buffer size is chosen to match the USB end-point buffer size provided by the FX3 (16 Kbytes, which equates to 8192 16-bit words). The module has no collect enable: it buffers whatever `dataGenerator` produces for as long as the FPGA is out of reset.
 
-Data is read from the 60MHz read-side of the dual-clock FIFO on the positive-edge of the FX3 clock (60MHz) and passed padded to 16-bits before being passed to the data-out bus.  Data is only read from the FIFO when the readData flag is set.
+Data is read from the read-side of the dual-clock FIFO on the positive edge of the 60 MHz FX3 clock and driven onto the 16-bit data-out bus. Samples are already 16 bits wide by the time they reach the buffer — `dataGenerator` packs the 10-bit ADC value and the 6-bit sequence number into one word — so no padding happens here. Data is only read from the FIFO while the `isReading` input is asserted, which `fx3StateMachine` holds for the duration of a transfer.
 
 ### fx3StateMachine.v
 The fx3StateMachine module implements the required mirror state-machine for the GPIF II implementation (detailed below).  The state-machine has two states:
@@ -94,34 +94,23 @@ The Cypress FX3 firmware provides a DMA driven data transfer between the FPGA an
 In addition the FX3 provides a set of generic input and output GPIOs to and from the FPGA.  Currently the firmware monitors the inputs from the FPGA and produces debugging information (via the serial console) if any signal is set, this is to assist with debugging the FPGA code.  Outputs to the FPGA are available via a vendor-specific USB command (0xB6) that accepts a byte containing bit-flags and sets the outputs to the FPGA according to the state of the flags (used to send capture configuration settings from the GUI application to the FPGA).
 
 ## Development environment
-The FX3 firmware is developed in the Cypress EZ USB Design Suite for Linux and cyusb\_linux\_1.0.5 (provided by the FX3\_SDK\_1.3.4\_Linux tarball available from Cypress).  The GPIF II state-machine design is developed in Cypress GPIF II Designer 1.0 (which is only available for Windows). 
+The FX3 firmware is C, built with `arm-none-eabi-gcc` and CMake against the Cypress FX3 SDK 1.3.5. A subset of that SDK is vendored in the repository at `fx3/sdk/`, so no SDK installation is needed. `fx3-mkimage`, this project's own tool, converts the linked ELF into the boot-loadable image; it replaces the SDK's proprietary `elf2img`. The GPIF II state-machine design is developed in Cypress GPIF II Designer 1.0, which is only available for Windows.
 
-Instructions for building the FX3 firmware image are include in the github repository along with the source code for the FX3.
+Full build instructions, covering both the Nix route and the toolchain-only route, are in `fx3/firmware/README.md` in the repository.
 
 ## Programming the FX3
-The Cypress FX3 is programmed using the cyusb\_linux utility included with the Cypress Linux SDK (note: if you have trouble compiling the programming GUI when running the install.sh from Cypress, [please see this forum post](https://community.cypress.com/thread/32219?start=0&tstart=0)).
+The FX3 is programmed with `fx3-programmer`, a small libusb command-line tool built from this repository. It replaces the Cypress `cyusb_linux` GUI that earlier versions of this page described.
 
-Note: The following repo contains an Ubuntu-ready version of the FX3 programming utility and may be a useful shortcut:
+The full procedure — device access, both programming modes, and what to check at each step — is on the **[FX3 firmware](hardware-programming/fx3-firmware.md)** page. In brief:
 
-[CyUSB Suite for Linux](https://github.com/Ho-Ro/cyusb_linux)
+```bash
+# Close jumper J4 (PMODE) and power cycle the board to enter bootloader mode
+fx3-programmer -l                   # list connected FX3 devices
+fx3-programmer -u firmware.img      # load into RAM: volatile, lost on power cycle
+fx3-programmer -p firmware.img -v   # write the I2C EEPROM and verify: permanent
+```
 
-To program the device please see the following steps:
-
-1. Close/short jumper J4 (PMODE) on the FX3 Superspeed board
-2. Power off the FX3 and then power it on again
-3. Load the cyusb\_linux application
-4. Highlight the FX3 bootloader device at the top of the window
-5. Click on the 'program' tab
-6. Select I2C EEPROM
-7. Click on 'select file' and select the FX3 programming file from disk (use the .img file from the Release directory)
-8. Click on 'Start download' to write the programming file to the device
-9. Wait for programming to complete
-10. Remove the jumper from J4
-11. Power off the FX3 and then power it on again
-
-![](assets/software/cyusb_linux_screenshot.png)
-
-_cyusb\_linux Screenshot_
+Program to RAM first. It cannot leave the device in a bad state — a power cycle undoes it completely — so it is the safe way to find out whether an image works before making it permanent. Remove the J4 jumper and power cycle again once you are done.
 
 ## GPIF II
 ### IO Matrix
@@ -133,21 +122,21 @@ _Cypress GPIF I/O Matrix view_
 
 The purpose of the signals are as follows:
 
-* CLK - This is the GPIF clock supplied by the FPGA (80 MHz)
+* CLK - This is the GPIF clock supplied by the FPGA (60 MHz)
 * dataAvailable - This signal indicates that there is sufficient data in the FPGA's FIFO buffer for a transfer
 * Databus - The 16-bit data bus from the FPGA to the FX3
 * nReset - (not) reset condition signal from the FX3 to the FPGA
-* collectData - Flag from the FX3 to the FPGA that indicates if the FPGA should collect ADC data
+* collectData - Flag from the FX3 to the FPGA that indicates if the FPGA should collect ADC data. The current gateware ignores this signal and collects continuously — see the note under command 0xB5 below
 * readData - Flag from the FX3 to the FPGA indicating that a transfer is about to begin
-* input0 - Generic input GPIO from the FPGA to the FX3
-* input1 - Generic input GPIO from the FPGA to the FX3
-* input2 - Generic input GPIO from the FPGA to the FX3
-* input3 - Generic input GPIO from the FPGA to the FX3
-* outputE0 - Generic output GPIO from the FX3 to the FPGA (with 'early' low-latency)
-* outputD0 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency)
-* outputD1 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency)
-* outputD2 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency)
-* outputD3 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency)
+* input0 - Generic input GPIO from the FPGA to the FX3 - carries the buffer overflow flag in the current gateware
+* input1 - Generic input GPIO from the FPGA to the FX3 - unused by the current gateware
+* input2 - Generic input GPIO from the FPGA to the FX3 - unused by the current gateware
+* input3 - Generic input GPIO from the FPGA to the FX3 - unused by the current gateware
+* outputE0 - Generic output GPIO from the FX3 to the FPGA (with 'early' low-latency) - configuration bit 0, test mode off/on
+* outputD0 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency) - configuration bit 1, unused by the current gateware
+* outputD1 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency) - configuration bit 2, unused by the current gateware
+* outputD2 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency) - configuration bit 3, unused by the current gateware
+* outputD3 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency) - configuration bit 4, unused by the current gateware
 
 ### State machine
 The following diagram shows the GPIF II state machine design for the FX3 GPIF implementation:
@@ -171,23 +160,27 @@ This file contains the proprietary start-up code necessary for the FX3 to functi
 ### cyfxtx.c
 This file contains the Cypress USB 3.0 Platform source file - again under a proprietary license (and necessary for the FX3 to function)
 
-### domesdayDuplicator.c
-This file contains the main functions for the Domesday Duplicator firmware.  All functions are heavily commented; please see the Github repository for details.
+### domesday-duplicator.c
+This file contains the main functions for the Domesday Duplicator firmware: device and GPIO initialisation, the application thread, the USB setup and event callbacks, and the start and stop of the capture path.
 
-### domesdayDuplicator.h
-This file contains the definitions and header file information for domesdayDuplicator.h
+### domesday-duplicator.h
+This file contains the definitions, buffer sizes and function prototypes for `domesday-duplicator.c`.
 
-### domesdayDuplicatorGpif.h
-This file contains the state-machine definition code generated by the GPIF II designer application.  The original GPIF II designer project is also included in the Github repository.
+### domesday-duplicator-gpif.h
+This file contains the state-machine definition code generated by the GPIF II designer application. It is generated, not hand-written — the original GPIF II Designer project is also included in the repository. 
 
-### usbDescriptor.c
-This file contains the USB descriptor information for the Domesday Duplicator USB device.
+### usb-descriptor.c
+This file contains the USB descriptor information for the Domesday Duplicator USB device. The product string descriptor is generated at build time so that it carries the commit the firmware was built from.
 
 ## Vendor specific USB commands
 The firmware handles two vendor specific USB commands 0xB5 and 0xB6.
 
 ### Vendor specific command 0xB5 - Start/Stop data collection
-The vendor specific command 0xB5 accepts a value of either 0 or 1.  If called with a value of 1 it causes the firmware to flag the FPGA to begin sample data collection.  Calling the command with a value of 0 causes the firmware to flag the FPGA to stop sample data collection.
+The vendor specific command 0xB5 accepts a value of either 0 or 1. If called with a value of 1 the firmware drives the collectData signal high to tell the FPGA to begin sample data collection; a value of 0 drives it low again. The firmware also uses the command to bracket a capture for link power management purposes, described below.
+
+!!! note "Not currently in use"
+
+    Neither half of this command is live today. The capture application does not send 0xB5, and the current gateware ignores the collectData signal and collects continuously. The command is still implemented in the firmware and the pin is still wired, so restoring the mechanism would be a change to the gateware and the capture application rather than to the firmware.
 
 ### Vendor specific command 0xB6 - Configuration bit flag
 The vendor specific command 0xB6 accepts a byte value from the host that is interpreted as a bit-flag.  Only bits 0-4 are used (bits 5-7 are ignored and can be set to any value).  The setting of the bit-flags are mapped to output GPIO pins as follows:
@@ -199,6 +192,22 @@ The vendor specific command 0xB6 accepts a byte value from the host that is inte
 * Bit 4 - GPIO26
 
 The command is used by the host application to set the capture configuration of the FPGA.  The exact interpretation of the flags is dependent on the FPGA programming (and is kept deliberately generic in the FX3 firmware).
+
+## USB power management
+A USB 3.0 link spends its time in one of four power states: U0 (active), U1 and U2 (progressively deeper idle states, entered and left by the link hardware), and U3 (suspend, which only the host may put the device into and only the device may leave, by signalling remote wakeup). How the firmware treats each is a deliberate design point, because a capture device that gets it wrong either drops samples or stops the host machine from going to sleep.
+
+### U1 and U2
+The USB driver's own handling of U1 and U2 is left in place while the device is idle, so an attached-but-unused device does not hold the link at full power. While a capture is running — which the firmware learns from the 0xB5 start and stop commands — U1 and U2 entry is refused, both by `CyU3PUsbLPMDisable()` and by the firmware's LPM request callback. U2's exit latency is up to 2ms, which is long enough for the FPGA's FIFO to overflow mid-capture. Normal handling is restored on stop, and on every USB reset, connect and disconnect, as the FX3 SDK requires for USB compliance. Because nothing sends 0xB5 today, that suppression is dormant; the FX3's own driver still declines U1 and U2 whenever it has packets waiting to go out.
+
+### U3, host sleep and hibernate
+When the host suspends the bus, the firmware stops the FPGA collecting, discards anything still buffered, and then leaves the link alone. It does **not** try to bring the link back to U0: requesting U0 from U3 *is* remote wakeup signalling, and a device that does it wakes the machine up again the moment it tries to sleep. The device does not advertise remote wakeup in its configuration descriptors, because it has nothing to wake a sleeping host for.
+
+On resume the firmware rebuilds the capture path from scratch — endpoint, DMA channel and GPIF state machine — rather than assuming any of it survived. A resume does not necessarily bring a `SET_CONFIGURATION` with it, so nothing else would restore the DMA channel, and a device that enumerates but never delivers another sample is indistinguishable from one that has died.
+
+Hibernating a host removes VBus. That reaches the firmware as a VBus removal event, and the response is to take the USB connection down explicitly and wait for VBus to return before presenting the device again, so it re-enumerates cleanly rather than resuming onto a connection that was torn down underneath it.
+
+### Link speed
+The capture path is only started on a SuperSpeed connection; 40 million samples per second is far beyond what a USB 2.0 link can carry. On a 2.0 connection the device still enumerates and still answers control requests, so the host can reset the port and re-train at SuperSpeed — which is what some machines do when resuming from hibernate.
 
 ## Serial debug
 The FX3 Superspeed explorer board provides a USB 2.0 service debug output.  Connecting this output to a suitable machine with a serial terminal allows monitoring of the debug information from the FX3 firmware. The FX3 serial debug output is 115200 bps 8N1. In order to access any serial port the Ubuntu user account must be a member of the dialout group.  Add your current user account to the dialout group using the following command:
@@ -223,23 +232,27 @@ Then issue the following command to re-read the USB configuration rules:
 
 ```sudo udevadm control --reload-rules```
 
-# Linux GUI capture application
+# GUI capture application
 ## Purpose
-The Linux GUI application provides a capture front-end for the user.  The application also provides a high-speed multi-threaded USB implementation that allows extremely high-speed data transfer from the FX3 in real-time.  In addition, a multi-buffer disk IO implementation deals with writing the large amounts of capture data to disk in a timely manner.  The Linux application is also capable of sending vendor-specific USB commands to the Domesday Duplicator in order to control and configure the capture device. 
+The GUI application provides a capture front-end for the user. The application also provides a high-speed multi-threaded USB implementation that allows extremely high-speed data transfer from the FX3 in real-time. In addition, a multi-buffer disk IO implementation deals with writing the large amounts of capture data to disk in a timely manner. The application is also capable of sending vendor-specific USB commands to the Domesday Duplicator in order to control and configure the capture device. 
 
 ![](assets/software/domdup_capture_running.png)
 
-_Domesday Duplicator Ubuntu GUI application_
+_Domesday Duplicator GUI application_
 
 ## Development environment
-The Linux GUI application is developed using Qt Creator 4.7.1 for Linux (Based on Qt 5.11.1 GCC 64-bit).  The application is tested on Ubuntu 18.04 LTS.  For instructions on how to build the application please see [Building Locally](building-locally.md), which covers all three components, or
+The application is C++20, built with CMake against Qt 6.2 or later (Core, Gui, Widgets and SerialPort), libusb-1.0 and libFLAC. It builds for Linux, Windows and macOS; Windows uses WinUSB in place of libusb. For instructions on how to build it please see [Building Locally](building-locally.md), which covers all three components, or
 [Building from source](../capture-application/building-from-source.md) for the capture application alone.
 
 ## Source code modules
-The GUI application modules are as follows:
+The application is split into a Qt front-end in `gui/src/DomesdayDuplicator/` and a Qt-free core in `gui/src/common/`, so the parts that handle sample data can be unit tested without Qt, libusb or hardware.
+
+The Qt front-end modules are as follows:
 
 * aboutdialog - the About window dialogue containing application info, GPL licence terms and credits
 * advancednamingdialog - the advanced naming dialogue window and associated GUI logic
+* amplitudemeasurement - the live RF amplitude plot shown during a capture
+* automaticcapturedialog - the automatic capture dialogue window and associated GUI logic
 * configuration - a class dealing with saving and loading the persistent configuration (used to save preferences)
 * configurationdialog - the preferences dialogue window and associated GUI logic
 * main - the Qt application start-up code
@@ -247,18 +260,30 @@ The GUI application modules are as follows:
 * playercommunication - simple blocking serial communication to the LaserDisc player
 * playercontrol - threaded player communication and automatic capture state-machine logic
 * playerremotedialog - the player remote control dialogue window and associated GUI logic
-* usbcapture - the USB bulk transfer code for performing capture and save to disc
-* usbdevice - high-level USB library including hot-plug device detection.
+* testdataanalysisdialog - the dialogue that reports the results of a test-data analysis
+* ILogger / QtLogger - the logging interface and its Qt implementation
+* StringUtilities - header-only UTF-8 and UTF-16 conversion helpers
+* UsbDeviceBase - the capture pipeline, disk buffering and sample processing, independent of any USB library
+* UsbDeviceLibUsb / UsbDeviceWinUsb - the two USB back-ends, libusb-1.0 and WinUSB
+* qcustomplot - vendored third-party plotting library
+
+The Qt-free core modules are as follows:
+
+* captureformat - the capture output formats and their parameters
+* samplecodec - the 10-bit and 16-bit sample packing and unpacking
+* capturereader - reading captured files back
+* flacwriter - Ogg FLAC capture output
+* testdataanalyser - walks a captured file checking the test-pattern ramp is unbroken; this is the host half of the project's end-to-end capture integrity check, and is a product feature rather than a test
 
 ## Multi-threaded USB transfer architecture
 The following diagram shows the approximate structure of the multi-threaded architecture used by the GUI application to achieve the required USB and disk bandwidth: 
 
 ![](assets/software/Transfer-diagram-1_0.png)
 
-_Linux GUI transfer architecture_
+_GUI transfer architecture. The queue entries are asynchronous transfers in flight rather than separate threads_
 
-The USB interface is processed using multiple transfer threads which are 'in flight' at any one time (configurable from the definitions in the bulk-transfer code).  The collection of transfers are called the 'queue'.  This causes minimal latency when reading data from the USB device.  Each thread causes a 'callback' once the transfer is complete.  The callback function stores the thread in the current queue buffer and then re-launches the transfer for the next queue.  Once the last transfer in the queue is complete the queue buffer is stored in the next available disk buffer slot.  The disk buffers are much larger than the queues as, for optimal disk write performance, it is more efficient to write larger blocks of data (rather than many smaller writes).  Once the 'queue limit' of the disk buffer is reached, the buffer is marked as 'ready for writing'.  A separate disk write thread monitors the disk buffers and, when ready, marks the buffer as 'writing' and commits the data to the SSD drive of the host PC. 
+The USB interface is read through a queue of transfers that are all in flight at once, so the device is never left waiting for the host to ask for more data. These are asynchronous transfers rather than a thread each: libusb's asynchronous API on Linux and macOS, and overlapped IO through WinUSB on Windows. Each completion is written into the current disk buffer slot and the request is immediately resubmitted. The queue size and the disk buffer size are both configurable from the preferences dialogue.
 
-The sample data packing (either 10-bit or 16-bit) is provided by the disk buffer writing threads.  Data is converted on-the-fly once a complete disk buffer is marked as ready for writing. 
+The disk buffers are much larger than the individual transfers as, for optimal disk write performance, it is more efficient to write larger blocks of data rather than many smaller writes. Once a disk buffer is full it is marked as ready, and a separate processing thread picks it up, checks the sequence numbers for dropped samples, packs the sample data (10-bit, 16-bit or Ogg FLAC) and commits the result to disk.
 
-Along with the main application thread, the GUI uses around 18 concurrent threads to achieve the required performance.  This has the additional benefit of being very suitable for multi-core processors; allowing the application to gain the required end-to-end performance.
+A capture runs on three worker threads — a capture thread that owns the run, the USB transfer thread and the processing thread — alongside the Qt main thread that drives the interface. Both worker threads request realtime scheduling priority where the platform allows it, and the buffers are locked into physical memory so that a page fault cannot stall the capture.

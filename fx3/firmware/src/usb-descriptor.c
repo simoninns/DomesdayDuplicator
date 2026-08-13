@@ -71,17 +71,24 @@ const uint8_t USBBOSDscr[] __attribute__ ((aligned (32))) = {
     0x07,                           // Descriptor size
     CY_U3P_DEVICE_CAPB_DESCR,       // Device capability type descriptor
     CY_U3P_USB2_EXTN_CAPB_TYPE,     // USB 2.0 extension capability type
-    0x00,0x00,0x00,0x00,            // Supported device level features: NO LPM (causing suspend crashes)
+    0x00,0x00,0x00,0x00,            // Supported device level features: LPM-L1 not supported
+
+    // The LPM bit above is clear because this device does not operate on a USB 2.0 link at
+    // all - the capture path needs SuperSpeed - so there is no 2.0 link state for the host to
+    // manage. That is a legal combination with the bcdUSB 0x0210 in the 2.0 device
+    // descriptor, which says only that the device has a BOS to read. It is not related to the
+    // suspend problems an earlier comment here attributed it to; those were the firmware's
+    // own handling of suspend, resume and stop/start, in domesday-duplicator.c.
 
     // SuperSpeed device capability
     0x0A,                           // Descriptor size
     CY_U3P_DEVICE_CAPB_DESCR,       // Device capability type descriptor
     CY_U3P_SS_USB_CAPB_TYPE,        // SuperSpeed device capability type
-    0x00,                           // Supported device level features
+    0x00,                           // Supported device level features: no LTM
     0x0E,0x00,                      // Speeds supported by the device : SS, HS and FS
-    0x03,                           // Functionality support
-    0x0A,                           // U1 Device Exit latency: 10us (proper LPM support)
-    0xFF,0x07                       // U2 Device Exit latency: 2047us (proper LPM support)
+    0x03,                           // Lowest speed with full functionality : SS
+    0x0A,                           // U1 Device Exit latency: 10us (the maximum the spec permits)
+    0xFF,0x07                       // U2 Device Exit latency: 2047us (the maximum the spec permits)
 };
 
 // Standard device qualifier descriptor
@@ -97,6 +104,13 @@ const uint8_t USBDeviceQualDscr[] __attribute__ ((aligned (32))) = {
     0x00                            // Reserved
 };
 
+// Remote wakeup is not advertised in any of the three configuration descriptors below.
+//
+// A device may only set that bit if it can actually signal remote wakeup, and this one
+// cannot: there is nothing it could usefully wake a sleeping host for, and the firmware
+// never calls CyU3PUsbDoRemoteWakeup() or requests U0 from U3. Claiming the capability made
+// hosts offer "allow this device to wake the computer" for a device that will never do so.
+
 // Standard super speed configuration descriptor
 const uint8_t USBSSConfigDscr[] __attribute__ ((aligned (32))) = {
     // Configuration descriptor
@@ -106,7 +120,7 @@ const uint8_t USBSSConfigDscr[] __attribute__ ((aligned (32))) = {
     0x01,                           // Number of interfaces
     0x01,                           // Configuration number
     0x00,                           // COnfiguration string index
-    0xA0,                           // Configuration characteristics - Bus powered, Remote Wakeup
+    0x80,                           // Configuration characteristics - bus powered, no remote wakeup
     0x32,                           // Max power consumption of device (in 8mA unit) : 400mA
 
     // Interface descriptor
@@ -145,7 +159,7 @@ const uint8_t USBHSConfigDscr[] __attribute__ ((aligned (32))) = {
     0x01,                           // Number of interfaces
     0x01,                           // Configuration number
     0x00,                           // COnfiguration string index
-    0xA0,                           // Configuration characteristics - bus powered, Remote Wakeup
+    0x80,                           // Configuration characteristics - bus powered, no remote wakeup
     0x32,                           // Max power consumption of device (in 2mA unit) : 100mA
 
     // Interface descriptor
@@ -177,7 +191,7 @@ const uint8_t USBFSConfigDscr[] __attribute__ ((aligned (32))) = {
     0x01,                           // Number of interfaces
     0x01,                           // Configuration number
     0x00,                           // COnfiguration string index
-    0xA0,                           // Configuration characteristics - bus powered, Remote Wakeup
+    0x80,                           // Configuration characteristics - bus powered, no remote wakeup
     0x32,                           // Max power consumption of device (in 2mA unit) : 100mA
 
     // Interface descriptor

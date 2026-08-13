@@ -32,6 +32,11 @@ CyU3PDmaMultiChannel glDmaMultiChHandle; // DMA multi-channel handle
 CyBool_t glIsApplnActive = CyFalse; // Application active/ready flag
 CyBool_t glForceLinkU2 = CyFalse; // Force U2 flag
 
+// Set once the USB descriptors are registered and the initial connection has been made.
+// VBus events can arrive as soon as the event callback is registered, which is before the
+// descriptors exist; acting on one then would connect the device with nothing to enumerate.
+CyBool_t glUsbInitComplete = CyFalse;
+
 volatile CyBool_t input0Flag = CyFalse; // Input 0 set flag
 volatile CyBool_t input1Flag = CyFalse; // Input 1 set flag
 volatile CyBool_t input2Flag = CyFalse; // Input 2 set flag
@@ -325,6 +330,7 @@ void domDupThreadInitialise(uint32_t input)
 {
     CyU3PReturnStatus_t status;
     CyU3PUsbLinkPowerMode powerState;
+    uint32_t linkRecoveryAttempts;
 
     // Initialise the debug console
     domDupDebugInit();
@@ -337,8 +343,9 @@ void domDupThreadInitialise(uint32_t input)
 
     // Main application thread loop
     while(1) {
-        // Try to get the USB 3.0 link back to U0
         if (glForceLinkU2) {
+            // The host has placed the function in suspend via SET_FEATURE(FUNCTION_SUSPEND),
+            // so hold the USB 3.0 link in U2 for as long as that condition lasts.
         	status = CyU3PUsbGetLinkPowerState(&powerState);
             while ((glForceLinkU2) && (status == CY_U3P_SUCCESS) && (powerState == CyU3PUsbLPM_U0)) {
                 // Try to get to U2 state
@@ -346,16 +353,28 @@ void domDupThreadInitialise(uint32_t input)
                 CyU3PThreadSleep(5);
                 status = CyU3PUsbGetLinkPowerState(&powerState);
             }
-        } else {
-            // Try to get the USB link back to U0
-            if (CyU3PUsbGetSpeed () == CY_U3P_SUPER_SPEED) {
-            	status = CyU3PUsbGetLinkPowerState (&powerState);
-                while ((status == CY_U3P_SUCCESS) && (powerState >= CyU3PUsbLPM_U1) &&
-                	(powerState <= CyU3PUsbLPM_U3)) {
-                    CyU3PUsbSetLinkPowerState(CyU3PUsbLPM_U0);
-                    CyU3PThreadSleep(1);
-                    status = CyU3PUsbGetLinkPowerState(&powerState);
-                }
+        } else if (glIsApplnActive && (CyU3PUsbGetSpeed() == CY_U3P_SUPER_SPEED)) {
+            // Recover the link to U0 if the host has left it in U1 or U2 while the capture
+            // path is up. The DMA hardware normally does this by itself when it has a packet
+            // to send, so this is a backstop rather than the primary mechanism.
+            //
+            // U3 is deliberately excluded, and that exclusion is the point of this block.
+            // U3 is host-directed suspend, and the only way a device may leave U3 is by
+            // signalling remote wakeup - so firmware that pulls the link out of U3 wakes the
+            // host up again the instant it tries to sleep. Requesting U0 from U1/U2 is
+            // ordinary link management; requesting it from U3 is not.
+            //
+            // The attempt count bounds the loop. Without it, a link that will not leave U1 -
+            // during link training, or on a marginal cable - spins here forever and the
+            // thread never yields.
+        	status = CyU3PUsbGetLinkPowerState(&powerState);
+        	linkRecoveryAttempts = 0;
+            while ((status == CY_U3P_SUCCESS) && (linkRecoveryAttempts < 8) &&
+                ((powerState == CyU3PUsbLPM_U1) || (powerState == CyU3PUsbLPM_U2))) {
+                CyU3PUsbSetLinkPowerState(CyU3PUsbLPM_U0);
+                CyU3PThreadSleep(1);
+                status = CyU3PUsbGetLinkPowerState(&powerState);
+                linkRecoveryAttempts++;
             }
         }
 
@@ -394,6 +413,14 @@ void domDupThreadInitialise(uint32_t input)
 				CyU3PDebugPrint(4, "Main application loop: input3 pin set by the FPGA\r\n");
 			}
 		}
+
+		// Yield the CPU.
+		//
+		// Nothing in this loop is latency critical: the GPIF to USB data path is carried
+		// entirely by the DMA hardware and never passes through this thread. Without a sleep
+		// the loop spins at 100% CPU whenever the link is at U0, which is almost always, and
+		// starves the debug console and the USB driver's own housekeeping threads.
+		CyU3PThreadSleep(10);
     }
 }
 
@@ -405,6 +432,11 @@ void CyFxApplicationDefine(void)
 
     // Allocate the memory for the threads
     ptr = CyU3PMemAlloc(CY_FX_GPIFTOUSB_THREAD_STACK);
+    if (ptr == NULL) {
+    	// Could not allocate the thread stack
+    	// Application cannot start
+    	while(1);
+    }
 
     // Create the application's main thread
     returnCode = CyU3PThreadCreate(
@@ -541,7 +573,25 @@ void domDupInitialiseApplication(void)
         // Start the application
         domDupStartApplication();
     }
+
+    // VBus events may now be acted on - the descriptors are registered and the device has
+    // been presented to the host, so a disconnect/reconnect cycle has something to enumerate.
+    glUsbInitComplete = CyTrue;
+
     CyU3PDebugPrint(8, "domDupInitialiseApplication(): Application initialisation complete.\r\n");
+}
+
+// Clear the FPGA input condition flags, and the "already reported" flags that go with them
+void domDupClearInputFlags(void)
+{
+    input0Flag = CyFalse;
+    input1Flag = CyFalse;
+    input2Flag = CyFalse;
+    input3Flag = CyFalse;
+    input0HandledFlag = CyFalse;
+    input1HandledFlag = CyFalse;
+    input2HandledFlag = CyFalse;
+    input3HandledFlag = CyFalse;
 }
 
 // Function to start application once SET_CONF received from host
@@ -568,16 +618,28 @@ void domDupStartApplication(void)
         break;
 
     default:
-        CyU3PDebugPrint(4, "domDupStartApplication(): ERROR - CyU3PUsbGetSpeed returned an invalid speed!\r\n");
-        domDupErrorHandler (CY_U3P_ERROR_FAILURE);
+        size = 0;
         break;
     }
 
-    // Check that we are connected to a USB 3 host
+    // Check that we are connected to a USB 3 host.
+    //
+    // The capture path needs SuperSpeed - 40 MSa/s of 16-bit samples is far beyond what a
+    // 2.0 link can carry - so it is not started on a 2.0 connection. It is important that
+    // this is not treated as a fatal error, though: the device stays enumerated, keeps
+    // answering control requests and can be brought up properly once the port re-trains at
+    // SuperSpeed. Calling domDupErrorHandler() here, as this used to, left the firmware in
+    // an endless loop that only unplugging the device could clear - and hosts do bring a
+    // port up at high speed first, particularly when resuming from hibernate.
     if (usbSpeed != CY_U3P_SUPER_SPEED) {
-    	CyU3PDebugPrint(4, "domDupStartApplication(): ERROR - USB 2 is not supported, connect device to a USB 3 port!\r\n");
-    	domDupErrorHandler (CY_U3P_ERROR_FAILURE);
+    	CyU3PDebugPrint(4, "domDupStartApplication(): SuperSpeed link not available (speed = %d); capture path not started\r\n", usbSpeed);
+    	return;
     }
+
+    // Start from a known state: the FPGA is not collecting and no input conditions are pending
+    CyU3PGpioSetValue(19, CyFalse);
+    dataCollectionFlag = CyFalse;
+    domDupClearInputFlags();
 
     CyU3PMemSet ((uint8_t *)&epCfg, 0, sizeof (epCfg));
     epCfg.enable = CyTrue;
@@ -668,11 +730,30 @@ void domDupStopApplication(void)
     // Set the application activity flag to false
     glIsApplnActive = CyFalse;
 
-    // Disable the GPIF state-machine
+    // Tell the FPGA to stop collecting before anything is torn down. Otherwise it keeps
+    // streaming into an FX3 whose DMA channel is about to be destroyed.
+    CyU3PGpioSetValue(19, CyFalse);
+    dataCollectionFlag = CyFalse;
+    domDupClearInputFlags();
+
+    // U1/U2 entry is only suppressed for the duration of a capture, so restore the driver's
+    // own handling of it here. The SDK is explicit that LPM must be re-enabled after every
+    // CyU3PUsbLPMDisable(), or the device fails USB compliance testing.
+    CyU3PUsbLPMEnable();
+
+    // Disable the GPIF state-machine. CyTrue discards the loaded waveform, which
+    // domDupStartApplication() restores with CyU3PGpifLoad().
     CyU3PGpifDisable(CyTrue);
 
-    // Disable PIB
-    CyU3PPibDeInit();
+    // The PIB block is deliberately left running.
+    //
+    // It is initialised once, in main(), and the FPGA control signals are GPIO overrides
+    // taken from the GPIF interface on top of it. De-initialising it here powered the block
+    // down for the rest of the firmware's life, because nothing ever initialised it again -
+    // so the next domDupStartApplication() programmed the GPIF with its clocks stopped and
+    // dropped into domDupErrorHandler()'s endless loop, leaving a device that answers
+    // nothing until it is unplugged. Every stop/start cycle reaches this: a bus reset, a
+    // SET_CONFIGURATION, or a resume from host sleep.
 
     // Destroy DMA channels
     CyU3PDmaMultiChannelDestroy(&glDmaMultiChHandle);
@@ -781,17 +862,17 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 					CyU3PGpioSetValue(19, CyTrue); // collectData GPIO high
 
 					// Clear the input flags
-					input0Flag = CyFalse;
-					input1Flag = CyFalse;
-					input2Flag = CyFalse;
-					input3Flag = CyFalse;
-					input0HandledFlag = CyFalse;
-					input1HandledFlag = CyFalse;
-					input2HandledFlag = CyFalse;
-					input3HandledFlag = CyFalse;
+					domDupClearInputFlags();
 
 					// Flag that the host is collecting data
 					dataCollectionFlag = CyTrue;
+
+					// Keep the link out of U1/U2 for the duration of the capture. U2 exit
+					// latency alone is up to 2ms (see bU2DevExitLat in the BOS descriptor),
+					// which is long enough for the FPGA's FIFO to overflow. This also
+					// suppresses LPM-L1 on a 2.0 link. It is undone on stop, and on every
+					// reset and disconnect, which the SDK requires for USB compliance.
+					CyU3PUsbLPMDisable();
 				}
 
 				if (wValue == 0) {
@@ -803,15 +884,14 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 					dataCollectionFlag = CyFalse;
 
 					// Clear the input flags
-					input0Flag = CyFalse;
-					input1Flag = CyFalse;
-					input2Flag = CyFalse;
-					input3Flag = CyFalse;
-					input0HandledFlag = CyFalse;
-					input1HandledFlag = CyFalse;
-					input2HandledFlag = CyFalse;
-					input3HandledFlag = CyFalse;
+					domDupClearInputFlags();
+
+					// Hand U1/U2 handling back to the USB driver now that the link no
+					// longer has to sustain a capture
+					CyU3PUsbLPMEnable();
 				}
+
+				isHandled = CyTrue;
 			}
 
 			// Handle vendor request for configuration 0xB6
@@ -864,11 +944,18 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 4 = GPIO26 Low\r\n");
 					CyU3PGpioSetValue(26, CyFalse); // GPIO Low
 				}
+
+				isHandled = CyTrue;
 			}
 
-			// ACK the request
-			isHandled = CyTrue;
-			CyU3PUsbAckSetup();
+			// ACK the request.
+			//
+			// Only requests this firmware actually implements are acknowledged. Anything
+			// else leaves isHandled false, and the driver stalls endpoint 0 - which is how
+			// a device is required to tell a host that a request is unsupported. ACKing
+			// every vendor request, as this used to, reports success for commands that were
+			// silently discarded.
+			if (isHandled) CyU3PUsbAckSetup();
 		}
     }
 
@@ -916,43 +1003,47 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 // Callback function to handle USB events
 void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
 {
+    // Note: the USB driver delivers these events one at a time on a single thread, so no two
+    // cases here can overlap. That is what makes it safe for both SETCONF and RESUME to tear
+    // the capture path down and rebuild it.
     switch (eventType) {
     case CY_U3P_USB_EVENT_CONNECT:
-		CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_CONNECT received - No action taken\r\n");
+    	// Restore the driver's own U1/U2 handling. A CyU3PUsbLPMDisable() left over from a
+    	// capture that ended in a disconnect would otherwise persist across the new
+    	// connection, and a device that never accepts U1/U2 fails USB compliance.
+    	CyU3PUsbLPMEnable();
+		CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_CONNECT received - USB %d.0 connection\r\n",
+			(eventData == 1) ? 3 : 2);
 		break;
 
     case CY_U3P_USB_EVENT_SETCONF:
-    	CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_SETCONF received - Restarting application\r\n");
+    	CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_SETCONF received - configuration %d\r\n", eventData);
+
     	// If the application is already active, stop it
         if (glIsApplnActive) {
             domDupStopApplication();
         }
 
-        // Start the application
-        domDupStartApplication();
+        // Configuration 0 is the host un-configuring the device, not selecting a
+        // configuration. Stopping is the whole of the correct response; starting the capture
+        // path again would leave endpoints enabled on a device the host considers idle.
+        if (eventData != 0) {
+            domDupStartApplication();
+        }
         break;
 
     case CY_U3P_USB_EVENT_SUSPEND:
-        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_SUSPEND received\r\n");
-        
-        // Always handle suspend properly - stop data collection if active
-        if (dataCollectionFlag) {
-            CyU3PDebugPrint(8, "domDupUSBEventCB(): Stopping active data collection for suspend\r\n");
-            CyU3PGpioSetValue(19, CyFalse); // collectData GPIO low
-            dataCollectionFlag = CyFalse;
-        }
-        
-        // Clear all input flags
-        input0Flag = CyFalse;
-        input1Flag = CyFalse;
-        input2Flag = CyFalse;
-        input3Flag = CyFalse;
-        input0HandledFlag = CyFalse;
-        input1HandledFlag = CyFalse;
-        input2HandledFlag = CyFalse;
-        input3HandledFlag = CyFalse;
-        
-        // Flush and reset DMA channel only if application is active
+        // The host is suspending the bus - typically because the machine is going to sleep.
+        // Quiesce the FPGA and park the data path, but stay enumerated: the link is in U3 and
+        // it is the host's job, not ours, to bring it back out.
+        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_SUSPEND received - quiescing capture path\r\n");
+
+        CyU3PGpioSetValue(19, CyFalse); // collectData GPIO low
+        dataCollectionFlag = CyFalse;
+        domDupClearInputFlags();
+
+        // Anything still buffered belongs to a transfer the host has abandoned, so discard it
+        // rather than delivering stale samples once the link comes back.
         if (glIsApplnActive) {
             CyU3PDmaMultiChannelReset(&glDmaMultiChHandle);
             CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
@@ -960,9 +1051,22 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
         break;
 
     case CY_U3P_USB_EVENT_RESUME:
-        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_RESUME received\r\n");
-        // Device has resumed - ready to accept new commands from host
-        // Data collection will be restarted by host via vendor command if needed
+        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_RESUME received - rebuilding capture path\r\n");
+
+        // Rebuild rather than resume.
+        //
+        // CyU3PDmaMultiChannelReset() leaves the channel in reset until
+        // CyU3PDmaMultiChannelSetXfer() is called again, and the GPIF state machine has been
+        // running into it unattended for however long the host was asleep. Without this the
+        // device enumerates and answers control requests after a resume but never delivers
+        // another sample, which looks exactly like a device that has silently died.
+        //
+        // A resume does not necessarily bring a SET_CONFIGURATION with it, so this cannot be
+        // left to the SETCONF case.
+        if (glIsApplnActive) {
+            domDupStopApplication();
+            domDupStartApplication();
+        }
         break;
 
     case CY_U3P_USB_EVENT_RESET:
@@ -979,8 +1083,61 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
         }
 
         if (eventType == CY_U3P_USB_EVENT_RESET) {
+        	// The SDK requires LPM handling to be restored on every reset
+        	CyU3PUsbLPMEnable();
 			CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_RESET received - Application stopped\r\n");
 		}
+        break;
+
+    case CY_U3P_USB_EVENT_VBUS_REMOVED:
+        // The host has cut port power. That is what hibernating to S4 looks like from here,
+        // and also a powered-down port or a pulled cable. Take the connection down explicitly
+        // so the USB PHY is not left advertising a device on a dead bus, and wait for VBus to
+        // come back before presenting the device again.
+        //
+        // Ignored until initialisation has finished, because VBus can already be valid when
+        // the event callback is registered - which is before any descriptor exists.
+        if (glUsbInitComplete) {
+            CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_VBUS_REMOVED received - disconnecting\r\n");
+            if (glIsApplnActive) {
+                domDupStopApplication();
+            }
+            CyU3PConnectState(CyFalse, CyTrue);
+        }
+        break;
+
+    case CY_U3P_USB_EVENT_VBUS_VALID:
+        // Port power is back. Re-present the device so it enumerates cleanly, rather than
+        // relying on the host to reset a connection that was torn down under it.
+        if (glUsbInitComplete) {
+            CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_VBUS_VALID received - reconnecting\r\n");
+            CyU3PConnectState(CyTrue, CyTrue);
+        }
+        break;
+
+    case CY_U3P_USB_EVENT_EP_UNDERRUN:
+        // The endpoint ran dry part way through a burst, so the host was given less data than
+        // the transfer promised. Nothing can be done about it after the fact, but it is the
+        // one event that means a capture is no longer sample accurate, so it is always
+        // reported - at a level that is on by default.
+        CyU3PDebugPrint(4, "domDupUSBEventCB(): CY_U3P_USB_EVENT_EP_UNDERRUN on endpoint 0x%x - capture data lost\r\n",
+        	eventData);
+        break;
+
+    case CY_U3P_USB_EVENT_LNK_RECOVERY:
+        // Deliberately silent. Unlike every other event here, this one is raised from
+        // interrupt context, where CyU3PDebugPrint() - which blocks on a UART DMA transfer -
+        // must not be called.
+        break;
+
+    case CY_U3P_USB_EVENT_SS_COMP_ENTRY:
+    case CY_U3P_USB_EVENT_SS_COMP_EXIT:
+    case CY_U3P_USB_EVENT_USB3_LNKFAIL:
+    case CY_U3P_USB_EVENT_LMP_EXCH_FAIL:
+        // USB 3.0 link health. None of these need action here - the driver retrains the link,
+        // and falls back to USB 2.0 by itself when SuperSpeed training fails - but a capture
+        // that drops samples for no visible reason is usually one of these, so record them.
+        CyU3PDebugPrint(4, "domDupUSBEventCB(): USB 3 link event %d (data %d)\r\n", eventType, eventData);
         break;
 
     default:
@@ -991,21 +1148,21 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
 // Callback function to handle LPM requests
 CyBool_t domDupLPMRequestCB(CyU3PUsbLinkPowerMode linkMode)
 {
-    // Handle Link Power Management requests from the USB 3.0 host
-    // linkMode: CyU3PUsbLPM_U0 = fully active, CyU3PUsbLPM_U1 = light sleep, 
-    //           CyU3PUsbLPM_U2 = deeper sleep, CyU3PUsbLPM_U3 = suspend
-    
-    // Reject U2/U3 while actively collecting data to prevent data corruption
-    // and ensure reliable high-speed streaming
-    if (dataCollectionFlag) {
-        if (linkMode >= CyU3PUsbLPM_U2) {
-            CyU3PDebugPrint(8, "domDupLPMRequestCB(): Rejecting LPM %d - data collection active\r\n", linkMode);
-            return CyFalse;  // Reject U2/U3 entry
-        }
+    // Called by the USB driver when the host asks the link to enter U1 or U2. U3 never
+    // arrives here: U3 is host-directed suspend and is reported as CY_U3P_USB_EVENT_SUSPEND.
+    //
+    // This must do nothing but decide. It runs in the driver's own context and is called as
+    // often as the host sends LGO_U1, which on an idle SuperSpeed link is thousands of times
+    // a second - so in particular it must not call CyU3PDebugPrint(), which blocks on a UART
+    // DMA transfer. A debug print here throttles the link and floods the console.
+    //
+    // The blanket rejection during a capture is a second line of defence behind
+    // CyU3PUsbLPMDisable(), which the 0xB5 start command applies. Accepting U1 mid-capture is
+    // harmless in itself; U2 is not, because its exit latency is up to 2ms.
+    if (dataCollectionFlag && (linkMode >= CyU3PUsbLPM_U2)) {
+        return CyFalse;
     }
-    
-    // Accept U1 (very brief, minimal impact on streaming)
-    // Accept all power states when idle
+
     return CyTrue;
 }
 
