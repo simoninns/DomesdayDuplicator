@@ -11,6 +11,7 @@
  * firmware bytes over the wrong device. Either bricks the FX3, and the only way to recover
  * is the PMODE jumper — assuming the board has one exposed.
  *
+ * SPDX-FileCopyrightText: 2026 Simon Inns
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 

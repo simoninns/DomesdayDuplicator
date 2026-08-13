@@ -5,12 +5,23 @@
  * - Discover connected FX3 devices
  * - Upload firmware to FX3 RAM/EEPROM/Flash
  * - Verify firmware upload
- * 
+ *
+ * Domesday Duplicator - LaserDisc RF sampler
+ * SPDX-FileCopyrightText: 2025-2026 Simon Inns
+ * SPDX-FileCopyrightText: Cypress Semiconductor Corporation
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
  * This implementation is based on the Cypress cyusb_linux project:
  * https://github.com/Cypress-Semiconductor/cyusb_linux
- * 
+ *
  * Simplified and streamlined for the Domesday Duplicator project,
  * removing Qt GUI, FX2 support, and unnecessary dependencies.
+ *
+ * cyusb_linux is licensed under the GNU Lesser General Public License,
+ * version 2.1. LGPL-2.1 section 3 permits relicensing a copy under the
+ * GNU General Public License, and that is the basis on which this derived
+ * file is distributed under GPLv3 with the rest of the project. The full
+ * upstream licence text and the provenance record are in ../VENDOR.md.
  */
 
 #include <stdio.h>

@@ -1,3 +1,15 @@
+/************************************************************************
+
+    StringUtilities.inl
+
+    UTF-8 and wide-string conversion helpers - inline implementation
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2024 Roger Sanders
+    SPDX-FileCopyrightText: 2025-2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+************************************************************************/
+
 //----------------------------------------------------------------------------------------------------------------------
 inline std::string WStringToUtf8String(const std::wstring& wideString)
 {

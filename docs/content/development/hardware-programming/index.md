@@ -3,7 +3,8 @@
 A Domesday Duplicator has **two programmable devices**, and both must be programmed before
 the unit will capture anything.
 
-![](assets/DdD-Black-PCB.png){ width="500" }
+![](../../assets/domesday_duplicator_3_photo.jpg)
+_The Domesday Duplicator 3_0_
 
 | Device | Carries | Programmed with | Guide |
 | --- | --- | --- | --- |
@@ -11,8 +12,7 @@ the unit will capture anything.
 | **Terasic DE0-NANO** (Cyclone IV FPGA) | The gateware that drives the ADC and the GPIF II bus | Quartus over the onboard USB-Blaster | [FPGA bitstream](fpga-bitstream.md) |
 
 Neither board is part of the Domesday Duplicator PCB itself. Both are off-the-shelf
-development boards that plug into it — see
-[Ordering and building](../../general/ordering-and-building.md).
+development boards that plug into it.
 
 ## Which one do I need to program?
 
@@ -40,9 +40,5 @@ tool reports that it cannot find it.
 
 ## Windows and macOS
 
-These guides are written for Linux, which is where the project is developed and tested.
-
-Windows users can program the FX3 with Cypress' own *USB Control Center*, part of the
-EZ-USB FX3 SDK: put the board in bootloader mode, then **Program → FX3 → I2C EEPROM**. The
-image to select is the same `firmware.img` these guides build. Quartus Programmer for the
-FPGA works the same way on Windows as on Linux.
+Due to various restrictions around non-free tooling building and programming the hardware on 
+non-linux platforms is not recommended nor supported.

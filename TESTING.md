@@ -4,9 +4,10 @@ How the Domesday Duplicator is tested, what that covers today, and what it does 
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
 reorganisation there were **no automated tests at all**. There are now 78 across four
-components, plus three gateware testbenches, a lint pass over five Verilog modules, and a
-static check on the documentation site. That is a start, not a suite, and this document says
-so where it applies rather than describing an aspiration as though it were a fact.
+components, plus three gateware testbenches, a lint pass over five Verilog modules, a static
+check on the documentation site and a licence-header check over the whole tree. That is a
+start, not a suite, and this document says so where it applies rather than describing an
+aspiration as though it were a fact.
 
 ---
 
@@ -74,6 +75,12 @@ flake or directly:
 ```bash
 nix develop .#fpga -c ./fpga/tests/run-lint.sh     # T4
 nix develop .#fpga -c ./fpga/tests/run-sim.sh      # T3
+```
+
+The licence-header check (§4.7) belongs to no component and needs no toolchain at all:
+
+```bash
+./tools/check-licence-headers.sh          # T4; -v also lists the unconverted files
 ```
 
 ## 4. What exists today
@@ -217,7 +224,28 @@ sequential logic, two incomplete `case` statements, an implicit width promotion,
 control-bus bits fixed by the PCB — are each pinned by one of the testbenches above rather
 than merely declared benign.
 
-### 4.7 Everything else — nothing yet
+### 4.7 Repository-wide — the licence-header check
+
+One check has no component: `tools/check-licence-headers.sh`, the `licence-headers` flake
+check (T4). Every project-authored `.c .h .cpp .inl .v .py .sh .nix .S` file must carry both
+a copyright statement and a licence statement in its first 40 lines; a file missing either
+fails the build.
+
+It accepts SPDX and the long-form GPL notice alike, and prints how many files still carry the
+long form on every run. That is deliberate. The convention is SPDX (AGENTS.md §5.4) and files
+convert as they are touched, so a check that failed every unconverted file would force
+exactly the sweeping rewrite the convention exists to avoid — while a check that said nothing
+would let the conversion stall unnoticed.
+
+Vendored and generated files are exempt **by name**, each with its reason in the script.
+There is no wildcard: adding a third-party file means writing an exemption for it, which is
+the point. An exemption nobody had to write is an exemption nobody reviewed.
+
+The check reads only tracked files. It asks git when git is there, and walks the tree when it
+is not — inside the Nix sandbox the flake source *is* the tracked set, so both routes see the
+same files. Without that, a local run would header-check every `moc_*.cpp` in `gui/build/`.
+
+### 4.8 Everything else — nothing yet
 
 | Component | Automated coverage | Why |
 | --- | --- | --- |
@@ -283,11 +311,12 @@ tied to a phase of the reorganisation plan in [docs-tech/](docs-tech/).
 | What | Tier | Phase | Notes |
 | --- | --- | --- | --- |
 | CI test lanes | — | 7 | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
-| Licence-header check | T4 | 8 | Nine of 69 source files carry SPDX identifiers today |
+| SPDX conversion of the remaining long-form headers | T4 | — | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
 | `buffer.v` testbench | T3 | — | Needs a free `dcfifo` model, or a hand-written stand-in for it. See the caveat below; not scheduled |
 
 Phase 6 delivered the four gateware items that used to be on this list: the `-Wall` lint
 pass and the `dataGenerator`, `fx3StateMachine` and `statusLED` testbenches, all in §4.6.
+Phase 8 delivered the licence-header check, now in §4.7.
 
 Further GUI targets worth having, not yet scheduled: `amplitudemeasurement` (pure computation
 over a sample buffer), the `analysetestdata` logic itself (it is the host half of the §5

@@ -1,5 +1,9 @@
 # The Domesday Duplicator FPGA bitstream.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Unlike every other package in this repository, this one is **not** built by CI
 # and is **not** in `nix flake check`. Quartus Prime Lite is unfree,
 # x86_64-linux only, and marked `redistributable = false` — so it can never be

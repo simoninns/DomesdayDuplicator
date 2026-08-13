@@ -1,6 +1,10 @@
 # Development shell covering both FX3 components — the cross-compiled firmware and the
 # host-side programmer.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Where to run it: anywhere in the working tree.
 #
 #   nix develop .#fx3

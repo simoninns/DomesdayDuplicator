@@ -1,3 +1,15 @@
+/************************************************************************
+
+    ILogger.h
+
+    Logging interface for the capture application
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2024 Roger Sanders
+    SPDX-FileCopyrightText: 2025-2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+************************************************************************/
+
 #pragma once
 #include <string>
 #include <type_traits>

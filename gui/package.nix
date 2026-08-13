@@ -1,5 +1,9 @@
 # Domesday Duplicator capture application.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Call with qt6Packages.callPackage, not plain callPackage — the Qt package set supplies
 # wrapQtAppsHook and the matching qtbase/qtserialport.
 

@@ -91,7 +91,8 @@ found during execution (D19). Each is assigned to a phase.
 | D25 | `fx3-programmer -r` claims to "Reset device" but `fx3_reset_device()` is a stub: it prints "Device will reset automatically after firmware download completes", sleeps 2 seconds and returns 0. No reset is issued and no vendor command is sent, so a caller cannot get a running device back into bootloader mode without a physical power cycle | `fx3/programmer/src/fx3-programmer.c:630` | P5-10 | **Closed** P5 — option removed; using it now explains the power-cycle requirement |
 | D24 | `fx3-programmer`'s help text says `-p` programs **SPI flash** in four places, but `fx3_program_prom()` programs the **I2C EEPROM** (`0xBA`/`0xBB`) and says so in its own output. The SPI vendor commands `FX3_SPI_FLASH_CMD` (`0xC2`) and `FX3_SPI_FLASH_ERASE` (`0xC4`) are defined and never referenced — there is no SPI code path at all. Misleading documentation on a *destructive, permanent* operation, and it disagrees with the project's own flashing guide, which correctly says I2C EEPROM. The same help block also shows `-d 0 -v` as a standalone "Verify device 0 firmware" example, but `-v` is only a modifier for `-p` and errors out on its own | `fx3/programmer/src/fx3-programmer.c:649,656,662,664` | P5-10 | **Closed** P5 — help text corrected, dead SPI defines removed, guarded by a CLI contract test |
 | D23 | The udev rule's `TAG+="uaccess"` never took effect: the file was named `88-cyusb.rules`, but systemd consumes that tag in `73-seat-late.rules`, and udev processes rule files in lexical order — so the tag was set after anything looked for it and no ACL was ever applied. Found on live hardware, with the rule installed and active and `getfacl` on the device node showing no user entry. Only the `MODE="0666"` fallback was doing any work, which is why it stayed invisible. Renamed to `70-domesday-duplicator.rules` | `fx3/programmer/configs/70-domesday-duplicator.rules` | P5-9 | **Closed** P5 |
-| D22 | `fx3-programmer.c` states in a comment that it derives from Cypress `cyusb_linux` but carries **no copyright or licence header at all**. `cyusb_linux` is LGPL-2.1, which permits the relicensing to GPLv3 this project relies on, so this is a compliance gap rather than a licence problem. (`fx3/programmer/VENDOR.md` previously mis-numbered this as D20, which is the MkDocs image defect) | `fx3/programmer/src/fx3-programmer.c` | P8-5 | Open |
+| D22 | `fx3-programmer.c` states in a comment that it derives from Cypress `cyusb_linux` but carries **no copyright or licence header at all**. `cyusb_linux` is LGPL-2.1, which permits the relicensing to GPLv3 this project relies on, so this is a compliance gap rather than a licence problem. (`fx3/programmer/VENDOR.md` previously mis-numbered this as D20, which is the MkDocs image defect) | `fx3/programmer/src/fx3-programmer.c` | P8-5 | **Closed** P8 — and it was one of **33** files with no licence statement at all, not the single instance the survey saw. See D26 |
+| D26 | The licence-header survey undercounted the problem by a factor of six. It reported "8 of 67 files carry SPDX, the rest long-form", which assumed two categories where there were three: 37 SPDX, **21 of which had a licence identifier and no copyright holder**, 25 complete long-form, and **33 with neither**. Among the 33 were every `package.nix`, `shell.nix` and the root `flake.nix` — the Nix work of Phases 3–6 wrote a great deal of new source and headered none of it. Invisible to a count of SPDX identifiers, which is the argument for a check over a survey | repo-wide | P8-5 | **Closed** P8 — 54 incomplete headers completed, `licence-headers` check added |
 | D21 | The GUI carries no version information: `project(DomesdayDuplicator VERSION 1.0)` is hardcoded and no commit hash reaches the binary or the About dialog, so a released GUI artefact cannot be traced back to the commit that produced it | `gui/CMakeLists.txt`, `gui/src/DomesdayDuplicator/aboutdialog.cpp` | P5-6 | **Closed** P5 |
 
 ---
@@ -1920,16 +1921,81 @@ reading of the format.
    throughout; `com.waitingforfriday.DomesdayDuplicator` is the alternative. Changing it after
    the first release is a migration, so it wants deciding before P8-3.
 
-## Phase 8 — Cleanup and release
+## Phase 8 — Cleanup and release — **DONE except the release itself**
+
+P8-2, P8-4 and P8-5 were executed 2026-08-13 on `20260812-002`. **P8-3 is not startable from
+a keyboard alone** and is the whole of what remains: it needs a tag pushed, CI to run, three
+installers tried on clean machines, and a locally built bitstream attached by hand. It also
+sits behind Phase 7's outstanding gates — no workflow in this repository has ever run.
 
 | Task | Size | Detail |
 | --- | --- | --- |
 | ~~**P8-1** Archive the four upstream repos~~ | — | **Removed** per P0-6 — the old repositories are left alone and cleaned up separately, outside this plan |
-| **P8-2** README rewrite | M | Nix quick-start per component alongside the existing native instructions |
-| **P8-3** Tag the first releases of both streams | M | First monorepo releases, and the first end-to-end exercise of both P7-8 workflows. **`gui-v*`** publishes the Flatpak, DMG and MSI with `SHA256SUMS` and `PROVENANCE.txt`; install each one on a clean machine before calling it done, since a release-only packaging bug is invisible in CI. **`fw-v*`** publishes `firmware.img`, `fx3-programmer` and the manifests automatically — then **build the bitstream locally and attach `.sof`, `.jic` and `bitstream-provenance.txt` by hand** (P7-11); that release is not complete without them. Verify every asset in both reports the tagged commit and none reports `unknown` |
-| **P8-4** Update this plan | S | Mark it executed; fold anything still outstanding into issues |
-| **P8-5** SPDX header convention | M | Only 8 of 67 source files carry SPDX identifiers; the rest use long-form GPL notices. Adopt SPDX (machine-checkable, and matches decode-orc), add the T4 presence check, and convert files as they are touched rather than in one sweeping commit |
+| **P8-2** README rewrite | M | **Done.** Nix quick-start per component alongside the existing native instructions, as a two-column table so neither route reads as the fallback for the other. Also: a "you do not need any of this" opening pointing users at the installers, the caveats that were previously only in `fpga/README.md` (Quartus is unfree, `x86_64-linux`-only and out of `flake check`; `nix develop .#fpga` is the free half), and the never-build-in-tree rule |
+| **P8-3** Tag the first releases of both streams | M | **Outstanding — the only Phase 8 task left, and it is a maintainer action.** First monorepo releases, and the first end-to-end exercise of both P7-8 workflows. **`gui-v*`** publishes the Flatpak, DMG and MSI with `SHA256SUMS` and `PROVENANCE.txt`; install each one on a clean machine before calling it done, since a release-only packaging bug is invisible in CI. **`fw-v*`** publishes `firmware.img`, `fx3-programmer` and the manifests automatically — then **build the bitstream locally and attach `.sof`, `.jic` and `bitstream-provenance.txt` by hand** (P7-11); that release is not complete without them. Verify every asset in both reports the tagged commit and none reports `unknown`. **Do not tag before the prerequisites below** |
+| **P8-4** Update this plan | S | **Done.** This section, the D22/D26 rows, and the consolidated outstanding list below. Nothing was filed as a GitHub issue: creating issues is an outward-facing action and Rule 1 keeps it with the maintainer, so the list is here and ready to be filed |
+| **P8-5** SPDX header convention | M | **Done.** Convention in `AGENTS.md` §5.4, check in `tools/check-licence-headers.sh` wired in as the `licence-headers` flake check, 54 incomplete headers completed, 25 long-form ones left to convert opportunistically. D22 closed with it. What the rollout actually found is D26 and [agents-and-testing.md](agents-and-testing.md) §5.1 |
 | ~~**P8-6** `--analyse-test-data` CLI mode~~ | — | **Moved to Phase 7 as part of P7-19.** It stops being an optional follow-up once `dddutil` is removed: the capture application has to carry the analysis anyway, and a headless mode is what makes the T5 gate scriptable rather than clicked |
+
+### P8-5 in full
+
+The task as written assumed the job was stylistic — two header styles, pick one, converge
+slowly. It was not. Turning the check on for the first time found **54 files with an
+incomplete licence header** across three categories the survey had collapsed into two; the
+numbers and the reasoning are in D26 and in [agents-and-testing.md](agents-and-testing.md)
+§5.1. That split the work into two decisions that look alike and are not:
+
+- A file with a **complete long-form GPL notice** loses nothing by staying as it is, so those
+  25 convert as they are touched — exactly as the plan said, and the check prints the
+  remaining count on every run so the number cannot quietly stall.
+- A file with **no licence statement** is a compliance gap, not a style difference. Leaving 33
+  of those to be fixed incrementally would have meant tagging P8-3 from a tree where a third
+  of the sources said nothing about their licence. They were fixed in one pass.
+
+Three things worth carrying forward:
+
+1. **The check requires a copyright statement as well as a licence one.** 21 files had
+   `SPDX-License-Identifier` and no holder, which a presence check for the identifier alone
+   would have called clean. A licence with no holder is not a licence.
+2. **Exemptions are by name, with a reason each, and there is no wildcard.** Adding a
+   third-party file means writing its exemption, which is the point — an exemption nobody had
+   to write is an exemption nobody reviewed.
+3. **Attribution needed judgement the plan had not anticipated.** The GUI's USB and logging
+   sources are substantially Roger Sanders' work from 2024–2025 and carry two
+   `SPDX-FileCopyrightText` lines each. Two single-line patches from other contributors were
+   deliberately not given copyright lines, and AGENTS.md §5.4 now says so, because the
+   alternative is a rule applied differently by whoever next adds a header.
+
+### Before P8-3 can be started
+
+Not a suggestion — an `fw-v*` or `gui-v*` tag pushed before these are settled produces a
+release that either fails in CI or ships something unverified.
+
+| | What | Why it blocks a tag |
+| --- | --- | --- |
+| 1 | **The Phase 7 workflows have never run.** `build.yml`, the three `package-*.yml` and both release workflows are authored and validate as YAML, and nothing more | A tag would be the first execution of the release path *and* of the packaging path at once. Push the branch first and let `build.yml` find what it finds |
+| 2 | **The Flatpak, DMG and MSI have never been built**, let alone installed, launched or uninstalled | P7-14…P7-16 require exactly that, and P8-3 requires it on a clean machine |
+| 3 | **The application ID is provisional.** `io.github.simoninns.DomesdayDuplicator` throughout; `com.waitingforfriday.DomesdayDuplicator` is the alternative | Changing an app ID after the first release is a migration, not an edit |
+| 4 | **The T5 bench session is outstanding** — P5-4's second half and P6-5, one session | A release of firmware and gateware whose capture path has never been verified on hardware is the one thing this plan set out not to do |
+| 5 | **The `.ldf` throughput measurement is outstanding** (P7-21's real gate): a sustained capture with zero buffer overruns | Everything tested so far is format correctness. Whether a compressor keeps up at 40 Msps is untested, and it is the risk the change introduced |
+
+### Gate — **met for P8-2, P8-4 and P8-5; P8-3 not started**
+
+| Check | Result |
+| --- | --- |
+| `./tools/check-licence-headers.sh` | 95 files checked, 58 exempt, **0 failures**, 25 long-form remaining |
+| Same script as a Nix derivation | Builds; the sandbox path (no git, walk the tree) sees the same file set |
+| `cmake --build` + `ctest` in `nix develop .#gui` | **37/37 pass** after the header edits |
+| `cmake --build` + `ctest`, `fx3/programmer` | **24/24 pass** |
+| `cmake --build` + `ctest`, `fx3/firmware` | Firmware image builds; descriptor golden test passes |
+| Every command in the new README's build table | Run as written from the repository root |
+
+Two things the gate does **not** cover, both consequences of Rule 1. Nothing was committed or
+staged, so `nix flake check` cannot see `tools/` or `nix/checks.nix` yet — the check was
+verified by running it directly and by building the derivation from a filtered working-tree
+source, the same way Phase 6 and Phase 7 verified theirs. And the CI half is untouched:
+`build.yml` runs `nix flake check`, so the new check reaches CI with no workflow edit, but
+that has not been observed because no workflow has run.
 
 ## Summary of what needs hardware
 

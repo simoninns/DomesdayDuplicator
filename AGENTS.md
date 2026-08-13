@@ -92,7 +92,10 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 ├── nix/
 │   ├── lib.nix                # supported systems, shared pkgs config
 │   ├── shell.nix              # the default dev shell
+│   ├── checks.nix             # whole-tree checks that belong to no component
 │   └── modules/udev.nix       # NixOS device permissions
+├── tools/                     # repository-wide scripts, run by hand and by the checks
+│   └── check-licence-headers.sh
 ├── .github/workflows/         # deploy-docs.yml — builds the site with Nix
 ├── docs/
 │   ├── mkdocs.yml             # site config; docs_dir is "content", never "site"
@@ -226,9 +229,50 @@ Unique to this project, and non-negotiable:
 
 The project is **GPLv3 for software** and **CC BY-SA 4.0 for hardware** (§10).
 
-Nine of the 69 source files currently carry SPDX identifiers; the rest use the long-form GPL
-notice. The convention is to **adopt SPDX**, converting files opportunistically as they are
-touched rather than in one sweeping commit. Do not add a long-form header to a new file.
+**Every project-authored source file carries a copyright statement and a licence
+statement.** That is checked, not merely asked for: `./tools/check-licence-headers.sh` runs
+as the T4 `licence-headers` check in `nix flake check`, and a file missing either half fails
+the build. It covers `.c .h .cpp .inl .v .py .sh .nix .S`; vendored and generated files are
+exempt by name in the script, each with its reason.
+
+The convention is **SPDX**. New files use it. In a `/* */` or `//` language:
+
+```c
+/************************************************************************
+
+    flacwriter.cpp
+
+    Ogg FLAC capture output
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+************************************************************************/
+```
+
+and in a `#` language, immediately after the file's opening description paragraph (and after
+the shebang, where there is one):
+
+```bash
+#
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+```
+
+Rules that go with it:
+
+- **Name every substantive author**, one `SPDX-FileCopyrightText` line each, oldest first,
+  with the years that author actually worked on the file. `gui/src/DomesdayDuplicator/`'s
+  USB and logging files carry two lines for this reason. A one-line patch — a typo, a missing
+  `#include` — is not a new copyright line.
+- **Do not add a long-form GPL notice to a new file.** 25 files still carry one; they are
+  valid and the check accepts them. Convert one to SPDX when you are already editing it, not
+  in a sweep of its own. The check prints the remaining count on every run so the number
+  stays visible.
+- **Do not touch the header of anything in the exempt list.** A vendor refresh or a tool
+  regeneration overwrites it, so the change is lost and the diff is noise.
 
 ## 6. Naming
 
@@ -341,7 +385,8 @@ secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot 
 golden test in `fx3/firmware/` (the generated USB product descriptor). `fpga/` adds three
 Verilog testbenches, a `-Wall` lint pass over five modules and a bitstream-digest test, none
 of them under CTest — there is no CMake there. `hardware/` has **no automated coverage yet**;
-`docs/` has a static check only. TESTING.md §6 says what is planned and in which phase.
+`docs/` has a static check only. Across the whole tree, `licence-headers` is a T4 check with
+no component of its own (§5.4). TESTING.md §6 says what is planned and in which phase.
 
 `fpga/buffer.v` is deliberately uncovered: it is two Altera `dcfifo` instances, and `dcfifo`
 has no free simulation model. Do not describe the gateware as tested without that caveat.

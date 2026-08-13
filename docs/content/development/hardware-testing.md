@@ -10,8 +10,7 @@ The test is worth running on any newly built board, after any repair, and whenev
 looks wrong in a way that could be either the player or the Duplicator.
 
 For the theory behind the circuit under test, see the
-[Hardware Guide](hardware-guide.md). For the gain switch itself, see
-[Gain control and capture notes](../general/gain-control-and-capture-notes.md).
+[Hardware Guide](hardware-guide.md).
 
 
 ## What you need

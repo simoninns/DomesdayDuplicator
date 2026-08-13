@@ -51,10 +51,15 @@ Two consequences worth noting:
 
 - LGPL-2.1 permits relicensing under the GNU GPL (LGPL-2.1 §3), so the derived
   `fx3-programmer.c` sits comfortably under this project's GPLv3.
-- `src/fx3-programmer.c` currently carries **no copyright or licence header at all**, despite
-  stating in a comment that it derives from `cyusb_linux`. That is tracked as **D22** and is
-  fixed in P8-5's SPDX rollout. (An earlier revision of this file called it D20, which is a
-  different defect entirely — the MkDocs raw-`<img>` breakage closed in Phase 4.)
+- `src/fx3-programmer.c` carried **no copyright or licence header at all** until Phase 8,
+  despite stating in a comment that it derives from `cyusb_linux`. That was **D22**, and
+  P8-5 closed it: the file now carries SPDX copyright lines for Simon Inns and Cypress
+  Semiconductor, `SPDX-License-Identifier: GPL-3.0-or-later`, and the LGPL-2.1 §3 reasoning
+  above written out in the header itself, so the relicensing basis is stated where someone
+  reading the source will find it rather than only here. The
+  `licence-headers` check now fails the build if any project-authored source loses its
+  header again. (An earlier revision of this file called this D20, which is a different
+  defect entirely — the MkDocs raw-`<img>` breakage closed in Phase 4.)
 
 `cyfxflashprog.img` itself is a compiled Cypress SDK example (`cyfxflashprog.txt` identifies
 it as such) that ships inside the LGPL-licensed `cyusb_linux` package; it is vendored here

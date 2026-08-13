@@ -16,6 +16,7 @@
     files; this is the file reading, the threading and the progress reporting around it.
 
     This file is part of the Domesday Duplicator.
+    SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
 ************************************************************************/

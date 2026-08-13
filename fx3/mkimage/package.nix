@@ -1,5 +1,9 @@
 # fx3-mkimage: builds the FX3 boot image from the firmware ELF.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # A host tool, never cross-compiled: the firmware build needs to *run* it.
 # CMAKE_TOOLCHAIN_FILE applies to a whole build tree, which is why this is its
 # own derivation rather than a target inside fx3/firmware.

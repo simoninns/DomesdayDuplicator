@@ -11,6 +11,7 @@
     them the natural first test: if this file does not build and pass, the test harness
     itself is broken and no other result in the suite means anything.
 
+    SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
 ************************************************************************/

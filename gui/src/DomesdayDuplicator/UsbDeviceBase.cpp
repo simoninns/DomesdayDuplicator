@@ -1,3 +1,15 @@
+/************************************************************************
+
+    UsbDeviceBase.cpp
+
+    USB capture device - back-end-independent capture pipeline
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2024-2025 Roger Sanders
+    SPDX-FileCopyrightText: 2025-2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+************************************************************************/
+
 #include "UsbDeviceBase.h"
 #include "captureformat.h"
 #ifdef _WIN32

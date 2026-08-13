@@ -1,6 +1,10 @@
 # NixOS module: device permissions for the Domesday Duplicator, its Cypress FX3, and the
 # Altera USB-Blaster used to program the FPGA.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Enable from a flake-based configuration:
 #
 #   imports = [ domesdayduplicator.nixosModules.udev ];

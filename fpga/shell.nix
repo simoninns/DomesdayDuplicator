@@ -1,5 +1,9 @@
 # Development shell for the FPGA gateware — **free tools only, no Quartus**.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Where to run it: anywhere in the working tree.
 #
 #   nix develop .#fpga

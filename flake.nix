@@ -1,5 +1,9 @@
 # The only flake in the repository, and so the only flake.lock.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Components carry package.nix and shell.nix, never a flake.nix of their own. An earlier
 # layout gave each component a thin flake so that `cd gui && nix develop` worked; every one
 # of those resolved `nixos-unstable` into its own lock file, so entering the tree through a
@@ -114,6 +118,7 @@
       # buildPhase, so `nix flake check` builds and tests the whole tree. The gateware has
       # no ctest suite and no package that CI can build, so its lint and simulation checks
       # are added here explicitly — they are the only automated coverage the Verilog gets.
+      # The licence-header check belongs to no component at all, so it comes from nix/.
       #
       # `bitstream` is removed rather than never added, so that a future package added to
       # the unfree set cannot reach `checks` by being forgotten about here.
@@ -121,12 +126,14 @@
         pkgs:
         let
           fpgaChecks = pkgs.callPackage ./fpga/checks.nix { };
+          repoChecks = pkgs.callPackage ./nix/checks.nix { src = self; };
         in
         builtins.removeAttrs self.packages.${pkgs.stdenv.hostPlatform.system} [ "bitstream" ]
         // {
           fpga-lint = fpgaChecks.lint;
           fpga-sim = fpgaChecks.sim;
           fpga-provenance = fpgaChecks.provenance;
+          licence-headers = repoChecks.licence-headers;
         }
       );
 

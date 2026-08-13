@@ -2,6 +2,10 @@
 #
 # T2 golden test for generate-descriptor.sh.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # The generated header is the *only* path by which a version reaches the device: the FX3
 # serves USB_DESC_PRODUCT_BYTES verbatim as its product string descriptor, so a wrong length
 # byte or a wrong encoding is a defect the host sees and nothing in the firmware build would

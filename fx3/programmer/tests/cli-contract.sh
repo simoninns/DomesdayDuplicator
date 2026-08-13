@@ -2,6 +2,10 @@
 #
 # T2 contract test for the fx3-programmer command line.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # This exists because of D24 and D25, and it guards a specific failure mode: help text that
 # describes something the tool does not do. Both defects survived for a long time precisely
 # because nothing could fail when the words and the code disagreed --

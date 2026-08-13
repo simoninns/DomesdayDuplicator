@@ -8,6 +8,7 @@
     extensions, and the sample-rate label that goes into a FLAC header.
 
     This file is part of the Domesday Duplicator.
+    SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
 ************************************************************************/

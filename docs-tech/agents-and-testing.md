@@ -217,8 +217,11 @@ gateware gets CI coverage even though bitstream builds cannot run there.
 
 - `clang-format --dry-run --Werror` for C/C++
 - `verible-verilog-format`/`lint` for Verilog
-- Licence-header presence check. Only **8 of 67** source files carry SPDX identifiers today;
-  the rest use the long-form GPL header. Decide one convention (§5) and enforce it
+- ~~Licence-header presence check~~ — **done in P8-5.**
+  `tools/check-licence-headers.sh`, wired in as the `licence-headers` flake check. It
+  requires a copyright statement *and* a licence statement in every project-authored source
+  file, accepting SPDX and the long-form notice alike, and prints the unconverted count each
+  run. See §5 for what was found when it was first turned on
 
 ## 4. The system test that already exists
 
@@ -277,6 +280,46 @@ rest long-form GPL notices. decode-orc mandates SPDX. Recommendation: **adopt SP
 consistency across the two projects and because it is machine-checkable (§3.6), converting
 files as they are touched rather than in one sweeping commit.
 
+### 5.1 What P8-5 actually found (2026-08-13)
+
+The recommendation above was adopted, and turning the check on for the first time changed
+the picture. The "8 of 67 use SPDX, the rest long-form" framing was **wrong in a way that
+mattered**: it assumed two categories where there were three.
+
+| | Files | |
+| --- | --- | --- |
+| SPDX identifier | 37 | of which **21 had no copyright line at all** — a licence with no holder |
+| Long-form GPL notice | 25 | all complete: copyright plus notice |
+| **Neither** | 33 | no licence statement of any kind |
+| Vendored or generated | 58 | exempt by name |
+
+So the real defect was not inconsistency of style, it was **54 files with an incomplete
+licence header**, and D22 — `fx3-programmer.c`, the one file the survey had noticed — was
+one instance of a class, not a one-off. Two of the three categories were invisible to a
+count of SPDX identifiers, which is precisely the argument for having a check rather than a
+survey.
+
+That changes what "convert opportunistically" applies to. A file with a *complete* long-form
+header loses nothing by staying as it is, so those 25 convert as they are touched, exactly
+as recommended. A file with **no** licence statement is a compliance gap rather than a style
+difference, and leaving 33 of them in place to be fixed incrementally would have meant
+shipping releases from a tree where a third of the sources said nothing about their licence.
+Those were fixed in one pass, and the two cases are not the same decision even though they
+look alike from a distance.
+
+The 33 also included every `package.nix`, `shell.nix` and `flake.nix` in the repository —
+the Nix work of Phases 3–6 wrote a great deal of new source and headered none of it. Worth
+noting for its own sake: a convention that exists only in prose gets applied to the files
+people think of as code, and not to the ones they think of as configuration.
+
+**Copyright attribution needed judgement the plan had not anticipated.** The GUI's USB and
+logging sources are substantially Roger Sanders' work from 2024–2025, not Simon Inns', so
+they carry two `SPDX-FileCopyrightText` lines each. Two contributors' single-line patches —
+a one-character fix and a missing `#include` — were deliberately *not* given copyright
+lines; the convention in AGENTS.md §5.4 now says so explicitly, because the alternative is
+either a growing list of names with no relation to authorship or a silent judgement made
+differently by whoever next adds a header.
+
 ## 6. Tasks
 
 | Task | Phase | Size | Detail |
@@ -288,7 +331,7 @@ files as they are touched rather than in one sweeping commit.
 | **P5-5** FX3 descriptor golden test | 5 | S | §3.3 — the test that catches D8 |
 | **P6-7** Gateware testbenches | 6 | M | §3.4 — `dataGenerator`, `fx3StateMachine`, `statusLED` |
 | **P7-6** CI test lanes | 7 | S | Run T1–T4 in the consolidated workflow; T5 never runs in CI |
-| **P8-5** SPDX header convention rollout | 8 | M | §5 — convention plus the T4 check; convert opportunistically |
+| **P8-5** SPDX header convention rollout | 8 | M | **Done.** §5.1 — the convention is in AGENTS.md §5.4, the T4 check is `tools/check-licence-headers.sh`, 54 incomplete headers were completed and 25 long-form ones left to convert opportunistically |
 
 **Acceptance:** `nix flake check` runs every T1–T4 test for every component; TESTING.md
 documents the T5 procedure precisely enough that someone with a DdD and a player can execute

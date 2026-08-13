@@ -38,23 +38,61 @@ to the old repositories will not reach the project.
 | [gui/](gui/) | Qt 6 capture application, and the Flatpak/DMG/MSI packaging under `gui/packaging/` |
 | [docs/](docs/) | Source of the project documentation website |
 | [docs-tech/](docs-tech/) | Engineering-process documentation for this repository |
+| [nix/](nix/) | The single flake's shared helpers, default dev shell, NixOS module and whole-tree checks |
+| [tools/](tools/) | Repository-wide scripts, run both by hand and by the checks |
 
-Each component builds with ordinary distribution packages — see its `README.md`. There is
-also a Nix flake if you prefer it. **Run these from anywhere in the working tree** — there is
-one `flake.nix`, at the repository root, and Nix walks up to find it:
+# Building it yourself
+
+**If you only want to use a Domesday Duplicator, you do not need any of this.** The capture
+application ships as a Flatpak, a macOS DMG and a Windows MSI on the
+[releases page](https://github.com/simoninns/DomesdayDuplicator/releases), and the
+[installation pages](https://simoninns.github.io/domesdayduplicator/capture-application/)
+cover each one. What follows is for developing the project.
+
+Every component builds two ways, and **neither is second class**: with ordinary distribution
+packages, or with the Nix flake. Nix is never required — no build here may be made Nix-only —
+but it is the reproducible route, and it is what CI uses, so a Nix build failing is a real
+failure rather than an environment quirk.
+
+| Component | Native | Nix |
+| --- | --- | --- |
+| Capture application | `cmake -B gui/build -S gui && cmake --build gui/build` | `nix build .#gui` · `nix develop .#gui` |
+| FX3 firmware | `cmake -B fx3/firmware/build -S fx3/firmware -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake && cmake --build fx3/firmware/build` | `nix build .#fx3-firmware` · `nix develop .#fx3` |
+| FX3 programmer | `cmake -B fx3/programmer/build -S fx3/programmer && cmake --build fx3/programmer/build` | `nix build .#fx3-programmer` · `nix develop .#fx3` |
+| FPGA gateware | `./fpga/build-local.sh` (needs Quartus Prime Lite) | `nix build .#bitstream` · `nix develop .#fpga-quartus` |
+| Documentation site | `mkdocs build -f docs/mkdocs.yml` | `nix build .#docs-site` · `nix develop .#docs` |
+| PCB | Open `hardware/pcb/` in KiCad | `nix develop .#hardware` |
+
+The toolchain each native build expects — Qt 6, libusb, libFLAC, `arm-none-eabi-gcc`,
+Quartus, MkDocs — is listed with per-distribution install lines in the component's own
+`README.md` and in [gui/BUILD.md](gui/BUILD.md). A `nix develop` shell supplies all of it
+already.
+
+Two Nix outputs have no native equivalent, and both are worth knowing:
 
 ```
-nix develop                          # all components, one shell
-nix develop .#gui                    # or .#fx3, .#fpga, .#hardware, .#docs
-nix build .#gui .#fx3-programmer     # build the host software
-nix flake check                      # build everything and run the tests
+nix develop                          # every component's tools in one shell
+nix flake check                      # build everything and run the whole T1–T4 test suite
 ```
 
-A bare `nix develop` gives the all-components shell whichever directory you are in; use
-`.#name` to select a single component.
+**Run any of these from anywhere in the working tree.** There is exactly one `flake.nix`, at
+the repository root, and exactly one `flake.lock`; Nix walks up to find them, so `.#gui`
+resolves identically from `gui/` and from the root. Components deliberately carry no flake of
+their own — [docs-tech/nix-flake-design.md](docs-tech/nix-flake-design.md) explains why that
+matters more than the `cd gui && nix develop` shorthand it costs.
+
+Two caveats on the FPGA row. Quartus Prime Lite is unfree, `x86_64-linux` only and cannot be
+served from a binary cache, so `nix build .#bitstream` means a multi-gigabyte first download
+and is excluded from `nix flake check` and from CI. `nix develop .#fpga` — without
+`-quartus` — gives the free tools instead: Verilog lint, simulation and a language server,
+with no Quartus at all, and that covers most gateware work.
+
+Build directories are `build/` under each component and are gitignored. Never build in-tree:
+in `fpga/src/` in particular, Quartus rewrites the tracked `.qsf` on every compile.
 
 [AGENTS.md](AGENTS.md) records the project conventions and [TESTING.md](TESTING.md) the test
-tiers, including the hardware-in-the-loop capture-integrity procedure.
+tiers, including the hardware-in-the-loop capture-integrity procedure that is the most
+important test in the project.
 
 # The Decode Family 
 
@@ -72,10 +110,7 @@ The DomesDay Duplicator also has a [3D models](https://github.com/simoninns/Dome
 
 ## Authors
 
-Domesday Duplicator was written & designed by [Simon Inns](https://github.com/simoninns).
-
-Additional documentation supplied by [Harry Munday](https://github.com/harrypm). 
-
+Domesday Duplicator is designed and maintained by [Simon Inns](https://github.com/simoninns).
 
 ## Licences
 

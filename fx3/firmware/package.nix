@@ -1,5 +1,9 @@
 # Domesday Duplicator FX3 firmware — bare-metal ARM926EJ-S, cross-compiled.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # Output layout is deliberately flat:
 #
 #   $out/firmware.img   the boot-loadable image fx3-programmer writes to the device

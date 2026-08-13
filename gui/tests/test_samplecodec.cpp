@@ -16,6 +16,7 @@
     before the application wrote .ldf; the pack direction is what the round-trip test below
     checks it against.
 
+    SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
 ************************************************************************/

@@ -1,5 +1,9 @@
 # The Domesday Duplicator documentation site.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # The site the GitHub Pages workflow deploys is this derivation's output, byte for byte —
 # the workflow builds it with Nix and uploads ./result. That removes the whole class of
 # "renders differently on Pages" problems the previous Jekyll route was exposed to.

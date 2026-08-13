@@ -20,6 +20,7 @@
 #
 # Usage:  gui/tests/interop-ldf.sh [build-directory]
 #
+# SPDX-FileCopyrightText: 2026 Simon Inns
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 set -euo pipefail

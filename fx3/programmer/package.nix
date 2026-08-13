@@ -1,4 +1,8 @@
 # fx3-programmer: libusb host tool for loading firmware onto a Cypress FX3.
+#
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 {
   lib,

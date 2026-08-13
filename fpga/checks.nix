@@ -1,5 +1,9 @@
 # Checks for the FPGA component that need no Quartus.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # These are the gateware's only automated coverage in CI. The bitstream build
 # (package.nix) cannot run there — Quartus is unfree, x86_64-linux only and
 # non-redistributable — so everything here is deliberately built on free,

@@ -12,6 +12,7 @@
     never installed. It exists because the interop claim — "what this application writes is
     an .ldf" — cannot be checked without a file that the application's own encoder produced.
 
+    SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
 ************************************************************************/

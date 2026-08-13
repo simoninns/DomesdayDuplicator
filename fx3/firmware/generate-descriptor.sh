@@ -1,6 +1,10 @@
 #!/bin/bash
 # Generate USB product descriptor with embedded git commit hash
 # Outputs a C header file defining USB_DESC_PRODUCT_BYTES macro with all descriptor data
+#
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2025-2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 OUTPUT_DIR="$1"
 COMMIT="${2:-unknown}"

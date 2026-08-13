@@ -1,3 +1,15 @@
+/************************************************************************
+
+    UsbDeviceLibUsb.h
+
+    USB capture device - libusb back-end (Linux and macOS)
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2024 Roger Sanders
+    SPDX-FileCopyrightText: 2025-2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+************************************************************************/
+
 #pragma once
 #include "UsbDeviceBase.h"
 #include <mutex>

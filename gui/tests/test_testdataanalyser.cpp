@@ -11,6 +11,7 @@
     genuine pass from an analyser that says "pass" to everything, and a false pass there
     would sign off a capture path that is dropping samples.
 
+    SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
 ************************************************************************/

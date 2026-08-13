@@ -1,5 +1,9 @@
 # Shared helpers for the repository's flake.
 #
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
 # There is exactly one flake.nix, at the repository root, and so exactly one flake.lock.
 # Components used to carry thin flakes of their own for `cd gui && nix develop`, but each
 # one grew its own lock file resolving `nixos-unstable` independently, which meant entering

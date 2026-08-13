@@ -12,6 +12,7 @@
  * particular, that the compiled-in install path is present and is consulted before any
  * working-directory-relative candidate.
  *
+ * SPDX-FileCopyrightText: 2026 Simon Inns
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 

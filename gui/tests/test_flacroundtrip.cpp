@@ -15,6 +15,7 @@
     round-tripping through ld-compress and running a decode, and the two together are the
     evidence P7-23 asks for.
 
+    SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
 ************************************************************************/
