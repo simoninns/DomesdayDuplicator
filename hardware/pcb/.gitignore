@@ -19,3 +19,14 @@ _autosave-*
 # Exported BOM files
 *.xml
 *.csv
+
+# Project lock files, written while KiCad has the project open
+*.lck
+~*.lck
+
+# Per-user local project state (window layout, last used settings)
+*.kicad_prl
+
+# Reports written by kicad-cli
+*_statistics.rpt
+*.rpt
