@@ -166,7 +166,7 @@ The FPGA does not appear on USB itself. What it does is supply the FX3's interfa
 the check is that the FX3 still enumerates at full speed:
 
 ```bash
-$ lsusb -v -d 1d50:603b | grep -E "bcdUSB|iProduct"
+$ lsusb -v -d 1209:2347 | grep -E "bcdUSB|iProduct"
   bcdUSB               3.00
   iProduct                2 Domesday Duplicator (d0566b3e)
 ```

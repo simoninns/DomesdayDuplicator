@@ -147,7 +147,7 @@ Each component builds independently, and that must stay true. The monorepo makes
 violate for the first time.
 
 - **No cross-component source includes.** `gui/` must not `#include` from `fx3/`, and so on.
-- **Shared constants are duplicated deliberately.** The USB VID/PID (`0x1D50`/`0x603B`) and
+- **Shared constants are duplicated deliberately.** The USB VID/PID (`0x1209`/`0x2347`) and
   the control-bit assignments appear separately in the gateware, the firmware and the host
   software. This is not accidental duplication to be refactored away — it is a *wire
   protocol*, and the three definitions live in three different languages on three different

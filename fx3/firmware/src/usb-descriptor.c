@@ -12,11 +12,15 @@
 #include "domesday-duplicator.h"
 #include "generated_descriptor_data.h"
 
-// VID and PID definition (Domesday Duplicator 0x1D50 / 0x603B)
-#define VID_H	0x1D
-#define VID_L	0x50
-#define PID_H	0x60
-#define PID_L	0x3B
+// VID and PID definition (Domesday Duplicator 0x1209 / 0x2347)
+//
+// Registered with pid.codes, the open-source USB ID allocation service:
+// https://pid.codes/1209/2347/  The pair is reserved for this project; do not
+// reuse it for anything else and do not ship a modified device under it.
+#define VID_H	0x12
+#define VID_L	0x09
+#define PID_H	0x23
+#define PID_L	0x47
 
 // VID and PID definition (Cypress FX3 default 0x04B4 / 0x00F1 - useful for testing)
 //#define VID_H	0x04

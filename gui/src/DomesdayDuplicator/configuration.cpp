@@ -28,7 +28,12 @@
 #include "configuration.h"
 
 // This define should be incremented if the settings file format changes
-#define SETTINGSVERSION 4
+//
+// Version 5: the USB VID/PID moved to the project's registered pid.codes pair
+// (0x1209/0x2347). The stored settings hold the VID/PID, so an existing configuration
+// would keep looking for the retired 0x1D50/0x603B device and never find hardware
+// running current firmware. Bumping the version forces the new defaults in.
+#define SETTINGSVERSION 5
 
 Configuration::Configuration(QObject *parent) : QObject(parent)
 {
@@ -216,8 +221,11 @@ void Configuration::setDefault()
     settings.ui.showAdvancedCaptureStats = false;
 
     // USB
-    settings.usb.vid = 0x1D50;
-    settings.usb.pid = 0x603B;
+    // Registered with pid.codes for this project - see https://pid.codes/1209/2347/
+    // Must match fx3/firmware/src/usb-descriptor.c and the udev rule in
+    // fx3/programmer/configs/70-domesday-duplicator.rules
+    settings.usb.vid = 0x1209;
+    settings.usb.pid = 0x2347;
     settings.usb.preferredDevice = "";
     settings.usb.diskBufferQueueSize = 256 * 1024 * 1024;
     settings.usb.useSmallUsbTransferQueue = false;

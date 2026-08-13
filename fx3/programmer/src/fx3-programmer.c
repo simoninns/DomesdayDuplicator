@@ -39,8 +39,9 @@
 #define FX3_BOOTLOADER_ID   0x0080
 #define FX3_PROD_ID         0x00f3
 
-#define DOMESDAY_VENDOR_ID  0x1d50
-#define DOMESDAY_PROD_ID    0x603b
+// Registered with pid.codes for this project - see https://pid.codes/1209/2347/
+#define DOMESDAY_VENDOR_ID  0x1209
+#define DOMESDAY_PROD_ID    0x2347
 
 #define USB_TIMEOUT_MS      5000
 

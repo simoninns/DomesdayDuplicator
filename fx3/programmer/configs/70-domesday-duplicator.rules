@@ -4,7 +4,7 @@
 # rewritten for this project. Two changes from the Cypress original:
 #
 #   1. The Domesday Duplicator's own VID:PID is matched. Once the FX3 has been programmed it
-#      re-enumerates as 1d50:603b and stops being a Cypress device, so the vendor rule alone
+#      re-enumerates as 1209:2347 and stops being a Cypress device, so the vendor rule alone
 #      left the running device root-only and the capture GUI could not open it.
 #
 #   2. The RUN+= hooks calling /usr/local/bin/cy_renumerate.sh are gone. That script signals
@@ -35,7 +35,19 @@
 # (00f0, 0080 and friends) that a partially programmed device can present.
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04b4", MODE="0666", TAG+="uaccess", TAG+="cyusb_dev"
 
+# The SuperSpeed Explorer Kit's on-board USB-UART bridge, 04b4:0007. The kit exposes the FX3's
+# debug console over it, so this is where firmware printf output comes out. The vendor rule
+# above already covers the usb_device node; a serial port is only usable through the tty node
+# the USB-serial driver creates, and that node matches neither SUBSYSTEM=="usb" nor
+# ENV{DEVTYPE}=="usb_device", so it needs its own rule. ATTRS (plural) walks up to the parent
+# USB device, because the tty device itself carries no idVendor/idProduct of its own.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="0007", MODE="0666", TAG+="uaccess", TAG+="cyusb_dev"
+
 # Domesday Duplicator in application mode — this is what the capture GUI opens.
+# 1209:2347 is registered to this project with pid.codes (https://pid.codes/1209/2347/). It
+# replaces 1d50:603b, an OpenMoko-range ID this project never held an allocation for — usb.ids
+# lists it as someone else's device. Boards running earlier firmware still enumerate as
+# 1d50:603b and are not matched here; reprogram them.
 # The VID/PID pair is set in fx3/firmware/src/usb-descriptor.c and defaulted in
 # gui/src/DomesdayDuplicator/configuration.cpp; all three must agree.
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1d50", ATTR{idProduct}=="603b", MODE="0666", TAG+="uaccess", TAG+="ddd_dev"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1209", ATTR{idProduct}=="2347", MODE="0666", TAG+="uaccess", TAG+="ddd_dev"

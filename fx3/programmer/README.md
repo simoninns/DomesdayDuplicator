@@ -121,7 +121,7 @@ Output example (Application mode):
 ```
 Found 1 FX3 device(s):
 
-[0] VID:PID=1d50:603b Bus=007 Device=014 Mode=Application (Domesday Duplicator)
+[0] VID:PID=1209:2347 Bus=007 Device=014 Mode=Application (Domesday Duplicator)
 ```
 
 ### Upload Firmware
@@ -136,9 +136,9 @@ fx3-programmer -u firmware.img
 fx3-programmer -d 1 -u firmware.img
 ```
 
-The firmware is loaded into RAM, parsed, and executed: the bootloader transfers control to the image's entry point once the download completes. The device then re-enumerates in application mode — for this project's firmware, as `1d50:603b`. This is not a reset; the FX3 is never rebooted.
+The firmware is loaded into RAM, parsed, and executed: the bootloader transfers control to the image's entry point once the download completes. The device then re-enumerates in application mode — for this project's firmware, as `1209:2347`. This is not a reset; the FX3 is never rebooted.
 
-After successful upload, the device may enumerate with a new VID:PID pair (e.g., 1d50:603b for Domesday Duplicator).
+After successful upload, the device may enumerate with a new VID:PID pair (e.g., 1209:2347 for Domesday Duplicator).
 
 ### Verify Firmware Upload
 
@@ -214,7 +214,7 @@ The FX3 bootloader behavior depends on what firmware is already installed:
 - Device is ready to program immediately
 - Proceed to step 2
 
-**If the device shows as Application (VID:PID=1d50:603b):**
+**If the device shows as Application (VID:PID=1209:2347):**
 - The current Domesday Duplicator firmware is running
 - **Programming in this mode writes to RAM only** and will be lost on power cycle
 - To make firmware changes permanent:
@@ -247,11 +247,11 @@ or
 ```
 Found 1 FX3 device(s):
 
-[0] VID:PID=1d50:603b Bus=007 Device=014 Mode=Application (Domesday Duplicator)
+[0] VID:PID=1209:2347 Bus=007 Device=014 Mode=Application (Domesday Duplicator)
 ```
 
 - **Bootloader mode**: the only mode in which the device can be programmed at all. `-u` writes RAM, `-p` writes the I2C EEPROM. Shows as `VID:PID=04b4:00f3`.
-- **Application mode**: running firmware — the Domesday Duplicator shows as `VID:PID=1d50:603b`. **Neither `-u` nor `-p` works here.** Both rely on the FX3 boot ROM, which is no longer in control once firmware is running. Fit J4 and power cycle to get back to the bootloader.
+- **Application mode**: running firmware — the Domesday Duplicator shows as `VID:PID=1209:2347`. **Neither `-u` nor `-p` works here.** Both rely on the FX3 boot ROM, which is no longer in control once firmware is running. Fit J4 and power cycle to get back to the bootloader.
 - **Flash programmer**: a transient mode, `VID:PID=04b4:4720`, entered automatically while `-p` runs. Nothing to do with it; it goes away on the next power cycle.
 
 Note the device index (usually 0 if you have one device).
@@ -290,7 +290,7 @@ fx3-programmer -d 0 -u ../../firmware/build/firmware.img
 
 After successful program:
 - The FX3 device should enumerate with the application's VID:PID
-- For Domesday Duplicator: VID:PID should change to `1d50:603b`
+- For Domesday Duplicator: VID:PID should change to `1209:2347`
 - Check your system logs: `dmesg | tail -20`
 - Run the list command again to see the new device state: `fx3-programmer -l`
 

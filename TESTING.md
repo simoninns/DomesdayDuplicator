@@ -278,8 +278,8 @@ dropped samples are the failure mode that matters and the one that is invisible 
 
 1. Build or install the capture application:
    `nix build .#gui` — or `nix develop .#gui` and build from source.
-2. Connect the Domesday Duplicator. Confirm it enumerates as `1d50:603b`
-   (`lsusb | grep 1d50`). If it appears as `04b4:...` it is still in bootloader mode and has
+2. Connect the Domesday Duplicator. Confirm it enumerates as `1209:2347`
+   (`lsusb | grep 1209`). If it appears as `04b4:...` it is still in bootloader mode and has
    no firmware loaded.
 3. Launch the capture application and **enable test mode**.
 4. Capture for **at least 60 seconds**. This matters: the buffer must wrap several times, and

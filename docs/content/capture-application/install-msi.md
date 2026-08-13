@@ -40,7 +40,7 @@ Use [Zadig](https://zadig.akeo.ie/) once, per machine:
 
 1. Plug in the Domesday Duplicator.
 2. Run Zadig, and choose **Options → List All Devices**.
-3. Select the Domesday Duplicator (USB ID `1D50:603B`).
+3. Select the Domesday Duplicator (USB ID `1209:2347`).
 4. Choose **WinUSB** as the driver and click **Replace Driver**.
 
 If the device shows as `04B4:00F3` instead, the FX3 has no firmware loaded and is sitting in

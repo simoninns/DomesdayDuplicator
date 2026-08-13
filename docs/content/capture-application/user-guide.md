@@ -48,8 +48,8 @@ By default CMake will install into `/usr/local`. To install into `/some/dir` ins
 In order for the GUI application to connect to the Domesday Duplicator USB device it is necessary to provide permissions for user-level access. For this you need to create a file called 40-domesdayduplicator.rules in the /etc/udev/rules.d directory (requires root permissions). The contents of the file should be as follows:
 
 ```
-# 1d50:603b - Domesday Duplicator
-SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="603b", MODE="0666"
+# 1209:2347 - Domesday Duplicator
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="2347", MODE="0666"
 ```
 
 Once the file has been created, issue the following command to reload the USB configuration rules:

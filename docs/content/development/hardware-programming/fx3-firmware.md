@@ -103,7 +103,7 @@ Found 1 FX3 device(s):
 [0] VID:PID=04b4:00f3 Bus=007 Device=013 Mode=Bootloader (FX3)
 ```
 
-If it still shows `1d50:603b` / `Mode=Application`, the jumper is not fitted or the board was
+If it still shows `1209:2347` / `Mode=Application`, the jumper is not fitted or the board was
 not actually power cycled. Note that a warm reboot of your PC may not cut USB bus power —
 unplug the cable.
 
@@ -172,14 +172,14 @@ It should now boot the programmed firmware on its own, with no host involvement.
 This is the step people skip, and it is the only one that proves anything.
 
 ```bash
-$ lsusb -d 1d50:603b
-Bus 008 Device 005: ID 1d50:603b OpenMoko, Inc. Raspiface
+$ lsusb -d 1209:2347
+Bus 008 Device 005: ID 1209:2347 Generic Domesday Duplicator (d0566b3e)
 ```
 
 Then read the descriptors:
 
 ```bash
-$ lsusb -v -d 1d50:603b | grep -iE "bcdUSB|iManufacturer|iProduct"
+$ lsusb -v -d 1209:2347 | grep -iE "bcdUSB|iManufacturer|iProduct"
   bcdUSB               3.00
   iManufacturer           1 Domesday86
   iProduct                2 Domesday Duplicator (d0566b3e)
@@ -197,7 +197,7 @@ You can also confirm the negotiated link speed:
 
 ```bash
 $ for d in /sys/bus/usb/devices/*/; do
-    [ "$(cat $d/idVendor 2>/dev/null)" = "1d50" ] && \
+    [ "$(cat $d/idVendor 2>/dev/null)" = "1209" ] && \
     echo "$(cat $d/speed) Mbps — $(cat $d/product)"
   done
 5000 Mbps — Domesday Duplicator (d0566b3e)
