@@ -62,7 +62,7 @@ cmake --build fx3/firmware/build
 ```
 
 The artefacts land in `fx3/firmware/build/`. Full prerequisites and options are in
-[`fx3/firmware/README.md`](https://github.com/simoninns/DomesdayDuplicator/blob/master/fx3/firmware/README.md).
+[`fx3/firmware/README.md`](https://github.com/simoninns/DomesdayDuplicator/blob/main/fx3/firmware/README.md).
 
 ### Check: does the build know what it is?
 

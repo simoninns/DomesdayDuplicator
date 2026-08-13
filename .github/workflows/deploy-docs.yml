@@ -19,7 +19,7 @@ name: Deploy documentation to GitHub Pages
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - docs/**
       - nix/**
