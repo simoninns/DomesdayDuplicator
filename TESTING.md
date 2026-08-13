@@ -140,10 +140,10 @@ for c in 0123abcd unknown; do
 done
 ```
 
-This does **not** cover D8. That defect lives on `firmware_version_string`, a separate,
-unreferenced symbol that `--gc-sections` discards before it ever reaches the device; nothing
-host-side can observe it. See the Phase 2 notes in
-[docs-tech/implementation-plan.md](docs-tech/implementation-plan.md).
+This does **not** cover the old `firmware_version_string` defect. That one lived on a
+separate, unreferenced symbol which `--gc-sections` discards before it ever reaches the
+device, so nothing host-side can observe it — which is exactly why the version now travels
+through the product descriptor above instead.
 
 There is no unit tier here and there cannot usefully be one: every source file in the
 component is freestanding ARM926EJ-S code calling into the Cypress SDK, so the build host
@@ -305,18 +305,17 @@ measurements against the calculations in `hardware/doc/`.
 
 ## 6. Planned work
 
-Listed so this document can be read as a status report rather than a wish list. Each item is
-tied to a phase of the reorganisation plan in [docs-tech/](docs-tech/).
+Listed so this document can be read as a status report rather than a wish list.
 
-| What | Tier | Phase | Notes |
-| --- | --- | --- | --- |
-| CI test lanes | — | 7 | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
-| SPDX conversion of the remaining long-form headers | T4 | — | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
-| `buffer.v` testbench | T3 | — | Needs a free `dcfifo` model, or a hand-written stand-in for it. See the caveat below; not scheduled |
+| What | Tier | Notes |
+| --- | --- | --- |
+| CI test lanes | — | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
+| SPDX conversion of the remaining long-form headers | T4 | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
+| `buffer.v` testbench | T3 | Needs a free `dcfifo` model, or a hand-written stand-in for it. See the caveat below; not scheduled |
 
-Phase 6 delivered the four gateware items that used to be on this list: the `-Wall` lint
-pass and the `dataGenerator`, `fx3StateMachine` and `statusLED` testbenches, all in §4.6.
-Phase 8 delivered the licence-header check, now in §4.7.
+The gateware items that used to be on this list are done: the `-Wall` lint pass and the
+`dataGenerator`, `fx3StateMachine` and `statusLED` testbenches are all in §4.6, and the
+licence-header check is in §4.7.
 
 Further GUI targets worth having, not yet scheduled: `amplitudemeasurement` (pure computation
 over a sample buffer), the `analysetestdata` logic itself (it is the host half of the §5

@@ -9,8 +9,7 @@
 # x86_64-linux only, and marked `redistributable = false` — so it can never be
 # served from a binary cache, and every cold build would have to fetch several
 # gigabytes from Altera. The decision and the three ways it could reach CI later
-# are recorded in docs-tech/implementation-plan.md, "The bitstream is not built
-# by CI".
+# are recorded in fpga/README.md, "Why this is not built by CI".
 #
 # What this derivation is for is making the *local* build repeatable: same
 # inputs, same command line, an output directory that always contains the same

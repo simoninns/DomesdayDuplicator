@@ -147,8 +147,7 @@ hardware.domesdayDuplicator.enable = true;   # FX3 and USB-Blaster together
 On other distributions, copy the file to `/etc/udev/rules.d/` and
 `udevadm control --reload`. Keep the `70-` prefix: it sorts before `73-seat-late.rules`,
 which is what consumes the `uaccess` tag. This project shipped a rule that sorted *after* it
-for years, so the tag was set and never acted on — see defect D23 in
-[docs-tech/implementation-plan.md](../docs-tech/implementation-plan.md).
+for years, so the tag was set and never acted on.
 
 Without the rule, `quartus_pgm` and `jtagconfig` report "No JTAG hardware available" to
 everyone but root.
@@ -219,16 +218,39 @@ routing varies between runs, and it does not.
 
 ## Why this is not built by CI
 
-Quartus Prime Lite is unfree, `x86_64-linux` only, and marked `redistributable = false` in
-nixpkgs — so it can never be served from `cache.nixos.org`, and every cold CI run would fetch
-gigabytes from Altera into a runner with roughly 14 GB of disk. The decision, and the three
-ways it could reach CI later, are in
-[docs-tech/implementation-plan.md](../docs-tech/implementation-plan.md).
+**Decided 2026-08-12: leave the bitstream out of CI for the time being.** The blocker is not
+technical difficulty, it is cost and a licence judgement:
 
-The consequence for releases: **the bitstream is built locally and attached by hand**, with
-its provenance record. Publishing the canonical digest is what makes it independently
+- `quartus-prime-lite` is `x86_64-linux` only, unfree, and marked **`redistributable = false`**
+  in nixpkgs — so it can never be served from `cache.nixos.org`. Every cold CI run must fetch
+  it afresh.
+- The fetch itself is unattended-friendly: a plain `fetchurl` from
+  `downloads.intel.com/akdlm/software/acdsinst/…`, with no login and no click-through. So CI
+  *can* do it.
+- Even restricted to `supportedDevices = [ "Cyclone IV" ]`, the download is GB-scale and the
+  unpacked store path larger again — tight against a GitHub-hosted runner's ~14 GB of disk.
+
+The three ways it could reach CI, when the time comes:
+
+| Option | Speed | Cost | Licence |
+| --- | --- | --- | --- |
+| **Self-hosted runner** with a warm Nix store | Minutes | A machine to run and maintain | Clean — nothing is redistributed |
+| GitHub-hosted, fetch from Altera each run | 20–40 min | None | Clean — fetched from source |
+| GitHub-hosted + private binary cache | 5–10 min | Cachix/S3 and credentials | **Judgement call** — `redistributable = false` is precisely about not redistributing these binaries |
+
+**Intended shape when adopted:** the GUI and FX3 build per commit; the bitstream on `fw-v*`
+tags and manual dispatch only, so a firmware release still gets a bitstream built from the
+release commit without paying for Quartus on every push. The two-stream release split makes
+this cheaper than it would be under a single tag — Quartus would run only on firmware
+releases, not on every GUI release.
+
+The consequence for releases today: **the bitstream is built locally and attached by hand**,
+with its provenance record. Publishing the canonical digest is what makes it independently
 verifiable anyway — anyone with the same pinned Quartus can rebuild and compare, with no CI
 involvement at all.
+
+`verilator --lint-only` ([tests/run-lint.sh](tests/run-lint.sh)) *does* run in CI, so the
+gateware is not entirely uncovered there.
 
 ## Documentation
 

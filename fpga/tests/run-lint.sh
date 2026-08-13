@@ -14,8 +14,8 @@
 #
 # This is the only automated check the gateware gets in CI. Bitstream builds
 # need Quartus, which is unfree, x86_64-linux only and cannot come from a
-# binary cache, so it never runs on a runner — see docs-tech/implementation-plan.md
-# "The bitstream is not built by CI".
+# binary cache, so it never runs on a runner — see fpga/README.md, "Why this is
+# not built by CI".
 
 set -euo pipefail
 

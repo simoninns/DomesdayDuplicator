@@ -18,8 +18,7 @@ SDK at `fx3/sdk/util/elf2img/`. That file carried Cypress's proprietary header
 (*UNPUBLISHED... CONFIDENTIAL AND PROPRIETARY*), which meant the firmware build could not be
 described honestly in packaging metadata: no licence in `lib.licenses` fitted it, and marking
 it unfree would have made `nix build .#fx3-firmware` fail for everyone without
-`allowUnfree` — see the Phase 5 notes in
-[`docs-tech/implementation-plan.md`](../../docs-tech/implementation-plan.md).
+`allowUnfree`.
 
 This implementation is **GPLv3, written from a public specification**, and the vendored
 `elf2img` has been deleted from the repository. That removes the smaller of the two

@@ -38,6 +38,6 @@ Thank you for your interest in improving Domesday Duplicator. Please follow the 
 
 ## Where things live
 
-See the repository layout table in [README.md](README.md). Engineering-process documentation
-for the repository itself — the reorganisation plan, decisions and per-component testing — is
-in [docs-tech/](docs-tech/).
+See the repository layout table in [README.md](README.md). Per-component build and design
+notes live in each component's own `README.md`; the project conventions are in
+[AGENTS.md](AGENTS.md) and the test tiers in [TESTING.md](TESTING.md).

@@ -53,7 +53,7 @@ extensions=(c h cpp inl v py sh nix S)
 # on them would fail on the next refresh rather than on a real defect.
 exempt=(
     # Vendored Cypress/Infineon FX3 SDK — proprietary, refreshed wholesale from the vendor
-    # download (docs-tech/decisions.md, P0-2).
+    # download. Provenance and the licence position are in fx3/sdk/README.md.
     "fx3/sdk"
 
     # Quartus megafunction wizard output for dcfifo and altpll, carrying Altera's own
@@ -68,7 +68,8 @@ exempt=(
     "fx3/firmware/src/cyfx_gcc_startup.S"
 
     # GPIF II Designer output. Says so itself: "This is a generated file and should not be
-    # modified" (docs-tech/implementation-plan.md, P2-9).
+    # modified". Which .cydsn revision produced it is recorded in
+    # fx3/firmware/gpif/README.md.
     "fx3/firmware/src/domesday-duplicator-gpif.h"
 
     # generate-descriptor.sh output, committed as golden fixtures for the T2 descriptor

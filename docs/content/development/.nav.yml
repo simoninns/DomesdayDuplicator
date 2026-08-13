@@ -1,5 +1,6 @@
 nav:
   - Building Locally: building-locally.md
+  - Editor Setup: editor-setup.md
   - Hardware Programming: hardware-programming
   - Hardware Guide: hardware-guide.md
   - Hardware Testing: hardware-testing.md

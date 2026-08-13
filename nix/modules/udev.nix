@@ -28,8 +28,9 @@ let
   # programs the FPGA has nowhere else to get them from. Carried as a package
   # rather than through services.udev.extraRules because extraRules lands in
   # 99-local.rules — far too late for the uaccess tag, which systemd consumes
-  # in 73-seat-late.rules. That is exactly the defect D23 documented for the
-  # FX3 rule, and it would be silently reintroduced here.
+  # in 73-seat-late.rules. That is exactly the bug the FX3 rule carried for
+  # years — the tag was set and nothing ever acted on it — and it would be
+  # silently reintroduced here.
   usbBlasterRules = pkgs.writeTextFile {
     name = "altera-usb-blaster-udev-rules";
     destination = "/lib/udev/rules.d/70-altera-usb-blaster.rules";

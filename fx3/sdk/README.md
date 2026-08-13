@@ -19,8 +19,11 @@ login, so no unattended fetch is possible.
 
 There is no stable direct download URL to record: the file is served from Infineon's gated
 software portal behind a login. That is the whole reason this directory exists rather than a
-`pkgs.fetchurl` — see the *Tool acquisition strategy* section of
-[`docs-tech/implementation-plan.md`](../../docs-tech/implementation-plan.md).
+`pkgs.fetchurl`. Nothing in nixpkgs packages the parts that matter either — the ARM libraries,
+the headers, and the `fx3.ld` linker script — and that absence is structural rather than an
+oversight, since nixpkgs has no URL it can fetch unattended and does not vendor
+multi-megabyte binary blobs. Vendoring in-tree is the remaining mechanism that is both
+reproducible and cacheable.
 
 ## What is here, and why
 
@@ -92,9 +95,10 @@ The headers themselves carry Cypress's standard notice: *Copyright Cypress Semic
 Corporation 2010-2023, All Rights Reserved; UNPUBLISHED, LICENSED SOFTWARE; CONFIDENTIAL AND
 PROPRIETARY INFORMATION*.
 
-Vendoring this SDK is a deliberate project decision recorded in
-[`docs-tech/decisions.md`](../../docs-tech/decisions.md) (P0-2), taken on the basis
-that the SDK is already widely mirrored.
+Vendoring this SDK is a deliberate project decision, taken on 12 August 2026 on the basis
+that the SDK is already widely mirrored in public GitHub repositories, and that the licence
+agreement the headers point at is not obtainable — so the position cannot be verified either
+way from the material the vendor ships.
 
 Note the separate host-tools component, `cyusb_linux`, **is** LGPL-2.1 licensed — see
 `../programmer/LICENSE.cyusb_linux.txt`.

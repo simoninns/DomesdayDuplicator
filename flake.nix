@@ -57,8 +57,9 @@
       # `bitstream` is the exception to every rule here: it is the only unfree output, it
       # exists on x86_64-linux alone, and it is deliberately absent from `checks` — Quartus
       # is redistributable = false, so it can never come from a binary cache, and the
-      # bitstream is built locally and attached to releases by hand rather than by CI. See
-      # docs-tech/implementation-plan.md, "The bitstream is not built by CI".
+      # bitstream is built locally and attached to releases by hand rather than by CI. The
+      # decision and the three ways it could reach CI later are in fpga/README.md,
+      # "Why this is not built by CI".
       #
       # Merged per system, not with `//` across two forAllSystems/forLinux calls: `//` is
       # a shallow update, so the Linux set would replace the portable one wholesale and

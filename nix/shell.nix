@@ -97,7 +97,7 @@ pkgs.mkShell {
     echo "  nix build .#gui .#fx3-programmer .#docs-site"
     echo "  nix flake check           build everything and run the T1-T4 tests"
     echo
-    echo "See docs-tech/editor-setup.md for editor configuration."
+    echo "Editor configuration: https://simoninns.github.io/domesdayduplicator/development/editor-setup/"
     echo
   '';
 }

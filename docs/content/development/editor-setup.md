@@ -1,16 +1,15 @@
-# Editor setup
+# Editor Setup
 
 This project does not require an IDE, and no editor is privileged over any other. Everything
 below is optional — the build works from a terminal with nothing but CMake and a compiler.
 
-The reason this document exists is history. The FX3 sources arrived as an Eclipse CDT
-project, the GUI as a Qt Creator qmake project, and the gateware as a Quartus GUI project.
-Each brought its own build definition, each drifted from the real one, and each made
-contributing conditional on installing a particular large application. All three are gone.
-What replaces them is one mechanism that every modern editor already speaks: the Language
-Server Protocol.
+The reason this page exists is history. The FX3 sources arrived as an Eclipse CDT project,
+the GUI as a Qt Creator qmake project, and the gateware as a Quartus GUI project. Each
+brought its own build definition, each drifted from the real one, and each made contributing
+conditional on installing a particular large application. All three are gone. What replaces
+them is one mechanism that every modern editor already speaks: the Language Server Protocol.
 
-## 1. How it works, in one paragraph
+## How it works, in one paragraph
 
 Every CMake component sets `CMAKE_EXPORT_COMPILE_COMMANDS`, so configuring a build writes
 `build/compile_commands.json` — the exact compiler invocation for every source file. Each
@@ -20,7 +19,7 @@ rename across the C and C++ in that component. Verilog gets the same treatment f
 `verible-verilog-ls`. Both language servers come with the Nix dev shells, so there is nothing
 to install per developer.
 
-## 2. Once, before anything else
+## Once, before anything else
 
 Get the toolchain, then configure each component you intend to work on.
 
@@ -37,9 +36,13 @@ cmake -B fx3/firmware/build -S fx3/firmware \
       -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake
 ```
 
-The configure step is what produces `compile_commands.json`. **Until a component has been
-configured at least once, clangd has nothing to read and will report errors on every
-include.** That is the single most common cause of "the language server does not work here".
+The configure step is what produces `compile_commands.json`.
+
+!!! warning "Configure first"
+
+    Until a component has been configured at least once, clangd has nothing to read and will
+    report errors on every include. That is the single most common cause of "the language
+    server does not work here".
 
 Re-run configure after adding or removing a source file.
 
@@ -56,7 +59,7 @@ Editors launched from inside the directory then inherit the toolchain, which mat
 GUI editors that do not read your shell profile. To use a component shell instead, put
 `use flake .#gui` in `.envrc.local`.
 
-## 3. Per-component notes
+## Per-component notes
 
 | Component | Language server | Notes |
 | --- | --- | --- |
@@ -67,7 +70,7 @@ GUI editors that do not read your shell profile. To use a component shell instea
 | `docs/` | — | Markdown; any editor |
 | `hardware/` | — | KiCad's own GUI. `nix develop .#hardware` |
 
-## 4. VS Code
+## VS Code
 
 Install two extensions:
 
@@ -90,7 +93,7 @@ with one folder per component.
 
 Do not commit a `.vscode/` directory — it is gitignored at the root deliberately.
 
-## 5. Neovim
+## Neovim
 
 With the built-in LSP client and `nvim-lspconfig`:
 
@@ -110,7 +113,7 @@ a file anywhere in the tree works — there is no per-project setup beyond the a
 For Verilog, `verible-verilog-ls` is in the `fpga` shell. Formatting is
 `verible-verilog-format --inplace`.
 
-## 6. Emacs
+## Emacs
 
 With `eglot` (built in since Emacs 29):
 
@@ -126,7 +129,7 @@ With `eglot` (built in since Emacs 29):
 
 `lsp-mode` works equally well; nothing in the repository depends on which you choose.
 
-## 7. Helix
+## Helix
 
 Helix has an LSP client built in and needs no configuration for C and C++ — it looks for
 `clangd` on `PATH`, which the dev shell provides. For Verilog, add to `languages.toml`:
@@ -140,7 +143,7 @@ language-servers = ["verible"]
 command = "verible-verilog-ls"
 ```
 
-## 8. Qt Creator
+## Qt Creator
 
 Qt Creator opens CMake projects natively. Use *File → Open File or Project* and select
 `gui/CMakeLists.txt`.
@@ -151,7 +154,7 @@ loses nothing: it reads the CMake project directly, including the Qt-specific ta
 
 Its generated `*.user` files are gitignored.
 
-## 9. CLion and KDevelop
+## CLion and KDevelop
 
 Both open `CMakeLists.txt` directly and manage their own build directory. Point them at the
 component directory. Neither needs anything from this repository beyond the CMake project.
@@ -159,7 +162,7 @@ component directory. Neither needs anything from this repository beyond the CMak
 If CLion cannot find Qt or libusb, it is being launched outside the Nix shell — start it from
 a terminal inside `nix develop`, or use direnv.
 
-## 10. Formatting
+## Formatting
 
 There is no automatic formatter in CI, and no repository-wide reformat has been done —
 that would bury the history of every file. What exists:
@@ -175,10 +178,10 @@ The rule that matters: **do not reformat code you are not otherwise changing.**
 Whitespace-only diffs bury the actual change and break `git blame`.
 
 Paths that must never be reformatted at all — vendored or generated — are listed in
-[AGENTS.md](../AGENTS.md) §3 and marked `unset` in `.editorconfig` so a format-on-save cannot
-touch them.
+[AGENTS.md](https://github.com/simoninns/DomesdayDuplicator/blob/master/AGENTS.md) §3 and
+marked `unset` in `.editorconfig` so a format-on-save cannot touch them.
 
-## 11. When the language server misbehaves
+## When the language server misbehaves
 
 | Symptom | Cause |
 | --- | --- |

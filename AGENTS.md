@@ -32,9 +32,8 @@ The loopholes that need closing explicitly:
 
 This matters more here than in a typical repository. The history in this monorepo was
 assembled by rewriting and merging four former submodule repositories with
-`--allow-unrelated-histories` (see [docs-tech/submodule-migration.md](docs-tech/submodule-migration.md)).
-An unrequested `git commit` or `git push` in the middle of that kind of work is expensive to
-unpick.
+`--allow-unrelated-histories`. An unrequested `git commit` or `git push` in the middle of
+that kind of work is expensive to unpick.
 
 ## Rule 2 — No AI attribution anywhere
 
@@ -100,7 +99,6 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 ├── docs/
 │   ├── mkdocs.yml             # site config; docs_dir is "content", never "site"
 │   └── content/               # the site's markdown, one directory per nav section
-├── docs-tech/                 # engineering-process docs for the repository itself
 ├── fpga/
 │   ├── README.md
 │   ├── src/                   # Quartus project and Verilog
@@ -310,8 +308,9 @@ a thin flake so `cd gui && nix develop` would work. Every one of those flakes de
 `nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable"` and grew a lock file of its own, so
 entering the tree through a component resolved whatever `nixos-unstable` pointed at that day
 — a different nixpkgs from the root pin, with no warning that it had happened. **Do not
-reintroduce component flakes.** Design notes:
-[docs-tech/nix-flake-design.md](docs-tech/nix-flake-design.md).
+reintroduce component flakes.** `nixpkgs.follows` cannot fix this: there is no parent flake
+to follow when the component flake is the entry point. The full reasoning is in the header
+comment of [flake.nix](flake.nix).
 
 Quartus is unfree, x86_64-linux only and not redistributable, so the bitstream build is
 guarded by system and never runs in CI — but it still comes from the root flake, fed by a
@@ -340,7 +339,7 @@ Quartus GUI, and each brought a build definition that drifted from the real one.
   and friends are gitignored at the root specifically so they cannot drift back in.
 
 Per-editor instructions — VS Code, Neovim, Emacs, Helix, Qt Creator, CLion, KDevelop — are in
-[docs-tech/editor-setup.md](docs-tech/editor-setup.md).
+[docs/content/development/editor-setup.md](docs/content/development/editor-setup.md).
 
 ### 7.2 Common commands
 
@@ -442,8 +441,8 @@ routing, regardless of the build machine. What is **not** guaranteed is byte-ide
 rebuild will hash-match the released file, and do not assume the design differs just because
 it does not.
 
-Full model: [docs-tech/implementation-plan.md](docs-tech/implementation-plan.md) →
-*Release artefacts and provenance*.
+Full model: [fpga/README.md](fpga/README.md) → *Reproducibility* and *Why this is not built
+by CI*.
 
 ## 10. Licensing
 
@@ -470,8 +469,8 @@ Do not add a dependency whose licence is incompatible with GPLv3 without raising
 | Where | What |
 | --- | --- |
 | [docs/content/](docs/content/) | The published project website — user-facing. Markdown images only; see [docs/README.md](docs/README.md) |
-| [docs-tech/](docs-tech/) | Engineering-process documentation for this repository: the reorganisation plan, decision log, flake design, defect register |
-| Component `README.md` | How to build and use that one component |
+| Component `README.md` | How to build and use that one component, and the design decisions behind it |
+| This file, [CONTRIBUTING.md](CONTRIBUTING.md), [TESTING.md](TESTING.md) | Repository-wide conventions, contribution rules and the test tiers |
 
 Documentation changes belong in the same repository, and usually the same pull request, as
 the change they describe.

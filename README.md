@@ -37,7 +37,6 @@ to the old repositories will not reach the project.
 | [fx3/sdk/](fx3/sdk/) | Vendored Cypress FX3 SDK the firmware builds against |
 | [gui/](gui/) | Qt 6 capture application, and the Flatpak/DMG/MSI packaging under `gui/packaging/` |
 | [docs/](docs/) | Source of the project documentation website |
-| [docs-tech/](docs-tech/) | Engineering-process documentation for this repository |
 | [nix/](nix/) | The single flake's shared helpers, default dev shell, NixOS module and whole-tree checks |
 | [tools/](tools/) | Repository-wide scripts, run both by hand and by the checks |
 
@@ -78,8 +77,10 @@ nix flake check                      # build everything and run the whole T1–T
 **Run any of these from anywhere in the working tree.** There is exactly one `flake.nix`, at
 the repository root, and exactly one `flake.lock`; Nix walks up to find them, so `.#gui`
 resolves identically from `gui/` and from the root. Components deliberately carry no flake of
-their own — [docs-tech/nix-flake-design.md](docs-tech/nix-flake-design.md) explains why that
-matters more than the `cd gui && nix develop` shorthand it costs.
+their own: an earlier layout gave each one a thin flake for the `cd gui && nix develop`
+shorthand, and every one of those resolved `nixos-unstable` into a lock file of its own — so
+entering the tree through a component quietly got a different nixpkgs from the root pin. The
+reasoning is in the header comment of [flake.nix](flake.nix).
 
 Two caveats on the FPGA row. Quartus Prime Lite is unfree, `x86_64-linux` only and cannot be
 served from a binary cache, so `nix build .#bitstream` means a multi-gigabyte first download

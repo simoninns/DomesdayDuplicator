@@ -64,7 +64,7 @@ Two consequences worth noting:
 `cyfxflashprog.img` itself is a compiled Cypress SDK example (`cyfxflashprog.txt` identifies
 it as such) that ships inside the LGPL-licensed `cyusb_linux` package; it is vendored here
 under the same project decision that covers the SDK — see
-[`docs-tech/decisions.md`](../../docs-tech/decisions.md) (P0-2).
+[`fx3/sdk/README.md`](../sdk/README.md).
 
 ## Vendored files removed in Phase 5
 
