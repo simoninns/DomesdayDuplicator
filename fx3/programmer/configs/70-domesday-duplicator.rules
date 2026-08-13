@@ -37,10 +37,14 @@ SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04b4", MODE="0666
 
 # The SuperSpeed Explorer Kit's on-board USB-UART bridge, 04b4:0007. The kit exposes the FX3's
 # debug console over it, so this is where firmware printf output comes out. The vendor rule
-# above already covers the usb_device node; a serial port is only usable through the tty node
-# the USB-serial driver creates, and that node matches neither SUBSYSTEM=="usb" nor
-# ENV{DEVTYPE}=="usb_device", so it needs its own rule. ATTRS (plural) walks up to the parent
-# USB device, because the tty device itself carries no idVendor/idProduct of its own.
+# above already covers the usb_device node; a serial port is only usable through the tty node,
+# and that node matches neither SUBSYSTEM=="usb" nor ENV{DEVTYPE}=="usb_device", so it needs
+# its own rule. ATTRS (plural) walks up to the parent USB device, because the tty device itself
+# carries no idVendor/idProduct of its own.
+#
+# The bridge presents a CDC-ACM interface and binds to the cdc_acm driver, so the node is
+# /dev/ttyACM<n> — not ttyUSB, which is where the other USB serial adaptors on a typical bench
+# land. Matching on SUBSYSTEM=="tty" covers either, so the rule does not depend on which.
 SUBSYSTEM=="tty", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="0007", MODE="0666", TAG+="uaccess", TAG+="cyusb_dev"
 
 # Domesday Duplicator in application mode — this is what the capture GUI opens.

@@ -27,8 +27,9 @@ doing, and a rule matching only one of them will appear to work until the moment
 
 The first four are the FX3 board and are covered by `70-domesday-duplicator.rules`: everything
 with the Cypress vendor ID `04b4`, plus `1209:2347`. The UART needs a second rule of its own —
-the vendor rule matches only the USB device node, and a serial port is opened through the
-`/dev/ttyUSB*` node the USB-serial driver creates alongside it.
+the vendor rule matches only the USB device node, and a serial port is opened through the tty
+node created alongside it. The bridge is CDC-ACM, so that node is `/dev/ttyACM<n>` rather than
+the `/dev/ttyUSB<n>` most USB serial adaptors get.
 
 `1209:2347` is this project's own ID, [registered with pid.codes](https://pid.codes/1209/2347/).
 Boards running firmware from before that registration enumerate as `1d50:603b` and are not
