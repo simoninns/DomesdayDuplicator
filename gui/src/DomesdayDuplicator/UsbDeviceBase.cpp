@@ -1,4 +1,5 @@
 #include "UsbDeviceBase.h"
+#include "captureformat.h"
 #ifdef _WIN32
 #include <memoryapi.h>
 #else
@@ -63,12 +64,20 @@ void UsbDeviceBase::SendConfigurationCommand(const std::string& preferredDeviceP
 //----------------------------------------------------------------------------------------------------------------------
 // Capture methods
 //----------------------------------------------------------------------------------------------------------------------
-bool UsbDeviceBase::StartCapture(const std::filesystem::path& filePath, CaptureFormat format, const std::string& preferredDevicePath, bool isTestMode, bool useSmallUsbTransfers, bool useAsyncFileIo, size_t usbTransferQueueSizeInBytes, size_t diskBufferQueueSizeInBytes)
+bool UsbDeviceBase::StartCapture(const std::filesystem::path& filePath, CaptureFormat format, const CaptureOptions& options, const std::string& preferredDevicePath, bool isTestMode, bool useSmallUsbTransfers, bool useAsyncFileIo, size_t usbTransferQueueSizeInBytes, size_t diskBufferQueueSizeInBytes)
 {
     // If we're already performing a capture, abort any further processing.
     if (transferInProgress)
     {
         Log().Error("StartCapture(): Capture was currently in progress");
+        return false;
+    }
+
+    // A decimation factor of zero would divide by zero further down, and anything other
+    // than 1 or 4 is not a capture mode the device supports.
+    if ((options.decimationFactor != 1) && (options.decimationFactor != 4))
+    {
+        Log().Error("StartCapture(): Unsupported decimation factor {0}", options.decimationFactor);
         return false;
     }
 
@@ -84,6 +93,41 @@ bool UsbDeviceBase::StartCapture(const std::filesystem::path& filePath, CaptureF
 #ifdef _WIN32
     useWindowsOverlappedFileIo = useAsyncFileIo;
 #endif
+
+    // The FLAC encoder owns its own output file, so neither of the two raw file handles
+    // below is opened for it. Overlapped IO is meaningless here too: libFLAC emits whole
+    // frames through its own buffered writer, and there is nothing to queue asynchronously.
+    flacWriter.reset();
+    if (format == CaptureFormat::FlacOgg)
+    {
+#ifdef _WIN32
+        useWindowsOverlappedFileIo = false;
+#endif
+        FlacWriter::Options flacOptions;
+        flacOptions.compressionLevel = options.flacCompressionLevel;
+        flacOptions.sampleRateLabel = (options.decimationFactor == 4) ? CaptureFormats::flacSampleRateLabelDecimated
+                                                                     : CaptureFormats::flacSampleRateLabel;
+        for (const auto& tag : options.flacTags)
+        {
+            flacOptions.tags.push_back({ tag.first, tag.second });
+        }
+
+        auto writer = std::make_unique<FlacWriter>();
+        std::string flacError;
+        if (!writer->Open(filePath, flacOptions, flacError))
+        {
+            Log().Error("StartCapture(): {0}", flacError);
+            captureResult = TransferResult::FileCreationError;
+            return false;
+        }
+        if (!FlacWriter::SupportsMultithreading())
+        {
+            Log().Warning("StartCapture(): libFLAC was built without multithreading, so the capture is encoding on a single core");
+        }
+        flacWriter = std::move(writer);
+    }
+    else
+    {
 
     // Attempt to create/open the output file
 #ifdef _WIN32
@@ -114,6 +158,8 @@ bool UsbDeviceBase::StartCapture(const std::filesystem::path& filePath, CaptureF
     }
 #endif
 
+    }
+
     // Calculate the optimal read buffer size and number of disk buffers, and initialize the structures. We use an
     // unusual case of wrapping an array new into a unique_ptr rather than std::vector here, as we have an atomic_flag
     // member in the structure which can't be moved.
@@ -137,6 +183,7 @@ bool UsbDeviceBase::StartCapture(const std::filesystem::path& filePath, CaptureF
     // Record the capture settings
     captureFilePath = filePath;
     captureFormat = format;
+    captureOptions = options;
     captureIsTestMode = isTestMode;
     currentUsbTransferQueueSizeInBytes = usbTransferQueueSizeInBytes;
     currentUseSmallUsbTransfers = useSmallUsbTransfers;
@@ -200,7 +247,20 @@ void UsbDeviceBase::StopCapture()
 #endif
     diskBufferEntries.reset();
 
-    // Close the output file
+    // Close the output file. For FLAC this is not a formality: Finish() flushes the last
+    // partial frame and patches the stream header, so a capture whose encoder was never
+    // finished loses its tail and reports the wrong length.
+    if (flacWriter)
+    {
+        if (!flacWriter->Finish())
+        {
+            Log().Error("StopCapture(): {0}", flacWriter->GetLastError());
+        }
+        transferFileSizeWrittenInBytes = flacWriter->GetBytesWritten();
+        flacWriter.reset();
+    }
+    else
+    {
 #ifdef _WIN32
     if (useWindowsOverlappedFileIo)
     {
@@ -218,6 +278,7 @@ void UsbDeviceBase::StopCapture()
 #ifdef _WIN32
     }
 #endif
+    }
 
     // Disconnect from the target device
     DisconnectFromDevice();
@@ -230,19 +291,13 @@ void UsbDeviceBase::StopCapture()
 //----------------------------------------------------------------------------------------------------------------------
 void UsbDeviceBase::CaptureThread()
 {
-    // Determine how large our conversion buffers need to be based on the disk buffer size and the capture format
+    // Determine how large our conversion buffers need to be based on the disk buffer size and the capture format. The
+    // FLAC path needs none: libFLAC is handed the disk buffer directly and does its own widening internally, so the
+    // 40 MB/s memcpy into an intermediate buffer that the other format needs does not happen at all.
     size_t requiredConversionBufferSize = 0;
-    switch (captureFormat)
+    if (captureFormat == CaptureFormat::Signed16Bit)
     {
-    case CaptureFormat::Signed16Bit:
-        requiredConversionBufferSize = diskBufferSizeInBytes;
-        break;
-    case CaptureFormat::Unsigned10Bit:
-        requiredConversionBufferSize = (diskBufferSizeInBytes / 8) * 5;
-        break;
-    case CaptureFormat::Unsigned10Bit4to1Decimation:
-        requiredConversionBufferSize = (diskBufferSizeInBytes / (8 * 4)) * 5;
-        break;
+        requiredConversionBufferSize = diskBufferSizeInBytes / captureOptions.decimationFactor;
     }
 
     // Allocate our conversion buffers
@@ -693,6 +748,32 @@ void UsbDeviceBase::ProcessingThread()
                 continue;
             }
 
+            // FLAC output. The encoder reads the disk buffer directly and writes the file itself, so this replaces both
+            // the format conversion and the file write below.
+            if (flacWriter)
+            {
+                const size_t sampleCount = bufferEntry.readBuffer.size() / 2;
+                if (!flacWriter->WriteRawDeviceSamples(bufferEntry.readBuffer.data(), sampleCount, captureOptions.decimationFactor))
+                {
+                    Log().Error("ProcessingThread(): {0}", flacWriter->GetLastError());
+                    SetProcessingFinished(TransferResult::FileWriteError);
+                    processingFailure = true;
+                    continue;
+                }
+
+                bufferEntry.isDiskBufferFull.clear();
+                bufferEntry.isDiskBufferFull.notify_all();
+
+                ++transferBufferWrittenCount;
+
+                // Taken from the encoder rather than accumulated here: with a compressor in the path the bytes on disk
+                // do not follow from the sample count, and the capture dialog's free-space estimate is only useful if it
+                // reflects what is actually being written.
+                transferFileSizeWrittenInBytes = flacWriter->GetBytesWritten();
+            }
+            else
+            {
+
             // Convert the sample data into the requested data format
             auto& currentConversionBuffer = conversionBuffers[conversionBufferIndex];
             if (!ConvertRawSampleData(currentDiskBuffer, captureFormat, currentConversionBuffer))
@@ -744,6 +825,8 @@ void UsbDeviceBase::ProcessingThread()
 #ifdef _WIN32
             }
 #endif
+
+            }
         }
 
         // If we're using overlapped file IO, complete the previously submitted write operation.
@@ -995,16 +1078,20 @@ bool UsbDeviceBase::ConvertRawSampleData(size_t diskBufferIndex, CaptureFormat c
     const uint8_t* readBufferPointer = bufferEntry.readBuffer.data();
     size_t readBufferSizeInBytes = bufferEntry.readBuffer.size();
 
-    // Convert the data to the required format
+    // Convert the data to the required format.
+    //
+    // Only the uncompressed 16-bit format reaches here: FLAC output is written straight from the disk buffer by the
+    // encoder (P7-21), and the two packed 10-bit formats were removed in P7-22.
     uint8_t* writeBufferPointer = outputBuffer.data();
     if (captureFormat == CaptureFormat::Signed16Bit)
     {
-        // Translate the data in the disk buffer to scaled 16-bit signed data
-        for (size_t i = 0; i < readBufferSizeInBytes; i += 2)
+        // Translate the data in the disk buffer to scaled 16-bit signed data, keeping every decimationFactor'th sample
+        const size_t readStrideInBytes = 2 * captureOptions.decimationFactor;
+        for (size_t i = 0; i < readBufferSizeInBytes; i += readStrideInBytes)
         {
             // Get the original 10-bit unsigned value from the disk data buffer
             uint16_t originalValue = (uint16_t)readBufferPointer[0] | ((uint16_t)readBufferPointer[1] << 8);
-            readBufferPointer += 2;
+            readBufferPointer += readStrideInBytes;
 
             // Sign and scale the data to 16-bits. Technically a line like this would use the entire 16-bit range:
             //uint16_t signedValue = ((uint16_t)((int16_t)originalValue - 0x0200) << 6) | ((originalValue >> 4) & 0x003F);
@@ -1016,50 +1103,6 @@ bool UsbDeviceBase::ConvertRawSampleData(size_t diskBufferIndex, CaptureFormat c
             writeBufferPointer[0] = (uint8_t)((uint16_t)signedValue & 0x00FF);
             writeBufferPointer[1] = (uint8_t)(((uint16_t)signedValue & 0xFF00) >> 8);
             writeBufferPointer += 2;
-        }
-    }
-    else if (captureFormat == CaptureFormat::Unsigned10Bit)
-    {
-        // Translate the data in the disk buffer to unsigned 10-bit packed data
-        for (size_t i = 0; i < readBufferSizeInBytes; i += 8)
-        {
-            // Get the original 4 10-bit words
-            uint16_t originalWords[4];
-            originalWords[0] = (uint16_t)readBufferPointer[0] | ((uint16_t)readBufferPointer[1] << 8);
-            originalWords[1] = (uint16_t)readBufferPointer[2] | ((uint16_t)readBufferPointer[3] << 8);
-            originalWords[2] = (uint16_t)readBufferPointer[4] | ((uint16_t)readBufferPointer[5] << 8);
-            originalWords[3] = (uint16_t)readBufferPointer[6] | ((uint16_t)readBufferPointer[7] << 8);
-            readBufferPointer += 8;
-
-            // Convert into 5 bytes of packed 10-bit data
-            writeBufferPointer[0] = (uint8_t)((originalWords[0] & 0x03FC) >> 2);
-            writeBufferPointer[1] = (uint8_t)((originalWords[0] & 0x0003) << 6) | (uint8_t)((originalWords[1] & 0x03F0) >> 4);
-            writeBufferPointer[2] = (uint8_t)((originalWords[1] & 0x000F) << 4) | (uint8_t)((originalWords[2] & 0x03C0) >> 6);
-            writeBufferPointer[3] = (uint8_t)((originalWords[2] & 0x003F) << 2) | (uint8_t)((originalWords[3] & 0x0300) >> 8);
-            writeBufferPointer[4] = (uint8_t)((originalWords[3] & 0x00FF));
-            writeBufferPointer += 5;
-        }
-    }
-    else if (captureFormat == CaptureFormat::Unsigned10Bit4to1Decimation)
-    {
-        // Translate the data in the disk buffer to unsigned 10-bit packed data with 4:1 decimation
-        for (size_t i = 0; i < readBufferSizeInBytes; i += (8 * 4))
-        {
-            // Get the original 4 10-bit words
-            uint16_t originalWords[4];
-            originalWords[0] = (uint16_t)readBufferPointer[0 + 0] | ((uint16_t)readBufferPointer[1 + 0] << 8);
-            originalWords[1] = (uint16_t)readBufferPointer[2 + 4] | ((uint16_t)readBufferPointer[3 + 4] << 8);
-            originalWords[2] = (uint16_t)readBufferPointer[4 + 8] | ((uint16_t)readBufferPointer[5 + 8] << 8);
-            originalWords[3] = (uint16_t)readBufferPointer[6 + 12] | ((uint16_t)readBufferPointer[7 + 12] << 8);
-            readBufferPointer += 8 * 4;
-
-            // Convert into 5 bytes of packed 10-bit data
-            writeBufferPointer[0] = (uint8_t)((originalWords[0] & 0x03FC) >> 2);
-            writeBufferPointer[1] = (uint8_t)((originalWords[0] & 0x0003) << 6) | (uint8_t)((originalWords[1] & 0x03F0) >> 4);
-            writeBufferPointer[2] = (uint8_t)((originalWords[1] & 0x000F) << 4) | (uint8_t)((originalWords[2] & 0x03C0) >> 6);
-            writeBufferPointer[3] = (uint8_t)((originalWords[2] & 0x003F) << 2) | (uint8_t)((originalWords[3] & 0x0300) >> 8);
-            writeBufferPointer[4] = (uint8_t)((originalWords[3] & 0x00FF));
-            writeBufferPointer += 5;
         }
     }
     else

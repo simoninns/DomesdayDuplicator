@@ -35,7 +35,7 @@ to the old repositories will not reach the project.
 | [fx3/firmware/](fx3/firmware/) | Cypress FX3 USB 3.0 controller firmware |
 | [fx3/programmer/](fx3/programmer/) | Host-side tool for programming the FX3 |
 | [fx3/sdk/](fx3/sdk/) | Vendored Cypress FX3 SDK the firmware builds against |
-| [gui/](gui/) | Qt 6 capture application, plus the `dddconv` and `dddutil` tools |
+| [gui/](gui/) | Qt 6 capture application, and the Flatpak/DMG/MSI packaging under `gui/packaging/` |
 | [docs/](docs/) | Source of the project documentation website |
 | [docs-tech/](docs-tech/) | Engineering-process documentation for this repository |
 

@@ -19,6 +19,12 @@
 pkgs.mkShell {
   name = "ddd";
 
+  # Same reasoning as gui/shell.nix: Qt's moc/uic/rcc warn on every invocation unless the
+  # locale is UTF-8, and a session exporting codeset-less region variables (GNOME's
+  # LC_TIME=en_GB and friends) leaves setlocale failing back to C/ANSI_X3.4-1968. This shell
+  # builds the GUI too, so it pins the same locale.
+  LC_ALL = "C.UTF-8";
+
   packages =
     with pkgs;
     [

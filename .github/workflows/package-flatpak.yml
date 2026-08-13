@@ -1,0 +1,123 @@
+# Linux Flatpak for the capture application (P7-14).
+#
+# Reusable, following decode-orc: build.yml calls it on every non-PR push so the installer
+# is testable per branch, and release-gui.yml calls it again on a gui-v* tag.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Package Linux Flatpak
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: Name of the uploaded Flatpak artifact
+        required: false
+        default: DomesdayDuplicator-linux-flatpak
+        type: string
+      retention_days:
+        description: Artifact retention in days
+        required: false
+        default: 30
+        type: number
+
+jobs:
+  package:
+    name: Flatpak
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          # A tag names itself; anything else names its commit. Neither may end up as
+          # "unknown", which is what P7-9 fails a release for.
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            version="${GITHUB_REF_NAME#gui-v}"
+          else
+            version="git-${GITHUB_SHA:0:8}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "ddd_version=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install -y flathub org.kde.Platform//6.9 org.kde.Sdk//6.9
+
+      - name: Validate desktop and AppStream metadata
+        run: |
+          sudo apt-get install -y desktop-file-utils appstream
+          desktop-file-validate gui/packaging/assets/io.github.simoninns.DomesdayDuplicator.desktop
+          # A malformed metainfo file is rejected at Flathub review rather than at build
+          # time, so it is checked here where the feedback is immediate.
+          appstreamcli validate --no-net gui/packaging/assets/io.github.simoninns.DomesdayDuplicator.metainfo.xml
+
+      - name: Stamp the version into the manifest and the AppStream release list
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST=gui/packaging/flatpak/io.github.simoninns.DomesdayDuplicator.yml
+          sed -i "s/@DDD_VERSION@/${{ steps.version.outputs.ddd_version }}/" "${MANIFEST}"
+          grep -q "@DDD_VERSION@" "${MANIFEST}" && { echo "version placeholder not substituted" >&2; exit 1; }
+
+          # Rewrite the <releases> list from the tag rather than maintaining it by hand,
+          # which is how a version history goes stale (P7-13).
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            METAINFO=gui/packaging/assets/io.github.simoninns.DomesdayDuplicator.metainfo.xml
+            python3 - "$METAINFO" "${{ steps.version.outputs.version }}" "$(date -u +%Y-%m-%d)" <<'PY'
+          import re, sys
+          path, version, date = sys.argv[1:4]
+          text = open(path, encoding="utf-8").read()
+          entry = f'    <release version="{version}" date="{date}">\n      <description>\n        <p>Release {version}.</p>\n      </description>\n    </release>\n'
+          text = re.sub(r"  <releases>.*?</releases>\n", f"  <releases>\n{entry}  </releases>\n", text, flags=re.S)
+          open(path, "w", encoding="utf-8").write(text)
+          PY
+          fi
+
+      - name: Cache flatpak-builder state
+        uses: actions/cache@v4
+        with:
+          path: .flatpak-builder
+          key: flatpak-builder-${{ hashFiles('gui/packaging/flatpak/*.yml') }}
+          restore-keys: flatpak-builder-
+
+      - name: Build
+        run: |
+          sudo flatpak-builder --disable-rofiles-fuse --repo=repo --force-clean \
+            build-dir gui/packaging/flatpak/io.github.simoninns.DomesdayDuplicator.yml
+
+      - name: Export a single-file bundle
+        run: |
+          mkdir -p dist
+          sudo flatpak build-bundle repo \
+            "dist/DomesdayDuplicator-${{ steps.version.outputs.version }}.flatpak" \
+            io.github.simoninns.DomesdayDuplicator
+          sudo chown "$(id -u):$(id -g)" dist/*.flatpak
+
+      - name: Install the bundle and check it runs
+        run: |
+          # Installing from the bundle is the part that catches a manifest which builds but
+          # produces something unlaunchable — a missing runtime dependency, a broken
+          # desktop file, an application ID mismatch. Checking the binary answers
+          # --version also proves the commit stamp survived into the packaged build.
+          flatpak install --user -y --bundle "dist/DomesdayDuplicator-${{ steps.version.outputs.version }}.flatpak"
+          reported=$(flatpak run --command=DomesdayDuplicator io.github.simoninns.DomesdayDuplicator --version)
+          echo "Packaged application reports: ${reported}"
+          case "${reported}" in
+            *unknown*) echo "The packaged application reports an unknown version" >&2; exit 1 ;;
+          esac
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist/*.flatpak
+          retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: error

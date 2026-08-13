@@ -4,7 +4,6 @@
 nav:
   - index.md
   - General: general
-  - Hardware programming: hardware-programming
   - Capture Application: capture-application
   - The Decode Family: related-projects
   - Development Guides: development

@@ -27,12 +27,16 @@ carries Phase 1. `master` is not touched until every phase is complete.
   `git checkout master && git merge --ff-only 20260812-002`. Keep it that way — anything
   committed to `master` during the reorganisation forces a real merge and has to be ported
   across the re-layout by hand.
-- **No CI runs on this branch.** The three inherited workflows sit at `docs/.github/`,
-  `fx3/.github/` and `gui/.github/`, and GitHub only reads the repository root, so nothing
-  triggers. That is convenient while paths are moving — no red
-  crosses from workflows pointing at directories that no longer exist — but it means there is
-  no automated safety net until P7-1 creates the root workflow. Until then, verification is
-  local and manual.
+- **No CI ran on this branch until Phase 7.** The three inherited workflows sat at
+  `docs/.github/`, `fx3/.github/` and `gui/.github/`, and GitHub only reads the repository
+  root, so nothing triggered. That was convenient while paths were moving — no red crosses
+  from workflows pointing at directories that no longer exist — but it meant there was no
+  automated safety net, and verification was local and manual.
+
+  **P7-1 ends that.** `.github/workflows/build.yml` runs on every push to every branch,
+  including this one, and builds and packages everything each time; only publishing waits for
+  a tag. That is the point of doing it this way round — the whole chain gets exercised on the
+  branch, for as long as the branch lives, rather than being first tried out during a release.
 - Consequence for anyone cloning: `master` still has the old submodule layout, including the
   `git clone --recursive` instructions that fail without an SSH key (D11). That stays true
   for the duration.
@@ -261,17 +265,58 @@ produced at that pin.
 
 This section defines the model. The tasks that implement it live in Phases 5, 6 and 7.
 
-### 1. What a release contains
+### 1. Two release streams
 
-| Artefact | Built by | Platforms | Cadence |
-| --- | --- | --- | --- |
-| `DomesdayDuplicator`, `dddutil`, `dddconv` | CI | Linux x64, Linux ARM64, Windows x64, macOS x64, macOS ARM64 | **Every commit** |
-| `firmware.img`, `firmware.elf`, `firmware.map` | CI (`nix build .#fx3-firmware`) | n/a (cross-compiled) | **Every commit** |
-| `fx3-programmer` | CI (`nix build .#fx3-programmer`) | Linux x64, ARM64 | **Every commit** |
-| Documentation site | CI (`nix build .#docs-site`) | n/a | Every commit to `master` |
-| `DomesdayDuplicator.sof` / `.jic` | **Local build, attached manually** | n/a | Per release |
+**Decided 2026-08-12: the artefacts split into two independently versioned, independently
+tagged streams.** They are consumed differently and change at different rates — the GUI is
+installed on a desktop and updated freely, while firmware and gateware are flashed onto a
+board and paired with each other. Folding them into one tag would mean a GUI typo fix
+reissues a bitstream, and a gateware change reissues three installers.
 
-The FPGA bitstream is the exception, and §4 explains why.
+| Stream | Tag | Contains |
+| --- | --- | --- |
+| **GUI** | `gui-v*` | Linux Flatpak, macOS DMG, Windows MSI, `SHA256SUMS`, `PROVENANCE.txt` |
+| **Firmware/gateware** | `fw-v*` | `firmware.img`/`.elf`/`.map`, FPGA `.sof`/`.jic` + `bitstream-provenance.txt`, `fx3-programmer`, `SHA256SUMS`, `PROVENANCE.txt` |
+
+The two streams are cut from the same monorepo commit graph, so a `fw-v*` tag and a `gui-v*`
+tag both name a commit and both remain fully traceable (§3). The docs site is a third
+consumer of CI but not a release stream — it deploys per commit to `master`.
+
+What is built, and how often:
+
+| Artefact | Stream | Built by | Platforms | Cadence |
+| --- | --- | --- | --- | --- |
+| `DomesdayDuplicator-<ver>.flatpak` | GUI | CI (`flatpak-builder`) | Linux x64 | Every commit; **published on `gui-v*`** |
+| `DomesdayDuplicator-<ver>.dmg` | GUI | CI (Homebrew Qt + `hdiutil`) | macOS arm64 | Every commit; **published on `gui-v*`** |
+| `DomesdayDuplicator-<ver>.msi` | GUI | CI (MSYS2 UCRT64 + WiX) | Windows x64 | Every commit; **published on `gui-v*`** |
+| `DomesdayDuplicator` raw binaries | GUI | CI (`nix build .#gui` + the native matrix) | Linux x64/ARM64, macOS x64/ARM64, Windows x64 | Every commit — **build artefacts only; not release assets** |
+| `firmware.img`, `firmware.elf`, `firmware.map` | Firmware | CI (`nix build .#fx3-firmware`) | n/a (cross-compiled) | Every commit; **published on `fw-v*`** |
+| `fx3-programmer` | Firmware | CI (`nix build .#fx3-programmer`) | Linux x64, ARM64 | Every commit; **published on `fw-v*`** |
+| `DomesdayDuplicator.sof` / `.jic` | Firmware | **Local build, attached manually** | n/a | Per `fw-v*` release |
+| Documentation site | — | CI (`nix build .#docs-site`) | n/a | Every commit to `master` |
+
+Two consequences of that table, both decided 2026-08-12:
+
+- **The GUI ships as installers, not archives.** The five `tar.gz`/`zip` per-platform archives
+  the current workflow publishes are replaced by one Flatpak, one DMG and one MSI — the same
+  three formats decode-orc ships. The native matrix still *builds* every platform on every
+  commit (it is the compile-side regression check, and it feeds the packaging jobs), but its
+  output is a 30-day CI artefact rather than a release asset. Rationale: an unpacked tarball
+  of Qt binaries has no desktop entry, no icon, no dependency resolution and no uninstall,
+  and every support question about "it says it can't find libQt6Core" traces back to one.
+- **`dddconv` and `dddutil` are both removed** (P7-12), leaving `DomesdayDuplicator` as the
+  only shipped GUI binary. The two removed tools between them held three implementations of
+  the same 10-bit ↔ 16-bit transform, and neither fits an installer-only release cleanly — a
+  CLI tool has nowhere to go inside a Flatpak, and a second `.app`/Start-menu entry for a
+  utility is a support liability. One capture application, one icon, one shortcut.
+
+  **One capability must survive the removal.** `dddutil`'s test-data analysis is step 4 of
+  the capture-integrity procedure ([TESTING.md](../TESTING.md) §5) — the T5 gate that P5-4 and
+  P6-5 are still blocked on. It is ported into the capture application first (P7-19), and only
+  then does `dddutil` go. `dddutil`'s file-conversion feature is *not* ported: the decode
+  toolchain reads the packed 10-bit capture format directly, so converting it up-front is a
+  path nobody is asked to take any more. If that assumption is wrong for some workflow, say so
+  before P7-12 runs rather than after.
 
 ### 2. Why "the exact artefacts" and not "rebuild from the tag"
 
@@ -326,7 +371,7 @@ An archived artefact is only useful if you can tell which commit produced it. Cu
 | Component | Carries the commit? |
 | --- | --- |
 | FX3 firmware | **Yes** — `FIRMWARE_VERSION` reaches the USB product descriptor, so `lsusb -v` on a running device reports it (D4, fixed in P2-6) |
-| GUI | **Yes** — `DDD_VERSION` reaches `--version` and the About dialog of all three tools (D21, fixed in P5-6) |
+| GUI | **Yes** — `DDD_VERSION` reaches `--version` and the About dialog of both tools (D21, fixed in P5-6). The installers carry it too: the Flatpak's AppStream `<release>`, the DMG's `CFBundleShortVersionString` and the MSI's `ProductVersion` (P7-9) |
 | FPGA bitstream | **No** — nothing in the `.sof`/`.jic` identifies the source |
 
 P5-6 closed the GUI gap; P7-9 makes it a release gate. The FPGA gap is handled by recording
@@ -334,9 +379,11 @@ provenance alongside the artefact rather than inside it (§4) — P6-8 emits
 `bitstream-provenance.txt` into the build output, and the derivation fails rather than
 installing one that reports an `unknown` commit.
 
-Every release also publishes a `SHA256SUMS` manifest and a short provenance note: the commit,
-the `flake.lock` nixpkgs revision, and — for the bitstream — the Quartus version and the
-machine that built it.
+Every release — of either stream — also publishes a `SHA256SUMS` manifest and a short
+provenance note: the commit, the `flake.lock` nixpkgs revision, and, for the firmware stream's
+bitstream, the Quartus version and the machine that built it. Each manifest covers only its
+own stream's assets, so `SHA256SUMS` is complete with respect to the release it is attached
+to rather than to the repository as a whole.
 
 ### 4. The FPGA bitstream stays out of CI, for now
 
@@ -362,9 +409,11 @@ The three ways it could reach CI, when the time comes:
 | GitHub-hosted, fetch from Intel each run | 20–40 min | None | Clean — fetched from source |
 | GitHub-hosted + private binary cache | 5–10 min | Cachix/S3 and credentials | **Judgement call** — `redistributable = false` is precisely about not redistributing these binaries |
 
-**Intended shape when adopted:** GUI and FX3 per commit; the bitstream on tags and manual
-dispatch only, so a release still gets a bitstream built from the release commit without
-paying for Quartus on every push.
+**Intended shape when adopted:** GUI and FX3 per commit; the bitstream on `fw-v*` tags and
+manual dispatch only, so a firmware release still gets a bitstream built from the release
+commit without paying for Quartus on every push. Note that the two-stream split makes this
+cheaper than it would have been under a single tag — Quartus would run only on firmware
+releases, not on every GUI release.
 
 Until then, `docs-tech/` records the manual procedure and P8-3 covers attaching the artefact.
 
@@ -1578,57 +1627,298 @@ the same pinned Quartus version can rebuild and check. That gets most of the val
 build — an independently verifiable artefact — without putting a GB-scale unfree toolchain on
 a runner. It depends on P6-9 having measured what a rebuild actually produces.
 
-## Phase 7 — CI: build every artefact on commit, publish them on release
+## Phase 7 — CI: build every artefact on commit, publish two release streams — **BUILT; CI AND HARDWARE GATES OUTSTANDING**
 
 This phase carries the maintainer requirement from
 [Release artefacts and provenance](#release-artefacts-and-provenance): the GUI, the FX3
 firmware and the FX3 programmer are built by CI **on every commit**, and a release contains
 exactly the artefacts built from the release commit. The FPGA bitstream is deliberately
-excluded for now (§4 of that section); it is attached by hand in P8-3.
+excluded from CI for now (§4 of that section); it is attached by hand to the firmware
+release (P7-11, P8-3).
+
+**Decided 2026-08-12, and it reshapes this phase:**
+
+1. **Two release streams, two tag prefixes.** `gui-v*` publishes the GUI; `fw-v*` publishes
+   the FX3 firmware, the FPGA bitstream and the programmer. Independent versions, independent
+   cadence, independent release notes and `SHA256SUMS`.
+2. **The GUI ships as a Linux Flatpak, a macOS DMG and a Windows MSI**, matching decode-orc's
+   packaging. These replace the five per-platform archives as release assets.
+3. **`dddconv` and `dddutil` are removed** from the tree (P7-12), leaving `DomesdayDuplicator`
+   as the only GUI binary — but not before `dddutil`'s test-data analysis is ported into the
+   capture application (P7-19), because that analysis is step 4 of the T5 gate.
+4. **The capture application stops writing packed 10-bit `.lds` and writes `.ldf` instead** —
+   the same Ogg FLAC container ld-decode already consumes (§7b). This lands in this phase
+   because it changes what a release *is*, and because it adds libFLAC to every build and
+   packaging path, so it has to be settled before the installers are written.
+5. **Everything runs on every branch push; only publishing waits for a tag**
+   (maintainer, 2026-08-13). The three installers are built, installed and launched on every
+   push rather than first exercised on the way to a release. Path filtering is kept for pull
+   requests alone. This reverses the earlier "path-filtered on every ref" position and costs
+   CI minutes deliberately: an installer is only proven by being built, and Phase 7 exists to
+   know that the whole chain works, not to know it cheaply.
+
+The task numbering below is not in document order: P7-1…P7-11 predate these decisions and are
+referenced from elsewhere in this document, so they keep their numbers, and the new work
+continues from P7-12 rather than renumbering everything. Within each subsection the tasks are
+in the order they must be done.
 
 ### 7a. Build on commit
 
 | Task | Size | Detail |
 | --- | --- | --- |
-| **P7-1** Single path-filtered `build.yml` | M | `nix-installer-action` + `magic-nix-cache-action`, then `nix build .#gui .#fx3-firmware .#fx3-programmer .#docs-site`. Replaces the three per-submodule workflows (including the one fixed in P2-3). Path filters so a `docs/`-only change does not rebuild firmware — but note the filters must **not** apply on `master` or on tags, where a complete artefact set is the point |
-| **P7-2** Keep the native build matrix | M | The current GUI workflow builds Linux x64/ARM64, macOS x64/ARM64 and Windows x64. **Nix cannot produce the Windows binary**, so those five jobs stay, driven from the new paths. Nix is additive here, not a replacement. This is why the GUI has two build paths and the firmware only one |
+| **P7-1** Single `build.yml` | M | `nix-installer-action` + `magic-nix-cache-action`, then `nix build .#gui .#fx3-firmware .#fx3-programmer .#docs-site`. Replaces the three per-submodule workflows (including the one fixed in P2-3). **Revised 2026-08-13:** every push on every branch builds and packages everything, including the three installers, so the whole chain is validated end to end on the branch rather than first exercised on the way to a release. Path filtering survives for **pull requests only**, where the branch push for the same commits has already produced a complete run. Tags do not trigger this workflow at all — the release workflows call the same reusable packaging jobs, and listing tags here too would build every installer twice per release |
+| **P7-2** Keep the native build matrix | M | The current GUI workflow builds Linux x64/ARM64, macOS x64/ARM64 and Windows x64. **Nix cannot produce the Windows binary**, so those five jobs stay, driven from the new paths. Nix is additive here, not a replacement. This is why the GUI has two build paths and the firmware only one. **Changed by the packaging decision:** the matrix is now a compile-side regression check *and* the input to the packaging jobs — its archives stop being release assets (P7-14…P7-16 produce those instead) and become 30-day CI artefacts under P7-7. Drop the `dddconv` and `dddutil` copy and verify steps when P7-12 lands, leaving one binary per platform |
 | **P7-3** Pages deploy | S | Already done in P4-9: `nix build .#docs-site` → `upload-pages-artifact` with `path: ./result` → `deploy-pages`. Confirm the path filter still matches `docs/**` |
 | **P7-4** `nix flake check` in CI | S | Runs T1–T4 for every component. Excludes `bitstream` — unfree, GB-scale, `x86_64-linux` only |
 | **P7-5** Delete per-component `.github/` dirs | S | `fx3/.github/` and `gui/.github/` are inert (GitHub only reads the repository root) but actively misleading once `build.yml` exists |
 | **P7-6** Test lanes | S | Tiers T1–T4 in the consolidated workflow. **T5 never runs in CI** — it needs a physical DdD, and a test that silently "passes" because no hardware was attached is worse than no test |
 | **P7-7** Retain artefacts from every commit build | S | `actions/upload-artifact` with a name carrying the short SHA, so a build from any commit can be fetched without re-running CI. Default retention is 30 days; set it explicitly rather than inheriting it, and note in the workflow that this is **not** the release archive — GitHub expires these |
 
-### 7b. Publish on release
+### 7b. Capture output format — FLAC (`.ldf`)
+
+New work, added 2026-08-12. **The capture application drops packed 10-bit output and writes
+Ogg FLAC instead**, mimicking ld-decode's `.ldf` so the file it produces is the file the decode
+toolchain wants, with no conversion step in between.
+
+The groundwork is already there, which is why this is a contained change rather than a rewrite.
+The app's existing "16-bit Signed Scaled" format
+([UsbDeviceBase.cpp:1015](../gui/src/DomesdayDuplicator/UsbDeviceBase.cpp#L1015)) computes
+`(tenbit - 512) << 6`, and ld-decode's `lddecode/lds.py` documents that exact expression as
+"the DdD 16-bit format" and unpacks `.lds` into it before handing it to `flac`. **The sample
+values are already correct; what is missing is the container.** So the change is: stop packing,
+keep the 16-bit conversion the app already performs, and put a FLAC encoder on the end of it.
+
+The target format, byte-exact, from `lddecode/compress.py`'s encoder invocation — mono,
+16-bit signed little-endian, Ogg-encapsulated FLAC, sample rate stamped `40000` (FLAC cannot
+express 40 MHz, so the field is a label, not a rate). Reproducing those settings is what makes
+the output a real `.ldf` rather than something that merely resembles one.
+
+This subsection comes before packaging because it adds a dependency — libFLAC — to the Nix
+package, the Flatpak manifest, the DMG bundle and the MSI harvest.
 
 | Task | Size | Detail |
 | --- | --- | --- |
-| **P7-8** `release.yml`, triggered by `v*` tags | M | Checks out **the tag**, builds every CI-buildable artefact from it, and attaches them to the GitHub Release. Tag-triggered rather than branch-triggered so the artefacts are provably from the release commit and not from whatever `master` moved to afterwards. `workflow_dispatch` as well, for re-running a failed publish without re-tagging |
-| **P7-9** Version stamping is a release gate | S | The job fails if any artefact reports `unknown` as its version. Nix builds from a tag have no `.git`, so `-DFIRMWARE_VERSION=`/`-DDDD_VERSION=` must be passed explicitly (D4, D21) — a silent fallback to `unknown` would produce untraceable release binaries, which is exactly what this phase exists to prevent |
-| **P7-10** `SHA256SUMS` and a provenance note | S | Generated over every attached asset, plus a short note recording the source commit, the `flake.lock` nixpkgs revision, and the toolchain versions. Attached to the release alongside the binaries |
-| **P7-11** Document the FPGA hand-off | S | The release checklist states plainly that the bitstream is **not** produced by this workflow: build it locally per P6-2, then attach the `.sof`, `.jic`, P6-8's `bitstream-provenance.txt` and P6-10's digests by hand. Fold those digests into the release `SHA256SUMS` so every asset is covered by one manifest regardless of where it was built. A release must not be published with the other artefacts present and the bitstream quietly missing |
+| **P7-21** Write `.ldf` from the capture application | L | Add a `FlacWriter` on the disk-writer side of the existing buffer pipeline, fed by the `Signed16Bit` conversion that already exists. **Encode in-process with libFLAC (≥ 1.5), not by piping to a `flac` binary** — three installers would each have to bundle, locate and version-check an external executable, which is the exact trap `cyfxflashprog.img` set in D13, and a subprocess on the capture path is one more way a capture dies at minute 40. libFLAC 1.5 has multithreaded encoding (`FLAC__stream_encoder_set_num_threads`), which is what `ld-compress`'s `-j` uses; Ogg encapsulation is `FLAC__stream_encoder_init_ogg_*`. Its BSD licence is GPLv3-compatible. **Compression level is a setting, chosen by measurement, not by copying `ld-compress`'s default of 8** — that tool post-processes a file at leisure, whereas this one has a hard real-time budget; start at 1 and raise it only as far as the numbers allow |
+| **P7-22** Drop the packed 10-bit formats | M | Remove `Unsigned10Bit` and `Unsigned10Bit4to1Decimation` from `UsbDeviceBase::CaptureFormat` and `Configuration::CaptureFormat`, the `.lds` branch at [mainwindow.cpp:1390](../gui/src/DomesdayDuplicator/mainwindow.cpp#L1390), and the combo box in `configurationdialog.cpp`. Two traps. **(a) Settings migration:** `configuration.cpp` persists the format as a bare int — `0` = `tenBitPacked`, `1` = `sixteenBitSigned`, `2` = `tenBitCdPacked` — so every existing installation has `0` or `2` stored, and renumbering the enum silently reinterprets it. Map the old integers explicitly on read and log the migration; do not let a stale config quietly select a different capture format than the user chose. **(b) CD decimation is a feature, not a packing.** 4:1 decimation for CD RF is welded to the packed format today, and dropping the packing must not drop it: re-express decimation as an orthogonal option feeding the same writer, and stamp the FLAC sample rate `10000` on a decimated capture so the file says what it is |
+| **P7-23** Read `.ldf` back, and prove it is really `.ldf` | M | P7-19's `--analyse-test-data` has to read what the app now writes, so it decodes `.ldf` (libFLAC is already linked) plus legacy `.lds`/`.raw`. Keep the *unpack* half of `samplecodec.h` and its T1/T2 tests for the legacy path; the *pack* half goes with P7-22. The interop test is the one that matters and it is cheap: a short capture written by the app must (i) pass `flac -t`, (ii) uncompress via `ld-compress --uncompress` to exactly the `.lds` the old path would have written from the same samples, byte for byte, and (iii) be readable by ld-decode itself. (i) and (ii) are golden-file T2 work; (iii) is a manual cross-check at the T5 bench, and it is the only one that proves the file is usable by the tool it exists for |
+| **P7-24** libFLAC into every build and packaging path | M | `gui/package.nix` and `gui/shell.nix` (`flac`), Homebrew `flac` on the DMG runner, `mingw-w64-ucrt-x86_64-flac` in MSYS2, and the Flatpak — check whether the freedesktop runtime under `org.kde.Platform` already carries libFLAC before adding a module for it. CMake picks it up by pkg-config. **`macdeployqt` and `windeployqt` only follow Qt**, so the libFLAC dylib/DLL must be bundled explicitly — `dylibbundler` on macOS, an explicit harvest entry in WiX — and this is precisely the class of omission that builds green in CI and fails on a user's machine, so P7-14…P7-16's install checks must launch the packaged app and complete a short capture, not merely launch it |
+| **P7-25** Provenance inside the capture file | S | The app already writes a `.json` sidecar ([mainwindow.cpp:785](../gui/src/DomesdayDuplicator/mainwindow.cpp#L785)), which is lost the moment someone moves the capture. Ogg FLAC carries Vorbis comments, so write the application version and commit (D21), the real sample rate, the decimation setting and the capture date into the file itself. Cheap, and it extends §3's traceability from the binaries to the data they produce. Decoders ignore comments they do not know, so this cannot break ld-decode |
 
-### Release asset set
+**Consequences to carry into the rest of the plan.** The capture-integrity procedure
+([TESTING.md](../TESTING.md) §5) now produces an `.ldf`, so P7-19's analysis must handle it
+before the T5 gate can be run again. `.lds` stops being produced but does not stop existing —
+years of captures and every third-party document assume it — so the documentation (P7-20) has
+to name `ld-compress --uncompress` as the way back for anything that still wants one. And the
+throughput arithmetic is worth stating plainly, because it is the argument for the whole
+change: at 40 Msps the packed path writes 50 MB/s and the raw 16-bit path 80 MB/s, while
+`.ldf` runs about half the size of `.lds` — roughly 25 MB/s. This *halves* the write rate and
+removes a conversion step, at the cost of putting a compressor on the real-time path. That
+trade is the risk, and P7-21's gate is where it gets measured rather than assumed.
 
-What a complete `v*` release carries:
+### 7c. GUI packaging — one application, three installers
+
+New work, added 2026-08-12. The model is decode-orc's: one reusable `workflow_call` workflow
+per format, invoked from the main workflow on every non-PR push so the installers are testable
+per branch, and invoked again by the release job on a `gui-v*` tag. Everything packaging-related
+lives under **`gui/packaging/`** — `flatpak/`, `macos/`, `windows/` and a shared `assets/` — so
+none of it litters the repository root.
+
+| Task | Size | Detail |
+| --- | --- | --- |
+| **P7-19** Port test-data analysis into the capture application | M | **Prerequisite for P7-12.** `dddutil/analysetestdata.cpp` is step 4 of the capture-integrity procedure ([TESTING.md](../TESTING.md) §5): it walks a capture taken with the FPGA test-pattern generator running and checks the ramp is unbroken. That is the T5 gate P5-4 and P6-5 are blocked on, so it cannot be deleted along with its host application. Move it into `gui/src/DomesdayDuplicator/` behind **both** a menu item and a `--analyse-test-data <file>` command-line mode — which is P8-6, promoted from optional follow-up to a prerequisite, because a headless mode is what lets the gate be scripted instead of clicked. It needs the 10-bit unpacker, so it is the production consumer that keeps `samplecodec.h` alive. Verify against a known-good capture and a deliberately corrupted copy: the analysis must pass the first and report the exact break offset in the second |
+| **P7-12** Remove `dddconv` and `dddutil` | M | Delete `gui/src/dddconv/` and `gui/src/dddutil/`, their `add_subdirectory` lines in `gui/CMakeLists.txt`, and their references in `gui/package.nix` (`installCheckPhase` runs all three binaries), `gui/README.md`, `gui/BUILD.md`, root `README.md`, `AGENTS.md`, `TESTING.md`, `docs-tech/agents-and-testing.md`, `docs/content/development/hardware-programming/fpga-bitstream.md` and the native CI matrix. **`samplecodec.h` must not go with them:** it is the only unit-tested (T1) and golden-file-tested (T2) code in the GUI. Move it to `gui/src/common/samplecodec.h`, have P7-19's analysis mode use it, and keep `test_samplecodec`. Note that `dddutil` open-codes the same unpack by hand in `inputsample.cpp` — port the analysis onto the *tested* codec, not the hand-rolled copy, and if the two disagree, stop and file that as a defect rather than forcing the refactor through. Every procedure that currently says "open the file in `dddutil`" is rewritten to the new mode in the same commit; leaving a test procedure pointing at a deleted binary is how a gate silently stops being run |
+| **P7-13** Desktop metadata and icons | M | `gui/packaging/assets/`: a `.desktop` file, an AppStream `metainfo.xml` (Flathub requires it; it is also what gives the app its name, summary, screenshots and `<releases>` history in GNOME Software and Discover), PNG icons at 64/128/256 px derived from `graphics/`, plus the `.ico` for WiX and the `.icns` for the app bundle. Add `appstreamcli validate` and `desktop-file-validate` to the T4 lane so a malformed manifest fails CI rather than a Flathub review. The `<release version=…>` entry has to be updated per `gui-v*` tag — generate it from the tag in the packaging job rather than hand-editing, or it will silently go stale |
+| **P7-14** Linux Flatpak | L | `gui/packaging/flatpak/<app-id>.yml`, built by `flatpak-builder` on `ubuntu-latest` and exported with `flatpak build-bundle` to a single-file `.flatpak`. Runtime `org.kde.Platform` 6.9 + `org.kde.Sdk` (Qt 6, same as decode-orc). `finish-args`: `--share=ipc --socket=wayland --socket=x11 --filesystem=home` plus `/run/media`, `/media` and `/mnt` for captures on external drives, and **`--device=all`** — Flatpak has no narrower static USB permission, and the capture path is a raw libusb bulk transfer, so this one is unavoidable and needs justifying in the Flathub submission if that ever happens. Build `libusb-1.0` as a module unless the KDE runtime already carries it (check with `pkg-config --modversion libusb-1.0` inside `org.kde.Sdk//6.9` before writing the manifest). **App ID is a maintainer choice:** `io.github.simoninns.DomesdayDuplicator` follows the repository host and needs no domain claim; `com.waitingforfriday.DomesdayDuplicator` is also available and is the stronger identity. Pick before the first release — changing an app ID afterwards is a migration, not an edit |
+| **P7-15** macOS DMG | L | `macos-latest` (arm64), Homebrew `qt@6 libusb cmake ninja pkg-config dylibbundler`. Produce a single `DomesdayDuplicator.app`, run `macdeployqt` on it, then `hdiutil create` over a staging folder containing the bundle and an `/Applications` symlink. Copy decode-orc's retry loop around `hdiutil create` — transient volume-attach contention on hosted runners is common and not a real failure. **Unsigned and un-notarised** (a Developer ID is a paid, personal credential and is out of scope), so first launch hits Gatekeeper; the install page must document the right-click → Open path. The bundle carries `CFBundleShortVersionString` from the tag (P7-9) |
+| **P7-16** Windows MSI | L | `windows-latest`, MSYS2 UCRT64 (the toolchain the existing native job already uses), `windeployqt` to gather Qt runtime, then WiX v3 via `choco install wixtoolset` — `heat` to harvest the deployed tree, `candle`/`light` to build. Per-machine install into `ProgramFiles64`, one Start-menu shortcut, `MajorUpgrade` for in-place upgrades, and the GPLv3 text as RTF in the licence dialog. **MSI versions must be numeric `x.x.x.x`:** map `gui-vX.Y.Z` → `X.Y.Z.0`, and non-tag builds → `0.0.<run-number>.0` so a development MSI can never out-version a real release and block its upgrade. **The MSI does not install a device driver.** The Windows build has a WinUSB back-end (`UsbDeviceWinUsb.cpp`) and the device needs WinUSB bound to it, which today means Zadig; shipping a driver package would require a signed `.inf` and is out of scope. The installer's docs page covers Zadig, and the app should say so plainly when it cannot open the device. Also unsigned, so SmartScreen will warn — document that too |
+| ~~**P7-17** Installation documentation~~ | — | **Merged into P7-20**, which owns the whole capture-application documentation section. Splitting the installer pages from the section they live in would have given two tasks the same files |
+| **P7-20** Rework the capture-application documentation | M | `docs/content/capture-application/` currently holds a Linux-only `user-guide.md` — which doubles as the build instructions — and two-line `windows-releases.md`/`macos-releases.md` stubs that only link to the GitHub releases page. Once the GUI ships as three installers, that is wrong in every direction. New shape: an `index.md` that says what the application is and which package to take, one page per package (`install-flatpak.md`, `install-dmg.md`, `install-msi.md`), and a `building-from-source.md`. Delete the two stubs and update `.nav.yml`; per P0-4 the site takes no redirects, so fix the inbound links instead — `development/software-guide.md:235` and `general/overview.md:35`. **`user-guide.md` is left as-is for now** (maintainer, 2026-08-12), so its "Linux Installation" section temporarily duplicates the new build page; that duplication is deliberate and gets resolved when the user guide is rewritten, which is not part of this phase |
+| **P7-20a** … the per-package pages | — | Each covers: which file to download, how to verify it against the release `SHA256SUMS`, install, first run, update and uninstall. Then the platform-specific things that packaging cannot fix and that generate every support question — **Linux:** a Flatpak cannot install udev rules, so the user still installs the rules on the host (or the NixOS module from P3-3) before the device is reachable, and the rules file must be a release-adjacent download rather than something buried in the source tree; also the `--filesystem` grants and where captures may be written. **macOS:** the Gatekeeper right-click → Open path for an unsigned, un-notarised app (P7-15). **Windows:** the SmartScreen prompt, and that WinUSB must be bound to the device with Zadig because the MSI ships no driver (P7-16) |
+| **P7-20b** … `building-from-source.md` | — | Nix first, since it is the reproducible path: `nix build .#gui` and `nix develop .#gui`. Then the native routes the packaging jobs themselves use, which makes this page the thing that keeps CI and the documentation honest with each other — Ubuntu with the `apt` dependency line (now including libFLAC, P7-24), macOS with Homebrew `qt@6`/`libusb`/`flac`, Windows with MSYS2 UCRT64. State plainly that building from source is for development and for platforms the installers do not cover, and that ordinary users want a package. Link on to the packaging manifests under `gui/packaging/` for anyone building an installer rather than a binary |
+| **P7-20c** … the capture format change | — | The `.ldf` switch (7b) is the most user-visible change in this phase and the one most likely to generate "where did my `.lds` go" reports, so it needs saying in the documentation, not just the release notes: what an `.ldf` is, that ld-decode and vhs-decode read it directly with no conversion step, that it is roughly half the size of the `.lds` it replaces, and that `ld-compress --uncompress` converts back for anything that still needs the old format. Also state what the *uncompressed* 16-bit option is for — a machine that cannot sustain the encoder — and how to tell that has happened, since a dropped-sample capture that nobody noticed is the worst outcome here |
+
+### 7d. Publish on release
+
+Two workflows, because there are two streams (§1 of *Release artefacts and provenance*). Both
+check out the tag rather than a branch, so the assets are provably from the release commit.
+
+| Task | Size | Detail |
+| --- | --- | --- |
+| **P7-8** Tag-triggered release workflows | M | **`release-gui.yml`** on `gui-v*` and **`release-firmware.yml`** on `fw-v*`, each with `workflow_dispatch` as well so a failed publish can be re-run without re-tagging. Each builds its own stream's artefacts from the tag and attaches them to one GitHub Release. Following decode-orc, the packaging workflows are `workflow_call`-reusable and the release job is a single job that gathers all three installers and publishes once — parallel jobs each calling create-release race each other and leave partially populated releases |
+| **P7-9** Version stamping is a release gate | S | The job fails if any artefact reports `unknown` as its version. Nix builds from a tag have no `.git`, so `-DFIRMWARE_VERSION=`/`-DDDD_VERSION=` must be passed explicitly (D4, D21) — a silent fallback to `unknown` would produce untraceable release binaries, which is exactly what this phase exists to prevent. Extended by the packaging work: the check runs on the *installers*, not just the binaries inside them — MSI `ProductVersion`, DMG `CFBundleShortVersionString` and the Flatpak's AppStream `<release version>` must all equal the tag |
+| **P7-10** `SHA256SUMS` and a provenance note | S | Generated over every attached asset of **that stream**, plus a short note recording the source commit, the `flake.lock` nixpkgs revision, and the toolchain versions (Qt, WiX, flatpak runtime for the GUI stream; `arm-none-eabi-gcc` and Quartus for the firmware stream). Attached alongside the binaries |
+| **P7-11** Document the FPGA hand-off | S | Now specific to the **firmware** release. The checklist states plainly that the bitstream is **not** produced by this workflow: build it locally per P6-2, then attach the `.sof`, `.jic`, P6-8's `bitstream-provenance.txt` and P6-10's digests by hand. Fold those digests into that release's `SHA256SUMS` so every asset is covered by one manifest regardless of where it was built. An `fw-v*` release must not be published with the firmware present and the bitstream quietly missing |
+| **P7-18** Stream independence is enforced, not assumed | S | `gui-v*` must not trigger firmware jobs and `fw-v*` must not trigger packaging jobs — otherwise the split is cosmetic and every release still pays for everything. Tag-pattern `on:` filters, and a release-notes template per stream. Also decide and document what a version *means* per stream: the GUI's is a plain application version, while `fw-v*` covers two artefacts that must be flashed as a pair, so the release notes state which bitstream and which firmware image go together |
+
+### Release asset sets
+
+A complete `gui-v*` release:
 
 ```
-DomesdayDuplicator-<ver>-linux-x64.tar.gz        CI  (nix + native)
-DomesdayDuplicator-<ver>-linux-arm64.tar.gz      CI  (native)
-DomesdayDuplicator-<ver>-windows-x64.zip         CI  (native — Nix cannot build this)
-DomesdayDuplicator-<ver>-macos-x64.zip           CI  (native)
-DomesdayDuplicator-<ver>-macos-arm64.zip         CI  (native)
-firmware.img / firmware.elf / firmware.map       CI  (nix build .#fx3-firmware)
-fx3-programmer-<ver>-linux-x64                   CI  (nix build .#fx3-programmer)
-DomesdayDuplicator.sof / .jic                    MANUAL — local Quartus build
-bitstream-provenance.txt                         MANUAL — provenance + digests (P6-8, P6-10)
+DomesdayDuplicator-<ver>.flatpak                 CI  (flatpak-builder, Linux x64)
+DomesdayDuplicator-<ver>-macos-arm64.dmg         CI  (hdiutil; unsigned)
+DomesdayDuplicator-<ver>-windows-x64.msi         CI  (WiX; unsigned)
 SHA256SUMS                                       CI
 PROVENANCE.txt                                   CI
 ```
 
-**Gate:** one `build.yml` and one `release.yml`; no job references a non-existent path; a PR
-touching only `docs/` does not trigger firmware jobs; a `v*` tag produces a release whose
-assets all report the tagged commit and none of which report `unknown`; `SHA256SUMS` covers
-every attached file.
+A complete `fw-v*` release:
+
+```
+firmware.img / firmware.elf / firmware.map       CI  (nix build .#fx3-firmware)
+fx3-programmer-<ver>-linux-x64                   CI  (nix build .#fx3-programmer)
+fx3-programmer-<ver>-linux-arm64                 CI  (nix build .#fx3-programmer)
+DomesdayDuplicator.sof / .jic                    MANUAL — local Quartus build
+bitstream-provenance.txt                         MANUAL — provenance + digests (P6-8, P6-10)
+SHA256SUMS                                       CI  (covers the manual assets too, P7-11)
+PROVENANCE.txt                                   CI
+```
+
+The five per-platform GUI archives are **not** in either list: they are still built every
+commit as a compile check and retained as 30-day CI artefacts (P7-2, P7-7), but the installers
+are what a release ships.
+
+**Gate:** one `build.yml`, one `release-gui.yml`, one `release-firmware.yml`; no job references
+a non-existent path; every push to any branch builds and installs all three GUI installers,
+and a pull request touching only `docs/` does not trigger firmware jobs; a `gui-v*` tag
+produces a release carrying exactly the three installers plus manifests, and no firmware job
+runs for it; an `fw-v*` tag produces a firmware release and no packaging job runs for it; every
+asset in both releases reports the tagged commit and none reports `unknown`; each stream's
+`SHA256SUMS` covers every file attached to that release. Plus the packaging-specific checks:
+the Flatpak installs from its bundle and launches on a machine with no Qt 6 installed; the DMG
+mounts and the app launches after the documented Gatekeeper step; the MSI installs, creates its
+shortcut, launches, and uninstalls cleanly, and installing a newer MSI over an older one
+upgrades rather than side-by-side installs. And for the removals: `grep -ri dddconv\|dddutil`
+returns nothing outside this document's historical phase records, and
+`DomesdayDuplicator --analyse-test-data` reproduces the verdict `dddutil` gave on the same
+capture file — checked before `dddutil` is deleted, not after.
+
+For the documentation: `nix build .#docs-site` still succeeds under `--strict` (so no page
+links to a file P7-20 deleted), and every install step on the three package pages has been
+followed on the matching platform against the actual release asset. A packaging caveat that
+only exists in a workflow file and not on its install page will be found by a user instead.
+
+For the capture format: a sustained capture on the reference machine produces an `.ldf` with
+**zero buffer overruns** — measured, not assumed, because a compressor on the real-time path is
+the risk this change introduces; the file passes `flac -t`; `ld-compress --uncompress` turns it
+into byte-identical `.lds` to what the old path would have written from the same samples; and
+ld-decode reads it. No build option, menu entry, config value or documentation page still
+offers packed 10-bit output, and an installation upgraded from a pre-change version reports the
+capture format the user actually chose rather than whatever the old stored integer now means.
+
+### Deviations and findings
+
+**1. `flac` cannot read a `.ldf` without being told it is Ogg.** The first interop run failed
+with `FLAC__STREAM_DECODER_ERROR_STATUS_LOST_SYNC`, which reads exactly like a corrupt file.
+The cause is that the `flac` command-line tool infers Ogg encapsulation from the file
+*extension*, and `.ldf` is not one it knows, so it parses an Ogg stream as native FLAC.
+`flac -t --ogg capture.ldf` works. Worth knowing before anyone concludes a capture is
+damaged; it is on the capture-formats documentation page for that reason. libFLAC's own API
+has no such problem — the reader calls `init_ogg_file` explicitly.
+
+**2. libFLAC's types cannot be forward-declared.** `FLAC__StreamEncoder` and
+`FLAC__StreamMetadata` are anonymous struct typedefs, so `struct FLAC__StreamEncoder;` in a
+header is a different type and does not compile. The writer and reader therefore use a pimpl
+rather than opaque pointers, which also keeps FLAC's headers out of everything that captures.
+The C callbacks are static members of the `Impl` struct, not free functions: a free function
+cannot name a private nested type.
+
+**3. `libogg` has to be listed explicitly.** `flac.pc` declares `Requires: ogg` and nixpkgs
+does not propagate it, so `pkg_check_modules(flac)` fails without libogg in the inputs — and
+then `FindFLAC.cmake` silently succeeds through flac's CMake config instead. The build works
+either way here, which is precisely the problem: it would have failed on a platform shipping
+only the `.pc` file. Both `shell.nix` and `package.nix` name libogg.
+
+**4. The compression figure is weaker than the plan claimed.** The plan quoted "roughly half
+the size of `.lds`" from ld-decode's own documentation. Measured on the synthetic interop
+fixture, the `.ldf` is **74.4%** of the packed size (3,720,477 bytes against 5,000,000), not
+50%. That fixture is a sine with bounded random jitter, which is more entropic than real
+LaserDisc RF, so real captures should do better — but *this* number is what has actually been
+measured, and the ~50% figure remains unverified on real signal. The documentation and the
+free-space estimate in the application both use the conservative figure, so a pessimistic
+remaining-time estimate is the worst case rather than a disk that fills mid-capture.
+
+**5. The `nix` job is a matrix, not one job.** There is one `build.yml`, but `nix flake check`
+builds every check there is, so a single Nix job could never honour a path filter at all. The
+job is per component; the whole-tree `nix flake check` is a second job. After the 2026-08-13
+revision both run on every push anyway, and the split now earns its keep for a different
+reason — a failure names the component that failed instead of one job going red for the
+whole tree.
+
+**6. Path filtering ended up applying to pull requests alone.** It was originally written to
+apply everywhere except `master`, tags and manual dispatch, which needed an explicit override
+step because `on: paths:` cannot be made conditional. The maintainer then reversed the
+underlying decision (see §7's decision 5), so the override became the normal case: everything
+builds unless the event is a `pull_request`. The filter is kept rather than deleted because a
+PR's commits have already had a complete run from their branch push, so the filtered run is a
+second opinion rather than the only evidence.
+
+Tags were also removed from `build.yml`'s triggers at the same time. `release-gui.yml` calls
+the same reusable packaging workflows, so a tag that triggered both would have built every
+installer twice.
+
+**7. `.cds` is gone with the format that used it.** The decimated CD capture used to get its
+own extension, which nothing downstream could read. Decimation is now a setting rather than a
+format, so a CD capture is an ordinary `.ldf` with `10000` stamped as its sample rate and
+`DDD_DECIMATION=4` in its tags.
+
+**8. Two things were added that the plan did not list.** `gui/tests/tools/ldfgen.cpp` writes a
+capture through the production encoder, and `gui/tests/interop-ldf.sh` drives ld-decode's
+tools against it — the format claim cannot be checked without a file the real encoder
+produced. Neither is installed. A `capture-formats.md` documentation page was also added:
+P7-20c asked for the format change to be documented, and it needed more room than a section
+inside an installation page.
+
+**9. Nothing was committed and nothing was staged.** Per the rules at the top of this
+document. One consequence matters for verification: Nix reads only git-tracked files, so
+`nix build .#gui` cannot see the new sources until the maintainer adds them. Every Nix result
+below was obtained by building `gui/package.nix` from the working tree directly, the same way
+Phase 6 did.
+
+### Gate — **partly met; the CI half is unexercised**
+
+What was verified, on this machine:
+
+| Check | Result |
+| --- | --- |
+| `cmake --build` in `nix develop .#gui` | Clean, no warnings |
+| `ctest` | **37/37 pass**, including 8 new analyser tests and 8 new FLAC round-trip and reader tests |
+| GUI package built from the working tree | Builds; `checkPhase` runs the suite; `installCheckPhase` reports `DomesdayDuplicator 2.1 (worktree)` and finds the `.desktop`, AppStream and icon files |
+| `--analyse-test-data` on a clean ramp `.ldf` | `PASSED … 4,000,000 samples checked, no breaks, test sequence length 1021`, exit 0 |
+| `--analyse-test-data` on a corrupted capture | `FAILED … breaks at sample 80,000, where 362 was expected but 0 was read`, exit 1 |
+| `flac -t --ogg` on a written `.ldf` | `ok` |
+| Decoded stream shape | `16 bit, mono 40000 Hz` |
+| `ld-compress --uncompress` round-trip | **Byte-identical** to the `.lds` the removed packed path would have written from the same samples |
+| `mkdocs build --strict` | Builds; no page links to a deleted file |
+| `grep -ri 'dddconv\|dddutil'` outside this document | Only the note in `gui/README.md` recording that they were removed |
+
+The `ld-compress` result is the one that matters most: it is the plan's own test for whether
+this is really an `.ldf`, and it passed against ld-decode's own tool rather than against a
+reading of the format.
+
+**What is not met, and cannot be from here:**
+
+1. **No workflow has ever run.** `build.yml`, the three `package-*.yml` and both release
+   workflows are authored and validate as YAML, and nothing more. The Flatpak, the DMG and
+   the MSI have **never been built** — let alone installed, launched or uninstalled, which is
+   what P7-14…P7-16 actually require. Expect the first push to find things; that is what the
+   first push is for, and after the 2026-08-13 revision the first push to this branch is
+   exactly where it happens, rather than at the first tag.
+
+   Note that the *Branching* section above still says no CI runs on this branch. That was
+   true of the inherited per-submodule workflows, which sat in directories GitHub never
+   reads; it stops being true the moment `.github/workflows/` at the repository root is
+   committed.
+2. **The throughput measurement is outstanding**, and it is P7-21's real gate: a sustained
+   capture with zero buffer overruns, on hardware. Everything above tests correctness of the
+   format. Nothing above tests whether a compressor on the real-time path can keep up at
+   40 Msps, which is the risk the change introduces.
+3. **The T5 capture-integrity run is outstanding** and now covers more than it did: the same
+   bench session should confirm a real capture is written as `.ldf`, analysed by the ported
+   check, and decoded by ld-decode end to end.
+4. **The application ID is provisional.** `io.github.simoninns.DomesdayDuplicator` is used
+   throughout; `com.waitingforfriday.DomesdayDuplicator` is the alternative. Changing it after
+   the first release is a migration, so it wants deciding before P8-3.
 
 ## Phase 8 — Cleanup and release
 
@@ -1636,10 +1926,10 @@ every attached file.
 | --- | --- | --- |
 | ~~**P8-1** Archive the four upstream repos~~ | — | **Removed** per P0-6 — the old repositories are left alone and cleaned up separately, outside this plan |
 | **P8-2** README rewrite | M | Nix quick-start per component alongside the existing native instructions |
-| **P8-3** Tag a release | M | First monorepo release, and the first exercise of the P7-8 release workflow end to end. Tagging `v*` publishes the GUI binaries (5 platforms), `firmware.img`, `fx3-programmer`, `SHA256SUMS` and `PROVENANCE.txt` automatically. Then **build the bitstream locally and attach `.sof`, `.jic` and `bitstream-provenance.txt` by hand** (P7-11) — the release is not complete without them. Verify every asset reports the tagged commit and none reports `unknown` |
+| **P8-3** Tag the first releases of both streams | M | First monorepo releases, and the first end-to-end exercise of both P7-8 workflows. **`gui-v*`** publishes the Flatpak, DMG and MSI with `SHA256SUMS` and `PROVENANCE.txt`; install each one on a clean machine before calling it done, since a release-only packaging bug is invisible in CI. **`fw-v*`** publishes `firmware.img`, `fx3-programmer` and the manifests automatically — then **build the bitstream locally and attach `.sof`, `.jic` and `bitstream-provenance.txt` by hand** (P7-11); that release is not complete without them. Verify every asset in both reports the tagged commit and none reports `unknown` |
 | **P8-4** Update this plan | S | Mark it executed; fold anything still outstanding into issues |
 | **P8-5** SPDX header convention | M | Only 8 of 67 source files carry SPDX identifiers; the rest use long-form GPL notices. Adopt SPDX (machine-checkable, and matches decode-orc), add the T4 presence check, and convert files as they are touched rather than in one sweeping commit |
-| **P8-6** `--analyse-test-data` CLI mode | M | Optional follow-up: make step 4 of the capture-integrity procedure scriptable rather than GUI-driven, so the T5 gate becomes semi-automated |
+| ~~**P8-6** `--analyse-test-data` CLI mode~~ | — | **Moved to Phase 7 as part of P7-19.** It stops being an optional follow-up once `dddutil` is removed: the capture application has to carry the analysis anyway, and a headless mode is what makes the T5 gate scriptable rather than clicked |
 
 ## Summary of what needs hardware
 
@@ -1657,9 +1947,37 @@ Three are now partly or wholly closed on real hardware. What is left is one benc
 These are one session, not two — P5-4 and P6-5 are the same procedure on the same bench with
 the same disc. P0-3's software half was closed in Phase 6; its hardware half *is* P6-5.
 
+**Sequencing note against Phase 7.** Step 4 of that procedure runs `dddutil`'s test-data
+analysis, and P7-12 deletes `dddutil`. Either run the bench session before P7-12 lands, or run
+it after P7-19 has moved the analysis into the capture application — but not in between, and
+do not treat "the tool it names no longer exists" as grounds for skipping the step. Whichever
+order it happens in, [TESTING.md](../TESTING.md) §5 must name a binary that actually ships.
+
+The same applies to the file it produces: after P7-21 the procedure captures an `.ldf`, not an
+`.lds`. Running the bench session *before* the format change is the simpler order, because it
+keeps the outstanding P5-4/P6-5 gates about firmware and gateware rather than entangling them
+with a new encoder on the capture path. If it happens after, add P7-23's ld-decode cross-check
+to the same session — the disc is already on the bench and it is the only test that proves the
+new format is usable end to end.
+
 ## Deliberately out of scope
 
 - KiCad 5 → 10 file-format migration (blocks `kicad-cli` export; separate change, separate review)
-- Any firmware, gateware or application behaviour change
-- Windows/macOS packaging beyond what the existing CI already produces
+- Any firmware, gateware or application behaviour change — with two exceptions, both in
+  Phase 7 and both requested by the maintainer. **P7-12/P7-19** remove `dddconv` and `dddutil`
+  and move their one gate-critical capability, the test-data analysis, into the capture
+  application; `dddutil`'s file conversion is dropped rather than moved. **P7-21…P7-25** change
+  the capture output format from packed 10-bit `.lds` to Ogg FLAC `.ldf`. The second is a
+  deliberate breach of this line: it alters what the application writes, and it is scoped
+  accordingly — the sample values are unchanged (the app already computes them), the FPGA and
+  FX3 are untouched, and nothing else about capture behaviour moves with it
+- **Code signing and notarisation** of the macOS DMG and the Windows MSI. Both need paid,
+  personally held credentials that cannot live in a public repository's CI without a decision
+  about who holds them. The installers ship unsigned and the docs explain the resulting
+  Gatekeeper and SmartScreen prompts (P7-15, P7-16, P7-20)
+- **Flathub submission**, Homebrew casks, winget/Chocolatey manifests, `.deb`/`.rpm`. Phase 7
+  produces the three installer files and attaches them to a release; getting them into
+  third-party distribution channels is separate work with separate review cycles
+- A Windows driver package for the WinUSB back-end — needs a signed `.inf`; Zadig stays the
+  documented route (P7-16)
 - Git LFS or history pruning, unless P0-5 chose it — in which case it happens *in* P1 or not at all

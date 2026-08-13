@@ -50,6 +50,11 @@ add_compile_definitions(DDD_VERSION="${DDD_VERSION}")
 find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets SerialPort)
 find_package(LibUSB REQUIRED)
 
+# libFLAC, for the .ldf capture output (P7-21). Not optional: it is the default capture
+# format, so a build without it would produce an application that cannot do the main thing
+# it exists for.
+find_package(FLAC REQUIRED)
+
 # Use qt_standard_project_setup if available (Qt 6.3+), otherwise manual setup
 if(COMMAND qt_standard_project_setup)
     qt_standard_project_setup()
@@ -60,9 +65,8 @@ else()
     include(GNUInstallDirs)
 endif()
 
+add_subdirectory(src/common)
 add_subdirectory(src/DomesdayDuplicator)
-add_subdirectory(src/dddconv)
-add_subdirectory(src/dddutil)
 
 # Tests. On by default when this is the top-level project, so `cmake -B build` gives a
 # contributor the suite without having to know a flag; off when consumed as a subproject.

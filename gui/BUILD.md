@@ -18,7 +18,7 @@ cmake -B build
 cmake --build build
 ```
 
-This builds all three programs: `DomesdayDuplicator`, `dddutil` and `dddconv`.
+This builds the capture application, `DomesdayDuplicator`.
 
 #### Installation
 
@@ -74,12 +74,14 @@ Install dependencies using your package manager:
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt-get install build-essential cmake qt6-base-dev libusb-1.0-0-dev
+sudo apt-get install build-essential cmake qt6-base-dev libqt6serialport6-dev \
+  libusb-1.0-0-dev libflac-dev libogg-dev
 ```
 
 **Fedora:**
 ```bash
-sudo dnf install gcc-c++ cmake qt6-qtbase-devel libusb-devel
+sudo dnf install gcc-c++ cmake qt6-qtbase-devel qt6-qtserialport-devel \
+  libusb-devel flac-devel libogg-devel
 ```
 
 ### macOS
@@ -87,7 +89,7 @@ sudo dnf install gcc-c++ cmake qt6-qtbase-devel libusb-devel
 Install dependencies using Homebrew:
 
 ```bash
-brew install qt@6 libusb cmake
+brew install qt@6 libusb flac cmake
 ```
 
 ### Windows

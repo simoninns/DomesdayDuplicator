@@ -17,6 +17,16 @@
 pkgs.mkShell {
   name = "ddd-gui";
 
+  # Qt's code generators (moc, uic, rcc) call setlocale(LC_ALL, "") and require the result to
+  # be UTF-8, warning on every invocation when it is not. A desktop session that exports
+  # region variables without a codeset — GNOME emits LC_TIME=en_GB, LC_NUMERIC=en_GB and
+  # friends from its Formats setting — makes that call fail outright unless the bare name was
+  # generated, so the tools land on C/ANSI_X3.4-1968 and print four lines of warning per
+  # build. Pinning the shell to C.UTF-8 sidesteps the whole class of it: always present in
+  # glibc, UTF-8 by construction, and identical on every developer's machine, which is what a
+  # build shell wants anyway. Nothing here formats output for a human reader.
+  LC_ALL = "C.UTF-8";
+
   packages = with pkgs; [
     # Build
     cmake
@@ -26,6 +36,16 @@ pkgs.mkShell {
     qt6.qtserialport
     qt6.qttools
     libusb1
+
+    # The .ldf capture output (P7-21). 1.5 is what the packaging paths should install —
+    # multithreaded encoding arrived there — but the build works against 1.4 as well.
+    #
+    # libogg is listed explicitly because flac.pc has `Requires: ogg`, and nixpkgs does not
+    # propagate it. Without it pkg-config resolves nothing and the build silently falls
+    # through to flac's CMake config, which works but hides the missing dependency until a
+    # platform that only ships the .pc file fails.
+    flac
+    libogg
 
     # Test
     gtest
@@ -42,7 +62,7 @@ pkgs.mkShell {
     echo "Domesday Duplicator — GUI development shell"
     echo
     echo "  cmake -B build -S .        configure (writes build/compile_commands.json)"
-    echo "  cmake --build build        build DomesdayDuplicator, dddutil, dddconv"
+    echo "  cmake --build build        build DomesdayDuplicator"
     echo "  ctest --test-dir build     run the T1/T2 test suite"
     echo
   '';

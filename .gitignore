@@ -64,6 +64,36 @@ ui_*.h
 build/
 build-*/
 
+# Nix build outputs. `nix build` symlinks its result into the working directory by default,
+# and the workflows use --out-link names of their own.
+result
+result-*
+
+# MkDocs output. mkdocs.yml lives in docs/, so a bare `mkdocs build` writes docs/site/ —
+# site_dir defaults to "site" relative to the config file, which is also why the content
+# directory is called content/ and not site/.
+site/
+
+# Packaging outputs and scratch (gui/packaging, .github/workflows/package-*.yml).
+# *.msi is already covered by the Windows section above.
+dist/
+stage/
+repo/
+.flatpak-builder/
+*.flatpak
+*.dmg
+*.iconset/
+files.wxs
+wix-license.rtf
+*.wixobj
+*.wixpdb
+
+# Capture files. Nothing in the repository should ever contain one: an hour of LaserDisc RF
+# is around 90 GB, and finding that out after `git add -A` is not the moment to learn it.
+*.ldf
+*.lds
+*.raw
+
 # Python bytecode. The only Python in the tree is the FPGA provenance tool and
 # its test, both of which import each other by path — which is enough to leave
 # a __pycache__ behind next to the sources.

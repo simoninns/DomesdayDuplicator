@@ -7,16 +7,20 @@ data it captures.
 
 | Path | Component | Role |
 | --- | --- | --- |
-| [src/DomesdayDuplicator/](src/DomesdayDuplicator/) | `DomesdayDuplicator` | Main capture application: controls the hardware, monitors amplitude, drives the LaserDisc player |
-| [src/dddutil/](src/dddutil/) | `dddutil` | GUI utility for analysing and converting captured data |
-| [src/dddconv/](src/dddconv/) | `dddconv` | Command-line data conversion tool |
+| [src/DomesdayDuplicator/](src/DomesdayDuplicator/) | `DomesdayDuplicator` | Main capture application: controls the hardware, monitors amplitude, drives the LaserDisc player, analyses test-pattern captures |
+| [src/common/](src/common/) | `ddd-common` | The Qt-free core — sample codec, FLAC writer, capture reader, test-data analyser — split out so it can be tested without a GUI |
+
+`dddconv` and `dddutil` were removed in Phase 7. The capture application writes FLAC (`.ldf`)
+directly, so the conversion step both tools existed for is gone; `dddutil`'s test-data
+analysis moved into the capture application.
 
 Supporting directories:
 
 | Path | Contents |
 | --- | --- |
-| [cmake/](cmake/) | `FindLibUSB.cmake` and any other CMake modules |
-| [CMakeLists.txt](CMakeLists.txt) | The single build definition for all three programs |
+| [cmake/](cmake/) | `FindLibUSB.cmake`, `FindFLAC.cmake` and any other CMake modules |
+| [packaging/](packaging/) | Flatpak manifest, WiX installer definition, and the shared desktop/AppStream/icon assets |
+| [CMakeLists.txt](CMakeLists.txt) | The single build definition |
 
 ## Building
 

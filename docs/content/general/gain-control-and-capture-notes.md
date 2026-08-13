@@ -3,7 +3,7 @@
 Hardware configuration and operational notes that apply once the Domesday Duplicator is
 built and programmed.
 
-Programming itself is covered in [Hardware programming](../hardware-programming/index.md).
+Programming itself is covered in [Hardware programming](../development/hardware-programming/index.md).
 
 # DdD Gain Control (4 DIP Switch)
 

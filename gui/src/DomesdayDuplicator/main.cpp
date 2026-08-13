@@ -26,6 +26,7 @@
 ************************************************************************/
 #include "mainwindow.h"
 #include "QtLogger.h"
+#include "testdataanalysisdialog.h"
 #include <QApplication>
 #include <QDebug>
 #include <QtGlobal>
@@ -220,11 +221,30 @@ int main(int argc, char *argv[])
                                        QCoreApplication::translate("main", "Show debug"));
     parser.addOption(showDebugOption);
 
+    // Headless test-pattern check (P7-19). This is step 4 of the capture-integrity
+    // procedure in TESTING.md, which was a GUI-only operation in dddutil and so could not
+    // be scripted; the T5 gate is much easier to trust when it can be run from a shell and
+    // report through an exit code.
+    QCommandLineOption analyseTestDataOption(
+        QStringList() << "analyse-test-data",
+        QCoreApplication::translate("main", "Check a test-mode capture for sequence breaks and exit"),
+        QCoreApplication::translate("main", "file"));
+    parser.addOption(analyseTestDataOption);
+
     // Process the command line arguments given by the user
     parser.process(a);
 
     // Get the configured settings from the parser
     bool isDebugOn = parser.isSet(showDebugOption);
+
+    // Run the analysis and exit without ever showing a window. Done before the logger and
+    // the main window are created so that nothing about this path depends on a display
+    // being available.
+    if (parser.isSet(analyseTestDataOption))
+    {
+        if (isDebugOn) showDebug = true;
+        return TestDataAnalysisDialog::RunHeadless(parser.value(analyseTestDataOption));
+    }
 
     // If we're on Windows and the debug flag has been supplied, show a debug command console.
 #ifdef _WIN32

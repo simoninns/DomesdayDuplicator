@@ -658,6 +658,7 @@
      <string>Edit</string>
     </property>
     <addaction name="actionTest_mode"/>
+    <addaction name="actionAnalyse_test_data"/>
     <addaction name="actionPreferences"/>
    </widget>
    <widget class="QMenu" name="menuView">
@@ -721,6 +722,14 @@
   <action name="actionAdvanced_naming">
    <property name="text">
     <string>Advanced naming and metadata</string>
+   </property>
+  </action>
+  <action name="actionAnalyse_test_data">
+   <property name="text">
+    <string>Analyse test data...</string>
+   </property>
+   <property name="toolTip">
+    <string>Check a capture taken in test mode for sequence breaks</string>
    </property>
   </action>
  </widget>

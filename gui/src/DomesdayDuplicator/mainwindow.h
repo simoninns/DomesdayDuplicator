@@ -86,6 +86,7 @@ private slots:
 
     void on_actionExit_triggered();
     void on_actionTest_mode_toggled(bool arg1);
+    void on_actionAnalyse_test_data_triggered();
     void on_actionAbout_triggered();
     void on_actionPreferences_triggered();
     void on_capturePushButton_clicked();

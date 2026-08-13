@@ -68,7 +68,7 @@ stub that resets nothing (D25).
 `fx3-programmer -h` says `-p` programs "SPI flash". **It does not, and there is no SPI flash
 here.** The implementation programs the I2C EEPROM and reports so, which is correct for this
 hardware and matches the project's own
-[FX3 programming guide](../docs/content/hardware-programming/fx3-firmware.md). The vendor commands for
+[FX3 programming guide](../docs/content/development/hardware-programming/fx3-firmware.md). The vendor commands for
 SPI (`0xC2`, `0xC4`) are defined in the source and never used. Tracked as **D24**; the help
 text is the thing that is wrong.
 

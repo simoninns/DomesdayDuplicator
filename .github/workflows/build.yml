@@ -1,0 +1,313 @@
+# The build that runs on every commit (P7-1 … P7-7).
+#
+# Replaces the three per-submodule workflows that came in with the monorepo, one of which
+# had never worked because it pointed at a directory that did not exist (D1). Those files
+# lived at fx3/.github and gui/.github, where GitHub does not look for them; they are
+# deleted rather than left as decoration.
+#
+# Two build paths for the GUI, deliberately (P7-2): Nix for reproducibility on Linux, and
+# the native toolchains because Nix cannot produce a Windows binary and because the
+# packaging jobs need the platform toolchain anyway. The firmware has one, because nothing
+# needs it built any other way.
+#
+# **Every push builds and packages everything**, on every branch (maintainer, 2026-08-13).
+# An earlier revision path-filtered branch builds so that a docs-only change skipped the
+# firmware; that saves CI minutes and costs the thing this phase exists for, which is
+# knowing the whole chain still works. The installers in particular are only proven by
+# being built, so they are built on every push rather than only on the way to a release.
+#
+# Path filtering survives for pull requests alone, where the same commits have already had
+# a full run from their branch push and the filtered run is the second opinion, not the
+# first.
+#
+# Tags are deliberately absent from the triggers below: release-gui.yml and
+# release-firmware.yml handle those, and they call the same reusable packaging workflows.
+# Listing tags here as well would build every installer twice for each release.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Build
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Superseded runs are cancelled: this workflow never builds a release, so nothing it
+  # produces is worth finishing once a newer commit has arrived on the same ref.
+  cancel-in-progress: true
+
+jobs:
+  # Path filtering as a job rather than an `on: paths:` filter, because `on: paths:` cannot
+  # be made conditional and this filter applies to pull requests only.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      gui: ${{ steps.decide.outputs.gui }}
+      fx3: ${{ steps.decide.outputs.fx3 }}
+      fpga: ${{ steps.decide.outputs.fpga }}
+      docs: ${{ steps.decide.outputs.docs }}
+      everything: ${{ steps.decide.outputs.everything }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - flake.nix
+              - flake.lock
+              - nix/**
+              - .github/workflows/**
+            gui:
+              - *shared
+              - gui/**
+            fx3:
+              - *shared
+              - fx3/**
+            fpga:
+              - *shared
+              - fpga/**
+            docs:
+              - *shared
+              - docs/**
+
+      # Every push and every manual dispatch builds everything, on every branch. Only pull
+      # requests are filtered, and only because the branch push for the same commits has
+      # already run the complete set — without that, a filtered run would be the only
+      # evidence a change ever produced, which is how a component quietly stops building.
+      - name: Decide what to build
+        id: decide
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            echo "Pull request: building only what changed"
+            {
+              echo "gui=${{ steps.filter.outputs.gui }}"
+              echo "fx3=${{ steps.filter.outputs.fx3 }}"
+              echo "fpga=${{ steps.filter.outputs.fpga }}"
+              echo "docs=${{ steps.filter.outputs.docs }}"
+              echo "everything=false"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "Building everything for ${GITHUB_REF} (${GITHUB_EVENT_NAME})"
+            for component in gui fx3 fpga docs; do
+              echo "${component}=true" >> "$GITHUB_OUTPUT"
+            done
+            echo "everything=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Per component rather than one `nix flake check`, so that the path filters mean
+  # something: a docs-only change must not rebuild the FX3 firmware, and `nix flake check`
+  # builds every check there is. The full check still runs — see the `nix-flake-check` job —
+  # on the refs where completeness is the point.
+  #
+  # Each package's own checkPhase runs its ctest suite, so building a component is also
+  # testing it (T1-T4). The gateware has no package CI can build, so its lint and
+  # simulation checks are named explicitly.
+  nix:
+    name: Nix — ${{ matrix.component }}
+    needs: changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: gui
+            enabled: gui
+            attrs: .#gui
+          - component: fx3
+            enabled: fx3
+            attrs: .#fx3-firmware .#fx3-programmer
+          - component: fpga
+            enabled: fpga
+            attrs: .#checks.x86_64-linux.fpga-lint .#checks.x86_64-linux.fpga-sim .#checks.x86_64-linux.fpga-provenance
+          - component: docs
+            enabled: docs
+            attrs: .#docs-site
+
+    steps:
+      - uses: actions/checkout@v4
+        if: needs.changes.outputs[matrix.enabled] == 'true'
+
+      - name: Install Nix
+        if: needs.changes.outputs[matrix.enabled] == 'true'
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Use the Magic Nix Cache
+        if: needs.changes.outputs[matrix.enabled] == 'true'
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build
+        if: needs.changes.outputs[matrix.enabled] == 'true'
+        run: nix build --print-build-logs ${{ matrix.attrs }}
+
+      - name: Collect the artefacts
+        if: needs.changes.outputs[matrix.enabled] == 'true' && matrix.component == 'fx3'
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/fx3-firmware artifacts/fx3-programmer
+
+          nix build .#fx3-firmware --out-link result-firmware
+          cp -rL result-firmware/* artifacts/fx3-firmware/
+
+          nix build .#fx3-programmer --out-link result-programmer
+          cp -rL result-programmer/bin/* artifacts/fx3-programmer/
+
+          chmod -R u+w artifacts
+
+      - name: Upload
+        if: needs.changes.outputs[matrix.enabled] == 'true' && matrix.component == 'fx3'
+        uses: actions/upload-artifact@v4
+        with:
+          # The short SHA in the name is what makes a build from any commit fetchable
+          # without re-running CI (P7-7). This is not the release archive — GitHub expires
+          # these, which is why releases attach their own copies.
+          name: fx3-artifacts-${{ github.sha }}
+          path: artifacts/
+          retention-days: 30
+          if-no-files-found: error
+
+  # The whole-tree check, on the refs where a complete result matters rather than on every
+  # push to every branch. It excludes `bitstream`: Quartus is unfree, GB-scale and
+  # x86_64-linux only, so it is built locally and attached by hand instead (P7-4).
+  nix-flake-check:
+    name: nix flake check
+    needs: changes
+    if: needs.changes.outputs.everything == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix flake check --print-build-logs
+
+  gui-native:
+    name: GUI (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.gui == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            runner: ubuntu-latest
+          - name: macos-arm64
+            runner: macos-latest
+          - name: windows-x64
+            runner: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build pkg-config libgl-dev \
+            qt6-base-dev libqt6serialport6-dev qt6-tools-dev \
+            libusb-1.0-0-dev libflac-dev libogg-dev libgtest-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake ninja pkg-config qt@6 libusb flac googletest
+
+      - name: Set up MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-serialport
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-libusb
+            mingw-w64-ucrt-x86_64-flac
+            mingw-w64-ucrt-x86_64-libogg
+            mingw-w64-ucrt-x86_64-gtest
+
+      - name: Configure and build (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
+            export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
+          fi
+          cmake -B build -S gui -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DDDD_VERSION="${GITHUB_SHA:0:8}"
+          cmake --build build
+
+      - name: Configure and build (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake -B build -S gui -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DDDD_VERSION="${GITHUB_SHA:0:8}"
+          cmake --build build
+
+      # T1 and T2 on every platform. T5 never runs here: it needs a physical device, and a
+      # test that "passes" because no hardware was attached is worse than no test (P7-6).
+      - name: Test (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export QT_QPA_PLATFORM=offscreen
+          ctest --test-dir build --output-on-failure --label-exclude 'hil'
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: ctest --test-dir build --output-on-failure --label-exclude 'hil'
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          # Build artefacts, not release assets: the installers built by the packaging
+          # workflows are what a release ships (P7-2).
+          name: gui-${{ matrix.name }}-${{ github.sha }}
+          path: |
+            build/bin/DomesdayDuplicator
+            build/bin/DomesdayDuplicator.exe
+          retention-days: 30
+          if-no-files-found: error
+
+  # The installers are built on every push, on every branch, and each packaging workflow
+  # installs what it built and runs it. That is the end-to-end validation: a Flatpak, a DMG
+  # or an MSI is only proven by being built and installed, and finding out at release time
+  # is finding out too late. release-gui.yml calls these same workflows from the tag.
+  #
+  # Pull requests skip them, and only because the branch push for the same commits has
+  # already built them.
+  package-flatpak:
+    name: Package
+    needs: [changes, gui-native]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.gui == 'true'
+    uses: ./.github/workflows/package-flatpak.yml
+
+  package-macos:
+    name: Package
+    needs: [changes, gui-native]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.gui == 'true'
+    uses: ./.github/workflows/package-macos.yml
+
+  package-windows:
+    name: Package
+    needs: [changes, gui-native]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.gui == 'true'
+    uses: ./.github/workflows/package-windows.yml

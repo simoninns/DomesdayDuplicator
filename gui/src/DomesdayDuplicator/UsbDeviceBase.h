@@ -1,5 +1,6 @@
 #pragma once
 #include "ILogger.h"
+#include "flacwriter.h"
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -7,6 +8,7 @@
 #include <fstream>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 #include <atomic>
 #ifdef _WIN32
@@ -18,11 +20,15 @@ class UsbDeviceBase
 {
 public:
     // Enumerations
+    //
+    // Packed 10-bit output was removed in P7-22. Decimation left with it as a *format* and
+    // came back as an orthogonal setting — it is a property of which samples are kept, not
+    // of how they are encoded, and welding the two together is what made "drop the packing"
+    // read as "drop CD support".
     enum class CaptureFormat
     {
+        FlacOgg,
         Signed16Bit,
-        Unsigned10Bit,
-        Unsigned10Bit4to1Decimation,
     };
     enum class TransferResult
     {
@@ -51,8 +57,22 @@ public:
     virtual bool GetPresentDevicePaths(std::vector<std::string>& devicePaths) const = 0;
     void SendConfigurationCommand(const std::string& preferredDevicePath, bool testMode);
 
+    // Capture settings that are not the format itself
+    struct CaptureOptions
+    {
+        // 1 for every sample, 4 for the 4:1 decimation CD RF capture uses
+        size_t decimationFactor = 1;
+
+        // FLAC only. 0-8; low by default because this encodes while the capture is running.
+        int flacCompressionLevel = 1;
+
+        // FLAC only. Written into the file as Vorbis comments so a capture that has lost
+        // its .json sidecar still names the build that produced it (P7-25).
+        std::vector<std::pair<std::string, std::string>> flacTags;
+    };
+
     // Capture methods
-    bool StartCapture(const std::filesystem::path& filePath, CaptureFormat format, const std::string& preferredDevicePath, bool isTestMode, bool useSmallUsbTransfers, bool useAsyncFileIo, size_t usbTransferQueueSizeInBytes, size_t diskBufferQueueSizeInBytes);
+    bool StartCapture(const std::filesystem::path& filePath, CaptureFormat format, const CaptureOptions& options, const std::string& preferredDevicePath, bool isTestMode, bool useSmallUsbTransfers, bool useAsyncFileIo, size_t usbTransferQueueSizeInBytes, size_t diskBufferQueueSizeInBytes);
     void StopCapture();
     bool GetTransferInProgress() const;
     TransferResult GetTransferResult() const;
@@ -165,6 +185,7 @@ private:
     // Capture settings
     std::filesystem::path captureFilePath;
     CaptureFormat captureFormat;
+    CaptureOptions captureOptions;
     bool captureIsTestMode = false;
     size_t currentUsbTransferQueueSizeInBytes = 0;
     bool currentUseSmallUsbTransfers = false;
@@ -214,6 +235,11 @@ private:
 #ifdef _WIN32
     HANDLE windowsCaptureOutputFileHandle;
 #endif
+
+    // FLAC output state. Non-null only for CaptureFormat::FlacOgg, which is also the case
+    // in which the file is written through libFLAC rather than through either of the two
+    // handles above.
+    std::unique_ptr<FlacWriter> flacWriter;
 
     // Sequence/test data state
     SequenceState sequenceState = SequenceState::Sync;

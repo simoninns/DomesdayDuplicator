@@ -1,0 +1,160 @@
+# The firmware and gateware release stream (P7-8 … P7-11, P7-18).
+#
+# Triggered by fw-v* tags only, and it builds no GUI installers — the capture application
+# releases separately under gui-v*.
+#
+# What a complete fw-v* release carries:
+#
+#   firmware.img / firmware.elf / firmware.map     CI (nix build .#fx3-firmware)
+#   fx3-programmer-<ver>-linux-x64                 CI (nix build .#fx3-programmer)
+#   DomesdayDuplicator.sof / .jic                  MANUAL — local Quartus build
+#   bitstream-provenance.txt                       MANUAL — provenance + digests
+#   SHA256SUMS                                     CI, extended by hand for the bitstream
+#   PROVENANCE.txt                                 CI
+#
+# The bitstream is the deliberate exception. Quartus is unfree, redistributable = false and
+# GB-scale, so it can never come from a binary cache and every cold CI run would fetch it
+# afresh; the decision recorded in the implementation plan is to build it locally and
+# attach it by hand. This workflow therefore publishes the release as a **draft**, so that
+# a firmware release cannot be published with the bitstream quietly missing (P7-11).
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Release (firmware and gateware)
+
+on:
+  push:
+    tags: ['fw-v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The fw-v* tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Use the Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build the firmware and the programmer from the tag
+        run: |
+          nix build --print-build-logs .#fx3-firmware --out-link result-firmware
+          nix build --print-build-logs .#fx3-programmer --out-link result-programmer
+
+      - name: Collect the assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#fw-v}"
+
+          mkdir -p release-artifacts
+          cp -L result-firmware/*.img result-firmware/*.elf result-firmware/*.map release-artifacts/ 2>/dev/null || \
+            cp -rL result-firmware/* release-artifacts/
+          cp -L result-programmer/bin/fx3-programmer "release-artifacts/fx3-programmer-${VERSION}-linux-x64"
+          chmod +w release-artifacts/*
+          ls -la release-artifacts
+
+      # P7-9: a firmware image that reports "unknown" is untraceable, which is the whole
+      # reason this phase exists. The version reaches the USB product descriptor (D4), so
+      # it is present in the image itself and can be checked without a device.
+      - name: Check the firmware carries the commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA:0:8}"
+          IMG=$(ls release-artifacts/*.img | head -1)
+
+          if grep -aq "unknown" "${IMG}"; then
+            echo "The firmware image contains the string 'unknown' — check the version stamping" >&2
+            exit 1
+          fi
+          if ! grep -aq "${SHORT_SHA}" "${IMG}"; then
+            echo "The firmware image does not carry the commit ${SHORT_SHA}" >&2
+            exit 1
+          fi
+          echo "Firmware image carries commit ${SHORT_SHA}"
+
+      - name: Generate SHA256SUMS and PROVENANCE.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          cd release-artifacts
+
+          sha256sum * > SHA256SUMS
+
+          NIXPKGS_REV=$(python3 -c "import json;print(json.load(open('../flake.lock'))['nodes']['nixpkgs']['locked']['rev'])")
+
+          cat > PROVENANCE.txt <<EOF
+          Domesday Duplicator — firmware and gateware release ${TAG}
+
+          Source commit:      ${GITHUB_SHA}
+          Tag:                ${TAG}
+          Built by:           ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          flake.lock nixpkgs: ${NIXPKGS_REV}
+
+          Toolchains
+            FX3 firmware:  arm-none-eabi-gcc from the pinned nixpkgs, via nix build .#fx3-firmware
+            FX3 programmer: the same pin, via nix build .#fx3-programmer
+            FPGA bitstream: NOT BUILT BY CI — see below
+
+          The FPGA bitstream
+            Quartus Prime Lite is unfree, redistributable = false and GB-scale, so it can
+            never be served from a binary cache and is not run in CI. The bitstream is built
+            locally and attached to this release by hand, together with its
+            bitstream-provenance.txt, which records the Quartus version, the machine that
+            built it and both digests (the .jic is reproducible byte for byte; the .sof
+            needs its canonical digest because it embeds a compile timestamp).
+
+            This release is created as a DRAFT for that reason. Attach the bitstream, extend
+            SHA256SUMS to cover it, then publish.
+
+          Notes
+            This release contains firmware and gateware only. The capture application is
+            released separately under gui-v* tags.
+          EOF
+
+          cat PROVENANCE.txt
+
+      - name: Publish as a draft
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Firmware and gateware ${{ github.event.inputs.tag || github.ref_name }}
+          files: release-artifacts/*
+          # Draft, not published: the bitstream is attached by hand and a firmware release
+          # without one is incomplete (P7-11). Publishing is the maintainer's explicit act
+          # after that, rather than something this workflow does on their behalf.
+          draft: true
+          generate_release_notes: true
+          body: |
+            FX3 firmware, FX3 programmer and FPGA gateware for the Domesday Duplicator.
+
+            **Before publishing this draft**, per the release checklist:
+
+            1. Build the bitstream locally — `nix build .#bitstream`, or `./fpga/build-local.sh`.
+            2. Attach `DomesdayDuplicator.sof`, `DomesdayDuplicator.jic` and
+               `bitstream-provenance.txt`.
+            3. Append their digests to `SHA256SUMS`, so one manifest covers every asset
+               regardless of where it was built.
+            4. Check the firmware and the bitstream provenance both name this tag's commit.
+
+            The bitstream is not built by CI: Quartus is unfree, `redistributable = false`
+            and GB-scale. `bitstream-provenance.txt` is what makes the hand-built artefact
+            independently verifiable.
+
+            **The capture application releases separately**, under `gui-v*` tags.

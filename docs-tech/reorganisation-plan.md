@@ -29,6 +29,21 @@
    archived artefact plus published digests is the practical route. Model and tasks:
    [implementation-plan.md](implementation-plan.md) → *Release artefacts and provenance*,
    Phase 7.
+7. **The GUI and the firmware/gateware release separately, and the GUI releases as
+   installers** (decided 2026-08-12). Two tag streams — `gui-v*` and `fw-v*` — so a GUI fix
+   does not reissue a bitstream and a gateware change does not reissue three installers. The
+   GUI ships as a Linux Flatpak, a macOS DMG and a Windows MSI, matching decode-orc, in place
+   of the five per-platform archives the current CI publishes. `dddconv` and `dddutil` are both
+   removed, leaving `DomesdayDuplicator` as the only shipped GUI binary — but `dddutil`'s
+   test-data analysis is step 4 of the capture-integrity procedure, so it moves into the
+   capture application before the removal, not after.
+8. **The capture application writes FLAC, not packed 10-bit** (decided 2026-08-12). It drops
+   `.lds` and writes ld-decode's `.ldf` — mono 16-bit signed Ogg FLAC — so the file it produces
+   is the file the decode toolchain already consumes, at roughly half the size and with no
+   conversion step in between. The sample values need no change: the app's existing 16-bit
+   conversion already computes `(tenbit - 512) << 6`, which ld-decode's own code calls "the DdD
+   16-bit format". Tasks P7-21…P7-25 in
+   [implementation-plan.md](implementation-plan.md) → Phase 7 §7b.
 
 Non-goals for this plan: rewriting any firmware or application code, migrating the KiCad
 project to a newer file format (flagged as a follow-up), or changing what the project does.
@@ -67,7 +82,7 @@ anyone without a GitHub SSH key. This alone justifies the merge.
 | FPGA gateware | `firmware/DE0-NANO/DomesdayDuplicator/` | Quartus Prime **Lite**, Cyclone IV E `EP4CE22F17C6` on a Terasic DE0-Nano | GUI-only; no script in-tree |
 | FX3 firmware | `firmware/fx3/fx3-firmware/` | `arm-none-eabi-gcc` + vendored CyFX3 SDK 1.3.5 (71 MB) | CMake + toolchain file |
 | FX3 programmer | `firmware/fx3/fx3-programmer/` | C99 + libusb-1.0 | CMake |
-| GUI application | `gui-app/tools/{DomesdayDuplicator,dddconv,dddutil}` | Qt 6.2+, libusb-1.0, C++20 | CMake |
+| GUI application | `gui-app/tools/{DomesdayDuplicator,dddconv,dddutil}` — `dddconv` and `dddutil` removed in Phase 7 | Qt 6.2+, libusb-1.0, C++20 | CMake |
 | PCB | `hardware/KiCAD/Domesday Duplicator/` | KiCad (files are KiCad 5-era: `.sch`, `.pro`, `-cache.lib`) | manual export |
 | Website | `docs/wiki-default/` | Jekyll + `just-the-docs` (via `remote_theme`) — **converting to MkDocs Material**, see [docs-theme-migration.md](docs-theme-migration.md) | GH Pages action + `build-local.sh` |
 
@@ -166,11 +181,12 @@ domesdayduplicator/
 │   │   └── src/
 │   └── sdk/                      # vendored CyFX3 SDK, pruned (see §5.3)
 ├── gui/
-│   ├── package.nix               # Qt6 app + dddconv + dddutil
+│   ├── package.nix               # Qt6 capture application
 │   ├── shell.nix                 # dev shell (root flake: `.#gui`)
 │   ├── CMakeLists.txt            # single front-end (dedup of the current two)
 │   ├── cmake/FindLibUSB.cmake
-│   └── src/{DomesdayDuplicator,dddconv,dddutil}/
+│   ├── packaging/                # Phase 7: flatpak/, macos/, windows/, assets/
+│   └── src/{DomesdayDuplicator,common}/   # dddconv + dddutil removed in Phase 7
 ├── docs/
 │   ├── package.nix               # site build (root flake: `.#docs-site`)
 │   ├── shell.nix                 # mkdocs dev shell (root flake: `.#docs`)
@@ -179,6 +195,9 @@ domesdayduplicator/
 │                                 # collide with mkdocs' default site_dir
 └── .github/workflows/
     ├── build.yml                 # path-filtered matrix over the components
+    ├── package-{flatpak,macos,windows}.yml   # reusable GUI packaging (Phase 7)
+    ├── release-gui.yml           # `gui-v*` → flatpak + dmg + msi
+    ├── release-firmware.yml      # `fw-v*`  → fx3 firmware + programmer + bitstream
     └── deploy-pages.yml          # docs/site → GitHub Pages (unchanged behaviour)
 ```
 
@@ -362,7 +381,7 @@ authoritative task list.
 | **4. Documentation** | Jekyll → MkDocs Material; content reorganised to match the navigation; `docs/` flake; the site URL move | `nix build .#docs-site` succeeds under `--strict`; every page renders with working images | **Done** |
 | **5. FX3 firmware flake** | Cross-compile derivation; the ELF-to-image tool as its own derivation — and then **replaced outright** by project-authored GPLv3 code (`fx3/mkimage`), deleting the SDK's proprietary `elf2img`; stamp the GUI with its commit (D21) | `nix build .#fx3-firmware` produces an `.img` that flashes and enumerates on real hardware | **Built; hardware gate outstanding** |
 | **6. FPGA flake** | Quartus decision from §5.1; headless compile flow; gateware lint and testbenches; bitstream provenance record | Bitstream built from the flake captures correctly on real hardware | — |
-| **7. CI and releases** | One path-filtered `build.yml` producing the GUI, FX3 firmware and programmer **on every commit**; a tag-triggered `release.yml` publishing them with checksums and provenance; keep the native Windows/macOS matrix, which Nix cannot replace | A `v*` tag yields a release whose every asset reports the tagged commit, and none reports `unknown` | — |
+| **7. CI, packaging and releases** | One `build.yml` producing the GUI, FX3 firmware, programmer and all three installers **on every push to every branch**, so the chain is validated end to end before a release rather than during one; keep the native Windows/macOS matrix, which Nix cannot replace. Switch the capture output from packed 10-bit `.lds` to FLAC `.ldf`. Then **two release streams**: `gui-v*` publishes a Flatpak, a DMG and an MSI, `fw-v*` publishes the FX3 firmware, the programmer and the hand-built bitstream, each with its own checksums and provenance. Remove `dddconv` and `dddutil`, moving the test-data analysis into the capture application first | A `gui-v*` tag yields a release of exactly three installers plus manifests with no firmware job run, an `fw-v*` tag the converse; every asset reports the tagged commit and none reports `unknown` | — |
 | **8. Cleanup and release** | Per-component READMEs in place of `BUILD.md` duplication; SPDX header convention; tag the first monorepo release | — | — |
 
 Project-convention documents (`AGENTS.md`, `TESTING.md`) and the first test suites landed in
@@ -379,6 +398,8 @@ the strength of a successful compile alone.
 | --- | --- | --- |
 | ~~Cypress SDK redistribution terms disallow vendoring~~ | Closed | P0-2: vendored regardless, by maintainer decision. The firmware build stays in CI and no history rewrite is needed |
 | Quartus 25.1 changes the gateware's timing/behaviour | Medium (was High) | Hardware capture test against a known-good disc before retiring the 18.0-built bitstream; keep the released `.jic` in the repo until then. Downgraded because the IP is committed Verilog, not regenerated at build time (§5.1) |
+| FLAC encoding cannot keep up with a 40 Msps capture on a modest machine, and captures drop samples | Medium | The write rate *falls* (50 MB/s packed → ~25 MB/s compressed), so this is a CPU risk, not an I/O one. Measure sustained capture with overrun counters before the format is made the default (P7-21); make the compression level a setting and start low; keep the uncompressed 16-bit format as the documented fallback; fail loudly on overrun rather than producing a quietly corrupt capture |
+| Captures written by the new build are not quite `.ldf`, and only fail once someone tries to decode one | Medium | Test interoperability against the real tools, not against a reading of the format: `flac -t`, a byte-identical `ld-compress --uncompress` round-trip to the `.lds` the old path would have written, and one end-to-end ld-decode run at the bench (P7-23) |
 | Repo becomes unwieldy (~400 MB clone) | Medium | Prune the three unused SDK profiles; optionally `--strip-blobs-bigger-than` on the docs image history; consider LFS. All are one-way — decide before phase 1, not after |
 | Open PRs/branches on the four upstream repos are stranded | Medium | Phase 0 tags + a freeze window; land the merge quickly rather than over weeks |
 | Renames break contributors' in-flight work | Low | Single announced commit; `git log --follow` still works |

@@ -1,3 +1,6 @@
 nav:
+  - Building Locally: building-locally.md
+  - Hardware Programming: hardware-programming
   - Hardware Guide: hardware-guide.md
+  - Hardware Testing: hardware-testing.md
   - Software Guide: software-guide.md

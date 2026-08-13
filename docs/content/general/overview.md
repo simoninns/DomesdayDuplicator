@@ -32,7 +32,7 @@ _Domesday Duplicator block diagram_
 
 These components are described in more detail in the following sections: 
 
-[Domesday Duplicator User Guide](../capture-application/user-guide.md) 
+[Domesday Duplicator Capture Application](../capture-application/index.md) 
 
 [Domesday Duplicator Hardware Guide](../development/hardware-guide.md) 
 

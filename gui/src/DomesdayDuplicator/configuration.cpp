@@ -62,7 +62,13 @@ void Configuration::writeConfiguration()
     // Capture
     configuration->beginGroup("capture");
     configuration->setValue("captureDirectory", settings.capture.captureDirectory);
-    configuration->setValue("captureFormat", convertCaptureFormatToInt(settings.capture.captureFormat));
+    configuration->setValue("captureFormatV2", convertCaptureFormatToInt(settings.capture.captureFormat));
+    configuration->setValue("cdDecimation", settings.capture.cdDecimation);
+    configuration->setValue("flacCompressionLevel", settings.capture.flacCompressionLevel);
+
+    // Remove the pre-P7-22 key once it has been migrated, so that a stored 0 meaning
+    // "10-bit packed" can never be read back by anything as a format that no longer exists.
+    configuration->remove("captureFormat");
     configuration->endGroup();
 
     // UI
@@ -116,7 +122,41 @@ void Configuration::readConfiguration()
     // Capture
     configuration->beginGroup("capture");
     settings.capture.captureDirectory = configuration->value("captureDirectory").toString();
-    settings.capture.captureFormat = convertIntToCaptureFormat(configuration->value("captureFormat").toInt());
+
+    if (configuration->contains("captureFormatV2")) {
+        settings.capture.captureFormat = convertIntToCaptureFormat(configuration->value("captureFormatV2").toInt());
+        settings.capture.cdDecimation = configuration->value("cdDecimation", false).toBool();
+    } else {
+        // Migrate the pre-P7-22 setting. The old enum was persisted as a bare integer with
+        // 0 = 10-bit packed, 1 = 16-bit signed, 2 = 10-bit packed with 4:1 CD decimation.
+        // Both packed formats become FLAC, since that is what replaced them, and the CD
+        // variant carries its decimation across as the separate setting it now is. Reading
+        // the old integer as if it indexed the new enum would turn a CD user's capture into
+        // an uncompressed full-rate one without saying so.
+        const qint32 legacyFormat = configuration->value("captureFormat", 0).toInt();
+        switch (legacyFormat) {
+        case 1:
+            settings.capture.captureFormat = CaptureFormat::sixteenBitSigned;
+            settings.capture.cdDecimation = false;
+            break;
+        case 2:
+            settings.capture.captureFormat = CaptureFormat::flacOgg;
+            settings.capture.cdDecimation = true;
+            break;
+        case 0:
+        default:
+            settings.capture.captureFormat = CaptureFormat::flacOgg;
+            settings.capture.cdDecimation = false;
+            break;
+        }
+        qDebug() << "Configuration::readConfiguration(): Migrated pre-P7-22 capture format" << legacyFormat
+                 << "to format" << convertCaptureFormatToInt(settings.capture.captureFormat)
+                 << "with CD decimation" << settings.capture.cdDecimation;
+    }
+
+    // Default rather than 0: an absent key must not silently mean "no compression at all",
+    // which would write .ldf files roughly twice the size they should be.
+    settings.capture.flacCompressionLevel = configuration->value("flacCompressionLevel", 1).toInt();
     configuration->endGroup();
 
     // UI
@@ -164,7 +204,9 @@ void Configuration::setDefault()
 
     // Capture
     settings.capture.captureDirectory = QDir::homePath();
-    settings.capture.captureFormat = CaptureFormat::tenBitPacked;
+    settings.capture.captureFormat = CaptureFormat::flacOgg;
+    settings.capture.cdDecimation = false;
+    settings.capture.flacCompressionLevel = 1;
 
     // UI
     settings.ui.perSideNotesEnabled = false;
@@ -206,9 +248,8 @@ void Configuration::setDefault()
 // Enum conversion from CaptureFormat to int
 qint32 Configuration::convertCaptureFormatToInt(CaptureFormat captureFormat)
 {
-    if (captureFormat == CaptureFormat::tenBitPacked) return 0;
+    if (captureFormat == CaptureFormat::flacOgg) return 0;
     if (captureFormat == CaptureFormat::sixteenBitSigned) return 1;
-    if (captureFormat == CaptureFormat::tenBitCdPacked) return 2;
 
     // Default to 0
     return 0;
@@ -217,12 +258,11 @@ qint32 Configuration::convertCaptureFormatToInt(CaptureFormat captureFormat)
 // Enum conversion from int to CaptureFormat
 Configuration::CaptureFormat Configuration::convertIntToCaptureFormat(qint32 captureInt)
 {
-    if (captureInt == 0) return CaptureFormat::tenBitPacked;
+    if (captureInt == 0) return CaptureFormat::flacOgg;
     if (captureInt == 1) return CaptureFormat::sixteenBitSigned;
-    if (captureInt == 2) return CaptureFormat::tenBitCdPacked;
 
-    // Default to 10 bit packed
-    return CaptureFormat::tenBitPacked;
+    // Default to FLAC
+    return CaptureFormat::flacOgg;
 }
 
 // Enum conversion from serial speed to int
@@ -272,6 +312,28 @@ void Configuration::setCaptureFormat(CaptureFormat captureFormat)
 Configuration::CaptureFormat Configuration::getCaptureFormat() const
 {
     return settings.capture.captureFormat;
+}
+
+void Configuration::setCdDecimation(bool enabled)
+{
+    settings.capture.cdDecimation = enabled;
+}
+
+bool Configuration::getCdDecimation() const
+{
+    return settings.capture.cdDecimation;
+}
+
+void Configuration::setFlacCompressionLevel(qint32 level)
+{
+    // Clamped rather than trusted: the value reaches libFLAC, which rejects anything
+    // outside 0-8, and a rejected setting would fail the capture at the moment it starts.
+    settings.capture.flacCompressionLevel = qBound(0, level, 8);
+}
+
+qint32 Configuration::getFlacCompressionLevel() const
+{
+    return settings.capture.flacCompressionLevel;
 }
 
 // USB settings

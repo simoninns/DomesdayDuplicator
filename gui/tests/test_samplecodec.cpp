@@ -4,12 +4,17 @@
 
     Domesday Duplicator - GUI tests
 
-    T1 (unit) and T2 (golden) coverage for the 10-bit/16-bit sample codec used by dddconv.
+    T1 (unit) and T2 (golden) coverage for the 10-bit/16-bit sample codec.
 
     This is the highest-consequence pure logic in the project. A defect here does not
-    crash and does not produce an error message — it silently corrupts every capture that
-    is ever converted, and the corruption is only visible by comparing against the original
+    crash and does not produce an error message — it silently misreads every capture that
+    is ever analysed, and the corruption is only visible by comparing against the original
     file, which by then may not exist.
+
+    The codec moved from dddconv to src/common in P7-12. Its production caller is now the
+    capture reader, which uses the unpack direction to read the .lds files that exist from
+    before the application wrote .ldf; the pack direction is what the round-trip test below
+    checks it against.
 
     SPDX-License-Identifier: GPL-3.0-or-later
 

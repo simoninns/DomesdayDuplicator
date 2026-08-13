@@ -239,7 +239,7 @@ if (testData == 10'd1021 - 1) testData <= 10'd0;
 else                          testData <= testData + 10'd1;
 ```
 
-And `dddutil`'s test-data analysis walks a captured file checking that ramp is unbroken.
+And the application's test-data analysis walks a captured file checking that ramp is unbroken.
 
 Together they form a complete end-to-end integrity oracle. Any discontinuity in the sequence
 proves a sample was dropped somewhere across **FPGA → FIFO → FX3 → USB 3.0 → host → disk**.
@@ -256,7 +256,9 @@ dropped samples are the failure mode that matters and the one that is invisible 
 3. Launch the capture application and **enable test mode**.
 4. Capture for **at least 60 seconds**. This matters: the buffer must wrap several times, and
    a short capture can pass while a real one drops samples.
-5. Open the captured file in `dddutil` and run the test-data analysis.
+5. Analyse the capture: **Edit → Analyse test data...**, or from a shell,
+   `DomesdayDuplicator --analyse-test-data <file>` — which exits 0 for an intact ramp, 1 for
+   a break and 2 for a file it could not read, so the gate can be scripted.
 6. **Pass = zero sequence breaks.** Any break at all is a release blocker, not a flake — the
    ramp is deterministic, so there is no such thing as an intermittent false positive here.
 

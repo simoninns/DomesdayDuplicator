@@ -32,6 +32,9 @@
 #include "UsbDeviceWinUsb.h"
 #endif
 #include "amplitudemeasurement.h"
+#include "captureformat.h"
+#include "testdataanalysisdialog.h"
+#include <QDateTime>
 #include <QFile>
 #include <cmath>
 #include <cctype>
@@ -1150,7 +1153,9 @@ void MainWindow::updateStorageInformation()
     storageInfo->refresh();
     if (storageInfo->isValid()) {
         // Calculate the space required per second based on the selected sample format
-        size_t samplesPerSecond = 40 * 1000 * 1000;
+        size_t samplesPerSecond = CaptureFormats::sampleRateHz;
+        if (configuration->getCdDecimation()) samplesPerSecond /= 4;
+
         size_t bytesPerSecond = 0;
         switch (configuration->getCaptureFormat())
         {
@@ -1158,13 +1163,13 @@ void MainWindow::updateStorageInformation()
             // 2 bytes per sample
             bytesPerSecond = samplesPerSecond * 2;
             break;
-        case Configuration::CaptureFormat::tenBitPacked:
-            // 5 bytes every 4 samples
-            bytesPerSecond = (samplesPerSecond / 4) * 5;
-            break;
-        case Configuration::CaptureFormat::tenBitCdPacked:
-            // 5 bytes every 16 samples
-            bytesPerSecond = (samplesPerSecond / 16) * 5;
+        case Configuration::CaptureFormat::flacOgg:
+            // An estimate, and unavoidably so: FLAC's output size depends on the signal, and a capture that has not
+            // started yet has no signal to measure. Half of the uncompressed rate is what ld-decode's own tooling
+            // observes for LaserDisc RF (.ldf runs about half the size of the .lds it replaced, which is itself 5 bytes
+            // per 4 samples). Deliberately conservative: a remaining-time figure that turns out pessimistic is a much
+            // better failure than one that runs the disk out mid-capture.
+            bytesPerSecond = samplesPerSecond;
             break;
         }
 
@@ -1238,6 +1243,17 @@ void MainWindow::on_actionTest_mode_toggled(bool arg1)
         usbDevice->SendConfigurationCommand(configuration->getUsbPreferredDevice().toStdString(), false);
         ui->capturePushButton->setText("Capture");
     }
+}
+
+// Menu option: Edit->Analyse test data
+//
+// Step 4 of the capture-integrity procedure (TESTING.md §5). It lived in dddutil until
+// P7-12; the same check is also available headless as --analyse-test-data, which is what
+// makes the T5 gate scriptable.
+void MainWindow::on_actionAnalyse_test_data_triggered()
+{
+    TestDataAnalysisDialog dialog(this);
+    dialog.chooseFileAndAnalyse(configuration->getCaptureDirectory());
 }
 
 // Menu option->Advanced naming
@@ -1384,18 +1400,16 @@ void MainWindow::StartCapture()
         namingDiskMetadataNotes = advancedNamingDialog->getMetadataNotes();
     }
 
-    // Change the file suffix based on the selected capture format
-    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked)
+    // Change the file suffix based on the selected capture format. A decimated CD capture no longer gets an extension of
+    // its own: it is the same container with a different sample rate stamped in it, and the ".cds" the packed format
+    // used was a name nothing downstream knew how to read.
+    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::flacOgg)
     {
-        captureFilePath += ".lds";
-    }
-    else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::sixteenBitSigned)
-    {
-        captureFilePath += ".raw";
+        captureFilePath += std::string(".") + CaptureFormats::flacExtension;
     }
     else
     {
-        captureFilePath += ".cds";
+        captureFilePath += std::string(".") + CaptureFormats::signed16BitExtension;
     }
 
     // Disable functions during capture
@@ -1410,23 +1424,34 @@ void MainWindow::StartCapture()
     // Reset the capture statistics
     ui->numberOfTransfersLabel->setText(tr("0"));
 
-    // Determine the capture format
+    // Determine the capture format and the settings that go with it
     UsbDeviceBase::CaptureFormat captureFormat = UsbDeviceBase::CaptureFormat::Signed16Bit;
-    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitPacked)
+    if (configuration->getCaptureFormat() == Configuration::CaptureFormat::flacOgg)
     {
-        qDebug() << "MainWindow::StartCapture(): Starting transfer - 10-bit packed";
-        captureFormat = UsbDeviceBase::CaptureFormat::Unsigned10Bit;
-    }
-    else if (configuration->getCaptureFormat() == Configuration::CaptureFormat::tenBitCdPacked)
-    {
-        qDebug() << "MainWindow::StartCapture(): Starting transfer - 10-bit packed 4:1 decimated";
-        captureFormat = UsbDeviceBase::CaptureFormat::Unsigned10Bit4to1Decimation;
+        qDebug() << "MainWindow::StartCapture(): Starting transfer - Ogg FLAC";
+        captureFormat = UsbDeviceBase::CaptureFormat::FlacOgg;
     }
     else
     {
         qDebug() << "MainWindow::StartCapture(): Starting transfer - 16-bit";
         captureFormat = UsbDeviceBase::CaptureFormat::Signed16Bit;
     }
+
+    UsbDeviceBase::CaptureOptions captureOptions;
+    captureOptions.decimationFactor = configuration->getCdDecimation() ? 4 : 1;
+    captureOptions.flacCompressionLevel = configuration->getFlacCompressionLevel();
+
+    // Provenance, written into the capture file itself as Vorbis comments (P7-25). The .json sidecar below carries far
+    // more, but it is a separate file and separate files get separated; these few fields survive inside the capture.
+    captureOptions.flacTags = {
+        { "TITLE", captureFilePath.stem().string() },
+        { "ENCODER", std::string("DomesdayDuplicator ") + DDD_VERSION },
+        { "DDD_VERSION", DDD_VERSION },
+        { "DDD_SAMPLE_RATE_HZ", std::to_string(CaptureFormats::sampleRateHz / captureOptions.decimationFactor) },
+        { "DDD_DECIMATION", std::to_string(captureOptions.decimationFactor) },
+        { "DDD_TEST_MODE", isTestMode ? "1" : "0" },
+        { "DATE", QDateTime::currentDateTime().toString(Qt::ISODate).toStdString() },
+    };
 
     // Initialize our transfer state settings
     playerStopRequested = false;
@@ -1443,7 +1468,7 @@ void MainWindow::StartCapture()
 
     // Attempt to start the capture process
     qDebug() << "MainWindow::StartCapture(): Starting capture to file:" << captureFilePath.string().c_str();
-    if (!usbDevice->StartCapture(captureFilePath, captureFormat, configuration->getUsbPreferredDevice().toStdString(), isTestMode, useSmallUsbTransfers, useAsyncFileIo, maxUsbTransferQueueSizeInBytes, maxDiskBufferQueueSizeInBytes))
+    if (!usbDevice->StartCapture(captureFilePath, captureFormat, captureOptions, configuration->getUsbPreferredDevice().toStdString(), isTestMode, useSmallUsbTransfers, useAsyncFileIo, maxUsbTransferQueueSizeInBytes, maxDiskBufferQueueSizeInBytes))
     {
         // Show an error based on the transfer result
         qDebug() << "MainWindow::StartCapture(): Failed to begin the capture process";

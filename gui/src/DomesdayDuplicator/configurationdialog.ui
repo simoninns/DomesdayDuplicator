@@ -100,6 +100,40 @@
         </layout>
        </item>
        <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_flac">
+         <item>
+          <widget class="QLabel" name="flacCompressionLabel">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>FLAC Compression</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="flacCompressionComboBox">
+           <property name="toolTip">
+            <string>Higher levels produce smaller files but need more CPU during the capture. If a capture reports buffer overruns, lower this before anything else.</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="cdDecimationCheckBox">
+         <property name="text">
+          <string>4:1 decimation (for CD RF capture)</string>
+         </property>
+         <property name="toolTip">
+          <string>Keeps every fourth sample, giving a 10 Msps capture. Applies to both capture formats.</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>

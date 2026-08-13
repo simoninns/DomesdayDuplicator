@@ -38,11 +38,16 @@ class Configuration : public QObject
 {
     Q_OBJECT
 public:
-    // Define the possible capture formats
+    // Define the possible capture formats.
+    //
+    // Packed 10-bit (.lds) and its 4:1 decimated CD variant were removed in P7-22. Their
+    // stored values are migrated on read rather than reinterpreted — see
+    // readConfiguration() — because the old settings persisted this enum as a bare integer,
+    // and 0 meaning "packed" then and "FLAC" now would silently change what an existing
+    // installation captures.
     enum CaptureFormat {
-        tenBitPacked,
-        sixteenBitSigned,
-        tenBitCdPacked
+        flacOgg,
+        sixteenBitSigned
     };
 
     // Define the possible serial communication speeds
@@ -66,6 +71,10 @@ public:
     QString getCaptureDirectory() const;
     void setCaptureFormat(CaptureFormat captureFormat);
     CaptureFormat getCaptureFormat() const;
+    void setCdDecimation(bool enabled);
+    bool getCdDecimation() const;
+    void setFlacCompressionLevel(qint32 level);
+    qint32 getFlacCompressionLevel() const;
     void setUsbVid(quint16 vid);
     quint16 getUsbVid() const;
     void setUsbPid(quint16 pid);
@@ -122,6 +131,15 @@ private:
     struct Capture {
         QString captureDirectory;
         CaptureFormat captureFormat;
+
+        // 4:1 decimation, for CD RF capture. Orthogonal to the format since P7-22: it
+        // selects which samples are kept, not how they are encoded.
+        bool cdDecimation;
+
+        // 0-8, as flac's -0 .. -8. Low by default because the encoder runs while the
+        // capture does; raising it is a per-machine decision backed by whether the capture
+        // still completes without buffer overruns.
+        qint32 flacCompressionLevel;
     };
 
     struct Usb {

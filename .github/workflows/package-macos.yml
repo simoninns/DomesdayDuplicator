@@ -1,0 +1,181 @@
+# macOS DMG for the capture application (P7-15).
+#
+# Unsigned and un-notarised: a Developer ID is a paid personal credential and putting one
+# in a public repository's CI needs a decision about who holds it that has not been taken.
+# The consequence is a Gatekeeper prompt on first launch, which the installation page
+# documents rather than leaving users to discover.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Package macOS DMG
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: Name of the uploaded DMG artifact
+        required: false
+        default: DomesdayDuplicator-macos-dmg
+        type: string
+      retention_days:
+        description: Artifact retention in days
+        required: false
+        default: 30
+        type: number
+
+jobs:
+  package:
+    name: DMG
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            version="${GITHUB_REF_NAME#gui-v}"
+          else
+            version="git-${GITHUB_SHA:0:8}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "ddd_version=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          # A flaky Homebrew index refresh should not fail the build; the formulae that
+          # matter are pinned by the runner image and by the install step below.
+          for attempt in 1 2 3; do
+            brew update && break
+            echo "brew update failed (attempt ${attempt}), retrying..."
+            sleep 15
+          done || echo "brew update failed; continuing with the existing metadata"
+
+          brew install cmake ninja pkg-config qt@6 libusb flac dylibbundler
+
+      - name: Configure and build
+        shell: bash
+        run: |
+          export PATH="$(brew --prefix qt@6)/bin:${PATH}"
+          export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
+          cmake -B build -S gui -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}"
+          cmake --build build
+
+      - name: Run the test suite
+        shell: bash
+        run: |
+          # macOS is best-effort for the flake (P0-7) but not for a release asset: a DMG
+          # that ships is a DMG whose tests ran.
+          export QT_QPA_PLATFORM=offscreen
+          ctest --test-dir build --output-on-failure --label-exclude 'hil'
+
+      - name: Assemble the application bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$(brew --prefix qt@6)/bin:${PATH}"
+
+          APP="dist/DomesdayDuplicator.app"
+          rm -rf dist && mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
+          cp build/bin/DomesdayDuplicator "${APP}/Contents/MacOS/"
+
+          # An .icns built from the PNG set already in the tree, rather than a second copy
+          # of the artwork maintained for macOS alone.
+          ICONSET=DomesdayDuplicator.iconset
+          mkdir -p "${ICONSET}"
+          SRC=gui/src/DomesdayDuplicator/Graphics/ApplicationIcon
+          cp "${SRC}/DomesdayDuplicator_16x16.png"   "${ICONSET}/icon_16x16.png"
+          cp "${SRC}/DomesdayDuplicator_32x32.png"   "${ICONSET}/icon_16x16@2x.png"
+          cp "${SRC}/DomesdayDuplicator_32x32.png"   "${ICONSET}/icon_32x32.png"
+          cp "${SRC}/DomesdayDuplicator_64x64.png"   "${ICONSET}/icon_32x32@2x.png"
+          cp "${SRC}/DomesdayDuplicator_128x128.png" "${ICONSET}/icon_128x128.png"
+          cp "${SRC}/DomesdayDuplicator_256x256.png" "${ICONSET}/icon_128x128@2x.png"
+          cp "${SRC}/DomesdayDuplicator_256x256.png" "${ICONSET}/icon_256x256.png"
+          iconutil -c icns "${ICONSET}" -o "${APP}/Contents/Resources/DomesdayDuplicator.icns"
+
+          cat > "${APP}/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>Domesday Duplicator</string>
+            <key>CFBundleDisplayName</key><string>Domesday Duplicator</string>
+            <key>CFBundleExecutable</key><string>DomesdayDuplicator</string>
+            <key>CFBundleIdentifier</key><string>io.github.simoninns.DomesdayDuplicator</string>
+            <key>CFBundleIconFile</key><string>DomesdayDuplicator.icns</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>${{ steps.version.outputs.version }}</string>
+            <key>CFBundleVersion</key><string>${{ steps.version.outputs.version }}</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>LSMinimumSystemVersion</key><string>12.0</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Bundle the Qt and libFLAC dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$(brew --prefix qt@6)/bin:${PATH}"
+
+          # macdeployqt follows Qt and nothing else, so libFLAC, libogg and libusb — which
+          # come from Homebrew prefixes that do not exist on a user's machine — would be
+          # left as dangling references. This is the failure that builds green and then
+          # fails to launch for everyone, so dylibbundler runs afterwards to catch them.
+          macdeployqt dist/DomesdayDuplicator.app -verbose=1
+          dylibbundler -od -b -x dist/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator \
+            -d dist/DomesdayDuplicator.app/Contents/libs -p @executable_path/../libs
+
+          echo "== Remaining references to Homebrew prefixes (must be none) =="
+          if otool -L dist/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator | grep -E '/opt/homebrew|/usr/local/Cellar'; then
+            echo "The bundle still references Homebrew paths and would not run on a user's machine" >&2
+            exit 1
+          fi
+
+      - name: Check the bundled application runs
+        shell: bash
+        run: |
+          reported=$(dist/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator --version)
+          echo "Packaged application reports: ${reported}"
+          case "${reported}" in
+            *unknown*) echo "The packaged application reports an unknown version" >&2; exit 1 ;;
+          esac
+
+      - name: Build the DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG="dist/DomesdayDuplicator-${{ steps.version.outputs.version }}-macos-arm64.dmg"
+          STAGING=dmg-root
+          rm -rf "${STAGING}" && mkdir -p "${STAGING}"
+          cp -R dist/DomesdayDuplicator.app "${STAGING}/"
+          ln -s /Applications "${STAGING}/Applications"
+
+          # hdiutil intermittently fails to attach on hosted runners under contention.
+          # Retry rather than fail the build for something that is not a defect.
+          for attempt in 1 2 3; do
+            if hdiutil create -volname "Domesday Duplicator" -srcfolder "${STAGING}" \
+                 -ov -format UDZO "${DMG}"; then
+              hdiutil verify "${DMG}"
+              exit 0
+            fi
+            echo "hdiutil create failed (attempt ${attempt}); retrying..."
+            sleep $((attempt * 10))
+          done
+          echo "hdiutil create failed after 3 attempts" >&2
+          exit 1
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist/*.dmg
+          retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: error

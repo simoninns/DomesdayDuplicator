@@ -34,11 +34,23 @@ ConfigurationDialog::ConfigurationDialog(QWidget *parent) :
     ui.reset(new Ui::ConfigurationDialog());
     ui->setupUi(this);
 
-    // Build the captureFormatComboBox
+    // Build the captureFormatComboBox. FLAC is first because it is the default and what
+    // the decode tools want; the uncompressed format is the fallback for a machine that
+    // cannot sustain the encoder.
     ui->captureFormatComboBox->clear();
-    ui->captureFormatComboBox->addItem("16-bit Signed Scaled", Configuration::CaptureFormat::sixteenBitSigned);
-    ui->captureFormatComboBox->addItem("10-bit Packed Unsigned", Configuration::CaptureFormat::tenBitPacked);
-    ui->captureFormatComboBox->addItem("10-bit Packed Unsigned (4:1 decimation for CD)", Configuration::CaptureFormat::tenBitCdPacked);
+    ui->captureFormatComboBox->addItem("FLAC (.ldf) — compressed, read directly by ld-decode", Configuration::CaptureFormat::flacOgg);
+    ui->captureFormatComboBox->addItem("16-bit Signed Scaled (.raw) — uncompressed", Configuration::CaptureFormat::sixteenBitSigned);
+
+    // Build the flacCompressionComboBox. The range is flac's own 0-8; the annotations say
+    // which end costs disk and which costs CPU, since that is the whole of the trade.
+    ui->flacCompressionComboBox->clear();
+    for (int level = 0; level <= 8; ++level) {
+        QString label = QString::number(level);
+        if (level == 0) label += " (fastest, largest)";
+        if (level == 1) label += " (default)";
+        if (level == 8) label += " (smallest, most CPU)";
+        ui->flacCompressionComboBox->addItem(label, level);
+    }
 
     // Build the diskBufferQueueSizeComboBox
     ui->diskBufferQueueSizeComboBox->clear();
@@ -86,6 +98,8 @@ void ConfigurationDialog::loadConfiguration(const Configuration& configuration)
     // Capture
     ui->captureDirectoryLineEdit->setText(configuration.getCaptureDirectory());
     ui->captureFormatComboBox->setCurrentIndex(ui->captureFormatComboBox->findData(static_cast<unsigned int>(configuration.getCaptureFormat())));
+    ui->flacCompressionComboBox->setCurrentIndex(ui->flacCompressionComboBox->findData(configuration.getFlacCompressionLevel()));
+    ui->cdDecimationCheckBox->setChecked(configuration.getCdDecimation());
 
     // USB
     ui->vendorIdLineEdit->setText(QString::number(configuration.getUsbVid()));
@@ -151,6 +165,8 @@ void ConfigurationDialog::saveConfiguration(Configuration& configuration)
     // Capture
     configuration.setCaptureDirectory(ui->captureDirectoryLineEdit->text());
     configuration.setCaptureFormat(static_cast<Configuration::CaptureFormat>(ui->captureFormatComboBox->itemData(ui->captureFormatComboBox->currentIndex()).toInt()));
+    configuration.setFlacCompressionLevel(ui->flacCompressionComboBox->itemData(ui->flacCompressionComboBox->currentIndex()).toInt());
+    configuration.setCdDecimation(ui->cdDecimationCheckBox->isChecked());
 
     // USB
     configuration.setUsbVid(static_cast<quint16>(ui->vendorIdLineEdit->text().toInt()));

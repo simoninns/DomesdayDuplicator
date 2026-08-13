@@ -36,14 +36,14 @@ nix develop .#fpga             # verible, verilator, iverilog, gtkwave
 ```
 
 ## USB device configuration
-Programming the DE0-Nano needs user-space access to its onboard USB-Blaster. The repository ships the required udev rule, and the procedure — including the NixOS module that installs it alongside the FX3 rules — is on the **[Linux device access](../hardware-programming/linux-device-access.md)** page.
+Programming the DE0-Nano needs user-space access to its onboard USB-Blaster. The repository ships the required udev rule, and the procedure — including the NixOS module that installs it alongside the FX3 rules — is on the **[Linux device access](hardware-programming/linux-device-access.md)** page.
 
 !!! warning "If you followed an older version of this page"
 
     This section used to tell you to hand-write `/etc/udev/rules.d/40-altera-usbblaster.rules`. **Delete that file if you have it.** It grants access through `MODE="0666"` alone, which hands write access to every user and process on the machine rather than to the user at the console, and having two files matching the same device makes permission problems much harder to diagnose.
 
 ## Building and programming the DE0-Nano
-Both steps are covered in full, with the output to expect at each stage and a troubleshooting table, on the **[FPGA bitstream](../hardware-programming/fpga-bitstream.md)** page. In brief:
+Both steps are covered in full, with the output to expect at each stage and a troubleshooting table, on the **[FPGA bitstream](hardware-programming/fpga-bitstream.md)** page. In brief:
 
 ```bash
 nix build .#bitstream                              # or ./fpga/build-local.sh
@@ -232,7 +232,8 @@ The Linux GUI application provides a capture front-end for the user.  The appli
 _Domesday Duplicator Ubuntu GUI application_
 
 ## Development environment
-The Linux GUI application is developed using Qt Creator 4.7.1 for Linux (Based on Qt 5.11.1 GCC 64-bit).  The application is tested on Ubuntu 18.04 LTS.  For instructions on how to install and build the application please see the [Domesday Duplicator User Guide](../capture-application/user-guide.md).
+The Linux GUI application is developed using Qt Creator 4.7.1 for Linux (Based on Qt 5.11.1 GCC 64-bit).  The application is tested on Ubuntu 18.04 LTS.  For instructions on how to build the application please see [Building Locally](building-locally.md), which covers all three components, or
+[Building from source](../capture-application/building-from-source.md) for the capture application alone.
 
 ## Source code modules
 The GUI application modules are as follows:

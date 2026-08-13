@@ -128,8 +128,11 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 ├── graphics/                  # logos and screenshots used by READMEs
 ├── gui/
 │   ├── CMakeLists.txt         # the single build definition
-│   ├── cmake/                 # FindLibUSB.cmake
-│   └── src/{DomesdayDuplicator,dddconv,dddutil}/
+│   ├── cmake/                 # FindLibUSB.cmake, FindFLAC.cmake
+│   ├── packaging/             # flatpak/, windows/, macos/, assets/ — the installers
+│   └── src/
+│       ├── DomesdayDuplicator/  # the capture application
+│       └── common/              # Qt-free core: sample codec, FLAC writer, reader, analyser
 └── hardware/
     ├── pcb/                   # KiCad project
     └── doc/
@@ -179,8 +182,9 @@ Unique to this project, and non-negotiable:
   silently corrupt captures. **A green build is not sufficient evidence.**
 - Any such change requires the hardware-in-the-loop procedure before merge. The project has a
   complete end-to-end integrity oracle: `dataGenerator.v` emits a known 0…1020 counter ramp
-  in test mode, and `dddutil`'s test-data analysis walks a captured file checking that ramp is
-  unbroken. Any discontinuity proves a dropped sample somewhere across
+  in test mode, and the capture application's test-data analysis walks a captured file checking
+  that ramp is unbroken — **Edit → Analyse test data...**, or `--analyse-test-data <file>` from
+  a shell, which exits non-zero on a break so the check can be scripted. Any discontinuity proves a dropped sample somewhere across
   FPGA → FIFO → FX3 → USB 3.0 → host → disk. Zero sequence breaks is the pass condition.
 - **Never propose a change that writes to the FX3 EEPROM or the FPGA EPCS flash as part of an
   automated test.** Permanent programming is a deliberate manual act.
@@ -348,12 +352,13 @@ you built, on what, and what you observed. "Should work" is not verification.
 
 Two things that look like tests are not:
 
-- `gui/src/dddutil/analysetestdata.cpp` is a *product feature* that analyses captured
-  test-pattern data. It is the host half of the §4 integrity oracle, not a test of the code.
+- `gui/src/common/testdataanalyser.cpp` is a *product feature* that analyses captured
+  test-pattern data. It is the host half of the §4 integrity oracle, not a test of the code —
+  though it does have its own unit tests, because a gate that cannot fail proves nothing.
 - `docs/TESTING.md` is a manual site-preview guide, superseded at the repository root.
 
 When adding logic, put it somewhere it can be tested. The pure parts of this codebase live in
-`gui/src/dddconv/samplecodec.h`, `fx3/programmer/src/fx3-paging.h` and
+`gui/src/common/`, `fx3/programmer/src/fx3-paging.h` and
 `fx3/programmer/src/fx3-flashprog.c` precisely so they can be exercised without Qt, libusb or
 hardware — extend that pattern rather than adding logic inside an I/O loop.
 
