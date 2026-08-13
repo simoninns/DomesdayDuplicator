@@ -128,7 +128,13 @@ jobs:
           XDG_RUNTIME_DIR="$(mktemp -d)"
           export XDG_RUNTIME_DIR
 
-          reported=$(flatpak run --command=DomesdayDuplicator io.github.simoninns.DomesdayDuplicator --version)
+          # --version goes through QCommandLineParser, which needs the QApplication that
+          # main() constructs first, so even this much of the application wants a platform
+          # plugin — and a hosted runner has no display for it to find. offscreen is the
+          # same plugin the test steps use, passed with --env because the sandbox does not
+          # owe the host environment anything.
+          reported=$(flatpak run --env=QT_QPA_PLATFORM=offscreen \
+            --command=DomesdayDuplicator io.github.simoninns.DomesdayDuplicator --version)
           echo "Packaged application reports: ${reported}"
           case "${reported}" in
             *unknown*) echo "The packaged application reports an unknown version" >&2; exit 1 ;;
