@@ -36,6 +36,10 @@ pkgs.mkShell {
     pkg-config
     qt6.qtbase
 
+    # The capture engine's only non-Qt dependency. BSD-3-Clause, so linking it into a
+    # GPLv3 application is fine (AGENTS.md §10).
+    flac
+
     # Test
     gtest
 

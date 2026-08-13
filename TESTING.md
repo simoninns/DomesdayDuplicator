@@ -3,7 +3,7 @@
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 124 across five
+reorganisation there were **no automated tests at all**. There are now 212 across five
 components, plus three gateware testbenches, a lint pass over five Verilog modules, a static
 check on the documentation site and a licence-header check over the whole tree. That is a
 start, not a suite, and this document says so where it applies rather than describing an
@@ -74,6 +74,28 @@ cmake --build ddd-gui/build
 ctest --test-dir ddd-gui/build -L unit
 ```
 
+It also uses the `functional` label, which no other component does. Those are whole-pipeline
+soak tests: a synthetic source generates the device's stream in software at its real
+80 MB/s and pushes it through validation, metrics, the monitor tap and a sink for a minute,
+with a consumer reading the tap as fast as it can. They are the strongest statement short of
+T5 that the real-time design holds, and they are the reason `ctest -L unit` exists as the
+everyday loop — the functional tier takes minutes where the rest takes seconds.
+
+```bash
+ctest --test-dir ddd-gui/build -L unit          # the everyday loop, ~2 seconds
+ctest --test-dir ddd-gui/build                  # everything, including the soaks
+DDD_SOAK_SECONDS=10 ctest --test-dir ddd-gui/build -L functional   # a shorter soak
+```
+
+`DDD_SOAK_SECONDS` sets each soak's duration, defaulting to 60. Whatever it ends up as is
+printed in the test output, so a shortened run cannot be mistaken for a full one. The
+FLAC-sink soak backs off and retries at half rate if the machine cannot sustain the
+encoder, and says so in its output rather than passing quietly at a quarter speed.
+
+**What the soak does not cover.** Everything past the host's memory: the USB stack, the
+cable, the FX3 and the gateware. A pipeline that passes here can still lose samples to a
+bad cable, which is why §5 exists and why passing this is not a substitute for it.
+
 Its build additionally runs clang-format and clang-tidy as gates, so a formatting or lint
 regression fails the build before any test runs. That is deliberate — it is a new component
 and can afford to be held to it from the first file — but it means the build needs those
@@ -91,7 +113,7 @@ nix develop .#fpga -c ./fpga/tests/run-lint.sh     # T4
 nix develop .#fpga -c ./fpga/tests/run-sim.sh      # T3
 ```
 
-The licence-header check (§4.7) belongs to no component and needs no toolchain at all:
+The licence-header check (§4.8) belongs to no component and needs no toolchain at all:
 
 ```bash
 ./tools/check-licence-headers.sh          # T4; -v also lists the unconverted files
@@ -113,7 +135,40 @@ corruption is only detectable by comparing against an original that may no longe
 One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
 two bytes, which is Windows.
 
-### 4.2 `fx3/programmer/` — 24 tests
+### 4.2 `ddd-gui/` — 134 tests
+
+The replacement capture application. Split by what a test needs rather than by what it
+covers: `ddd_capture_tests` links no Qt at all, which is what makes the engine's Qt-free
+rule enforceable — if the engine ever grows a Qt dependency, that binary stops linking.
+
+| File | Covers | Tiers |
+| --- | --- | --- |
+| `tests/unit/test_logger.cpp` | The engine's logging seam: level filtering, the callback boundary | T1 |
+| `tests/unit/test_sample_format.cpp` | The device's wire layout: sample/counter packing, that the two agree with the byte-level constants the hot loop uses, the `(v−512)×64` scaling ld-decode expects, capture file naming | T1 |
+| `tests/unit/test_test_pattern_verifier.cpp` | The ramp check: intact ramps, both gateware ramp lengths discovered rather than assumed, breaks reported at their exact offset, a dropped sample caught, state carried across buffers | T1 |
+| `tests/unit/test_sequence_validator.cpp` | Sequence-marker validation and the metrics that share its pass: lock-on within one counter period, mid-stream mismatch at the exact sample, a markerless legacy stream disabling checking rather than failing, the wrap at 62, marker stripping, clip counts, RMS — and a measurement that the whole pass fits inside the 26 ms real-time budget | T1 |
+| `tests/unit/test_disk_buffer_ring.cpp` | The producer-to-consumer handoff: geometry rounding, overflow detection, fill-level accounting, a contended run of 4,000 slots checked serial-by-serial, and that an abort releases waiters on **both** sides | T1 |
+| `tests/unit/test_monitor_tap.cpp` | The wait-free publishers: 200,000 stats publications against a hammering reader with no torn read, triple-buffered snapshots never seen half-written, a slow reader dropping snapshots rather than delaying the writer, and the writer's own publish cost measured with four readers hammering and with none | T1 |
+| `tests/unit/test_capture_pipeline.cpp` | The orchestrator: start/stop/abort, error latching precedence, injected faults surfacing as their own codes, a stalled source declared stalled rather than waited for, and a sink attached mid-stream receiving whole buffers with no sample lost or repeated | T1 |
+| `tests/golden/test_flac_round_trip.cpp` | The capture format: lossless round trip, that the file is native FLAC (`fLaC`) and not Ogg (`OggS`), the sample-rate label ld-decode requires, provenance tags surviving into the file, and the `.raw` reader | T1, T2 |
+| `tests/functional/test_pipeline_soak.cpp` | The whole pipeline at 80 MB/s for a minute, with null and FLAC sinks, and a tap consumer reading flat out | T1 (`functional`) |
+| `tests/gui/unit/*.cpp` | Theme resolution across every mode/scheme/fallback combination, the bounded log model, the engine-to-GUI logging bridge, the About text's build provenance | T1 |
+| `tests/gui/widget/test_main_window_panels.cpp` | The dock panel framework: every panel present, floatable, toggled from the View menu, and a layout that survives a restart | T1 |
+
+Two of these are worth singling out.
+
+**The sink-swap test** is the one the synthetic source exists for. It runs the pipeline in
+monitor mode, attaches a recording sink mid-stream, and then checks the recorded values are
+an unbroken run of the device's ramp. Counting bytes would pass even if the pipeline had
+written one buffer twice and dropped another; only the values can show that "start
+recording" lost nothing.
+
+**The stall test** covers a failure the old engine cannot see at all. A device that stops
+delivering without failing a transfer raises no error and returns from no call, so the
+application simply waits — and a frozen progress figure looks exactly like a slow disc. The
+new engine has a watchdog on the transfer count, and this is what proves it fires.
+
+### 4.3 `fx3/programmer/` — 24 tests
 
 | File | Covers | Tiers |
 | --- | --- | --- |
@@ -133,7 +188,7 @@ device — which bricks the FX3, recoverable only via the PMODE jumper. The path
 tests guard the D13 fix, where every candidate path used to be relative to the working
 directory, so an installed binary could not find the secondary loader at all.
 
-### 4.3 `fx3/firmware/` — one golden test
+### 4.4 `fx3/firmware/` — one golden test
 
 | File | Covers | Tiers |
 | --- | --- | --- |
@@ -164,7 +219,7 @@ component is freestanding ARM926EJ-S code calling into the Cypress SDK, so the b
 cannot execute any of it. What *is* testable is the host-side tooling that decides what ends
 up in the image.
 
-### 4.4 `fx3/mkimage/` — 32 tests
+### 4.5 `fx3/mkimage/` — 32 tests
 
 | File | Covers | Tiers |
 | --- | --- | --- |
@@ -187,7 +242,7 @@ Two tests are worth knowing about individually:
 A wrong image here does not fail loudly — the bootloader either refuses it or runs something
 subtly wrong on a device that is expensive to recover.
 
-### 4.5 `docs/` — one static check
+### 4.6 `docs/` — one static check
 
 `nix build .#docs-site` runs `mkdocs build --strict`, which fails on broken internal links,
 `.nav.yml` entries pointing at missing files, and orphaned pages. That replaces the three
@@ -201,7 +256,7 @@ was migrated. **Use markdown image syntax**, `![](path){ width="600" }`, which M
 rewrite. If you need to check the built output directly, resolve every `href` and `src` in
 `result/` against the output tree.
 
-### 4.6 `fpga/` — three testbenches, a lint pass and a digest test
+### 4.7 `fpga/` — three testbenches, a lint pass and a digest test
 
 Unlike every other component, the gateware has no `ctest` suite: there is no CMake here, and
 the tools are a linter and a simulator rather than a compiler. The checks are Nix derivations
@@ -238,7 +293,7 @@ sequential logic, two incomplete `case` statements, an implicit width promotion,
 control-bus bits fixed by the PCB — are each pinned by one of the testbenches above rather
 than merely declared benign.
 
-### 4.7 Repository-wide — the licence-header check
+### 4.8 Repository-wide — the licence-header check
 
 One check has no component: `tools/check-licence-headers.sh`, the `licence-headers` flake
 check (T4). Every project-authored `.c .h .cpp .inl .v .py .sh .nix .S` file must carry both
@@ -259,7 +314,7 @@ The check reads only tracked files. It asks git when git is there, and walks the
 is not — inside the Nix sandbox the flake source *is* the tracked set, so both routes see the
 same files. Without that, a local run would header-check every `moc_*.cpp` in `gui/build/`.
 
-### 4.8 Everything else — nothing yet
+### 4.9 Everything else — nothing yet
 
 | Component | Automated coverage | Why |
 | --- | --- | --- |
@@ -328,8 +383,8 @@ Listed so this document can be read as a status report rather than a wish list.
 | `buffer.v` testbench | T3 | Needs a free `dcfifo` model, or a hand-written stand-in for it. See the caveat below; not scheduled |
 
 The gateware items that used to be on this list are done: the `-Wall` lint pass and the
-`dataGenerator`, `fx3StateMachine` and `statusLED` testbenches are all in §4.6, and the
-licence-header check is in §4.7.
+`dataGenerator`, `fx3StateMachine` and `statusLED` testbenches are all in §4.7, and the
+licence-header check is in §4.8.
 
 Further GUI targets worth having, not yet scheduled: `amplitudemeasurement` (pure computation
 over a sample buffer), the `analysetestdata` logic itself (it is the host half of the §5

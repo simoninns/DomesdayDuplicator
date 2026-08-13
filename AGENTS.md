@@ -401,11 +401,15 @@ nix flake check                    # everything, on a clean machine
 ctest --test-dir gui/build         # one component
 ```
 
-**What exists today: 124 tests across five components** — 21 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec), 46 in `ddd-gui/` (the engine logging seam, theme resolution,
-the log model, the engine-to-GUI logging bridge, the About text's build provenance, and the
-dock panel framework with its layout persistence — no device or capture code exists there
-yet), 24 in `fx3/programmer/` (EEPROM paging arithmetic,
+**What exists today: 212 tests across five components** — 21 in `gui/` (UTF-8 conversion, the
+10-bit/16-bit sample codec), 134 in `ddd-gui/` (the capture engine — sample and wire
+formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
+metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
+against each other, the wait-free monitor tap, and the pipeline orchestrator driven by a
+synthetic source that can be told to produce specific faults — plus theme resolution, the
+log model, the engine-to-GUI logging bridge, the About text's build provenance, and the
+dock panel framework with its layout persistence; there is still no *device* code there),
+24 in `fx3/programmer/` (EEPROM paging arithmetic,
 secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and one
 golden test in `fx3/firmware/` (the generated USB product descriptor). `fpga/` adds three
 Verilog testbenches, a `-Wall` lint pass over five modules and a bitstream-digest test, none

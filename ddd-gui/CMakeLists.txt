@@ -71,6 +71,19 @@ message(STATUS "Application version: ${DDD_VERSION}")
 # link it: QSignalSpy and QAbstractItemModelTester live there.
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Test)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# libFLAC, for the capture output. Not optional: it is the only format written, so a build
+# without it could not capture anything. BSD-3-Clause, so linking it into a GPLv3
+# application is fine (AGENTS.md §10).
+find_package(FLAC REQUIRED)
+
+# The engine runs its own threads. Named explicitly rather than left to the compiler
+# default, because a static library that pulls in std::thread without -pthread links on
+# some platforms and fails at run time on others.
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 if(COMMAND qt_standard_project_setup)
     qt_standard_project_setup()
 else()

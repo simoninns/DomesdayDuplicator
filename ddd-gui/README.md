@@ -12,14 +12,25 @@ The phased plan it is being built to is
 
 ## What works today
 
-The component scaffold and the application shell: a themed, panelled window with light and
-dark themes, dockable panels that can be floated into windows of their own, a View menu
-built from the panels themselves, persistent window and layout state, and a log panel fed
-through the engine's logging seam.
+**The application shell**: a themed, panelled window with light and dark themes, dockable
+panels that can be floated into windows of their own, a View menu built from the panels
+themselves, persistent window and layout state, and a log panel fed through the engine's
+logging seam.
 
-**There is no device code.** The panels state what they will show and that they are not
-implemented. The capture engine currently contains only the logging seam and the version
-stamp.
+**The capture engine**, complete except for the device. The ring buffer, the sequence
+validator, the metrics, the monitor tap, the FLAC writer and reader, and the orchestrator
+that runs them all on their own threads are here and tested — driven by a synthetic source
+that generates the device's stream in software at its real 80 MB/s.
+
+**There is no device code yet**, and the panels are still placeholders that say so. The
+GUI does not start the engine; the engine is exercised only by its tests.
+
+That the engine can be tested at all without hardware is the point of the split. The old
+application could only be proven by attaching a device and hoping a fault reproduced;
+here, a sequence break, a short transfer, a stalled device and a buffer overflow can each
+be *asked for* and the response checked on every push. It does not replace the hardware
+procedure in [TESTING.md](../TESTING.md) §5 — everything past the host's memory is still
+out of reach — but it means a hardware session is spent on hardware questions.
 
 ## Building
 
@@ -33,9 +44,11 @@ cmake --build build
 ctest --test-dir build
 ```
 
-libusb and libFLAC are deliberately absent from the dependency list: they arrive with the
-capture engine, and until then requiring them would mean a build that needs libraries
-nothing links against.
+**libFLAC** is needed too — 1.4.0 or later, and 1.5.0 or later to encode on more than one
+core. It is BSD-3-Clause, so linking it into a GPLv3 application is fine.
+
+libusb is still absent, and deliberately: it arrives with the device backends, and until
+then requiring it would mean a build that needs a library nothing links against.
 
 With Nix, from anywhere in the working tree:
 
@@ -66,11 +79,21 @@ cmake -B build -S . -DDDD_ENABLE_CLANG_FORMAT=OFF -DDDD_ENABLE_CLANG_TIDY=OFF
 ## Layout
 
 ```
-src/capture/    ddd::capture — the engine. Qt-free, by rule.
-src/gui/        ddd::gui — the Qt layer, built as a static library, plus main().
-tests/unit/     T1, engine. Links no Qt at all.
-tests/gui/unit/ T1, Qt layer. Runs under a QCoreApplication; no display needed.
+src/capture/      ddd::capture — the engine. Qt-free, by rule.
+src/gui/          ddd::gui — the Qt layer, built as a static library, plus main().
+cmake/            FindFLAC.cmake, a component-local copy (AGENTS.md §2)
+tests/unit/       T1, engine. Links no Qt at all.
+tests/golden/     T2, the capture file format checked against what it must be on disk.
+tests/functional/ T1, the whole pipeline at the device's rate. Minutes, not seconds.
+tests/gui/unit/   T1, Qt layer. Runs under a QCoreApplication; no display needed.
+tests/support/    Fixtures shared between test binaries.
 ```
+
+The functional tier is not part of the ordinary edit-build-test loop. `ctest -L unit`
+skips it; a bare `ctest` runs it, and so does CI. Each soak runs for a minute by default —
+`DDD_SOAK_SECONDS` shortens that for a quick local check or lengthens it for an overnight
+run, and whichever it ends up as is printed, so a shortened run cannot be mistaken for a
+full one.
 
 The Qt-free rule on `src/capture/` is load-bearing rather than tidy. Everything a capture
 needs — device discovery, the transfer pipeline, validation, writers — belongs there, so

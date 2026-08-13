@@ -48,8 +48,8 @@ or silently corrupts an archival capture (unacceptable). The FX3 has 64 KB of bu
 host-side queue is the only real slack in the system.
 
 The old engine solved this well, and this plan ports its mechanisms rather than reinventing
-them: a ring of ~2 MB memory-locked disk buffers (default 256 MB queue), C++20
-`atomic_flag` wait/notify handoff with no mutexes on the hot path, 128 KB bulk transfers in
+them: a ring of ~2 MB memory-locked disk buffers (default 256 MB queue), C++20 atomic
+wait/notify handoff with no mutexes on the hot path, 128 KB bulk transfers in
 small-transfer mode, elevated thread priorities (`SCHED_RR` / `REALTIME_PRIORITY_CLASS`),
 startup discard of the first ~4 buffers, short-packets-fatal, and the Linux
 `usbfs_memory_mb` workaround. What is *new* is the strict rule that monitoring must be a
@@ -73,7 +73,7 @@ pipeline can never wait on the GUI.
   (`BasedOnStyle: Google`) as a `--dry-run --Werror` gate every binary depends on, and
   `.clang-tidy` (`google-*`, `bugprone-*`, `WarningsAsErrors: '*'`) run by the build.
   This is the videosynth convention; the old `gui/` style is not carried over.
-- C++20 (repository standard; the handoff design requires `std::atomic_flag::wait`).
+- C++20 (repository standard; the handoff design requires `std::atomic<T>::wait`).
 - Qt ≥ 6.5 for `QStyleHints::colorScheme` (the old app requires 6.2; raising the floor is
   acceptable for a new application and must be stated in `ddd-gui/README.md`).
 - Tests are gtest under CTest with tier labels exactly as in
@@ -107,8 +107,9 @@ ddd-gui/
 │                           main window, theme system, dock panels, presenters
 └── tests/
     ├── unit/               T1 — engine and presenter tests, no I/O
-    ├── golden/             T2 — codec/writer golden vectors (ported with common/)
-    └── functional/         T1-labelled soak/pipeline tests using the synthetic source
+    ├── golden/             T2 — capture-format checks against the bytes on disk
+    ├── functional/         T1-labelled soak/pipeline tests using the synthetic source
+    └── support/            fixtures shared between test binaries
 ```
 
 **Threads.** Identical roles to the proven engine, plus one addition:
@@ -288,16 +289,27 @@ format with the old application for verdict-parity checks (Task 5.3).
 ### Task 2.2 — Ring buffer and handoff
 
 Port the disk-buffer ring: ~2 MB slots sized to a multiple of the endpoint max packet,
-count derived from a configurable queue size (64–512 MB, default 256 MB), `atomic_flag`
-full/dumping flags with wait/notify handoff, memory locking (mlock/VirtualLock) with
-graceful degradation, the startup-discard mechanism, and the forced-abort protocol that
-double-toggles flags to release any waiter. Expressed as its own class so it is testable
-with plain threads.
+count derived from a configurable queue size (64–512 MB, default 256 MB), C++20 atomic
+wait/notify handoff with no mutex on the hot path, memory locking (mlock/VirtualLock) with
+graceful degradation, the startup-discard mechanism, and a forced-abort protocol that
+releases any waiter. Expressed as its own class so it is testable with plain threads.
+
+**Departure from the old engine, deliberately.** The old ring gives each slot a pair of
+`atomic_flag`s and releases blocked threads at shutdown by *double-toggling* the full flag
+— clear to wake the consumer, then set to wake the producer. That is racy: a waiter not
+scheduled between the two toggles re-reads the flag, finds the value it was already
+waiting on, and blocks permanently. Writing the test the acceptance criteria below ask for
+("abort releases blocked waiters") reproduced it on the second run. The ring here uses one
+`std::atomic<uint32_t>` per slot with four states — empty, full, dumped, aborted — so
+shutdown moves a slot to a value nobody is waiting for and *leaves it there*. No wake can
+be missed because there is no path back. The old engine is not being fixed as part of this
+work (AGENTS.md §4 puts its capture path behind the T5 procedure); this records why the new
+one differs.
 
 **Acceptance criteria**
 - T1 tests: producer/consumer correctness under contention, overflow detection (slot
-  still full at completion → fatal), abort releases blocked waiters, startup discard
-  count honoured.
+  still full at completion → fatal), abort releases blocked waiters *on both sides*,
+  startup discard count honoured.
 - No mutex or condition variable appears anywhere on the producer→consumer path.
 
 ### Task 2.3 — Sequence validation and metrics
@@ -322,11 +334,23 @@ elevation (failure non-fatal, logged), error latching with the full `TransferRes
 error taxonomy of the old engine, graceful stop at buffer boundaries, forced abort, and
 the monitor→capture sink attach/detach at disk-buffer boundaries.
 
+**One addition to the taxonomy: `kSourceStalled`, with a watchdog behind it.** A device
+that stops delivering *without failing a transfer* is invisible to every other check in
+the old engine — no error is raised, no thread returns, and the application simply waits
+for data that is not coming. The user sees a frozen progress figure and cannot tell that
+from a slow disc. The control thread here watches the completed-transfer count and, if it
+has not moved for a configurable interval (default 5 s, against a 26 ms buffer period at
+full rate, so ~200 buffers of slack and no false positives), latches `kSourceStalled` and
+aborts. It costs one comparison every 50 ms on a thread with nothing else to do, and it is
+the difference between an error message and an apparent hang.
+
 **Acceptance criteria**
 - T1 tests: start/stop/abort state machine, error latching precedence, sink swap occurs
   exactly at a buffer boundary with no sample lost or duplicated (synthetic source,
   counted stream).
-- Injected faults surface as their specific error codes, never as hangs.
+- Injected faults surface as their specific error codes, never as hangs — including an
+  injected stall, which must surface as `kSourceStalled` within the watchdog interval
+  rather than as a test timeout.
 
 ### Task 2.5 — Monitor tap and full-rate soak test
 
@@ -335,13 +359,28 @@ functional soak: synthetic source at 80 MB/s through validation + null sink, and
 the FLAC sink, for ≥ 60 s in CI (longer locally via an environment knob), with a consumer
 hammering the tap concurrently.
 
+**Measuring "costs the pipeline nothing" honestly.** The obvious test — compare pipeline
+throughput with and without a tap consumer — is confounded, and measurably so. A consumer
+spinning with no pause copies the stats block millions of times a second and saturates
+memory bandwidth the pipeline itself needs: measured here, that took an unpaced pipeline
+from 600 MB/s to 140 MB/s *with publish latency unchanged*. That is a memory controller
+being shared, not a lock being contended, and asserting on the throughput ratio would be
+asserting something the measurement cannot distinguish. Two tests replace it. A T1 test
+measures the writer's own publish time with four threads hammering the tap and with none —
+if publication took a lock, a reader holding it would show there immediately. The soak then
+compares throughput against a consumer reading at 1 kHz, which is thirty times faster than
+any display and slow enough not to compete for bandwidth.
+
 **Acceptance criteria**
 - Soak passes with zero sequence errors and zero overflow at 80 MB/s on CI runners; the
   FLAC-sink variant may be rate-reduced on constrained runners, and if it is, the cap is
   logged in the test output, not hidden.
 - Tap readers never observe a torn stats block or torn snapshot (checked by embedded
-  generation counters); pipeline throughput with and without an aggressive tap consumer
-  differs by an amount attributable to noise.
+  generation counters).
+- Mean publish cost stays in the hundreds of nanoseconds with four threads hammering the
+  tap (T1, measured directly — a lock would cost microseconds, and a descheduled
+  lock-holder milliseconds), and pipeline throughput with a 1 kHz monitoring consumer is
+  within noise of throughput without one.
 - TESTING.md gains a paragraph describing the new functional tier usage in `ddd-gui/`.
 
 ---

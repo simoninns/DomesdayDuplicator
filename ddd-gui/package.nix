@@ -19,6 +19,7 @@
   pkg-config,
   qt6,
   wrapQtAppsHook,
+  flac,
   gtest,
   # The commit this binary was built from. It reaches --version and the About dialog, which
   # is the only way a released artefact can be traced back to its source. There is no .git
@@ -39,6 +40,7 @@ stdenv.mkDerivation (finalAttrs: {
     root = ./.;
     fileset = lib.fileset.unions [
       ./CMakeLists.txt
+      ./cmake
       ./src
       ./tests
     ];
@@ -53,6 +55,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildInputs = [
     qt6.qtbase
+    flac
   ];
 
   checkInputs = [ gtest ];
@@ -78,9 +81,13 @@ stdenv.mkDerivation (finalAttrs: {
     export QT_QPA_PLATFORM=offscreen
   '';
 
+  # The soak tests run for a minute each by default, which is right on a CI runner and
+  # wrong in a packaging build that is only asking whether this commit compiles and works.
+  # Shortened rather than skipped: a ten-second soak still catches a pipeline that cannot
+  # sustain the rate at all, which is the failure worth catching here.
   checkPhase = ''
     runHook preCheck
-    ctest --output-on-failure --label-exclude 'hil'
+    DDD_SOAK_SECONDS=10 ctest --output-on-failure --label-exclude 'hil'
     runHook postCheck
   '';
 

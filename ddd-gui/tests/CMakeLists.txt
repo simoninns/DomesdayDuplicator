@@ -48,8 +48,42 @@ endfunction()
 # T1 — the engine. GTest::gtest_main supplies main(): nothing here needs an event loop.
 ddd_add_test(ddd_capture_tests "unit"
     unit/test_logger.cpp
+    unit/test_sample_format.cpp
+    unit/test_test_pattern_verifier.cpp
+    unit/test_sequence_validator.cpp
+    unit/test_disk_buffer_ring.cpp
+    unit/test_monitor_tap.cpp
+    unit/test_capture_pipeline.cpp
 )
 target_link_libraries(ddd_capture_tests PRIVATE
+    ddd_capture
+    GTest::gtest
+    GTest::gtest_main
+)
+target_include_directories(ddd_capture_tests PRIVATE support)
+
+# T1 + T2 — the writer and the reader, round-tripped against each other and against
+# what a FLAC file is required to look like on disk. Labelled golden as well as unit
+# because some of it checks bytes at fixed offsets in the container, which is a
+# reference comparison rather than a behavioural one.
+ddd_add_test(ddd_capture_format_tests "unit;golden"
+    golden/test_flac_round_trip.cpp
+)
+target_link_libraries(ddd_capture_format_tests PRIVATE
+    ddd_capture
+    GTest::gtest
+    GTest::gtest_main
+)
+
+# T1 — the whole pipeline at the device's real rate, driven by the synthetic source.
+#
+# Labelled functional and nothing else, so the ordinary development loop
+# (`ctest -L unit`) stays fast and this runs when the full suite does. It takes minutes,
+# not seconds: that is the point of it.
+ddd_add_test(ddd_pipeline_soak_tests "functional"
+    functional/test_pipeline_soak.cpp
+)
+target_link_libraries(ddd_pipeline_soak_tests PRIVATE
     ddd_capture
     GTest::gtest
     GTest::gtest_main
