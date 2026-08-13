@@ -14,9 +14,10 @@
 # the root. A bare `nix develop` gives the all-components default shell, not this one,
 # whatever directory you happen to be in.
 #
-# Dev shell only, no packaged export. `kicad-cli`-driven Gerber/PDF/BOM generation is
-# blocked on migrating the KiCad 5 project files to the current format — kicad-cli cannot
-# read legacy .sch schematics. That migration is a separate change with its own review.
+# Dev shell only, no packaged export. The board file is on the current KiCad format, so
+# `kicad-cli`-driven Gerber plotting works: see pcb/tools/plot-fab.sh. The schematics are
+# still in the KiCad 4 format and have to be converted in the GUI before schematic PDF and
+# BOM generation can be scripted; pcb/MIGRATION.md has the procedure.
 
 { pkgs }:
 
@@ -30,9 +31,10 @@ pkgs.mkShell {
     echo
     echo "  kicad 'pcb/Domesday Duplicator.pro'"
     echo
-    echo "Note: these are KiCad 5 files. Opening them in a current KiCad offers an in-place"
-    echo "format upgrade — that is a large diff and should be a deliberate commit, not a"
-    echo "side effect of opening the project."
+    echo "Note: the board is on the current KiCad format but the schematics are still"
+    echo "KiCad 4. Opening the project offers to convert them — that is a large diff and"
+    echo "should be a deliberate commit, not a side effect of opening the project."
+    echo "See pcb/MIGRATION.md before accepting."
     echo
   '';
 }
