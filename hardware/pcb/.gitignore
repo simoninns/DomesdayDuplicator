@@ -1,0 +1,32 @@
+# For PCBs designed using KiCad: http://www.kicad-pcb.org/
+
+# Temporary files
+*.000
+*.bak
+*.bck
+*.kicad_pcb-bak
+*~
+_autosave-*
+*.tmp
+
+# Netlist files (exported from Eeschema)
+*.net
+
+# Autorouter files (exported from Pcbnew)
+*.dsn
+*.ses
+
+# Exported BOM files
+*.xml
+*.csv
+
+# Project lock files, written while KiCad has the project open
+*.lck
+~*.lck
+
+# Per-user local project state (window layout, last used settings)
+*.kicad_prl
+
+# Reports written by kicad-cli
+*_statistics.rpt
+*.rpt

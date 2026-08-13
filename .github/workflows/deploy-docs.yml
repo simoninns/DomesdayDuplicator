@@ -1,0 +1,74 @@
+# Build the documentation site with Nix and publish it to GitHub Pages.
+#
+# The artefact uploaded is exactly the output of `nix build .#docs-site` — the same
+# derivation a contributor builds locally. That removes the whole class of "renders
+# differently on Pages" problems the previous actions/jekyll-build-pages route had.
+#
+# This replaces docs/.github/workflows/deploy-pages.yml, which never ran: it sat inside the
+# docs submodule, and GitHub only reads workflows from the repository root.
+#
+# The three bespoke validation steps that workflow carried are absorbed:
+#   - check-internal-linkage.sh  -> mkdocs build --strict fails on broken internal links
+#   - check-orphans.sh           -> awesome-nav errors on a .nav.yml entry with no file,
+#                                   and --strict fails on a page absent from the nav
+#   - "no external links in the sidebar" -> moot; awesome-nav builds navigation from the
+#                                   directory tree and cannot emit an external nav link
+
+name: Deploy documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - docs/**
+      - nix/**
+      - flake.nix
+      - flake.lock
+      - .github/workflows/deploy-docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-25.11
+
+      - name: Enable Nix flakes
+        run: |
+          mkdir -p ~/.config/nix
+          echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
+
+      - name: Build site with Nix
+        run: nix build .#docs-site --print-build-logs
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./result
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

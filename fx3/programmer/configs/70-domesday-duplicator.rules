@@ -1,0 +1,41 @@
+# Device permissions for the Domesday Duplicator and the Cypress FX3 it is built around.
+#
+# Originally from Cypress Semiconductor / ATR-LABS (rules by V. Radhakrishnan, rk@atr-labs.com),
+# rewritten for this project. Two changes from the Cypress original:
+#
+#   1. The Domesday Duplicator's own VID:PID is matched. Once the FX3 has been programmed it
+#      re-enumerates as 1d50:603b and stops being a Cypress device, so the vendor rule alone
+#      left the running device root-only and the capture GUI could not open it.
+#
+#   2. The RUN+= hooks calling /usr/local/bin/cy_renumerate.sh are gone. That script signals
+#      a `cyusb` daemon which is part of the full cyusb_linux suite and is not in this
+#      project; the path was never installed, so the hook only ever produced udev errors.
+#
+# TAG+="uaccess" grants access to the user at the active seat on any systemd-logind system,
+# including NixOS. MODE is kept at 0666 to preserve the behaviour of the Cypress original on
+# systems without logind; tighten it to 0660 if uaccess covers all of your users.
+#
+# THE FILENAME IS LOAD-BEARING. udev processes rule files in lexical order, and systemd
+# consumes the uaccess tag in 73-seat-late.rules:
+#
+#     TAG=="uaccess", ENV{MAJOR}!="", RUN{builtin}+="uaccess"
+#
+# A rule that sets the tag in a file sorting after 73 sets it too late: 73 has already run,
+# nothing consumes it, and no ACL is applied. This file was called 88-cyusb.rules until
+# Phase 5, where exactly that was found on a live device — the rule was installed and active,
+# and `getfacl` on the device node showed no user entry. Only the MODE="0666" fallback was
+# doing any work. Anything below 73 is fine; 70- matches the convention systemd itself uses
+# for its own uaccess rules.
+#
+# MODE is not affected by ordering — udev accumulates it across all matching rules and
+# applies it when the node is created — which is why the bug stayed invisible.
+
+# Cypress FX3 in bootloader mode — this is what fx3-programmer talks to.
+# 04b4:00f3 is the FX3 bootloader; the wildcard covers the other Cypress bootloader PIDs
+# (00f0, 0080 and friends) that a partially programmed device can present.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04b4", MODE="0666", TAG+="uaccess", TAG+="cyusb_dev"
+
+# Domesday Duplicator in application mode — this is what the capture GUI opens.
+# The VID/PID pair is set in fx3/firmware/src/usb-descriptor.c and defaulted in
+# gui/src/DomesdayDuplicator/configuration.cpp; all three must agree.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1d50", ATTR{idProduct}=="603b", MODE="0666", TAG+="uaccess", TAG+="ddd_dev"

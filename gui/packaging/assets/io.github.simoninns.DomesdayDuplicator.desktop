@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Domesday Duplicator
+GenericName=LaserDisc RF Capture
+Comment=Capture LaserDisc and VHS RF at 40 Msps over USB 3.0
+Icon=io.github.simoninns.DomesdayDuplicator
+Exec=DomesdayDuplicator
+Terminal=false
+Categories=AudioVideo;Recorder;Utility;
+Keywords=LaserDisc;RF;capture;ld-decode;vhs-decode;Domesday;
+StartupWMClass=DomesdayDuplicator

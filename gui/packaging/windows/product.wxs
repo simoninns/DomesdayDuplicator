@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX v3 installer definition for the capture application (P7-16).
+
+  The application's own files are harvested from the staging directory by heat into
+  AppFiles rather than listed here, so adding a Qt plugin or a DLL to the deployment never
+  needs an edit to this file. What is here is everything heat cannot know: where it
+  installs, the shortcuts, the upgrade behaviour and the licence dialog.
+
+  ProductVersion is passed in by the packaging job. MSI versions must be numeric x.x.x.x,
+  and development builds deliberately use 0.0.<run>.0 so that one can never out-version a
+  real release and block its upgrade.
+
+  SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="Domesday Duplicator"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="Simon Inns"
+           UpgradeCode="4E0F9C2A-6B3D-4F1E-9C7A-2D5B8E1F3A64">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Description="Domesday Duplicator capture application"
+             Comments="LaserDisc RF capture over USB 3.0" />
+
+    <!-- Full uninstall and reinstall on upgrade. Downgrades are blocked with a message
+         rather than silently doing nothing, which is what makes the development-build
+         version scheme above matter. -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Domesday Duplicator is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon.exe" SourceFile="$(var.IconFile)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.exe" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/simoninns/DomesdayDuplicator" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/simoninns/DomesdayDuplicator" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Domesday Duplicator" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Domesday Duplicator" />
+      </Directory>
+    </Directory>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="8C1D5B7E-3A92-4E60-B4F1-7A0C9D2E5B83">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="Domesday Duplicator"
+                  Description="Capture LaserDisc and VHS RF over USB 3.0"
+                  Target="[INSTALLFOLDER]DomesdayDuplicator.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon.exe" />
+        <RemoveFolder Id="CleanUpShortcutFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+        <!-- A per-user registry value as the KeyPath: a shortcut component has no file of
+             its own to key on, and without one the component has no reliable install
+             state. -->
+        <RegistryValue Root="HKCU"
+                       Key="Software\Domesday86\DomesdayDuplicator"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="Domesday Duplicator" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+  </Product>
+</Wix>

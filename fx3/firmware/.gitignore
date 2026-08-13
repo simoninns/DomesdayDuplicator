@@ -1,0 +1,7 @@
+# Editor, IDE and build-tree ignores live in the repository root .gitignore.
+# Only FX3-firmware-specific artefacts belong here.
+
+# Firmware images produced outside the build tree
+*.elf
+*.img
+*.map

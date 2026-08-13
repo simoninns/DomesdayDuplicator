@@ -1,0 +1,12 @@
+# clangd configuration for the FX3 firmware.
+#
+# These are bare-metal ARM sources. Without the Compiler override clangd probes the host
+# compiler for system headers and then reports hundreds of false errors, because the FX3
+# firmware is freestanding and never sees the host's libc.
+#
+# CompilationDatabase points at the conventional build directory, so no symlink is needed:
+#   cmake -B build -DCMAKE_TOOLCHAIN_FILE=arm-none-eabi-toolchain.cmake
+
+CompileFlags:
+  CompilationDatabase: build
+  Compiler: arm-none-eabi-gcc

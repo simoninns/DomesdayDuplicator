@@ -1,0 +1,244 @@
+# Windows MSI for the capture application (P7-16).
+#
+# MSYS2 UCRT64 is the toolchain the project's Windows builds have always used, so the MSI
+# packages the same binary the native build produces rather than introducing a second
+# Windows toolchain to keep working.
+#
+# Unsigned: code signing needs a paid certificate held by a person, and that decision has
+# not been taken. SmartScreen will warn on first run, which the installation page covers.
+#
+# The MSI installs no device driver. The application's WinUSB back-end needs WinUSB bound
+# to the device, which today means Zadig; shipping a driver package requires a signed .inf.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Package Windows MSI
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: Name of the uploaded MSI artifact
+        required: false
+        default: DomesdayDuplicator-windows-msi
+        type: string
+      retention_days:
+        description: Artifact retention in days
+        required: false
+        default: 30
+        type: number
+
+jobs:
+  package:
+    name: MSI
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 (UCRT64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-serialport
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-libusb
+            mingw-w64-ucrt-x86_64-flac
+            mingw-w64-ucrt-x86_64-libogg
+            mingw-w64-ucrt-x86_64-gtest
+
+      - name: Resolve versions
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            version="${GITHUB_REF_NAME#gui-v}"
+          else
+            version="git-${GITHUB_SHA:0:8}"
+          fi
+
+          # MSI needs a numeric x.x.x.x. A development build takes 0.0.<run>.0 so that it
+          # is always lower than any real release: an MSI installed from a branch build
+          # must never block a later release through the MajorUpgrade downgrade check.
+          if [[ "${version}" =~ ^([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            msi_version="${BASH_REMATCH[1]}.0"
+          else
+            msi_version="0.0.${GITHUB_RUN_NUMBER}.0"
+          fi
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "msi_version=${msi_version}" >> "$GITHUB_OUTPUT"
+          echo "ddd_version=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure and build
+        run: |
+          cmake -B build -S gui -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}"
+          cmake --build build
+
+      - name: Run the test suite
+        run: ctest --test-dir build --output-on-failure --label-exclude 'hil'
+
+      - name: Stage the application and its runtime
+        run: |
+          set -euo pipefail
+          rm -rf stage && mkdir -p stage
+          cp build/bin/DomesdayDuplicator.exe stage/
+          windeployqt --release --no-translations --no-system-d3d-compiler stage/DomesdayDuplicator.exe
+
+          # windeployqt follows Qt only. libFLAC, libogg and libusb come from the MSYS2
+          # prefix, which does not exist on a user's machine, so they are copied
+          # explicitly — this is the omission that builds green and then fails to launch.
+          #
+          # Matched as patterns rather than by exact file name because MSYS2 carries the
+          # soname in the name: the libogg package ships libogg-0.dll, not libogg.dll, and
+          # an upstream soname bump would break a hardcoded list the same way again.
+          for pattern in 'libFLAC*.dll' 'libogg*.dll' 'libusb-1.0*.dll'; do
+            matches=(/ucrt64/bin/${pattern})
+            if [[ ! -e "${matches[0]}" ]]; then
+              echo "No runtime library matching ${pattern} was found in /ucrt64/bin" >&2
+              exit 1
+            fi
+            cp "${matches[@]}" stage/
+          done
+
+          # The compiler runtime and everything else the binary pulls in transitively.
+          # ldd inside MSYS2 resolves the MinGW dependency chain. This runs to a fixed
+          # point rather than a fixed number of passes: the chain is as deep as it is, and
+          # a pass count one short stages an application that fails to launch.
+          while :; do
+            before="$(find stage -type f | wc -l)"
+            while read -r dll; do
+              [[ -f "${dll}" ]] && cp -n "${dll}" stage/ || true
+            done < <(ldd stage/*.exe stage/*.dll 2>/dev/null | grep -oP '/ucrt64/bin/\S+\.dll' | sort -u)
+            [[ "$(find stage -type f | wc -l)" == "${before}" ]] && break
+          done
+
+          # Every library resolved out of the MSYS2 prefix must now have a copy in stage.
+          # That prefix does not exist on a user's machine, so one left behind is a launch
+          # failure on someone else's computer — the Windows counterpart of the check for
+          # leftover Homebrew references in the macOS packaging job.
+          missing=()
+          while read -r dll; do
+            [[ -f "stage/$(basename "${dll}")" ]] || missing+=("$(basename "${dll}")")
+          done < <(ldd stage/*.exe stage/*.dll 2>/dev/null | grep -oP '/ucrt64/bin/\S+\.dll' | sort -u)
+          if (( ${#missing[@]} > 0 )); then
+            echo "These libraries are resolved from the MSYS2 prefix but were not staged:" >&2
+            printf '  %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+
+          echo "== Staged files =="
+          ls -la stage
+
+      - name: Check the staged application runs
+        shell: pwsh
+        run: |
+          $reported = & .\stage\DomesdayDuplicator.exe --version
+          Write-Host "Packaged application reports: $reported"
+          if ($reported -match 'unknown') {
+            Write-Error "The packaged application reports an unknown version"
+            exit 1
+          }
+
+      - name: Install WiX Toolset v3
+        shell: pwsh
+        run: |
+          choco install wixtoolset -y --no-progress
+          $wixBin = Get-ChildItem "${env:ProgramFiles(x86)}" -Directory -Filter "WiX Toolset*" -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName "bin" } |
+            Where-Object { Test-Path (Join-Path $_ "candle.exe") } |
+            Select-Object -First 1
+          if (-not $wixBin) {
+            Write-Error "WiX Toolset bin directory not found"
+            exit 1
+          }
+          Write-Host "WiX bin: $wixBin"
+          Add-Content -Path $env:GITHUB_PATH -Value $wixBin
+
+      - name: Prepare the licence text for the installer dialog
+        shell: pwsh
+        run: |
+          # WiX's licence dialog takes RTF, and the repository ships plain-text GPLv3. The
+          # conversion is mechanical: escape the RTF control characters and turn newlines
+          # into paragraph breaks.
+          $text = Get-Content LICENSE -Raw
+          $text = $text -replace '\\', '\\\\' -replace '{', '\{' -replace '}', '\}'
+          $text = $text -replace "`r`n", "`n" -replace "`n", "\par`n"
+          $rtf = "{\rtf1\ansi\deff0{\fonttbl{\f0 Courier New;}}\fs16 " + $text + "}"
+          Set-Content -Path wix-license.rtf -Value $rtf -Encoding ASCII
+
+      - name: Build the MSI
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          # -srd keeps the staging directory itself out of the harvested tree, so files
+          # land directly in INSTALLFOLDER rather than a nested folder.
+          & heat dir stage `
+            -cg AppFiles -dr INSTALLFOLDER -gg -g1 -sfrag -srd -sreg `
+            -var var.StageDir `
+            -out files.wxs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & candle -arch x64 `
+            -dStageDir=stage `
+            -dProductVersion="${{ steps.version.outputs.msi_version }}" `
+            -dIconFile="gui\src\DomesdayDuplicator\Graphics\ApplicationIcon\Application.ico" `
+            -dLicenseRtf="wix-license.rtf" `
+            gui\packaging\windows\product.wxs files.wxs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          & light -ext WixUIExtension -cultures:en-us `
+            -out "dist\DomesdayDuplicator-${{ steps.version.outputs.version }}-windows-x64.msi" `
+            product.wixobj files.wixobj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install, launch and uninstall
+        shell: pwsh
+        run: |
+          # The check that matters for an installer: it installs, the installed binary is
+          # the one that runs, and it uninstalls without leaving its install directory
+          # behind. A packaging bug that only shows up at install time is invisible to
+          # every other step in this workflow.
+          $msi = Get-ChildItem dist\*.msi | Select-Object -First 1
+          Start-Process msiexec.exe -ArgumentList "/i", "`"$($msi.FullName)`"", "/quiet", "/norestart", "/l*v", "install.log" -Wait -NoNewWindow
+
+          $installed = "${env:ProgramFiles}\Domesday Duplicator\DomesdayDuplicator.exe"
+          if (-not (Test-Path $installed)) {
+            Get-Content install.log -Tail 50
+            Write-Error "The MSI did not install $installed"
+            exit 1
+          }
+
+          $reported = & $installed --version
+          Write-Host "Installed application reports: $reported"
+          if ($reported -match 'unknown') { Write-Error "Installed application reports an unknown version"; exit 1 }
+
+          Start-Process msiexec.exe -ArgumentList "/x", "`"$($msi.FullName)`"", "/quiet", "/norestart" -Wait -NoNewWindow
+          if (Test-Path "${env:ProgramFiles}\Domesday Duplicator") {
+            Write-Error "Uninstall left the installation directory behind"
+            exit 1
+          }
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist/*.msi
+          retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: error

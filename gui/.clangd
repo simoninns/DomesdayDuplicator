@@ -1,0 +1,10 @@
+# clangd configuration for the GUI application.
+#
+# CompilationDatabase points at the conventional build directory, so no symlink is needed:
+#   cmake -B build
+#
+# Qt's moc/uic output lands in the build tree, which is why the generated include paths
+# come from compile_commands.json rather than being listed here.
+
+CompileFlags:
+  CompilationDatabase: build

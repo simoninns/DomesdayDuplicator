@@ -1,0 +1,10 @@
+# Deliberate progression: Overview -> Cleaning -> RF output -> Calibration -> PSU recap.
+# Alphabetical sorting would destroy it, which is why this file exists.
+nav:
+  - Overview: overview.md
+  - Cleaning: cleaning.md
+  - Adding an RF output: rf-output.md
+  - Calibration: calibration.md
+  - Power Supply Recapping: psu-recap.md
+  - GGV1069: ggv1069.md
+  - RMC12010 Service Remote: rmc12010-remote.md

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata for the capture application (P7-13).
+
+  Required by Flathub, and it is also what gives the application its name, summary and
+  version history in GNOME Software and KDE Discover. The <release> list is rewritten from
+  the tag by the packaging job rather than maintained by hand, because a hand-maintained
+  version history goes stale the first time someone forgets it.
+
+  The application ID follows the repository host, which needs no domain claim.
+  com.waitingforfriday.DomesdayDuplicator is the alternative if the maintainer would rather
+  use their own domain; changing it after the first release is a migration rather than an
+  edit, so it wants deciding before then.
+
+  SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<component type="desktop-application">
+  <id>io.github.simoninns.DomesdayDuplicator</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>Domesday Duplicator</name>
+  <summary>Capture LaserDisc and VHS RF over USB 3.0</summary>
+
+  <description>
+    <p>
+      The Domesday Duplicator is an open-hardware RF capture device that samples at
+      40 million samples per second with 10-bit resolution and streams the result over
+      USB 3.0. This application drives it: one-click capture, live signal amplitude
+      monitoring, capture metadata, and serial control of Pioneer LD-V4300D and CLD-V2800
+      LaserDisc players for automatic whole-disc capture.
+    </p>
+    <p>
+      Captures are written as FLAC (.ldf), the format the ld-decode and vhs-decode
+      toolchains read directly, at roughly half the size of the raw sample data.
+    </p>
+    <p>
+      Reaching the device needs udev rules installed on the host, which a Flatpak cannot do
+      for you — see the installation documentation.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.simoninns.DomesdayDuplicator.desktop</launchable>
+
+  <url type="homepage">https://github.com/simoninns/DomesdayDuplicator</url>
+  <url type="bugtracker">https://github.com/simoninns/DomesdayDuplicator/issues</url>
+  <url type="help">https://simoninns.github.io/DomesdayDuplicator/</url>
+
+  <developer id="io.github.simoninns">
+    <name>Simon Inns</name>
+  </developer>
+
+  <content_rating type="oars-1.1"/>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <releases>
+    <!-- Replaced from the tag by the packaging job; this entry is the placeholder that
+         keeps the file valid before the first release. -->
+    <release version="0.0.0" date="2026-08-12">
+      <description>
+        <p>Development build.</p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -1,0 +1,88 @@
+# MkDocs configuration for the Domesday Duplicator documentation site.
+#
+# The theme, markdown_extensions and plugins blocks below are kept deliberately identical to
+# decode-orc's mkdocs.yml, so that diffing the two files shows real divergence rather than
+# incidental drift. Only the identity fields and docs_dir differ.
+#
+# Two deviations from decode-orc, both intentional:
+#
+#   1. This file lives in docs/, not at the repository root, so that the docs component's
+#      Nix derivation can close over ./docs alone rather than the whole repository.
+#      Build from elsewhere with: mkdocs build -f docs/mkdocs.yml
+#
+#   2. docs_dir is "content", never "site" — site_dir defaults to "site" relative to this
+#      file, and MkDocs refuses to build when the two collide.
+
+site_name: Domesday Duplicator Documentation
+site_description: Documentation for the Domesday Duplicator LaserDisc RF capture hardware
+site_url: https://simoninns.github.io/domesdayduplicator
+repo_url: https://github.com/simoninns/domesdayduplicator
+repo_name: simoninns/domesdayduplicator
+copyright: >
+  All content provided under the Attribution-ShareAlike 4.0 International
+  (CC BY-SA 4.0) license.
+
+docs_dir: content
+
+theme:
+  name: material
+  logo: assets/DdD-logo.png
+  favicon: assets/favicon.ico
+  palette:
+    # Light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+
+extra_css:
+  - assets/custom.css
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - admonition
+  - pymdownx.details
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - awesome-nav
+
+# Navigation comes from the directory tree, ordered by the per-directory .nav.yml files.
+# Those files are a transcription of the old Jekyll Sidebar.md, which is why the section
+# order is not alphabetical.
+#
+# Fail the build on anything that would ship a broken page. Combined with --strict these
+# make the old check-internal-linkage.sh and check-orphans.sh redundant.
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+  nav:
+    omitted_files: warn
+    not_found: warn
