@@ -194,6 +194,15 @@ TransferResult SyntheticSource::Run(DiskBufferRing& ring,
 
     GenerateInto(ring.SlotData(slot_index), bytes_to_generate);
 
+    if (faulting && options_.fault == Fault::kRampBreak) {
+      // One extra step in the ramp generator, and nothing else touched. The
+      // sequence counters carry on in perfect order, so this is invisible to
+      // the validator and visible only to the test-pattern check — which is
+      // the whole reason the test-pattern check exists.
+      control.Log("Synthetic source: injecting a test-pattern break");
+      ramp_value_ = static_cast<uint16_t>((ramp_value_ + 1) % kRampLength);
+    }
+
     if (faulting && options_.fault == Fault::kSequenceBreak) {
       // Advance the counter by one extra step for everything that follows, so
       // the very next slot's first sample carries a value the validator is not

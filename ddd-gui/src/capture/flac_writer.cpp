@@ -58,6 +58,7 @@ struct FlacWriter::Impl {
 
   std::atomic<size_t> bytes_written{0};
   std::atomic<size_t> samples_written{0};
+  std::atomic<size_t> samples_encoded{0};
 
   void RecordEncoderError(const char* context) {
     const FLAC__StreamEncoderState state =
@@ -71,12 +72,19 @@ struct FlacWriter::Impl {
   // can name it.
   static void ProgressCallback(const FLAC__StreamEncoder* /*encoder*/,
                                FLAC__uint64 bytes_written,
-                               FLAC__uint64 /*samples_written*/,
+                               FLAC__uint64 samples_written,
                                uint32_t /*frames_written*/,
                                uint32_t /*total_frames_estimate*/,
                                void* client_data) {
-    static_cast<Impl*>(client_data)->bytes_written =
-        static_cast<size_t>(bytes_written);
+    auto* const impl = static_cast<Impl*>(client_data);
+    impl->bytes_written = static_cast<size_t>(bytes_written);
+
+    // libFLAC's "samples written" is samples that have reached the file, which
+    // is a different number from the samples handed to the encoder: with more
+    // than one encoder thread a block can be in flight for some time. The gap
+    // between the two is the only visible sign that the encoder rather than the
+    // disk is what a struggling machine is waiting for.
+    impl->samples_encoded = static_cast<size_t>(samples_written);
   }
 };
 
@@ -223,6 +231,7 @@ bool FlacWriter::Open(const std::filesystem::path& file_path,
   impl_->scratch.resize(kEncodeChunkSamples);
   impl_->bytes_written = 0;
   impl_->samples_written = 0;
+  impl_->samples_encoded = 0;
   impl_->encoder_initialised = true;
   impl_->finished = false;
   return true;
@@ -286,6 +295,18 @@ size_t FlacWriter::BytesWritten() const { return impl_->bytes_written.load(); }
 
 size_t FlacWriter::SamplesWritten() const {
   return impl_->samples_written.load();
+}
+
+size_t FlacWriter::SamplesPending() const {
+  const size_t handed_in = impl_->samples_written.load();
+  const size_t committed = impl_->samples_encoded.load();
+
+  // The two counters are read separately and the encoder is running while they
+  // are, so the committed figure can briefly be the newer of the two. Clamped
+  // rather than subtracted blindly: an unsigned wrap here would show a backlog
+  // of eighteen quintillion samples, which is a far more alarming display than
+  // the momentary skew it came from.
+  return (handed_in > committed) ? (handed_in - committed) : 0;
 }
 
 const std::string& FlacWriter::LastError() const { return impl_->last_error; }

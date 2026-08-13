@@ -32,6 +32,25 @@ enum class PlotColorToken {
   kClipMarker,
   kNominalLimit,
   kZeroReference,
+
+  // A pass or fail verdict. Not a plot, but here for the same reason
+  // everything else is: a palette has no notion of "this capture is good", and
+  // the literal green that reads well on a light window is unreadable on a dark
+  // one. This is the one message in the application somebody reads from across
+  // a bench, so it is worth getting right in both themes.
+  kVerdictPass,
+  kVerdictFail,
+
+  // The two buttons that are doing something, so their state is visible from
+  // across a room and not only by reading their labels.
+  //
+  // Deliberately muted. A saturated green and red would be the brightest things
+  // in a window whose whole job is to display a signal, and the eye would go to
+  // the controls instead of to the waveform. These are dark enough to sit
+  // behind white text and desaturated enough to read as "on" rather than as an
+  // alarm — the red says "recording", which is a normal state, not a fault.
+  kMonitoringActive,
+  kCapturingActive,
 };
 
 // Linear RGBA blend between two colours; ratio is clamped to [0, 1].
@@ -52,6 +71,20 @@ inline QColor Blend(const QColor& from, const QColor& to, qreal ratio) {
 // gets, with no signal to connect and no controller to be handed.
 inline bool IsDarkPalette(const QPalette& palette) {
   return palette.color(QPalette::Window).lightness() < 128;
+}
+
+// Black or white, whichever can be read on the given background.
+//
+// Computed rather than chosen, so that changing one of the tokens above cannot
+// quietly produce a control with unreadable text. The weights are the standard
+// perceived-brightness ones: the eye is far more sensitive to green than to
+// blue, and a plain average of the channels picks wrong on exactly the
+// mid-tones these tokens use.
+inline QColor ReadableTextOn(const QColor& background) {
+  const qreal brightness = (0.299 * background.red()) +
+                           (0.587 * background.green()) +
+                           (0.114 * background.blue());
+  return brightness < 140.0 ? QColor(255, 255, 255) : QColor(0, 0, 0);
 }
 
 // De-emphasised text colour, taken from the palette's disabled group.
@@ -95,6 +128,14 @@ inline QColor PlotColor(PlotColorToken token, bool dark_theme) {
       return dark_theme ? QColor(230, 180, 90) : QColor(170, 110, 0);
     case PlotColorToken::kZeroReference:
       return dark_theme ? QColor(150, 150, 150) : QColor(110, 110, 110);
+    case PlotColorToken::kVerdictPass:
+      return dark_theme ? QColor(120, 220, 130) : QColor(0, 120, 40);
+    case PlotColorToken::kVerdictFail:
+      return dark_theme ? QColor(255, 120, 120) : QColor(180, 0, 0);
+    case PlotColorToken::kMonitoringActive:
+      return dark_theme ? QColor(72, 110, 80) : QColor(94, 140, 100);
+    case PlotColorToken::kCapturingActive:
+      return dark_theme ? QColor(128, 66, 64) : QColor(160, 86, 82);
   }
 
   return dark_theme ? QColor(255, 255, 255) : QColor(0, 0, 0);

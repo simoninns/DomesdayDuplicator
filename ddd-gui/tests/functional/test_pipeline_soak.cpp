@@ -306,7 +306,9 @@ TEST(PipelineSoakTest, TheFlacSinkSustainsWhateverRateThisMachineAllows) {
     auto sink = std::make_unique<FlacSink>();
     FlacWriter::Options writer_options;
     writer_options.sample_rate_label = kFlacSampleRateLabel;
-    writer_options.compression_level = 1;
+    // The shipped default rather than a number of this test's own, so that
+    // raising or lowering it is measured here rather than only guessed at.
+    writer_options.compression_level = FlacWriter::Options{}.compression_level;
     ASSERT_TRUE(sink->Open(path, writer_options)) << sink->LastError();
 
     SoakRequest request;

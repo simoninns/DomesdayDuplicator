@@ -65,6 +65,14 @@ class SyntheticSource : public ISampleSource {
     // sample and stop the capture with kSequenceMismatch.
     kSequenceBreak,
 
+    // Skip a step in the test-pattern ramp, leaving the sequence counters
+    // intact. Only meaningful with Pattern::kRamp and the pipeline in test
+    // mode, and that is exactly the point of it: this is the corruption the
+    // sequence markers cannot see, because the markers are still perfectly in
+    // order. Only the ramp check finds it, and the result is
+    // kVerificationError rather than kSequenceMismatch.
+    kRampBreak,
+
     // Deliver fewer bytes than a slot holds. Stands in for a short USB packet,
     // which is fatal by design.
     kShortDelivery,

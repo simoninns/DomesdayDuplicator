@@ -88,6 +88,51 @@ TEST(StatisticsPanelTest, PublishedStatisticsReachEveryField) {
       << bar->format().toStdString();
 }
 
+// The three capture-only rows. Blank while monitoring, because none of them
+// describes anything that is happening: there is no encoder, and nothing has
+// been written.
+TEST(StatisticsPanelTest, TheCaptureOnlyRowsAreBlankWhileMonitoring) {
+  StatisticsPanel panel(nullptr);
+
+  ddd::capture::CaptureStats stats;
+  stats.metrics.sample_count = 1'000'000;
+  stats.writing = false;
+  stats.bytes_written = 0;
+  stats.samples_pending = 0;
+
+  panel.OnStatsUpdated(stats);
+
+  EXPECT_EQ(LabelNamed(panel, StatisticsPanel::kWrittenLabelName)->text(),
+            QString::fromUtf8("—"));
+  EXPECT_EQ(LabelNamed(panel, StatisticsPanel::kBacklogLabelName)->text(),
+            QString::fromUtf8("—"));
+}
+
+TEST(StatisticsPanelTest, TheCaptureOnlyRowsFillInOnceAWriterIsAttached) {
+  StatisticsPanel panel(nullptr);
+
+  ddd::capture::CaptureStats stats;
+  stats.metrics.sample_count = 1'000'000;
+  stats.writing = true;
+  stats.bytes_written = 50U << 20;
+  stats.samples_pending = ddd::capture::kSampleRateHz / 20;
+
+  panel.OnStatsUpdated(stats);
+
+  EXPECT_TRUE(LabelNamed(panel, StatisticsPanel::kWrittenLabelName)
+                  ->text()
+                  .contains(QStringLiteral("50.0 MB")))
+      << LabelNamed(panel, StatisticsPanel::kWrittenLabelName)
+             ->text()
+             .toStdString();
+  EXPECT_TRUE(LabelNamed(panel, StatisticsPanel::kBacklogLabelName)
+                  ->text()
+                  .contains(QStringLiteral("50.0 ms")))
+      << LabelNamed(panel, StatisticsPanel::kBacklogLabelName)
+             ->text()
+             .toStdString();
+}
+
 // The four sequence states have to read differently to a user, because they
 // mean four entirely different things — and one of them ("this gateware does
 // not send markers") is not a fault at all.

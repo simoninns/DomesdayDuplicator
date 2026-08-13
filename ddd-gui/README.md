@@ -51,11 +51,45 @@ switch with no path to the FPGA, so the application cannot read it. The switch b
 they read in converter codes, because a default would produce authoritative-looking
 figures wrong by up to a factor of four. Clipping detection never depends on it.
 
+**Capture to disk**. *Start capture* attaches a FLAC writer to the running stream — from
+idle it starts the stream too, so the common case is one press. Stopping returns to
+monitoring rather than to idle, which is what makes taking both sides of a disc possible
+without reopening the device. Captures are written as native FLAC with the compound
+extension `.ddd.flac`: a plain `.flac` to every importer, with the `.ddd` saying where the
+samples came from. Choose the folder, the name (or leave it to be named after the time it
+was taken), the compression level and an optional duration limit; the panel shows the
+destination volume's free space as *how much capture it holds*, because that is the
+question — not "is there 400 GB free" but "will this last the side I am about to play" —
+and warns once when it drops below a threshold you set.
+
+Every capture carries its own provenance in Vorbis comments: the build that produced it,
+the real 40 MHz sample rate that FLAC's header cannot express, whether it was taken in test
+mode, and — only when one has actually been declared — the front-end gain, so the
+calibration needed to read the samples as volts travels with them.
+
+**When a capture goes wrong**, the message names the failure, says what to do about it, and
+says where the partial file is. Every failure code has its own remedy: a full disk, a bad
+cable, the kernel's usbfs limit and a machine that cannot keep up are four different
+answers, not one. Whatever the failure, the FLAC stream is closed properly on the way out,
+so what was written is readable and reports its own length.
+
+**Test-mode integrity checking**. With the gateware's test pattern running, every sample is
+the previous one plus one, and any break is a sample the capture path lost. Test captures
+are always named `TestData_` — forced, not defaulted, because a file called "Blade Runner
+side 1" that turns out to be ramps is a trap. The ramp is checked live as it arrives and
+again offline off the disk: *File → Analyse test data…* with progress and a cancel, or
+`ddd-gui --analyse-test-data <file>` from a shell, exiting 0 for an intact ramp, 1 for a
+break and 2 for a file it could not read — so the integrity gate of
+[TESTING.md](../TESTING.md) §5 can be scripted. It agrees with the old application's verdict
+on the same files.
+
 **Both USB backends**: libusb on Linux and macOS, WinUSB on Windows, chosen at configure
 time. Both refuse a device below SuperSpeed with a specific error rather than opening it
 and failing later, which the old application did not.
 
-**Not yet**: writing a capture to disk.
+**Not yet**: the four-hour hardware-in-the-loop pass that is the gate for calling this a
+working capture application, and the LaserDisc player control, advanced naming and metadata
+sidecar of the old application. See the plan's inventory table for the full ledger.
 
 That the engine can be tested at all without hardware is the point of the split. The old
 application could only be proven by attaching a device and hoping a fault reproduced;

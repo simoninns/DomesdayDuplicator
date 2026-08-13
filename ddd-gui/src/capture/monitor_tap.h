@@ -46,6 +46,17 @@ struct CaptureStats {
   uint64_t bytes_written = 0;
   uint64_t samples_written = 0;
 
+  // Samples the sink has taken but not yet committed. See
+  // ISampleSink::SamplesPending — zero unless something is compressing.
+  uint64_t samples_pending = 0;
+
+  // The sink attached at the moment this was published: "null" while
+  // monitoring, "flac" while capturing. Carried in the stats block because the
+  // distinction is what the panels label everything else by, and asking the
+  // pipeline separately would be a second read that could disagree with this
+  // one.
+  bool writing = false;
+
   // Ring depth. The number that says whether this machine is keeping up.
   size_t slots_in_use = 0;
   size_t peak_slots_in_use = 0;

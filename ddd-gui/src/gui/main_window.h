@@ -69,6 +69,8 @@ class MainWindow : public QMainWindow {
   void RestoreWindowLayout();
   void ShowAboutDialog();
   void ShowSettingsDialog();
+  void ShowAnalysisDialog();
+  void ShowCaptureFinished(const QString& file_path, quint64 bytes);
   void ShowFirmwareWarning(const QString& message);
   void ShowFailure(const QString& title, const QString& detail);
 

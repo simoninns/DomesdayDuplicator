@@ -12,9 +12,11 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QString>
+#include <QTextStream>
 #include <memory>
 
 #include "about_text.h"
+#include "analysis_cli.h"
 #include "application_logger.h"
 #include "capture_controller.h"
 #include "logger.h"
@@ -52,7 +54,27 @@ int main(int argc, char* argv[]) {
       {QStringLiteral("d"), QStringLiteral("debug")},
       QStringLiteral("Log debug-level diagnostics and show the Log panel."));
   parser.addOption(debug_option);
+
+  const QCommandLineOption analyse_option(
+      QStringLiteral("analyse-test-data"),
+      QStringLiteral("Check a test-mode capture for sequence breaks and exit. "
+                     "Exits 0 for an intact ramp, 1 for a break, 2 for a file "
+                     "that could not be analysed."),
+      QStringLiteral("file"));
+  parser.addOption(analyse_option);
+
   parser.process(app);
+
+  // Before the logger, the theme and the window, so that nothing about this
+  // path depends on a display being available. On Windows the executable is
+  // built without a console, so the output goes wherever a caller redirects it
+  // — the exit code is what a script reads, and that works either way.
+  if (parser.isSet(analyse_option)) {
+    QTextStream out(stdout);
+    QTextStream error(stderr);
+    return ddd::gui::RunTestDataAnalysis(parser.value(analyse_option), out,
+                                         error);
+  }
 
   ddd::gui::ApplicationLogger logger;
   if (parser.isSet(debug_option)) {

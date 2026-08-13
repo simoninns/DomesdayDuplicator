@@ -51,6 +51,7 @@ class FlacSink : public ISampleSink {
 
   uint64_t BytesWritten() const override;
   uint64_t SamplesWritten() const override;
+  uint64_t SamplesPending() const override;
 
   const std::string& LastError() const override { return last_error_; }
 

@@ -218,6 +218,86 @@ TEST(StatisticsPresenterTest, NoWriterMeansNothingWritten) {
   EXPECT_EQ(view.bytes_written, kNone);
 }
 
+// --- The three capture-only figures --------------------------------------
+
+// Blank while monitoring, because there is no encoder. Zero pending is a
+// meaningful measurement during a capture and a meaningless one outside it, and
+// a row reading "0.0 ms" when nothing is being written would look like a
+// healthy encoder rather than like an absent one.
+TEST(StatisticsPresenterTest, TheEncoderBacklogIsBlankWhileMerelyMonitoring) {
+  capture::CaptureStats stats = RunningStats();
+  stats.writing = false;
+  stats.samples_pending = 0;
+
+  const StatisticsView view =
+      PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
+
+  EXPECT_EQ(view.encoder_backlog, kNone);
+}
+
+TEST(StatisticsPresenterTest, TheEncoderBacklogIsShownAsTimeWhileCapturing) {
+  capture::CaptureStats stats = RunningStats();
+  stats.writing = true;
+
+  // A tenth of a second of signal held inside the encoder.
+  stats.samples_pending = capture::kSampleRateHz / 10;
+
+  const StatisticsView view =
+      PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
+
+  // Time rather than a bare sample count, because the number that matters is
+  // how it compares with the ring's own depth.
+  EXPECT_TRUE(view.encoder_backlog.contains(QStringLiteral("100.0 ms")))
+      << view.encoder_backlog.toStdString();
+}
+
+TEST(StatisticsPresenterTest,
+     AnEncoderKeepingUpReportsNoBacklogRatherThanNone) {
+  capture::CaptureStats stats = RunningStats();
+  stats.writing = true;
+  stats.samples_pending = 0;
+
+  const StatisticsView view =
+      PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
+
+  EXPECT_NE(view.encoder_backlog, kNone);
+  EXPECT_TRUE(view.encoder_backlog.contains(QStringLiteral("0.0 ms")))
+      << view.encoder_backlog.toStdString();
+}
+
+// A time first, because "412 GB free" does not answer the question a user has,
+// which is whether this will last the side they are about to play.
+TEST(StatisticsPresenterTest, FreeSpaceIsHowMuchCaptureItHolds) {
+  capture::FreeSpace space;
+  space.known = true;
+  space.bytes_available = capture::CaptureBytesForSeconds(3600.0);
+
+  const StatisticsView view = PresentStatistics(
+      RunningStats(), Undeclared(), capture::DeviceSpeed::kSuper, space);
+
+  EXPECT_TRUE(view.space_remaining.startsWith(QStringLiteral("1:00:0")))
+      << view.space_remaining.toStdString();
+  EXPECT_TRUE(view.space_remaining.contains(QStringLiteral("GB")))
+      << view.space_remaining.toStdString();
+}
+
+// Unknown, and specifically not zero. Zero reads as "the disk is full" and
+// would stop somebody capturing to a folder they were about to create.
+TEST(StatisticsPresenterTest, AVolumeThatCannotBeReadIsUnknownRatherThanFull) {
+  const StatisticsView view =
+      PresentStatistics(RunningStats(), Undeclared(),
+                        capture::DeviceSpeed::kSuper, capture::FreeSpace{});
+
+  EXPECT_EQ(view.space_remaining, kNone);
+}
+
+// The two panels that show free space share this formatter, so they cannot end
+// up saying different things about the same volume.
+TEST(StatisticsPresenterTest, ByteSizesUseTheUnitsADriveIsSoldIn) {
+  EXPECT_EQ(FormatByteSize(2'000'000'000), QStringLiteral("2.0 GB"));
+  EXPECT_EQ(FormatByteSize(512'000'000), QStringLiteral("512 MB"));
+}
+
 // --- Against a running pipeline ------------------------------------------
 
 // The acceptance criterion for this panel: every figure comes from the stats

@@ -24,6 +24,7 @@
 #include "about_dialog.h"
 #include "about_text.h"
 #include "amplitude_panel.h"
+#include "analysis_dialog.h"
 #include "application_logger.h"
 #include "capture_controller.h"
 #include "capture_panel.h"
@@ -115,6 +116,20 @@ MainWindow::MainWindow(ThemeController* theme_controller,
                 statusBar()->showMessage(tr("Monitoring"));
               }
             });
+    connect(capture_controller_, &CaptureController::CapturingChanged, this,
+            [this](bool capturing, const QString& file_path) {
+              if (capturing) {
+                statusBar()->showMessage(tr("Capturing to %1").arg(file_path));
+              } else if (capture_controller_->monitoring()) {
+                statusBar()->showMessage(tr("Monitoring"));
+              }
+            });
+    connect(capture_controller_, &CaptureController::CaptureFinished, this,
+            &MainWindow::ShowCaptureFinished);
+    connect(capture_controller_, &CaptureController::LowSpaceWarning, this,
+            [this](const QString& message) {
+              QMessageBox::warning(this, tr("Running out of space"), message);
+            });
     connect(capture_controller_, &CaptureController::FirmwareWarning, this,
             &MainWindow::ShowFirmwareWarning);
     connect(capture_controller_, &CaptureController::Failed, this,
@@ -191,6 +206,9 @@ void MainWindow::ShowLogPanel() {
 
 void MainWindow::BuildMenus() {
   QMenu* file_menu = menuBar()->addMenu(tr("&File"));
+  file_menu->addAction(tr("&Analyse test data…"), this,
+                       &MainWindow::ShowAnalysisDialog);
+  file_menu->addSeparator();
   file_menu->addAction(tr("&Settings…"), QKeySequence::Preferences, this,
                        &MainWindow::ShowSettingsDialog);
   file_menu->addSeparator();
@@ -253,6 +271,28 @@ void MainWindow::ShowSettingsDialog() {
   if (dialog.exec() == QDialog::Accepted) {
     capture_controller_->SetSettings(dialog.Settings());
   }
+}
+
+void MainWindow::ShowAnalysisDialog() {
+  // Opened on the capture folder, because the file somebody wants to check is
+  // almost always the one they have just taken.
+  const QString starting_directory =
+      capture_controller_ != nullptr
+          ? capture_controller_->settings().ResolvedCaptureDirectory()
+          : DefaultCaptureDirectory();
+
+  AnalysisDialog dialog(this);
+  dialog.ChooseFileAndAnalyse(starting_directory);
+}
+
+void MainWindow::ShowCaptureFinished(const QString& file_path, quint64 bytes) {
+  // The status bar rather than a message box. A capture ending is the expected
+  // outcome, and a modal to dismiss after every one would be in the way of
+  // somebody taking both sides of a disc.
+  statusBar()->showMessage(
+      tr("Capture written: %1  (%2 MB)")
+          .arg(file_path)
+          .arg(static_cast<double>(bytes) / (1024.0 * 1024.0), 0, 'f', 1));
 }
 
 void MainWindow::ShowFirmwareWarning(const QString& message) {

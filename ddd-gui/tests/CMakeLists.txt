@@ -57,6 +57,9 @@ ddd_add_test(ddd_capture_tests "unit"
     unit/test_firmware_version.cpp
     unit/test_usb_device.cpp
     unit/test_device_monitor.cpp
+    unit/test_capture_naming.cpp
+    unit/test_capture_provenance.cpp
+    unit/test_free_space.cpp
 )
 target_link_libraries(ddd_capture_tests PRIVATE
     ddd_capture
@@ -89,6 +92,7 @@ target_link_libraries(ddd_analysis_tests PRIVATE
 # reference comparison rather than a behavioural one.
 ddd_add_test(ddd_capture_format_tests "unit;golden"
     golden/test_flac_round_trip.cpp
+    golden/test_test_data_analysis.cpp
 )
 target_link_libraries(ddd_capture_format_tests PRIVATE
     ddd_capture
@@ -138,6 +142,10 @@ ddd_add_test(ddd_gui_tests "unit"
     gui/unit/test_application_logger.cpp
     gui/unit/test_capture_settings.cpp
     gui/unit/test_capture_controller.cpp
+    gui/unit/test_capture_to_disk.cpp
+    gui/unit/test_capture_faults.cpp
+    gui/unit/test_capture_failure_presenter.cpp
+    gui/unit/test_analysis_cli.cpp
     gui/unit/test_statistics_presenter.cpp
     gui/unit/test_analysis_worker.cpp
 )
@@ -155,6 +163,7 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     support/widget_test_main.cpp
     gui/widget/test_main_window_panels.cpp
     gui/widget/test_about_dialog.cpp
+    gui/widget/test_analysis_dialog.cpp
     gui/widget/test_capture_panel.cpp
     gui/widget/test_statistics_panel.cpp
     gui/widget/test_waveform_panel.cpp

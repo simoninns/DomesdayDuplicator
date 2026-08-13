@@ -111,8 +111,44 @@ QString FormatElapsed(double seconds) {
       .arg(remainder, 2, 10, QLatin1Char('0'));
 }
 
+QString FormatByteSize(uint64_t bytes) {
+  constexpr double kGigabyte = 1.0e9;
+  constexpr double kMegabyte = 1.0e6;
+
+  if (static_cast<double>(bytes) >= kGigabyte) {
+    return Translate("%1 GB").arg(static_cast<double>(bytes) / kGigabyte, 0,
+                                  'f', 1);
+  }
+  return Translate("%1 MB").arg(static_cast<double>(bytes) / kMegabyte, 0, 'f',
+                                0);
+}
+
+QString FormatEncoderBacklog(uint64_t samples_pending) {
+  const double seconds = static_cast<double>(samples_pending) /
+                         static_cast<double>(capture::kSampleRateHz);
+
+  return Translate("%1 ms  (%L2 samples)")
+      .arg(seconds * 1000.0, 0, 'f', 1)
+      .arg(samples_pending);
+}
+
+QString FormatSpaceRemaining(const capture::FreeSpace& space) {
+  if (!space.known) {
+    return None();
+  }
+
+  // The time first. "412 GB free" does not answer the question somebody
+  // actually has, which is whether this will last the side they are about to
+  // play.
+  return Translate("%1 of capture  (%2 free)")
+      .arg(FormatElapsed(
+          capture::CaptureSecondsRemaining(space.bytes_available)))
+      .arg(FormatByteSize(space.bytes_available));
+}
+
 StatisticsView PresentIdleStatistics(const analysis::FrontEndGain& gain,
-                                     capture::DeviceSpeed speed) {
+                                     capture::DeviceSpeed speed,
+                                     const capture::FreeSpace& space) {
   StatisticsView view;
   view.throughput = None();
   view.integrity = None();
@@ -124,6 +160,8 @@ StatisticsView PresentIdleStatistics(const analysis::FrontEndGain& gain,
   view.samples = None();
   view.elapsed = None();
   view.bytes_written = None();
+  view.encoder_backlog = None();
+  view.space_remaining = FormatSpaceRemaining(space);
   view.link_speed = DescribeLinkSpeed(speed);
   view.front_end_gain = DescribeFrontEndGain(gain.switch_pattern());
   return view;
@@ -131,8 +169,9 @@ StatisticsView PresentIdleStatistics(const analysis::FrontEndGain& gain,
 
 StatisticsView PresentStatistics(const capture::CaptureStats& stats,
                                  const analysis::FrontEndGain& gain,
-                                 capture::DeviceSpeed speed) {
-  StatisticsView view = PresentIdleStatistics(gain, speed);
+                                 capture::DeviceSpeed speed,
+                                 const capture::FreeSpace& space) {
+  StatisticsView view = PresentIdleStatistics(gain, speed, space);
 
   view.throughput = FormatThroughput(stats.throughput_bytes_per_second);
   view.integrity = DescribeSequenceState(stats.sequence_state);
@@ -190,6 +229,14 @@ StatisticsView PresentStatistics(const capture::CaptureStats& stats,
     view.bytes_written = Translate("%1 MB").arg(
         static_cast<double>(stats.bytes_written) / (1024.0 * 1024.0), 0, 'f',
         1);
+  }
+
+  // Only while a writer is attached. Zero pending is a meaningful measurement
+  // during a capture and a meaningless one during monitoring — there is no
+  // encoder — so the row stays blank rather than reporting a healthy-looking
+  // nothing.
+  if (stats.writing) {
+    view.encoder_backlog = FormatEncoderBacklog(stats.samples_pending);
   }
 
   return view;

@@ -15,6 +15,7 @@
 #include <cstddef>
 
 #include "disk_buffer_ring.h"
+#include "flac_writer.h"
 #include "front_end_gain.h"
 #include "usb_device.h"
 
@@ -58,13 +59,61 @@ struct CaptureSettings {
   // the user did last week would produce a capture full of ramps.
   bool test_mode = false;
 
+  // --- Where a capture goes ------------------------------------------------
+
+  // The folder captures are written to. Empty means the platform's Movies or
+  // Videos folder, resolved at load rather than stored, so a settings file
+  // copied between machines still points somewhere that exists.
+  QString capture_directory;
+
+  // The name to use, without a suffix. Empty means the generated
+  // RF-Sample_<timestamp>, which is what almost every capture uses.
+  QString capture_name;
+
+  // 0-8, as flac's -0 .. -8. See FlacWriter::Options — the default is 8, which
+  // multithreaded libFLAC sustains at the device's full rate.
+  //
+  // Lowering it is the first remedy for a machine that cannot keep up, which is
+  // what the buffer-queue and encoder-backlog figures in the Statistics panel
+  // are there to show: a backlog that climbs is the encoder, a queue that
+  // climbs with no backlog is the disk.
+  int compression_level = capture::FlacWriter::Options{}.compression_level;
+
+  // Stop the capture automatically after this long. 0 means run until stopped,
+  // which is the default: a limit that fired in the middle of a side would be
+  // worse than no limit at all.
+  //
+  // Held in seconds although the panel offers minutes, because minutes is a
+  // presentation choice and seconds is the unit the check is actually made in.
+  // A settings file holding a value that is not a whole number of minutes —
+  // written by hand, or by a future command-line tool with a finer control — is
+  // honoured as written and rounded only for display.
+  int duration_limit_seconds = 0;
+
+  // Warn when the destination volume holds less than this many minutes of
+  // capture. Warn, not refuse — the estimate is an estimate, and an application
+  // that declined to start because it predicted a shortfall would sometimes be
+  // wrong in the direction that costs a session.
+  int low_space_warning_minutes = kDefaultLowSpaceWarningMinutes;
+
+  static constexpr int kDefaultLowSpaceWarningMinutes = 10;
+  static constexpr int kMaximumDurationLimitMinutes = 24 * 60;
+  static constexpr int kMaximumDurationLimitSeconds =
+      kMaximumDurationLimitMinutes * 60;
+  static constexpr int kMaximumLowSpaceWarningMinutes = 24 * 60;
+
   bool operator==(const CaptureSettings& other) const {
     return preferred_device_path == other.preferred_device_path &&
            queue_size_bytes == other.queue_size_bytes &&
            small_transfers == other.small_transfers &&
            transfer_queue_bytes == other.transfer_queue_bytes &&
            front_end_gain_switches == other.front_end_gain_switches &&
-           test_mode == other.test_mode;
+           test_mode == other.test_mode &&
+           capture_directory == other.capture_directory &&
+           capture_name == other.capture_name &&
+           compression_level == other.compression_level &&
+           duration_limit_seconds == other.duration_limit_seconds &&
+           low_space_warning_minutes == other.low_space_warning_minutes;
   }
   bool operator!=(const CaptureSettings& other) const {
     return !(*this == other);
@@ -76,7 +125,18 @@ struct CaptureSettings {
   // The declared front-end gain, or the undeclared state. Named DeclaredGain
   // rather than FrontEndGain so the accessor cannot shadow the type it returns.
   analysis::FrontEndGain DeclaredGain() const;
+
+  // The directory a capture will actually be written to: what the user chose,
+  // or the platform's default when they have not chosen.
+  QString ResolvedCaptureDirectory() const;
 };
+
+// Where captures go when nobody has said otherwise.
+//
+// The platform's Movies folder rather than Documents or the working directory:
+// a capture is tens of gigabytes of media, and this is the location a user's
+// backup rules and disk-space expectations are already set up around.
+QString DefaultCaptureDirectory();
 
 // Read the saved settings, falling back to the defaults above for anything
 // missing or nonsensical.

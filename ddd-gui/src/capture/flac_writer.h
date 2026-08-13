@@ -46,12 +46,29 @@ class FlacWriter {
   };
 
   struct Options {
-    // 0-8, as flac's -0 .. -8. ld-compress defaults to 8 because it
-    // post-processes a finished file with no deadline; this runs while 40
-    // million samples a second are arriving, so the default here is low and the
-    // setting exists to be raised only as far as a given machine's measurements
-    // allow.
-    int compression_level = 1;
+    // 0-8, as flac's -0 .. -8. The same default ld-compress uses, and for the
+    // same reason: a capture is an archival copy that will be stored and copied
+    // for years, and the encoding cost is paid once.
+    //
+    // It is affordable because libFLAC 1.5.0 encodes on several threads.
+    // Measured on a 16-core machine against a noisy 2 MHz tone, one second of
+    // capture at a time:
+    //
+    //     level 0/1   34.2 MB   42.8% of raw   0.12 s to encode
+    //     level 5     24.0 MB   30.0%          0.11 s
+    //     level 8     23.7 MB   29.7%          0.10 s
+    //
+    // The encode cost is flat across the range because it is spread over the
+    // cores, so the higher levels are very nearly free — and the file is 30%
+    // smaller than at level 1, which over a disc side is tens of gigabytes. The
+    // whole pipeline sustains the device's 80 MB/s at level 8 with the ring
+    // never going deeper than one buffer of 128; the soak test measures it.
+    //
+    // On an older libFLAC the encode is single-threaded
+    // (SupportsMultithreading() says which), and level 8 may then not keep up.
+    // That shows up as kBufferOverflow, whose guidance names lowering this
+    // setting as the first remedy.
+    int compression_level = 8;
 
     // 0 asks for one thread per core, capped at kMaximumEncoderThreads.
     // Multithreaded encoding needs libFLAC 1.5.0 or later; on anything older
@@ -103,6 +120,16 @@ class FlacWriter {
 
   // Samples handed to the encoder so far
   size_t SamplesWritten() const;
+
+  // Samples handed over but not yet in the file.
+  //
+  // The encoder holds work in flight, and with more than one encoder thread it
+  // holds rather a lot of it. A backlog that sits at a steady figure is the
+  // encoder keeping pace; one that climbs is the encoder falling behind, and
+  // that is a different remedy from a slow disk — a lower compression level
+  // rather than a faster drive. Without this the two look identical from the
+  // outside, because both end as a buffer queue that will not come down.
+  size_t SamplesPending() const;
 
   const std::string& LastError() const;
 

@@ -47,6 +47,13 @@ class ISampleSink {
   // A name for logs ("null", "flac", ...)
   virtual const char* Name() const = 0;
 
+  // Whether anything reaches storage through this sink.
+  //
+  // The one bit that separates monitoring from capturing, asked of the sink
+  // rather than inferred from its name so that a test double which really does
+  // keep the data can say so.
+  virtual bool StoresData() const { return true; }
+
   // Write one buffer. Returns false on failure, and LastError() then says why.
   //
   // This is on the deadline: at 80 MB/s a 2 MB buffer arrives every 26 ms, and
@@ -68,6 +75,15 @@ class ISampleSink {
   // Samples accepted so far
   virtual uint64_t SamplesWritten() const = 0;
 
+  // Samples accepted but not yet committed to storage.
+  //
+  // Zero for a sink with nothing in flight, which is why this has a default
+  // rather than being pure: most sinks write straight through and have nothing
+  // to say. A compressing sink does, and the figure separates "the disk cannot
+  // keep up" from "the encoder cannot keep up" — two problems with different
+  // remedies that look the same from the ring's point of view.
+  virtual uint64_t SamplesPending() const { return 0; }
+
   virtual const std::string& LastError() const = 0;
 };
 
@@ -80,6 +96,8 @@ class ISampleSink {
 class NullSink : public ISampleSink {
  public:
   const char* Name() const override { return "null"; }
+
+  bool StoresData() const override { return false; }
 
   bool Write(const uint8_t* wire_data, size_t sample_count) override;
   bool Finish() override { return true; }

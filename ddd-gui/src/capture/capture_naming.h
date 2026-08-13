@@ -1,0 +1,81 @@
+/************************************************************************
+
+    capture_naming.h
+
+    What a capture file is called, and where it is put
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+************************************************************************/
+
+#pragma once
+
+#include <ctime>
+#include <filesystem>
+#include <string>
+
+namespace ddd::capture {
+
+// Naming is here, in the engine, rather than in the panel that shows it. It has
+// to be: a future command-line capture tool names its files by the same rules
+// and cannot reach a Qt widget, and the rule that a test capture is called
+// something recognisable is a property of the capture rather than of the
+// interface used to start it.
+
+// What an ordinary capture is called before the timestamp
+inline constexpr const char* kCaptureNamePrefix = "RF-Sample_";
+
+// And what a test-mode capture is called. Not a preference: see
+// DefaultCaptureStem.
+inline constexpr const char* kTestCaptureNamePrefix = "TestData_";
+
+// A timestamp as a name carries it: 2026-08-13_12-00-00, in local time.
+//
+// Local rather than UTC because the person who took the capture is the person
+// who will look for it, and they remember what time it was where they were
+// standing. Dashes rather than colons because a colon is not a legal filename
+// character on Windows and is a path separator on classic macOS-era tooling.
+std::string FormatCaptureTimestamp(std::time_t when);
+
+// The name a capture gets when the user has not typed one.
+//
+// In test mode the name is forced rather than defaulted. A test capture is a
+// ramp from the gateware's pattern generator and contains no signal at all, so
+// a file called "disc1 side 1" full of ramps is a trap that costs somebody an
+// afternoon. Test captures are called TestData_, always, and the interface does
+// not offer to call them anything else.
+std::string DefaultCaptureStem(bool test_mode, std::time_t when);
+
+// Reduce a typed name to something that can be a filename everywhere this
+// application runs.
+//
+// Windows is the constraint: it rejects <>:"/\|?* and the control characters,
+// treats a trailing dot or space as invisible, and reserves a list of device
+// names that cannot be used even with an extension. A name that works on the
+// machine it was typed on and fails on a colleague's is worth preventing here,
+// where the rule can be stated once, rather than at three call sites.
+//
+// Returns an empty string if nothing usable is left, which callers treat as
+// "no name given" rather than as an error.
+std::string SanitiseCaptureStem(const std::string& text);
+
+// The path a capture is written to: the directory, the name (sanitised, or the
+// default when nothing usable was given) and the capture suffix.
+std::filesystem::path BuildCapturePath(const std::filesystem::path& directory,
+                                       const std::string& stem, bool test_mode,
+                                       std::time_t when);
+
+// The same path, with a number appended if something is already there.
+//
+// A capture that silently overwrote an earlier one would destroy an archival
+// recording to save a dialog, which is not a trade this application makes.
+// Gives up after kMaximumNameAttempts and returns the last path it tried, at
+// which point creating the file fails and the user is told why — better than
+// looping forever against a directory that is doing something unexpected.
+std::filesystem::path MakeUniqueCapturePath(
+    const std::filesystem::path& preferred);
+
+inline constexpr int kMaximumNameAttempts = 1000;
+
+}  // namespace ddd::capture

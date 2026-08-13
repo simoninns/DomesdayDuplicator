@@ -22,6 +22,7 @@
 
 class QLabel;
 class QProgressBar;
+class QTimer;
 
 namespace ddd::gui {
 
@@ -57,8 +58,15 @@ class StatisticsPanel : public QWidget {
   static constexpr const char* kSamplesLabelName = "statistics_samples";
   static constexpr const char* kElapsedLabelName = "statistics_elapsed";
   static constexpr const char* kWrittenLabelName = "statistics_written";
+  static constexpr const char* kBacklogLabelName = "statistics_encoder_backlog";
+  static constexpr const char* kSpaceLabelName = "statistics_space_remaining";
   static constexpr const char* kLinkSpeedLabelName = "statistics_link_speed";
   static constexpr const char* kGainLabelName = "statistics_front_end_gain";
+
+  // See CapturePanel::kFreeSpaceIntervalMilliseconds — the same reasoning, and
+  // deliberately the same figure, so the two panels never disagree about how
+  // much room is left.
+  static constexpr int kFreeSpaceIntervalMilliseconds = 2000;
 
  public slots:
   void OnStatsUpdated(const ddd::capture::CaptureStats& stats);
@@ -68,6 +76,7 @@ class StatisticsPanel : public QWidget {
  private:
   void Apply(const StatisticsView& view);
   void ShowIdle();
+  void RefreshFreeSpace();
 
   QLabel* throughput_ = nullptr;
   QLabel* sequence_ = nullptr;
@@ -79,6 +88,8 @@ class StatisticsPanel : public QWidget {
   QLabel* samples_ = nullptr;
   QLabel* elapsed_ = nullptr;
   QLabel* written_ = nullptr;
+  QLabel* backlog_ = nullptr;
+  QLabel* space_ = nullptr;
   QLabel* link_speed_ = nullptr;
   QLabel* gain_ = nullptr;
 
@@ -86,6 +97,13 @@ class StatisticsPanel : public QWidget {
 
   analysis::FrontEndGain declared_gain_;
   capture::DeviceSpeed link_ = capture::DeviceSpeed::kUnknown;
+
+  // Refreshed on a timer of its own rather than with the statistics. The
+  // statistics arrive twenty times a second and come from a wait-free tap that
+  // costs nothing to read; this is a filesystem call, and nothing it reports
+  // changes at that rate.
+  capture::FreeSpace destination_space_;
+  QTimer* space_timer_ = nullptr;
 };
 
 }  // namespace ddd::gui

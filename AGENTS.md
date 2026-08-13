@@ -401,16 +401,19 @@ nix flake check                    # everything, on a clean machine
 ctest --test-dir gui/build         # one component
 ```
 
-**What exists today: 488 tests across five components** — 21 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec), 410 in `ddd-gui/` (the capture engine — sample and wire
+**What exists today: 605 tests across five components** — 21 in `gui/` (UTF-8 conversion, the
+10-bit/16-bit sample codec), 527 in `ddd-gui/` (the capture engine — sample and wire
 formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
 metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
-against each other, the wait-free monitor tap, the USB transfer-layout arithmetic and
+against each other, capture naming and provenance, the offline test-data analyser and its
+exit codes, the wait-free monitor tap, the USB transfer-layout arithmetic and
 firmware version check, hot-plug detection, and the pipeline orchestrator driven by a
 synthetic source that can be told to produce specific faults — plus theme resolution, the
 log model, the engine-to-GUI logging bridge, the About text's build provenance, the dock
-panel framework with its layout persistence, and the monitor-mode GUI driven end to end
-against a fake USB backend — plus the Qt-free display mathematics behind the signal panels:
+panel framework with its layout persistence, and both the monitor-mode and capture-to-disk
+GUI driven end to end against a fake USB backend, with every failure code injected and
+checked for its own specific message — plus the Qt-free display mathematics behind the
+signal panels:
 the board's front-end gain declaration, the scope's sample-to-pixel mapping, the amplitude
 history ring, an FFT checked against a directly evaluated DFT, and the spectrum scaling;
 six of those need a device attached and are labelled `hil`),

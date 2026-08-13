@@ -147,6 +147,83 @@ TEST_F(CaptureSettingsTest, AnImpossibleGainSettingReadsAsNoDeclaration) {
   EXPECT_FALSE(LoadCaptureSettings().DeclaredGain().declared());
 }
 
+// --- Where a capture goes ------------------------------------------------
+
+TEST_F(CaptureSettingsTest, TheDestinationSettingsSurviveARestart) {
+  CaptureSettings saved;
+  saved.capture_directory = QStringLiteral("/captures/laserdisc");
+  saved.capture_name = QStringLiteral("Blade Runner side 1");
+  saved.compression_level = 5;
+  saved.duration_limit_seconds = 45 * 60;
+  saved.low_space_warning_minutes = 3;
+  SaveCaptureSettings(saved);
+
+  const CaptureSettings loaded = LoadCaptureSettings();
+  EXPECT_EQ(loaded.capture_directory, saved.capture_directory);
+  EXPECT_EQ(loaded.capture_name, saved.capture_name);
+  EXPECT_EQ(loaded.compression_level, saved.compression_level);
+  EXPECT_EQ(loaded.duration_limit_seconds, saved.duration_limit_seconds);
+  EXPECT_EQ(loaded.low_space_warning_minutes, saved.low_space_warning_minutes);
+}
+
+// Stored as typed and resolved when it is used, so that a settings file written
+// on one machine and read on another does not pin captures to a home directory
+// that is not there.
+TEST_F(CaptureSettingsTest, AnUnsetFolderResolvesToSomewhereThatExists) {
+  const CaptureSettings settings = LoadCaptureSettings();
+
+  EXPECT_TRUE(settings.capture_directory.isEmpty());
+  EXPECT_FALSE(settings.ResolvedCaptureDirectory().isEmpty());
+  EXPECT_EQ(settings.ResolvedCaptureDirectory(), DefaultCaptureDirectory());
+}
+
+TEST_F(CaptureSettingsTest, AChosenFolderIsUsedAsGiven) {
+  CaptureSettings settings;
+  settings.capture_directory = QStringLiteral("/captures/laserdisc");
+
+  EXPECT_EQ(settings.ResolvedCaptureDirectory(),
+            QStringLiteral("/captures/laserdisc"));
+}
+
+// The smallest file the encoder can produce, which is what an archival capture
+// wants: the encoding cost is paid once and the storage cost is paid for years.
+// It is affordable only because libFLAC 1.5 encodes on several threads — see
+// FlacWriter::Options, and the soak test that measures it at the device's full
+// rate.
+TEST_F(CaptureSettingsTest, TheCompressionDefaultIsTheSmallestFile) {
+  EXPECT_EQ(LoadCaptureSettings().compression_level, 8);
+
+  // And the GUI default is the engine's, not a second opinion that could drift
+  // away from it.
+  EXPECT_EQ(CaptureSettings{}.compression_level,
+            capture::FlacWriter::Options{}.compression_level);
+}
+
+TEST_F(CaptureSettingsTest, ANonsensicalCompressionLevelIsClamped) {
+  QSettings store;
+  store.setValue(QStringLiteral("capture/compression_level"), 99);
+  EXPECT_EQ(LoadCaptureSettings().compression_level, 8);
+
+  store.setValue(QStringLiteral("capture/compression_level"), -4);
+  EXPECT_EQ(LoadCaptureSettings().compression_level, 0);
+}
+
+TEST_F(CaptureSettingsTest, ANonsensicalDurationLimitIsClamped) {
+  QSettings store;
+  store.setValue(QStringLiteral("capture/duration_limit_seconds"), -60);
+  EXPECT_EQ(LoadCaptureSettings().duration_limit_seconds, 0);
+
+  store.setValue(QStringLiteral("capture/duration_limit_seconds"), 999'999'999);
+  EXPECT_EQ(LoadCaptureSettings().duration_limit_seconds,
+            CaptureSettings::kMaximumDurationLimitSeconds);
+}
+
+// No limit by default. One that fired in the middle of a side would be worse
+// than no limit at all.
+TEST_F(CaptureSettingsTest, ThereIsNoDurationLimitUntilOneIsSet) {
+  EXPECT_EQ(LoadCaptureSettings().duration_limit_seconds, 0);
+}
+
 TEST_F(CaptureSettingsTest, TheGainIsNotPassedToTheEngine) {
   // It is a display calibration, not an acquisition parameter. Nothing below
   // the GUI reads it, and the options handed to the USB source are the proof.

@@ -727,6 +727,11 @@ and a bytes-written figure that is anything other than zero. The row for bytes w
 in place and reads as blank in monitor mode, which is the honest answer — nothing was meant
 to be written, so nothing was.
 
+All three landed with Phase 5. The backlog and the bytes written stay blank while
+monitoring, for the same reason: a backlog of zero is a meaningful measurement during a
+capture and a meaningless one when there is no encoder, and a row reading "0.0 ms" would
+look like a healthy encoder rather than an absent one.
+
 ---
 
 ## Phase 5 — Capture to disk
@@ -738,10 +743,10 @@ proposed as a replacement.
 ### Task 5.1 — Capture controls and file management
 
 Capture panel: destination directory, filename (default `RF-Sample_<timestamp>`, free-text
-override), FLAC compression level 0–8 defaulting 1, duration limit, free-space-as-time
+override), FLAC compression level 0–8 defaulting 8, duration limit, free-space-as-time
 readout (estimated ~40 MB/s for FLAC) refreshed continuously, and a low-space warning
 threshold. **Native FLAC is the only capture format** — `.raw` is not carried forward,
-since ld-decode and Tenacity both read `.flac` directly and FLAC level 0–1 with
+since ld-decode and Tenacity both read `.flac` directly and a low FLAC level with
 multithreaded libFLAC covers the low-CPU case `.raw` served. Capture is always the full
 40 MSPS stream; the old 4:1 CD decimation option is not carried forward — rate reduction
 is a downstream processing job, not a capture-time one. Captures default to the compound
@@ -754,12 +759,62 @@ DDD_FRONT_END_GAIN, so the calibration needed to read the samples as volts trave
 them. It is written as a declaration, not a measurement: the switch position the user
 stated, never a value the application inferred.
 
+Naming is in the engine (`capture_naming.h`) rather than in the panel that shows it, so a
+future command-line capture tool names its files by the same rules. A typed name is
+sanitised before it becomes a path: the separators and the characters Windows refuses are
+removed, trailing dots and spaces (which Windows silently drops) are trimmed, and the
+reserved device names are refused outright. Without that a name is a path, and a text field
+decides where on the disk a capture is written. An existing file is never overwritten — a
+number is inserted before the compound suffix.
+
+The free-space readout and the duration limit are both expressed in *time*, because that is
+the question a user has: not "is there 400 GB free" but "will this last the side I am about
+to play". The duration limit is stored in seconds although the panel offers minutes, which
+is what makes it testable end to end — one second of capture is 40 million samples, which a
+synthetic source produces in under a second, where one minute would be 2.4 billion. The
+limit is checked on the statistics tick rather than on the processing thread, so the
+overshoot is bounded by that tick and the buffer in flight — about 50 ms — rather than being
+exact. That is deliberate: an exact limit would put a GUI policy decision on the real-time
+path, and the whole design of this application is that nothing the GUI does can cost a
+sample.
+
+The compression level defaults to **8**, the same as ld-compress. That is affordable only
+because libFLAC 1.5 encodes on several threads, and it was chosen from measurement rather
+than from intuition. On a 16-core machine, one second of capture of a noisy 2 MHz tone:
+level 0 or 1 gives 34.2 MB (42.8% of raw), level 5 gives 24.0 MB, and level 8 gives 23.7 MB
+(29.7%) — with the encode cost flat at around 0.11 s across the whole range, because it is
+spread over the cores. The higher levels are very nearly free and the file is 30% smaller,
+which over a disc side is tens of gigabytes. The soak test runs the whole pipeline at the
+device's 80 MB/s with the shipped default and the ring never goes deeper than one buffer of
+128. On an older, single-threaded libFLAC this may not hold; that surfaces as a buffer
+overflow whose guidance names lowering the level as the first remedy.
+
+Note that this makes the 40 MB/s figure behind the free-space readout more conservative
+than it was, not less: it is a deliberate over-estimate, and a capture the panel predicts
+will fit almost always does.
+
+The encoder backlog listed under Phase 4 as a capture-only figure lands here, taken from
+libFLAC's own progress callback: samples handed to the encoder, less samples the encoder has
+written. It is the figure that separates "the disk cannot keep up" from "the encoder cannot
+keep up", which look identical from the ring's point of view and have different remedies.
+
 **Acceptance criteria**
 - Start from idle (opens device, monitors, records) and start from monitor (sink attach)
-  both work; stop returns to monitor, not idle.
-- Duration limit stops at the boundary-aligned point; a captured `.ddd.flac` passes
-  `flac -t`, decodes in ld-decode tooling, and imports into Tenacity (manual check,
-  recorded); Vorbis comments verified in a T2 test.
+  both work; stop returns to monitor, not idle. **Done** — driven end to end against the
+  fake USB backend in `tests/gui/unit/test_capture_to_disk.cpp`, including two captures in
+  one session giving two files.
+- Duration limit stops at the boundary-aligned point — **done**, and checked as a number
+  rather than as an intention: the written file's length is a whole multiple of the buffer
+  size, is never short of the limit, and is within ten statistics ticks of it.
+- Vorbis comments verified in a T2 test — **done**, both as tag construction
+  (`tests/unit/test_capture_provenance.cpp`) and read back off a file this application's own
+  encoder wrote.
+- A captured `.ddd.flac` passes `flac -t`, decodes in ld-decode tooling, and imports into
+  Tenacity — **not done**. This is a manual check against three external tools and is
+  recorded here as outstanding rather than described as passing. What *is* checked
+  automatically is that the file is native FLAC and not Ogg, that it decodes losslessly
+  through this component's own reader, and that a test-mode capture written by the
+  application analyses clean on the way back off the disk.
 
 ### Task 5.2 — Error surfacing
 
@@ -770,12 +825,38 @@ sequence mismatch, test-ramp verification failure, device disconnect. Errors dur
 capture preserve what was written and finalise the FLAC container so the partial file is
 readable.
 
+The mapping lives in a presenter (`capture_failure_presenter.h`) rather than in message-box
+calls at the point of failure, for the same reason the statistics have one: this is the part
+that can be wrong, and it can only be checked by a test if it produces a value. "Every
+failure code produces its own message and none falls through to a generic one" is an
+assertion about a function; it is not an assertion anybody can make about a `QMessageBox`.
+
 **Acceptance criteria**
-- Each error path triggered via synthetic-source fault injection in functional tests;
-  each shows its specific message, never a generic one.
-- A capture killed mid-write (process SIGKILL, T5 manual) leaves a file the ported
-  `capturereader` can still read to its truncation point — matching the old app's
-  unpatched-STREAMINFO handling.
+- Each error path triggered via fault injection; each shows its specific message, never a
+  generic one — **done**, in `tests/gui/unit/test_capture_faults.cpp`, driven through the
+  controller because that is where a result code becomes a message. Each check asserts three
+  things: that the message names the failure code, that it carries that failure's own
+  remedy, and that it carries none of the other failures' remedies. The third is what makes
+  it more than a spelling test — a presenter returning one sentence for everything would
+  satisfy the first two.
+  A ramp-break fault was added to the synthetic source for this, because
+  `kVerificationError` had no injectable cause: it is the corruption the sequence markers
+  cannot see, since the counters carry on in perfect order and only the ramp check finds it.
+- Two codes are **not** reachable by fault injection and are not pretended to be.
+  `kUsbMemoryLimit` is raised by the Linux libusb backend when the kernel refuses a
+  submission, and `kHostUnderflow` by the Windows backend's own probe. Neither is a property
+  of the stream — both are properties of an operating system's USB stack — so neither has a
+  synthetic equivalent. Their messages are covered by the presenter test and their
+  production by the hardware tier.
+- Errors during capture preserve what was written and finalise the container — **done** and
+  checked on the file itself: after an injected mid-capture failure the partial file opens,
+  decodes, and *reports its own length*, which is what proves the FLAC header was patched
+  rather than the stream merely flushed.
+- A capture killed mid-write (process SIGKILL, T5 manual) leaves a file the reader can still
+  read to its truncation point — **not done**. It is a manual procedure and is recorded here
+  as outstanding. The reader already handles a stream whose header was never patched by
+  reporting no total length, and the analysis dialog shows a busy indicator rather than
+  inventing a percentage for exactly that case.
 
 ### Task 5.3 — Test mode and integrity verification
 
@@ -785,11 +866,36 @@ GUI action with progress/cancel and as the headless `--analyse-test-data <file>`
 exit codes 0/1/2 — so the T5 procedure of TESTING.md §5 can be run against `ddd-gui`
 exactly as against the old application.
 
+The read loop, the ramp check and the wording of the verdict are all in one Qt-free place
+(`test_data_analysis.h`), shared by the dialog and the command line. The old application had
+the loop written out twice — once in the dialog's worker and once in `RunHeadless` — and the
+two could report different things about the same file.
+
+Test-mode naming is *forced* rather than defaulted: in test mode the typed name is ignored
+and the file is called `TestData_<timestamp>`, and the name field is disabled rather than
+silently ignored. A test capture is a ramp with no signal in it at all, and a file called
+"Blade Runner side 1" full of ramps is a trap that costs somebody an afternoon.
+
 **Acceptance criteria**
-- `--analyse-test-data` agrees with the old application's verdict on the same files
-  (pass, fail, and too-short-for-wrap cases).
-- Full T5 hardware-in-the-loop pass: test-mode capture of ≥ 4 hours, zero sequence
-  breaks, analysed clean — the gate for calling `ddd-gui/` a working capture application.
+- `--analyse-test-data` agrees with the old application's verdict on the same files (pass,
+  fail, and too-short-for-wrap cases) — **done**, run side by side against
+  `nix build .#gui`. Both agree on the exit code, the sample offset of the break, and the
+  expected and actual values, for all three cases. The only difference is digit grouping:
+  the old application groups through `QLocale` and so depends on the environment, while this
+  one always groups, so that output a script greps does not change shape with the machine's
+  locale.
+- Full T5 hardware-in-the-loop pass: test-mode capture of ≥ 4 hours, zero sequence breaks,
+  analysed clean — **not done**. This is the gate for calling `ddd-gui/` a working capture
+  application and it has not been run. It cannot be run by the automated suite: it needs the
+  device, four hours and somebody to start it. Everything on this side of the wire is
+  covered — the whole pipeline at 80 MB/s under a soak test, every injectable fault, and a
+  test-mode capture written and analysed clean — and none of that is a substitute, because
+  the interesting failures live in the device, the cable and the USB stack.
+
+  Note also that the capture data path itself changed in this phase: the stats block gained
+  the encoder backlog and a writing flag, and `ISampleSink` gained two accessors. Both are
+  reads of atomics on the processing thread and neither touches the hot loop, but AGENTS.md
+  §4 applies regardless — a green build proves nothing here.
 
 ---
 
@@ -841,7 +947,7 @@ panel/theming shell (Phase 1).
 
 | Feature (old application) | Reason |
 | --- | --- |
-| 16-bit `.raw` output | FLAC is the sole capture format; FLAC level 0–1 (multithreaded libFLAC ≥ 1.5) covers the low-CPU case `.raw` served. `.raw` remains *readable* for test-data analysis |
+| 16-bit `.raw` output | FLAC is the sole capture format; a low FLAC level (multithreaded libFLAC ≥ 1.5) covers the low-CPU case `.raw` served. `.raw` remains *readable* for test-data analysis |
 | 4:1 CD decimation | Capture is always the full 40 MSPS stream; rate reduction is a downstream processing job |
 | Legacy 10-bit packed `.lds` read support | Not read, now or in future; the packed codec is not ported. The old application remains the tool for legacy files |
 | VID/PID override setting | The IDs are fixed protocol constants (`0x1209:0x2347`), not user configuration |
@@ -902,4 +1008,5 @@ act with no unattended path to it.
 Renaming `ddd-gui/` over `gui/`, packaging/installers, the player-control feature family,
 the command-line capture tool and the firmware/gateware updater are all follow-up plans.
 This plan is complete when Phase 5's T5 gate passes and the inventory table above
-contains no row whose disposition is unaccounted for.
+contains no row whose disposition is unaccounted for. Every phase is now built; the T5 gate
+has **not** been run, and that is the one thing standing between this and complete.

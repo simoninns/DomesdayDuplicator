@@ -15,9 +15,11 @@
 #include <QLabel>
 #include <QProgressBar>
 #include <QScrollArea>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include "capture_controller.h"
+#include "free_space.h"
 
 namespace ddd::gui {
 
@@ -81,6 +83,19 @@ StatisticsPanel::StatisticsPanel(CaptureController* controller, QWidget* parent)
   samples_ = add_row(tr("Samples"), kSamplesLabelName);
   elapsed_ = add_row(tr("Elapsed"), kElapsedLabelName);
   written_ = add_row(tr("Written"), kWrittenLabelName);
+
+  backlog_ = add_row(tr("Encoder backlog"), kBacklogLabelName);
+  backlog_->setToolTip(
+      tr("Samples the FLAC encoder has taken but not yet written out. A steady "
+         "figure is the encoder keeping pace; one that climbs is the encoder "
+         "falling behind, which is a lower compression level rather than a "
+         "faster drive."));
+
+  space_ = add_row(tr("Space left"), kSpaceLabelName, true);
+  space_->setToolTip(
+      tr("How much longer the destination volume will hold a capture, at the "
+         "estimate of 40 MB/s a FLAC capture uses."));
+
   link_speed_ = add_row(tr("Link speed"), kLinkSpeedLabelName);
   gain_ = add_row(tr("Front-end gain"), kGainLabelName, true);
 
@@ -105,11 +120,18 @@ StatisticsPanel::StatisticsPanel(CaptureController* controller, QWidget* parent)
             });
   }
 
+  space_timer_ = new QTimer(this);
+  space_timer_->setInterval(kFreeSpaceIntervalMilliseconds);
+  connect(space_timer_, &QTimer::timeout, this,
+          &StatisticsPanel::RefreshFreeSpace);
+  space_timer_->start();
+  RefreshFreeSpace();
+
   ShowIdle();
 }
 
 void StatisticsPanel::OnStatsUpdated(const ddd::capture::CaptureStats& stats) {
-  Apply(PresentStatistics(stats, declared_gain_, link_));
+  Apply(PresentStatistics(stats, declared_gain_, link_, destination_space_));
 }
 
 void StatisticsPanel::OnMonitoringChanged(bool monitoring) {
@@ -129,12 +151,28 @@ void StatisticsPanel::OnDevicesChanged(
 
   link_ =
       selected != nullptr ? selected->speed : capture::DeviceSpeed::kUnknown;
-  gain_->setText(PresentIdleStatistics(declared_gain_, link_).front_end_gain);
-  link_speed_->setText(PresentIdleStatistics(declared_gain_, link_).link_speed);
+  const StatisticsView idle =
+      PresentIdleStatistics(declared_gain_, link_, destination_space_);
+  gain_->setText(idle.front_end_gain);
+  link_speed_->setText(idle.link_speed);
 }
 
 void StatisticsPanel::ShowIdle() {
-  Apply(PresentIdleStatistics(declared_gain_, link_));
+  Apply(PresentIdleStatistics(declared_gain_, link_, destination_space_));
+}
+
+void StatisticsPanel::RefreshFreeSpace() {
+  if (controller_ == nullptr) {
+    return;
+  }
+
+  destination_space_ = capture::AvailableSpace(
+      controller_->settings().ResolvedCaptureDirectory().toStdString());
+
+  // Only the one row, and only when nothing is running. During a run the next
+  // statistics tick redraws everything within fifty milliseconds anyway, and
+  // rebuilding the whole view here as well would be the same work twice.
+  space_->setText(FormatSpaceRemaining(destination_space_));
 }
 
 void StatisticsPanel::Apply(const StatisticsView& view) {
@@ -147,6 +185,8 @@ void StatisticsPanel::Apply(const StatisticsView& view) {
   samples_->setText(view.samples);
   elapsed_->setText(view.elapsed);
   written_->setText(view.bytes_written);
+  backlog_->setText(view.encoder_backlog);
+  space_->setText(view.space_remaining);
   link_speed_->setText(view.link_speed);
   gain_->setText(view.front_end_gain);
 

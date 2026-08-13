@@ -43,4 +43,6 @@ uint64_t FlacSink::BytesWritten() const { return writer_->BytesWritten(); }
 
 uint64_t FlacSink::SamplesWritten() const { return writer_->SamplesWritten(); }
 
+uint64_t FlacSink::SamplesPending() const { return writer_->SamplesPending(); }
+
 }  // namespace ddd::capture

@@ -263,6 +263,8 @@ void CapturePipeline::PublishStats() {
   stats.buffers_processed = buffers_processed_.load();
   stats.bytes_written = (sink_ != nullptr) ? sink_->BytesWritten() : 0;
   stats.samples_written = (sink_ != nullptr) ? sink_->SamplesWritten() : 0;
+  stats.samples_pending = (sink_ != nullptr) ? sink_->SamplesPending() : 0;
+  stats.writing = (sink_ != nullptr) && sink_->StoresData();
 
   if (stats.elapsed_seconds > 0.0) {
     stats.throughput_bytes_per_second =

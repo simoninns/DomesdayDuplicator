@@ -13,10 +13,13 @@ add_library(ddd_gui_lib STATIC
     about_dialog.cpp
     about_text.cpp
     amplitude_panel.cpp
+    analysis_cli.cpp
+    analysis_dialog.cpp
     analysis_worker.cpp
     application_logger.cpp
     capture_controller.cpp
     capture_panel.cpp
+    capture_failure_presenter.cpp
     capture_settings.cpp
     gain_choices.cpp
     log_message_model.cpp

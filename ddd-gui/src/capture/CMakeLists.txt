@@ -25,13 +25,16 @@ endif()
 add_library(ddd_capture STATIC
     ${ddd_capture_usb_sources}
     capture_format.cpp
+    capture_naming.cpp
     capture_pipeline.cpp
+    capture_provenance.cpp
     capture_reader.cpp
     device_monitor.cpp
     disk_buffer_ring.cpp
     firmware_version.cpp
     flac_sink.cpp
     flac_writer.cpp
+    free_space.cpp
     logger.cpp
     memory_lock.cpp
     monitor_tap.cpp
@@ -39,6 +42,7 @@ add_library(ddd_capture STATIC
     sample_sink.cpp
     sequence_validator.cpp
     synthetic_source.cpp
+    test_data_analysis.cpp
     test_pattern_verifier.cpp
     thread_priority.cpp
     transfer_result.cpp
