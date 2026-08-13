@@ -68,6 +68,13 @@
         pkgs:
         rec {
           gui = pkgs.qt6Packages.callPackage ./gui/package.nix { dddVersion = version; };
+
+          # The capture application being built to replace `gui`. Both are packaged while
+          # that is in progress: `gui` is the one that captures today, and removing it
+          # before its replacement has passed the hardware capture-integrity gate would
+          # leave the project with no working capture path at all.
+          ddd-gui = pkgs.qt6Packages.callPackage ./ddd-gui/package.nix { dddVersion = version; };
+
           docs-site = pkgs.callPackage ./docs/package.nix { };
 
           # fx3-mkimage is exposed rather than hidden inside the firmware derivation
@@ -97,6 +104,7 @@
         {
           default = import ./nix/shell.nix { inherit pkgs; };
           gui = import ./gui/shell.nix { inherit pkgs; };
+          ddd-gui = import ./ddd-gui/shell.nix { inherit pkgs; };
           fx3 = import ./fx3/shell.nix { inherit pkgs; };
           # Free tools only — lint and simulate the Verilog with no Quartus download.
           fpga = import ./fpga/shell.nix { inherit pkgs; };

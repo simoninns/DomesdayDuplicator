@@ -72,9 +72,18 @@ gateware, firmware, host software and documentation.
 | [fx3/firmware/](fx3/firmware/) | C, bare metal | `arm-none-eabi-gcc` + CMake | Cypress FX3 (ARM926EJ-S) on a **SuperSpeed Explorer Kit CYUSB3KIT-003**, which plugs into the main board's GPIF II headers — see [fx3/README.md](fx3/README.md) |
 | [fx3/programmer/](fx3/programmer/) | C | host compiler + CMake, libusb-1.0 | Developer machine |
 | [gui/](gui/) | C++20 | Qt 6.2+ + CMake | Developer / user machine |
+| [ddd-gui/](ddd-gui/) | C++20 | Qt 6.5+ + CMake | Developer / user machine |
 | [docs/](docs/) | Markdown | MkDocs + Material | GitHub Pages |
 
 Five toolchains, four target architectures. Assume nothing transfers between them.
+
+`gui/` and `ddd-gui/` are two capture applications, deliberately, for now. `gui/` is the
+one that captures today. `ddd-gui/` is its replacement, built to
+[docs-tech/ddd-gui-implementation-plan.md](docs-tech/ddd-gui-implementation-plan.md) and
+not yet a supported capture path; it replaces `gui/` once it has passed the §5 hardware
+capture-integrity procedure in [TESTING.md](TESTING.md). Until then, **do not delete
+`gui/`, and do not port changes between them by reflex** — they have different code
+styles (`ddd-gui/` is Google style, gate-enforced) and different architectures.
 
 ### 1.2 Repository layout
 
@@ -134,6 +143,16 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 │   └── src/
 │       ├── DomesdayDuplicator/  # the capture application
 │       └── common/              # Qt-free core: sample codec, FLAC writer, reader, analyser
+├── ddd-gui/                   # the replacement capture application (see §1.1)
+│   ├── CMakeLists.txt         # build definition, and the clang-format/clang-tidy gates
+│   ├── .clang-format          # BasedOnStyle: Google
+│   ├── .clang-tidy            # google-*, bugprone-*, warnings as errors
+│   ├── src/
+│   │   ├── capture/           # ddd::capture — the engine. Qt-free, by rule
+│   │   └── gui/               # ddd::gui — Qt layer (static lib) plus main()
+│   └── tests/
+│       ├── unit/              # T1, engine. Links no Qt — that is the rule's enforcement
+│       └── gui/unit/          # T1, Qt layer, under a QCoreApplication
 └── hardware/
     ├── pcb/                   # KiCad project
     └── doc/
@@ -347,6 +366,10 @@ Per-editor instructions — VS Code, Neovim, Emacs, Helix, Qt Creator, CLion, KD
 # GUI (Qt 6 + libusb)
 cmake -B gui/build -S gui && cmake --build gui/build
 
+# Capture application (Qt 6). The build runs clang-format and clang-tidy as gates; pass
+# -DDDD_ENABLE_CLANG_FORMAT=OFF -DDDD_ENABLE_CLANG_TIDY=OFF on a machine without them.
+cmake -B ddd-gui/build -S ddd-gui && cmake --build ddd-gui/build
+
 # FX3 firmware (cross-compiled). Add -DFIRMWARE_VERSION=<hash> outside a git checkout.
 cmake -B fx3/firmware/build -S fx3/firmware \
       -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake
@@ -378,8 +401,11 @@ nix flake check                    # everything, on a clean machine
 ctest --test-dir gui/build         # one component
 ```
 
-**What exists today: 78 tests across four components** — 21 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec), 24 in `fx3/programmer/` (EEPROM paging arithmetic,
+**What exists today: 124 tests across five components** — 21 in `gui/` (UTF-8 conversion, the
+10-bit/16-bit sample codec), 46 in `ddd-gui/` (the engine logging seam, theme resolution,
+the log model, the engine-to-GUI logging bridge, the About text's build provenance, and the
+dock panel framework with its layout persistence — no device or capture code exists there
+yet), 24 in `fx3/programmer/` (EEPROM paging arithmetic,
 secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and one
 golden test in `fx3/firmware/` (the generated USB product descriptor). `fpga/` adds three
 Verilog testbenches, a `-Wall` lint pass over five modules and a bitstream-digest test, none

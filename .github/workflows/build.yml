@@ -48,6 +48,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       gui: ${{ steps.decide.outputs.gui }}
+      # No dash in the name: GitHub expression syntax would read `outputs.ddd-gui` as a
+      # subtraction.
+      dddgui: ${{ steps.decide.outputs.dddgui }}
       fx3: ${{ steps.decide.outputs.fx3 }}
       fpga: ${{ steps.decide.outputs.fpga }}
       docs: ${{ steps.decide.outputs.docs }}
@@ -67,6 +70,9 @@ jobs:
             gui:
               - *shared
               - gui/**
+            dddgui:
+              - *shared
+              - ddd-gui/**
             fx3:
               - *shared
               - fx3/**
@@ -89,6 +95,7 @@ jobs:
             echo "Pull request: building only what changed"
             {
               echo "gui=${{ steps.filter.outputs.gui }}"
+              echo "dddgui=${{ steps.filter.outputs.dddgui }}"
               echo "fx3=${{ steps.filter.outputs.fx3 }}"
               echo "fpga=${{ steps.filter.outputs.fpga }}"
               echo "docs=${{ steps.filter.outputs.docs }}"
@@ -96,7 +103,7 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           else
             echo "Building everything for ${GITHUB_REF} (${GITHUB_EVENT_NAME})"
-            for component in gui fx3 fpga docs; do
+            for component in gui dddgui fx3 fpga docs; do
               echo "${component}=true" >> "$GITHUB_OUTPUT"
             done
             echo "everything=true" >> "$GITHUB_OUTPUT"
@@ -121,6 +128,9 @@ jobs:
           - component: gui
             enabled: gui
             attrs: .#gui
+          - component: ddd-gui
+            enabled: dddgui
+            attrs: .#ddd-gui
           - component: fx3
             enabled: fx3
             attrs: .#fx3-firmware .#fx3-programmer
@@ -288,6 +298,126 @@ jobs:
             build/bin/DomesdayDuplicator
             build/bin/DomesdayDuplicator.exe
             build/bin/DomesdayDuplicator.app/**
+          retention-days: 30
+          if-no-files-found: error
+
+  # The capture application being built to replace gui/. The same three platforms as
+  # gui-native, and for the same reason: Nix cannot produce the Windows binary, and the
+  # native toolchains are what a user actually installs.
+  #
+  # Its two quality gates run here and not in the Nix build — the packaging sandbox has an
+  # unrelated clang-format and an unwrapped clang-tidy — so this job is the only place
+  # where a formatting or lint regression is caught.
+  ddd-gui-native:
+    name: Capture application (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.dddgui == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            runner: ubuntu-latest
+          - name: macos-arm64
+            runner: macos-latest
+          - name: windows-x64
+            runner: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build pkg-config libgl-dev clang-tidy clang-format \
+            qt6-base-dev qt6-tools-dev libgtest-dev
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake ninja pkg-config qt@6 googletest llvm
+
+      - name: Set up MSYS2 (Windows)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-gtest
+            mingw-w64-ucrt-x86_64-clang-tools-extra
+
+      - name: Configure and build (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [[ "${RUNNER_OS}" == "macOS" ]]; then
+            export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
+            export PATH="$(brew --prefix llvm)/bin:${PATH}"
+          fi
+          cmake -B build -S ddd-gui -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DDDD_VERSION="${GITHUB_SHA:0:8}"
+          cmake --build build
+
+      - name: Configure and build (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cmake -B build -S ddd-gui -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DDDD_VERSION="${GITHUB_SHA:0:8}"
+          cmake --build build
+
+      # T1 on every platform. T5 never runs here: it needs a physical device, and a test
+      # that "passes" because no hardware was attached is worse than no test.
+      - name: Test (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export QT_QPA_PLATFORM=offscreen
+          ctest --test-dir build --output-on-failure --label-exclude 'hil'
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: ctest --test-dir build --output-on-failure --label-exclude 'hil'
+
+      # The version has to survive into the binary, or a released artefact cannot be traced
+      # to the commit that produced it. Checked here rather than only in the Nix build,
+      # because the native build is the one the installers are made from.
+      - name: Check the reported version (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export QT_QPA_PLATFORM=offscreen
+          reported=$(./build/bin/ddd-gui --version)
+          echo "ddd-gui: ${reported}"
+          case "${reported}" in
+            *"${GITHUB_SHA:0:8}"*) ;;
+            *) echo "Version not carried into the binary" >&2; exit 1 ;;
+          esac
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddd-gui-${{ matrix.name }}-${{ github.sha }}
+          # One pattern per platform layout, and only one of them matches on any given
+          # runner. The macOS entry is a directory because the target is MACOSX_BUNDLE.
+          path: |
+            build/bin/ddd-gui
+            build/bin/ddd-gui.exe
+            build/bin/ddd-gui.app/**
           retention-days: 30
           if-no-files-found: error
 

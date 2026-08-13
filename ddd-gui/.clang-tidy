@@ -1,0 +1,3 @@
+Checks: '-*,google-*,bugprone-*,-bugprone-easily-swappable-parameters,-bugprone-exception-escape,modernize-use-override'
+WarningsAsErrors: '*'
+HeaderFilterRegex: 'ddd-gui/(src|tests)/'

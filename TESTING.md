@@ -3,7 +3,7 @@
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 78 across four
+reorganisation there were **no automated tests at all**. There are now 124 across five
 components, plus three gateware testbenches, a lint pass over five Verilog modules, a static
 check on the documentation site and a licence-header check over the whole tree. That is a
 start, not a suite, and this document says so where it applies rather than describing an
@@ -65,6 +65,20 @@ ctest --test-dir gui/build -L unit            # one tier
 ctest --test-dir gui/build -LE hil            # everything except hardware
 ctest --test-dir gui/build --output-on-failure
 ```
+
+`ddd-gui/` works the same way, with the same tier labels:
+
+```bash
+cmake -B ddd-gui/build -S ddd-gui
+cmake --build ddd-gui/build
+ctest --test-dir ddd-gui/build -L unit
+```
+
+Its build additionally runs clang-format and clang-tidy as gates, so a formatting or lint
+regression fails the build before any test runs. That is deliberate — it is a new component
+and can afford to be held to it from the first file — but it means the build needs those
+tools present. `-DDDD_ENABLE_CLANG_FORMAT=OFF -DDDD_ENABLE_CLANG_TIDY=OFF` turns them off
+where they are unavailable, which is what the Nix package does.
 
 Tests are built by default. Pass `-DBUILD_TESTING=OFF` to skip them — the Nix packages do
 this when `doCheck` is false.

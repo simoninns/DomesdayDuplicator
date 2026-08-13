@@ -196,15 +196,37 @@ View → Theme menu with Auto/Light/Dark radio actions.
 dock given an `objectName` for state persistence. View → Panels submenu populated from the
 docks' `toggleViewAction()`s; docks float (pop out) natively. Initial panels are
 placeholders: Capture, Statistics, Waveform, Spectrum, Amplitude History, Log (Log starts
-hidden). Menus: File → Exit, View (Panels, Theme), Help → About (version from
-`DDD_VERSION`). Window geometry and dock layout saved in `closeEvent` via
-`saveGeometry`/`saveState` and restored on start; QSettings identity set once in `main`.
-A `--debug` CLI switch and a Log panel fed through a small logger seam (`ILogger`-style,
-so engine code never links Qt for logging).
+hidden). Menus: File → Exit, View (Panels, Theme), Help → About. Window geometry and dock
+layout saved in `closeEvent` via `saveGeometry`/`saveState` and restored on start;
+QSettings identity set once in `main`. A `--debug` CLI switch and a Log panel fed through
+a small logger seam (`ILogger`-style, so engine code never links Qt for logging).
+
+**The About dialog must display the build's commit hash** — the injected `DDD_VERSION`,
+the same string `--version` reports. This is a requirement rather than a courtesy, and it
+is why there are deliberately two routes to it:
+
+- A user reporting a capture problem has to be able to say which build produced it, and
+  the population that runs this application from a terminal is not the population most
+  likely to hit a hardware problem. "Help → About, read me the version" works over a
+  forum post; "run it with `--version`" often does not.
+- The command line is not always available. On Windows the application is linked as a GUI
+  subsystem executable, so `--version` writes to a console that is not attached and the
+  user sees nothing at all. Making the About dialog carry the hash is what stops the
+  most-installed platform being the one where a binary cannot be identified.
+- The same string reaches a capture's own metadata (the `DDD_VERSION` Vorbis comment,
+  Task 5.1), so a file, a dialog and a shell all name the same commit and can be checked
+  against each other.
+
+The text is built by a pure function so the requirement can be tested rather than
+eyeballed; a dialog is otherwise modal and untestable.
 
 **Acceptance criteria**
 - Any panel can be hidden, shown, docked, floated and re-docked from the View menu; the
   arrangement survives restart.
+- The About text contains the build version, asserted by a T1 test, and that text is what
+  the dialog shows. `--version` and About report the same string.
+- A build with `-DDDD_VERSION=` set shows that value in About; a build that could not
+  determine one shows `unknown` rather than an empty or absent version line.
 - Shell runs and quits cleanly headless-CI-safe tests aside on Linux, and compiles for
   Windows and macOS (CI proof arrives with Task 1.4).
 
@@ -212,13 +234,20 @@ so engine code never links Qt for logging).
 
 Add `ddd-gui/package.nix` and `ddd-gui/shell.nix`, wire them into the root `flake.nix` (packages,
 dev shell, checks) without adding any component flake (AGENTS.md §7 one-flake rule). Add
-`ddd-gui` to the native CI build matrix beside `gui` for Linux x64/ARM64, Windows x64, macOS
-x64/ARM64. The release workflow's `unknown`-version guard applies to `ddd-gui` too.
+`ddd-gui` to the native CI build matrix beside `gui`, on the same runners the existing
+`gui-native` job uses — Linux x64, macOS ARM64 and Windows x64. That is the project's
+whole runner set; there is no ARM64 Linux or x64 macOS job anywhere in the tree today, and
+inventing one here would be a change to the project's CI strategy rather than a step in
+this plan. The release workflow's `unknown`-version guard applies to `ddd-gui` too.
+
+The two quality gates run in this native job and *not* in the Nix build, so this is the
+only place a formatting or lint regression is caught.
 
 **Acceptance criteria**
 - `nix build .#ddd-gui` and `nix flake check` pass; `gui` outputs are unchanged.
-- CI produces `ddd-gui` artefacts for all five targets on every commit.
-- A build without `.git` and with `-DDDD_VERSION=` set reports the injected version.
+- CI produces `ddd-gui` artefacts for all three targets on every commit.
+- A build without `.git` and with `-DDDD_VERSION=` set reports the injected version, and
+  CI fails if it does not.
 
 ---
 
@@ -529,7 +558,7 @@ Every user-facing feature of [gui/](../gui/), with where it lands. Four disposit
 | WinUSB backend | Phase 3 |
 | Window/dialog geometry persistence | Phase 1 (docks + geometry) |
 | Debug logging switch | Phase 1 |
-| About dialog with injected version | Phase 1 |
+| About dialog with injected version | Phase 1 — and now a stated requirement: it is the second route to the build's commit hash, and the only one that works on Windows (Task 1.3) |
 | Settings persistence with versioned migration | Phase 1 onward (new settings file; migration *from* the old app's INI is **Future**, if ever wanted) |
 
 New in this plan, with no old-application equivalent: **monitor mode** (Phase 3), the
