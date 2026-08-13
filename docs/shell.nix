@@ -24,7 +24,8 @@
 { pkgs }:
 
 let
-  mkdocsEnv = pkgs.python312.withPackages (ps: [
+  # python3 rather than a pinned python3XX — see the note in package.nix.
+  mkdocsEnv = pkgs.python3.withPackages (ps: [
     ps.mkdocs
     ps.mkdocs-material
     ps.mkdocs-awesome-nav

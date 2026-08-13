@@ -11,11 +11,15 @@
 {
   lib,
   stdenvNoCC,
-  python312,
+  python3,
 }:
 
 let
-  mkdocsEnv = python312.withPackages (ps: [
+  # python3, the pin's default interpreter, rather than a pinned python3XX: only the default
+  # Python package set is built by Hydra and available from cache.nixos.org. Asking for a
+  # non-default interpreter makes the whole mkdocs stack build from source in CI, which is
+  # both slow and exposed to upstream flaky tests.
+  mkdocsEnv = python3.withPackages (ps: [
     ps.mkdocs
     ps.mkdocs-material
     ps.mkdocs-awesome-nav

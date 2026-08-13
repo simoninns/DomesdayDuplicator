@@ -84,7 +84,14 @@ jobs:
 
           APP="dist/DomesdayDuplicator.app"
           rm -rf dist && mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
-          cp build/bin/DomesdayDuplicator "${APP}/Contents/MacOS/"
+
+          # The target is MACOSX_BUNDLE, so the build tree already holds a minimal .app with
+          # a CMake-generated Info.plist. The executable is taken out of it and rebundled
+          # here rather than that bundle being shipped: the plist below is the one with the
+          # release version, the bundle identifier and the icon, and a release asset should
+          # not depend on what CMake happens to generate by default.
+          cp build/bin/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator \
+            "${APP}/Contents/MacOS/"
 
           # An .icns built from the PNG set already in the tree, rather than a second copy
           # of the artwork maintained for macOS alone.

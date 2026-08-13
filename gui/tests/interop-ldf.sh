@@ -29,7 +29,14 @@ BUILD_DIR="${1:-build}"
 SAMPLE_COUNT="${SAMPLE_COUNT:-4000000}"
 
 LDFGEN="${BUILD_DIR}/tests/tools/ddd-ldfgen"
+
+# The target is MACOSX_BUNDLE, so on macOS the executable sits inside an .app rather than
+# directly in bin. Without this, step 4 below would take the "not built" branch on every
+# macOS run and report a pass for a check that never ran.
 CAPTURE_APP="${BUILD_DIR}/bin/DomesdayDuplicator"
+if [[ ! -x "${CAPTURE_APP}" && -x "${BUILD_DIR}/bin/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator" ]]; then
+  CAPTURE_APP="${BUILD_DIR}/bin/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator"
+fi
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 skip() { echo "SKIP: $*" >&2; exit 77; }

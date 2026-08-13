@@ -44,11 +44,17 @@ pkgs.mkShell {
       qt6.qttools
       libusb1
 
+      # The .ldf capture output. Both are needed for the same reason gui/package.nix gives:
+      # without them the GUI does not configure in this shell at all, so the one component
+      # the shell exists to develop could only be built through the packaged derivation.
+      flac
+      libogg
+
       # FX3 firmware cross toolchain
       gcc-arm-embedded
 
       # generate-descriptor.sh, plus the documentation site toolchain
-      (python312.withPackages (ps: [
+      (python3.withPackages (ps: [
         ps.mkdocs
         ps.mkdocs-material
         ps.mkdocs-awesome-nav

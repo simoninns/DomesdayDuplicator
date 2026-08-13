@@ -66,9 +66,18 @@ if(WIN32)
     target_link_libraries(DomesdayDuplicator PRIVATE
         AdvAPI32
         cfgmgr32
-        onecoreuap
         winusb
     )
+
+    # OneCoreUAP.lib is an MSVC umbrella import library that mingw-w64 does not ship, so
+    # linking it unconditionally breaks the MSYS2/UCRT64 build that CI and the MSI use.
+    # Nothing here needs it there: every WinUsb_* and CM_* symbol this application calls
+    # resolves from winusb and cfgmgr32 above. The MSYS2 build previously got past this
+    # by generating an empty stub libonecoreuap.a with dlltool, which is the same thing
+    # as not linking it.
+    if(MSVC)
+        target_link_libraries(DomesdayDuplicator PRIVATE onecoreuap)
+    endif()
 endif()
 
 install(TARGETS DomesdayDuplicator

@@ -281,9 +281,13 @@ jobs:
           # Build artefacts, not release assets: the installers built by the packaging
           # workflows are what a release ships (P7-2).
           name: gui-${{ matrix.name }}-${{ github.sha }}
+          # One pattern per platform layout, and only one of them matches on any given
+          # runner. The macOS entry is a directory because the target is MACOSX_BUNDLE, so
+          # CMake writes an .app there rather than a bare executable.
           path: |
             build/bin/DomesdayDuplicator
             build/bin/DomesdayDuplicator.exe
+            build/bin/DomesdayDuplicator.app/**
           retention-days: 30
           if-no-files-found: error
 
