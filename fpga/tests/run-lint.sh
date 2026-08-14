@@ -33,6 +33,7 @@ modules=(
     DomesdayDuplicator
     buffer
     dataGenerator
+    fifo
     fx3StateMachine
     spiRegisters
 )

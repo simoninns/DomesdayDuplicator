@@ -33,6 +33,7 @@ trap 'rm -rf "$work"' EXIT
 # testbench:module under test
 benches=(
     "tb_dataGenerator:dataGenerator"
+    "tb_fifo:fifo"
     "tb_fx3StateMachine:fx3StateMachine"
     "tb_spiRegisters:spiRegisters"
 )

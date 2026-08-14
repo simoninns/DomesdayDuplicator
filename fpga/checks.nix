@@ -40,14 +40,14 @@ let
   };
 in
 {
-  # T4 — lint. verilator --lint-only over the five project-authored modules.
+  # T4 — lint. verilator --lint-only over the six project-authored modules.
   lint = runCommand "ddd-fpga-lint" { nativeBuildInputs = [ verilator ]; } ''
     bash ${src}/tests/run-lint.sh
     touch $out
   '';
 
   # T4 — style. verible-verilog-format --verify and verible-verilog-lint over the
-  # five project-authored modules and the three testbenches.
+  # six project-authored modules and the four testbenches.
   #
   # Separate from `lint` because the two answer different questions and fail for
   # different reasons: verilator asks whether the design is correct, verible asks
@@ -58,7 +58,7 @@ in
     touch $out
   '';
 
-  # T3 — simulation. The three module testbenches, under Icarus Verilog.
+  # T3 — simulation. The four module testbenches, under Icarus Verilog.
   sim = runCommand "ddd-fpga-sim" { nativeBuildInputs = [ iverilog ]; } ''
     bash ${src}/tests/run-sim.sh
     touch $out

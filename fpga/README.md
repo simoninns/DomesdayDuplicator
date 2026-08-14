@@ -26,6 +26,7 @@ Inside `src/`:
 | `DomesdayDuplicator.SDC` | Timing constraints |
 | `dataGenerator.v` | ADC sampling and the built-in test-data generator |
 | `buffer.v` | Sample buffering between the ADC and FX3 clock domains |
+| `fifo.v` | Single-clock FIFO. Written for the single-clock rework and **not yet instantiated** — see [docs-tech/single-clock-gateware-plan.md](../docs-tech/single-clock-gateware-plan.md) |
 | `fx3StateMachine.v` | GPIF II handshake with the FX3 |
 | `spiRegisters.v` | The register bank the FX3 reads and writes over SPI |
 | `version.vh` | Generated build stamp the register bank reports; regenerated into the build directory by `generate-version.sh` |
@@ -54,9 +55,9 @@ nix develop .#fpga        # verible, verilator, iverilog, gtkwave — no Quartus
 ```
 
 ```bash
-./tests/run-lint.sh       # T4: verilator --lint-only over the five hand-written modules
+./tests/run-lint.sh       # T4: verilator --lint-only over the six hand-written modules
 ./tests/run-style.sh      # T4: formatting and style, via verible
-./tests/run-sim.sh        # T3: the three module testbenches, under Icarus Verilog
+./tests/run-sim.sh        # T3: the four module testbenches, under Icarus Verilog
 ./tests/run-version.sh    # T2: the commit-to-register version stamp generator
 ./tests/run-format.sh     # not a check — the formatter, run it to fix run-style.sh
 ```
