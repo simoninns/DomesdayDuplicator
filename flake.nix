@@ -143,6 +143,7 @@
           fpga-lint = fpgaChecks.lint;
           fpga-style = fpgaChecks.style;
           fpga-sim = fpgaChecks.sim;
+          fpga-sdc = fpgaChecks.sdc;
           fpga-provenance = fpgaChecks.provenance;
           fpga-version = fpgaChecks.version;
           licence-headers = repoChecks.licence-headers;

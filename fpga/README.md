@@ -23,7 +23,7 @@ Inside `src/`:
 | `DomesdayDuplicator.v` | Top level: pin mapping and module wiring |
 | `DomesdayDuplicator.qsf` | Quartus settings — device, pin assignments, source list |
 | `DomesdayDuplicator.qpf` | Quartus project file |
-| `DomesdayDuplicator.SDC` | Timing constraints |
+| `DomesdayDuplicator.SDC` | Timing constraints. Checked by `tests/run-sdc.sh`; the I/O delay values in its header are pessimistic placeholders pending the datasheets |
 | `dataGenerator.v` | ADC sampling and the built-in test-data generator |
 | `buffer.v` | Sample buffering between the sampling side and the FX3 |
 | `fifo.v` | The single-clock FIFO `buffer.v` is built from |
@@ -31,18 +31,20 @@ Inside `src/`:
 | `spiRegisters.v` | The register bank the FX3 reads and writes over SPI |
 | `version.vh` | Generated build stamp the register bank reports; regenerated into the build directory by `generate-version.sh` |
 | `IPpllGenerator.v` | Instantiation of the Altera `altpll` primitive |
-| `IPfifo.v` | Instantiation of the Altera `dcfifo` primitive. **No longer instantiated** — `fifo.v` replaced it; kept until the phase 5 cleanup |
 
 ## The generated IP is source, not wizard output
 
-`IPfifo.v` and `IPpllGenerator.v` are committed as plain Verilog with explicit `defparam`
-values. They instantiate Altera primitives, but they are ordinary source files — nothing in
-the build regenerates them, so **MegaWizard is not needed to build the project**, and the
-GPIF II Designer equivalent for the FX3 side is likewise a design-time tool only.
+`IPpllGenerator.v` is committed as plain Verilog with explicit `defparam` values. It
+instantiates an Altera primitive, but it is an ordinary source file — nothing in the build
+regenerates it, so **MegaWizard is not needed to build the project**, and the GPIF II
+Designer equivalent for the FX3 side is likewise a design-time tool only.
 
-Change FIFO depth or PLL multiply/divide by editing the `defparam` block directly. `dcfifo`
-and `altpll` are ordinary instantiable megafunctions; the wizard only ever wrote these files
-out.
+Change the PLL multiply/divide by editing the `defparam` block directly. `altpll` is an
+ordinary instantiable megafunction; the wizard only ever wrote the file out. The 80 MHz
+system clock was retuned that way, without the wizard.
+
+There used to be a second one, `IPfifo.v`, wrapping `dcfifo`. `fifo.v` replaced it — see
+[docs-tech/single-clock-gateware-plan.md](../docs-tech/single-clock-gateware-plan.md).
 
 `IPpllGenerator.ppf` is a wizard *parameter* file, listed in the project as a `MISC_FILE`. It
 plays no part in compilation.
@@ -59,13 +61,14 @@ nix develop .#fpga        # verible, verilator, iverilog, gtkwave — no Quartus
 ./tests/run-lint.sh       # T4: verilator --lint-only over the six hand-written modules
 ./tests/run-style.sh      # T4: formatting and style, via verible
 ./tests/run-sim.sh        # T3: the five module testbenches, under Icarus Verilog
+./tests/run-sdc.sh        # T4: the timing constraints parse and cover every pin
 ./tests/run-version.sh    # T2: the commit-to-register version stamp generator
 ./tests/run-format.sh     # not a check — the formatter, run it to fix run-style.sh
 ```
 
-All four checks run unchanged as `nix flake check` checks (`fpga-lint`, `fpga-style`,
-`fpga-sim`, `fpga-version`), and they are the only automated coverage the gateware gets in
-CI — bitstream builds cannot run there.
+All five checks run unchanged as `nix flake check` checks (`fpga-lint`, `fpga-style`,
+`fpga-sim`, `fpga-sdc`, `fpga-version`), and they are the only automated coverage the
+gateware gets in CI — bitstream builds cannot run there.
 
 ## Style
 
@@ -103,9 +106,8 @@ hardware.
 
 **What is not covered:** the top level, because it instantiates `altpll` through
 `IPpllGenerator` and simulating that needs Altera's `altera_mf` library, which has no free
-model. `IPfifo.v` and `IPpllGenerator.v` are not even linted for the same reason; the
-black-box declarations beside them (`IPfifo_bb.v`, `IPpllGenerator_bb.v`) are what let the
-modules that instantiate the IP elaborate.
+model. `IPpllGenerator.v` is not even linted for the same reason; the black-box declaration
+beside it (`IPpllGenerator_bb.v`) is what lets the top level elaborate.
 
 `buffer.v` used to be exempt for the same reason — it was two `dcfifo` instances — and
 replacing that IP with `fifo.v` is what brought the capture path into the testbench suite.

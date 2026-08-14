@@ -40,10 +40,10 @@ lint_waivers="$fpga/verible-waivers"
 
 # The project-authored sources, named rather than globbed.
 #
-# Globbing src/*.v would pull in IPfifo.v, IPfifo_bb.v, IPpllGenerator.v and
-# IPpllGenerator_bb.v. Those are MegaWizard output that AGENTS.md section 3 treats as
-# source of truth and says not to reformat, so a regeneration must not be able to drag
-# vendor output into this gate by appearing in a wildcard.
+# Globbing src/*.v would pull in IPpllGenerator.v and IPpllGenerator_bb.v. Those are
+# MegaWizard output that AGENTS.md section 3 treats as source of truth and says not to
+# reformat, so a regeneration must not be able to drag vendor output into this gate by
+# appearing in a wildcard.
 #
 # version.vh is absent for a different reason: it is written by generate-version.sh,
 # so the generator's heredoc is what has to produce the right layout. The

@@ -4,7 +4,8 @@ Plan for restructuring the FPGA gateware from two clock domains joined by a
 proprietary dual-clock FIFO into a single clock domain with a locally
 implemented FIFO and a clock-enable-decimated sampling path.
 
-- Status: phases 1 to 3 implemented; phases 4 to 6 outstanding
+- Status: phases 1 to 5 implemented. What is left needs hardware: the phase 4
+  gate (a Quartus timing run) and phase 6 (capture validation on a board)
 - Scope: `fpga/` only. No FX3 firmware change expected; docs and tests updated
   alongside. The external contracts (GPIF protocol, SPI register map, sample
   data format) are unchanged.
@@ -282,49 +283,101 @@ because that is what a reset synchroniser is. The rule fires on every correct
 implementation of the structure, so it is waived by the names of the nets
 rather than for the file.
 
-### Phase 4 — timing constraints (the real ones)
+### Phase 4 — timing constraints — **written, not yet verified**
 
-Replace the two-line SDC with:
+The two-line SDC is replaced. All six items are done: the 50 MHz input clock
+and `derive_pll_clocks`; generated clocks on both pins that carry a clock out
+of the FPGA (`GPIO0[33]` for the ADC, `GPIO1[31]` for `PCLK`); input delays on
+the ADC databus with the multicycle exception the ÷2 enable cadence needs;
+output delays on the FX3 databus and its two flags, and an input delay on
+`readData`; and false paths on the SPI link, `nReset`, the LEDs and the FX3
+control lines the board wires up but the design does not use. The
+`FAST_OUTPUT_REGISTER` assignment on `GPIO0[33]` that phase 3 deferred is in
+the `.qsf`.
 
-1. `create_clock` 50 MHz input; `derive_pll_clocks`.
-2. `create_generated_clock` on the ADC clock output pin (÷2 of the PLL clock,
-   from the divider FF). Also add the `FAST_OUTPUT_REGISTER` instance
-   assignment on `GPIO0[33]` that phase 3 was to have added: it puts the
-   divider in the pin's I/O register so the ADC clock edge is
-   register-determined rather than routing-determined. It was deferred to here
-   because it is a placement decision that only means anything once there are
-   constraints to judge it against, and because Quartus duplicates the
-   register to keep driving `sample_enable` in the fabric — which is correct,
-   but is worth reading in a fitter report rather than assuming.
-3. `create_generated_clock` on the `PCLK` pin (mirror of the 80 MHz clock).
-4. `set_input_delay` on `adc_databus[9:0]` vs the ADC generated clock, from
-   the ADS825 datasheet (output delay/hold), plus a multicycle exception
-   matching the ÷2 enable cadence.
-5. `set_output_delay` on the FX3 databus, `dataAvailable`, `bufferError` vs
-   the `PCLK` generated clock, from FX3 sync-slave setup/hold (tS = 2 ns,
-   tH = 0.5 ns); `set_input_delay` on `readData` (FX3 CTL output delay).
-6. SPI and LED pins false-pathed (async, already synchronised in fabric).
+**The numbers in it are not datasheet values.** The ADS825, 74LVTH541 and
+CYUSB3014 datasheets were not available, so every external delay is set to a
+*pessimistic bound* rather than a guess at the true figure: each external
+delay is larger than any plausible real value and each setup and hold
+requirement is tighter than the published one. The consequence is the useful
+one — **if timing closes with these numbers it closes with the real ones**, so
+a clean report can be believed; a failing one means the numbers are the first
+thing to check, not the design. They live in a single block at the head of the
+file, each saying what it stands for and what to look up.
 
-Gate: Quartus timing analysis clean at 80 MHz on all constrained paths. The
-FX3 input path (`readData` arrives ~7.5 ns after the `PCLK` edge, leaving
-~5 ns before the next 80 MHz edge) is the tightest — it is expected to close
-(the design already re-registers `readData` and the GPIF protocol tolerates
-the extra cycle), but if it does not, capture it on the falling edge or adjust
-`PCLK` phase in the PLL, both purely FPGA-side fixes.
+One thing the plan had not accounted for: the ADC databus does not run
+straight from the converter to the FPGA. It passes through two 74LVTH541
+buffers, put there to keep the ADC's switching noise off the analogue front
+end, so the input delay is the converter's clock-to-data *plus* a buffer
+crossing. That is why the bound for it is set as high as 15 ns — which the
+path can afford, because the ÷2 decimation gives it a 25 ns budget rather than
+12.5 ns.
 
-### Phase 5 — cleanup and documentation
+Because the SDC is the one source file only Quartus consumes, and Quartus
+never runs in CI, it gained a check of its own — `tests/run-sdc.sh`, wired in
+as `nix flake check`'s `fpga-sdc`:
 
-The documentation half was done alongside phases 2 and 3, because a tree whose
+1. **It parses.** An SDC is plain Tcl, so `tclsh` sources it under stubs for
+   the constraint commands. Braces, brackets, line continuations, variable
+   references and `expr` are all proved well formed.
+2. **It is complete.** `tests/check-sdc.py` compares the SDC's port groups
+   against the pin mapping in the top level, by role. A constraint naming
+   fifteen of the sixteen databus pins leaves the sixteenth unanalysed, and
+   Quartus does not complain about a path nobody asked about — so that failure
+   is otherwise silent, and shows up as a capture intermittently wrong on one
+   bit.
+
+The check was held up the same way the testbenches were: an unbalanced brace,
+a databus pin dropped from a port group, and an asynchronous input left
+neither timed nor waived were each confirmed to fail it. The second and third
+escaped on the first attempt, because `check-sdc.py` was reading the real tree
+rather than the copy it was pointed at — a real bug in the check, found only
+because it was tested for failure.
+
+**Gate, still outstanding: Quartus timing analysis clean at 80 MHz.** Nothing
+available here can run it. The tightest path is expected to be `readData`,
+which arrives some 7.5 ns after the `PCLK` edge and leaves about 5 ns before
+the next 80 MHz edge; if it does not close, capture it on the falling edge or
+adjust the `PCLK` phase in the PLL, both purely FPGA-side fixes. The fitter
+report should also be read for two things phase 2 and 3 could only assert:
+that `fifo.v`'s memory infers as 32 M9K blocks rather than logic, and that the
+ADC clock divider was duplicated into the I/O register as intended.
+
+### Phase 5 — cleanup and documentation — **done**
+
+The documentation half landed alongside phases 2 and 3, because a tree whose
 prose describes a clock structure it no longer has is worse than one file left
-uncleaned: `fpga/README.md`, `run-sim.sh`'s coverage note, the hardware guide,
-the software guide and the register-interface page all now describe the single
-clock. What is left is the file deletion:
+uncleaned. This phase was the file deletion and the last of the stale prose.
 
-1. Delete `IPfifo.v`, `IPfifo_bb.v` and `IPfifo.qip`; purge from `.qsf`,
-   `.cof` and the `blackboxes` list in `run-lint.sh`. Nothing instantiates
-   them as of phase 2, so they cost no logic — they are only dead weight.
-2. Check `verible-waivers`/`verilator-waivers.vlt` for entries tied to the
-   deleted files (the three `*_bb.v` waivers become one file's worth).
+`IPfifo.v`, `IPfifo_bb.v` and `IPfifo.qip` are gone, and with them every
+reference: the `QIP_FILE` line in the `.qsf` (which would have failed the
+Quartus build the moment the file went), the black box passed to verilator in
+`run-lint.sh` (which would have failed the lint check), and the mentions in
+`run-style.sh`, `.verible-format`, `shell.nix`, `AGENTS.md`, `TESTING.md`,
+`fpga/README.md` and the licence-header exemption list. The three `*_bb.v`
+lint waivers are now scoped to `IPpllGenerator_bb.v` by name, since it is the
+only black box left and the waiver file's own rule is to scope as narrowly as
+the syntax allows.
+
+Three statements elsewhere in the tree had become **false** rather than merely
+stale, which is the part of this phase worth having done deliberately:
+
+- `TESTING.md` §6 listed a `buffer.v` testbench as planned work needing "a free
+  `dcfifo` model, or a hand-written stand-in for it". It exists. What closed it
+  was removing the primitive rather than modelling it — the option that section
+  had considered and rejected, for the good reason that a hand-written model of
+  a vendor primitive is a second implementation that can be wrong in the
+  direction that makes the test pass.
+- `TESTING.md`'s caveat on whole-design simulation said plainly that
+  "**`buffer.v` is untested**". Only the top level is now, and only because of
+  `altpll`.
+- `AGENTS.md` said `fpga/buffer.v` is deliberately uncovered and told the
+  reader not to describe the gateware as tested without that caveat. The
+  caveat now belongs to `DomesdayDuplicator.v` instead.
+
+Leaving those three would have been the worst outcome of the whole rework: a
+tree that under-reports its own coverage teaches the next person to distrust
+its documentation.
 
 ### Phase 6 — hardware validation
 

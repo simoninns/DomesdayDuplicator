@@ -29,23 +29,26 @@
 `verilator_config
 
 // ---------------------------------------------------------------------------
-// 1. The Altera black boxes
+// 1. The Altera black box
 // ---------------------------------------------------------------------------
 //
-// IPfifo_bb.v and IPpllGenerator_bb.v are port declarations with no bodies —
-// that is what a black box is. Verilator is right that nothing drives the
-// outputs and nothing reads the inputs, and it would be right about any black
-// box. They are linted rather than excluded because the top level and buffer.v
-// cannot elaborate without them, and linting the modules that instantiate the
-// IP is the point.
+// IPpllGenerator_bb.v is a port declaration with no body — that is what a black
+// box is. The linter is right that nothing drives the outputs and nothing reads
+// the inputs, and it would be right about any black box. It is linted rather
+// than excluded because the top level cannot elaborate without it, and linting
+// the module that instantiates the IP is the point.
 //
-// The real implementations, IPfifo.v and IPpllGenerator.v, instantiate dcfifo
-// and altpll from Altera's altera_mf library. Those have no free simulation
-// model, so they are not linted at all — see fpga/README.md.
+// The real implementation, IPpllGenerator.v, instantiates altpll from Altera's
+// altera_mf library, which has no free simulation model, so it is not linted at
+// all — see fpga/README.md.
+//
+// There were two of these until fifo.v replaced the dcfifo the buffer was built
+// on. One black box is left, so these are scoped to it by name rather than to
+// any file ending in _bb.v.
 
-lint_off -rule DECLFILENAME -file "*_bb.v"
-lint_off -rule UNUSEDSIGNAL -file "*_bb.v"
-lint_off -rule UNDRIVEN     -file "*_bb.v"
+lint_off -rule DECLFILENAME -file "*IPpllGenerator_bb.v"
+lint_off -rule UNUSEDSIGNAL -file "*IPpllGenerator_bb.v"
+lint_off -rule UNDRIVEN     -file "*IPpllGenerator_bb.v"
 
 // ---------------------------------------------------------------------------
 // 2. Project source

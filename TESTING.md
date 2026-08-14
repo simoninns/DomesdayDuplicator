@@ -445,11 +445,12 @@ Listed so this document can be read as a status report rather than a wish list.
 | --- | --- | --- |
 | CI test lanes | — | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
 | SPDX conversion of the remaining long-form headers | T4 | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
-| `buffer.v` testbench | T3 | Needs a free `dcfifo` model, or a hand-written stand-in for it. See the caveat below; not scheduled |
 
 The gateware items that used to be on this list are done: the `-Wall` lint pass and the
 `dataGenerator`, `fx3StateMachine` and `spiRegisters` testbenches are all in §4.7, and the
-licence-header check is in §4.8.
+licence-header check is in §4.8. So is the `buffer.v` testbench, which is here because it
+needed a free `dcfifo` model — replacing the IP with `fifo.v` removed the requirement
+rather than meeting it.
 
 Further GUI targets worth having, not yet scheduled: `amplitudemeasurement` (pure computation
 over a sample buffer), the `analysetestdata` logic itself (it is the host half of the §5
@@ -459,21 +460,27 @@ abstraction, so it can be mocked and the orchestration tested without hardware.
 
 ### A caveat on whole-design gateware simulation
 
-`DomesdayDuplicator.v` instantiates the Altera `dcfifo` and `altpll` primitives through
-`IPfifo.v` and `IPpllGenerator.v`. Full elaboration therefore needs vendor simulation models.
-Either stub them or restrict simulation to the surrounding logic — but say which in the
-testbench. Do not claim whole-design simulation is free, because it is not.
+`DomesdayDuplicator.v` instantiates the Altera `altpll` primitive through
+`IPpllGenerator.v`. Full elaboration therefore needs a vendor simulation model. Either stub
+it or restrict simulation to the surrounding logic — but say which in the testbench. Do not
+claim whole-design simulation is free, because it is not.
 
-Phase 6 took the second route, and the cost is worth stating plainly: **`buffer.v` is
-untested.** It is the ping-pong FIFO pair between the ADC and FX3 clock domains — two
-`dcfifo` instances, the overflow detection, and the switch between them — which makes it one
-of the two modules where a defect would show up as dropped samples rather than as a device
-that does not work. It is linted (against black-box declarations, so the instantiations are
-checked for arity and width) and it is covered on hardware by §5, and that is all.
+Everything below the top level *is* simulated. The buffer used to be exempt for the same
+reason — it was two `dcfifo` instances — and replacing that IP with `fifo.v` is what brought
+the capture path into the testbench suite.
 
-Writing a stand-in `dcfifo` would make it simulable, but a hand-written model of a vendor
-primitive is a second implementation that can itself be wrong in the direction that makes the
-test pass. That is a real piece of work, not a gap to close in passing.
+This used to cost more than the top level. `buffer.v` was the ping-pong `dcfifo` pair
+between the ADC and FX3 clock domains, so it was untested too — and it is one of the two
+modules where a defect shows up as dropped samples rather than as a device that does not
+work. The option considered at the time was to write a stand-in `dcfifo`, and it was
+rejected because a hand-written model of a vendor primitive is a second implementation that
+can itself be wrong in the direction that makes the test pass.
+
+What closed it was removing the primitive instead of modelling it: `fifo.v` is the
+project's own single-clock FIFO, so `buffer.v` and everything under it are now ordinary
+Verilog with ordinary testbenches. Only the top level is left needing `altpll`, and the
+only thing that reaches is the pin mapping and the clock generation, both of which §5
+covers on hardware.
 
 ## 7. Conventions for new tests
 

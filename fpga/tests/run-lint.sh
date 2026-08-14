@@ -24,11 +24,13 @@ fpga="$(dirname "$here")"
 src="${1:-$fpga/src}"
 waivers="$fpga/verilator-waivers.vlt"
 
-# The project-authored modules. IPfifo.v and IPpllGenerator.v are deliberately
-# absent: they instantiate Altera's dcfifo and altpll, which have no free
-# simulation model, so there is nothing to lint them against. The black-box
-# declarations beside them are enough for the modules that instantiate the IP
-# to elaborate.
+# The project-authored modules. IPpllGenerator.v is deliberately absent: it
+# instantiates Altera's altpll, which has no free simulation model, so there is
+# nothing to lint it against. The black-box declaration beside it is enough for
+# the top level, which is the only module that instantiates the IP.
+#
+# The FIFO used to need the same treatment. fifo.v replaced the dcfifo it was
+# built on, so it is an ordinary module in the list below.
 modules=(
     DomesdayDuplicator
     buffer
@@ -39,7 +41,6 @@ modules=(
 )
 
 blackboxes=(
-    "$src/IPfifo_bb.v"
     "$src/IPpllGenerator_bb.v"
 )
 

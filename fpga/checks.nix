@@ -19,6 +19,7 @@
   verible,
   iverilog,
   python3,
+  tcl,
 }:
 
 let
@@ -61,6 +62,16 @@ in
   # T3 — simulation. The five module testbenches, under Icarus Verilog.
   sim = runCommand "ddd-fpga-sim" { nativeBuildInputs = [ iverilog ]; } ''
     bash ${src}/tests/run-sim.sh
+    touch $out
+  '';
+
+  # T4 — timing constraints. The SDC is the only source file Quartus alone
+  # consumes, and Quartus never runs in CI, so before this check a mistyped
+  # constraint could sit in the tree until someone built a bitstream. tclsh
+  # proves it parses; check-sdc.py proves it names every pin the top level maps.
+  # Neither can say whether the numbers are right — that needs Quartus.
+  sdc = runCommand "ddd-fpga-sdc" { nativeBuildInputs = [ tcl python3 ]; } ''
+    bash ${src}/tests/run-sdc.sh
     touch $out
   '';
 

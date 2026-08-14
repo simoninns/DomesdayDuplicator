@@ -56,10 +56,8 @@ exempt=(
     # download. Provenance and the licence position are in fx3/sdk/README.md.
     "fx3/sdk"
 
-    # Quartus megafunction wizard output for dcfifo and altpll, carrying Altera's own
-    # copyright and licence terms.
-    "fpga/src/IPfifo.v"
-    "fpga/src/IPfifo_bb.v"
+    # Quartus megafunction wizard output for altpll, carrying Altera's own copyright
+    # and licence terms.
     "fpga/src/IPpllGenerator.v"
     "fpga/src/IPpllGenerator_bb.v"
 

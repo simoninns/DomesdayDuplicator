@@ -37,6 +37,10 @@ pkgs.mkShell {
 
     # Waveform viewer for the simulation output
     gtkwave
+
+    # The timing constraints are plain Tcl, so tclsh can parse them without
+    # Quartus — which is the only free check the SDC can be given.
+    tcl
   ];
 
   shellHook = ''
@@ -46,6 +50,7 @@ pkgs.mkShell {
     echo "  ./fpga/tests/run-sim.sh               run the testbenches (T3)"
     echo "  ./fpga/tests/run-style.sh             check formatting and style (T4)"
     echo "  ./fpga/tests/run-format.sh            reformat the sources in place"
+    echo "  ./fpga/tests/run-sdc.sh               check the timing constraints (T4)"
     echo "  ./fpga/tests/run-version.sh           check the version stamp generator (T2)"
     echo
     echo "Style settings live beside the sources and are what the checks read, so an"
@@ -59,9 +64,9 @@ pkgs.mkShell {
     echo "verible-verilog-ls finds .rules.verible_lint on its own, so an LSP-capable"
     echo "editor shows the same diagnostics the CI check enforces."
     echo
-    echo "IPfifo.v and IPpllGenerator.v instantiate Altera primitives with no free"
-    echo "simulation model, so they are neither linted nor simulated — the black-box"
-    echo "declarations beside them are what let the top level elaborate."
+    echo "IPpllGenerator.v instantiates an Altera primitive with no free simulation"
+    echo "model, so it is neither linted nor simulated — the black-box declaration"
+    echo "beside it is what lets the top level elaborate."
     echo
     echo "Bitstream builds need Quartus: nix develop .#fpga-quartus (x86_64-linux only)."
     echo

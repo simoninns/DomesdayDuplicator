@@ -9,10 +9,10 @@
 # disagree about what "formatted" means — the same argument .clang-format makes for
 # the C++ in ddd-gui/.
 #
-# Do not point this at fpga/src/IPfifo.v, IPfifo_bb.v, IPpllGenerator.v or
-# IPpllGenerator_bb.v. Those are MegaWizard output treated as source of truth and
-# AGENTS.md section 3 says not to reformat them; tests/run-format.sh names the files
-# it touches rather than globbing, for exactly that reason.
+# Do not point this at fpga/src/IPpllGenerator.v or IPpllGenerator_bb.v. Those are
+# MegaWizard output treated as source of truth and AGENTS.md section 3 says not to
+# reformat them; tests/run-format.sh names the files it touches rather than globbing,
+# for exactly that reason.
 
 # Four spaces, matching .editorconfig's [*.{v,sv,svh,vh}] indent_size = 4 and the C,
 # C++, Python and shell settings across the rest of the tree. This is a deliberate
