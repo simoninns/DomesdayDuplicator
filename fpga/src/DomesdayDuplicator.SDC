@@ -1,13 +1,13 @@
 #************************************************************************
-#	
-#	DomesdayDuplicator.SDC
-#	SDC file
-#	
-#	Domesday Duplicator - LaserDisc RF sampler
-#	SPDX-FileCopyrightText: 2018-2025 Simon Inns
-#	SPDX-License-Identifier: GPL-3.0-or-later
-#	
-#************************************************************************/
+#
+#    DomesdayDuplicator.SDC
+#
+#    Timing constraints
+#    Domesday Duplicator - LaserDisc RF sampler
+#    SPDX-FileCopyrightText: 2018-2026 Simon Inns
+#    SPDX-License-Identifier: GPL-3.0-or-later
+#
+#************************************************************************
 
 
 # Create 50MHz system Clock

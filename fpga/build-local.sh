@@ -3,7 +3,7 @@
 # Build the bitstream locally, out of tree.
 #
 # Domesday Duplicator - LaserDisc RF sampler
-# SPDX-FileCopyrightText: 2018-2025 Simon Inns
+# SPDX-FileCopyrightText: 2018-2026 Simon Inns
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 #   nix develop .#fpga-quartus -c ./fpga/build-local.sh

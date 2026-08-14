@@ -231,10 +231,40 @@ Unique to this project, and non-negotiable:
 
 ### 5.3 Verilog (`fpga/`)
 
-- Follow the existing style: `lowerCamelCase` signal names, `always @(posedge clock)`.
-- Explicit widths on all literals.
+The style guide is the [lowRISC Verilog Coding Style Guide](https://github.com/lowRISC/style-guides/blob/master/VerilogCodingStyle.md),
+enforced by Verible from config checked in beside the sources. Its four recorded deviations,
+and the reasoning behind the whole thing, are in
+[docs-tech/fpga-verilog-style-plan.md](docs-tech/fpga-verilog-style-plan.md).
+
+**Do not hand-format Verilog.** `./fpga/tests/run-format.sh` is the formatter and
+`fpga/.verible-format` is its only configuration.
+
+| Kind | Convention | Example |
+| --- | --- | --- |
+| Nets, variables, ports | `lower_snake_case` | `spi_chip_select_n`, `buffer_overflow` |
+| Active-low signals | trailing `_n` | `reset_n` |
+| `parameter` / `localparam` | `UpperCamelCase` | `BufferSize`, `StateSendPacket` |
+| Testbench constants | `ALL_CAPS` permitted | `RAMP_LENGTH` |
+| Macros / `` `define `` | `ALL_CAPS` | `GATEWARE_COMMIT_TEXT` |
+| Module instances | `lower_snake_case` | `spi_registers_0` |
+| Module and file names | left as they are | `spiRegisters`, `fx3StateMachine` |
+
+- **Top-level ports keep their board names** — `CLOCK_50`, `GPIO0`, `GPIO1`, `LED`. They are
+  the DE0-Nano's own names and `DomesdayDuplicator.qsf` binds them across 164 lines of pin
+  assignment; a rename with a typo yields a board that programs and drives the wrong pin.
+  Waived by name in `fpga/verible-waivers`.
+- Verilog-2001, not SystemVerilog: `reg`/`wire` and `always @(posedge clock)`. The `.qsf`
+  declares every file `VERILOG_FILE` and Quartus Prime Lite's SystemVerilog support is partial.
+- Explicit widths on all literals, and on every `parameter`/`localparam` — a width
+  (`localparam [13:0] BufferSize`) or `integer` for a pure count. This one is **not** machine
+  checked: Verible's `explicit-parameter-storage-type` wants a SystemVerilog storage type and
+  is disabled with its reasoning in `fpga/.rules.verible_lint`. Review is the gate.
+- `begin`/`end` on every `if`/`else` body, however short — without it the formatter collapses
+  short bodies onto one line and the layout starts depending on signal-name length.
+- Licence headers follow §5.4; the canonical Verilog form is in the style plan, §1.3.
 - `./fpga/tests/run-lint.sh` must pass. It runs `verilator --lint-only -Wall`, so new code is
   held to the whole warning set.
+- `./fpga/tests/run-style.sh` must pass. It checks formatting and the style rules.
 - **Do not silence a lint finding without a reason.** `fpga/verilator-waivers.vlt` waives
   nine pre-existing findings, each with a written justification and each pinned by a
   testbench. A waiver with no reason is indistinguishable from a bug someone hid.

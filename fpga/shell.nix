@@ -44,9 +44,20 @@ pkgs.mkShell {
     echo
     echo "  ./fpga/tests/run-lint.sh              lint the hand-written modules (T4)"
     echo "  ./fpga/tests/run-sim.sh               run the testbenches (T3)"
+    echo "  ./fpga/tests/run-style.sh             check formatting and style (T4)"
+    echo "  ./fpga/tests/run-format.sh            reformat the sources in place"
+    echo "  ./fpga/tests/run-version.sh           check the version stamp generator (T2)"
     echo
-    echo "  verible-verilog-lint fpga/src/*.v            style lint"
-    echo "  verible-verilog-format --inplace <file>      format"
+    echo "Style settings live beside the sources and are what the checks read, so an"
+    echo "editor, the dev shell and CI cannot disagree about them:"
+    echo
+    echo "  fpga/.verible-format                  formatter settings"
+    echo "  fpga/.rules.verible_lint              style rules, and the departures from"
+    echo "                                        Verible's defaults, each with a reason"
+    echo "  fpga/verible-waivers                  narrow per-case exceptions"
+    echo
+    echo "verible-verilog-ls finds .rules.verible_lint on its own, so an LSP-capable"
+    echo "editor shows the same diagnostics the CI check enforces."
     echo
     echo "IPfifo.v and IPpllGenerator.v instantiate Altera primitives with no free"
     echo "simulation model, so they are neither linted nor simulated — the black-box"

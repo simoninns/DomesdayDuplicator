@@ -381,15 +381,18 @@ same files. Without that, a local run would header-check every `moc_*.cpp` in `g
 **This is the most important test in the project, and it is manual.**
 
 The parts have existed for years without being written down. `dataGenerator.v` contains a
-built-in test-pattern generator: when `testModeFlag` is asserted — `fx3_testMode` is
-`fx3_control[05]`, settable by the host over the FX3 control interface — the FPGA substitutes
-a counter ramp for real ADC data:
+built-in test-pattern generator: when `test_mode_flag` is asserted — `fx3_test_mode` comes
+from the SPI register bank at register `0x10`, settable by the host over the FX3 control
+interface — the FPGA substitutes a counter ramp for real ADC data:
 
 ```verilog
-assign dataOut[9:0] = testModeFlag ? testData : adcData;
+assign data_out[9:0] = test_mode_flag ? test_data : adc_data;
 …
-if (testData == 10'd1021 - 1) testData <= 10'd0;
-else                          testData <= testData + 10'd1;
+if (test_data == 10'd1021 - 1) begin
+    test_data <= 10'd0;
+end else begin
+    test_data <= test_data + 10'd1;
+end
 ```
 
 And the application's test-data analysis walks a captured file checking that ramp is unbroken.

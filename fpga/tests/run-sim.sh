@@ -3,7 +3,7 @@
 # Run the gateware testbenches (T3).
 #
 # Domesday Duplicator - LaserDisc RF sampler
-# SPDX-FileCopyrightText: 2018-2025 Simon Inns
+# SPDX-FileCopyrightText: 2018-2026 Simon Inns
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Runs from the dev shell and from the Nix check, so both take exactly the same

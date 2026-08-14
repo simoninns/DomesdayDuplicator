@@ -125,8 +125,9 @@
 
       # Every package doubles as a check: each one runs its own ctest suite during
       # buildPhase, so `nix flake check` builds and tests the whole tree. The gateware has
-      # no ctest suite and no package that CI can build, so its lint and simulation checks
-      # are added here explicitly — they are the only automated coverage the Verilog gets.
+      # no ctest suite and no package that CI can build, so its lint, style, simulation and
+      # version checks are added here explicitly — they are the only automated coverage the
+      # Verilog gets.
       # The licence-header check belongs to no component at all, so it comes from nix/.
       #
       # `bitstream` is removed rather than never added, so that a future package added to
@@ -140,6 +141,7 @@
         builtins.removeAttrs self.packages.${pkgs.stdenv.hostPlatform.system} [ "bitstream" ]
         // {
           fpga-lint = fpgaChecks.lint;
+          fpga-style = fpgaChecks.style;
           fpga-sim = fpgaChecks.sim;
           fpga-provenance = fpgaChecks.provenance;
           fpga-version = fpgaChecks.version;

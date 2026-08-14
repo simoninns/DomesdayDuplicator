@@ -3,7 +3,7 @@
 // NB: in a .vlt file a comment whose first word is the linter's own name is
 // parsed as a pragma, not as a comment, so it must not start a line here.
 //
-// SPDX-FileCopyrightText: 2018-2025 Simon Inns
+// SPDX-FileCopyrightText: 2018-2026 Simon Inns
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The lint check (T4) runs with -Wall, which is the only setting that catches
@@ -51,11 +51,11 @@ lint_off -rule UNDRIVEN     -file "*_bb.v"
 // 2. Project source
 // ---------------------------------------------------------------------------
 
-// dataGenerator.v: `if (sequenceCount == (6'd63 << 16) - 1)`.
+// dataGenerator.v: `if (sequence_count == (6'd63 << 16) - 1)`.
 //
 // The linter objects that the 6-bit constant is widened by its context before
 // the shift. It is, and that is what makes the expression correct: the
-// comparison is against the 22-bit sequenceCount, so 63 is widened to 22 bits
+// comparison is against the 22-bit sequence_count, so 63 is widened to 22 bits
 // and 63 << 16 is 4128768, which fits. Had the shift been evaluated at the
 // constant's own width the result would be zero and the sequence number would
 // never advance.
@@ -67,20 +67,20 @@ lint_off -rule UNDRIVEN     -file "*_bb.v"
 // 63 sequence numbers of 65536 samples each.
 lint_off -rule WIDTHEXPAND -file "*/dataGenerator.v" -match "*SHIFTL*"
 
-// fx3StateMachine.v: `case (sm_currentState)` covers 2 of 16 states.
+// fx3StateMachine.v: `case (sm_current_state)` covers 2 of 16 states.
 //
-// The case is preceded by `sm_nextState = sm_currentState;`, so every
+// The case is preceded by `sm_next_state = sm_current_state;`, so every
 // uncovered state holds rather than falling through to an undefined value, and
 // the register can only ever hold the two named states.
 lint_off -rule CASEINCOMPLETE -file "*/fx3StateMachine.v"
 
-// fx3StateMachine.v: wordCounter is written with blocking assignments inside a
+// fx3StateMachine.v: word_counter is written with blocking assignments inside a
 // clocked block.
 //
 // A genuine style defect, and the one waiver here that is not merely cosmetic:
 // blocking assignment in sequential logic can make simulation disagree with
 // synthesis. It does not here, because the combinational next-state block is
-// `always @(*)` and re-evaluates when wordCounter settles, so the value latched
+// `always @(*)` and re-evaluates when word_counter settles, so the value latched
 // at the following edge is the same either way.
 //
 // "Does not here" is a claim about behaviour, so it is tested rather than

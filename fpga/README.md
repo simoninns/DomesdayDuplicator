@@ -55,14 +55,41 @@ nix develop .#fpga        # verible, verilator, iverilog, gtkwave — no Quartus
 
 ```bash
 ./tests/run-lint.sh       # T4: verilator --lint-only over the five hand-written modules
+./tests/run-style.sh      # T4: formatting and style, via verible
 ./tests/run-sim.sh        # T3: the three module testbenches, under Icarus Verilog
+./tests/run-version.sh    # T2: the commit-to-register version stamp generator
+./tests/run-format.sh     # not a check — the formatter, run it to fix run-style.sh
 ```
 
-Both run unchanged as `nix flake check` checks (`fpga-lint`, `fpga-sim`), and they are the
-only automated coverage the gateware gets in CI — bitstream builds cannot run there.
+All four checks run unchanged as `nix flake check` checks (`fpga-lint`, `fpga-style`,
+`fpga-sim`, `fpga-version`), and they are the only automated coverage the gateware gets in
+CI — bitstream builds cannot run there.
 
-`verible-verilog-ls` is a language server, so any editor with an LSP client gets completion,
-navigation and diagnostics in the Verilog sources.
+## Style
+
+The style guide is the [lowRISC Verilog Coding Style Guide](https://github.com/lowRISC/style-guides/blob/master/VerilogCodingStyle.md),
+with four recorded deviations — four-space indent, Verilog-2001 rather than SystemVerilog,
+existing module and file names kept, and no `_i`/`_o`/`_d`/`_q` suffixes. The reasoning for
+each is in [docs-tech/fpga-verilog-style-plan.md](../docs-tech/fpga-verilog-style-plan.md);
+the convention itself is summarised in [AGENTS.md](../AGENTS.md) §5.3.
+
+**Do not hand-format Verilog.** `./tests/run-format.sh` is the formatter, and three files
+beside the sources are its only configuration:
+
+| File | What it is |
+| --- | --- |
+| [.verible-format](.verible-format) | Formatter settings. Four-space indent, 100 columns, every alignment mode set explicitly rather than left at Verible's `infer` |
+| [.rules.verible_lint](.rules.verible_lint) | Style rules — Verible's defaults, plus `signal-name-style` and `explicit-begin`, minus the SystemVerilog-only rules. Every departure carries its reason |
+| [verible-waivers](verible-waivers) | Narrow per-case exceptions. One entry: the four DE0-Nano port names |
+
+`verible-verilog-ls` is a language server that finds `.rules.verible_lint` by searching
+upward, so any editor with an LSP client shows the same diagnostics the CI check enforces,
+with no editor configuration at all.
+
+One rule the tooling does *not* enforce: every `parameter` and `localparam` carries an
+explicit width or `integer`. Verible's `explicit-parameter-storage-type` wants a SystemVerilog
+storage type and no Verilog-2001 form satisfies it, so it is disabled with the evidence in
+`.rules.verible_lint` and this one is held up by review instead.
 
 **Lint runs with `-Wall`, and every warning it reports is either a failure or a waiver with a
 written reason** in [verilator-waivers.vlt](verilator-waivers.vlt). The waived items are real

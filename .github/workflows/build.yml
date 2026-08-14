@@ -115,8 +115,8 @@ jobs:
   # on the refs where completeness is the point.
   #
   # Each package's own checkPhase runs its ctest suite, so building a component is also
-  # testing it (T1-T4). The gateware has no package CI can build, so its lint and
-  # simulation checks are named explicitly.
+  # testing it (T1-T4). The gateware has no package CI can build, so its lint, style,
+  # simulation, provenance and version checks are named explicitly.
   nix:
     name: Nix — ${{ matrix.component }}
     needs: changes
@@ -136,7 +136,11 @@ jobs:
             attrs: .#fx3-firmware .#fx3-programmer
           - component: fpga
             enabled: fpga
-            attrs: .#checks.x86_64-linux.fpga-lint .#checks.x86_64-linux.fpga-sim .#checks.x86_64-linux.fpga-provenance
+            # Every gateware check, named individually — there is no fpga package for the
+            # matrix to build, so anything absent from this line is not covered on a
+            # path-filtered pull request. Keep it in step with the `fpga-*` attributes in
+            # flake.nix.
+            attrs: .#checks.x86_64-linux.fpga-lint .#checks.x86_64-linux.fpga-style .#checks.x86_64-linux.fpga-sim .#checks.x86_64-linux.fpga-provenance .#checks.x86_64-linux.fpga-version
           - component: docs
             enabled: docs
             attrs: .#docs-site

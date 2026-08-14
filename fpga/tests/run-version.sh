@@ -88,10 +88,10 @@ if command -v iverilog >/dev/null; then
     cat > "$work/parses.v" <<'EOF'
 `include "version.vh"
 module parses;
-initial begin
-	if (`GATEWARE_COMMIT_TEXT === 64'bx) $display("unusable");
-	if (`GATEWARE_BUILD_FLAGS === 8'bx) $display("unusable");
-end
+    initial begin
+        if (`GATEWARE_COMMIT_TEXT === 64'bx) $display("unusable");
+        if (`GATEWARE_BUILD_FLAGS === 8'bx) $display("unusable");
+    end
 endmodule
 EOF
     if iverilog -g2005 -Wall -I"$work" -o "$work/parses.vvp" "$work/parses.v"; then

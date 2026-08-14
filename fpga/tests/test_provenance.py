@@ -2,7 +2,7 @@
 """Tests for the bitstream provenance record (T1, T2).
 
 Domesday Duplicator - LaserDisc RF sampler
-SPDX-FileCopyrightText: 2018-2025 Simon Inns
+SPDX-FileCopyrightText: 2018-2026 Simon Inns
 SPDX-License-Identifier: GPL-3.0-or-later
 
 The canonical digest exists so that someone with the same pinned Quartus can

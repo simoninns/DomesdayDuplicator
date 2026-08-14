@@ -16,20 +16,24 @@
   lib,
   runCommand,
   verilator,
+  verible,
   iverilog,
   python3,
 }:
 
 let
-  # The gateware, its testbenches, the lint waivers and the provenance tool.
-  # Deliberately not ./package.nix or ./shell.nix: a change to how the bitstream
-  # is packaged should not invalidate the lint result.
+  # The gateware, its testbenches, the lint and style configuration, and the
+  # provenance tool. Deliberately not ./package.nix or ./shell.nix: a change to how
+  # the bitstream is packaged should not invalidate the lint result.
   src = lib.fileset.toSource {
     root = ./.;
     fileset = lib.fileset.unions [
       ./src
       ./tests
       ./verilator-waivers.vlt
+      ./.verible-format
+      ./.rules.verible_lint
+      ./verible-waivers
       ./bitstream-provenance.py
       ./generate-version.sh
     ];
@@ -39,6 +43,18 @@ in
   # T4 — lint. verilator --lint-only over the five project-authored modules.
   lint = runCommand "ddd-fpga-lint" { nativeBuildInputs = [ verilator ]; } ''
     bash ${src}/tests/run-lint.sh
+    touch $out
+  '';
+
+  # T4 — style. verible-verilog-format --verify and verible-verilog-lint over the
+  # five project-authored modules and the three testbenches.
+  #
+  # Separate from `lint` because the two answer different questions and fail for
+  # different reasons: verilator asks whether the design is correct, verible asks
+  # whether it is written the way this project writes Verilog. A style failure should
+  # never be mistaken for a hardware bug, or the reverse.
+  style = runCommand "ddd-fpga-style" { nativeBuildInputs = [ verible ]; } ''
+    bash ${src}/tests/run-style.sh
     touch $out
   '';
 

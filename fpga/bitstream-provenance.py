@@ -2,7 +2,7 @@
 """Record what produced a bitstream, and digests that make it verifiable.
 
 Domesday Duplicator - LaserDisc RF sampler
-SPDX-FileCopyrightText: 2018-2025 Simon Inns
+SPDX-FileCopyrightText: 2018-2026 Simon Inns
 SPDX-License-Identifier: GPL-3.0-or-later
 
 The FPGA bitstream is the one release artefact CI does not build. Quartus is
