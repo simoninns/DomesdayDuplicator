@@ -104,12 +104,19 @@ class FakeDeviceUpdater : public IDeviceUpdater {
       return std::nullopt;
     }
 
-    // The device does its writing and verifying between status reads, so
-    // each poll advances it. A real device is slower; a test that had to
-    // wait for a real device would not be run.
+    // The phase this poll sees, and only then the work that moves it on. A
+    // real device is slower; a test that had to wait for one would not be
+    // run.
+    //
+    // The order matters. Advancing first would step straight past the
+    // writing phase and no poll would ever observe it, so a host that failed
+    // to render that phase would pass. The FX3 target happens not to have a
+    // long one — it writes each chunk to its EEPROM as the chunk arrives —
+    // but the EPCS target will, and this fake is the general device.
+    const DeviceUpdateStatus seen = status_;
     Advance();
 
-    return status_;
+    return seen;
   }
 
   bool Begin(UpdateTarget target, uint64_t length,

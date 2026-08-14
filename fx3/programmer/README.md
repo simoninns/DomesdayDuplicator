@@ -149,21 +149,32 @@ fx3-programmer -d 0 -p firmware.img -v
 `-v` is a modifier for `-p`, not a standalone operation: verification compares the EEPROM
 against a firmware file, so it needs one. Running `-v` on its own reports that.
 
-### No software reset
+### No software reset from *this* tool
 
-There is no `-r`, and there is no way to reset the FX3 from the host in this project.
+There is no `-r` here, and there will not be one.
 
 The option used to exist and did nothing: `fx3_reset_device()` printed "Device will reset
 automatically after firmware download completes", slept for two seconds and returned success
-(D25). Nothing was ever sent to the device.
+(D25). Nothing was ever sent to the device. Running `-r` now fails and says so.
 
-A real implementation is not available either. The FX3 boot ROM offers no reset vendor
-command, and this project's firmware implements only `0xB5` and `0xB6` — capture control.
-A `libusb_reset_device()` would re-enumerate the USB device without rebooting the FX3 or
-changing its boot mode, which would look like a reset while not being one.
+**D25 is closed, but not here.** The application firmware gained a reset vendor request,
+`0xD4`, as part of the device-update work — `CyU3PDeviceReset(CyFalse)`, a cold reset, so
+the FX3 re-reads its boot source and comes back running whatever is now in the EEPROM. The
+capture application uses it to restart a device after an update, and `ddd-update` does the
+same from a shell. What a host could not do in 2018 it can do now.
 
-**Changing boot mode requires a physical power cycle**, with J4 fitted or removed to choose
-where the device boots from. Running `-r` now fails and says so.
+That does not give this tool a reset, and the distinction is worth keeping straight:
+
+- `0xD4` is served by the **application firmware**. This tool talks to a device in
+  **bootloader mode**, which is running the Cypress boot ROM and answers no such request —
+  the boot ROM offers no reset vendor command at all.
+- `libusb_reset_device()` re-enumerates the USB device without rebooting the FX3 or
+  changing its boot mode, which would look like a reset while not being one.
+
+**Changing boot mode still requires a physical power cycle**, with J4 fitted or removed to
+choose where the device boots from. A device that has fallen back to the bootloader by
+itself — a blank EEPROM, or an update interrupted part way — is already in bootloader mode
+and needs no jumper to reprogram.
 
 ### Complete workflow
 

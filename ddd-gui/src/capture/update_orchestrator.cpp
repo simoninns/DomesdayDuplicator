@@ -194,8 +194,13 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
 
   const uint64_t chunk_bytes = AlignedChunk(initial->maximum_chunk_bytes);
 
+  // Named for what the *host* is doing, because that is what the progress
+  // bar measures. On the firmware target the device is writing each chunk to
+  // its EEPROM as it arrives — there is no assembly buffer — so this stage is
+  // where most of the writing happens, and the message says so rather than
+  // leaving a user to infer it from a "writing" stage that never appears.
   Report(UpdateStage::kTransferring, target, 0, total,
-         "Sending the update to the device.");
+         "Sending the update to the device, which writes it as it arrives.");
 
   if (!device_.Begin(target, total, component.sha256)) {
     outcome.stage = UpdateStage::kFailed;
@@ -238,7 +243,7 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
     ++index;
 
     Report(UpdateStage::kTransferring, target, sent, total,
-           "Sending the update to the device.");
+           "Sending the update to the device, which writes it as it arrives.");
   }
 
   // The device now hashes the stream it received and, if that matches, reads
@@ -263,9 +268,14 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
     return false;
   }
 
-  Report(UpdateStage::kWriting, target, 0, total,
-         "The device is writing the update to its own memory.");
-
+  // No stage is announced here. Which one comes next is the device's business
+  // and it differs by target: the EEPROM has already been written page by page
+  // as the chunks arrived, so it goes straight to reading back, while the EPCS
+  // has a real erase-and-program phase after the transfer. Announcing a
+  // writing stage on the way out of the transfer would flash a stage the
+  // device is not in — briefly on the EEPROM, and wrongly on any target whose
+  // first act is something else. AwaitCompletion's first poll reports whatever
+  // the device actually says.
   return AwaitCompletion(target, total, outcome);
 }
 

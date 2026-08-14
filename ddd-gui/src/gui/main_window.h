@@ -75,6 +75,11 @@ class MainWindow : public QMainWindow {
   void ShowFirmwareWarning(const QString& message);
   void ShowFailure(const QString& title, const QString& detail);
 
+  // True while the Firmware window is up. The version-mismatch warning is a
+  // note rather than a fault and must never appear over that window, least of
+  // all over an update's own explanation of what went wrong.
+  bool firmware_dialog_open_ = false;
+
   ThemeController* theme_controller_;
   ApplicationLogger* logger_;
   CaptureController* capture_controller_;

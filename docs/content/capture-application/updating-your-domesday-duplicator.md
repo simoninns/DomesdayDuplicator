@@ -53,11 +53,14 @@ The window works through several stages, each with its own progress. They take v
 
 | Stage | What is happening | Roughly |
 | --- | --- | --- |
-| **Sending the update to the device** | The file is being handed over the USB cable | Seconds |
-| **The device is writing the update** | The Duplicator is writing it into its own memory | Tens of seconds |
-| **The device is checking what it wrote** | The Duplicator reads it all back and checks it | Tens of seconds |
+| **Sending the update to the device** | The file goes over the USB cable, and the Duplicator writes each piece into its own memory as it arrives | Tens of seconds |
+| **The device is checking what it wrote** | The Duplicator reads all of it back and checks it against the update file | Tens of seconds |
 | **Restarting the device** | It disconnects and reconnects by itself. **This is normal** | Ten seconds or so |
 | **Confirming the new version** | The application asks the device what it is now running | Immediately |
+
+The first stage is the slow one, and it is slow because it is doing two things at once: the
+Duplicator writes the update as it receives it rather than collecting it first. There is no
+separate "writing" step to wait for.
 
 At the end you will see something like:
 

@@ -488,8 +488,10 @@ Everything below writes the FX3's boot EEPROM. **Nothing automated does this** (
 §4): each step is a deliberate human act, and this section exists so that it is the same
 deliberate human act every time.
 
-You need a Duplicator, a USB 3 port, and — for the recovery step alone — the J4 jumper and
-`fx3-programmer`. Everything else is done from the application.
+You need a Duplicator and a USB 3 port. Two of the steps — provisioning a unit that has
+never carried this firmware (U0), and recovering from the deliberate interruption (U3) —
+also need the J4 jumper and `fx3-programmer`. Everything else is done from the
+application, which is the whole point of the mechanism.
 
 ### What to have ready before you start
 
@@ -500,14 +502,87 @@ You need a Duplicator, a USB 3 port, and — for the recovery step alone — the
 - The commit each of them carries, so the identity check at the end means something. The
   bundle's manifest states it; `tar -xOf <bundle> manifest.json` prints it.
 
+### The jumper command, written out once
+
+Two of the steps below need `fx3-programmer`, and both of them need two things that are
+easy to get wrong from a cold start:
+
+- the device must **already be in bootloader mode** — J4 fitted and power-cycled, showing
+  `04b4:00f3`. `-p` and `-u` both refuse anything else;
+- the Cypress secondary loader has to be findable. Its in-tree candidate paths are relative
+  to the working directory, so from the repository root it must be named explicitly.
+
+From the repository root, that is:
+
+```bash
+FX3_FLASH_PROG=fx3/programmer/cyfxflashprog.img \
+  ./fx3/programmer/build/fx3-programmer -p fx3/firmware/build/firmware.img -v
+```
+
+Then remove J4 and power-cycle again. `$FX3_FLASH_PROG` is first in the resolution order,
+ahead of both the relative candidates and the installed copy under `/usr/local/share`.
+
+### U0 — provisioning a device that cannot yet update itself
+
+A unit running firmware from before the update agent has no `0xD0` to answer, so the
+application will say so rather than pretending. It needs the jumper once, and only once.
+
+1. Fit J4, power-cycle, confirm `04b4:00f3`.
+2. Run the command above.
+3. Remove J4, power-cycle, confirm `1209:2347`.
+4. `lsusb -d 1209:2347 -v | grep bcdDevice` — **expect `1.00`**. That is the protocol
+   version field, and it is the cheapest possible proof that the firmware now running is
+   one that can update itself.
+
 ### U1 — the ordinary update, from the application
 
-1. Attach the device. Confirm **Help → Firmware…** reports the commit you expect.
-2. On the **Update** tab, choose the bundle. Confirm it reports *verified*, names the
-   version, shows the development banner, and enables **Update**.
-3. Press **Update**. Watch each stage: sending, writing, checking, restarting, confirming.
-   Record roughly how long the write and the check each took — the application's estimate is
-   derived from a nominal EEPROM rate, and this is the only measurement of the real one.
+The bundle to install is the one `./tools/dev-bundle.sh` wrote:
+
+```
+<repository root>/build/domesday-duplicator-update-0.0.0-dev.dddfw
+```
+
+**Its commit must differ from the one now on the device**, or step 4 proves nothing: an
+update that installs the image already installed cannot demonstrate that anything was
+installed. If U0 flashed the same build the bundle carries — which it will have, if both
+came from one `cmake --build` — reconfigure and rebuild the firmware, then re-run
+`dev-bundle.sh`, before starting:
+
+```bash
+cmake -B fx3/firmware/build -S fx3/firmware \
+      -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake   # re-stamps the version
+cmake --build fx3/firmware/build
+./tools/dev-bundle.sh
+tar -xOf build/domesday-duplicator-update-0.0.0-dev.dddfw manifest.json | grep commit
+```
+
+The reconfigure is not optional. `FIRMWARE_VERSION` is worked out at configure time, so
+`cmake --build` alone rebuilds the image with the *previous* stamp and the bundle would
+carry a commit the device already reports.
+
+1. Attach the device. Confirm **Help → Firmware…** reports the commit you expect — the one
+   U0 flashed, not the one in the bundle.
+2. On the **Update** tab, press **Choose update file…** and pick the bundle above. Confirm
+   it reports *verified*, names the version, shows the development banner, states a time
+   estimate and "leave the device plugged in", and enables **Update**.
+3. Press **Update**. The stages, quoted as the window titles them:
+
+   | Stage title | What is happening |
+   | --- | --- |
+   | *Checking the update* | Host-side; over before it is read |
+   | *Sending the update to the device* | **The EEPROM is written here**, page by page as each chunk arrives |
+   | *The device is checking what it wrote* | The whole region read back and hashed |
+   | *Restarting the device* | It disconnects and reconnects by itself |
+   | *Confirming the new version* | The identity read back off the live device |
+
+   There is no long "writing" stage on this target and there is not meant to be: the
+   firmware writes each chunk to the EEPROM as it arrives, so the sending bar is the
+   writing bar. The `UPDATE_PHASE_WRITING` the protocol defines is one page here — the
+   signature page — and the EPCS target is where it becomes a stage of its own.
+
+   Record roughly how long *sending* and *checking what it wrote* each took. The
+   application's estimate is derived from a nominal EEPROM rate and this is the only
+   measurement of the real one.
 4. **Pass** = the confirmation names the bundle's commit, and it is not the commit the
    device started with.
 5. Re-open **Help → Firmware…**. The versions page must agree with the confirmation.
@@ -519,9 +594,38 @@ ddd-update --dry-run build/domesday-duplicator-update-0.0.0-dev.dddfw   # expect
 ddd-update build/domesday-duplicator-update-0.0.0-dev.dddfw             # expect 0
 ```
 
-**Pass** = both exit zero, and the second prints the device's commit read back after the
-restart. This is the same engine code the application drives, so a disagreement between U1
-and U2 is a finding in itself.
+**Pass** = both exit zero, every stage is named in order, and the second prints the
+device's commit read back after the restart. This is the same engine code the application
+drives, so a disagreement between U1 and U2 is a finding in itself.
+
+Re-installing the bundle U1 just installed is fine here, and is the ordinary way to run
+this: the run still exercises the transfer, the write, the readback verification, a real
+disconnect and reconnect, and the identity read. What it cannot do is *distinguish*
+installed from not-installed, because both answers are the same string — so if you want
+that assertion too, build a second image with a stamp of its own:
+
+```bash
+cmake -B /tmp/fwbuild -S fx3/firmware \
+      -DCMAKE_TOOLCHAIN_FILE=$PWD/fx3/firmware/arm-none-eabi-toolchain.cmake \
+      -DFIRMWARE_VERSION=deadbe01
+cmake --build /tmp/fwbuild
+
+./tools/make-update-bundle.sh \
+  --output build/domesday-duplicator-update-0.0.0-u2.dddfw \
+  --version 0.0.0 --commit deadbe01 --channel development \
+  --secret-key tools/keys/development.key --public-key tools/keys/development.pub \
+  --notes 'U2 bench image — distinguishable stamp, not a real commit.' \
+  --firmware /tmp/fwbuild/firmware.img --firmware-identity deadbe01 \
+  --firmware-interface-version 1
+```
+
+Passing the stamp in is the mechanism Nix and CI already use, because a build outside a
+checkout has no `.git` to ask. Two things about it are worth knowing before you try:
+`-dirty` is stripped before commits are compared, so no amount of editing or rebuilding
+changes the identity without a new commit; and the stamp must be hex and at least seven
+characters or it is not read as a commit at all. Use `make-update-bundle.sh` directly
+rather than `dev-bundle.sh`, which takes the commit from git. Install an honest bundle
+afterwards so the unit is not left reporting a commit that does not exist.
 
 ### U3 — interrupted update, and the fallback it depends on (verification item V1)
 
@@ -530,19 +634,32 @@ and U2 is a finding in itself.
 than assumed.
 
 1. Start an update as in U1.
-2. **Pull the USB cable** while the *writing* stage is in progress — after the transfer bar
-   has filled and before the checking stage starts. The signature page is written last, so
-   at this point the EEPROM holds a partial image with no valid signature.
+2. **Pull the USB cable while *Sending the update to the device* is in progress**, with the
+   bar somewhere past half. That is the stage in which the EEPROM is actually being
+   written, so at that moment it holds a partial image — and the signature page is held
+   back until everything else has been written *and* read back, so there is no valid image
+   for the boot ROM to find.
 3. Plug the device back in.
 4. **Pass** = the device enumerates as `04b4:00f3`, the Cypress bootloader. Anything else —
    a device that does not enumerate, or one that enumerates as `1209:2347` and does not
    work — falsifies V1 and is a finding that changes the design, not a test failure to
    retry.
-5. Recover: fit J4, power-cycle, and `fx3-programmer -i <known-good firmware.img>`; or
-   RAM-load with `-u` and then run U1 again. Record which you used.
+5. Recover — and **the jumper is not needed here**. J4 is how a *working* device is forced
+   into bootloader mode; a device that has fallen back is already in it, and
+   `fx3-programmer -l` will list it as `Mode=Bootloader`. That is the whole point of the
+   fallback state: it is directly programmable.
 
-Repeat step 2 at two other points — during the transfer, and during the checking stage — and
-confirm the same fallback each time.
+   ```bash
+   FX3_FLASH_PROG=fx3/programmer/cyfxflashprog.img \
+     ./fx3/programmer/build/fx3-programmer -p fx3/firmware/build/firmware.img -v
+   ```
+
+   Power-cycle afterwards. Record whether you used `-p` or a `-u` RAM load followed by U1.
+
+Repeat step 2 at two other points — very early in *Sending*, and during *The device is
+checking what it wrote* — and confirm the same fallback each time. The second of those is
+the interesting one: the image is complete on the medium by then and only the signature
+page is missing, which is the narrowest the window ever gets.
 
 ### U4 — the refusals
 

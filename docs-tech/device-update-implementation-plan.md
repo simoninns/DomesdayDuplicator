@@ -497,7 +497,7 @@ is performed.
   falling back to the USB bootloader (this is verification item V1) and a subsequent
   J4-free retry succeeds after Phase 3; D25 closed.
 
-### Phase 3 — Recovery personality
+### Phase 3 — Recovery personality, and first-time FX3 programming
 
 - GUI recognises `04b4:00f3` (and the transient flash-programmer identity by its
   `0xB0` probe); `DeviceInfo` gains a personality field; the three VID/PID match sites
@@ -505,8 +505,16 @@ is performed.
 - Engine port of `fx3-programmer`'s RAM-load + flash-programmer sequence (GPLv3, pure
   libusb) behind the updater seam; Windows driver-binding documentation for the
   recovery personality.
+- **The same code path provisions a new board, and the interface says so.** A blank
+  EEPROM and an EEPROM corrupted by an interrupted update are indistinguishable on the
+  wire — the boot ROM rejects both and the kit enumerates as `04b4:00f3` either way — so
+  a device that has never been programmed is already reachable by everything above. What
+  is added is the wording: an unprogrammed unit is offered *"program this device"*, not
+  *"repair"*, because a user holding a kit they have just soldered has not broken
+  anything. This is the FX3 half of Phase 8.
 - **Exit (bench):** a unit with a deliberately invalidated EEPROM is restored to
-  working firmware entirely from the GUI.
+  working firmware entirely from the GUI; and a kit that has never been programmed is
+  brought to working firmware the same way.
 
 ### Phase 4 — Gateware restructure: factory / application / common
 
@@ -579,6 +587,120 @@ is performed.
   inside the GUI on Linux, Windows and macOS, including one simulated failure and
   recovery per target.
 
+### Phase 8 — Provisioning from the application
+
+Phases 1–7 answer "how does a working Duplicator get a newer one". This phase answers
+the three questions they leave open, which turn out to be one question:
+
+1. a **brand-new** build — two boards that have never been programmed;
+2. an **old Duplicator** running firmware and gateware that predate all of this;
+3. a unit whose recovery has gone far enough that the update path cannot reach it.
+
+In all three the device cannot update itself, and today all three need a Quartus install,
+`fx3-programmer` from a shell, and a procedure written for a developer. The end state of
+this phase is that they need `ddd-gui`, the release artefacts, and the two cables the
+hardware already has.
+
+**Correcting an assumption before it is built on: there is no FPGA programmer in this
+repository.** `fx3/programmer/` programs the FX3 and nothing else. The whole of the
+project's FPGA programming story is `quartus_pgm` invoked by hand, plus the udev rules in
+`fpga/configs/70-altera-usb-blaster.rules`. The FPGA half below is a new component, not
+the wiring-up of an existing one, and it is the larger half by a wide margin.
+
+#### The FX3 half — nearly free, and it belongs in Phase 3
+
+A kit with a **blank** EEPROM and a kit whose EEPROM was corrupted by an interrupted
+update are indistinguishable on the wire: the boot ROM finds no valid image and both
+enumerate as `04b4:00f3`. Phase 3's engine port of the flash-programmer sequence therefore
+already programs a new board; all that is missing is an interface that offers it as
+*provisioning* and not only as *repair*. Phase 3's scope is widened to say so.
+
+#### The FPGA half — the route, and why it is the only one
+
+The FX3 cannot reach the FPGA's configuration circuitry: there is no JTAG, no AS pins, no
+`nCONFIG`/`nSTATUS`/`CONF_DONE` and no MSEL between them, which is the fact the whole
+factory/application split exists to work around. Writing the EPCS through the fabric needs
+working gateware already in place, so a blank FPGA is unreachable that way *by
+construction* and no amount of firmware work changes it.
+
+What can reach it is the DE0-Nano's **own on-board USB-Blaster**, which enumerates as
+`09fb:6001` on the board's mini-USB connector. It is an FTDI-style device that libusb can
+drive directly, and this repository already ships the udev rules for it.
+
+**The programming sequence is a build artefact, not something this project implements.**
+That is the decision that makes this phase reasonable in size. `quartus_cpf` converts the
+build's output into a file that *contains* the configuration and flash-programming
+sequence as JTAG vectors, in one of two public formats. Both were checked against the
+Quartus this project pins:
+
+```bash
+# Jam STAPL Byte Code (JEDEC JESD71), straight from the .jic the release already ships
+quartus_cpf -c DomesdayDuplicator.jic DomesdayDuplicator.jbc
+
+# Serial Vector Format, from the chain description build-local.sh already produces
+quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
+    DomesdayDuplicator_write_jic.cdf DomesdayDuplicator.svf
+```
+
+`.jbc` accepts a `.jic` directly, which is the artefact the release publishes from Phase 6
+— so the EPCS-programming case needs no new build step at all, only one more `quartus_cpf`
+line. `.svf` goes through the `.cdf`, which `build-local.sh` already writes.
+
+Every Cyclone IV-specific and serial flash loader-specific decision therefore stays inside
+Quartus, at build time, in the one place that already has it and already runs it —
+`quartus_cpf` even takes `--sfl_device` for exactly that purpose. What the application
+needs is only:
+
+- a **USB-Blaster driver** in the engine, Qt-free and behind a seam like every other
+  device access. Generic, a few hundred lines of libusb: the cable is an FT245 in
+  bit-bang and byte-shift modes, a protocol not published by Altera but reverse-engineered
+  and stable for two decades, and implemented in urjtag, OpenOCD and openFPGALoader;
+- an **SVF player** — a parser and a JTAG TAP state machine, with no knowledge of what
+  device is on the far end. This is a pure function from a text file to a vector stream,
+  so it unit-tests against committed fixtures with no cable and no board, which is the
+  pattern the rest of the engine already follows;
+- a **provisioning page** in the application that recognises an unprogrammed or
+  half-programmed unit and offers to bring both halves up in one pass.
+
+CI gains one artefact beside the `.jic` it already publishes from Phase 6. Which of the
+two formats is the trade to weigh when this phase is taken: **SVF** is a text file and its
+player is trivial, but it is verbose and slow for something the size of a flash image;
+**JBC** is compact and comes straight from the `.jic`, but playing it means implementing a
+small JESD71 byte-code interpreter rather than a parser. Start with SVF, whose player can
+be written and tested in an afternoon, and move to JBC only if throughput demands it.
+
+The commands above are verified as available. What is *not* yet verified, and needs a
+board rather than a shell, is that a `.cdf`-derived SVF actually programs the EPCS through
+the on-board USB-Blaster end to end — that is this phase's first bench task and should be
+done before any of it is estimated.
+
+The alternative — implementing Cyclone IV configuration and the serial flash loader
+natively — is rejected. It is more code, all of it device-specific, all of it untestable
+without hardware, and it would duplicate knowledge the build already holds.
+
+What this buys is the removal of **Quartus from provisioning entirely** — today a
+multi-gigabyte, unfree, x86_64-linux-only install whose only role for a board-builder is to
+write a file the project already publishes. What it does not buy is the removal of the
+second cable: the DE0-Nano's mini-USB has to be connected once per unit, and that is a
+wiring fact rather than a software one. Phase 4's "the last time a cable is required"
+stands; this phase only removes the toolchain from the other end of it.
+
+**Licence position.** `openFPGALoader` does exactly this job and is **AGPL-3.0-only**;
+GPLv3 §13 permits combining it with a GPLv3 work, but the AGPL terms travel with that
+half, which is a change to this project's licence position (AGENTS.md §10 says raise it
+first). The route above avoids the question entirely: SVF and Jam STAPL are public
+formats, the USB-Blaster protocol is documented in several independent open-source
+implementations, and neither needs a line of AGPL code copied. openFPGALoader remains
+useful as a **reference to check behaviour against**, in the same way `minisign` is used
+in the bundle tests — comparing against an independent implementation, not borrowing from
+one.
+
+- **Exit (bench):** two never-programmed boards — a bare SuperSpeed Explorer Kit and a
+  bare DE0-Nano — assembled and brought to a working, capturing Duplicator using only
+  `ddd-gui`, the published release artefacts and the two cables. Repeated for a Duplicator
+  running pre-update firmware and gateware, and for a unit with both its EEPROM and its
+  EPCS deliberately erased.
+
 ## Dependencies and ordering
 
 Phases 2–3 (firmware path) and Phase 4 (gateware restructure) are independent and can
@@ -586,6 +708,13 @@ proceed in parallel; Phase 5 needs both 2 and 4; Phase 6 needs 1 and benefits fr
 Phase 7 needs 6. The earliest user-visible win is at Phase 2 (jumper-free firmware
 updates), which is also where the protocol design gets its first hardware proof before
 the gateware work builds on it.
+
+Phase 8 is deliberately last-numbered and is not last in dependency: its FX3 half is
+folded into Phase 3 and lands with it, and its FPGA half depends only on Phase 6 having
+published a programming artefact — the `.svf` alongside the `.jic` — to play back. It touches neither the update protocol nor the gateware
+images, so it can be taken whenever it is worth more than the next phase in the sequence —
+which, for anyone building boards rather than updating one, it may well be from the moment
+Phase 6 exists.
 
 ## Risks
 
@@ -610,6 +739,16 @@ the gateware work builds on it.
   fallback that reshapes nothing downstream. The closure cache must stay
   project-private: caching Quartus for our own CI is ordinary use, redistributing it
   is not.
+- **A JTAG driver is new ground for this project**: Phase 8's FPGA half is the first code
+  here that drives a programming cable rather than a peripheral, and its failure modes are
+  unfamiliar. The risk is bounded by the medium — the EPCS is rewritable over JTAG
+  unconditionally, so a failed attempt is retried rather than recovered from, and a board
+  cannot be put beyond the reach of Quartus by anything this code does. Taking the
+  programming sequence from a Quartus-exported SVF rather than implementing it removes
+  most of what would otherwise be unfamiliar: what is left is a cable driver and a file
+  player, both of which fail loudly. The open question is not feasibility but throughput —
+  SVF is verbose, and whether flash programming through it is measured in seconds or in
+  minutes is a bench fact.
 - **Signing-key custody**: the release secret key in GitHub Actions is the one secret
   in the chain; its compromise would let signed-but-hostile bundles verify. Mitigation
   is scope (the key signs release manifests only, in a tag-triggered workflow), the

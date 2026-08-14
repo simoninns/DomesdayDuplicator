@@ -322,6 +322,11 @@ void MainWindow::ShowFirmwareDialog() {
 
   FirmwareDialog dialog(versions, std::move(device), this);
 
+  // Nothing raised by the device monitor may interrupt this window while it is
+  // open — see ShowFirmwareWarning. Reset on the way out rather than on
+  // destruction because exec() below is where the time is spent.
+  firmware_dialog_open_ = true;
+
   if (UpdatePage* const page = dialog.update_page(); page != nullptr) {
     // The monitor opens every attached device to read its identity, and an
     // update holds one open for minutes and makes it disappear and come back
@@ -336,6 +341,7 @@ void MainWindow::ShowFirmwareDialog() {
   }
 
   dialog.exec();
+  firmware_dialog_open_ = false;
 }
 
 void MainWindow::ShowSettingsDialog() {
@@ -373,10 +379,25 @@ void MainWindow::ShowCaptureFinished(const QString& file_path, quint64 bytes) {
 }
 
 void MainWindow::ShowFirmwareWarning(const QString& message) {
-  // A warning and not a critical error, and it does not stop anything. See
-  // firmware_version.h: differing builds are worth mentioning and are not known
-  // to be broken, and a modal that blocked capture would be punishing a user
-  // for a device that works.
+  // Never while the Firmware window is open, and this is not a nicety.
+  //
+  // An update makes the device disappear and reappear, and the version check
+  // fires on every reconnection — so a device that came back reporting no
+  // commit, which is exactly what a failed or interrupted update leaves,
+  // raises this warning at the precise moment the update page is explaining
+  // what went wrong. The modal lands on top of that explanation and covers
+  // it, so the one message the user needs is the one they do not get.
+  //
+  // Suppressing it loses nothing. The Firmware window shows the same
+  // versions in more detail than this sentence does, and it is open.
+  if (firmware_dialog_open_) {
+    return;
+  }
+
+  // Otherwise a warning and not a critical error, and it does not stop
+  // anything. See firmware_version.h: differing builds are worth mentioning
+  // and are not known to be broken, and a modal that blocked capture would be
+  // punishing a user for a device that works.
   QMessageBox::warning(this, tr("Firmware version"), message);
 }
 

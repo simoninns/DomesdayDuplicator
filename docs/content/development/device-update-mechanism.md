@@ -113,7 +113,16 @@ The status request is answerable at any time, including when no update is in pro
 
 Neither target is made valid until it has been verified, and in both cases the *last* write is the one that makes the image count.
 
-For the **FX3**, the first EEPROM page carries the `'CY'` signature the boot ROM looks for. That page is held back: the rest of the image is written and verified first, and the signature page is written last. An update interrupted anywhere in the middle leaves an image the boot ROM rejects, and the kit falls back to the USB bootloader — a personality the application recognises and can repair from.
+For the **FX3**, the first EEPROM page carries the `'CY'` signature the boot ROM looks for, and the start of the section table. That page is held back: the rest of the image is written and verified first, and the first page is written last. An update interrupted anywhere in the middle leaves an image the boot ROM rejects, and the kit falls back to the USB bootloader — a personality the application recognises and can repair from.
+
+Which of the boot ROM's two checks does the rejecting depends on what was there before, and it is worth being exact about, because the two cases sound the same and are not:
+
+- on a **blank or never-programmed** EEPROM there is no `'CY'` at offset zero, so the signature check refuses it outright;
+- on a **device being re-flashed** — the ordinary case — the *previous* image's first page is still in place and still carries a valid `'CY'`. The signature check passes. What refuses it is the boot ROM's **image checksum**, computed over section data that is now the new image's while the section table describing it is the old one's. The two cannot agree.
+
+So the held-back page buys the guarantee on a fresh device and the checksum buys it on a re-flash. Both are link 7 of the integrity chain, which names both checks for this reason. Verified on the bench: an update interrupted mid-transfer on a programmed unit brings it back as `04b4:00f3`.
+
+A stricter ordering is available if that ever proves too subtle to rely on — invalidate the first page *before* the first body byte is written, so the signature check alone decides and the checksum is never load-bearing. It is one extra page write and it costs one thing: a transfer that fails before any body write would then still leave the device needing a repair, where today it is untouched. That trade has not been made, and this note is here so that it is a decision rather than an oversight.
 
 For the **FPGA**, the application image is written and verified first, and the boot block that points at it is written last. An interrupted gateware update leaves an invalid boot block, and the unit simply stays in the factory image. Rolling back is erasing one sector. The layout and the boot decision are on the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md) page.
 
