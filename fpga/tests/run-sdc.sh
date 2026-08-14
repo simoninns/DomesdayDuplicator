@@ -32,14 +32,19 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-fpga="$(dirname "$here")"
-src="${1:-$fpga/src}"
-sdc="$src/DomesdayDuplicator.SDC"
+fpga="${1:-$(dirname "$here")}"
+
+# Both images, because both have constraints and only one of them has ever had
+# a bitstream built from it. The factory image's are shorter - it has no
+# capture path to time - but it is the image that can never be repaired in the
+# field, so an unconstrained pin in it is worth more attention rather than less.
+projects=(
+    "application:DomesdayDuplicator"
+    "factory:DomesdayDuplicatorFactory"
+)
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-
-echo "Parsing"
 
 # Stubs for every constraint command the SDC uses. They record their arguments
 # rather than ignoring them, so an argument list that does not parse is an
@@ -60,9 +65,10 @@ foreach cmd {
 
 # The collection commands echo their argument back. Nothing here knows the
 # netlist, so a port name that does not exist is Quartus's to find.
-proc get_ports  {args} { return [list PORTS {*}$args] }
-proc get_pins   {args} { return [list PINS {*}$args] }
-proc get_clocks {args} { return [list CLOCKS {*}$args] }
+proc get_ports     {args} { return [list PORTS {*}$args] }
+proc get_pins      {args} { return [list PINS {*}$args] }
+proc get_clocks    {args} { return [list CLOCKS {*}$args] }
+proc get_registers {args} { return [list REGISTERS {*}$args] }
 
 source [lindex $argv 0]
 
@@ -80,15 +86,25 @@ if {[llength $::calls] == 0} {
 }
 TCL
 
-if ! tclsh "$work/stubs.tcl" "$sdc"; then
+for entry in "${projects[@]}"; do
+    directory="${entry%%:*}"
+    revision="${entry##*:}"
+    sdc="$fpga/$directory/$revision.SDC"
+
     echo
-    echo "The SDC is not valid Tcl. Quartus would fail the same way." >&2
-    exit 1
-fi
+    echo "=== $directory/$revision.SDC ==="
+    echo "Parsing"
+
+    if ! tclsh "$work/stubs.tcl" "$sdc"; then
+        echo
+        echo "The SDC is not valid Tcl. Quartus would fail the same way." >&2
+        exit 1
+    fi
+
+    echo
+    echo "Coverage"
+    python3 "$here/check-sdc.py" "$fpga/$directory" "$revision"
+done
 
 echo
-echo "Coverage"
-python3 "$here/check-sdc.py" "$src"
-
-echo
-echo "Constraints parse and cover every mapped pin."
+echo "Both images' constraints parse and cover every mapped pin."

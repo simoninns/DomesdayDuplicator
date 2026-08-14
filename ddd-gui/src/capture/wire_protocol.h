@@ -93,12 +93,24 @@ inline constexpr uint8_t kRegisterId = 0x00;
 inline constexpr uint8_t kRegisterMapVersion = 0x01;
 inline constexpr uint8_t kRegisterBuildFlags = 0x02;
 inline constexpr uint8_t kRegisterCommit = 0x03;
+inline constexpr uint8_t kRegisterImageRole = 0x0B;
 inline constexpr uint8_t kRegisterTestMode = 0x10;
 
-// The identity block: signature, map version, build flags and eight commit
-// characters, contiguous so that one request fetches all of it.
-inline constexpr uint8_t kIdentityLength = 11;
+// The identity block: signature, map version, build flags, eight commit
+// characters and the image role, contiguous so that one request fetches all of
+// it. Map version 1 gateware has no image role and returns 0x00 for it, which
+// is why the role is only believed when the map version says it exists.
+inline constexpr uint8_t kIdentityLength = 12;
 inline constexpr uint8_t kCommitLength = 8;
+
+// What the image role register reports. The gateware is two images and only
+// one of them can capture, so this is how a host tells a working unit from one
+// running its recovery gateware.
+inline constexpr uint8_t kImageRoleFactory = 0x00;
+inline constexpr uint8_t kImageRoleApplication = 0x01;
+
+// The map version at which the image role became meaningful.
+inline constexpr int kRegisterMapVersionWithImageRole = 2;
 
 // The fixed value at kRegisterId.
 //
@@ -108,8 +120,12 @@ inline constexpr uint8_t kCommitLength = 8;
 // real register bank from a floating wire.
 inline constexpr uint8_t kIdentityValue = 0x44;
 
-// The register map version this build understands.
-inline constexpr uint8_t kIdentityMapVersion = 0x01;
+// The newest register map version this build understands. What it *accepts*
+// is a range, kRegisterMapVersionMinimum to kRegisterMapVersionMaximum below:
+// an application built to accept only the exact version it shipped alongside
+// would treat every additive change as an incompatibility, which is the same
+// as having no versioning at all.
+inline constexpr uint8_t kIdentityMapVersion = 0x02;
 
 // Bits of the build flags register.
 inline constexpr uint8_t kBuildFlagDirty = 0x01;

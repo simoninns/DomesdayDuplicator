@@ -52,10 +52,13 @@ pkgs.mkShell {
     echo "  ./fpga/tests/run-lint.sh              lint the hand-written modules"
     echo "  ./fpga/tests/run-sim.sh               run the testbenches"
     echo
-    echo "  quartus_pgm DomesdayDuplicator_write_sof.cdf   volatile, lost on power cycle"
-    echo "  quartus_pgm DomesdayDuplicator_write_jic.cdf   permanent, into the EPCS64"
+    echo "  quartus_pgm provisioning/DomesdayDuplicatorProvisioning_write_jic.cdf"
+    echo "                                        permanent, both images, into the EPCS64"
+    echo "  quartus_pgm application/DomesdayDuplicator_write_sof.cdf"
+    echo "                                        volatile, lost on power cycle"
     echo
-    echo "Do not run quartus_sh in fpga/src: it rewrites the tracked .qsf in place"
+    echo "Do not run quartus_sh in fpga/application or fpga/factory: it rewrites"
+    echo "the tracked .qsf in place"
     echo "to record LAST_QUARTUS_VERSION, and scatters build products beside the"
     echo "sources. build-local.sh copies to fpga/build first, which is what"
     echo "nix build .#bitstream does too."

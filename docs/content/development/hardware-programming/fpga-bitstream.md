@@ -52,10 +52,17 @@ ls result/
 ```
 
 ```
-DomesdayDuplicator.jic  DomesdayDuplicator_write_jic.cdf  bitstream-provenance.txt
-DomesdayDuplicator.map  DomesdayDuplicator_write_sof.cdf  reports
-DomesdayDuplicator.sof
+application/  factory/  provisioning/  reports/  bitstream-provenance.txt
 ```
+
+The gateware is **two** images that live in one flash: the capture gateware in
+`application/`, and a small resident boot loader in `factory/` that a unit falls back to if
+a gateware update is ever interrupted. `provisioning/` holds the one `.jic` that carries
+both, and that is the file a board is programmed with. The model is described on the
+[EPCS layout and boot flow](../epcs-layout-and-boot-flow.md) page.
+
+There is deliberately **no `.jic` of the capture gateware alone**: programming one would
+write it over the factory image, leaving a unit with nothing to fall back to.
 
 Quartus comes from the flake, so nothing needs installing first. **The first build is slow**:
 Quartus is not redistributable, so it can never come from a binary cache and must be fetched
@@ -70,21 +77,22 @@ Put Quartus' `bin` directory on `PATH`, then:
 ./fpga/build-local.sh
 ```
 
-That copies the project to `fpga/build/`, compiles it, converts the result to a `.jic` and
-writes the provenance record. Or drive the tools yourself — the GUI is not required for any
-step:
+That copies the sources to `fpga/build/`, compiles both images, converts them into one
+provisioning `.jic` and writes the provenance record. Or drive the tools yourself — the GUI
+is not required for any step:
 
 ```bash
-quartus_sh --flow compile DomesdayDuplicator     # produces the .sof
-quartus_cpf -c DomesdayDuplicator.cof            # .sof -> .jic
+cd factory      && quartus_sh --flow compile DomesdayDuplicatorFactory
+cd application  && quartus_sh --flow compile DomesdayDuplicator
+cd provisioning && quartus_cpf -c DomesdayDuplicatorProvisioning.cof   # both .sof -> one .jic
 ```
 
-!!! warning "Do not compile in `fpga/src/`"
+!!! warning "Do not compile in `fpga/application/` or `fpga/factory/`"
 
     `quartus_sh` **rewrites the `.qsf` project file in place** to record the Quartus version
     that last touched it, and scatters about thirty build products beside the sources. Both
-    routes above copy the project to a build directory first. If you compile in `src/` you
-    will find the repository has uncommitted changes you did not make.
+    routes above copy the project to a build directory first. If you compile in the source
+    directories you will find the repository has uncommitted changes you did not make.
 
 ### Check: what did you just build?
 
@@ -107,13 +115,19 @@ alone does not describe what you built. Worth noticing before you program anythi
 
 ## 2. Program the board
 
-Both `.cdf` files name their own inputs, so run them from the directory holding the
-bitstream — `result/` for a Nix build, `fpga/build/` for a local one.
+Each `.cdf` file names its own inputs, so run it from the directory holding the bitstream it
+names — under `result/` for a Nix build, `fpga/build/` for a local one.
 
 ### 2a. The `.sof` — the test path
 
 ```bash
-quartus_pgm DomesdayDuplicator_write_sof.cdf
+cd application && quartus_pgm DomesdayDuplicator_write_sof.cdf
+```
+
+or, to look at the factory image on its own:
+
+```bash
+cd factory && quartus_pgm DomesdayDuplicatorFactory_write_sof.cdf
 ```
 
 ```
@@ -131,19 +145,28 @@ talking to a different board.
 **This is volatile.** Power cycle and it is gone, replaced by whatever is in the EPCS64
 flash. That is the point: if the bitstream is broken, you have lost nothing.
 
-### 2b. The `.jic` — the production path
+### 2b. The provisioning `.jic` — the production path
 
 Do this once you are satisfied the bitstream works.
 
 ```bash
-quartus_pgm DomesdayDuplicator_write_jic.cdf
+cd provisioning && quartus_pgm DomesdayDuplicatorProvisioning_write_jic.cdf
 ```
 
 This writes the EPCS64 serial configuration device, which the FPGA loads from at every
-power-up. It takes appreciably longer than the `.sof` path, because it programs the flash
+power-up, with **both** images: the factory image at address 0 and the capture gateware at
+`0x200000`. It takes appreciably longer than the `.sof` path, because it programs the flash
 through the FPGA rather than configuring the FPGA directly.
 
-Then power cycle the board. It should come up running the new gateware with no host involved.
+Then power cycle the board. It comes up running the **factory image**, which is the resident
+boot loader rather than the capture gateware: the boot block that points at the capture
+image has not been written yet, and writing it is the last step of a gateware update rather
+than part of this file. Until then the capture application reports the unit as running
+recovery gateware, which is the state the [EPCS layout and boot flow](../epcs-layout-and-boot-flow.md)
+page describes.
+
+**This is the last time a cable is needed.** From here the capture gateware is updated over
+the same USB cable the Duplicator already uses.
 
 ## Confirming what is running
 
@@ -232,7 +255,7 @@ nix build .#bitstream
 | A different JTAG ID than `0x020F30DD` | Not a Cyclone IV EP4CE22 — check which board is plugged in |
 | LEDs dark or frozen after programming | The PLL is not locking, or the FPGA is held in reset. Check the FX3 board's reset button, and that both boards are seated in their headers |
 | Board captures nothing but garbage | The FX3 firmware and the gateware may be out of step. They share a protocol defined in both — update both across a release that changed it |
-| Quartus rewrote files in `fpga/src/` | You compiled in the source directory. See the warning in step 1 |
+| Quartus rewrote files in `fpga/application/` or `fpga/factory/` | You compiled in a source directory. See the warning in step 1 |
 
 ### You cannot brick the DE0-NANO by programming it
 

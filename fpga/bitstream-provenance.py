@@ -209,18 +209,28 @@ def main():
     parser.add_argument("--output", type=Path, default=None, help="default: stdout")
     args = parser.parse_args()
 
-    qsf = args.build_dir / "DomesdayDuplicator.qsf"
-    if not qsf.is_file():
-        sys.exit(f"no DomesdayDuplicator.qsf in {args.build_dir}")
-    assignments = qsf_assignments(qsf)
+    # Two projects, so two settings files. They are recorded separately
+    # because they are separately programmable things: a unit's factory image
+    # and its application image are provisioned together but updated apart,
+    # and a provenance record that averaged them would describe neither.
+    projects = [
+        ("application", args.build_dir / "application" / "DomesdayDuplicator.qsf"),
+        ("factory", args.build_dir / "factory" / "DomesdayDuplicatorFactory.qsf"),
+    ]
+    for name, qsf in projects:
+        if not qsf.is_file():
+            sys.exit(f"no {qsf.name} in {qsf.parent} — the {name} image was not built")
 
+    # Everything the build produces that ends up on a device, wherever it
+    # landed: the two .sof files, the provisioning .jic, the raw application
+    # image an update writes, and the boot block that describes it.
     artefacts = sorted(
-        p
-        for p in args.build_dir.iterdir()
-        if p.suffix in (".sof", ".jic") and p.is_file()
+        path
+        for path in args.build_dir.rglob("*")
+        if path.is_file() and path.suffix in (".sof", ".jic", ".rpd", ".bin")
     )
     if not artefacts:
-        sys.exit(f"no .sof or .jic in {args.build_dir} — nothing to record")
+        sys.exit(f"no bitstream artefacts under {args.build_dir} — nothing to record")
 
     commit = args.commit if args.commit is not None else git_commit(args.source_dir)
     version = args.quartus_version or quartus_version()
@@ -235,9 +245,22 @@ def main():
         "Source",
         "------",
         f"  commit                    {commit}",
-        f"  device                    {assignments.get('DEVICE', 'unknown')}",
-        f"  family                    {assignments.get('FAMILY', 'unknown')}",
-        f"  top level                 {assignments.get('TOP_LEVEL_ENTITY', 'unknown')}",
+        "",
+    ]
+
+    first = qsf_assignments(projects[0][1])
+    for name, qsf in projects:
+        assignments = qsf_assignments(qsf)
+        lines += [
+            f"  {name} image",
+            f"    device                  {assignments.get('DEVICE', 'unknown')}",
+            f"    family                  {assignments.get('FAMILY', 'unknown')}",
+            f"    top level               {assignments.get('TOP_LEVEL_ENTITY', 'unknown')}",
+            f"    update mode             {assignments.get('STRATIXIII_UPDATE_MODE', 'not set')}",
+        ]
+
+    assignments = first
+    lines += [
         "",
         "Toolchain",
         "---------",
@@ -268,7 +291,8 @@ def main():
         except ValueError as error:
             sys.exit(f"{artefact.name}: {error}")
 
-        lines.append(f"  {artefact.name}  ({artefact.stat().st_size} bytes)")
+        relative = artefact.relative_to(args.build_dir)
+        lines.append(f"  {relative}  ({artefact.stat().st_size} bytes)")
         lines.append(f"    release        sha256:{release}")
         lines.append(f"    canonical      sha256:{canonical}")
         lines.append("")

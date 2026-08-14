@@ -27,22 +27,30 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-fpga="$(dirname "$here")"
-src="${1:-$fpga/src}"
+fpga="${1:-$(dirname "$here")}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-# testbench:module under test[,submodule...]
+# testbench:path/to/module[,path/to/submodule...]
 #
 # A testbench compiles against its module and anything that module
 # instantiates, named rather than globbed so that a testbench cannot silently
-# start depending on a module nobody meant it to reach.
+# start depending on a module nobody meant it to reach - and so that the
+# three trees stay visibly separate here as well as on disk.
+#
+# tb_bootLoader is the exception in size and the reason the list is explicit:
+# it builds the factory image's boot path exactly as the top level wires it,
+# down to a model of the EPCS64, because the decision it tests is the one
+# thing in this repository that a field update can never repair.
 benches=(
-    "tb_buffer:buffer,fifo"
-    "tb_dataGenerator:dataGenerator"
-    "tb_fifo:fifo"
-    "tb_fx3StateMachine:fx3StateMachine"
-    "tb_spiRegisters:spiRegisters"
+    "tb_buffer:application/buffer,application/fifo"
+    "tb_dataGenerator:application/dataGenerator"
+    "tb_fifo:application/fifo"
+    "tb_fx3StateMachine:application/fx3StateMachine"
+    "tb_spiRegisters:common/spiRegisters"
+    "tb_crc32:factory/crc32"
+    "tb_flashBridge:common/flashBridge,common/sim/epcsFlashModel"
+    "tb_bootLoader:factory/bootLoader,factory/crc32,common/flashBridge,common/asmiBlock,common/remoteUpdate,common/sim/cycloneive_asmiblock,common/sim/epcsFlashModel,common/sim/altremote_update"
 )
 
 failed=0
@@ -53,7 +61,7 @@ for bench in "${benches[@]}"; do
     sources=()
     IFS=',' read -r -a duts <<<"${bench##*:}"
     for dut in "${duts[@]}"; do
-        sources+=("$src/$dut.v")
+        sources+=("$fpga/$dut.v")
     done
 
     echo "=== $tb ==="

@@ -40,8 +40,8 @@ convenience here, never a requirement.
 Two of the three components have a specific reason beyond tidiness:
 
 - **Quartus rewrites the project file it is given.** `quartus_sh` records
-  `LAST_QUARTUS_VERSION` in the `.qsf` as it compiles, so building in `fpga/src` dirties a
-  tracked file every single time — and then scatters thirty-odd build products among the
+  `LAST_QUARTUS_VERSION` in the `.qsf` as it compiles, so building in `fpga/application` or
+  `fpga/factory` dirties a tracked file every single time — and then scatters thirty-odd build products among the
   Verilog sources.
 - **The FX3 build is a cross build.** Its CMake cache holds an ARM toolchain, and reusing a
   directory that once configured a host build produces confusing failures rather than clear

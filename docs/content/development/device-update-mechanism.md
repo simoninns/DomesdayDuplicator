@@ -8,9 +8,9 @@ How a Domesday Duplicator updates its own firmware and gateware over the one USB
 
     **Target 0 — the FX3 boot EEPROM — is implemented.** The firmware answers `0xD0`–`0xD4`, brings up its own I2C block, writes and verifies its own boot EEPROM, and advertises a protocol version in `bcdDevice`. The application installs a bundle through it and `ddd-update` does the same headlessly.
 
-    **Target 1 — the FPGA's EPCS — is not.** `0xD5` stalls, an `UPDATE_BEGIN` naming target 1 is refused with `UPDATE_ERROR_TARGET`, and the gateware still implements register map version 1 with no flash bridge. Everything this page says about the EPCS, the boot block and `IMAGE_ROLE` is still specification.
+    **Target 1 — the FPGA's EPCS — is not, but the gateware half of it now is.** Both gateware images implement register map version 2: `IMAGE_ROLE` answers at `0x0B`, the flash bridge answers at `0x20`–`0x22`, the reconfiguration control at `0x23`, and the factory image makes the boot decision this page describes. What is missing is the firmware: `0xD5` stalls, an `UPDATE_BEGIN` naming target 1 is refused with `UPDATE_ERROR_TARGET`, and nothing yet drives the bridge from the FX3 side.
 
-    Where this page says "the firmware does X" about target 1, read "the firmware is required to do X".
+    Where this page says "the firmware does X" about target 1, read "the firmware is required to do X". Where it says the gateware does something, it does — though not yet on a board: no unit has been provisioned with a dual-image flash, and the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md) page says what that leaves open.
 
 ## The problem
 
@@ -281,7 +281,9 @@ Windows binds drivers by USB identifier, and a device in recovery mode reports d
 | `tools/make-update-bundle.sh` | Bundle assembly and signing |
 | `fx3/firmware/src/update-protocol.h` | The protocol's decisions, host-testable and SDK-free |
 | `fx3/firmware/src/update-agent.h` | The on-device flasher: I2C, page writes, readback |
-| `fpga/common/` | The flash bridge and reconfiguration control (not yet written) |
+| `fpga/common/flashBridge.v` | The flash bridge, and the lock that keeps it inert |
+| `fpga/common/remoteUpdate.v` | The reconfiguration trigger and the configuration watchdog |
+| `fpga/factory/bootLoader.v` | The boot decision the factory image makes at power-on |
 
 The split in `fx3/firmware/` mirrors the one `fpga-register-map.h` and `fpga-registers.h` already have, and for the same reason. `update-protocol.c` includes no SDK header, so it compiles and runs on a build machine — and the arithmetic that decides where each byte of a firmware image lands in the boot EEPROM is exactly the sort that fails quietly on hardware. `update-agent.c` is the half that cannot be tested anywhere but a bench.
 

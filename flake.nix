@@ -148,6 +148,7 @@
           fpga-sdc = fpgaChecks.sdc;
           fpga-provenance = fpgaChecks.provenance;
           fpga-version = fpgaChecks.version;
+          fpga-boot-block = fpgaChecks.boot-block;
           licence-headers = repoChecks.licence-headers;
           update-bundle = repoChecks.update-bundle;
         }

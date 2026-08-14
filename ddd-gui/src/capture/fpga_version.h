@@ -39,6 +39,10 @@ struct FpgaVersion {
   // The register map version the gateware implements. Zero when not present.
   uint8_t map_version = 0;
 
+  // Which of the two gateware images answered. Only meaningful from map
+  // version 2, which is what ImageRoleIsKnown reports.
+  uint8_t image_role = 0;
+
   // The gateware was built from a tree with uncommitted changes.
   bool dirty = false;
 
@@ -49,7 +53,21 @@ struct FpgaVersion {
   std::string commit;
 
   // Does this gateware implement a register map this build understands?
+  //
+  // A range rather than one value: additive changes to the map do not break a
+  // host, and the identity block is frozen across all versions.
   bool MapVersionIsKnown() const;
+
+  // Does this gateware say which image it is? False for map version 1
+  // gateware, which predates the two-image model and has no answer to give.
+  bool ImageRoleIsKnown() const;
+
+  // Is this the resident factory image — a unit in recovery, with no capture
+  // path at all?
+  //
+  // False when the role is unknown, which is the right answer for gateware
+  // that predates the split: it is a single image and it captures.
+  bool IsRecoveryGateware() const;
 };
 
 // Parse an identity block as returned by the register-read request.

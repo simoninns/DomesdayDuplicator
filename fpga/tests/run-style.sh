@@ -30,8 +30,7 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-fpga="$(dirname "$here")"
-src="${1:-$fpga/src}"
+fpga="${1:-$(dirname "$here")}"
 tests="${2:-$fpga/tests}"
 
 format_flags="$fpga/.verible-format"
@@ -40,7 +39,7 @@ lint_waivers="$fpga/verible-waivers"
 
 # The project-authored sources, named rather than globbed.
 #
-# Globbing src/*.v would pull in IPpllGenerator.v and IPpllGenerator_bb.v. Those are
+# Globbing common/*.v would pull in IPpllGenerator.v and IPpllGenerator_bb.v. Those are
 # MegaWizard output that AGENTS.md section 3 treats as source of truth and says not to
 # reformat, so a regeneration must not be able to drag vendor output into this gate by
 # appearing in a wildcard.
@@ -49,15 +48,27 @@ lint_waivers="$fpga/verible-waivers"
 # so the generator's heredoc is what has to produce the right layout. The
 # fpga-version check is what covers it.
 files=(
-    "$src/DomesdayDuplicator.v"
-    "$src/buffer.v"
-    "$src/dataGenerator.v"
-    "$src/fifo.v"
-    "$src/fx3StateMachine.v"
-    "$src/spiRegisters.v"
+    "$fpga/application/DomesdayDuplicator.v"
+    "$fpga/application/buffer.v"
+    "$fpga/application/dataGenerator.v"
+    "$fpga/application/fifo.v"
+    "$fpga/application/fx3StateMachine.v"
+    "$fpga/common/spiRegisters.v"
+    "$fpga/common/flashBridge.v"
+    "$fpga/common/asmiBlock.v"
+    "$fpga/common/remoteUpdate.v"
+    "$fpga/common/sim/altremote_update.v"
+    "$fpga/common/sim/cycloneive_asmiblock.v"
+    "$fpga/common/sim/epcsFlashModel.v"
+    "$fpga/factory/DomesdayDuplicatorFactory.v"
+    "$fpga/factory/bootLoader.v"
+    "$fpga/factory/crc32.v"
     "$tests/tb_buffer.v"
+    "$tests/tb_bootLoader.v"
+    "$tests/tb_crc32.v"
     "$tests/tb_dataGenerator.v"
     "$tests/tb_fifo.v"
+    "$tests/tb_flashBridge.v"
     "$tests/tb_fx3StateMachine.v"
     "$tests/tb_spiRegisters.v"
 )

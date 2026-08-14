@@ -89,7 +89,8 @@ and is excluded from `nix flake check` and from CI. `nix develop .#fpga` — wit
 with no Quartus at all, and that covers most gateware work.
 
 Build directories are `build/` under each component and are gitignored. Never build in-tree:
-in `fpga/src/` in particular, Quartus rewrites the tracked `.qsf` on every compile.
+in the gateware's project directories in particular, Quartus rewrites the tracked `.qsf` on
+every compile.
 
 [AGENTS.md](AGENTS.md) records the project conventions and [TESTING.md](TESTING.md) the test
 tiers, including the hardware-in-the-loop capture-integrity procedure that is the most

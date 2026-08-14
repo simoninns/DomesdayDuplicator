@@ -109,6 +109,17 @@ create_generated_clock -name adc_clock \
     -divide_by 2 \
     [get_ports {GPIO0[33]}]
 
+# The remote update block's clock, a divide-by-four of the system clock made in
+# the fabric by remoteUpdate. It is divided because the block is specified for a
+# 25 ns minimum period and 10.1 ns minimum high and low times on this device, so
+# the 80 MHz system clock violates it by a factor of two; Quartus checks this,
+# and without the constraint below it would check the divided clock against the
+# system clock's pulse widths and report a violation that is not there.
+create_generated_clock -name update_clock \
+    -source [get_pins $pll_clock_pin] \
+    -divide_by 4 \
+    [get_registers {*update_clock}]
+
 derive_clock_uncertainty
 
 

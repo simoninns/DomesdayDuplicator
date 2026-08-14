@@ -31,7 +31,7 @@ retired before the next release and gains none of this.
 - Image format ground truth: [fx3/mkimage/](../fx3/mkimage/) (AN76405 §4.4),
   `fx3/mkimage/src/fx3-bootimage.h`
 - FPGA↔FX3 register link: [docs/content/development/fpga-register-interface.md](../docs/content/development/fpga-register-interface.md),
-  [fpga/src/spiRegisters.v](../fpga/src/spiRegisters.v),
+  [fpga/common/spiRegisters.v](../fpga/common/spiRegisters.v),
   [fx3/firmware/src/fpga-registers.c](../fx3/firmware/src/fpga-registers.c)
 - GUI device layer the updater plugs into:
   [ddd-gui/src/capture/usb_device.h](../ddd-gui/src/capture/usb_device.h),

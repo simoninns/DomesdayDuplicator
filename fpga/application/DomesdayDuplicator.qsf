@@ -232,14 +232,52 @@ set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_RO
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 
 
+#============================================================
+# Remote update
+#============================================================
+# Both images are compiled with remote update enabled, which is what makes the
+# device's reconfiguration block reachable from the fabric. This image uses it
+# for two things: tickling the watchdog the factory image armed before it
+# handed over, and triggering the reconfiguration that follows a gateware
+# update.
+#
+# The assignment carries a Stratix III name on a Cyclone IV part. That is
+# Quartus', not a mistake here: the same setting covers both families and
+# Quartus writes it out under this name whichever device is selected.
+set_global_assignment -name STRATIXIII_UPDATE_MODE "REMOTE"
+
+#============================================================
+# The active serial pins
+#============================================================
+# DCLK, nCSO, ASDO and DATA0 are the configuration circuitry's own pins,
+# reached from the fabric through asmiBlock. They are not in the pin
+# assignments above because they are not user I/O and their locations are
+# fixed by the device - but their I/O standard is not, and it defaults to
+# 2.5 V, which is a fitter error against a bank whose VCCIO is 3.3 V because
+# every other pin in it is 3.3-V LVTTL. The EPCS64 on the DE0-Nano is a
+# 3.3 V part on that same bank.
+# The device-wide default I/O standard does it, rather than four assignments
+# by pin name: these pins do not have names in this project - Quartus derives
+# them from the asmiBlock instance - and every pin that does is assigned
+# 3.3-V LVTTL individually above, so the default reaches nothing else.
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "3.3-V LVTTL"
+
+# The gateware shared with the factory image lives in fpga/common and is named
+# here by relative path, so there is one copy of the register bank and the
+# flash bridge rather than two that could drift. version.vh is reached through
+# SEARCH_PATH because the top level includes it by name.
+set_global_assignment -name SEARCH_PATH ../common
+
 set_global_assignment -name VERILOG_FILE DomesdayDuplicator.v
 set_global_assignment -name SDC_FILE DomesdayDuplicator.SDC
-set_global_assignment -name QIP_FILE IPpllGenerator.qip
+set_global_assignment -name QIP_FILE ../common/IPpllGenerator.qip
 set_global_assignment -name VERILOG_FILE dataGenerator.v
 set_global_assignment -name VERILOG_FILE fx3StateMachine.v
 set_global_assignment -name VERILOG_FILE buffer.v
 set_global_assignment -name VERILOG_FILE fifo.v
 set_global_assignment -name CDF_FILE DomesdayDuplicator_write_sof.cdf
-set_global_assignment -name CDF_FILE DomesdayDuplicator_write_jic.cdf
-set_global_assignment -name VERILOG_FILE spiRegisters.v
+set_global_assignment -name VERILOG_FILE ../common/spiRegisters.v
+set_global_assignment -name VERILOG_FILE ../common/flashBridge.v
+set_global_assignment -name VERILOG_FILE ../common/asmiBlock.v
+set_global_assignment -name VERILOG_FILE ../common/remoteUpdate.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

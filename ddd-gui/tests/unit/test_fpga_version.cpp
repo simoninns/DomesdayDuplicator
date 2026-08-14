@@ -22,11 +22,13 @@ namespace {
 
 // An identity block as the register read returns one.
 std::vector<uint8_t> MakeIdentity(uint8_t id, uint8_t map_version,
-                                  uint8_t flags, const std::string& commit) {
+                                  uint8_t flags, const std::string& commit,
+                                  uint8_t image_role = kImageRoleApplication) {
   std::vector<uint8_t> identity(kIdentityLength, 0);
   identity[kRegisterId] = id;
   identity[kRegisterMapVersion] = map_version;
   identity[kRegisterBuildFlags] = flags;
+  identity[kRegisterImageRole] = image_role;
 
   for (size_t index = 0; index < commit.size() && index < kCommitLength;
        ++index) {
@@ -119,6 +121,42 @@ TEST(FpgaVersionTest, NonHexCharactersEndTheCommit) {
 
   EXPECT_TRUE(version.present);
   EXPECT_EQ(version.commit, "77");
+}
+
+TEST(FpgaVersionTest, TheApplicationImageIsNotRecoveryGateware) {
+  const FpgaVersion version = ParseFpgaIdentity(MakeGoodIdentity("7713495d"));
+
+  EXPECT_TRUE(version.ImageRoleIsKnown());
+  EXPECT_FALSE(version.IsRecoveryGateware());
+}
+
+TEST(FpgaVersionTest, TheFactoryImageIsRecoveryGateware) {
+  // The unit answers, names its build and cannot capture. Reading this as
+  // "working" is the failure the role register exists to prevent.
+  const std::vector<uint8_t> identity =
+      MakeIdentity(kIdentityValue, kIdentityMapVersion, kBuildFlagCommit,
+                   "7713495d", kImageRoleFactory);
+  const FpgaVersion version = ParseFpgaIdentity(identity);
+
+  EXPECT_TRUE(version.present);
+  EXPECT_TRUE(version.MapVersionIsKnown());
+  EXPECT_TRUE(version.ImageRoleIsKnown());
+  EXPECT_TRUE(version.IsRecoveryGateware());
+}
+
+TEST(FpgaVersionTest, GatewarePredatingTheSplitHasNoRoleToReport) {
+  // Map version 1 gateware is one image and it captures. Its unmapped 0x0B
+  // reads as zero, which is the factory image's value - so believing the byte
+  // without checking the map version would report every older unit as being
+  // in recovery.
+  const std::vector<uint8_t> identity = MakeIdentity(
+      kIdentityValue, 0x01, kBuildFlagCommit, "7713495d", kImageRoleFactory);
+  const FpgaVersion version = ParseFpgaIdentity(identity);
+
+  EXPECT_TRUE(version.present);
+  EXPECT_TRUE(version.MapVersionIsKnown());
+  EXPECT_FALSE(version.ImageRoleIsKnown());
+  EXPECT_FALSE(version.IsRecoveryGateware());
 }
 
 TEST(FpgaVersionTest, AnUnknownMapVersionIsStillAGateware) {

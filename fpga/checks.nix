@@ -29,7 +29,9 @@ let
   src = lib.fileset.toSource {
     root = ./.;
     fileset = lib.fileset.unions [
-      ./src
+      ./application
+      ./common
+      ./factory
       ./tests
       ./verilator-waivers.vlt
       ./.verible-format
@@ -37,18 +39,20 @@ let
       ./verible-waivers
       ./bitstream-provenance.py
       ./generate-version.sh
+      ./make-boot-block.py
     ];
   };
 in
 {
-  # T4 — lint. verilator --lint-only over the six project-authored modules.
+  # T4 — lint. verilator --lint-only over the twelve project-authored modules,
+  # across both images and the half they share.
   lint = runCommand "ddd-fpga-lint" { nativeBuildInputs = [ verilator ]; } ''
     bash ${src}/tests/run-lint.sh
     touch $out
   '';
 
-  # T4 — style. verible-verilog-format --verify and verible-verilog-lint over the
-  # six project-authored modules and the five testbenches.
+  # T4 — style. verible-verilog-format --verify and verible-verilog-lint over
+  # every project-authored module and testbench.
   #
   # Separate from `lint` because the two answer different questions and fail for
   # different reasons: verilator asks whether the design is correct, verible asks
@@ -59,17 +63,20 @@ in
     touch $out
   '';
 
-  # T3 — simulation. The five module testbenches, under Icarus Verilog.
+  # T3 — simulation. The module testbenches, under Icarus Verilog. The one
+  # that matters most is tb_bootLoader: the factory image's boot decision is
+  # the only logic here that a field update can never repair.
   sim = runCommand "ddd-fpga-sim" { nativeBuildInputs = [ iverilog ]; } ''
     bash ${src}/tests/run-sim.sh
     touch $out
   '';
 
-  # T4 — timing constraints. The SDC is the only source file Quartus alone
-  # consumes, and Quartus never runs in CI, so before this check a mistyped
-  # constraint could sit in the tree until someone built a bitstream. tclsh
-  # proves it parses; check-sdc.py proves it names every pin the top level maps.
-  # Neither can say whether the numbers are right — that needs Quartus.
+  # T4 — timing constraints, for both images. The SDC is the only source file
+  # Quartus alone consumes, and Quartus never runs in CI, so before this check
+  # a mistyped constraint could sit in the tree until someone built a
+  # bitstream. tclsh proves it parses; check-sdc.py proves it names every pin
+  # the top level maps. Neither can say whether the numbers are right — that
+  # needs Quartus.
   sdc = runCommand "ddd-fpga-sdc" { nativeBuildInputs = [ tcl python3 ]; } ''
     bash ${src}/tests/run-sdc.sh
     touch $out
@@ -85,6 +92,15 @@ in
   # iverilog is here to parse the generated file, not to simulate anything.
   version = runCommand "ddd-fpga-version" { nativeBuildInputs = [ iverilog ]; } ''
     bash ${src}/tests/run-version.sh
+    touch $out
+  '';
+
+  # T1 — the boot block encoder. The twenty-four bytes it writes are read by
+  # the factory image in fabric and, from Phase 5, by the update path on a
+  # live device, so the format is asserted here by offset rather than by
+  # asking the encoder what it thinks it wrote.
+  boot-block = runCommand "ddd-fpga-boot-block" { nativeBuildInputs = [ python3 ]; } ''
+    python3 ${src}/tests/test_boot_block.py
     touch $out
   '';
 }

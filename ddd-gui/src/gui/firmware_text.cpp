@@ -115,6 +115,15 @@ QString GatewareNote(const FirmwareVersions& versions) {
         "was built against.");
   }
 
+  // The recovery gateware answers every question in this dialog and cannot
+  // capture. Saying so here matters more than any other note on this page:
+  // everything else the user can see looks entirely normal.
+  if (versions.gateware.IsRecoveryGateware()) {
+    return Translate(
+        "Recovery gateware is running. The device cannot capture until its "
+        "gateware is reinstalled.");
+  }
+
   return {};
 }
 

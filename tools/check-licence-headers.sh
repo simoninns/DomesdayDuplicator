@@ -58,8 +58,8 @@ exempt=(
 
     # Quartus megafunction wizard output for altpll, carrying Altera's own copyright
     # and licence terms.
-    "fpga/src/IPpllGenerator.v"
-    "fpga/src/IPpllGenerator_bb.v"
+    "fpga/common/IPpllGenerator.v"
+    "fpga/common/IPpllGenerator_bb.v"
 
     # Cypress SDK support code, compiled into the firmware unmodified.
     "fx3/firmware/src/cyfxtx.c"

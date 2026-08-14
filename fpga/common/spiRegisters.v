@@ -19,11 +19,19 @@
     I2C an earlier draft specified, is on the "FPGA register interface"
     page of the documentation site.
 
-    Everything here is deliberately in one module. The shift register and
-    the registers it reaches are too small to be worth an interface between
-    them, and the simulation runner compiles a testbench against exactly one
+    The shift register and the small registers it reaches are deliberately
+    in one module: they are too small to be worth an interface between them,
+    and the simulation runner compiles a testbench against exactly one
     source file - so a split would cost the end-to-end test that is the only
     one worth having here.
+
+    What is *not* in here is the flash bridge and the reconfiguration
+    control at 0x20 to 0x23. Those are a second SPI master and a device
+    primitive respectively, they are the only registers whose writes have an
+    effect outside this module, and one of them must not auto-increment.
+    They reach the map through the four-byte window below, so this module
+    stays what it says it is - a shift register and a register bank - and
+    both images get the same one.
 
 ************************************************************************/
 
@@ -40,7 +48,22 @@ module spiRegisters (
 
     // Register outputs
     output       test_mode,
-    output [7:0] leds
+    output [7:0] leds,
+
+    // The 0x20 to 0x23 window. A write pulses window_write for one clock
+    // with the byte and the low two bits of the address; reads are answered
+    // combinationally from window_read_data, least significant byte 0x20.
+    output        window_write,
+    output [ 1:0] window_address,
+    output [ 7:0] window_write_data,
+    input  [31:0] window_read_data,
+
+    // One clock high for each data byte of a framed transaction that
+    // completes. This is what the application image tickles the
+    // reconfiguration watchdog with: it says the fabric decoded something,
+    // which is the one thing neither the configuration CRC nor the boot
+    // block's CRC can establish.
+    output transaction_decoded
 );
 
     // The build this gateware was compiled from, presented read-only at
@@ -55,6 +78,25 @@ module spiRegisters (
     // both without inventing or losing a digit.
     parameter [63:0] CommitText = 64'h0000000000000000;
     parameter [7:0] BuildFlags = 8'h00;
+
+    // Which of the two images this bank is compiled into, reported at 0x0B.
+    // The default is the application image, because a build that has not
+    // said is the capture gateware; the factory image overrides it and its
+    // top level is the only place that does.
+    parameter [7:0] ImageRole = 8'h01;
+
+    // The register map this bank implements, reported at 0x01. Version 2
+    // adds IMAGE_ROLE and the 0x20 to 0x23 window; everything version 1
+    // defined is unchanged, and the identity block is frozen across all
+    // versions.
+    localparam [7:0] MapVersion = 8'h02;
+
+    // BRIDGE_DATA is a port rather than a location: each write shifts a byte
+    // out to the EPCS and latches the byte that came back. The address
+    // post-increment, which is what makes the identity block one
+    // transaction, is exactly wrong for it - a run of writes to one address
+    // is how a multi-byte flash transaction is expressed.
+    localparam [6:0] BridgeDataAddress = 7'h22;
 
     // Input synchronisers ---------------------------------------------------
 
@@ -123,7 +165,7 @@ module spiRegisters (
         begin
             case (read_address)
                 7'h00:   read_register = 8'h44;  // ID
-                7'h01:   read_register = 8'h01;  // MAP_VERSION
+                7'h01:   read_register = MapVersion;
                 7'h02:   read_register = BuildFlags;
                 7'h03:   read_register = CommitText[63:56];
                 7'h04:   read_register = CommitText[55:48];
@@ -133,8 +175,13 @@ module spiRegisters (
                 7'h08:   read_register = CommitText[23:16];
                 7'h09:   read_register = CommitText[15:8];
                 7'h0A:   read_register = CommitText[7:0];
+                7'h0B:   read_register = ImageRole;
                 7'h10:   read_register = test_mode_register;
                 7'h11:   read_register = led_register;
+                7'h20:   read_register = window_read_data[7:0];
+                7'h21:   read_register = window_read_data[15:8];
+                7'h22:   read_register = window_read_data[23:16];
+                7'h23:   read_register = window_read_data[31:24];
                 default: read_register = 8'h00;
             endcase
         end
@@ -150,38 +197,62 @@ module spiRegisters (
     reg  [6:0] address;  // register the next data byte reads or writes
     reg        miso_out;
 
+    // The 0x20 to 0x23 window, and the data-byte pulse. Registered rather
+    // than decoded combinationally from the shift register, so that what
+    // leaves this module is one clock wide however long the SPI clock phase
+    // was that produced it.
+    reg        window_write_pulse;
+    reg  [1:0] window_write_address;
+    reg  [7:0] window_write_byte;
+    reg        data_byte_complete;
+
     // The byte as it stands once the bit currently on spi_mosi is taken in
     wire [7:0] shift_in_next = {shift_in, spi_mosi_sync[1]};
 
     // A read has to fetch the next byte as the current one completes, so that
-    // its first bit is on the wire before the master clocks it out
-    wire [6:0] address_next = address + 7'd1;
+    // its first bit is on the wire before the master clocks it out.
+    // BRIDGE_DATA is the one address that does not move on, for the reason
+    // given where BridgeDataAddress is declared.
+    wire [6:0] address_next = (address == BridgeDataAddress) ? address : address + 7'd1;
 
-    assign spi_miso  = miso_out;
+    // The window covers 0x20 to 0x23, which is 0x20 plus two bits
+    wire       address_in_window = (address[6:2] == 5'b01000);
+
+    assign spi_miso            = miso_out;
 
     // Any non-zero value means on, so that a host writing 1 and a host writing
     // 0xFF agree about what they asked for
-    assign test_mode = (test_mode_register != 8'h00);
-    assign leds      = led_register;
+    assign test_mode           = (test_mode_register != 8'h00);
+    assign leds                = led_register;
+
+    assign window_write        = window_write_pulse;
+    assign window_address      = window_write_address;
+    assign window_write_data   = window_write_byte;
+    assign transaction_decoded = data_byte_complete;
 
     always @(posedge clock, negedge reset_n) begin
         if (!reset_n) begin
-            shift_in           <= 7'd0;
-            shift_out          <= 8'h00;
-            bit_count          <= 3'd0;
-            command_received   <= 1'b0;
-            read_transfer      <= 1'b0;
-            address            <= 7'h00;
-            miso_out           <= 1'b0;
+            shift_in             <= 7'd0;
+            shift_out            <= 8'h00;
+            bit_count            <= 3'd0;
+            command_received     <= 1'b0;
+            read_transfer        <= 1'b0;
+            address              <= 7'h00;
+            miso_out             <= 1'b0;
 
-            test_mode_register <= 8'h00;
+            window_write_pulse   <= 1'b0;
+            window_write_address <= 2'd0;
+            window_write_byte    <= 8'h00;
+            data_byte_complete   <= 1'b0;
+
+            test_mode_register   <= 8'h00;
 
             // One LED lit, which says "configured and running, but the FX3 has
             // not written here yet". An unconfigured FPGA shows none, because
             // its pins are high-Z, and the firmware overwrites this within a
             // second of enumerating - so the board distinguishes three states
             // on hardware whose only other diagnostic is a UART header.
-            led_register       <= 8'h01;
+            led_register         <= 8'h01;
         end else if (spi_chip_select_n_level) begin
             // Chip select is deasserted, so no transfer is in progress.
             //
@@ -190,12 +261,20 @@ module spiRegisters (
             // reset, or by a board powering up mid-byte - leave nothing behind.
             // A partly received data byte cannot reach a register, because a
             // register is only written on the eighth bit of a byte.
-            shift_in         <= 7'd0;
-            shift_out        <= 8'h00;
-            bit_count        <= 3'd0;
-            command_received <= 1'b0;
-            miso_out         <= 1'b0;
+            shift_in           <= 7'd0;
+            shift_out          <= 8'h00;
+            bit_count          <= 3'd0;
+            command_received   <= 1'b0;
+            miso_out           <= 1'b0;
+
+            window_write_pulse <= 1'b0;
+            data_byte_complete <= 1'b0;
         end else begin
+            // Both of these are one clock wide, so they are cleared on every
+            // clock and raised only by the byte that earned them
+            window_write_pulse <= 1'b0;
+            data_byte_complete <= 1'b0;
+
             if (spi_clock_rising) begin
                 shift_in  <= shift_in_next[6:0];
                 bit_count <= bit_count + 3'd1;
@@ -211,11 +290,24 @@ module spiRegisters (
                         // register contents start with the second
                         shift_out <= shift_in_next[7] ? read_register(shift_in_next[6:0]) : 8'h00;
                     end else begin
+                        // A whole data byte of a framed transaction has
+                        // arrived, which is the fabric proving it decoded
+                        // something. Reads count as much as writes: the
+                        // firmware's identity read during start-up is what
+                        // tickles the watchdog on a device with no host.
+                        data_byte_complete <= 1'b1;
+
                         if (!read_transfer) begin
                             case (address)
                                 7'h10: test_mode_register <= shift_in_next;
                                 7'h11: led_register <= shift_in_next;
                                 default: begin
+                                    if (address_in_window) begin
+                                        window_write_pulse   <= 1'b1;
+                                        window_write_address <= address[1:0];
+                                        window_write_byte    <= shift_in_next;
+                                    end
+
                                     // Read-only and unmapped addresses: the
                                     // write is discarded. SPI has no way to
                                     // refuse a byte and nothing here pretends

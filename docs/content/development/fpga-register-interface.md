@@ -77,7 +77,7 @@ Every transaction is a command byte followed by zero or more data bytes:
 | 0 | bit 7 — direction: 1 = read, 0 = write; bits 6:0 — register address |
 | 1 to n | data |
 
-The register address post-increments after each data byte, so the identity block is one twelve-byte transaction: a command byte and eleven data bytes.
+The register address post-increments after each data byte, so the identity block is one thirteen-byte transaction: a command byte and twelve data bytes. `BRIDGE_DATA` at `0x22` is the single exception and is described with the register map below.
 
 For a **write** the master drives data on `FPGA_MOSI` and ignores `FPGA_MISO`. Writing `0x01` to `TEST_MODE` is the two bytes `0x10 0x01` between chip select edges.
 
@@ -118,7 +118,7 @@ The slave's three inputs are asynchronous to the 80 MHz system clock, so each pa
 
 ## Register map
 
-Map version `0x01`. Reads of unmapped addresses return `0x00`, so the map is extended by defining addresses, and `MAP_VERSION` tells a reader which definitions to trust.
+Map version `0x02`, which is what both gateware images in this repository report. Reads of unmapped addresses return `0x00`, so the map is extended by defining addresses, and `MAP_VERSION` tells a reader which definitions to trust.
 
 | Address | Name | Access | Reset | Host-writable |
 | --- | --- | --- | --- | --- |
@@ -126,22 +126,28 @@ Map version `0x01`. Reads of unmapped addresses return `0x00`, so the map is ext
 | `0x01` | `MAP_VERSION` | RO | — | — |
 | `0x02` | `BUILD_FLAGS` | RO | — | — |
 | `0x03` to `0x0A` | `COMMIT_0` to `COMMIT_7` | RO | — | — |
-| `0x0B` to `0x0F` | — | unmapped | | |
+| `0x0B` | `IMAGE_ROLE` | RO | — | — |
+| `0x0C` to `0x0F` | — | unmapped | | |
 | `0x10` | `TEST_MODE` | RW | `0x00` | yes |
 | `0x11` | `LED` | RW | `0x01` | no |
-| `0x12` to `0x7F` | — | unmapped | | |
+| `0x12` to `0x1F` | — | unmapped | | |
+| `0x20` | `BRIDGE_UNLOCK` | RW | `0x00` | yes |
+| `0x21` | `BRIDGE_CONTROL` | RW | `0x00` | yes |
+| `0x22` | `BRIDGE_DATA` | RW | — | yes |
+| `0x23` | `RECONFIG_CONTROL` | RW | `0x00` | yes |
+| `0x24` to `0x7F` | — | unmapped | | |
 
-Map version `0x02` is **specified but not yet implemented**: it adds an `IMAGE_ROLE` register at `0x0B` and a flash bridge at `0x20` to `0x23`, through which the FX3 reaches the EPCS configuration flash and triggers reconfiguration. Everything above is unchanged by it, and the identity block is frozen across all map versions. The definitions are on the [device update mechanism](device-update-mechanism.md) page; the gateware in this repository reports `0x01`.
+Version 1 changed nothing below `0x0B`, and the identity block at `0x00` to `0x0A` is frozen across all map versions, so a host that does not recognise the version can still read who it is talking to. `0x20` to `0x23` are the flash bridge and the reconfiguration control, through which the FX3 reaches the EPCS configuration flash and triggers reconfiguration; they are defined on the [device update mechanism](device-update-mechanism.md) page and summarised below.
 
 "Host-writable" is a firmware policy, not a gateware one. The gateware accepts a write to any read/write register from whoever is on the link; the FX3 is what declines to relay some of them.
 
 ### Identity block, `0x00` to `0x0A`
 
-Eleven contiguous read-only bytes, designed to be read in one transaction.
+Eleven contiguous read-only bytes, designed to be read in one transaction — twelve with `IMAGE_ROLE` beside them, which is how a host reads who it is talking to and which image is answering in a single go.
 
 **`ID`** is the fixed value `0x44`. This is the only means of detecting whether a gateware register bank is present at all. SPI has no acknowledgement, so an absent or unconfigured FPGA does not fail a transfer; it returns whatever the `FPGA_MISO` line happens to carry. The two things that line can plausibly carry are all-ones, if the pin floats or is held by the Cyclone IV's configuration-time weak pull-up, and all-zeros if it is pulled down. `0x44` is neither, and that is the point of the value.
 
-**`MAP_VERSION`** is the register map version, `0x01` for this document. A reader that does not recognise the value must use only the identity block, which is frozen for all future map versions.
+**`MAP_VERSION`** is the register map version, `0x02` for this document. A reader that does not recognise the value must use only the identity block, which is frozen for all future map versions.
 
 **`BUILD_FLAGS`**:
 
@@ -158,6 +164,12 @@ Bit 1 is positive logic on purpose. Every "I do not know" case — built outside
 ASCII rather than a packed 32-bit value, because the commit is not always eight characters. The FX3's CMake asks git for `--short=8`, but a Nix build passes `self.shortRev`, which is seven — the same commit, stamped two lengths — and the capture application already compares the two on their common prefix for exactly this reason. A fixed 32-bit field would have to either invent a digit or lose one; eight bytes of ASCII represent both lengths exactly, and hand the reader the string it wanted without parsing.
 
 When the commit is not known all eight bytes are `0x00` and the commit-valid bit is clear. A dirty build still reports its hash, with the dirty bit set. The bytes are always a hex string, never a word like `unknown`: anything that is not seven or eight hex digits is reported as no commit at all, so a reader never has to decide whether the characters it received were meant to be a hash.
+
+### `IMAGE_ROLE`, `0x0B`
+
+`0x00` for the factory image, `0x01` for the application image.
+
+The gateware is two bitstreams and only one of them can capture, so "which image am I running?" is a question that needs an answer rather than an inference. A host reading `0x00` is talking to a unit in recovery: the register interface answers, the flash bridge works, and there is no capture path at all. The two-image model is on the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md) page.
 
 ### `TEST_MODE`, `0x10`
 
@@ -187,6 +199,21 @@ The update pattern is the one of these a user is most likely to be looking at wh
 
 The gateware will accept a host write to this register, but the FX3 refuses to relay one, because the LEDs are a status output and status outputs have exactly one owner. Two writers means the display shows whichever wrote last, which is worse than useless during a fault — the state the LEDs exist to report is the state where you can least afford to distrust them.
 
+### The flash bridge and reconfiguration, `0x20` to `0x23`
+
+Four registers that reach outside the register bank. They are defined in full on the [device update mechanism](device-update-mechanism.md) page; what belongs here is how they behave as *registers*, because two of them break rules the rest of the map keeps.
+
+| Address | Name | Notes |
+| --- | --- | --- |
+| `0x20` | `BRIDGE_UNLOCK` | Write the four-byte sequence `0x44 0x44 0x55 0xAA`, one byte per transaction, to unlock the bridge. Any other write to this address locks it again. Reads `0x01` when unlocked and `0x00` when not |
+| `0x21` | `BRIDGE_CONTROL` | Write bit 0 asserts the flash's chip select. Reads back bit 0 as that state and bit 1 as busy — a byte shift is in progress. Writes are ignored while the bridge is locked |
+| `0x22` | `BRIDGE_DATA` | Write shifts one byte out to the flash and latches the byte that arrived in its place; read returns that latched byte |
+| `0x23` | `RECONFIG_CONTROL` | Write bit 0 tickles the configuration watchdog, bit 1 triggers reconfiguration. Reads bit 1 as busy and bit 2 as armed. Bits 7 to 2 of a write are reserved |
+
+**`BRIDGE_DATA` is the one address in the map that does not auto-increment.** It is a port rather than a location, so a multi-byte flash transaction is a run of writes and reads to one address — which is exactly what the post-increment would break. Every other address in the map, including the three beside it, increments as usual.
+
+**The bridge is inert until it is unlocked.** Anything that can send `0xB8` can reach these addresses and the flash holds the only copy of the gateware, so the unlock is what stands between a stray write and an unbootable board. While the bridge is locked the gateware does not drive the flash's pins at all. `nReset` locks it, and so does a completed reconfiguration.
+
 ## USB interface
 
 Two vendor requests act on the register bank directly, so a register added to the map later needs no firmware change to become reachable from the host. They replaced the bit-flag configuration request `0xB6`, which is retired.
@@ -202,7 +229,7 @@ Two vendor requests act on the register bank directly, so a register added to th
 | `wLength` | byte count, 1 to 64 |
 | Data stage | `wLength` bytes, IN |
 
-The identity block is `wValue` = 0, `wLength` = 11.
+The identity block is `wValue` = 0, `wLength` = 12 — eleven bytes of identity and the image role.
 
 ### `0xB8` — write register
 
@@ -255,7 +282,9 @@ The lines are push-pull over a few centimetres through two headers, which is unr
 
 | File | Holds |
 | --- | --- |
-| `fpga/src/spiRegisters.v` | The slave and the registers |
+| `fpga/common/spiRegisters.v` | The slave and the registers, shared by both images |
+| `fpga/common/flashBridge.v` | `0x20` to `0x22`, and the lock |
+| `fpga/common/remoteUpdate.v` | `0x23`, the watchdog and the reconfiguration trigger |
 | `fpga/generate-version.sh` | The build stamp the identity block reports |
 | `fx3/firmware/src/fpga-registers.c` | The bit-banged SPI master |
 | `fx3/firmware/src/fpga-register-map.c` | The map, and every decision about it that needs no hardware |

@@ -2,11 +2,11 @@
 
 How the DE0-Nano's configuration flash is divided, which half of it can be updated in the field, and what happens at power-on.
 
-!!! note "Specification, not yet a description"
+!!! note "Built, simulated, and not yet on a board"
 
-    This page is **normative** and describes gateware that does not exist yet. Today `fpga/src/` holds one image, the EPCS holds one image, and nothing reads a boot block. This page defines what the two-image layout must be, so that the factory image — the one component a field update can never fix — is designed on paper and reviewed before it is frozen into hardware.
+    The gateware described here exists: `fpga/factory/` and `fpga/application/` both compile, the boot decision is simulated end to end against a model of the EPCS64, and one `.jic` carries both images at the addresses below.
 
-    The numbers marked as pending measurement are pending measurement.
+    What has not happened yet is the bench. No unit has been provisioned with a dual-image flash, the handover from factory to application has never run on hardware, and two numbers in the factory image — the reconfiguration block's parameter encoding and the watchdog period — are written from the device documentation rather than from a measurement. Both are marked in the source and in [`fpga/factory/README.md`](https://github.com/simoninns/DomesdayDuplicator/blob/main/fpga/factory/README.md), and **both must be confirmed before the factory image is frozen into fielded hardware**.
 
 ## Two images, and why the resident one is tiny
 
@@ -37,16 +37,19 @@ The boundary is physical, so that a change to the frozen half is loud:
 
 ```
 fpga/
-  factory/      the static boot-loader image. Own Quartus project, own README
-                stating the freeze policy. Compiled in remote-update "factory" mode.
-                Expected to change ~never after its first release.
-  application/  the flashable capture gateware. Own Quartus project, compiled in
-                remote-update "application" mode. Changes freely; this is what the
-                bundle carries.
-  common/       Verilog shared by both: the spiRegisters core, the flash bridge, the
-                asmiblock and reconfiguration wrappers and their simulation stubs,
-                version generation.
+  factory/       the static boot-loader image. Own Quartus project, own README
+                 stating the freeze policy. Expected to change ~never after its
+                 first release.
+  application/   the flashable capture gateware. Own Quartus project. Changes
+                 freely; this is what the bundle carries.
+  common/        Verilog shared by both: the spiRegisters core, the flash bridge,
+                 the active serial and reconfiguration wrappers, version
+                 generation, and sim/ models of the device primitives so the free
+                 tools can simulate what the real parts do.
+  provisioning/  the conversion that puts both images in one flash file.
 ```
+
+Both images are compiled with remote update enabled — the Quartus assignment carries a Stratix III name on a Cyclone IV part, which is Quartus' own naming rather than a mistake — and the provisioning conversion marks exactly one of them as the factory page. Marking both is an error the converter refuses, which is a useful thing for it to refuse.
 
 A change under `common/` rebuilds both images, so it inherits the factory image's scrutiny. That is a cost and it is the right one: the alternative is two copies of the register core drifting apart, which would be a protocol split inside one device.
 
@@ -89,6 +92,8 @@ The block carries its own checksum as well as the image's, so a boot block that 
 
 The application's start address is stored rather than assumed, so that the future second slot needs no change to the factory image's logic. That is the one piece of forward compatibility the frozen image gets, and it is cheap: it is a field it reads instead of a constant it holds.
 
+The encoder for this format is [`fpga/make-boot-block.py`](https://github.com/simoninns/DomesdayDuplicator/blob/main/fpga/make-boot-block.py), whose output is checked field by field, by offset, in `fpga/tests/test_boot_block.py` — and the same twenty-four bytes appear in the gateware testbench that reads them, so a change to the format on one side fails on the other.
+
 **CRC32 rather than SHA-256, and this is the only place in the update chain where that is true.** The check runs in the factory image's fabric, where a SHA-256 core cannot be justified in an image whose entire purpose is to be small and never change. It defends against *corruption only* — and it only has to. Authenticity was settled before the boot block was ever written: the bundle's signature, the digest checked on the way into the device, and the digest recomputed from the flash after the write. An attacker who could write the boot block could write the application image too, and no digest in the factory image would help. The trade-off is stated here rather than left to be discovered, because a lone CRC in a document full of SHA-256 looks like an oversight until you know why it is not.
 
 ## Boot flow
@@ -129,6 +134,12 @@ Three independent things have to go right, and each catches a different failure:
 
 **The watchdog** catches the case neither CRC can see: an application image that configures perfectly and whose fabric is nonetheless dead. The image loads, the configuration CRC passes, and nothing works.
 
+### The clock the reconfiguration block runs at
+
+Not the system clock. The block is specified on this device for a 25 ns minimum period and 10.1 ns minimum high and low times, which Quartus checks and which the 80 MHz system clock violates by a factor of two — so it is given a divide-by-four of it, at 20 MHz, and the constraint that says so is in both images' `.SDC`.
+
+Because the block runs slower than the logic driving it, every signal into it is a level rather than a pulse: a parameter write is held until the block acknowledges it by raising busy, and reconfiguration and tickle requests are stretched over enough system clocks that the block cannot miss one between its own edges.
+
 ### What tickles the watchdog
 
 The application image tickles the watchdog **only after its SPI register interface has decoded a first valid transaction**. Not on a timer, and not immediately on configuration: either of those would make the watchdog prove that the image loaded, which the configuration CRC already proved. Requiring a decoded transaction makes it prove that the fabric is *alive and talking*, which is the thing nothing else checks.
@@ -147,9 +158,15 @@ If the double configuration turns out to be slow enough to matter, the answer is
 
 Once, with a cable, and then never again:
 
-1. Build both images and the combined provisioning `.jic`.
+1. Build both images and the combined provisioning `.jic` — one command, `./fpga/build-local.sh`, which also writes the boot block for the application image it just built.
 2. Program the `.jic` over the DE0-Nano's onboard USB-Blaster, exactly as the existing gateware procedure describes.
-3. Power-cycle and confirm the unit boots to the application image — `IMAGE_ROLE` reads `0x01`.
+3. Power-cycle. The unit comes up in the **factory image**, because the boot block sector is still erased: `IMAGE_ROLE` reads `0x00` and the application reports a unit in recovery.
+4. Write the boot block, which is the last step of any gateware update and is what makes an application image count.
+5. Power-cycle again and confirm `IMAGE_ROLE` now reads `0x01`.
+
+Step 4 is the one that needs the update path, so **a freshly provisioned unit is in recovery until a gateware update has been performed on it.** That is not a workaround; it is the same commit ordering every later update follows, exercised once at the beginning. What it does mean is that provisioning and the first gateware update are one procedure rather than two.
+
+The boot block is not in the `.jic` because Quartus' converter cannot place arbitrary data in one for this device family. That was tried, with every spelling of the option its own converter recognises, and it refuses the conversion; the `boot-block.bin` written beside the `.jic` is the same twenty-four bytes, for the same image, ready for whatever writes it.
 
 From that point the application image is field-updatable over the single USB cable, and the cable comes out only for the cases the update mechanism cannot fix.
 
@@ -157,9 +174,14 @@ From that point the application image is field-updatable over the single USB cab
 
 | File | Holds |
 | --- | --- |
-| `fpga/factory/` | The frozen boot-loader image and its freeze policy (not yet written) |
-| `fpga/application/` | The capture gateware (today `fpga/src/`) |
-| `fpga/common/` | The register core, flash bridge and reconfiguration wrappers (not yet written) |
+| `fpga/factory/bootLoader.v` | The boot decision: read the block, check it, check the image it names, hand over or stay |
+| `fpga/factory/crc32.v` | The checksum, checked against the published CRC-32 check value |
+| `fpga/factory/README.md` | The freeze policy, and what is still to be confirmed on a bench |
+| `fpga/common/flashBridge.v` | The bridge both images carry, and its lock |
+| `fpga/common/remoteUpdate.v` | The reconfiguration trigger and the watchdog |
+| `fpga/common/sim/` | Models of the two device primitives and of the EPCS64, so the boot path simulates against a flash rather than a stub |
+| `fpga/make-boot-block.py` | The encoder for the format above |
+| `fpga/provisioning/` | The conversion that puts both images in one flash file |
 | `fx3/firmware/src/` | The EPCS driver that speaks through the bridge (not yet written) |
 
 Related pages: [Device update mechanism](device-update-mechanism.md), [FPGA register interface](fpga-register-interface.md), [Update bundle format](update-bundle-format.md).

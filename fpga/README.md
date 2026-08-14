@@ -3,20 +3,50 @@
 Verilog for the Terasic DE0-NANO board (Altera/Intel Cyclone IV, `EP4CE22F17C6`). It samples
 the ADC, buffers the data and feeds it to the FX3 USB 3.0 controller over the GPIF II bus.
 
+## Two images, and why
+
+The gateware is **two** bitstreams that live in one flash, and which one a unit is running
+decides what it can do:
+
+| | [factory/](factory/) | [application/](application/) |
+| --- | --- | --- |
+| What it is | a boot loader, and a recovery state | the capture gateware |
+| How it reaches a unit | JTAG, once, when the unit is provisioned | a device update over the USB cable |
+| Captures | **no** | yes |
+| Changes | essentially never after its first release | freely |
+| Reports `IMAGE_ROLE` | `0x00` | `0x01` |
+
+The factory image exists so that a gateware update has something to fall back to. There is
+no way to avoid writing the flash — the FPGA has no other configuration source, and the
+host cannot reach its configuration pins at all — so instead a unit always has a resident
+image that can identify itself, give the FX3 access to the flash, and decide at power-on
+whether the application image is intact enough to enter.
+
+It is deliberately not a copy of the capture gateware. An image containing the capture
+logic would have to change whenever the capture logic changed, which is the opposite of
+resident. The whole model, the flash layout and the boot decision are on the
+[EPCS layout and boot flow](../docs/content/development/epcs-layout-and-boot-flow.md)
+documentation page; **[factory/README.md](factory/README.md) carries the freeze policy and
+must be read before anything in that directory is edited.**
+
 ## Contents
 
 | Path | Contents |
 | --- | --- |
-| [src/](src/) | Quartus project and all Verilog sources |
-| [tests/](tests/) | Testbenches and the lint and simulation runners |
+| [application/](application/) | The capture gateware: its Quartus project and the modules only it needs |
+| [factory/](factory/) | The resident boot loader. **Read its README before editing** |
+| [common/](common/) | What both images contain, and the models the free tools simulate the device with |
+| [provisioning/](provisioning/) | The conversion that puts both images in one flash file |
+| [tests/](tests/) | Testbenches and the lint, style, simulation and constraint runners |
 | [configs/](configs/) | udev rules for the USB-Blaster JTAG cable |
 | `package.nix` | The bitstream build. Not in CI — see [Reproducibility](#reproducibility) |
 | `checks.nix` | Lint and simulation checks, which *are* in CI |
-| `build-local.sh` | Out-of-tree local build |
+| `build-local.sh` | Out-of-tree local build of both images |
+| `make-boot-block.py` | The boot block that tells the factory image where the application image is |
 | `bitstream-provenance.py` | Provenance record and digests for a built bitstream |
 | `verilator-waivers.vlt` | Lint waivers, each with the reason it is waived |
 
-Inside `src/`:
+Inside `application/`:
 
 | File | Role |
 | --- | --- |
@@ -24,13 +54,27 @@ Inside `src/`:
 | `DomesdayDuplicator.qsf` | Quartus settings — device, pin assignments, source list |
 | `DomesdayDuplicator.qpf` | Quartus project file |
 | `DomesdayDuplicator.SDC` | Timing constraints. Checked by `tests/run-sdc.sh`; the I/O delay values in its header are pessimistic placeholders pending the datasheets |
+| `DomesdayDuplicator.cof` | Conversion to the raw image bytes a device update writes |
 | `dataGenerator.v` | ADC sampling and the built-in test-data generator |
 | `buffer.v` | Sample buffering between the sampling side and the FX3 |
 | `fifo.v` | The single-clock FIFO `buffer.v` is built from |
 | `fx3StateMachine.v` | GPIF II handshake with the FX3 |
-| `spiRegisters.v` | The register bank the FX3 reads and writes over SPI |
+
+Inside `common/`:
+
+| File | Role |
+| --- | --- |
+| `spiRegisters.v` | The register bank the FX3 reads and writes over SPI, register map version 2 |
+| `flashBridge.v` | The explicitly-unlocked pass-through to the EPCS, registers `0x20`–`0x22` |
+| `asmiBlock.v` | Access to the configuration flash pins, which are not user I/O |
+| `remoteUpdate.v` | Reconfiguration and the configuration watchdog, register `0x23` |
 | `version.vh` | Generated build stamp the register bank reports; regenerated into the build directory by `generate-version.sh` |
 | `IPpllGenerator.v` | Instantiation of the Altera `altpll` primitive |
+| `sim/` | Behavioural models of the two device primitives and of the EPCS64 itself, so the free tools can simulate what the real parts do. Test fixtures; never compiled into a bitstream |
+
+Inside `factory/`: the top level, the boot decision (`bootLoader.v`), the checksum it
+validates the boot block with (`crc32.v`), and its own Quartus project. See
+[factory/README.md](factory/README.md).
 
 ## The generated IP is source, not wizard output
 
@@ -58,18 +102,29 @@ Everything except producing a bitstream is free software and cross-platform:
 nix develop .#fpga        # verible, verilator, iverilog, gtkwave — no Quartus
 ```
 
+Every runner takes the whole of `fpga/` rather than one directory, because the two images
+share half their source and a check that saw only one of them would miss the half that can
+break both.
+
 ```bash
-./tests/run-lint.sh       # T4: verilator --lint-only over the six hand-written modules
+./tests/run-lint.sh       # T4: verilator --lint-only over the hand-written modules
 ./tests/run-style.sh      # T4: formatting and style, via verible
-./tests/run-sim.sh        # T3: the five module testbenches, under Icarus Verilog
-./tests/run-sdc.sh        # T4: the timing constraints parse and cover every pin
+./tests/run-sim.sh        # T3: the module testbenches, under Icarus Verilog
+./tests/run-sdc.sh        # T4: both images' constraints parse and cover every pin
 ./tests/run-version.sh    # T2: the commit-to-register version stamp generator
+./tests/test_boot_block.py  # T1: the boot block encoder, offset by offset
 ./tests/run-format.sh     # not a check — the formatter, run it to fix run-style.sh
 ```
 
-All five checks run unchanged as `nix flake check` checks (`fpga-lint`, `fpga-style`,
-`fpga-sim`, `fpga-sdc`, `fpga-version`), and they are the only automated coverage the
-gateware gets in CI — bitstream builds cannot run there.
+All of them run unchanged as `nix flake check` checks (`fpga-lint`, `fpga-style`,
+`fpga-sim`, `fpga-sdc`, `fpga-version`, `fpga-provenance`, `fpga-boot-block`), and they are
+the only automated coverage the gateware gets in CI — bitstream builds cannot run there.
+
+The simulation that matters most is `tb_bootLoader`, which builds the factory image's boot
+path exactly as its top level wires it — boot logic, flash bridge, active serial block,
+reconfiguration control — against a model of the EPCS64, and drives the four cases the boot
+flow documents. It is the only logic in this repository that a field update can never
+repair.
 
 ## Style
 
@@ -128,7 +183,8 @@ them unchanged, with no upgrade prompt and no source edits, and updates
 
 ```bash
 nix develop .#fpga-quartus     # x86_64-linux only; multi-GB first download
-./build-local.sh               # copies src/ to build/, compiles, converts, records provenance
+./build-local.sh               # copies the sources to build/, compiles both images,
+                               # converts, records provenance
 ```
 
 or hermetically, which is the route for anything that gets released:
@@ -137,20 +193,35 @@ or hermetically, which is the route for anything that gets released:
 nix build .#bitstream
 ```
 
-Either produces `DomesdayDuplicator.sof` (volatile JTAG configuration),
-`DomesdayDuplicator.jic` (permanent EPCS64 configuration), the compilation reports, and
-`bitstream-provenance.txt`.
+Either produces, in a directory laid out like the sources:
 
-**Do not run `quartus_sh` in `src/`.** It rewrites the tracked `.qsf` in place and scatters
-about thirty build products beside the sources. Both routes above copy to a build directory
-first, which is the only reason this is not a recurring annoyance.
+| Output | What it is |
+| --- | --- |
+| `application/DomesdayDuplicator.sof` | Volatile JTAG configuration of the capture gateware |
+| `application/DomesdayDuplicator_auto.rpd` | The application image as bytes in the flash — what a device update writes |
+| `factory/DomesdayDuplicatorFactory.sof` | Volatile JTAG configuration of the factory image |
+| `provisioning/DomesdayDuplicatorProvisioning.jic` | **Both images**, at their EPCS64 addresses. This is what provisions a board |
+| `provisioning/DomesdayDuplicatorProvisioning.map` | Where the converter actually put them — the check on the layout |
+| `provisioning/boot-block.bin` | The twenty-four bytes that tell the factory image about that application image |
+| `reports/` | The compilation and timing reports for both images |
+| `bitstream-provenance.txt` | Digests for everything above |
+
+**There is deliberately no `.jic` containing the application image alone.** Programming one
+would write the capture gateware over the factory image at address zero, leaving a unit with
+nothing to fall back to. The converter cannot emit the raw image bytes without also
+producing such a file, so both build routes delete it as soon as the `.rpd` is out.
+
+**Do not run `quartus_sh` in the source directories.** It rewrites the tracked `.qsf` in
+place and scatters about thirty build products beside the sources. Both routes above copy to
+a build directory first, which is the only reason this is not a recurring annoyance.
 
 The underlying commands, if you would rather drive them yourself — the GUI is never required
 for any of them:
 
 ```bash
-quartus_sh --flow compile DomesdayDuplicator     # or quartus_map/_fit/_asm/_sta separately
-quartus_cpf -c DomesdayDuplicator.cof            # .sof -> .jic; the .cof is committed
+cd factory     && quartus_sh --flow compile DomesdayDuplicatorFactory
+cd application && quartus_sh --flow compile DomesdayDuplicator
+cd provisioning && quartus_cpf -c DomesdayDuplicatorProvisioning.cof   # both .sof -> one .jic
 ```
 
 ### If Quartus is installed by hand
@@ -162,13 +233,25 @@ ever withdraws the 25.1 installer and the nixpkgs fetch hash stops resolving.
 
 ## Programming the board
 
-Both configuration description files are committed and name their own inputs, so from a
+The configuration description files are committed and name their own inputs, so from a
 build directory:
 
 ```bash
-quartus_pgm DomesdayDuplicator_write_sof.cdf   # volatile, lost on power cycle
-quartus_pgm DomesdayDuplicator_write_jic.cdf   # permanent, into the EPCS64 flash
+cd provisioning && quartus_pgm DomesdayDuplicatorProvisioning_write_jic.cdf   # both images, permanent
+cd application  && quartus_pgm DomesdayDuplicator_write_sof.cdf               # volatile, lost on power cycle
+cd factory      && quartus_pgm DomesdayDuplicatorFactory_write_sof.cdf        # volatile
 ```
+
+**Provisioning is the last time a cable is needed.** Once a unit carries both images, the
+application half is updated over the USB cable it already has — see the
+[device update mechanism](../docs/content/development/device-update-mechanism.md).
+
+One thing the provisioning file does *not* carry is the boot block: it is written to
+`0x100000` by the update path, on a device, and until it is there a freshly provisioned
+unit comes up in the factory image and reports itself in recovery. `boot-block.bin` beside
+the `.jic` is exactly the twenty-four bytes for the application image built alongside it.
+Quartus' converter has no way to place arbitrary data in a `.jic` for this device family —
+tried, and it refuses the conversion — so the two artefacts stay separate.
 
 `quartus_pgm` needs `jtagd` (it starts one) and a udev rule for the USB-Blaster — the DE0-Nano
 has one on board. **nixpkgs' Quartus package ships no udev rules**, so this repository

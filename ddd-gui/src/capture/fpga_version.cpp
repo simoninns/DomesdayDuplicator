@@ -25,7 +25,16 @@ bool IsHexDigit(uint8_t character) {
 }  // namespace
 
 bool FpgaVersion::MapVersionIsKnown() const {
-  return present && map_version == kIdentityMapVersion;
+  return present && map_version >= kRegisterMapVersionMinimum &&
+         map_version <= kRegisterMapVersionMaximum;
+}
+
+bool FpgaVersion::ImageRoleIsKnown() const {
+  return present && map_version >= kRegisterMapVersionWithImageRole;
+}
+
+bool FpgaVersion::IsRecoveryGateware() const {
+  return ImageRoleIsKnown() && image_role == kImageRoleFactory;
 }
 
 FpgaVersion ParseFpgaIdentity(const std::vector<uint8_t>& identity) {
@@ -41,6 +50,7 @@ FpgaVersion ParseFpgaIdentity(const std::vector<uint8_t>& identity) {
 
   version.present = true;
   version.map_version = identity[kRegisterMapVersion];
+  version.image_role = identity[kRegisterImageRole];
 
   const uint8_t flags = identity[kRegisterBuildFlags];
   version.dirty = (flags & kBuildFlagDirty) != 0;

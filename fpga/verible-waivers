@@ -37,3 +37,22 @@
 # Scoped to the four names and to the top level, so a new ALL_CAPS signal anywhere —
 # including a new port on this same module — is still reported.
 waive --rule=signal-name-style --regex="\b(CLOCK_50|GPIO0|GPIO1|LED)\b" --location=".*DomesdayDuplicator\.v"
+waive --rule=signal-name-style --regex="\b(CLOCK_50|GPIO0|GPIO1|LED)\b" --location=".*DomesdayDuplicatorFactory\.v"
+
+# ---------------------------------------------------------------------------
+# The megafunction's own parameter names
+# ---------------------------------------------------------------------------
+#
+# common/sim/altremote_update.v is a model of an Altera megafunction, and its
+# parameter list is that megafunction's: operation_mode, in_data_width,
+# config_device_addr_width and the rest are lower case because Altera named them
+# that way, and Quartus resolves them by name when the real one is instantiated.
+#
+# Renaming them to this project's UpperCamelCase would make the model disagree
+# with the part it stands in for, which is the one thing a model may never do —
+# a design that simulated against it would fail to synthesise, and the failure
+# would name a parameter that exists in neither file.
+#
+# Scoped to that one file. A parameter anywhere else, including elsewhere in
+# common/sim, is still held to the convention.
+waive --rule=parameter-name-style --location=".*sim/altremote_update\.v"

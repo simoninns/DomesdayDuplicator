@@ -340,9 +340,19 @@ module DomesdayDuplicator (
     // writes into the build directory. The copy committed beside the sources
     // reports no commit, which is the honest answer for a lint or simulation run
     // and for anyone who compiles without running the generator first.
+    wire        window_write;
+    wire [ 1:0] window_address;
+    wire [ 7:0] window_write_data;
+    wire [31:0] window_read_data;
+    wire        transaction_decoded;
+
     spiRegisters #(
         .CommitText(`GATEWARE_COMMIT_TEXT),
-        .BuildFlags(`GATEWARE_BUILD_FLAGS)
+        .BuildFlags(`GATEWARE_BUILD_FLAGS),
+
+        // This is the capture gateware, which is what a host reads out of
+        // IMAGE_ROLE to know it is not looking at a unit in recovery
+        .ImageRole(8'h01)
     ) spi_registers_0 (
         // Inputs
         .reset_n          (reset_n),
@@ -350,11 +360,87 @@ module DomesdayDuplicator (
         .spi_clock        (fx3_spi_clock),
         .spi_mosi         (fx3_spi_mosi),
         .spi_chip_select_n(fx3_spi_chip_select_n),
+        .window_read_data (window_read_data),
 
         // Outputs
-        .spi_miso (fx3_spi_miso),
-        .test_mode(fx3_test_mode),  // 1 = test data generator selected
-        .leds     (LED)             // Driven by the FX3, for status
+        .spi_miso           (fx3_spi_miso),
+        .test_mode          (fx3_test_mode),       // 1 = test data generator selected
+        .leds               (LED),                 // Driven by the FX3, for status
+        .window_write       (window_write),
+        .window_address     (window_address),
+        .window_write_data  (window_write_data),
+        .transaction_decoded(transaction_decoded)
+    );
+
+    // Flash bridge and reconfiguration control
+    //
+    // The capture gateware carries these so that a gateware update is done from
+    // the running application image rather than from the recovery one: the
+    // factory image is for when something has gone wrong, and an update is not
+    // that. Everything here is inert until the FX3 unlocks it.
+    wire [7:0] bridge_unlock_read;
+    wire [7:0] bridge_control_read;
+    wire [7:0] bridge_data_read;
+    wire [7:0] reconfiguration_read;
+
+    wire       flash_clock;
+    wire       flash_chip_select_n;
+    wire       flash_data_out;
+    wire       flash_data_in;
+    wire       flash_drive;
+
+    assign window_read_data = {
+        reconfiguration_read, bridge_data_read, bridge_control_read, bridge_unlock_read
+    };
+
+    flashBridge flash_bridge_0 (
+        // Inputs
+        .reset_n          (reset_n),
+        .clock            (system_clock),
+        .window_write     (window_write),
+        .window_address   (window_address),
+        .window_write_data(window_write_data),
+        .flash_data_in    (flash_data_in),
+
+        // Outputs
+        .unlock_read        (bridge_unlock_read),
+        .control_read       (bridge_control_read),
+        .data_read          (bridge_data_read),
+        .flash_clock        (flash_clock),
+        .flash_chip_select_n(flash_chip_select_n),
+        .flash_data_out     (flash_data_out),
+        .flash_drive        (flash_drive)
+    );
+
+    asmiBlock asmi_block_0 (
+        // Inputs
+        .dclk           (flash_clock),
+        .chip_select_n  (flash_chip_select_n),
+        .serial_data_out(flash_data_out),
+        .output_enable  (flash_drive),
+
+        // Output
+        .serial_data_in(flash_data_in)
+    );
+
+    // The watchdog the factory image armed before it handed over is tickled by
+    // transaction_decoded, so this image proves its fabric is alive rather than
+    // merely proving it configured - which the configuration CRC already did.
+    // A host reconfiguration request through this block returns the device to
+    // the factory image, which then makes the boot decision again.
+    remoteUpdate remote_update_0 (
+        // Inputs
+        .reset_n            (reset_n),
+        .clock              (system_clock),
+        .window_write       (window_write && (window_address == 2'd3)),
+        .window_write_data  (window_write_data),
+        .transaction_decoded(transaction_decoded),
+        .arm_request        (1'b0),
+        .boot_address       (24'd0),
+        .reconfigure_request(1'b0),
+
+        // Output
+        .control_read(reconfiguration_read)
     );
 
 endmodule

@@ -338,7 +338,7 @@ was migrated. **Use markdown image syntax**, `![](path){ width="600" }`, which M
 rewrite. If you need to check the built output directly, resolve every `href` and `src` in
 `result/` against the output tree.
 
-### 4.7 `fpga/` — three testbenches, a lint pass and a digest test
+### 4.7 `fpga/` — eight testbenches, a lint pass and two digest tests
 
 Unlike every other component, the gateware has no `ctest` suite: there is no CMake here, and
 the tools are a linter and a simulator rather than a compiler. The checks are Nix derivations
@@ -348,13 +348,32 @@ running the same scripts a developer runs, so the two cannot drift.
 | --- | --- | --- |
 | `tests/tb_dataGenerator.v` | The test-pattern generator: the 0…1020 ramp over three periods, ADC passthrough and its one-cycle registration, that test mode ignores the ADC bus, and the sequence number — including the wrap after exactly 63 sequences of 65536 samples | T3 |
 | `tests/tb_fx3StateMachine.v` | The GPIF II handshake: idle until asked, a packet of exactly 8192 clock cycles, that a single-cycle request is enough, the gap between back-to-back packets, and that a mid-packet reset abandons rather than resumes | T3 |
-| `tests/tb_spiRegisters.v` | The SPI register bank, driven at the fastest clock the specification allows: reset values, the identity block in one transfer, test mode and the LEDs written and read back, address auto-increment and wrap, unmapped reads returning zero, writes to read-only registers discarded, and a byte cut short by chip select leaving nothing behind | T3 |
-| `tests/run-lint.sh` | `verilator --lint-only -Wall` over the five hand-written modules | T4 |
+| `tests/tb_spiRegisters.v` | The SPI register bank, driven at the fastest clock the specification allows: reset values, the identity block and the image role in one transfer, test mode and the LEDs written and read back, address auto-increment and wrap, unmapped reads returning zero, writes to read-only registers discarded, a byte cut short by chip select leaving nothing behind, the `0x20`–`0x23` window read and written, that `BRIDGE_DATA` alone does *not* auto-increment, and the decoded-byte pulse the watchdog tickle is built on | T3 |
+| `tests/tb_flashBridge.v` | The EPCS pass-through: inert while locked, an interrupted unlock sequence that cannot be completed by a later stray write, the sequence that does unlock it, a real read answered by a model of the EPCS64 — so the mode-0 edges have to be the right way round — and relocking by write and by reset | T3 |
+| `tests/tb_bootLoader.v` | The factory image's boot decision, built as its top level wires it and read through the bridge from a model of the EPCS64: a valid boot block arms the watchdog with the right address and *then* reconfigures, and the wrong magic, a bad block checksum, a damaged image and an unknown layout version each leave the unit in the factory image | T3 |
+| `tests/tb_crc32.v` | The boot block's checksum against the published CRC-32 check value, so what the gateware computes is what a host's library computes, plus the restart the boot logic depends on between its two runs of bytes | T3 |
+| `tests/run-lint.sh` | `verilator --lint-only -Wall` over the twelve hand-written modules, across both images and the half they share | T4 |
+| `tests/run-sdc.sh` | Both images' timing constraints: that they parse as Tcl, and that they name every pin the top level maps | T4 |
 | `tests/run-version.sh` | The commit-to-identity-register stamp: an eight-character hash, the seven-character one a Nix build passes, a dirty tree, a build with no commit, a full-length hash, and a string that is not a hash at all | T2 |
 | `tests/test_provenance.py` | The byte offsets the canonical bitstream digest masks, that a payload change is *not* masked, and that a moved field raises rather than digesting unmasked data | T1, T2 |
+| `tests/test_boot_block.py` | The boot block encoder, field by field and by offset, including the exact bytes `tb_bootLoader.v` is written against, and the four descriptions it refuses to encode | T1 |
 
 Run them with `./fpga/tests/run-lint.sh` and `./fpga/tests/run-sim.sh` from
-`nix develop .#fpga`, or as the `fpga-lint`, `fpga-sim`, `fpga-provenance` and `fpga-version` flake checks.
+`nix develop .#fpga`, or as the `fpga-lint`, `fpga-style`, `fpga-sim`, `fpga-sdc`,
+`fpga-provenance`, `fpga-version` and `fpga-boot-block` flake checks.
+
+`tb_bootLoader.v` is the one that matters most, and for a reason none of the others share:
+the logic it covers is the only logic in this repository that a field update can never
+repair. A factory image that refuses a good boot block strands every unit in recovery; one
+that accepts a bad block hands the device to an image that may not come back. It is
+therefore built the way the device is — boot logic, flash bridge, active serial block and
+reconfiguration control, with a model of the EPCS64 behind them — rather than by stubbing
+out the flash. The expected checksums come from an independent implementation (Python's
+`zlib`), so a fault shared by the gateware and the testbench cannot pass.
+
+What no simulation can cover is the handover itself: a simulated device cannot reconfigure.
+The testbench checks that the right thing was asked for at the right moment; the bench
+checks that asking for it works, which is §7's remaining gateware item.
 
 `tb_dataGenerator.v` is the simulation counterpart of §5: the ramp and sequence number it
 asserts are exactly what the capture-integrity procedure counts breaks in, so a defect
@@ -766,6 +785,7 @@ Listed so this document can be read as a status report rather than a wish list.
 | SPDX conversion of the remaining long-form headers | T4 | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
 | Finish validating the single-clock gateware | T5 | See below. The board is programmed and a 16-minute capture came back clean; four checks remain |
 | Device-update bench procedures for the FPGA target | T5 | §6 covers the FX3 target. The EPCS procedures — gateware update, interrupted write falling back to the factory image, and the throughput measurement — land in the phase that first performs them, never written ahead of being run |
+| Dual-image provisioning and the factory-to-application handover | T5 | Both gateware images build and the boot decision is simulated, but no unit has been provisioned with a dual-image flash. First bench session confirms: the provisioning `.jic` programs, the unit comes up in the factory image with `IMAGE_ROLE` reading `0x00`, the reconfiguration block's parameter encoding is the one `remoteUpdate.v` assumes, the handover to the application image works and `IMAGE_ROLE` then reads `0x01`, the watchdog period is measured against a worst-case FX3 boot before it is frozen, and the FX3's "FPGA ready" timing assumption still holds across two configurations rather than one. Not written up ahead of being run |
 
 ### Validating the single-clock gateware
 

@@ -35,37 +35,78 @@ module tb_spiRegisters;
     localparam [63:0] COMMIT_TEXT = 64'h3737313334393564;
     localparam [7:0] BUILD_FLAGS = 8'h03;
 
-    reg           reset_n;
-    reg           clock;
+    // The application image's role, which is the default and the one a
+    // build that has not said is
+    localparam [7:0] IMAGE_ROLE = 8'h01;
 
-    reg           spi_clock;
-    reg           spi_mosi;
-    reg           spi_chip_select_n;
-    wire          spi_miso;
+    // What the window answers with, least significant byte at 0x20
+    localparam [31:0] WINDOW_CONTENTS = 32'h23222120;
 
-    wire          test_mode;
-    wire    [7:0] leds;
+    reg            reset_n;
+    reg            clock;
 
-    integer       errors;
-    integer       bit_index;
-    integer       read_index;
+    reg            spi_clock;
+    reg            spi_mosi;
+    reg            spi_chip_select_n;
+    wire           spi_miso;
 
-    reg     [7:0] spi_received;
-    reg     [7:0] read_data         [0:15];
+    wire           test_mode;
+    wire    [ 7:0] leds;
+
+    // The 0x20 to 0x23 window, which in a real image reaches the flash
+    // bridge and the reconfiguration control. Here it is answered by the
+    // testbench, so what is tested is the window itself.
+    wire           window_write;
+    wire    [ 1:0] window_address;
+    wire    [ 7:0] window_write_data;
+    reg     [31:0] window_read_data;
+    wire           transaction_decoded;
+
+    integer        window_writes;
+    reg     [ 1:0] last_window_address;
+    reg     [ 7:0] last_window_data;
+    integer        decoded_bytes;
+
+    integer        errors;
+    integer        bit_index;
+    integer        read_index;
+
+    reg     [ 7:0] spi_received;
+    reg     [ 7:0] read_data           [0:15];
 
     spiRegisters #(
         .CommitText(COMMIT_TEXT),
-        .BuildFlags(BUILD_FLAGS)
+        .BuildFlags(BUILD_FLAGS),
+        .ImageRole (IMAGE_ROLE)
     ) dut (
-        .reset_n          (reset_n),
-        .clock            (clock),
-        .spi_clock        (spi_clock),
-        .spi_mosi         (spi_mosi),
-        .spi_chip_select_n(spi_chip_select_n),
-        .spi_miso         (spi_miso),
-        .test_mode        (test_mode),
-        .leds             (leds)
+        .reset_n            (reset_n),
+        .clock              (clock),
+        .spi_clock          (spi_clock),
+        .spi_mosi           (spi_mosi),
+        .spi_chip_select_n  (spi_chip_select_n),
+        .window_read_data   (window_read_data),
+        .spi_miso           (spi_miso),
+        .test_mode          (test_mode),
+        .leds               (leds),
+        .window_write       (window_write),
+        .window_address     (window_address),
+        .window_write_data  (window_write_data),
+        .transaction_decoded(transaction_decoded)
     );
+
+    // The window's writes and the decoded-byte pulses are one clock wide,
+    // so they are caught here rather than sampled by the checks below.
+    always @(posedge clock) begin
+        if (window_write) begin
+            window_writes       <= window_writes + 1;
+            last_window_address <= window_address;
+            last_window_data    <= window_write_data;
+        end
+
+        if (transaction_decoded) begin
+            decoded_bytes <= decoded_bytes + 1;
+        end
+    end
 
     // 60 MHz FX3 system clock — 16.667 ns period
     initial begin
@@ -173,12 +214,17 @@ module tb_spiRegisters;
     endtask
 
     initial begin
-        errors            = 0;
+        errors              = 0;
+        window_writes       = 0;
+        decoded_bytes       = 0;
+        last_window_address = 2'd0;
+        last_window_data    = 8'h00;
+        window_read_data    = WINDOW_CONTENTS;
 
-        reset_n           = 1'b0;
-        spi_clock         = 1'b0;
-        spi_mosi          = 1'b0;
-        spi_chip_select_n = 1'b1;
+        reset_n             = 1'b0;
+        spi_clock           = 1'b0;
+        spi_mosi            = 1'b0;
+        spi_chip_select_n   = 1'b1;
 
         repeat (4) @(posedge clock);
         #1 reset_n = 1'b1;
@@ -197,9 +243,9 @@ module tb_spiRegisters;
         //
         // Eleven bytes in one transaction: the signature, the map version, the
         // build flags and eight ASCII characters of commit.
-        spi_read(7'h00, 8'd11);
+        spi_read(7'h00, 8'd12);
         check(read_data[0], 8'h44, "ID register");
-        check(read_data[1], 8'h01, "map version");
+        check(read_data[1], 8'h02, "map version");
         check(read_data[2], BUILD_FLAGS, "build flags");
         check(read_data[3], 8'h37, "commit character 0");
         check(read_data[4], 8'h37, "commit character 1");
@@ -209,6 +255,7 @@ module tb_spiRegisters;
         check(read_data[8], 8'h39, "commit character 5");
         check(read_data[9], 8'h35, "commit character 6");
         check(read_data[10], 8'h64, "commit character 7");
+        check(read_data[11], IMAGE_ROLE, "image role");
 
         // --- Test mode ---
         spi_write_one(7'h10, 8'h01);
@@ -244,8 +291,63 @@ module tb_spiRegisters;
         // This is what lets the map grow: a host that reads an address this
         // gateware does not implement gets zero rather than nonsense, and
         // learns what is implemented from the map version instead.
-        spi_read(7'h20, 8'd1);
+        spi_read(7'h30, 8'd1);
         check(read_data[0], 8'h00, "unmapped address reads zero");
+
+        // --- The 0x20 to 0x23 window ---
+        //
+        // Four addresses that are not registers in this module at all: a
+        // read is answered from outside it and a write leaves as a pulse.
+        // The bank is shared by both images and neither of them keeps the
+        // flash bridge in here, so this is the whole of what can be tested
+        // without one.
+        spi_read(7'h20, 8'd4);
+        check(read_data[0], 8'h20, "the window's first byte");
+        check(read_data[1], 8'h21, "the window's second byte");
+        check(read_data[2], 8'h22, "the window's third byte");
+
+        // BRIDGE_DATA does not auto-increment, so a fourth byte of the same
+        // read returns it again rather than moving on to 0x23. A run of
+        // reads from one address is how a multi-byte flash transaction is
+        // expressed, and an address that moved on would break it.
+        check(read_data[3], 8'h22, "BRIDGE_DATA does not auto-increment");
+
+        spi_read(7'h23, 8'd1);
+        check(read_data[0], 8'h23, "the window's fourth byte, read on its own");
+
+        window_writes = 0;
+        spi_write_one(7'h21, 8'hC7);
+        check(window_writes, 1, "a window write leaves exactly one pulse");
+        check(last_window_address, 2'd1, "the window write carried its address");
+        check(last_window_data, 8'hC7, "the window write carried its byte");
+
+        // Two bytes to BRIDGE_DATA in one transaction reach BRIDGE_DATA
+        // twice, for the same reason
+        window_writes = 0;
+        spi_write_two(7'h22, 8'hAA, 8'h55);
+        check(window_writes, 2, "two bytes to BRIDGE_DATA are two writes");
+        check(last_window_address, 2'd2, "and the second one is still BRIDGE_DATA");
+        check(last_window_data, 8'h55, "with the second byte");
+
+        // --- The decoded-byte pulse ---
+        //
+        // What the application image tickles the reconfiguration watchdog
+        // with. A read counts as much as a write: the FX3's identity read
+        // during start-up is what tickles it on a device with no host
+        // attached.
+        decoded_bytes = 0;
+        spi_read(7'h00, 8'd11);
+        check(decoded_bytes, 11, "eleven data bytes, eleven pulses");
+
+        decoded_bytes = 0;
+        spi_write_one(7'h10, 8'h00);
+        check(decoded_bytes, 1, "a write pulses too");
+
+        decoded_bytes = 0;
+        spi_select;
+        spi_byte(8'h10);
+        spi_deselect;
+        check(decoded_bytes, 0, "a command byte with no data does not pulse");
 
         // --- Writes to read-only registers are discarded ---
         //

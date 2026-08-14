@@ -80,16 +80,69 @@ def sdc_false_paths(sdc):
     return {p if p == "LED[*]" else normalise(p) for p in found}
 
 
-def main():
-    # The source directory, so that this takes the same argument the runners
-    # beside it do and can be pointed at a copy of the tree.
-    if len(sys.argv) > 1:
-        src = pathlib.Path(sys.argv[1])
-    else:
-        src = pathlib.Path(__file__).resolve().parent.parent / "src"
+def check_factory(top, sdc):
+    """The factory image, whose rule is completeness rather than role.
 
-    top = (src / "DomesdayDuplicator.v").read_text()
-    sdc = (src / "DomesdayDuplicator.SDC").read_text()
+    It has no capture path, so there are no port groups to compare against:
+    every pin it drives is held at a constant and every pin it reads is the
+    register link. What is worth checking is that none of them is missing
+    from the constraints, because a pin the top level drives and the SDC
+    never mentions is indistinguishable from one nobody considered - and
+    this is the image that cannot be repaired in the field.
+    """
+    driven = {
+        normalise(pin)
+        for pin, value in re.findall(r"assign (GPIO\d\[\d+\])\s*=\s*([^;]+);", top)
+        if "1'bZ" not in value and "{34{1'bZ}}" not in value
+    }
+    read = {
+        normalise(pin)
+        for pin in re.findall(r"assign \w+\s*=\s*(GPIO\d\[\d+\]);", top)
+    }
+
+    if not driven or not read:
+        sys.exit("could not read the pin mapping from the factory top level")
+
+    accounted = sdc_false_paths(sdc) | set(CLOCK_OUTPUT_PINS)
+    for group in re.findall(r"set_false_path -to \[get_ports \{ \\\n(.*?)\}\]", sdc, re.S):
+        accounted |= {normalise(p) for p in re.findall(r"GPIO\d\[\d+\]", group)}
+
+    mapped = driven | read
+    unmentioned = mapped - accounted
+
+    failed = False
+    if unmentioned:
+        print(f"  FAIL  mapped by the top level, absent from the SDC: {sorted(unmentioned)}")
+        failed = True
+    else:
+        print(f"  OK    every one of the {len(mapped)} mapped pins is accounted for")
+
+    # PCLK still leaves this image, so it still needs a clock defined at the pin
+    if "[get_ports {GPIO1[31]}]" not in sdc:
+        print("  FAIL  GPIO1[31] carries PCLK but the SDC never names it")
+        failed = True
+    else:
+        print("  OK    the PCLK pin carries a defined clock")
+
+    return 1 if failed else 0
+
+
+def main():
+    # The project directory and revision, so that this takes the same
+    # arguments the runner beside it does and can be pointed at a copy of the
+    # tree.
+    if len(sys.argv) > 2:
+        src = pathlib.Path(sys.argv[1])
+        revision = sys.argv[2]
+    else:
+        src = pathlib.Path(__file__).resolve().parent.parent / "application"
+        revision = "DomesdayDuplicator"
+
+    top = (src / f"{revision}.v").read_text()
+    sdc = (src / f"{revision}.SDC").read_text()
+
+    if revision != "DomesdayDuplicator":
+        return check_factory(top, sdc)
 
     databus, adc_data, control_out, control_in = read_pin_mapping(top)
 
