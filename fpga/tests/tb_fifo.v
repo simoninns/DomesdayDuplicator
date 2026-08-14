@@ -53,9 +53,12 @@ module fifo_case #(
     reg     [DATA_WIDTH-1:0] data_in;
 
     wire    [DATA_WIDTH-1:0] data_out;
-    wire                     empty;
     wire                     full;
     wire    [COUNT_BITS-1:0] used_words;
+
+    // The FIFO does not expose an empty flag — used_words is the one answer —
+    // so the checks below ask the question the way a consumer would have to.
+    wire                     empty = (used_words == COUNT_ZERO);
 
     integer                  i;
     integer                  half;
@@ -71,7 +74,6 @@ module fifo_case #(
         .data_in      (data_in),
         .read_request (read_request),
         .data_out     (data_out),
-        .empty        (empty),
         .full         (full),
         .used_words   (used_words)
     );
@@ -118,19 +120,13 @@ module fifo_case #(
         end
     endtask
 
-    // The flags are a decode of the occupancy count and must agree with it on
-    // every cycle, not merely at the points the sequence below looks at them.
+    // full is a decode of the occupancy count and must agree with it on every
+    // cycle, not merely at the points the sequence below looks at them.
     // Sampled at #2 so that it is behind the stimulus, which drives and checks
     // at #1.
     always @(posedge clock) begin
         #2;
         if (reset_n === 1'b1) begin
-            if (empty !== (used_words == COUNT_ZERO)) begin
-                $display("FAIL: depth %0d: empty disagrees with used_words %0d (t=%0t)", Depth,
-                         used_words, $time);
-                errors = errors + 32'd1;
-            end
-
             if (full !== (used_words == DEPTH_WORDS)) begin
                 $display("FAIL: depth %0d: full disagrees with used_words %0d (t=%0t)", Depth,
                          used_words, $time);

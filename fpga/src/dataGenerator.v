@@ -7,11 +7,23 @@
     SPDX-FileCopyrightText: 2018-2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
+    Runs on the system clock and takes one sample per assertion of
+    sample_enable, which the top level raises on the cycle that also takes the
+    ADC clock high. That is the same instant this module used to capture on
+    when it was clocked by the ADC clock directly: the sample it reads was
+    launched by the previous ADC clock edge, a full 40 MHz period earlier, so
+    it has the same time to settle as before.
+
+    Everything downstream of the enable counts samples rather than cycles, so
+    the ramp and the sequence number advance at the sampling rate and not at
+    the system clock rate.
+
 ************************************************************************/
 
 module dataGenerator (
     input       reset_n,
     input       clock,
+    input       sample_enable,
     input [9:0] adc_databus,
     input       test_mode_flag,
 
@@ -35,8 +47,7 @@ module dataGenerator (
     // otherwise use the actual ADC data
     assign data_out[9:0]   = test_mode_flag ? test_data : adc_data;
 
-    // Read the ADC data and increment the counters on the
-    // negative edge of the clock
+    // Read the ADC data and increment the counters, once per sample
     //
     // Note: The test data is a repeating pattern of incrementing
     // values from 0 to 1020.
@@ -48,7 +59,7 @@ module dataGenerator (
             adc_data       <= 10'd0;
             test_data      <= 10'd0;
             sequence_count <= 22'd0;
-        end else begin
+        end else if (sample_enable) begin
             // Read the ADC data
             adc_data <= adc_databus;
 

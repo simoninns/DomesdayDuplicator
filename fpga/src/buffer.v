@@ -7,227 +7,155 @@
     SPDX-FileCopyrightText: 2018-2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
+    Sits between the sampling side, which produces one word every second
+    system-clock cycle, and the FX3, which takes them away a packet at a time
+    and can be stalled for a long time by the USB 3 host. The buffer is what
+    lets the FX3 fall behind and catch up without a sample being lost.
+
+    One FIFO, not the ping-pong pair this module used to be. The pair existed
+    because a dual-clock FIFO cannot report an occupancy that is exact - the
+    read side sees the write side's word count through a synchroniser chain,
+    several cycles stale - so "is a whole packet ready" had to be answered by
+    filling one buffer completely and swapping. With a single clock the count
+    is exact on the cycle, so the question is a comparison and the second
+    buffer has nothing to do.
+
+    Two consequences worth stating, because both are improvements rather than
+    translations:
+
+    An overflow now drops the samples that do not fit. The old module reacted
+    by asynchronously clearing the whole 8192-word buffer the FX3 had not
+    finished with, so a stall that cost one sample threw away up to 8192 that
+    had already been captured. The sequence numbers dataGenerator stamps into
+    the stream let the host see the gap either way, so the only difference is
+    how much is lost.
+
+    The error flag is held for a fixed number of cycles so the FX3 cannot miss
+    it, which is what the old module intended - but its hold counter was never
+    cleared, so only the *first* overflow of a session was held. Every one
+    after it raised the flag for a single cycle. That is fixed here.
+
 ************************************************************************/
 
 module buffer (
-    input        reset_n,
-    input        write_clock,
-    input        read_clock,
-    input        is_reading,
+    input reset_n,
+    input clock,
+
+    // One assertion per sample. The sampling side runs at half the system
+    // clock, so this is high every second cycle.
+    input        write_enable,
     input [15:0] data_in,
 
-    output reg        buffer_overflow,
-    output reg        data_available,
-    output     [15:0] data_out
+    // High for each cycle the FX3 is taking a word off the databus
+    input         is_reading,
+    output [15:0] data_out,
+
+    output reg data_available,
+    output reg buffer_error
 );
 
-    // FIFO buffer size in words
-    // Note: The size of this buffer must match the buffer size used
-    // by the FX3 (which is set to 8192 16-bit words per buffer) as this
-    // must match the size of the USB3 end-point which is 16Kbytes
+    // The packet size, in words, and the same number three places agree on:
+    // the FX3's DMA buffer, the count in fx3StateMachine, and one 16 KiB USB 3
+    // bulk endpoint buffer. Changing it here alone breaks the capture.
+    localparam integer PacketWords = 8192;
+
+    // Twice the packet size. The headroom above the threshold is what a USB
+    // stall is paid for out of: 8192 words at 40 MSPS is 205 us of grace, the
+    // same as the old pair of buffers gave, in the same total memory.
+    localparam integer FifoDepth = 16384;
+
+    localparam integer UsedBits = $clog2(FifoDepth + 1);
+    localparam integer PacketBits = $clog2(PacketWords + 1);
+
+    // Sized constants, made by part-selecting a 32-bit value for the reason
+    // given at the head of fifo.v
+    localparam [31:0] PacketValue = PacketWords;
+    localparam [UsedBits-1:0] PacketThreshold = PacketValue[UsedBits-1:0];
+    localparam [PacketBits-1:0] PacketCount = PacketValue[PacketBits-1:0];
+    localparam [PacketBits-1:0] PacketZero = {PacketBits{1'b0}};
+    localparam [PacketBits-1:0] PacketOne = {{(PacketBits - 1) {1'b0}}, 1'b1};
+
+    // How long the error flag is held, in system clock cycles. 2000 cycles at
+    // 80 MHz is 25 us, which is what 1000 cycles of the old 40 MHz write clock
+    // came to - the FX3 samples this pin per packet, so the flag has to
+    // outlast a packet's worth of indifference.
+    localparam [11:0] ErrorHoldCycles = 12'd2000;
+    localparam [11:0] ErrorHoldZero = 12'd0;
+    localparam [11:0] ErrorHoldOne = 12'd1;
+
+    wire [UsedBits-1:0] used_words;
+    wire                fifo_full;
+
+    // A write that arrives with the FIFO full is the overflow. The FIFO
+    // discards it - that is its stated contract, so gating the request here as
+    // well would be a second copy of the same decision - and this is only
+    // what raises the flag about it.
+    wire                overflow = write_enable && fifo_full;
+
+    fifo #(
+        .DataWidth(16),
+        .Depth    (FifoDepth)
+    ) fifo_0 (
+        .reset_n      (reset_n),
+        .clock        (clock),
+        .write_request(write_enable),
+        .data_in      (data_in),
+        .read_request (is_reading),
+        .data_out     (data_out),
+        .full         (fifo_full),
+        .used_words   (used_words)
+    );
+
+    // Packet availability ---------------------------------------------------
     //
-    localparam [13:0] BufferSize = 14'd8191;  // 0 - 8191 = 8192 words
+    // data_available states that a whole packet can be read without the FX3
+    // ever having to wait, so it is raised only once a whole packet is queued
+    // and then held for the length of that packet. Holding it is what the
+    // ping-pong pair did - it set the flag when a buffer filled and cleared it
+    // when that buffer emptied - and the GPIF II state machine on the other
+    // side of the pin was designed against that. Dropping the flag the moment
+    // the occupancy fell back below a packet would be a truthful signal and a
+    // different contract.
+    reg [PacketBits-1:0] packet_remaining;
 
-    // "Ping-pong" buffer storing 8192 16-bit words per buffer
-    reg         current_write_buffer;  // 0 = write to ping buffer read from pong,
-    // 1 = write to pong buffer read from ping
-
-    // Define various buffer signals and values
-
-    // Buffer signals (write clock sync'd)
-    wire        ping_async_clear_wr;
-    wire        pong_async_clear_wr;
-    wire        ping_empty_flag_wr;
-    wire        pong_empty_flag_wr;
-    wire [13:0] ping_used_words_wr;
-    wire [13:0] pong_used_words_wr;
-
-    // Buffer signals (read clock sync'd)
-    wire        ping_empty_flag_rd;
-    wire        pong_empty_flag_rd;
-    wire [13:0] ping_used_words_rd;
-    wire [13:0] pong_used_words_rd;
-
-    // Data out buses
-    wire [15:0] ping_data_out;
-    wire [15:0] pong_data_out;
-
-    // Define the ping buffer (0) - 8192 16-bit words
-    IPfifo ping_buffer (
-        .aclr   (ping_async_clear_wr),
-        .data   (ping_data_in),         // 16-bit [15:0]
-        .rdclk  (read_clock),
-        .rdreq  (ping_read_request),
-        .wrclk  (write_clock),
-        .wrreq  (ping_write_request),
-        .q      (ping_data_out),        // 16-bit [15:0]
-        .rdempty(ping_empty_flag_rd),
-        .rdusedw(ping_used_words_rd),   // 14-bit [13:0]
-        .wrempty(ping_empty_flag_wr),
-        .wrusedw(ping_used_words_wr)    // 14-bit [13:0]
-    );
-
-    // Define the pong buffer (1) - 8192 16-bit words
-    IPfifo pong_buffer (
-        .aclr   (pong_async_clear_wr),
-        .data   (pong_data_in),         // 16-bit [15:0]
-        .rdclk  (read_clock),
-        .rdreq  (pong_read_request),
-        .wrclk  (write_clock),
-        .wrreq  (pong_write_request),
-        .q      (pong_data_out),        // 16-bit [15:0]
-        .rdempty(pong_empty_flag_rd),
-        .rdusedw(pong_used_words_rd),   // 14-bit [13:0]
-        .wrempty(pong_empty_flag_wr),
-        .wrusedw(pong_used_words_wr)    // 14-bit [13:0]
-    );
-
-
-    // Route the control signals according to the currently selected write buffer
-    wire [15:0] ping_data_in;
-    wire [15:0] pong_data_in;
-    wire        ping_read_request;
-    wire        pong_read_request;
-    wire        ping_write_request;
-    wire        pong_write_request;
-
-    // if current write buffer = ping then send data to ping buffer
-    // else send data to pong buffer
-    assign ping_data_in       = current_write_buffer ? 16'd0 : data_in;
-    assign pong_data_in       = current_write_buffer ? data_in : 16'd0;
-
-    // if current write buffer = ping then data_out = pong buffer else data_out = ping_buffer
-    assign data_out           = current_write_buffer ? ping_data_out : pong_data_out;
-
-    // If current write buffer = ping then read from pong else read from ping
-    assign ping_read_request  = current_write_buffer ? is_reading : 1'b0;
-    assign pong_read_request  = current_write_buffer ? 1'b0 : is_reading;
-
-    // if current write buffer = ping then write to ping else write to pong
-    assign ping_write_request = current_write_buffer ? 1'b0 : 1'b1;
-    assign pong_write_request = current_write_buffer ? 1'b1 : 1'b0;
-
-    // Define registers for the async clear flags and map to registers
-    // Note: the async clear flag can cause the empty flag to glitch when
-    // asserted, so we have to sync it with the reset_n signal to avoid
-    // issues on reset.
-    reg ping_async_clear_reg;
-    reg pong_async_clear_reg;
-    assign ping_async_clear_wr = ping_async_clear_reg | !reset_n;
-    assign pong_async_clear_wr = pong_async_clear_reg | !reset_n;
-
-    // Register to track activation of the overflow flag (0-1024 10-bit)
-    reg [9:0] buffer_overflow_hold;
-
-    // FIFO Write-side logic (controls switching between ping and pong buffers)
-    always @(posedge write_clock, negedge reset_n) begin
+    always @(posedge clock, negedge reset_n) begin
         if (!reset_n) begin
-            // Clear all registers on reset
-            current_write_buffer <= 1'b0;
-            buffer_overflow      <= 1'b0;
-            buffer_overflow_hold <= 10'd0;
-            ping_async_clear_reg <= 1'b0;
-            pong_async_clear_reg <= 1'b0;
-        end else begin
-            // Which buffer is being written to?
-            if (current_write_buffer) begin
-                // Current write buffer is pong
-
-                // Is the pong buffer nearly full?
-                if (pong_used_words_wr == BufferSize - 2) begin
-                    // Check that the ping buffer has been emptied...
-                    if (!ping_empty_flag_wr) begin
-                        // Flag an overflow error
-                        buffer_overflow      <= 1'b1;
-
-                        // Set the ping buffer async clear (empty the ping buffer)
-                        ping_async_clear_reg <= 1'b1;
-                    end
-                end
-
-                // Is the pong buffer 1 word from full?
-                if (pong_used_words_wr == BufferSize - 1) begin
-                    // Reset the ping buffer async clear
-                    ping_async_clear_reg <= 1'b0;
-
-                    // Switch to the ping buffer
-                    current_write_buffer <= 1'b0;
-                end
-            end else begin
-                // Current write buffer is ping
-
-                // Is the ping buffer nearly full?
-                if (ping_used_words_wr == BufferSize - 2) begin
-                    // Check that the pong buffer has been emptied...
-                    if (!pong_empty_flag_wr) begin
-                        // Flag an overflow error
-                        buffer_overflow      <= 1'b1;
-
-                        // Set the pong buffer async clear (empty the pong buffer)
-                        pong_async_clear_reg <= 1'b1;
-                    end
-                end
-
-                // Is the ping buffer 1 word from full?
-                if (ping_used_words_wr == BufferSize - 1) begin
-                    // Reset the pong buffer async clear
-                    pong_async_clear_reg <= 1'b0;
-
-                    // Switch to the pong buffer
-                    current_write_buffer <= 1'b1;
-                end
+            data_available   <= 1'b0;
+            packet_remaining <= PacketZero;
+        end else if (!data_available) begin
+            if (used_words >= PacketThreshold) begin
+                data_available   <= 1'b1;
+                packet_remaining <= PacketCount;
             end
-
-            // Track and clear the buffer overflow flag
-            // Note: This holds the error signal high
-            // for 1000 write clock cycles
-            if (buffer_overflow == 1'b1) begin
-                // Increment the hold counter
-                buffer_overflow_hold <= buffer_overflow_hold + 10'd1;
-
-                // If the hold clock-cycles is exceeded, clear the flag
-                if (buffer_overflow_hold > 10'd1000) begin
-                    buffer_overflow <= 1'b0;
-                end
+        end else if (is_reading) begin
+            if (packet_remaining == PacketOne) begin
+                data_available   <= 1'b0;
+                packet_remaining <= PacketZero;
+            end else begin
+                packet_remaining <= packet_remaining - PacketOne;
             end
         end
     end
 
-    // FIFO read-side logic
-    // Control the data available flag (on the read side)
-    // Note: This is responsible for setting the flag when
-    // data is available and clearing the flag once all
-    // the available data has been read.
-    always @(posedge read_clock, negedge reset_n) begin
+    // The overflow flag -----------------------------------------------------
+
+    reg [11:0] error_hold;
+
+    always @(posedge clock, negedge reset_n) begin
         if (!reset_n) begin
-            // On reset default to data unavailable
-            data_available <= 1'b0;
-        end else begin
-            // Which buffer is being read from to?
-            if (current_write_buffer) begin
-                // Reading from ping buffer
-
-                // Is the ping buffer full?
-                if (ping_used_words_rd == BufferSize) begin
-                    data_available <= 1'b1;
-                end else begin
-                    // Is the ping buffer empty?
-                    if (ping_empty_flag_rd) begin
-                        data_available <= 1'b0;
-                    end
-                end
+            buffer_error <= 1'b0;
+            error_hold   <= ErrorHoldZero;
+        end else if (overflow) begin
+            // Restarting the count on every overflow, rather than only on the
+            // first, is the fix described in the header
+            buffer_error <= 1'b1;
+            error_hold   <= ErrorHoldZero;
+        end else if (buffer_error) begin
+            if (error_hold >= ErrorHoldCycles) begin
+                buffer_error <= 1'b0;
+                error_hold   <= ErrorHoldZero;
             end else begin
-                // Reading from pong buffer
-
-                // Is the pong buffer full?
-                if (pong_used_words_rd == BufferSize) begin
-                    data_available <= 1'b1;
-                end else begin
-                    // Is the pong buffer empty?
-                    if (pong_empty_flag_rd) begin
-                        data_available <= 1'b0;
-                    end
-                end
+                error_hold <= error_hold + ErrorHoldOne;
             end
         end
     end

@@ -209,8 +209,7 @@ module DomesdayDuplicator (
     assign adc_databus[8] = GPIO0[24];
     assign adc_databus[9] = GPIO0[23];
 
-    // ADC clock output
-    // Select the correct sampling clock based on the configuration
+    // ADC clock output - a divide-by-two of the system clock, generated below
     wire adc_clock;
     assign GPIO0[33] = adc_clock;
 
@@ -221,16 +220,77 @@ module DomesdayDuplicator (
 
 
     // PLL clock generation
-    // Generate 60 MHz FX3/FPGA system clock from the 50 MHz physical clock and
-    // 40 MHz sampling clock
+    //
+    // One 80 MHz system clock from the 50 MHz physical clock, and the whole
+    // design runs from it. There is no second clock domain: the sampling rate
+    // is set by decimating this clock rather than by a clock of its own, which
+    // is what lets the FX3 drain faster than the ADC fills without the two
+    // sides having to be synchronised to each other.
+    //
+    // 80 MHz because it is the lowest multiple of the 40 MSPS sampling rate
+    // that leaves the FX3 room to catch up. The GPIF II interface is specified
+    // to 100 MHz, so this is inside it; the ADC needs a uniform clock, so the
+    // system clock has to be an exact multiple of the sampling rate, which
+    // 60 MHz was not.
+    wire system_clock;
+
     IPpllGenerator pll_generator_0 (
         // Inputs
         .inclk0(CLOCK_50),
 
         // Outputs
-        .c0(fx3_clock),  // 60 MHz system clock
-        .c1(adc_clock)   // 40 MHz ADC clock
+        .c0(system_clock)  // 80 MHz system clock
     );
+
+    // The FX3's GPIF II is a synchronous slave and this pin is the clock it
+    // runs from, so it is simply the system clock.
+    assign fx3_clock = system_clock;
+
+    // ADC sampling clock and the sampling instant
+    //
+    // A divide-by-two of the system clock, free-running and with no reset:
+    // the ADC is a pipelined converter whose analogue behaviour was
+    // characterised with a clock that is always present, and stopping it
+    // whenever the host closes the device would be a change to the front end
+    // rather than to the logic. The initial value is the power-up state, and
+    // which phase it powers up in does not matter.
+    //
+    // sample_enable is high on the system clock edge that takes adc_clock
+    // high, so the design captures the ADC bus at the same instant it did when
+    // this module was clocked by the ADC clock directly - one full 40 MHz
+    // period after the sample was launched.
+    reg adc_clock_divider;
+
+    initial begin
+        adc_clock_divider = 1'b0;
+    end
+
+    always @(posedge system_clock) begin
+        adc_clock_divider <= ~adc_clock_divider;
+    end
+
+    assign adc_clock = adc_clock_divider;
+
+    wire       sample_enable = ~adc_clock_divider;
+
+    // Reset synchroniser
+    //
+    // fx3_reset_n is driven by the FX3 and is asynchronous to the system
+    // clock. Asserting asynchronously is what the design has always done and
+    // is what makes a reset work with no clock; releasing it synchronously is
+    // new, and is what stops two registers coming out of reset on different
+    // cycles because they resolved the same asynchronous edge differently.
+    reg  [1:0] reset_n_sync;
+
+    always @(posedge system_clock, negedge fx3_reset_n) begin
+        if (!fx3_reset_n) begin
+            reset_n_sync <= 2'b00;
+        end else begin
+            reset_n_sync <= {reset_n_sync[0], 1'b1};
+        end
+    end
+
+    wire        reset_n = reset_n_sync[1];
 
     wire        fx3_is_reading;
     wire [15:0] data_generator_out;
@@ -238,10 +298,11 @@ module DomesdayDuplicator (
     // Generate 16-bit data either from the ADC or the test data generator
     dataGenerator data_generator_0 (
         // Inputs
-        .reset_n       (fx3_reset_n),   // Not reset
-        .clock         (adc_clock),     // ADC clock
-        .adc_databus   (adc_databus),   // 10-bit ADC databus
-        .test_mode_flag(fx3_test_mode), // 1 = Test mode on
+        .reset_n       (reset_n),        // Not reset
+        .clock         (system_clock),   // 80 MHz system clock
+        .sample_enable (sample_enable),  // 1 = take a sample on this edge
+        .adc_databus   (adc_databus),    // 10-bit ADC databus
+        .test_mode_flag(fx3_test_mode),  // 1 = Test mode on
 
         // Outputs
         .data_out(data_generator_out)  // 16-bit data out
@@ -250,23 +311,23 @@ module DomesdayDuplicator (
     // FIFO buffer
     buffer buffer_0 (
         // Inputs
-        .reset_n    (fx3_reset_n),        // Not reset
-        .write_clock(adc_clock),          // ADC clock
-        .read_clock (fx3_clock),          // FX3 clock
-        .is_reading (fx3_is_reading),     // 1 = FX3 is reading data
-        .data_in    (data_generator_out), // 16-bit ADC data bus input
+        .reset_n     (reset_n),             // Not reset
+        .clock       (system_clock),        // 80 MHz system clock
+        .write_enable(sample_enable),       // 1 = a sample is written this edge
+        .data_in     (data_generator_out),  // 16-bit ADC data bus input
+        .is_reading  (fx3_is_reading),      // 1 = FX3 is reading data
 
         // Outputs
-        .buffer_overflow(fx3_buffer_error),    // Set if a buffer overflow occurs
-        .data_available (fx3_data_available),  // Set if buffer contains at least 8192 words of data
-        .data_out       (fx3_databus)          // 16-bit data output
+        .data_out      (fx3_databus),         // 16-bit data output
+        .data_available(fx3_data_available),  // Set if a whole packet is queued
+        .buffer_error  (fx3_buffer_error)     // Set if a sample had to be dropped
     );
 
     // FX3 GPIF state-machine logic
     fx3StateMachine fx3_state_machine_0 (
         // Inputs
-        .reset_n  (fx3_reset_n),   // Not reset
-        .fx3_clock(fx3_clock),     // FX3 clock
+        .reset_n  (reset_n),       // Not reset
+        .fx3_clock(system_clock),  // 80 MHz system clock
         .read_data(fx3_read_data), // FX3 is about to start sampling the databus
 
         // Output
@@ -284,8 +345,8 @@ module DomesdayDuplicator (
         .BuildFlags(`GATEWARE_BUILD_FLAGS)
     ) spi_registers_0 (
         // Inputs
-        .reset_n          (fx3_reset_n),
-        .clock            (fx3_clock),
+        .reset_n          (reset_n),
+        .clock            (system_clock),
         .spi_clock        (fx3_spi_clock),
         .spi_mosi         (fx3_spi_mosi),
         .spi_chip_select_n(fx3_spi_chip_select_n),

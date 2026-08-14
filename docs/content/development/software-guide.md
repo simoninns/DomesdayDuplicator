@@ -14,7 +14,7 @@ Every component builds with ordinary, distribution-packaged tools, and the repos
 
 # FPGA code
 ## Purpose
-The DE0-Nano FPGA board is used to bridge the Domesday Duplicator's ADC hardware with the Cypress FX3 USB 3.0 board.  The code provides data manipulation, error checking and a 16K word FIFO ping-pong buffer to allow buffering in case of short constrictions of USB bandwidth to the host computer.  The FPGA code also contains a test data generation function that allows testing of the Domesday Duplicator with known test data (that can be verified as intact once received by the host application).
+The DE0-Nano FPGA board is used to bridge the Domesday Duplicator's ADC hardware with the Cypress FX3 USB 3.0 board.  The code provides data manipulation, error checking and a 16K word FIFO to allow buffering in case of short constrictions of USB bandwidth to the host computer.  The FPGA code also contains a test data generation function that allows testing of the Domesday Duplicator with known test data (that can be verified as intact once received by the host application).
 
 ## Development environment
 The FPGA code is built with **Intel Quartus Prime Lite 25.1**. Quartus is free and needs no licence file, but it is a multi-gigabyte download and is `x86_64` Linux or Windows only.
@@ -58,25 +58,29 @@ The DE0-Nano User Manual, which documents the EPCS64 serial configuration device
 
 ## Source code modules
 ### DomesdayDuplicator.v
-This module is the top-level verilog module and contains the hardware mapping information for the communication between the FPGA and the ADC as well as the communication between the FPGA and the FX3. The module also includes instantiation code for the Intel IP PLL functions which generate the required 60MHz clock (for FPGA to FX3 communication) and 40 MHz clock (for ADC to FPGA communication - i.e. the sample rate clock). The top-level module includes the sub-modules 'dataGenerator', 'buffer', 'fx3StateMachine' and 'spiRegisters'.  The purpose of these modules is described below.
+This module is the top-level verilog module and contains the hardware mapping information for the communication between the FPGA and the ADC as well as the communication between the FPGA and the FX3. The module also includes instantiation code for the Intel IP PLL function, which generates the single 80 MHz system clock the whole design runs from. The ADC's 40 MHz sampling clock is a divide-by-two of that clock generated in the fabric, and the register that divides it also provides the sample enable, so the sampling instant and the ADC clock edge are aligned by construction. The top-level module includes the sub-modules 'dataGenerator', 'buffer' (and the 'fifo' it is built from), 'fx3StateMachine' and 'spiRegisters'.  The purpose of these modules is described below.
 
 ### dataGenerator.v
 The data generator module is responsible for generating data either from the ADC or (if in test mode) internally. When in test mode the generator outputs a repeating sequence of 10-bit numbers, 0 to 1020 inclusive.
 
 The data generator also inserts a sequence number into the top 6 bits of each sample, so that the DomesdayDuplicator application can detect missing samples. The sequence numbers count repeatedly from 0 to 62 inclusive, incrementing every 65536 samples.
 
-Data from the ADC is read on the positive edge of the ADC clock and passed to the FIFO buffer.
+Data from the ADC is read on the system clock edge that also takes the ADC clock high — one sample every second cycle — and passed to the FIFO buffer.
 
 The lengths of the test sequence (1021) and the sequence number sequence (63) were chosen in order to maximise the length of time before a USB transfer has the same contents as a previous transfer in test mode (about 210 seconds). The number of samples per sequence number was chosen to allow a length of blocks of missing samples up to 0.1s to be detected correctly; experimentation on a machine with an early USB3 controller showed maximum dropouts of about 0.01s under artifically heavy CPU load, so this gives some additional margin.
 
 (In versions of the firmware before June 2022, there were no sequence numbers, and the test sequence ran from 0 to 1023. The DomesdayDuplicator application will still work with older firmware.)
 
 ### buffer.v
-The buffering functionality is provided by two dual-clock FIFOs implemented using the Intel IP DCFIFO. The two FIFO buffers store 8192 16-bit words each and are arranged in a 'ping-pong' buffer configuration where data is written to one buffer and read from the other. Once the data available in a buffer is depleted the buffers are swapped.
+The buffering functionality is provided by a single FIFO of 16384 16-bit words, implemented in `fifo.v` rather than by vendor IP. It is written one word per sample and read one word per system clock cycle while the FX3 is taking a packet.
 
-Each FIFO buffer is 16 bits wide and 8192 words deep. The buffer size is chosen to match the USB end-point buffer size provided by the FX3 (16 Kbytes, which equates to 8192 16-bit words). The module has no collect enable: it buffers whatever `dataGenerator` produces for as long as the FPGA is out of reset.
+The FIFO is twice the packet size, and the packet size (8192 16-bit words) is chosen to match the USB end-point buffer size provided by the FX3 (16 Kbytes). The headroom above the packet is what a USB stall is paid for out of: 8192 words at 40 MSPS is about 205 µs of grace. The module has no collect enable: it buffers whatever `dataGenerator` produces for as long as the FPGA is out of reset.
 
-Data is read from the read-side of the dual-clock FIFO on the positive edge of the 60 MHz FX3 clock and driven onto the 16-bit data-out bus. Samples are already 16 bits wide by the time they reach the buffer — `dataGenerator` packs the 10-bit ADC value and the 6-bit sequence number into one word — so no padding happens here. Data is only read from the FIFO while the `isReading` input is asserted, which `fx3StateMachine` holds for the duration of a transfer.
+`dataAvailable` is raised when a whole packet is queued and is then held for the length of that packet, so the FX3 is never told a packet is ready and then made to wait part-way through one. Samples are already 16 bits wide by the time they reach the buffer — `dataGenerator` packs the 10-bit ADC value and the 6-bit sequence number into one word — so no padding happens here. Data is only read from the FIFO while the `isReading` input is asserted, which `fx3StateMachine` holds for the duration of a transfer.
+
+If the FX3 stops reading for long enough to fill the FIFO, the samples that do not fit are dropped and `bufferError` is raised and held long enough for the FX3 to see it. The sequence numbers in the stream let the host find the resulting gap.
+
+(Before 2026 this module was two dual-clock `DCFIFO` instances in a 'ping-pong' arrangement, because a dual-clock FIFO cannot report an exact occupancy and so "is a whole packet ready" had to be answered by filling one buffer completely and swapping. With a single clock domain the occupancy is exact and one FIFO answers it directly.)
 
 ### fx3StateMachine.v
 The fx3StateMachine module implements the required mirror state-machine for the GPIF II implementation (detailed below).  The state-machine has two states:
@@ -128,7 +132,7 @@ _Cypress GPIF I/O Matrix view_
 
 The purpose of the signals are as follows:
 
-* CLK - This is the GPIF clock supplied by the FPGA (60 MHz)
+* CLK - This is the GPIF clock supplied by the FPGA (80 MHz)
 * dataAvailable - This signal indicates that there is sufficient data in the FPGA's FIFO buffer for a transfer
 * Databus - The 16-bit data bus from the FPGA to the FX3
 * nReset - (not) reset condition signal from the FX3 to the FPGA
@@ -159,7 +163,7 @@ As the GPIF interface is synchronous both threads enter a wait state until the F
 
 Once the state-machine enters the read state, 8192 16-bit words of data are transferred between the FPGA and the FX3 (filling the available 16Kbyte buffer), the state-machine then commits the data to the USB interface and returns to a wait state.  This design allows for a deterministic transfer with minimal signalling complexity whilst allowing for the non-deterministic nature of the DMA ready state on the FX3 (the buffer 'ready' is unpredictable due to the reliance on the host computer to transfer data in a timely manner).  By using a combination of deterministic and non-deterministic states the GPIF design provides an asynchronous data transfer via the synchronous interface with minimal overhead to ensure high-bandwidth of data transfer. 
 
-Since the FPGA to USB interface is 60MHz (20Mhz faster than the rate of capture) this design allows the USB interface to 'catch-up' rapidly whenever there is a drop in the bandwidth across the USB interface.
+Since the FPGA to USB interface is 80MHz (twice the rate of capture) this design allows the USB interface to 'catch-up' rapidly whenever there is a drop in the bandwidth across the USB interface.
 
 ## Source code modules
 ### cyfx\_gcc\_startup.S

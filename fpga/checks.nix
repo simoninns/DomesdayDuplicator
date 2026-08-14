@@ -47,7 +47,7 @@ in
   '';
 
   # T4 — style. verible-verilog-format --verify and verible-verilog-lint over the
-  # six project-authored modules and the four testbenches.
+  # six project-authored modules and the five testbenches.
   #
   # Separate from `lint` because the two answer different questions and fail for
   # different reasons: verilator asks whether the design is correct, verible asks
@@ -58,7 +58,7 @@ in
     touch $out
   '';
 
-  # T3 — simulation. The four module testbenches, under Icarus Verilog.
+  # T3 — simulation. The five module testbenches, under Icarus Verilog.
   sim = runCommand "ddd-fpga-sim" { nativeBuildInputs = [ iverilog ]; } ''
     bash ${src}/tests/run-sim.sh
     touch $out

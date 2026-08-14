@@ -38,6 +38,7 @@ files=(
     "$src/fifo.v"
     "$src/fx3StateMachine.v"
     "$src/spiRegisters.v"
+    "$tests/tb_buffer.v"
     "$tests/tb_dataGenerator.v"
     "$tests/tb_fifo.v"
     "$tests/tb_fx3StateMachine.v"

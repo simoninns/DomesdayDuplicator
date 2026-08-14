@@ -50,7 +50,6 @@ module fifo #(
     input                  read_request,
     output [DataWidth-1:0] data_out,
 
-    output                       empty,
     output                       full,
     output [$clog2(Depth+1)-1:0] used_words
 );
@@ -77,11 +76,14 @@ module fifo #(
     localparam [CountBits-1:0] CountZero = {CountBits{1'b0}};
     localparam [CountBits-1:0] CountOne = {{(CountBits - 1) {1'b0}}, 1'b1};
 
-    reg [AddressBits-1:0] write_pointer;
-    reg [AddressBits-1:0] read_pointer;
-    reg [  CountBits-1:0] used;
+    reg  [AddressBits-1:0] write_pointer;
+    reg  [AddressBits-1:0] read_pointer;
+    reg  [  CountBits-1:0] used;
 
-    assign empty      = (used == CountZero);
+    // Emptiness is not a port: used_words carries it, and no consumer in this
+    // design wants a second way to ask the same question.
+    wire                   empty = (used == CountZero);
+
     assign full       = (used == DepthWords);
     assign used_words = used;
 

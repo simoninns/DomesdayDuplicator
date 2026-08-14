@@ -108,13 +108,13 @@ SPI has no way to refuse a byte, so a bad address cannot be reported in-band and
 | Master's actual rate | around 100 kHz | Set by the FX3's GPIO write rate, not by this link |
 | `FPGA_CS_N` setup, hold, and gap between transfers | 1 µs | |
 
-The 2 MHz ceiling comes from the slave's input synchronisers: each clock phase must span enough 60 MHz cycles to be seen reliably, and 250 ns is fifteen of them. The bit-banged master will not come close, because each edge is a register write through the GPIO block, so the real rate is two orders of magnitude below the limit.
+The 2 MHz ceiling comes from the slave's input synchronisers: each clock phase must span enough 80 MHz cycles to be seen reliably, and 250 ns is twenty of them. The bit-banged master will not come close, because each edge is a register write through the GPIO block, so the real rate is two orders of magnitude below the limit.
 
 There are deliberately no timeouts anywhere in this interface. The master generates every clock edge, so a transfer takes exactly as long as the master takes to clock it and cannot hang.
 
 ### Slave robustness
 
-The slave's three inputs are asynchronous to the 60 MHz `fx3_clock`, so each passes through a two-flop synchroniser. `FPGA_SCLK` and `FPGA_CS_N` then pass through a filter that accepts a new level only after two consecutive agreeing samples — aimed at ringing on the header connectors, not at metastability, which the synchroniser handles — costing 33 ns against a minimum 250 ns clock phase. `FPGA_MOSI` needs no filter, because it is only sampled at a clock rising edge, half a period after it last changed. `nReset` asynchronously returns the slave to idle and every read/write register to its reset value.
+The slave's three inputs are asynchronous to the 80 MHz system clock, so each passes through a two-flop synchroniser. `FPGA_SCLK` and `FPGA_CS_N` then pass through a filter that accepts a new level only after two consecutive agreeing samples — aimed at ringing on the header connectors, not at metastability, which the synchroniser handles — costing 25 ns against a minimum 250 ns clock phase. `FPGA_MOSI` needs no filter, because it is only sampled at a clock rising edge, half a period after it last changed. `nReset` asynchronously returns the slave to idle and every read/write register to its reset value.
 
 ## Register map
 

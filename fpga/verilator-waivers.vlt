@@ -89,6 +89,29 @@ lint_off -rule CASEINCOMPLETE -file "*/fx3StateMachine.v"
 // and corrupts every sample after it.
 lint_off -rule BLKSEQ -file "*/fx3StateMachine.v"
 
+// DomesdayDuplicator.v: the reset synchroniser is flopped both ways.
+//
+// Two findings, both describing the same three registers, and both correct:
+// a reset synchroniser is asynchronously reset *and* clocked, because that is
+// what it is for. fx3_reset_n arrives from the FX3 with no relationship to the
+// system clock, so it has to assert asynchronously - a reset that needed a
+// clock edge would not work when there is no clock. Releasing it on an edge is
+// the half that has to be synchronised, and the only way to write that is a
+// shift register whose own flops are asynchronously reset.
+//
+// SYNCASYNCNET fires on every correct implementation of this structure. It is
+// worth having on for the case it is really looking for - a signal used as a
+// reset in one place and as data in another by accident - so it is waived
+// here by the names of the two nets involved rather than for the file.
+//
+// GPIO1 is the same finding seen one level further back: fx3_reset_n is
+// GPIO1[07] through the control-bus mapping, and other bits of the same bus
+// carry the SPI lines and read_data, which are ordinary synchronous inputs.
+// The linter reasons about the bus, not the bit. The design cannot separate
+// them because the pin assignments are fixed by the PCB.
+lint_off -rule SYNCASYNCNET -file "*/DomesdayDuplicator.v" -match "*reset_n_sync*"
+lint_off -rule SYNCASYNCNET -file "*/DomesdayDuplicator.v" -match "*GPIO1*"
+
 // DomesdayDuplicator.v: bits 2 and 6-9 of fx3_control are unused.
 //
 // These are the FX3 CTL lines the board wires up but the design does not use —

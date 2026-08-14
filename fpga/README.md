@@ -25,12 +25,13 @@ Inside `src/`:
 | `DomesdayDuplicator.qpf` | Quartus project file |
 | `DomesdayDuplicator.SDC` | Timing constraints |
 | `dataGenerator.v` | ADC sampling and the built-in test-data generator |
-| `buffer.v` | Sample buffering between the ADC and FX3 clock domains |
-| `fifo.v` | Single-clock FIFO. Written for the single-clock rework and **not yet instantiated** — see [docs-tech/single-clock-gateware-plan.md](../docs-tech/single-clock-gateware-plan.md) |
+| `buffer.v` | Sample buffering between the sampling side and the FX3 |
+| `fifo.v` | The single-clock FIFO `buffer.v` is built from |
 | `fx3StateMachine.v` | GPIF II handshake with the FX3 |
 | `spiRegisters.v` | The register bank the FX3 reads and writes over SPI |
 | `version.vh` | Generated build stamp the register bank reports; regenerated into the build directory by `generate-version.sh` |
-| `IPfifo.v`, `IPpllGenerator.v` | Instantiations of the Altera `dcfifo` and `altpll` primitives |
+| `IPpllGenerator.v` | Instantiation of the Altera `altpll` primitive |
+| `IPfifo.v` | Instantiation of the Altera `dcfifo` primitive. **No longer instantiated** — `fifo.v` replaced it; kept until the phase 5 cleanup |
 
 ## The generated IP is source, not wizard output
 
@@ -57,7 +58,7 @@ nix develop .#fpga        # verible, verilator, iverilog, gtkwave — no Quartus
 ```bash
 ./tests/run-lint.sh       # T4: verilator --lint-only over the six hand-written modules
 ./tests/run-style.sh      # T4: formatting and style, via verible
-./tests/run-sim.sh        # T3: the four module testbenches, under Icarus Verilog
+./tests/run-sim.sh        # T3: the five module testbenches, under Icarus Verilog
 ./tests/run-version.sh    # T2: the commit-to-register version stamp generator
 ./tests/run-format.sh     # not a check — the formatter, run it to fix run-style.sh
 ```
@@ -100,13 +101,16 @@ pinned by a testbench rather than merely asserted to be harmless. They are candi
 gateware cleanup, but that belongs in a change whose gate is a capture-integrity run on
 hardware.
 
-**What is not covered:** `buffer.v`, and therefore the design as a whole. It is two `dcfifo`
-instances and the logic that switches between them, and simulating a `dcfifo` needs Altera's
-`altera_mf` library, which has no free model. `IPfifo.v` and `IPpllGenerator.v` are not even
-linted for the same reason; the black-box declarations beside them
-(`IPfifo_bb.v`, `IPpllGenerator_bb.v`) are what let the modules that instantiate the IP
-elaborate. The buffering path is covered on hardware instead, by the capture-integrity
-procedure in [TESTING.md](../TESTING.md) §5.
+**What is not covered:** the top level, because it instantiates `altpll` through
+`IPpllGenerator` and simulating that needs Altera's `altera_mf` library, which has no free
+model. `IPfifo.v` and `IPpllGenerator.v` are not even linted for the same reason; the
+black-box declarations beside them (`IPfifo_bb.v`, `IPpllGenerator_bb.v`) are what let the
+modules that instantiate the IP elaborate.
+
+`buffer.v` used to be exempt for the same reason — it was two `dcfifo` instances — and
+replacing that IP with `fifo.v` is what brought the capture path into the testbench suite.
+The pin-level behaviour of the whole design is still covered on hardware, by the
+capture-integrity procedure in [TESTING.md](../TESTING.md) §5.
 
 ## Building a bitstream
 

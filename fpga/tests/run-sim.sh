@@ -15,12 +15,14 @@
 # Icarus Verilog rather than Verilator: these are event-driven testbenches with
 # clock delays and no C++ harness, which is what iverilog is for.
 #
-# There is no whole-design testbench and there cannot be a free one. The top
-# level instantiates dcfifo and altpll through IPfifo/IPpllGenerator, and those
-# need Altera's altera_mf simulation library — so buffer.v, which is nothing but
-# two of those FIFOs and the logic that switches between them, is untested here.
-# What it does is covered on hardware instead, by the capture-integrity
-# procedure in TESTING.md section 5.
+# There is still no whole-design testbench, because the top level instantiates
+# altpll through IPpllGenerator and that needs Altera's altera_mf simulation
+# library. Everything below the top level is covered: buffer.v used to be
+# exempt for the same reason — it was two dcfifo instances — and replacing that
+# IP with fifo.v is what brought the capture path into this suite.
+#
+# The pin-level behaviour of the whole design is still covered on hardware, by
+# the capture-integrity procedure in TESTING.md section 5.
 
 set -euo pipefail
 
@@ -30,8 +32,13 @@ src="${1:-$fpga/src}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-# testbench:module under test
+# testbench:module under test[,submodule...]
+#
+# A testbench compiles against its module and anything that module
+# instantiates, named rather than globbed so that a testbench cannot silently
+# start depending on a module nobody meant it to reach.
 benches=(
+    "tb_buffer:buffer,fifo"
     "tb_dataGenerator:dataGenerator"
     "tb_fifo:fifo"
     "tb_fx3StateMachine:fx3StateMachine"
@@ -42,7 +49,12 @@ failed=0
 
 for bench in "${benches[@]}"; do
     tb="${bench%%:*}"
-    dut="${bench##*:}"
+
+    sources=()
+    IFS=',' read -r -a duts <<<"${bench##*:}"
+    for dut in "${duts[@]}"; do
+        sources+=("$src/$dut.v")
+    done
 
     echo "=== $tb ==="
 
@@ -54,7 +66,7 @@ for bench in "${benches[@]}"; do
     # the benefit of a simulator. The testbenches declare it instead, and
     # iverilog warns that the DUT inherited it. That is the intended
     # arrangement, not a finding.
-    if ! iverilog -g2005 -Wall -Wno-timescale -o "$work/$tb.vvp" "$here/$tb.v" "$src/$dut.v"; then
+    if ! iverilog -g2005 -Wall -Wno-timescale -o "$work/$tb.vvp" "$here/$tb.v" "${sources[@]}"; then
         echo "$tb: compilation failed"
         failed=1
         continue

@@ -4,7 +4,7 @@ Plan for restructuring the FPGA gateware from two clock domains joined by a
 proprietary dual-clock FIFO into a single clock domain with a locally
 implemented FIFO and a clock-enable-decimated sampling path.
 
-- Status: phase 1 implemented; phases 2 to 6 outstanding
+- Status: phases 1 to 3 implemented; phases 4 to 6 outstanding
 - Scope: `fpga/` only. No FX3 firmware change expected; docs and tests updated
   alongside. The external contracts (GPIF protocol, SPI register map, sample
   data format) are unchanged.
@@ -204,35 +204,83 @@ Still to confirm, and it needs Quartus, so it belongs to phase 3: that the
 memory infers as M9K rather than logic. Check the fitter report for 32 M9K
 blocks and no unexpected LE count.
 
-### Phase 2 — rewrite `buffer.v` on top of it
+### Phases 2 and 3 — `buffer.v` and the single-clock top level — **done**
 
-1. Replace ping-pong logic with one FIFO + threshold `data_available` +
-   write-gating overflow behaviour with the held `buffer_error` flag. Add
-   `VERILOG_FILE fifo.v` to `DomesdayDuplicator.qsf` in the same change —
-   phase 1 deliberately left it out, because a source file the project lists
-   but nothing instantiates is dead weight for a phase.
-2. Write `tests/tb_buffer.v` — newly possible without `altera_mf`. Cover:
-   steady-state 2-writes-per-5-reads cadence (40 vs 80 MHz emulated via the
-   enable), an exact 8192-word packet drain per `data_available`, a stalled
-   reader driving overflow and recovery, `buffer_error` hold duration,
-   behaviour across reset.
-3. Update the "buffer.v is untested" commentary in `run-sim.sh` and
-   `fpga/README.md`.
+**These two phases had to land together, and the plan was wrong to separate
+them.** `buffer` is instantiated by name in the top level, so the moment its
+ports lose `write_clock`/`read_clock` the design stops elaborating; and a
+single-clock buffer fed by a 40 MHz sampling domain would not be correct even
+if it did. There is no ordering of the two that leaves the tree building, so
+they were implemented as one change. Phase 4 remains genuinely separable,
+because constraints change nothing about what the design does.
 
-### Phase 3 — single-clock top level
+Delivered:
 
-1. Regenerate `IPpllGenerator` for one 80 MHz output (Quartus MegaWizard;
-   update `.ppf`/`.qip` alongside, note generator version in the commit).
-2. Top level: add the ÷2 ADC-clock toggle FF (with an I/O output register
-   assignment in the `.qsf` so the pin timing is register-determined), derive
-   `sample_enable` from it, and phase the capture enable to match today's
-   capture point (capture on the 80 MHz edge coincident with the ADC clock
-   rising edge, i.e. one full ADC period after launch).
-3. Thread `sample_enable` into `dataGenerator`; update `tb_dataGenerator.v`
-   to drive clock+enable and assert the sequence/test patterns advance at the
-   decimated rate.
-4. Add the reset synchroniser; clock `fx3StateMachine`/`spiRegisters`/
-   `buffer` from `clk_sys`.
+- `buffer.v` rewritten around one `fifo` instance. Ping-pong, async clear and
+  both clock ports are gone; `.qsf` gains `fifo.v`.
+- `tests/tb_buffer.v`, the first testbench this module has ever had.
+- `dataGenerator.v` gains `sample_enable`; `tb_dataGenerator.v` drives the
+  real divider-and-enable structure rather than a bare toggle, so it covers
+  the phasing as well as the counting.
+- `IPpllGenerator` retuned by hand to a single 80 MHz output (`clk0` = 50 × 8/5,
+  `c1` removed), in `.v`, `_bb.v` and `.ppf`. MegaWizard was not used — these
+  files are committed as ordinary source and AGENTS.md §3 provides for
+  deliberate `defparam` changes — so the retrieval-info metadata was updated in
+  step, or the IP would regenerate as the old one.
+- Top level: single `system_clock`, the ÷2 ADC clock divider, `sample_enable`,
+  and a reset synchroniser; every module clocked from `system_clock`.
+
+Where the implementation departs from the sketch above:
+
+- **`data_available` is packet-granular, not a live comparison.** A bare
+  `used_words >= 8192` is a truthful signal but a *different contract*: the
+  ping-pong buffer raised the flag when a buffer filled and dropped it when
+  that buffer emptied, so the flag stayed up for the whole packet, and the
+  GPIF II state machine on the other side of the pin was designed against
+  that. A live comparison would drop the flag one cycle into every packet.
+  The rewrite therefore raises the flag when a whole packet is queued and
+  holds it for exactly that packet. This costs a counter that duplicates the
+  one in `fx3StateMachine`, which is a duplication the old module had too.
+- **An overflow defect was fixed, not translated.** The old hold counter was
+  never cleared, so only the *first* overflow of a session was held for its
+  1000 cycles; every one after it raised `buffer_error` for a single cycle,
+  which the FX3 would not see. The flag is now held for 2000 cycles of the
+  80 MHz clock — the same 25 µs the old 1000 cycles of the 40 MHz clock came
+  to — on every overflow. `tb_buffer.v` pins both the duration and the
+  re-trigger.
+- **`fifo.v` lost its `empty` port.** Nothing synthesised reads it, and the
+  correctness linter is right to object to an output connected to nothing.
+  `used_words` carries the same fact.
+- The ADC clock divider is **free-running with no reset**. Resetting it would
+  stop the ADC's clock whenever the host closes the device, which is a change
+  to the analogue front end rather than to the logic.
+
+Verification:
+
+- All four gates pass, and the three FPGA `nix flake check` derivations build.
+  Five testbenches now, where there were three.
+- `tb_buffer.v` was held up by mutation testing, as `tb_fifo.v` was: eight
+  mutations of `buffer.v` — the flag not held, the threshold a word low, the
+  flag raised at any occupancy, the packet a word too long, overflow never
+  detected, the error flag not held, the hold counter not restarted (the
+  pre-existing defect, restored), and reset not clearing the flag — were each
+  confirmed to make the testbench fail.
+- `tb_dataGenerator.v` still finishes at the same simulated time as before the
+  change, ~103.3 µs, which is a direct check that decimating an 80 MHz clock
+  reproduces the 40 MSPS sampling rate rather than merely appearing to.
+
+**The one thing no available tool can check is the PLL.** `altpll` has no free
+simulation model, so `IPpllGenerator.v` is neither linted nor simulated, and
+the 80 MHz output is an arithmetic claim about a `defparam` until Quartus
+compiles it. The first build must confirm the reported `clk0` frequency is
+80 MHz. An error here is loud rather than silent — a wrong ratio changes the
+sample rate, and the fitter reports the actual output frequency.
+
+Two waivers were added to `verilator-waivers.vlt`, both `SYNCASYNCNET` and both
+describing the reset synchroniser, which is asynchronously reset and clocked
+because that is what a reset synchroniser is. The rule fires on every correct
+implementation of the structure, so it is waived by the names of the nets
+rather than for the file.
 
 ### Phase 4 — timing constraints (the real ones)
 
@@ -240,7 +288,14 @@ Replace the two-line SDC with:
 
 1. `create_clock` 50 MHz input; `derive_pll_clocks`.
 2. `create_generated_clock` on the ADC clock output pin (÷2 of the PLL clock,
-   from the divider FF).
+   from the divider FF). Also add the `FAST_OUTPUT_REGISTER` instance
+   assignment on `GPIO0[33]` that phase 3 was to have added: it puts the
+   divider in the pin's I/O register so the ADC clock edge is
+   register-determined rather than routing-determined. It was deferred to here
+   because it is a placement decision that only means anything once there are
+   constraints to judge it against, and because Quartus duplicates the
+   register to keep driving `sample_enable` in the fabric — which is correct,
+   but is worth reading in a fitter report rather than assuming.
 3. `create_generated_clock` on the `PCLK` pin (mirror of the 80 MHz clock).
 4. `set_input_delay` on `adc_databus[9:0]` vs the ADC generated clock, from
    the ADS825 datasheet (output delay/hold), plus a multicycle exception
@@ -259,14 +314,17 @@ the extra cycle), but if it does not, capture it on the falling edge or adjust
 
 ### Phase 5 — cleanup and documentation
 
-1. Delete `IPfifo*` files; purge from `.qsf`, `.cof`, lint scripts.
-2. Update `fpga/README.md` (module table, sim coverage note).
-3. Update `docs/content/development/hardware-guide.md` (dual-clock FIFO
-   paragraphs → single-clock description) and
-   `fpga-register-interface.md` (the "60 MHz" references in the SPI ceiling
-   derivation become 80 MHz; ceiling unchanged or looser).
-4. Check `verible-waivers`/`verilator-waivers.vlt` for entries tied to
-   deleted files.
+The documentation half was done alongside phases 2 and 3, because a tree whose
+prose describes a clock structure it no longer has is worse than one file left
+uncleaned: `fpga/README.md`, `run-sim.sh`'s coverage note, the hardware guide,
+the software guide and the register-interface page all now describe the single
+clock. What is left is the file deletion:
+
+1. Delete `IPfifo.v`, `IPfifo_bb.v` and `IPfifo.qip`; purge from `.qsf`,
+   `.cof` and the `blackboxes` list in `run-lint.sh`. Nothing instantiates
+   them as of phase 2, so they cost no logic — they are only dead weight.
+2. Check `verible-waivers`/`verilator-waivers.vlt` for entries tied to the
+   deleted files (the three `*_bb.v` waivers become one file's worth).
 
 ### Phase 6 — hardware validation
 

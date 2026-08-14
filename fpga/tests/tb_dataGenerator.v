@@ -40,21 +40,52 @@ module tb_dataGenerator;
     localparam integer SAMPLES_PER_SEQUENCE = 65536;
     localparam integer SEQUENCE_COUNT = 63;
 
+    // 80 MHz system clock — 12.5 ns period
+    initial begin
+        clock = 1'b0;
+    end
+    always begin
+        #6.25 clock = ~clock;
+    end
+
+    // The sampling clock and its enable, built exactly as the top level builds
+    // them: a free-running divide-by-two whose output is the ADC's 40 MHz
+    // clock, and an enable that is high on the cycle which takes that clock
+    // high. Reproducing the real relationship rather than simply toggling an
+    // enable is the point — it is what makes this testbench cover the phasing
+    // as well as the counting.
+    reg adc_clock_divider;
+    initial begin
+        adc_clock_divider = 1'b0;
+    end
+    always @(posedge clock) begin
+        adc_clock_divider <= ~adc_clock_divider;
+    end
+
+    wire sample_enable = ~adc_clock_divider;
+
     dataGenerator dut (
         .reset_n       (reset_n),
         .clock         (clock),
+        .sample_enable (sample_enable),
         .adc_databus   (adc_databus),
         .test_mode_flag(test_mode_flag),
         .data_out      (data_out)
     );
 
-    // 40 MHz ADC clock — 25 ns period
-    initial begin
-        clock = 1'b0;
-    end
-    always begin
-        #12.5 clock = ~clock;
-    end
+    // Advance to, and through, the next edge at which the DUT takes a sample.
+    // Every loop below counts samples, not clock cycles, so this is what a
+    // "clock edge" in the original testbench meant.
+    task sample_tick;
+        begin
+            while (sample_enable !== 1'b1) begin
+                @(posedge clock);
+                #1;
+            end
+            @(posedge clock);
+            #1;
+        end
+    endtask
 
     task check;
         input [31:0] got;
@@ -88,8 +119,7 @@ module tb_dataGenerator;
         // Walk three full periods. Two would prove it wraps; three proves the
         // wrap leaves the counter in a state that wraps again the same way.
         for (i = 1; i <= RAMP_LENGTH * 3; i = i + 1) begin
-            @(posedge clock);
-            #1;
+            sample_tick;
             expected = i % RAMP_LENGTH;
             check(data_out[9:0], expected, "test data ramp");
         end
@@ -103,22 +133,21 @@ module tb_dataGenerator;
         // clock edge — so the value appears one cycle after it is presented.
         test_mode_flag = 1'b0;
         adc_databus    = 10'd682;  // 0b1010101010: every bit exercised
-        @(posedge clock);
-        #1 check(data_out[9:0], 682, "ADC passthrough (alternating bits)");
+        sample_tick;
+        check(data_out[9:0], 682, "ADC passthrough (alternating bits)");
 
         adc_databus = 10'd341;  // 0b0101010101: the complement
-        @(posedge clock);
-        #1 check(data_out[9:0], 341, "ADC passthrough (complement)");
+        sample_tick;
+        check(data_out[9:0], 341, "ADC passthrough (complement)");
 
         adc_databus = 10'd1023;
-        @(posedge clock);
-        #1 check(data_out[9:0], 1023, "ADC passthrough (full scale)");
+        sample_tick;
+        check(data_out[9:0], 1023, "ADC passthrough (full scale)");
 
         // Test mode must ignore the ADC bus entirely: the ramp continues from
         // where it left off rather than restarting or picking up ADC values.
         test_mode_flag = 1'b1;
-        @(posedge clock);
-        #1;
+        sample_tick;
         if (data_out[9:0] === 1023) begin
             $display("FAIL: test mode is passing ADC data through (t=%0t)", $time);
             errors = errors + 1;
@@ -132,19 +161,19 @@ module tb_dataGenerator;
         #1 reset_n = 1'b1;
         check(data_out[15:10], 0, "sequence number after second reset");
 
-        // One short of the boundary the field is still 0; one clock later it is 1.
+        // One short of the boundary the field is still 0; one sample later it is 1.
         for (i = 1; i < SAMPLES_PER_SEQUENCE; i = i + 1) begin
-            @(posedge clock);
+            sample_tick;
         end
-        #1 check(data_out[15:10], 0, "sequence number just before the first boundary");
+        check(data_out[15:10], 0, "sequence number just before the first boundary");
 
-        @(posedge clock);
-        #1 check(data_out[15:10], 1, "sequence number at the first boundary");
+        sample_tick;
+        check(data_out[15:10], 1, "sequence number at the first boundary");
 
         for (i = 1; i <= SAMPLES_PER_SEQUENCE; i = i + 1) begin
-            @(posedge clock);
+            sample_tick;
         end
-        #1 check(data_out[15:10], 2, "sequence number at the second boundary");
+        check(data_out[15:10], 2, "sequence number at the second boundary");
 
         // Run out the remaining sequence numbers and check the wrap. The
         // comparison in the DUT is against (63 << 16) - 1, where the 6-bit
@@ -152,16 +181,13 @@ module tb_dataGenerator;
         // where an implicit width promotion decides the behaviour, so it is
         // worth the simulation time to prove the wrap lands on 0 and not on 63.
         for (i = 1; i <= SAMPLES_PER_SEQUENCE * (SEQUENCE_COUNT - 2); i = i + 1) begin
-            @(posedge clock);
+            sample_tick;
         end
-        #1 check(data_out[15:10], 0, "sequence number wrap after 63 sequences");
+        check(data_out[15:10], 0, "sequence number wrap after 63 sequences");
 
-        @(posedge clock);
-        #1
-        check(
-            data_out[9:0],
-            (SAMPLES_PER_SEQUENCE * SEQUENCE_COUNT + 1) % RAMP_LENGTH,
-            "ramp is continuous across the sequence wrap");
+        sample_tick;
+        check(data_out[9:0], (SAMPLES_PER_SEQUENCE * SEQUENCE_COUNT + 1) % RAMP_LENGTH,
+              "ramp is continuous across the sequence wrap");
 
         if (errors == 0) begin
             $display("tb_dataGenerator: PASS");
