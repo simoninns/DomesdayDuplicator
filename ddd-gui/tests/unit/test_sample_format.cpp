@@ -91,11 +91,26 @@ TEST(CaptureFormatTest, ExtensionsAreComparedWithoutRegardToCase) {
   EXPECT_EQ(LowerCaseExtension("capture"), "");
 }
 
-TEST(WireProtocolTest, TheConfigurationWordCarriesOnlyTheTestModeBit) {
-  // Every other bit is reserved and must be sent as zero: that is what makes
-  // adding a flag later a firmware change rather than a protocol break.
-  EXPECT_EQ(MakeConfigurationFlags(false), 0x0000);
-  EXPECT_EQ(MakeConfigurationFlags(true), 0x0001);
+TEST(WireProtocolTest, ARegisterWriteCarriesTheAddressAndTheValue) {
+  // The address is the high byte and the value the low one, which is what
+  // keeps a register write to a setup packet with no data stage.
+  EXPECT_EQ(MakeRegisterWrite(0x10, 0x01), 0x1001);
+  EXPECT_EQ(MakeRegisterWrite(0x00, 0xFF), 0x00FF);
+  EXPECT_EQ(MakeRegisterWrite(0x7F, 0x00), 0x7F00);
+}
+
+TEST(WireProtocolTest, TestModeIsAWriteToItsOwnRegister) {
+  EXPECT_EQ(MakeTestModeWrite(true), MakeRegisterWrite(kRegisterTestMode, 1));
+  EXPECT_EQ(MakeTestModeWrite(false), MakeRegisterWrite(kRegisterTestMode, 0));
+}
+
+TEST(WireProtocolTest, TheIdentitySignatureIsNeitherAllZerosNorAllOnes) {
+  // The whole value of the signature is that it tells a real register bank
+  // from a floating wire. SPI has no acknowledgement, so an absent or
+  // unconfigured FPGA returns whatever MISO carries — which is one of these
+  // two — and a signature equal to either would be no check at all.
+  EXPECT_NE(kIdentityValue, 0x00);
+  EXPECT_NE(kIdentityValue, 0xFF);
 }
 
 TEST(WireProtocolTest, TheIdentifiersAreTheAssignedOnes) {

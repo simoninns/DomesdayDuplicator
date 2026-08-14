@@ -34,7 +34,7 @@ trap 'rm -rf "$work"' EXIT
 benches=(
     "tb_dataGenerator:dataGenerator"
     "tb_fx3StateMachine:fx3StateMachine"
-    "tb_statusLED:statusLED"
+    "tb_spiRegisters:spiRegisters"
 )
 
 failed=0

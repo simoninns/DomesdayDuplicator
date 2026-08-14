@@ -131,6 +131,10 @@ set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[10]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[11]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[12]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[13]
+# SPI MISO to the FX3 — the only FPGA output on the register link. Minimum
+# drive because it faces one CMOS input a few centimetres away through two
+# headers, where the default 8 mA buys nothing and worsens overshoot.
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MINIMUM CURRENT" -to GPIO1[13]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[14]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[15]
 set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to GPIO1[16]
@@ -229,5 +233,5 @@ set_global_assignment -name QIP_FILE IPfifo.qip
 set_global_assignment -name VERILOG_FILE buffer.v
 set_global_assignment -name CDF_FILE DomesdayDuplicator_write_sof.cdf
 set_global_assignment -name CDF_FILE DomesdayDuplicator_write_jic.cdf
-set_global_assignment -name VERILOG_FILE statusLED.v
+set_global_assignment -name VERILOG_FILE spiRegisters.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

@@ -68,6 +68,7 @@ class MainWindow : public QMainWindow {
   void BuildMenus();
   void RestoreWindowLayout();
   void ShowAboutDialog();
+  void ShowFirmwareDialog();
   void ShowSettingsDialog();
   void ShowAnalysisDialog();
   void ShowCaptureFinished(const QString& file_path, quint64 bytes);

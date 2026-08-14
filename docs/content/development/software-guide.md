@@ -58,7 +58,7 @@ The DE0-Nano User Manual, which documents the EPCS64 serial configuration device
 
 ## Source code modules
 ### DomesdayDuplicator.v
-This module is the top-level verilog module and contains the hardware mapping information for the communication between the FPGA and the ADC as well as the communication between the FPGA and the FX3. The module also includes instantiation code for the Intel IP PLL functions which generate the required 60MHz clock (for FPGA to FX3 communication) and 40 MHz clock (for ADC to FPGA communication - i.e. the sample rate clock). The top-level module includes the sub-modules 'dataGenerator', 'buffer', 'fx3StateMachine' and 'statusLED'.  The purpose of these modules is described below.
+This module is the top-level verilog module and contains the hardware mapping information for the communication between the FPGA and the ADC as well as the communication between the FPGA and the FX3. The module also includes instantiation code for the Intel IP PLL functions which generate the required 60MHz clock (for FPGA to FX3 communication) and 40 MHz clock (for ADC to FPGA communication - i.e. the sample rate clock). The top-level module includes the sub-modules 'dataGenerator', 'buffer', 'fx3StateMachine' and 'spiRegisters'.  The purpose of these modules is described below.
 
 ### dataGenerator.v
 The data generator module is responsible for generating data either from the ADC or (if in test mode) internally. When in test mode the generator outputs a repeating sequence of 10-bit numbers, 0 to 1020 inclusive.
@@ -84,14 +84,20 @@ The fx3StateMachine module implements the required mirror state-machine for the 
 1. state\_waitForRequest - The state-machine waits for the GPIF II state-machine to indicate a transfer is about to begin.
 2. state\_sendPacket - The state-machine waits for 8192 clock cycles (whilst data is transferred) before returning to the waitForRequest state.
 
-### statusLED.v
-The statusLED module provides a simple indication that the FPGA firmware is running.  The 8 LEDs of the DE0 nano are lit in sequence.  The LED pattern is interrupted if the DE0 nano firmware is not programmed correctly or the DE0-nano is being held in reset (by pressing the reset button on the FX3 board).
+### spiRegisters.v
+The spiRegisters module holds the registers that the FX3 reads and writes over the private SPI link between the two boards. It replaced statusLED.v, which used to run a chasing pattern on the DE0-Nano's eight LEDs to show that the gateware was alive.
+
+The registers are a read-only identity block — a fixed signature, the register map version, build flags and the commit the gateware was built from — plus test mode and the LEDs. The LEDs are now driven by the FX3, which uses them to report capture state. The gateware lights one of them coming out of reset, so a board that is configured but has not yet been spoken to by the FX3 still looks different from one that is not configured at all.
+
+The commit comes from `version.vh`, which `fpga/generate-version.sh` writes at build time. The copy committed beside the sources reports no commit, which is the honest answer for a lint or simulation run.
+
+The module is a shift register and two counters, framed by chip select. It is deliberately one module rather than a slave and a register file with an interface between them, because what is worth testing is the whole path from an edge on a pin to a register that changed — and `fpga/tests/tb_spiRegisters.v` does exactly that, driving the link at the fastest rate the specification allows.
 
 # Cypress FX3 firmware
 ## Purpose
 The Cypress FX3 firmware provides a DMA driven data transfer between the FPGA and the USB 3 compatible host computer.  A GPIF state-machine design is used to automatically read data from the FPGA and transmit it via USB 3 with minimal interaction of the FX3's ARM processor. 
 
-In addition the FX3 provides a set of generic input and output GPIOs to and from the FPGA.  Currently the firmware monitors the inputs from the FPGA and produces debugging information (via the serial console) if any signal is set, this is to assist with debugging the FPGA code.  Outputs to the FPGA are available via a vendor-specific USB command (0xB6) that accepts a byte containing bit-flags and sets the outputs to the FPGA according to the state of the flags (used to send capture configuration settings from the GUI application to the FPGA).
+In addition the FX3 provides a set of generic input and output GPIOs to and from the FPGA.  Currently the firmware monitors the inputs from the FPGA and produces debugging information (via the serial console) if any signal is set, this is to assist with debugging the FPGA code.  Configuration of the FPGA is done through a register bank in the gateware, which the FX3 reaches over a private SPI link and exposes to the host through the vendor-specific commands 0xB7 and 0xB8 described below.
 
 ## Development environment
 The FX3 firmware is C, built with `arm-none-eabi-gcc` and CMake against the Cypress FX3 SDK 1.3.5. A subset of that SDK is vendored in the repository at `fx3/sdk/`, so no SDK installation is needed. `fx3-mkimage`, this project's own tool, converts the linked ELF into the boot-loadable image; it replaces the SDK's proprietary `elf2img`. The GPIF II state-machine design is developed in Cypress GPIF II Designer 1.0, which is only available for Windows.
@@ -132,11 +138,13 @@ The purpose of the signals are as follows:
 * input1 - Generic input GPIO from the FPGA to the FX3 - unused by the current gateware
 * input2 - Generic input GPIO from the FPGA to the FX3 - unused by the current gateware
 * input3 - Generic input GPIO from the FPGA to the FX3 - unused by the current gateware
-* outputE0 - Generic output GPIO from the FX3 to the FPGA (with 'early' low-latency) - configuration bit 0, test mode off/on
-* outputD0 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency) - configuration bit 1, unused by the current gateware
-* outputD1 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency) - configuration bit 2, unused by the current gateware
-* outputD2 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency) - configuration bit 3, unused by the current gateware
-* outputD3 - Generic output GPIO from the FX3 to the FPGA (with 'delay' normal latency) - configuration bit 4, unused by the current gateware
+* spiClock - SPI clock from the FX3 to the FPGA, for the register interface below (was outputE0)
+* spiMosi - SPI data from the FX3 to the FPGA (was outputD0)
+* spiMiso - SPI data from the FPGA to the FX3 (was outputD1)
+* spiChipSelectN - SPI chip select from the FX3 to the FPGA, active low (was outputD2)
+* (reserved) - Wired but unused, held for a future out-of-band signal (was outputD3)
+
+These five lines used to be five independent configuration bits, of which only test mode was ever used. Four of them now carry an SPI link to a register bank inside the gateware, which is what the vendor commands below reach.
 
 ### State machine
 The following diagram shows the GPIF II state machine design for the FX3 GPIF implementation:
@@ -173,7 +181,7 @@ This file contains the state-machine definition code generated by the GPIF II de
 This file contains the USB descriptor information for the Domesday Duplicator USB device. The product string descriptor is generated at build time so that it carries the commit the firmware was built from.
 
 ## Vendor specific USB commands
-The firmware handles two vendor specific USB commands 0xB5 and 0xB6.
+The firmware handles three vendor specific USB commands: 0xB5, 0xB7 and 0xB8.
 
 ### Vendor specific command 0xB5 - Start/Stop data collection
 The vendor specific command 0xB5 accepts a value of either 0 or 1. If called with a value of 1 the firmware drives the collectData signal high to tell the FPGA to begin sample data collection; a value of 0 drives it low again. The firmware also uses the command to bracket a capture for link power management purposes, described below.
@@ -182,16 +190,19 @@ The vendor specific command 0xB5 accepts a value of either 0 or 1. If called wit
 
     Neither half of this command is live today. The capture application does not send 0xB5, and the current gateware ignores the collectData signal and collects continuously. The command is still implemented in the firmware and the pin is still wired, so restoring the mechanism would be a change to the gateware and the capture application rather than to the firmware.
 
-### Vendor specific command 0xB6 - Configuration bit flag
-The vendor specific command 0xB6 accepts a byte value from the host that is interpreted as a bit-flag.  Only bits 0-4 are used (bits 5-7 are ignored and can be set to any value).  The setting of the bit-flags are mapped to output GPIO pins as follows:
+### Vendor specific commands 0xB7 and 0xB8 - FPGA registers
+The gateware holds a small bank of registers that the FX3 reaches over the private SPI link described above, and these two commands relay them to the host.  They replaced command 0xB6, which set the five configuration GPIO pins directly — those pins are now the SPI link itself.
 
-* Bit 0 - GPIO22
-* Bit 1 - GPIO23
-* Bit 2 - GPIO24
-* Bit 3 - GPIO25
-* Bit 4 - GPIO26
+`0xB7` reads registers: `wValue` is the first register address and `wLength` the number of bytes.  The address auto-increments in the gateware, so the whole identity block is one request.  `0xB8` writes one register, with the address in the high byte of `wValue` and the value in the low byte, which keeps it to a setup packet with no data stage.
 
-The command is used by the host application to set the capture configuration of the FPGA.  The exact interpretation of the flags is dependent on the FPGA programming (and is kept deliberately generic in the FX3 firmware).
+Because the commands address registers rather than named settings, a register added to the gateware later needs no new firmware command and no new request number to become reachable from the host.
+
+The registers are a read-only identity block — a signature, the register map version, build flags and the commit the gateware was built from — plus test mode and the status LEDs.  The FX3 refuses to relay a host write to the LED register, because it drives the LEDs itself to report capture state.
+
+A device whose FPGA is unconfigured, or whose gateware predates this interface, stalls both commands.  That is not an error condition: capture works normally, and only the gateware version and the status LEDs are lost.
+
+The full contract — pin assignment, SPI mode and timing, the register map, and why this is SPI rather than I2C — is on the [FPGA register interface](fpga-register-interface.md) page.
+
 
 ## USB power management
 A USB 3.0 link spends its time in one of four power states: U0 (active), U1 and U2 (progressively deeper idle states, entered and left by the link hardware), and U3 (suspend, which only the host may put the device into and only the device may leave, by signalling remote wakeup). How the firmware treats each is a deliberate design point, because a capture device that gets it wrong either drops samples or stops the host machine from going to sleep.

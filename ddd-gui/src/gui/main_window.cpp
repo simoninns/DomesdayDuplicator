@@ -28,12 +28,15 @@
 #include "application_logger.h"
 #include "capture_controller.h"
 #include "capture_panel.h"
+#include "firmware_dialog.h"
 #include "log_message_model.h"
 #include "log_panel.h"
 #include "settings_dialog.h"
 #include "spectrum_panel.h"
 #include "statistics_panel.h"
 #include "theme_controller.h"
+#include "usb_device_info.h"
+#include "version.h"
 #include "waveform_panel.h"
 
 namespace ddd::gui {
@@ -253,12 +256,45 @@ void MainWindow::BuildMenus() {
   }
 
   QMenu* help_menu = menuBar()->addMenu(tr("&Help"));
+  help_menu->addAction(tr("&Firmware\u2026"), this,
+                       &MainWindow::ShowFirmwareDialog);
+  help_menu->addSeparator();
   help_menu->addAction(tr("&About"), this, &MainWindow::ShowAboutDialog);
 }
 
 void MainWindow::ShowAboutDialog() {
   AboutDialog about(this);
   about.exec();
+}
+
+void MainWindow::ShowFirmwareDialog() {
+  FirmwareVersions versions;
+
+  const std::string_view application = capture::Version();
+  versions.application = QString::fromUtf8(
+      application.data(), static_cast<qsizetype>(application.size()));
+
+  // Everything about the device comes from what the controller already knows,
+  // so opening this reads nothing and cannot block. It also means the dialog
+  // works with no controller at all, which is how the widget tests build the
+  // window: it then shows this build and says no device is attached.
+  if (capture_controller_ != nullptr) {
+    const std::vector<capture::DeviceInfo> devices =
+        capture_controller_->devices();
+    const capture::DeviceInfo* const selected = capture::SelectDevice(
+        devices,
+        capture_controller_->settings().preferred_device_path.toStdString());
+
+    if (selected != nullptr) {
+      versions.device_attached = true;
+      versions.product_string =
+          QString::fromStdString(selected->product_string);
+      versions.gateware = capture_controller_->fpga_version();
+    }
+  }
+
+  FirmwareDialog dialog(versions, this);
+  dialog.exec();
 }
 
 void MainWindow::ShowSettingsDialog() {

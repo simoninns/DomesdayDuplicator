@@ -31,6 +31,7 @@ let
       ./tests
       ./verilator-waivers.vlt
       ./bitstream-provenance.py
+      ./generate-version.sh
     ];
   };
 in
@@ -50,6 +51,13 @@ in
   # T1/T2 — the byte offsets the canonical bitstream digest depends on.
   provenance = runCommand "ddd-fpga-provenance" { nativeBuildInputs = [ python3 ]; } ''
     python3 ${src}/tests/test_provenance.py
+    touch $out
+  '';
+
+  # T2 — the commit-to-identity-register stamp the FX3 reads back over SPI.
+  # iverilog is here to parse the generated file, not to simulate anything.
+  version = runCommand "ddd-fpga-version" { nativeBuildInputs = [ iverilog ]; } ''
+    bash ${src}/tests/run-version.sh
     touch $out
   '';
 }

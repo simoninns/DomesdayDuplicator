@@ -19,6 +19,7 @@
 #include "synthetic_source.h"
 #include "usb_device.h"
 #include "usb_device_info.h"
+#include "wire_protocol.h"
 
 namespace ddd::capture {
 
@@ -51,12 +52,34 @@ class FakeUsbDevice : public IUsbDevice {
     return true;
   }
 
-  bool SendConfiguration(const std::string& path, bool test_mode) override {
+  bool WriteRegister(const std::string& path, uint8_t address,
+                     uint8_t value) override {
     const std::lock_guard<std::mutex> guard(mutex_);
     ++configuration_count_;
     configured_path_ = path;
-    configured_test_mode_ = test_mode;
+    written_register_ = address;
+    written_value_ = value;
     return !configuration_fails_;
+  }
+
+  bool ReadRegisters(const std::string& path, uint8_t address, uint8_t length,
+                     std::vector<uint8_t>& data) override {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    ++register_read_count_;
+    read_path_ = path;
+
+    // No register bank is the default, and it is the case a test gets without
+    // asking: a device whose FPGA never answered stalls the request, and the
+    // application has to carry on regardless. A test that wants a gateware
+    // version says so with SetGatewareCommit().
+    if (registers_.empty() ||
+        static_cast<size_t>(address) + length > registers_.size()) {
+      return false;
+    }
+
+    data.assign(registers_.begin() + address,
+                registers_.begin() + address + length);
+    return true;
   }
 
   std::unique_ptr<ISampleSource> OpenSource(const std::string& path,
@@ -105,6 +128,39 @@ class FakeUsbDevice : public IUsbDevice {
     configuration_fails_ = fails;
   }
 
+  // Give the fake a gateware identity block, as the register-read request
+  // would return it. An empty commit is a gateware that cannot name the build
+  // it came from, which is what one compiled outside a checkout reports.
+  void SetGatewareCommit(const std::string& commit, bool dirty = false,
+                         uint8_t map_version = kIdentityMapVersion) {
+    const std::lock_guard<std::mutex> guard(mutex_);
+
+    registers_.assign(kFakeRegisterCount, 0);
+    registers_[kRegisterId] = kIdentityValue;
+    registers_[kRegisterMapVersion] = map_version;
+
+    uint8_t flags = 0;
+    if (dirty) {
+      flags |= kBuildFlagDirty;
+    }
+    if (!commit.empty()) {
+      flags |= kBuildFlagCommit;
+    }
+    registers_[kRegisterBuildFlags] = flags;
+
+    for (size_t index = 0; index < commit.size() && index < kCommitLength;
+         ++index) {
+      registers_[kRegisterCommit + index] = static_cast<uint8_t>(commit[index]);
+    }
+  }
+
+  // Take the register bank away again — a device whose FPGA is unconfigured,
+  // or whose firmware predates the register interface.
+  void SetGatewareUnavailable() {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    registers_.clear();
+  }
+
   void SetOpenFails(
       bool fails, TransferResult failure = TransferResult::kConnectionFailure) {
     const std::lock_guard<std::mutex> guard(mutex_);
@@ -139,9 +195,21 @@ class FakeUsbDevice : public IUsbDevice {
     const std::lock_guard<std::mutex> guard(mutex_);
     return configured_path_;
   }
+  uint8_t written_register() const {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return written_register_;
+  }
+  uint8_t written_value() const {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return written_value_;
+  }
   bool configured_test_mode() const {
     const std::lock_guard<std::mutex> guard(mutex_);
-    return configured_test_mode_;
+    return written_register_ == kRegisterTestMode && written_value_ != 0;
+  }
+  uint64_t register_read_count() const {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return register_read_count_;
   }
   UsbSourceOptions opened_options() const {
     const std::lock_guard<std::mutex> guard(mutex_);
@@ -159,12 +227,19 @@ class FakeUsbDevice : public IUsbDevice {
 
   SyntheticSource::Options source_options_;
 
+  // The seven-bit register address space the gateware implements
+  static constexpr size_t kFakeRegisterCount = 128;
+  std::vector<uint8_t> registers_;
+
   uint64_t enumerate_count_ = 0;
   uint64_t open_count_ = 0;
   uint64_t configuration_count_ = 0;
+  uint64_t register_read_count_ = 0;
   std::string opened_path_;
   std::string configured_path_;
-  bool configured_test_mode_ = false;
+  std::string read_path_;
+  uint8_t written_register_ = 0;
+  uint8_t written_value_ = 0;
   UsbSourceOptions opened_options_;
 };
 

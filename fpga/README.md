@@ -27,7 +27,8 @@ Inside `src/`:
 | `dataGenerator.v` | ADC sampling and the built-in test-data generator |
 | `buffer.v` | Sample buffering between the ADC and FX3 clock domains |
 | `fx3StateMachine.v` | GPIF II handshake with the FX3 |
-| `statusLED.v` | Front-panel status LED behaviour |
+| `spiRegisters.v` | The register bank the FX3 reads and writes over SPI |
+| `version.vh` | Generated build stamp the register bank reports; regenerated into the build directory by `generate-version.sh` |
 | `IPfifo.v`, `IPpllGenerator.v` | Instantiations of the Altera `dcfifo` and `altpll` primitives |
 
 ## The generated IP is source, not wizard output

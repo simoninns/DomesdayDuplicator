@@ -9,6 +9,8 @@
 	
 ************************************************************************/
 
+`include "version.vh"
+
 module DomesdayDuplicator(
 	input        CLOCK_50,
 	inout [33:0] GPIO0,
@@ -85,6 +87,7 @@ assign GPIO1[31] = fx3_clock; // FX3 GPIO_16
 assign GPIO1[27] = fx3_control[00]; // FX3 CTL_00 GPIO_17 (output)
 assign GPIO1[21] = fx3_control[03];	// FX3 CTL_03 GPIO_20 (output)
 assign GPIO1[19] = fx3_control[04];	// FX3 CTL_04 GPIO_21 (output)
+assign GPIO1[13] = fx3_control[07];	// FX3 CTL_07 GPIO_24 (output)
 assign GPIO1[05] = fx3_control[11];	// FX3 CTL_11 GPIO_28 (output)
 assign GPIO1[03] = fx3_control[12];	// FX3 CTL_12 GPIO_29 (output)
 
@@ -93,7 +96,6 @@ assign fx3_control[01] = GPIO1[25];	// FX3 CTL_01 GPIO_18
 assign fx3_control[02] = GPIO1[23];	// FX3 CTL_02 GPIO_19
 assign fx3_control[05] = GPIO1[17];	// FX3 CTL_05 GPIO_22
 assign fx3_control[06] = GPIO1[15];	// FX3 CTL_06 GPIO_23
-assign fx3_control[07] = GPIO1[13];	// FX3 CTL_07 GPIO_24
 assign fx3_control[08] = GPIO1[11];	// FX3 CTL_08 GPIO_25
 assign fx3_control[09] = GPIO1[09];	// FX3 CTL_09 GPIO_26
 assign fx3_control[10] = GPIO1[07];	// FX3 CTL_10 GPIO_27
@@ -123,7 +125,6 @@ assign GPIO1[1] = 1'bZ;
 assign GPIO1[7] = 1'bZ;
 assign GPIO1[9] = 1'bZ;
 assign GPIO1[11] = 1'bZ;
-assign GPIO1[13] = 1'bZ;
 assign GPIO1[15] = 1'bZ;
 assign GPIO1[17] = 1'bZ;
 assign GPIO1[23] = 1'bZ;
@@ -145,22 +146,32 @@ assign GPIO1[33] = 1'bZ;
 // input2				GPIO_28		CTL_11	Output	- Unused
 // input3				GPIO_29		CTL_12	Output	- Unused
 
-// outputE0				GPIO_22		CTL_05	Input		- FX3 Configuration bit 0 (Test mode off/on)
-// outputD0				GPIO_23		CTL_06	Input		- FX3 Configuration bit 1 (Unused)
-// outputD1				GPIO_24		CTL_07	Input		- FX3 Configuration bit 2 (Unused)
-// outputD2				GPIO_25		CTL_08	Input		- FX3 Configuration bit 3 (Unused)
-// outputD3				GPIO_26		CTL_09	Input		- FX3 Configuration bit 4 (Unused)
+// spiClock				GPIO_22		CTL_05	Input		- SPI clock from the FX3
+// spiMosi				GPIO_23		CTL_06	Input		- SPI data from the FX3
+// spiMiso				GPIO_24		CTL_07	Output	- SPI data to the FX3
+// spiChipSelectN		GPIO_25		CTL_08	Input		- SPI chip select from the FX3 (active low)
+// (reserved)			GPIO_26		CTL_09	Input		- Unused; wired and held for a future signal
+
+// The four SPI lines replace what were five one-bit configuration signals, of
+// which only test mode was ever used. They reach the register bank in
+// spiRegisters, which is where test mode and the status LEDs now live; the
+// contract is the "FPGA register interface" page of the documentation site.
 
 // Wire definitions for FX3 GPIO mapping
 wire fx3_nReset;
 wire fx3_dataAvailable;
 wire fx3_readData;
 wire fx3_bufferError;
+wire fx3_spiClock;
+wire fx3_spiMosi;
+wire fx3_spiMiso;
+wire fx3_spiChipSelectN;
 wire fx3_testMode;
 
 // Signal outputs to FX3
 assign fx3_control[00] 		= fx3_dataAvailable;
 assign fx3_control[03] 		= fx3_bufferError;
+assign fx3_control[07]		= fx3_spiMiso;
 
 // These are currently unused, but must have a defined value
 assign fx3_control[04]	= 1'b0;
@@ -172,12 +183,10 @@ assign fx3_nReset      = fx3_control[10];
 //assign fx3_unused = fx3_control[02];
 assign fx3_readData    = fx3_control[01];
 
-// Signal inputs from FX3 (configuration bits)
-assign fx3_testMode    		= fx3_control[05];
-//assign fx3_configBit1    = fx3_control[06];
-//assign fx3_configBit2 	= fx3_control[07];
-//assign fx3_configBit3		= fx3_control[07];
-//assign fx3_configBit4 	= fx3_control[07];
+// Signal inputs from FX3 (SPI register interface)
+assign fx3_spiClock			= fx3_control[05];
+assign fx3_spiMosi			= fx3_control[06];
+assign fx3_spiChipSelectN	= fx3_control[08];
 
 // FX3 Hardware mapping ends --------------------------------------------------
 
@@ -262,14 +271,27 @@ fx3StateMachine fx3StateMachine0 (
 	.fx3isReading(fx3_isReading)			// Flag to indicate FX3 is sampling the databus
 );
 
-// Status LED control
-statusLED statusLED0 (
+// SPI register bank
+//
+// The build stamp comes from version.vh, which fpga/generate-version.sh
+// writes into the build directory. The copy committed beside the sources
+// reports no commit, which is the honest answer for a lint or simulation run
+// and for anyone who compiles without running the generator first.
+spiRegisters #(
+	.commitText(`GATEWARE_COMMIT_TEXT),
+	.buildFlags(`GATEWARE_BUILD_FLAGS)
+) spiRegisters0 (
 	// Inputs
 	.nReset(fx3_nReset),
 	.clock(fx3_clock),
-	
+	.spiClock(fx3_spiClock),
+	.spiMosi(fx3_spiMosi),
+	.spiChipSelectN(fx3_spiChipSelectN),
+
 	// Outputs
-	.leds(LED)
+	.spiMiso(fx3_spiMiso),
+	.testMode(fx3_testMode),		// 1 = test data generator selected
+	.leds(LED)						// Driven by the FX3, for status
 );
 
 endmodule

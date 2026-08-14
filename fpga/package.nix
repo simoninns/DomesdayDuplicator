@@ -42,6 +42,7 @@ stdenvNoCC.mkDerivation {
     fileset = lib.fileset.unions [
       ./src
       ./bitstream-provenance.py
+      ./generate-version.sh
     ];
   };
 
@@ -65,6 +66,13 @@ stdenvNoCC.mkDerivation {
     # run in fpga/src — see build-local.sh, which does the same copy this does.
     cd src
     chmod -R u+w .
+
+    # Stamp the build with the commit, which the gateware presents to the FX3
+    # in its identity registers. It has to happen after the chmod, because that
+    # is what makes this copy of the sources writable, and it overwrites the
+    # placeholder version.vh committed beside them. bitstreamVersion is passed
+    # in for the same reason the firmware's is: there is no .git here to ask.
+    bash "$src/generate-version.sh" . "${bitstreamVersion}"
 
     echo "Compiling with $(quartus_sh --version | sed -n 2p)"
     quartus_sh --flow compile DomesdayDuplicator

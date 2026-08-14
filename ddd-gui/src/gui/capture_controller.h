@@ -23,6 +23,7 @@
 #include "capture_settings.h"
 #include "device_monitor.h"
 #include "flac_sink.h"
+#include "fpga_version.h"
 #include "monitor_tap.h"
 #include "usb_device.h"
 #include "usb_device_info.h"
@@ -69,6 +70,13 @@ class CaptureController : public QObject {
   QString capture_path() const { return capture_path_; }
 
   std::vector<capture::DeviceInfo> devices() const { return devices_; }
+
+  // What the selected device's gateware last said about itself.
+  //
+  // Read when a device appears rather than on demand, so that showing it costs
+  // nothing and never blocks. Default constructed — present false — when no
+  // device is selected or its gateware could not answer.
+  const capture::FpgaVersion& fpga_version() const { return fpga_version_; }
 
   const CaptureSettings& settings() const { return settings_; }
 
@@ -149,6 +157,9 @@ class CaptureController : public QObject {
  private:
   void OnDevicesChanged(const std::vector<capture::DeviceInfo>& devices);
   void CheckFirmware(const std::vector<capture::DeviceInfo>& devices);
+
+  // Read and parse the gateware identity block from the device at `path`.
+  capture::FpgaVersion ReadFpgaVersion(const std::string& path);
   void Tick();
   void FinishRun();
 
@@ -208,6 +219,9 @@ class CaptureController : public QObject {
   // because re-plugging is what a user does after updating the firmware.
   QString warned_device_path_;
   QString warned_device_product_;
+
+  // The gateware version that goes with warned_device_path_
+  capture::FpgaVersion fpga_version_;
 };
 
 }  // namespace ddd::gui

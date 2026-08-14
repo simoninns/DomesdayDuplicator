@@ -91,6 +91,8 @@ endif()
 set(C_SOURCES
     src/cyfxtx.c
     src/domesday-duplicator.c
+    src/fpga-register-map.c
+    src/fpga-registers.c
     src/usb-descriptor.c
 )
 

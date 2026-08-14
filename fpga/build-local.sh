@@ -48,6 +48,13 @@ mkdir -p "$build"
 cp "$src"/* "$build/"
 chmod -R u+w "$build"
 
+# Stamp the build with the commit it came from, overwriting the copy of
+# version.vh that was just copied out of src. Generated into the build
+# directory and never back into src, so that compiling the gateware does not
+# dirty a tracked file — which would then be reported by the provenance record
+# as an uncommitted change, on every build, for ever.
+"$here/generate-version.sh" "$build"
+
 cd "$build"
 
 quartus_sh --flow compile DomesdayDuplicator

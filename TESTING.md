@@ -321,12 +321,13 @@ running the same scripts a developer runs, so the two cannot drift.
 | --- | --- | --- |
 | `tests/tb_dataGenerator.v` | The test-pattern generator: the 0…1020 ramp over three periods, ADC passthrough and its one-cycle registration, that test mode ignores the ADC bus, and the sequence number — including the wrap after exactly 63 sequences of 65536 samples | T3 |
 | `tests/tb_fx3StateMachine.v` | The GPIF II handshake: idle until asked, a packet of exactly 8192 clock cycles, that a single-cycle request is enough, the gap between back-to-back packets, and that a mid-packet reset abandons rather than resumes | T3 |
-| `tests/tb_statusLED.v` | The LED pattern: reset state, two full periods including both direction reversals, that the LEDs hold between steps, and that a reset restarts the walk upwards | T3 |
+| `tests/tb_spiRegisters.v` | The SPI register bank, driven at the fastest clock the specification allows: reset values, the identity block in one transfer, test mode and the LEDs written and read back, address auto-increment and wrap, unmapped reads returning zero, writes to read-only registers discarded, and a byte cut short by chip select leaving nothing behind | T3 |
 | `tests/run-lint.sh` | `verilator --lint-only -Wall` over the five hand-written modules | T4 |
+| `tests/run-version.sh` | The commit-to-identity-register stamp: an eight-character hash, the seven-character one a Nix build passes, a dirty tree, a build with no commit, a full-length hash, and a string that is not a hash at all | T2 |
 | `tests/test_provenance.py` | The byte offsets the canonical bitstream digest masks, that a payload change is *not* masked, and that a moved field raises rather than digesting unmasked data | T1, T2 |
 
 Run them with `./fpga/tests/run-lint.sh` and `./fpga/tests/run-sim.sh` from
-`nix develop .#fpga`, or as the `fpga-lint`, `fpga-sim` and `fpga-provenance` flake checks.
+`nix develop .#fpga`, or as the `fpga-lint`, `fpga-sim`, `fpga-provenance` and `fpga-version` flake checks.
 
 `tb_dataGenerator.v` is the simulation counterpart of §5: the ramp and sequence number it
 asserts are exactly what the capture-integrity procedure counts breaks in, so a defect
@@ -444,7 +445,7 @@ Listed so this document can be read as a status report rather than a wish list.
 | `buffer.v` testbench | T3 | Needs a free `dcfifo` model, or a hand-written stand-in for it. See the caveat below; not scheduled |
 
 The gateware items that used to be on this list are done: the `-Wall` lint pass and the
-`dataGenerator`, `fx3StateMachine` and `statusLED` testbenches are all in §4.7, and the
+`dataGenerator`, `fx3StateMachine` and `spiRegisters` testbenches are all in §4.7, and the
 licence-header check is in §4.8.
 
 Further GUI targets worth having, not yet scheduled: `amplitudemeasurement` (pure computation

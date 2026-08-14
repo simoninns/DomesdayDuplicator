@@ -55,6 +55,7 @@ ddd_add_test(ddd_capture_tests "unit"
     unit/test_monitor_tap.cpp
     unit/test_capture_pipeline.cpp
     unit/test_firmware_version.cpp
+    unit/test_fpga_version.cpp
     unit/test_usb_device.cpp
     unit/test_device_monitor.cpp
     unit/test_capture_naming.cpp
@@ -137,6 +138,7 @@ target_link_libraries(ddd_hardware_tests PRIVATE
 ddd_add_test(ddd_gui_tests "unit"
     support/gui_test_main.cpp
     gui/unit/test_about_text.cpp
+    gui/unit/test_firmware_text.cpp
     gui/unit/test_theme_manager.cpp
     gui/unit/test_log_message_model.cpp
     gui/unit/test_application_logger.cpp
@@ -163,6 +165,7 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     support/widget_test_main.cpp
     gui/widget/test_main_window_panels.cpp
     gui/widget/test_about_dialog.cpp
+    gui/widget/test_firmware_dialog.cpp
     gui/widget/test_analysis_dialog.cpp
     gui/widget/test_capture_panel.cpp
     gui/widget/test_statistics_panel.cpp

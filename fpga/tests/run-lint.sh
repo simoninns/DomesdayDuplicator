@@ -34,7 +34,7 @@ modules=(
     buffer
     dataGenerator
     fx3StateMachine
-    statusLED
+    spiRegisters
 )
 
 blackboxes=(

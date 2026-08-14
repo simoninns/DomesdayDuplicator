@@ -84,6 +84,18 @@ std::optional<std::string> NormaliseCommit(std::string_view version) {
   return ToLowerCase(version);
 }
 
+bool CommitsMatch(std::string_view first, std::string_view second) {
+  const std::optional<std::string> left = NormaliseCommit(first);
+  const std::optional<std::string> right = NormaliseCommit(second);
+
+  if (!left.has_value() || !right.has_value()) {
+    return false;
+  }
+
+  const size_t compared = std::min({left->size(), right->size(), size_t{8}});
+  return left->compare(0, compared, *right, 0, compared) == 0;
+}
+
 FirmwareVersionCheck CheckFirmwareVersion(
     std::string_view product_string, std::string_view application_version) {
   FirmwareVersionCheck check;
@@ -118,9 +130,7 @@ FirmwareVersionCheck CheckFirmwareVersion(
     return check;
   }
 
-  const size_t compared =
-      std::min({device->size(), application->size(), size_t{8}});
-  if (device->compare(0, compared, *application, 0, compared) == 0) {
+  if (CommitsMatch(*device, *application)) {
     check.status = FirmwareVersionCheck::Status::kMatch;
     return check;
   }

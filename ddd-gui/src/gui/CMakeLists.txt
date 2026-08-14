@@ -21,6 +21,8 @@ add_library(ddd_gui_lib STATIC
     capture_panel.cpp
     capture_failure_presenter.cpp
     capture_settings.cpp
+    firmware_dialog.cpp
+    firmware_text.cpp
     gain_choices.cpp
     log_message_model.cpp
     log_panel.cpp

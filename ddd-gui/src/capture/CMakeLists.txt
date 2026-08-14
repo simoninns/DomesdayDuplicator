@@ -33,6 +33,7 @@ add_library(ddd_capture STATIC
     disk_buffer_ring.cpp
     firmware_version.cpp
     flac_sink.cpp
+    fpga_version.cpp
     flac_writer.cpp
     free_space.cpp
     logger.cpp

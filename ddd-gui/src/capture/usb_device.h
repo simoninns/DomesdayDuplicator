@@ -144,9 +144,23 @@ class IUsbDevice {
   // attached" to someone looking straight at one.
   virtual bool Enumerate(std::vector<DeviceInfo>& devices) = 0;
 
-  // Send the 0xB6 configuration request, whose only defined bit selects the
-  // gateware's internal test pattern. Opens the device, sends, and closes.
-  virtual bool SendConfiguration(const std::string& path, bool test_mode) = 0;
+  // Write one of the gateware's registers. Opens the device, writes, and
+  // closes.
+  //
+  // Addressed rather than named — "set test mode" is a write to a particular
+  // register — because the device exposes a register bank and not a set of
+  // commands, so a register added to the gateware needs nothing here.
+  virtual bool WriteRegister(const std::string& path, uint8_t address,
+                             uint8_t value) = 0;
+
+  // Read consecutive registers into `data`, which is resized to `length` on
+  // success and left alone otherwise.
+  //
+  // Returns false when the device or its gateware could not answer, which is
+  // an ordinary outcome rather than an error: it is what a device whose FPGA
+  // is unconfigured, or whose firmware predates the register interface, does.
+  virtual bool ReadRegisters(const std::string& path, uint8_t address,
+                             uint8_t length, std::vector<uint8_t>& data) = 0;
 
   // Open a device and prepare a source that will stream from it.
   //

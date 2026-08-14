@@ -5,3 +5,4 @@ nav:
   - Hardware Guide: hardware-guide.md
   - Hardware Testing: hardware-testing.md
   - Software Guide: software-guide.md
+  - FPGA Register Interface: fpga-register-interface.md

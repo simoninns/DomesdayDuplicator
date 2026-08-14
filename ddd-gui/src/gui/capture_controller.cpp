@@ -27,6 +27,7 @@
 #include "sample_sink.h"
 #include "statistics_presenter.h"
 #include "version.h"
+#include "wire_protocol.h"
 
 namespace ddd::gui {
 namespace {
@@ -108,6 +109,7 @@ void CaptureController::CheckFirmware(
   if (selected == nullptr) {
     warned_device_path_.clear();
     warned_device_product_.clear();
+    fpga_version_ = capture::FpgaVersion{};
     return;
   }
 
@@ -119,6 +121,14 @@ void CaptureController::CheckFirmware(
   warned_device_path_ = path;
   warned_device_product_ = product;
 
+  // Read the gateware's identity while the device is being looked at anyway,
+  // so the Firmware dialog can show all three versions without opening the
+  // device itself. A device that cannot answer leaves this default
+  // constructed, which reads as "not known" and is not an error — gateware
+  // predating the register interface, or an FPGA that was never configured,
+  // both land here and both capture perfectly well.
+  fpga_version_ = ReadFpgaVersion(selected->path);
+
   const capture::FirmwareVersionCheck check = capture::CheckFirmwareVersion(
       selected->product_string, capture::Version());
 
@@ -127,9 +137,31 @@ void CaptureController::CheckFirmware(
                   ", application commit " + check.application_commit);
   }
 
+  if (logger_ != nullptr && fpga_version_.present) {
+    logger_->Info("Device gateware commit " +
+                  (fpga_version_.commit.empty() ? std::string("unknown")
+                                                : fpga_version_.commit) +
+                  (fpga_version_.dirty ? " (modified)" : ""));
+  }
+
   if (check.ShouldWarn()) {
     emit FirmwareWarning(QString::fromStdString(check.message));
   }
+}
+
+capture::FpgaVersion CaptureController::ReadFpgaVersion(
+    const std::string& path) {
+  if (device_ == nullptr) {
+    return {};
+  }
+
+  std::vector<uint8_t> identity;
+  if (!device_->ReadRegisters(path, capture::kRegisterId,
+                              capture::kIdentityLength, identity)) {
+    return {};
+  }
+
+  return capture::ParseFpgaIdentity(identity);
 }
 
 void CaptureController::StartMonitoring() {
@@ -139,11 +171,12 @@ void CaptureController::StartMonitoring() {
 
   const std::string path = settings_.preferred_device_path.toStdString();
 
-  // Sent before the device is opened for streaming rather than after. The
+  // Written before the device is opened for streaming rather than after. The
   // gateware applies it immediately and there is no acknowledgement, so doing
   // it while data is already flowing would put the mode change somewhere
   // unpredictable in the stream.
-  if (!device_->SendConfiguration(path, settings_.test_mode)) {
+  if (!device_->WriteRegister(path, capture::kRegisterTestMode,
+                              settings_.test_mode ? 1 : 0)) {
     emit Failed(tr("The device could not be configured"),
                 tr("The device did not accept the configuration request. It "
                    "may have been unplugged, or another application may be "

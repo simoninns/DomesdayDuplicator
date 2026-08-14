@@ -48,6 +48,18 @@ std::optional<std::string> ParseFirmwareCommit(std::string_view product_string);
 // decides what counts as a commit.
 std::optional<std::string> NormaliseCommit(std::string_view version);
 
+// Do two commit stamps name the same commit?
+//
+// Compared on their common prefix rather than as whole strings, because they
+// are not always the same length: the firmware and the gateware ask git for
+// eight characters, while a Nix build passes seven. Two builds of one commit
+// must never be reported as differing — a warning that fires when nothing is
+// wrong is worse than no warning, because it is dismissed unread.
+//
+// Anything that does not normalise to a commit compares equal to nothing,
+// including itself.
+bool CommitsMatch(std::string_view first, std::string_view second);
+
 // What the comparison concluded.
 struct FirmwareVersionCheck {
   enum class Status {

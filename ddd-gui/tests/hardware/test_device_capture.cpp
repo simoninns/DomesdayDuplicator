@@ -26,6 +26,7 @@
 #include "sample_sink.h"
 #include "usb_device.h"
 #include "version.h"
+#include "wire_protocol.h"
 
 namespace ddd::capture {
 namespace {
@@ -271,8 +272,8 @@ TEST_F(HardwareTest, AbortingMidStreamStopsPromptly) {
 // the host controller, the kernel's usbfs limits, the transfer geometry as the
 // hardware actually completes it — is where the interesting failures live.
 TEST_F(HardwareTest, MonitorModeSustainsTheRateWithNoSamplesLost) {
-  ASSERT_TRUE(device_->SendConfiguration(attached_.path, false))
-      << "the device would not accept the configuration request";
+  ASSERT_TRUE(device_->WriteRegister(attached_.path, kRegisterTestMode, 0))
+      << "the device would not accept the test-mode register write";
 
   TransferResult opened = TransferResult::kConnectionFailure;
   std::unique_ptr<ISampleSource> source =
@@ -335,8 +336,8 @@ TEST_F(HardwareTest, MonitorModeSustainsTheRateWithNoSamplesLost) {
 // this the only check that covers the whole path from the ADC pins to the
 // buffer without needing anything connected to the RF input.
 TEST_F(HardwareTest, TheTestPatternArrivesIntact) {
-  ASSERT_TRUE(device_->SendConfiguration(attached_.path, true))
-      << "the device would not accept the test-mode request";
+  ASSERT_TRUE(device_->WriteRegister(attached_.path, kRegisterTestMode, 1))
+      << "the device would not accept the test-mode register write";
 
   TransferResult opened = TransferResult::kConnectionFailure;
   std::unique_ptr<ISampleSource> source =
@@ -359,7 +360,7 @@ TEST_F(HardwareTest, TheTestPatternArrivesIntact) {
 
   // Put it back into normal mode whatever happened, so a failing test does not
   // leave a device that captures ramps until someone notices.
-  device_->SendConfiguration(attached_.path, false);
+  device_->WriteRegister(attached_.path, kRegisterTestMode, 0);
 
   const TestPatternVerifier::Result verdict = pipeline.test_pattern_result();
   std::cout << "[          ] checked " << verdict.samples_checked

@@ -67,22 +67,6 @@ lint_off -rule UNDRIVEN     -file "*_bb.v"
 // 63 sequence numbers of 65536 samples each.
 lint_off -rule WIDTHEXPAND -file "*/dataGenerator.v" -match "*SHIFTL*"
 
-// statusLED.v: `timer <= 16'd0;` where timer is 32 bits.
-//
-// A 16-bit zero zero-extends to a 32-bit zero, so the assignment is correct;
-// the constant is simply narrower than it needs to be. Left as written because
-// changing a literal in gateware that has not otherwise changed makes the
-// Phase 6 diff harder to review against the hardware gate, not easier.
-lint_off -rule WIDTHEXPAND -file "*/statusLED.v" -match "*ASSIGNDLY*"
-
-// statusLED.v: `case (position)` covers 0-7 of a 4-bit register.
-//
-// position only ever moves by one, from a reset value of 0, and reverses at 0
-// and 7 — so 8 to 15 are unreachable. If one were reached the LEDs would hold
-// their last value rather than doing anything undefined.
-// tests/tb_statusLED.v walks two full periods including both reversals.
-lint_off -rule CASEINCOMPLETE -file "*/statusLED.v"
-
 // fx3StateMachine.v: `case (sm_currentState)` covers 2 of 16 states.
 //
 // The case is preceded by `sm_nextState = sm_currentState;`, so every

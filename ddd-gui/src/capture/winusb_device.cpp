@@ -43,6 +43,9 @@ namespace {
 
 constexpr uint8_t kVendorRequestType = 0x40;
 
+// The same, device to host, with a data stage.
+constexpr uint8_t kVendorReadRequestType = 0xC0;
+
 std::string ToUtf8(const std::wstring& text) {
   if (text.empty()) {
     return {};
@@ -211,7 +214,8 @@ class WinUsbDevice : public IUsbDevice {
     return true;
   }
 
-  bool SendConfiguration(const std::string& path, bool test_mode) override {
+  bool WriteRegister(const std::string& path, uint8_t address,
+                     uint8_t value) override {
     ScopedWinUsbHandles handles;
     if (!OpenSelected(path, handles, nullptr)) {
       return false;
@@ -219,19 +223,57 @@ class WinUsbDevice : public IUsbDevice {
 
     WINUSB_SETUP_PACKET setup = {};
     setup.RequestType = kVendorRequestType;
-    setup.Request = kConfigurationRequest;
-    setup.Value = MakeConfigurationFlags(test_mode);
+    setup.Request = kRegisterWriteRequest;
+    setup.Value = MakeRegisterWrite(address, value);
     setup.Index = 0;
     setup.Length = 0;
 
     if (WinUsb_ControlTransfer(handles.interface_handle(), setup, nullptr, 0,
                                nullptr, nullptr) != TRUE) {
       if (logger_ != nullptr) {
-        logger_->Error("Sending the configuration request failed with error " +
+        logger_->Error("Writing a device register failed with error " +
                        std::to_string(GetLastError()));
       }
       return false;
     }
+    return true;
+  }
+
+  bool ReadRegisters(const std::string& path, uint8_t address, uint8_t length,
+                     std::vector<uint8_t>& data) override {
+    if (length == 0) {
+      return false;
+    }
+
+    ScopedWinUsbHandles handles;
+    if (!OpenSelected(path, handles, nullptr)) {
+      return false;
+    }
+
+    std::vector<uint8_t> buffer(length, 0);
+
+    WINUSB_SETUP_PACKET setup = {};
+    setup.RequestType = kVendorReadRequestType;
+    setup.Request = kRegisterReadRequest;
+    setup.Value = address;
+    setup.Index = 0;
+    setup.Length = length;
+
+    ULONG transferred = 0;
+    // A device that does not implement the register interface stalls, which
+    // WinUSB reports as a failed transfer. That is the expected answer from
+    // firmware older than the interface, so it is not logged as an error —
+    // the caller reports "unknown" and carries on.
+    if (WinUsb_ControlTransfer(handles.interface_handle(), setup, buffer.data(),
+                               length, &transferred, nullptr) != TRUE) {
+      return false;
+    }
+
+    if (transferred != length) {
+      return false;
+    }
+
+    data = std::move(buffer);
     return true;
   }
 

@@ -37,6 +37,18 @@ constexpr unsigned int kControlTimeoutMilliseconds = 0;
 // Request type for a vendor-specific command, host to device, no data stage.
 constexpr uint8_t kVendorRequestType = 0x40;
 
+// The same, device to host, with a data stage.
+constexpr uint8_t kVendorReadRequestType = 0xC0;
+
+// Register reads do get a deadline, unlike every other control transfer here.
+//
+// The reason is where they run: the register read happens on the GUI thread,
+// as part of noticing a device has arrived, so a device that neither answers
+// nor stalls would freeze the window rather than merely one operation. The
+// expected failure — firmware with no register interface — stalls and returns
+// at once, so this deadline is only ever reached by something genuinely stuck.
+constexpr unsigned int kRegisterReadTimeoutMilliseconds = 1000;
+
 DeviceSpeed SpeedFromLibUsb(int speed) {
   switch (speed) {
     case LIBUSB_SPEED_LOW:
@@ -177,7 +189,8 @@ class LibUsbDevice : public IUsbDevice {
     return true;
   }
 
-  bool SendConfiguration(const std::string& path, bool test_mode) override {
+  bool WriteRegister(const std::string& path, uint8_t address,
+                     uint8_t value) override {
     libusb_device_handle* handle = nullptr;
     if (!Open(path, handle, nullptr)) {
       return false;
@@ -185,8 +198,8 @@ class LibUsbDevice : public IUsbDevice {
 
     bool claimed = libusb_claim_interface(handle, kInterfaceNumber) == 0;
     const int sent = libusb_control_transfer(
-        handle, kVendorRequestType, kConfigurationRequest,
-        MakeConfigurationFlags(test_mode), 0, nullptr, 0,
+        handle, kVendorRequestType, kRegisterWriteRequest,
+        MakeRegisterWrite(address, value), 0, nullptr, 0,
         kControlTimeoutMilliseconds);
 
     if (claimed) {
@@ -196,12 +209,46 @@ class LibUsbDevice : public IUsbDevice {
 
     if (sent < 0) {
       if (logger_ != nullptr) {
-        logger_->Error(
-            std::string("Sending the configuration request failed: ") +
-            libusb_error_name(sent));
+        logger_->Error(std::string("Writing a device register failed: ") +
+                       libusb_error_name(sent));
       }
       return false;
     }
+    return true;
+  }
+
+  bool ReadRegisters(const std::string& path, uint8_t address, uint8_t length,
+                     std::vector<uint8_t>& data) override {
+    if (length == 0) {
+      return false;
+    }
+
+    libusb_device_handle* handle = nullptr;
+    if (!Open(path, handle, nullptr)) {
+      return false;
+    }
+
+    std::vector<uint8_t> buffer(length, 0);
+
+    bool claimed = libusb_claim_interface(handle, kInterfaceNumber) == 0;
+    const int received = libusb_control_transfer(
+        handle, kVendorReadRequestType, kRegisterReadRequest, address, 0,
+        buffer.data(), length, kRegisterReadTimeoutMilliseconds);
+
+    if (claimed) {
+      libusb_release_interface(handle, kInterfaceNumber);
+    }
+    libusb_close(handle);
+
+    // A device that does not implement the register interface stalls, which
+    // arrives here as LIBUSB_ERROR_PIPE. That is the expected answer from
+    // firmware older than the interface, so it is not logged as an error —
+    // the caller reports "unknown" and carries on.
+    if (received != static_cast<int>(length)) {
+      return false;
+    }
+
+    data = std::move(buffer);
     return true;
   }
 

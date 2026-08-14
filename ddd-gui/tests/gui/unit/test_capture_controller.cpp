@@ -176,6 +176,58 @@ TEST_F(CaptureControllerTest, ReplacingTheDeviceWarnsAgain) {
   ASSERT_TRUE(PumpUntil([&] { return warnings.count() >= 2; }));
 }
 
+// The gateware version is read when a device appears, not when somebody opens
+// the Firmware dialog, so that showing it costs nothing and cannot block the
+// window on a control transfer.
+TEST_F(CaptureControllerTest, TheGatewareVersionIsReadWhenADeviceAppears) {
+  device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
+                           "Domesday Duplicator (deadbe01)");
+  device_->SetGatewareCommit("0123abcd");
+
+  QSignalSpy devices(controller_.get(), &CaptureController::DevicesChanged);
+  controller_->Start();
+  ASSERT_TRUE(PumpUntil([&] { return devices.count() >= 1; }));
+
+  EXPECT_TRUE(controller_->fpga_version().present);
+  EXPECT_EQ(controller_->fpga_version().commit, "0123abcd");
+
+  // Read once per device, not once per poll. The read opens the device and
+  // does a control transfer, which is not something to do five times a second.
+  const uint64_t reads = device_->register_read_count();
+  PumpUntil([] { return false; }, 200ms);
+  EXPECT_EQ(device_->register_read_count(), reads);
+}
+
+// A device whose FPGA never answered is an ordinary state, not a failure: the
+// application has to monitor and capture exactly as it otherwise would.
+TEST_F(CaptureControllerTest, ASilentGatewareLeavesTheVersionUnknown) {
+  device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
+                           "Domesday Duplicator (deadbe01)");
+  device_->SetGatewareUnavailable();
+
+  QSignalSpy devices(controller_.get(), &CaptureController::DevicesChanged);
+  controller_->Start();
+  ASSERT_TRUE(PumpUntil([&] { return devices.count() >= 1; }));
+
+  EXPECT_FALSE(controller_->fpga_version().present);
+  EXPECT_TRUE(controller_->fpga_version().commit.empty());
+}
+
+// Unplugging must clear it, or the dialog would report the gateware of a device
+// that is no longer there.
+TEST_F(CaptureControllerTest, RemovingTheDeviceForgetsItsGatewareVersion) {
+  device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
+                           "Domesday Duplicator (deadbe01)");
+  device_->SetGatewareCommit("0123abcd");
+
+  QSignalSpy devices(controller_.get(), &CaptureController::DevicesChanged);
+  controller_->Start();
+  ASSERT_TRUE(PumpUntil([&] { return controller_->fpga_version().present; }));
+
+  device_->SetDevices({});
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->fpga_version().present; }));
+}
+
 // --- Monitor mode --------------------------------------------------------
 
 TEST_F(CaptureControllerTest, MonitoringOpensTheDeviceAndPublishesStatistics) {

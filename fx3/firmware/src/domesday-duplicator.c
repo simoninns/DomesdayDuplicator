@@ -24,6 +24,7 @@
 // Local includes
 #include "domesday-duplicator.h"
 #include "domesday-duplicator-gpif.h"
+#include "fpga-registers.h"
 
 // Global definitions
 CyU3PThread glAppThread; // Application thread structure
@@ -48,6 +49,13 @@ CyBool_t input2HandledFlag = CyFalse; // Input 2 set condition handled flag
 CyBool_t input3HandledFlag = CyFalse; // Input 3 set condition handled flag
 
 volatile CyBool_t dataCollectionFlag = CyFalse; // Flag to show if the host application is collecting data
+
+// Staging buffer for register reads on their way to the host.
+//
+// Aligned because CyU3PUsbSendEP0Data hands the buffer to the DMA engine, which needs it
+// on a 32-byte boundary. Statically allocated rather than living on the setup callback's
+// stack for the same reason - and because that stack belongs to the USB driver.
+static uint8_t glRegisterBuffer[FPGA_REGISTER_READ_MAX] __attribute__ ((aligned (32)));
 
 // Main application function
 int main(void)
@@ -230,85 +238,13 @@ int main(void)
 		goto handleFatalError;
 	}
 
-	// Generic output signals to FPGA (GPIO 22 (early), 23 (delayed), -------------------------------------------------
-	// 24 (delayed), 25 (delayed), 26 (delayed))
-
-	// Claim GPIO22 from the GPIF Interface (outputE0)
-	status = CyU3PDeviceGpioOverride(22, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(22, &gpioConfig);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Claim GPIO23 from the GPIF Interface (outputD0)
-	status = CyU3PDeviceGpioOverride(23, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(23, &gpioConfig);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Claim GPIO24 from the GPIF Interface (outputD1)
-	status = CyU3PDeviceGpioOverride(24, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(24, &gpioConfig);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Claim GPIO25 from the GPIF Interface (outputD2)
-	status = CyU3PDeviceGpioOverride(25, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(25, &gpioConfig);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Claim GPIO26 from the GPIF Interface (outputD3)
-	status = CyU3PDeviceGpioOverride(26, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(26, &gpioConfig);
+	// SPI register interface to the FPGA (GPIO 22, 23, 24 and 25), and the ---------------------------------------------
+	// one line left over from the configuration signals it replaces (GPIO 26)
+	//
+	// GPIO 22 to 26 used to be five one-bit configuration outputs, of which
+	// only test mode was ever used. They now carry a register bank instead —
+	// see fpga-registers.h and the "FPGA register interface" documentation page.
+	status = fpgaRegistersInitialise();
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
 	}
@@ -332,11 +268,36 @@ void domDupThreadInitialise(uint32_t input)
     CyU3PUsbLinkPowerMode powerState;
     uint32_t linkRecoveryAttempts;
 
+    // What the status LEDs are currently showing, so that they are only
+    // written when the answer changes. 0x00 is not one of the patterns the
+    // firmware ever sets, so the first pass through the loop always writes.
+    uint8_t ledPattern = 0;
+    uint8_t ledPatternShown = 0;
+
+    // Loops since the last look for an FPGA that was not there at start-up
+    uint32_t fpgaRecheckCount = 0;
+
     // Initialise the debug console
     domDupDebugInit();
     CyU3PDebugPrint(1, "\r\nDomesday Duplicator FX3 Firmware - Build 0062\r\n");
     CyU3PDebugPrint(1, "(c)2018 Simon Inns - https://www.domesday86.com\r\n\r\n");
     CyU3PDebugPrint(1, "domDupThreadInitialise(): Debug console initialised\r\n");
+
+    // The register interface has to be usable before the USB setup callback
+    // can answer a request that reaches it, which is any time after the
+    // application below is initialised.
+    status = fpgaRegistersStart();
+    if (status != CY_U3P_SUCCESS) {
+        CyU3PDebugPrint(4, "domDupThreadInitialise(): fpgaRegistersStart failed, Error code = %d\r\n", status);
+    }
+
+    // Look for the FPGA's register bank and report what it says it is.
+    //
+    // Deliberately before the application is initialised, so the gateware
+    // version reaches the console whether or not a host ever connects, and on
+    // the application thread rather than in a callback, because it retries
+    // for as long as the FPGA might still be loading from EPCS.
+    fpgaRegistersProbe(FPGA_STARTUP_PROBE_ATTEMPTS);
 
     // Initialise the application
     domDupInitialiseApplication();
@@ -411,6 +372,34 @@ void domDupThreadInitialise(uint32_t input)
 			if (!input3HandledFlag) {
 				input3HandledFlag = CyTrue;
 				CyU3PDebugPrint(4, "Main application loop: input3 pin set by the FPGA\r\n");
+			}
+		}
+
+		// Status LEDs.
+		//
+		// Driven from here rather than from the callbacks that change the state they
+		// report, so that one thread decides what the LEDs say and the register is
+		// written only when the answer has actually changed. A failed write leaves
+		// ledPatternShown alone, so the next pass tries again.
+		if (fpgaRegistersPresent()) {
+			if (input0Flag) ledPattern = FPGA_LED_BUFFER_ERROR;
+			else if (dataCollectionFlag) ledPattern = FPGA_LED_CAPTURING;
+			else ledPattern = FPGA_LED_READY;
+
+			if (ledPattern != ledPatternShown) {
+				if (fpgaRegistersSetLeds(ledPattern)) ledPatternShown = ledPattern;
+			}
+		} else {
+			// Look again for a register bank that did not answer at start-up.
+			//
+			// The FPGA is reprogrammed over JTAG while the FX3 keeps running for the
+			// whole of gateware development, and without this the board would have to
+			// be power cycled as well before the firmware noticed. One attempt every
+			// couple of seconds costs nothing and is silent until it succeeds.
+			fpgaRecheckCount++;
+			if (fpgaRecheckCount >= FPGA_RECHECK_LOOPS) {
+				fpgaRecheckCount = 0;
+				if (fpgaRegistersProbe(1)) ledPatternShown = 0;
 			}
 		}
 
@@ -841,7 +830,13 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
     uint8_t  bType, bTarget;
     uint16_t wValue;
     uint16_t wIndex;
+    uint16_t wLength;
     CyBool_t isHandled = CyFalse;
+
+    // Whether the request still needs acknowledging once it has been handled. 0xB7
+    // completes its own transfer by sending data, so it is handled without being
+    // acknowledged; everything else here has no data stage and needs the ACK.
+    CyBool_t sendAck = CyFalse;
 
     /* Decode the fields from the setup request. */
     bReqType = (setupData0 & CY_U3P_USB_REQUEST_TYPE_MASK);
@@ -850,6 +845,7 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
     bRequest = ((setupData0 & CY_U3P_USB_REQUEST_MASK) >> CY_U3P_USB_REQUEST_POS);
     wValue   = ((setupData0 & CY_U3P_USB_VALUE_MASK)   >> CY_U3P_USB_VALUE_POS);
     wIndex   = ((setupData1 & CY_U3P_USB_INDEX_MASK)   >> CY_U3P_USB_INDEX_POS);
+    wLength  = ((setupData1 & CY_U3P_USB_LENGTH_MASK)  >> CY_U3P_USB_LENGTH_POS);
 
     // Handle vendor specific requests from the host
     if (bType == CY_U3P_USB_VENDOR_RQT) {
@@ -892,60 +888,36 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 				}
 
 				isHandled = CyTrue;
+				sendAck = CyTrue;
 			}
 
-			// Handle vendor request for configuration 0xB6
+			// Handle vendor request 0xB7 - read FPGA registers
 			//
-			// The passed wValue is interpreted as a bit flag and causes
-			// GPIOs 22 to 26 to be set according to bits 0-4 (bits 5 to 7
-			// are ignored).
-			if (bRequest == 0xB6) {
-				// Check bit 0 (GPIO 22)
-				if ((wValue & 0x01) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 0 = GPIO22 High\r\n");
-					CyU3PGpioSetValue(22, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 0 = GPIO22 Low\r\n");
-					CyU3PGpioSetValue(22, CyFalse); // GPIO Low
+			// wValue is the first register address and wLength the number of bytes; the
+			// address auto-increments in the gateware, so the identity block is one
+			// request. This replaces the old 0xB6 bit-flag command, which set five GPIO
+			// pins directly - those pins are now the SPI link that carries this.
+			if (bRequest == 0xB7) {
+				if (fpgaRegistersPresent() && fpgaReadRequestIsValid(wValue, wLength) &&
+					fpgaRegistersRead((uint8_t)wValue, glRegisterBuffer, (uint8_t)wLength)) {
+					// Sends the data and completes the transfer, so this one must not
+					// also be acknowledged below
+					CyU3PUsbSendEP0Data(wLength, glRegisterBuffer);
+					isHandled = CyTrue;
 				}
+			}
 
-				// Check bit 1 (GPIO 23)
-				if ((wValue & 0x02) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 1 = GPIO23 High\r\n");
-					CyU3PGpioSetValue(23, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 1 = GPIO23 Low\r\n");
-					CyU3PGpioSetValue(23, CyFalse); // GPIO Low
+			// Handle vendor request 0xB8 - write one FPGA register
+			//
+			// The register address is the high byte of wValue and the value to write is
+			// the low byte, which keeps the request to a setup packet with no data stage.
+			// Turning test mode on is wValue = 0x1001.
+			if (bRequest == 0xB8) {
+				if (fpgaRegistersPresent() && fpgaWriteRequestIsValid(wValue) &&
+					fpgaRegistersWrite((uint8_t)(wValue >> 8), (uint8_t)(wValue & 0xFF))) {
+					isHandled = CyTrue;
+					sendAck = CyTrue;
 				}
-
-				// Check bit 2 (GPIO 24)
-				if ((wValue & 0x04) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 2 = GPIO24 High\r\n");
-					CyU3PGpioSetValue(24, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 2 = GPIO24 Low\r\n");
-					CyU3PGpioSetValue(24, CyFalse); // GPIO Low
-				}
-
-				// Check bit 3 (GPIO 25)
-				if ((wValue & 0x08) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 3 = GPIO25 High\r\n");
-					CyU3PGpioSetValue(25, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 3 = GPIO25 Low\r\n");
-					CyU3PGpioSetValue(25, CyFalse); // GPIO Low
-				}
-
-				// Check bit 4 (GPIO 26)
-				if ((wValue & 0x10) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 4 = GPIO26 High\r\n");
-					CyU3PGpioSetValue(26, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 4 = GPIO26 Low\r\n");
-					CyU3PGpioSetValue(26, CyFalse); // GPIO Low
-				}
-
-				isHandled = CyTrue;
 			}
 
 			// ACK the request.
@@ -955,7 +927,11 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 			// a device is required to tell a host that a request is unsupported. ACKing
 			// every vendor request, as this used to, reports success for commands that were
 			// silently discarded.
-			if (isHandled) CyU3PUsbAckSetup();
+			//
+			// A rejected 0xB7 or 0xB8 therefore stalls, which is what the host reads as
+			// "this device cannot do that" - an FPGA that never answered, a register the
+			// host may not write, or a length that does not fit.
+			if (sendAck) CyU3PUsbAckSetup();
 		}
     }
 
