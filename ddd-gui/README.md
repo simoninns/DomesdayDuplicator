@@ -30,11 +30,20 @@ for it to restart, and reports the version it reads back off the live device. Ev
 says what is happening and how long it will take, and every failure says whether the
 device is safe (it always is) and what to do next.
 
-The engine half of that is Qt-free, so `ddd-update` drives the identical code path from a
-shell — `dev-bundle.sh && ddd-update` is the whole edit-to-running-device loop. The FX3
-target is complete; the FPGA's EPCS target is refused with a clear reason until the
-gateware's flash bridge exists. The protocol is on the *Device update mechanism*
-documentation page.
+The same page programs a device that has *no* firmware, and that is not a separate
+mechanism. A Duplicator whose EEPROM its boot ROM will not accept — one whose update was
+interrupted, or one that has never been programmed at all — enumerates as the boot ROM
+instead, and the application recognises it, names it *recovery mode*, and offers **Program
+this device**. It hands the boot ROM the bundle's own firmware to run out of RAM, waits
+for the device to come back as a Duplicator, and then installs normally: so a first-time
+programming of a bare Explorer Kit runs through the same protocol and the same digest
+checks as a routine update, with no jumper and no shell.
+
+The engine half of all that is Qt-free, so `ddd-update` drives the identical code path
+from a shell — `dev-bundle.sh && ddd-update` is the whole edit-to-running-device loop, and
+it handles a device in recovery mode with no extra option. The FX3 target is complete; the
+FPGA's EPCS target is refused with a clear reason until the gateware's flash bridge
+exists. The protocol is on the *Device update mechanism* documentation page.
 
 **Monitor mode**. Attach a device, press *Start monitoring*, and the signal is validated,
 measured and displayed while nothing is written anywhere. The Capture panel finds devices

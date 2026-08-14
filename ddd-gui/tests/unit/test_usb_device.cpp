@@ -93,6 +93,79 @@ TEST(SelectDeviceTest, AnAbsentPreferenceFallsBackRatherThanFailing) {
   EXPECT_EQ(SelectDevice(devices, "bus-9")->path, "bus-1");
 }
 
+// --- Personalities -------------------------------------------------------
+//
+// A device that is not running the Duplicator's firmware is still a device,
+// and everything that captures has to refuse it while everything that
+// programs has to reach it. That split lives in the selection.
+
+DeviceInfo RecoveryDeviceAt(const std::string& path) {
+  DeviceInfo info = DeviceAt(path);
+  info.personality = DevicePersonality::kRecovery;
+  info.product_string.clear();
+  info.protocol_version = 0;
+  return info;
+}
+
+TEST(DevicePersonalityTest, EveryPersonalityHasItsOwnName) {
+  const DevicePersonality personalities[] = {
+      DevicePersonality::kApplication, DevicePersonality::kRecovery,
+      DevicePersonality::kFlashProgrammer};
+
+  std::set<std::string> names;
+  for (DevicePersonality personality : personalities) {
+    names.insert(DevicePersonalityName(personality));
+  }
+  EXPECT_EQ(names.size(), std::size(personalities));
+}
+
+// The default, so that a caller which has not thought about recovery devices
+// cannot be handed one to capture with.
+TEST(SelectDeviceTest, ADeviceWithNoFirmwareIsNotSelectedForCapture) {
+  const std::vector<DeviceInfo> devices{RecoveryDeviceAt("bus-1")};
+  EXPECT_EQ(SelectDevice(devices, ""), nullptr);
+}
+
+TEST(SelectDeviceTest, ADeviceWithNoFirmwareIsSkippedInFavourOfAWorkingOne) {
+  const std::vector<DeviceInfo> devices{RecoveryDeviceAt("bus-1"),
+                                        DeviceAt("bus-2")};
+  ASSERT_NE(SelectDevice(devices, ""), nullptr);
+  EXPECT_EQ(SelectDevice(devices, "")->path, "bus-2");
+}
+
+// Even when it is the remembered preference: a preference names a port, and a
+// port whose device cannot capture is not a capture device today.
+TEST(SelectDeviceTest, APreferredDeviceWithNoFirmwareIsNotSelectedForCapture) {
+  const std::vector<DeviceInfo> devices{RecoveryDeviceAt("bus-1"),
+                                        DeviceAt("bus-2")};
+  ASSERT_NE(SelectDevice(devices, "bus-1"), nullptr);
+  EXPECT_EQ(SelectDevice(devices, "bus-1")->path, "bus-2");
+}
+
+// And the other half of the rule: the firmware dialog and ddd-update ask for
+// any personality, because a device that can do nothing else is the device
+// they exist to fix.
+TEST(SelectDeviceTest, AskingForAnyPersonalityFindsTheRecoveryDevice) {
+  const std::vector<DeviceInfo> devices{RecoveryDeviceAt("bus-1")};
+
+  const DeviceInfo* const found =
+      SelectDevice(devices, "", DeviceSelection::kAny);
+  ASSERT_NE(found, nullptr);
+  EXPECT_EQ(found->path, "bus-1");
+  EXPECT_FALSE(found->is_application());
+}
+
+// A device falling back to its boot ROM is at the same path it was at a
+// moment ago, and that transition is the most important change the
+// application can be told about — so it has to count as a change.
+TEST(DevicePersonalityTest, AChangeOfPersonalityIsAChangeOfDevice) {
+  const DeviceInfo working = DeviceAt("bus-1");
+  DeviceInfo fallen = working;
+  fallen.personality = DevicePersonality::kRecovery;
+
+  EXPECT_NE(working, fallen);
+}
+
 // --- Transfer layout -----------------------------------------------------
 //
 // The most intricate arithmetic in either backend and the least observable on

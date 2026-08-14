@@ -18,11 +18,29 @@
 #include <memory>
 #include <vector>
 
+#include "device_recovery.h"
 #include "device_updater.h"
 #include "update_key.h"
 #include "update_orchestrator.h"
 
 namespace ddd::gui {
+
+// The device an update is going to, in one of the two forms it can take.
+//
+// A device running its own firmware is handed over already open, because
+// opening it is how the page finds out whether it can be updated at all. A
+// device with no firmware cannot be: the updater it will eventually be driven
+// through belongs to a device that does not exist yet, so what is handed over
+// is the pair of factories that will make one.
+struct UpdateDevice {
+  std::unique_ptr<capture::IDeviceUpdater> updater;
+  capture::DeviceAccess recovery;
+
+  // Whether this is the recovery form. Explicit rather than inferred from
+  // which member is set, so a half-filled structure fails loudly instead of
+  // quietly taking the other path.
+  bool in_recovery = false;
+};
 
 // An update on a thread of its own.
 //
@@ -46,9 +64,8 @@ class UpdateWorker : public QObject {
   Q_OBJECT
 
  public:
-  UpdateWorker(std::unique_ptr<capture::IDeviceUpdater> updater,
-               std::vector<uint8_t> archive, capture::UpdateKeyPolicy policy,
-               QObject* parent = nullptr);
+  UpdateWorker(UpdateDevice device, std::vector<uint8_t> archive,
+               capture::UpdateKeyPolicy policy, QObject* parent = nullptr);
   ~UpdateWorker() override;
 
   // Ask the update to stop at the next safe point, which is any point before
@@ -71,7 +88,7 @@ class UpdateWorker : public QObject {
                 const QString& product_string, const QString& gateware_commit);
 
  private:
-  std::unique_ptr<capture::IDeviceUpdater> updater_;
+  UpdateDevice device_;
   std::vector<uint8_t> archive_;
   capture::UpdateKeyPolicy policy_;
   std::atomic<bool> cancelled_{false};

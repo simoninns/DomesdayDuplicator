@@ -15,6 +15,8 @@
 #include <libusb.h>
 
 #include <array>
+#include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -48,6 +50,28 @@ constexpr uint8_t kVendorReadRequestType = 0xC0;
 // expected failure — firmware with no register interface — stalls and returns
 // at once, so this deadline is only ever reached by something genuinely stuck.
 constexpr unsigned int kRegisterReadTimeoutMilliseconds = 1000;
+
+// Which of the three identities this descriptor is, if it is one of them.
+//
+// The match is on exact identifier pairs and not on the Cypress vendor
+// identifier alone, and that matters: the SuperSpeed Explorer Kit carries an
+// on-board USB-UART at 04b4:0007 which is powered whenever the board is, and a
+// wildcard would list the debug serial port as a Duplicator in recovery.
+std::optional<DevicePersonality> PersonalityFromDescriptor(
+    const libusb_device_descriptor& descriptor) {
+  if (descriptor.idVendor == kVendorId && descriptor.idProduct == kProductId) {
+    return DevicePersonality::kApplication;
+  }
+  if (descriptor.idVendor == kCypressVendorId) {
+    if (descriptor.idProduct == kRecoveryProductId) {
+      return DevicePersonality::kRecovery;
+    }
+    if (descriptor.idProduct == kFlashProgrammerProductId) {
+      return DevicePersonality::kFlashProgrammer;
+    }
+  }
+  return std::nullopt;
+}
 
 DeviceSpeed SpeedFromLibUsb(int speed) {
   switch (speed) {
@@ -215,8 +239,18 @@ class LibUsbDevice : public IUsbDevice {
       if (libusb_get_device_descriptor(device, &descriptor) != 0) {
         continue;
       }
-      if (descriptor.idVendor != kVendorId ||
-          descriptor.idProduct != kProductId) {
+      const std::optional<DevicePersonality> personality =
+          PersonalityFromDescriptor(descriptor);
+      if (!personality.has_value()) {
+        continue;
+      }
+
+      // The flash programmer's identifier is a hint and the 0xB0 probe is the
+      // confirmation. A Cypress board that happens to share the identifier but
+      // does not answer the probe is somebody else's device and is dropped
+      // rather than announced as a half-programmed Duplicator.
+      if (*personality == DevicePersonality::kFlashProgrammer &&
+          !AnswersFlashProgrammerProbe(device)) {
         continue;
       }
 
@@ -224,11 +258,19 @@ class LibUsbDevice : public IUsbDevice {
       info.path = BuildDevicePath(device);
       info.speed = SpeedFromLibUsb(libusb_get_device_speed(device));
       info.product_string = ReadProductString(device, descriptor.iProduct);
+      info.personality = *personality;
 
       // The vendor protocol version lives in the high byte of bcdDevice, so
       // it arrives with the descriptor and costs nothing: no open, no
       // claim, no request.
-      info.protocol_version = (descriptor.bcdDevice >> 8) & 0xFF;
+      //
+      // Only for our own firmware, though. The boot ROM and the secondary
+      // loader put their own numbering in that field, and reading one of
+      // those as a protocol version would have the application deciding what
+      // a device supports from a number that means something else.
+      if (*personality == DevicePersonality::kApplication) {
+        info.protocol_version = (descriptor.bcdDevice >> 8) & 0xFF;
+      }
 
       devices.push_back(std::move(info));
     }
@@ -239,7 +281,7 @@ class LibUsbDevice : public IUsbDevice {
   bool WriteRegister(const std::string& path, uint8_t address,
                      uint8_t value) override {
     libusb_device_handle* handle = nullptr;
-    if (!Open(path, handle, nullptr)) {
+    if (!Open(path, DeviceSelection::kCaptureCapable, handle, nullptr)) {
       return false;
     }
 
@@ -271,7 +313,7 @@ class LibUsbDevice : public IUsbDevice {
     }
 
     libusb_device_handle* handle = nullptr;
-    if (!Open(path, handle, nullptr)) {
+    if (!Open(path, DeviceSelection::kCaptureCapable, handle, nullptr)) {
       return false;
     }
 
@@ -306,7 +348,7 @@ class LibUsbDevice : public IUsbDevice {
 
     libusb_device_handle* handle = nullptr;
     DeviceInfo info;
-    if (!Open(path, handle, &info)) {
+    if (!Open(path, DeviceSelection::kCaptureCapable, handle, &info)) {
       return nullptr;
     }
 
@@ -361,7 +403,9 @@ class LibUsbDevice : public IUsbDevice {
   std::unique_ptr<IUsbControlChannel> OpenControlChannel(
       const std::string& path) override {
     libusb_device_handle* handle = nullptr;
-    if (!Open(path, handle, nullptr)) {
+    // Any personality: this is the channel the update and recovery paths
+    // use, and a device in recovery is precisely the one they open.
+    if (!Open(path, DeviceSelection::kAny, handle, nullptr)) {
       return nullptr;
     }
 
@@ -402,9 +446,36 @@ class LibUsbDevice : public IUsbDevice {
                        static_cast<size_t>(length));
   }
 
-  // Open the preferred device, or the first one attached if it is not there.
-  bool Open(const std::string& preferred_path, libusb_device_handle*& handle,
-            DeviceInfo* chosen) {
+  // Ask a device whether it is the Cypress secondary loader.
+  //
+  // Opened and closed here rather than left open: this runs during
+  // enumeration, five times a second, and only for a device already wearing
+  // the loader's identifier — which is a device that has been left behind by
+  // a programming session and is not present on any ordinary run.
+  static bool AnswersFlashProgrammerProbe(libusb_device* device) {
+    libusb_device_handle* handle = nullptr;
+    if (libusb_open(device, &handle) != 0) {
+      return false;
+    }
+
+    std::array<unsigned char, kFlashProgrammerProbeLength> answer{};
+    const int read = libusb_control_transfer(
+        handle, kVendorReadRequestType, kFlashProgrammerProbeRequest, 0, 0,
+        answer.data(), static_cast<uint16_t>(answer.size()),
+        kRegisterReadTimeoutMilliseconds);
+    libusb_close(handle);
+
+    if (read != static_cast<int>(answer.size())) {
+      return false;
+    }
+    return std::memcmp(answer.data(), kFlashProgrammerMagic,
+                       std::strlen(kFlashProgrammerMagic)) == 0;
+  }
+
+  // Open the preferred device, or the first acceptable one attached if it is
+  // not there.
+  bool Open(const std::string& preferred_path, DeviceSelection selection,
+            libusb_device_handle*& handle, DeviceInfo* chosen) {
     handle = nullptr;
 
     ScopedDeviceList list;
@@ -422,19 +493,22 @@ class LibUsbDevice : public IUsbDevice {
       if (libusb_get_device_descriptor(device, &descriptor) != 0) {
         continue;
       }
-      if (descriptor.idVendor != kVendorId ||
-          descriptor.idProduct != kProductId) {
+      const std::optional<DevicePersonality> personality =
+          PersonalityFromDescriptor(descriptor);
+      if (!personality.has_value()) {
         continue;
       }
 
       DeviceInfo info;
       info.path = BuildDevicePath(device);
       info.speed = SpeedFromLibUsb(libusb_get_device_speed(device));
+      info.personality = *personality;
       infos.push_back(std::move(info));
       matches.push_back(device);
     }
 
-    const DeviceInfo* const selected = SelectDevice(infos, preferred_path);
+    const DeviceInfo* const selected =
+        SelectDevice(infos, preferred_path, selection);
     if (selected == nullptr) {
       if (logger_ != nullptr) {
         logger_->Error("No Domesday Duplicator is attached");

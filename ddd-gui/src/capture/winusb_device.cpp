@@ -25,6 +25,8 @@
 #include <winusb.h>
 
 #include <array>
+#include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -45,6 +47,53 @@ constexpr uint8_t kVendorRequestType = 0x40;
 
 // The same, device to host, with a data stage.
 constexpr uint8_t kVendorReadRequestType = 0xC0;
+
+// Which of the three identities these identifiers are, if they are one of
+// them.
+//
+// The match is on exact pairs and not on the Cypress vendor identifier alone:
+// the SuperSpeed Explorer Kit's on-board USB-UART is 04b4:0007 and is powered
+// whenever the board is, and a wildcard would list the debug serial port as a
+// Duplicator in recovery.
+std::optional<DevicePersonality> PersonalityFromIdentifiers(uint16_t vendor,
+                                                            uint16_t product) {
+  if (vendor == kVendorId && product == kProductId) {
+    return DevicePersonality::kApplication;
+  }
+  if (vendor == kCypressVendorId) {
+    if (product == kRecoveryProductId) {
+      return DevicePersonality::kRecovery;
+    }
+    if (product == kFlashProgrammerProductId) {
+      return DevicePersonality::kFlashProgrammer;
+    }
+  }
+  return std::nullopt;
+}
+
+// Ask a device whether it is the Cypress secondary loader.
+bool AnswersFlashProgrammerProbe(WINUSB_INTERFACE_HANDLE handle) {
+  std::array<UCHAR, kFlashProgrammerProbeLength> answer{};
+
+  WINUSB_SETUP_PACKET setup = {};
+  setup.RequestType = kVendorReadRequestType;
+  setup.Request = kFlashProgrammerProbeRequest;
+  setup.Value = 0;
+  setup.Index = 0;
+  setup.Length = static_cast<USHORT>(answer.size());
+
+  ULONG transferred = 0;
+  if (WinUsb_ControlTransfer(handle, setup, answer.data(),
+                             static_cast<ULONG>(answer.size()), &transferred,
+                             nullptr) != TRUE) {
+    return false;
+  }
+  if (transferred != answer.size()) {
+    return false;
+  }
+  return std::memcmp(answer.data(), kFlashProgrammerMagic,
+                     std::strlen(kFlashProgrammerMagic)) == 0;
+}
 
 std::string ToUtf8(const std::wstring& text) {
   if (text.empty()) {
@@ -248,17 +297,33 @@ class WinUsbDevice : public IUsbDevice {
                                sizeof(descriptor), &transferred) == FALSE) {
         continue;
       }
-      if (descriptor.idVendor != kVendorId ||
-          descriptor.idProduct != kProductId) {
+      const std::optional<DevicePersonality> personality =
+          PersonalityFromIdentifiers(descriptor.idVendor, descriptor.idProduct);
+      if (!personality.has_value()) {
+        continue;
+      }
+
+      // The flash programmer's identifier is a hint and the 0xB0 probe is the
+      // confirmation, exactly as on the libusb side.
+      if (*personality == DevicePersonality::kFlashProgrammer &&
+          !AnswersFlashProgrammerProbe(handles.interface_handle())) {
         continue;
       }
 
       DeviceInfo info;
       info.path = ToUtf8(path);
+      info.personality = *personality;
 
       // The vendor protocol version lives in the high byte of bcdDevice, so
       // it arrives with the descriptor already read above and costs nothing.
-      info.protocol_version = (descriptor.bcdDevice >> 8) & 0xFF;
+      //
+      // Only for our own firmware: the boot ROM and the secondary loader put
+      // their own numbering in that field, and reading one of those as a
+      // protocol version would have the application deciding what a device
+      // supports from a number that means something else.
+      if (*personality == DevicePersonality::kApplication) {
+        info.protocol_version = (descriptor.bcdDevice >> 8) & 0xFF;
+      }
 
       UCHAR pipe_id = 0;
       size_t max_packet_bytes = 0;
@@ -280,7 +345,8 @@ class WinUsbDevice : public IUsbDevice {
   bool WriteRegister(const std::string& path, uint8_t address,
                      uint8_t value) override {
     ScopedWinUsbHandles handles;
-    if (!OpenSelected(path, handles, nullptr)) {
+    if (!OpenSelected(path, DeviceSelection::kCaptureCapable, handles,
+                      nullptr)) {
       return false;
     }
 
@@ -309,7 +375,8 @@ class WinUsbDevice : public IUsbDevice {
     }
 
     ScopedWinUsbHandles handles;
-    if (!OpenSelected(path, handles, nullptr)) {
+    if (!OpenSelected(path, DeviceSelection::kCaptureCapable, handles,
+                      nullptr)) {
       return false;
     }
 
@@ -343,7 +410,9 @@ class WinUsbDevice : public IUsbDevice {
   std::unique_ptr<IUsbControlChannel> OpenControlChannel(
       const std::string& path) override {
     ScopedWinUsbHandles handles;
-    if (!OpenSelected(path, handles, nullptr)) {
+    // Any personality: this is the channel the update and recovery paths use,
+    // and a device in recovery is precisely the one they open.
+    if (!OpenSelected(path, DeviceSelection::kAny, handles, nullptr)) {
       return nullptr;
     }
 
@@ -362,7 +431,7 @@ class WinUsbDevice : public IUsbDevice {
 
     ScopedWinUsbHandles handles;
     DeviceInfo info;
-    if (!OpenSelected(path, handles, &info)) {
+    if (!OpenSelected(path, DeviceSelection::kCaptureCapable, handles, &info)) {
       return nullptr;
     }
 
@@ -508,15 +577,18 @@ class WinUsbDevice : public IUsbDevice {
     return false;
   }
 
-  // Open the preferred device, or the first one attached if it is not there.
+  // Open the preferred device, or the first acceptable one attached if it is
+  // not there.
   bool OpenSelected(const std::string& preferred_path,
-                    ScopedWinUsbHandles& handles, DeviceInfo* chosen) {
+                    DeviceSelection selection, ScopedWinUsbHandles& handles,
+                    DeviceInfo* chosen) {
     std::vector<DeviceInfo> devices;
     if (!Enumerate(devices)) {
       return false;
     }
 
-    const DeviceInfo* const selected = SelectDevice(devices, preferred_path);
+    const DeviceInfo* const selected =
+        SelectDevice(devices, preferred_path, selection);
     if (selected == nullptr) {
       if (logger_ != nullptr) {
         logger_->Error("No Domesday Duplicator is attached");

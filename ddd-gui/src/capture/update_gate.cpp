@@ -64,6 +64,18 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
     return result;
   }
 
+  // A device with no working firmware can only be repaired by a bundle that
+  // carries firmware. Refused here rather than discovered part way through
+  // the recovery, because "nothing to install" is a fact about the file and
+  // the device that is known before the first byte moves.
+  if (input.device_personality == DevicePersonality::kRecovery &&
+      !manifest.firmware.has_value()) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "This device has no working firmware, and this update file does "
+           "not contain any. Choose an update that includes firmware.");
+    return result;
+  }
+
   // The minimum application version. Enforced rather than advisory: this is
   // the check that stops a user driving the device past what the application
   // driving it understands.

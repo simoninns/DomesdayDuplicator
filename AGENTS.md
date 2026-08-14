@@ -463,8 +463,8 @@ nix flake check                    # everything, on a clean machine
 ctest --test-dir gui/build         # one component
 ```
 
-**What exists today: 801 tests across five components** — 37 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 705 in `ddd-gui/` (the capture engine — sample and wire
+**What exists today: 844 tests across five components** — 37 in `gui/` (UTF-8 conversion, the
+10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 748 in `ddd-gui/` (the capture engine — sample and wire
 formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
 metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
 against each other, capture naming and provenance, the offline test-data analyser and its
@@ -483,9 +483,12 @@ path: SHA-256 against the published vectors, the strict manifest parser, the ust
 and writer, signature verification checked against signatures minisign itself produced,
 which signing keys a build accepts and what each one proves, the install-time
 compatibility gate in both directions, the status packet's decoding, `ddd-update`'s exit
-codes, and the complete update flow — stage by stage and failure by failure — driven
+codes, the complete update flow — stage by stage and failure by failure — driven
 against a fake device and, in the widget tests, against a real signed bundle written to
-disk),
+disk, and the recovery path that programs a device with no firmware at all: the FX3 boot
+image parsed and every malformed form of it refused, the prelude that hands that image to
+a device's boot ROM, and the wording a user meets when their board has never been
+programmed),
 24 in `fx3/programmer/` (EEPROM paging arithmetic,
 secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and three
 in `fx3/firmware/` (the generated USB product descriptor, the host-testable half of the register map, and the host-testable half of the device update protocol including its EEPROM paging arithmetic). `fpga/` adds five

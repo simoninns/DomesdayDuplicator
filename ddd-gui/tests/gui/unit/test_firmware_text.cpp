@@ -163,5 +163,41 @@ TEST(FirmwareTextTest, ANewerRegisterMapIsMentioned) {
          "mentioned";
 }
 
+// --- A device with no firmware ---------------------------------------------
+
+// Every "not reported" explanation in this dialog is written for a device that
+// answered and said something unhelpful. None of them is the right
+// explanation for a device that is not running anything at all, and the wrong
+// explanation is the one a user would act on.
+TEST(FirmwareTextTest, ADeviceInRecoveryIsExplainedRatherThanDiagnosed) {
+  FirmwareVersions versions;
+  versions.application = QStringLiteral("7713495d");
+  versions.device_attached = true;
+  versions.personality = capture::DevicePersonality::kRecovery;
+
+  const QString text = FirmwareText(versions);
+
+  EXPECT_TRUE(text.contains(QStringLiteral("recovery mode")));
+  EXPECT_TRUE(text.contains(QStringLiteral("not damaged")));
+  EXPECT_TRUE(text.contains(QStringLiteral("None installed")));
+  EXPECT_TRUE(text.contains(QStringLiteral("Cannot be read")));
+
+  EXPECT_FALSE(text.contains(QStringLiteral("firmware older than")))
+      << "a device with no firmware was diagnosed as having old firmware";
+  EXPECT_FALSE(text.contains(QStringLiteral("did not answer")))
+      << "the FPGA was blamed for not answering a question nothing asked it";
+  EXPECT_FALSE(text.contains(QStringLiteral("not all built from the same")))
+      << "a device with nothing installed was accused of a version mismatch";
+}
+
+TEST(FirmwareTextTest, ADeviceRunningAProgrammingToolSaysHowToClearIt) {
+  FirmwareVersions versions;
+  versions.application = QStringLiteral("7713495d");
+  versions.device_attached = true;
+  versions.personality = capture::DevicePersonality::kFlashProgrammer;
+
+  EXPECT_TRUE(FirmwareText(versions).contains(QStringLiteral("Unplug it")));
+}
+
 }  // namespace
 }  // namespace ddd::gui

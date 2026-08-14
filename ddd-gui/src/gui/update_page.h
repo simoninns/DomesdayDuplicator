@@ -19,10 +19,12 @@
 #include <optional>
 #include <vector>
 
+#include "device_programmer.h"
 #include "device_updater.h"
 #include "update_key.h"
 #include "update_manifest.h"
 #include "update_orchestrator.h"
+#include "usb_device_info.h"
 
 class QLabel;
 class QProgressBar;
@@ -66,16 +68,30 @@ class UpdatePage : public QWidget {
  public:
   // How the page reaches a device, and what it may say about it.
   struct Device {
-    // Opens an updater for the selected device, or returns nothing if there
-    // is none. Called once per attempt, on the interface thread, and the
-    // updater is then handed to the worker.
-    std::function<std::unique_ptr<capture::IDeviceUpdater>()> open;
+    // Opens an updater for the device at `path`, or for the selected device
+    // when `path` is empty. Called once per attempt, on the interface thread
+    // for a device that is already working, and on the worker thread for one
+    // that has just been woken from recovery — which is why the path is a
+    // parameter rather than something the factory remembers: on Windows a
+    // device's path changes when its personality does.
+    std::function<std::unique_ptr<capture::IDeviceUpdater>(
+        const std::string& path)>
+        open;
+
+    // Opens a programmer for a device sitting in its boot ROM. Only used
+    // when `personality` says so, and null everywhere else.
+    std::function<std::unique_ptr<capture::IDeviceProgrammer>()>
+        open_programmer;
 
     // The device's identity as the application already knows it, so opening
-    // this page reads nothing and cannot block.
+    // this page reads nothing and cannot block. Empty throughout for a device
+    // in recovery, which has nothing running on it to report one.
     capture::DeviceIdentity identity;
 
     bool attached = false;
+
+    capture::DevicePersonality personality =
+        capture::DevicePersonality::kApplication;
   };
 
   UpdatePage(QString application_version, Device device,
@@ -122,6 +138,15 @@ class UpdatePage : public QWidget {
  private:
   void RefreshVersions();
   void RefreshButtons();
+
+  // "Update", or "Program this device" for a device with no firmware. The
+  // mechanism is the same either way; the words are not, because somebody
+  // holding a kit they have just soldered has not broken anything.
+  QString InstallButtonLabel() const;
+
+  bool in_recovery() const {
+    return device_.personality == capture::DevicePersonality::kRecovery;
+  }
   void ShowStage(capture::UpdateStage stage, const QString& message);
   void SetBundleState(const QString& summary, const QString& banner);
 

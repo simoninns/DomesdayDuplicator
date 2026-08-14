@@ -83,7 +83,9 @@ ddd_add_test(ddd_update_tests "unit"
     unit/test_update_manifest.cpp
     unit/test_update_bundle.cpp
     unit/test_update_key.cpp
+    unit/test_boot_image.cpp
     unit/test_device_updater.cpp
+    unit/test_device_recovery.cpp
     unit/test_update_gate.cpp
     unit/test_update_orchestrator.cpp
     unit/test_update_cli.cpp

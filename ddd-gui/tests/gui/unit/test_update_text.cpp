@@ -140,10 +140,11 @@ TEST(UpdateTextTest, TheEstimateIsCoarseAndAlwaysReadable) {
 
 TEST(UpdateTextTest, EveryStageHasATitleInPlainLanguage) {
   const capture::UpdateStage stages[] = {
-      capture::UpdateStage::kChecking,   capture::UpdateStage::kTransferring,
-      capture::UpdateStage::kWriting,    capture::UpdateStage::kVerifying,
-      capture::UpdateStage::kRestarting, capture::UpdateStage::kConfirming,
-      capture::UpdateStage::kComplete,   capture::UpdateStage::kFailed};
+      capture::UpdateStage::kChecking,     capture::UpdateStage::kPreparing,
+      capture::UpdateStage::kTransferring, capture::UpdateStage::kWriting,
+      capture::UpdateStage::kVerifying,    capture::UpdateStage::kRestarting,
+      capture::UpdateStage::kConfirming,   capture::UpdateStage::kComplete,
+      capture::UpdateStage::kFailed};
 
   for (capture::UpdateStage stage : stages) {
     const QString title = UpdateStageTitle(stage);
@@ -206,6 +207,78 @@ TEST(UpdateTextTest, AFailureSaysTheDeviceIsNotDamaged) {
   EXPECT_TRUE(text.contains(QStringLiteral("Something went wrong.")));
   EXPECT_TRUE(text.contains(QStringLiteral("not damaged")));
   EXPECT_TRUE(text.contains(QStringLiteral("recovery mode")));
+}
+
+// --- A device with no firmware ---------------------------------------------
+
+// Two cases, indistinguishable on the wire, that read very differently to the
+// person in front of them. The text says what is true of both rather than
+// guessing at one.
+TEST(UpdateTextTest, RecoveryModeNamesBothWaysADeviceGetsThere) {
+  const QString text =
+      DevicePersonalityText(capture::DevicePersonality::kRecovery);
+
+  EXPECT_TRUE(text.contains(QStringLiteral("recovery mode")));
+  EXPECT_TRUE(text.contains(QStringLiteral("never been programmed")))
+      << "somebody with a newly built board is not told this is normal";
+  EXPECT_TRUE(text.contains(QStringLiteral("did not finish")))
+      << "somebody whose update was interrupted is not told what happened";
+  EXPECT_TRUE(text.contains(QStringLiteral("not damaged")));
+}
+
+TEST(UpdateTextTest, AWorkingDeviceHasNothingToExplain) {
+  EXPECT_TRUE(DevicePersonalityText(capture::DevicePersonality::kApplication)
+                  .isEmpty());
+  EXPECT_TRUE(
+      DeviceListPersonalitySuffix(capture::DevicePersonality::kApplication)
+          .isEmpty());
+}
+
+TEST(UpdateTextTest, TheFlashProgrammerStateSaysHowToLeaveIt) {
+  const QString text =
+      DevicePersonalityText(capture::DevicePersonality::kFlashProgrammer);
+
+  EXPECT_TRUE(text.contains(QStringLiteral("Unplug it")));
+}
+
+// "Program", not "repair": somebody holding a board they have just built has
+// not broken anything, and the application cannot tell the two cases apart.
+TEST(UpdateTextTest, TheActionIsProgrammingRatherThanRepairing) {
+  EXPECT_EQ(InstallActionLabel(capture::DevicePersonality::kApplication),
+            QStringLiteral("Update"));
+
+  const QString recovery =
+      InstallActionLabel(capture::DevicePersonality::kRecovery);
+  EXPECT_TRUE(recovery.contains(QStringLiteral("Program")));
+  EXPECT_FALSE(recovery.contains(QStringLiteral("epair")))
+      << "a device that may never have been programmed is not 'repaired'";
+}
+
+TEST(UpdateTextTest, ARecoveryDeviceReportsNoVersionsRatherThanUnknownOnes) {
+  const std::vector<UpdateVersionRow> rows =
+      UpdateVersionRows(QStringLiteral("1.4.0"), capture::DeviceIdentity{},
+                        true, nullptr, capture::DevicePersonality::kRecovery);
+
+  ASSERT_EQ(rows.size(), 3u);
+  EXPECT_EQ(rows[1].installed, QStringLiteral("None installed"));
+
+  // Not "none" for the gateware: the FPGA is a separate part with its own
+  // memory, and what is true is that nothing can ask it.
+  EXPECT_EQ(rows[2].installed, QStringLiteral("Cannot be read"));
+}
+
+// Every row a bundle carries is a change on a device that has nothing
+// installed, which is what makes the table show at a glance what the install
+// is going to do.
+TEST(UpdateTextTest, EverythingInTheBundleChangesOnADeviceWithNoFirmware) {
+  const capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
+
+  const std::vector<UpdateVersionRow> rows =
+      UpdateVersionRows(QStringLiteral("1.4.0"), capture::DeviceIdentity{},
+                        true, &manifest, capture::DevicePersonality::kRecovery);
+
+  ASSERT_EQ(rows.size(), 3u);
+  EXPECT_TRUE(rows[1].changes) << "the firmware row is not marked as changing";
 }
 
 }  // namespace

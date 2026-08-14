@@ -14,6 +14,7 @@
 #include <QString>
 
 #include "fpga_version.h"
+#include "usb_device_info.h"
 
 namespace ddd::gui {
 
@@ -40,6 +41,16 @@ struct FirmwareVersions {
 
   // What the attached device's gateware reported about itself.
   capture::FpgaVersion gateware;
+
+  // Which software the attached device is running.
+  //
+  // A device with no firmware reports no versions, and the reason matters: the
+  // notes below are written for a device that answered and said something
+  // unhelpful — old firmware, an unprogrammed FPGA — and every one of them
+  // would be the wrong explanation for a device that is not running anything
+  // at all.
+  capture::DevicePersonality personality =
+      capture::DevicePersonality::kApplication;
 };
 
 // The dialog's body, as rich text.

@@ -209,12 +209,55 @@ Both targets fail into a state the application can recognise and repair, and nei
 
 | What happened | What the device does | What the application shows |
 | --- | --- | --- |
-| Firmware update interrupted | Boot ROM rejects the image, the kit enumerates as the Cypress bootloader `04b4:00f3` | "Recovery mode — reinstall firmware", with a one-click repair |
+| Firmware update interrupted | Boot ROM rejects the image, the kit enumerates as the Cypress bootloader `04b4:00f3` | "Recovery mode", with a one-click **Program this device** — the same button, and the same procedure, that brings up a board which has never been programmed |
 | Gateware update interrupted | Boot block invalid, the FPGA stays in the factory image | "Recovery gateware running — reinstall gateware", with a one-click repair |
 | Application image wedged | Remote-update watchdog expires, the FPGA reverts to factory | As above |
 | Both, or something stranger | | The bench procedures in the provisioning appendix, which need a cable |
 
 The application's own words for these states and this page's words are meant to be the same words. A user reading "recovery gateware running" in a dialog and then finding a page that calls it something else has been given two problems.
+
+## Personalities, and reaching a device that has no firmware
+
+The FX3 has no flash of its own. It boots from an I2C EEPROM, and if the boot ROM does not accept what it finds there it stops and waits for a host instead — so a Duplicator wears one of three identities on the bus, and which one it is decides what may be asked of it.
+
+| Identity | What is running | What answers |
+| --- | --- | --- |
+| `1209:2347` | The Duplicator's firmware | Capture, the register requests, `0xD0`–`0xD5` |
+| `04b4:00f3` | The FX3 boot ROM | `0xA0`, RAM download, and nothing else |
+| `04b4:4720` | The Cypress secondary loader, if one was left running | Its own I2C commands; confirmed by the `0xB0` probe answering `FX3PROG` |
+
+The match is on exact identifier pairs and never on the Cypress vendor identifier alone: the SuperSpeed Explorer Kit's on-board USB-UART is `04b4:0007` and is powered whenever the board is, so a wildcard would list the debug serial port as a Duplicator in recovery. `DeviceInfo::personality` carries the answer, it is decided during enumeration from the descriptor alone, and `SelectDevice` takes a `DeviceSelection` that defaults to the narrow set — a caller that has not thought about recovery devices cannot be handed one to capture with, and the two callers that have thought about it (the firmware dialog and `ddd-update`) say so at the call site.
+
+### Three ways in, one way out
+
+A device is at `04b4:00f3` for one of three reasons, and **they are indistinguishable on the wire**:
+
+- the kit has never been programmed, which is how every SuperSpeed Explorer Kit arrives;
+- an update was interrupted before its last write, which is the state the held-back first page is designed to produce;
+- the PMODE jumper is fitted, which is a developer doing it on purpose.
+
+All three are repaired the same way, so the application does not try to tell them apart. It offers *"program this device"* rather than *"repair"*, and says in one sentence that the device has either never been programmed or had an update interrupted — because somebody holding a board they have just soldered has not broken anything, and a guess between the two cases would be wrong half the time.
+
+### The route: the device programs itself
+
+The boot ROM implements one command — put these bytes at this address — and one way of ending, a download with no data stage, which is the jump to the entry point. That is enough:
+
+1. the host parses the update bundle's own `firmware.img`, which is a container rather than a flat binary: a four-byte header, a run of sections each with a load address, a termination record carrying the entry point, and a checksum over the section payloads (AN76405 §4.4, and the table in `fx3/mkimage/README.md`);
+2. each section is downloaded with `0xA0`, in transfers of at most 2 KiB;
+3. the entry point is jumped to, and the device re-enumerates as `1209:2347` — running its proper firmware, out of RAM;
+4. from there it is an **ordinary update**. The firmware that has just been loaded writes the EEPROM through `0xD1`–`0xD3`, hashing the incoming stream and then the readback, exactly as a routine update does.
+
+The consequence worth stating plainly: **a first-time programming of a bare board is covered by the whole integrity chain**, links 4 through 8, rather than by a shortcut around it. Nothing about the recovery path writes the EEPROM by any other route, and the code that does the writing is the code every other test in the suite exercises.
+
+The Cypress secondary loader is deliberately *not* used, although `fx3-programmer` uses it and the route was available. Using it would mean vendoring a second copy of an LGPL binary blob inside the application and shipping it in every package, writing a second EEPROM-paging implementation outside the digest chain, and verifying by byte comparison rather than by SHA-256. This project's own firmware is a better programmer for this project's own EEPROM.
+
+### The path a device comes back at
+
+`IDeviceProgrammer::WaitForApplication` returns the path rather than assuming it, because the path does not survive the change of identity on every platform. libusb paths are built from bus and port numbers, which are the same before and after; Windows paths are device interface paths, which carry the product identifier and therefore change. The programmer records which Duplicators were already working before it starts, so on Windows the device that came back is the application-personality device that was not in that set — which is also what stops a second, healthy Duplicator on the same machine being mistaken for the one being recovered.
+
+### Windows needs the driver bound
+
+Windows binds drivers by USB identifier, and a device in recovery mode reports different identifiers from a working one. The driver bound to a working Duplicator is therefore not bound to the same unit in recovery, and until WinUSB has been bound to `04b4:00f3` the application cannot open it at all — the device will not appear. This is a once-per-machine step with Zadig, and it is documented for users on the [If an update fails](../capture-application/if-an-update-fails.md) page. Linux needs nothing: `fx3/programmer/configs/70-domesday-duplicator.rules` already covers the Cypress identifiers with a wildcard. macOS binds nothing.
 
 ## Where the code is
 
@@ -225,6 +268,10 @@ The application's own words for these states and this page's words are meant to 
 | `ddd-gui/src/capture/update_key.h` | Which signatures a build accepts, and what each one proves |
 | `ddd-gui/src/capture/update_gate.h` | The install-time compatibility gate |
 | `ddd-gui/src/capture/device_updater.h` | The seam every update runs through, and the status packet |
+| `ddd-gui/src/capture/device_programmer.h` | The second seam: a device in its boot ROM, and the three things it can be asked |
+| `ddd-gui/src/capture/boot_image.h` | The FX3 boot image format, read from the host's side |
+| `ddd-gui/src/capture/device_recovery.h` | The prelude that turns a recovery device into one the orchestrator can drive |
+| `ddd-gui/src/capture/usb_device_info.h` | Personalities, and which of them a selection will consider |
 | `ddd-gui/src/capture/update_orchestrator.h` | The flow: verify, program, reset, confirm |
 | `ddd-gui/src/capture/update_cli.h` | `ddd-update`, over the identical engine path |
 | `ddd-gui/src/capture/digest.h` | SHA-256, the one digest |

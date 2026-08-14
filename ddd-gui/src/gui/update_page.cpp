@@ -20,6 +20,7 @@
 #include <QPushButton>
 #include <QThread>
 #include <QVBoxLayout>
+#include <string>
 #include <utility>
 
 #include "update_bundle.h"
@@ -91,7 +92,7 @@ UpdatePage::UpdatePage(QString application_version, Device device,
   connect(cancel_, &QPushButton::clicked, this, &UpdatePage::CancelUpdate);
   buttons->addWidget(cancel_);
 
-  install_ = new QPushButton(tr("Update"), this);
+  install_ = new QPushButton(InstallActionLabel(device_.personality), this);
   install_->setObjectName(QLatin1String(kInstallButtonName));
   install_->setDefault(true);
   connect(install_, &QPushButton::clicked, this, &UpdatePage::StartUpdate);
@@ -128,8 +129,25 @@ void UpdatePage::RefreshVersions() {
   const capture::UpdateManifest* const manifest =
       manifest_.has_value() ? &manifest_.value() : nullptr;
 
-  versions_->setText(UpdateVersionTable(UpdateVersionRows(
-      application_version_, device_.identity, device_.attached, manifest)));
+  QString text = UpdateVersionTable(
+      UpdateVersionRows(application_version_, device_.identity,
+                        device_.attached, manifest, device_.personality));
+
+  // Above the table rather than below it: what state the device is in is the
+  // thing that explains why the table says what it says, and a user reading
+  // "None installed" needs the explanation before the surprise, not after it.
+  if (device_.attached) {
+    const QString state = DevicePersonalityText(device_.personality);
+    if (!state.isEmpty()) {
+      text = state + QStringLiteral("<br><br>") + text;
+    }
+  }
+
+  versions_->setText(text);
+}
+
+QString UpdatePage::InstallButtonLabel() const {
+  return InstallActionLabel(device_.personality);
 }
 
 void UpdatePage::SetBundleState(const QString& summary, const QString& banner) {
@@ -216,6 +234,7 @@ void UpdatePage::LoadBundle(const QString& path) {
   input.application_version = application_version_.toStdString();
   input.device_attached = device_.attached;
   input.device = device_.identity;
+  input.device_personality = device_.personality;
 
   const capture::UpdateGateResult gate =
       capture::CheckUpdateGate(*manifest_, input);
@@ -247,18 +266,37 @@ void UpdatePage::StartUpdate() {
     return;
   }
 
-  std::unique_ptr<capture::IDeviceUpdater> updater =
-      device_.open ? device_.open() : nullptr;
-  if (updater == nullptr) {
-    status_->setText(UpdateFailureText(
-        tr("The device could not be opened for updating. Unplug it, plug it "
-           "back in, and try again.")));
-    return;
+  UpdateDevice target;
+  target.in_recovery = in_recovery();
+
+  if (target.in_recovery) {
+    // Nothing is opened here. The device this update ends on does not exist
+    // yet — it is the one that will appear once the boot ROM has been handed
+    // the bundle's firmware — so what the worker is given is the two
+    // factories that will reach it, and both are called on the worker
+    // thread where the waiting happens.
+    target.recovery.open_programmer = device_.open_programmer;
+    target.recovery.open_updater = device_.open;
+
+    if (!target.recovery.open_programmer || !target.recovery.open_updater) {
+      status_->setText(UpdateFailureText(
+          tr("This device cannot be reached for programming. Unplug it, plug "
+             "it back in, and try again.")));
+      return;
+    }
+  } else {
+    target.updater = device_.open ? device_.open(std::string()) : nullptr;
+    if (target.updater == nullptr) {
+      status_->setText(UpdateFailureText(
+          tr("The device could not be opened for updating. Unplug it, plug it "
+             "back in, and try again.")));
+      return;
+    }
   }
 
   attempted_ = true;
   thread_ = new QThread(this);
-  worker_ = new UpdateWorker(std::move(updater), archive_, policy_);
+  worker_ = new UpdateWorker(std::move(target), archive_, policy_);
   worker_->moveToThread(thread_);
 
   connect(thread_, &QThread::started, worker_, &UpdateWorker::Run);
@@ -340,6 +378,13 @@ void UpdatePage::HandleFinished(bool succeeded, const QString& problem,
     device_.identity = identity;
     device_.attached = true;
 
+    // A device that was in recovery is not any more: it has just been read
+    // back, by name, running the firmware that was written to it. Recording
+    // that is what makes the table below say the new version rather than
+    // "None installed", and what stops the button offering to program a
+    // device that has been programmed.
+    device_.personality = capture::DevicePersonality::kApplication;
+
     status_->setText(QStringLiteral("<b>%1</b><br>%2")
                          .arg(UpdateStageTitle(capture::UpdateStage::kComplete)
                                   .toHtmlEscaped(),
@@ -352,7 +397,7 @@ void UpdatePage::HandleFinished(bool succeeded, const QString& problem,
     // a second run of an update that has already happened, and it stops
     // saying "Try again" about an attempt that has now succeeded.
     bundle_installable_ = false;
-    install_->setText(tr("Update"));
+    install_->setText(InstallButtonLabel());
   } else {
     status_->setText(
         QStringLiteral("<b>%1</b><br>%2")

@@ -33,6 +33,7 @@
 #include "free_space.h"
 #include "statistics_presenter.h"
 #include "theme_color_tokens.h"
+#include "update_text.h"
 
 namespace ddd::gui {
 namespace {
@@ -347,7 +348,13 @@ void CapturePanel::OnDevicesChanged(
     const QString path = QString::fromStdString(device.path);
 
     QString label = path;
-    if (!device.CanCarryCapture()) {
+    if (!device.is_application()) {
+      // A device with no firmware is listed rather than hidden, and named for
+      // what it is. Hiding it would report "no device attached" to somebody
+      // looking straight at one, which is the state in which they most need
+      // to be told what to do next.
+      label += DeviceListPersonalitySuffix(device.personality);
+    } else if (!device.CanCarryCapture()) {
       // Said in the list rather than only when the user presses the button. A
       // device on the wrong port is the thing they need to know about before
       // they wonder why nothing works.
@@ -372,7 +379,11 @@ void CapturePanel::OnDevicesChanged(
     const ddd::capture::DeviceInfo* const selected =
         &devices_[static_cast<size_t>(
             std::max(0, device_combo_->currentIndex()))];
-    if (!selected->CanCarryCapture()) {
+    if (!selected->is_application()) {
+      status_label_->setText(
+          tr("This device has no firmware installed, so it cannot capture "
+             "yet. Open Help ▸ Firmware… to program it."));
+    } else if (!selected->CanCarryCapture()) {
       status_label_->setText(
           tr("Connected at insufficient speed. This device is on a USB 2 port "
              "and cannot carry 80 MB/s — move it to a USB 3 port."));
@@ -498,6 +509,8 @@ void CapturePanel::OnTestModeToggled(bool enabled) {
 void CapturePanel::UpdateEnabledState() {
   const bool have_usable_device =
       !devices_.empty() &&
+      devices_[static_cast<size_t>(std::max(0, device_combo_->currentIndex()))]
+          .is_application() &&
       devices_[static_cast<size_t>(std::max(0, device_combo_->currentIndex()))]
           .CanCarryCapture();
 

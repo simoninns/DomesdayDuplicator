@@ -20,6 +20,7 @@
 #include "disk_buffer_ring.h"
 #include "front_end_gain.h"
 #include "gain_choices.h"
+#include "update_text.h"
 
 namespace ddd::gui {
 namespace {
@@ -79,7 +80,12 @@ SettingsDialog::SettingsDialog(
   device_->addItem(tr("Whichever is attached"), QString());
   for (const ddd::capture::DeviceInfo& info : devices) {
     const QString path = QString::fromStdString(info.path);
-    device_->addItem(path, path);
+
+    // Named for what it is, as in the Capture panel's list. A device in
+    // recovery mode can still be preferred — it is the same physical port,
+    // and it will be a capture device again once it has been programmed.
+    device_->addItem(path + DeviceListPersonalitySuffix(info.personality),
+                     path);
     if (path == settings_.preferred_device_path) {
       device_->setCurrentIndex(device_->count() - 1);
     }

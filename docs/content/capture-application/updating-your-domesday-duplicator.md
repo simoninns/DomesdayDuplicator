@@ -92,6 +92,8 @@ Whatever happens, the window will tell you:
 
 If the message asks you to unplug the device and plug it back in, do that, then reopen **Help → Firmware…** and look at what it reports. If the update did not take, the versions will be the ones you started with and you can simply try again.
 
+If the device comes back saying **recovery mode**, that is the state described above and the repair is a single button. [If an update fails](if-an-update-fails.md) is the page for it — and the same page covers bringing a Duplicator you have just built to life for the first time, which is the same procedure.
+
 ## For the curious
 
 - Every update file carries a signature and a checksum for each part of it, and those are checked in the application before anything is sent, checked again by the device as the bytes arrive, and checked a third time by the device reading back what it wrote. The full chain is on the [Device update mechanism](../development/device-update-mechanism.md) page.

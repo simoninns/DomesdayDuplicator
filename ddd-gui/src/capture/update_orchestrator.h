@@ -36,6 +36,12 @@ enum class UpdateStage {
   // whether it may be installed on this device by this build.
   kChecking,
 
+  // Waking a device that has no working firmware, by handing the bundle's
+  // own firmware to its boot ROM and waiting for it to come back as a
+  // Duplicator. Only the recovery path visits this stage; an ordinary update
+  // goes straight from kChecking to kTransferring.
+  kPreparing,
+
   // Streaming a payload to the device.
   kTransferring,
 

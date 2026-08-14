@@ -17,6 +17,7 @@
 
 #include "device_updater.h"
 #include "update_manifest.h"
+#include "usb_device_info.h"
 
 namespace ddd::capture {
 
@@ -83,6 +84,15 @@ struct UpdateGateInput {
   // Whether a device is attached at all. False is a refusal with a reason
   // rather than a special case for the caller to remember.
   bool device_attached = false;
+
+  // Which software the device is running.
+  //
+  // A device in a recovery personality has no identity to report — no product
+  // string, no protocol version, no gateware — so the checks that compare
+  // against those have nothing to compare and correctly stay quiet. What this
+  // adds is the one check that only applies there: a device with no working
+  // firmware cannot be repaired by a bundle that carries none.
+  DevicePersonality device_personality = DevicePersonality::kApplication;
 };
 
 // Decide whether this bundle may be installed.

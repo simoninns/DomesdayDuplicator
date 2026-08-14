@@ -20,6 +20,7 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QStatusBar>
+#include <algorithm>
 
 #include "about_dialog.h"
 #include "about_text.h"
@@ -28,6 +29,7 @@
 #include "application_logger.h"
 #include "capture_controller.h"
 #include "capture_panel.h"
+#include "device_programmer.h"
 #include "device_updater.h"
 #include "firmware_dialog.h"
 #include "log_message_model.h"
@@ -109,10 +111,26 @@ MainWindow::MainWindow(ThemeController* theme_controller,
     // has been unplugged.
     connect(capture_controller_, &CaptureController::DevicesChanged, this,
             [this](const std::vector<ddd::capture::DeviceInfo>& devices) {
-              statusBar()->showMessage(
-                  devices.empty()
-                      ? tr("No capture device attached")
-                      : tr("%1 device(s) attached").arg(devices.size()));
+              const auto capturable =
+                  std::count_if(devices.begin(), devices.end(),
+                                [](const ddd::capture::DeviceInfo& device) {
+                                  return device.is_application();
+                                });
+
+              // A device in recovery mode is not "no device attached", and
+              // saying so to somebody looking straight at one is how a user
+              // decides the application is broken. It is also not a device
+              // that can capture, so it is not counted as one.
+              if (devices.empty()) {
+                statusBar()->showMessage(tr("No capture device attached"));
+              } else if (capturable == 0) {
+                statusBar()->showMessage(
+                    tr("Device attached with no firmware — Help ▸ Firmware… "
+                       "can program it"));
+              } else {
+                statusBar()->showMessage(
+                    tr("%1 device(s) attached").arg(capturable));
+              }
             });
     connect(capture_controller_, &CaptureController::MonitoringChanged, this,
             [this](bool monitoring) {
@@ -287,37 +305,68 @@ void MainWindow::ShowFirmwareDialog() {
 
   const std::vector<capture::DeviceInfo> devices =
       capture_controller_->devices();
+
+  // Any personality here, unlike everywhere else in this window: a device
+  // that cannot capture is exactly the device this dialog exists to fix, and
+  // a firmware dialog that reported "no device attached" to somebody looking
+  // at one in recovery mode would be the worst place in the application to
+  // be unhelpful.
   const capture::DeviceInfo* const selected = capture::SelectDevice(
       devices,
-      capture_controller_->settings().preferred_device_path.toStdString());
+      capture_controller_->settings().preferred_device_path.toStdString(),
+      capture::DeviceSelection::kAny);
 
   UpdatePage::Device device;
   std::string device_path;
 
   if (selected != nullptr) {
     versions.device_attached = true;
-    versions.product_string = QString::fromStdString(selected->product_string);
-    versions.gateware = capture_controller_->fpga_version();
-
+    versions.personality = selected->personality;
     device_path = selected->path;
     device.attached = true;
-    device.identity.product_string = selected->product_string;
-    device.identity.protocol_version = selected->protocol_version;
-    device.identity.gateware_present = versions.gateware.present;
-    device.identity.register_map_version = versions.gateware.map_version;
-    device.identity.gateware_commit = versions.gateware.commit;
+    device.personality = selected->personality;
+
+    // A device that is not running the Duplicator's firmware has no versions
+    // to report, and the gateware reading the controller holds is from
+    // before it stopped. Left empty rather than shown stale.
+    if (selected->is_application()) {
+      versions.product_string =
+          QString::fromStdString(selected->product_string);
+      versions.gateware = capture_controller_->fpga_version();
+
+      device.identity.product_string = selected->product_string;
+      device.identity.protocol_version = selected->protocol_version;
+      device.identity.gateware_present = versions.gateware.present;
+      device.identity.register_map_version = versions.gateware.map_version;
+      device.identity.gateware_commit = versions.gateware.commit;
+    }
   }
 
   // Opened lazily, when a user has chosen a file and confirmed. The dialog
   // itself still touches nothing.
   capture::IUsbDevice* const usb = capture_controller_->usb_device();
-  device.open = [usb, device_path,
-                 logger = static_cast<capture::ILogger*>(
-                     logger_)]() -> std::unique_ptr<capture::IDeviceUpdater> {
+  auto* const logger = static_cast<capture::ILogger*>(logger_);
+
+  device.open =
+      [usb, device_path, logger](
+          const std::string& path) -> std::unique_ptr<capture::IDeviceUpdater> {
+    // An empty path means the device the dialog was opened on. A path is
+    // given when a device has just been woken out of recovery, because on
+    // Windows it comes back at a different one.
+    const std::string& target = path.empty() ? device_path : path;
+    if (usb == nullptr || target.empty()) {
+      return nullptr;
+    }
+    return capture::MakeDeviceUpdater(*usb, target, logger);
+  };
+
+  device.open_programmer =
+      [usb, device_path,
+       logger]() -> std::unique_ptr<capture::IDeviceProgrammer> {
     if (usb == nullptr || device_path.empty()) {
       return nullptr;
     }
-    return capture::MakeDeviceUpdater(*usb, device_path, logger);
+    return capture::MakeDeviceProgrammer(*usb, device_path, logger);
   };
 
   FirmwareDialog dialog(versions, std::move(device), this);

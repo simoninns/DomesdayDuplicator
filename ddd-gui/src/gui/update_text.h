@@ -18,6 +18,7 @@
 #include "update_gate.h"
 #include "update_manifest.h"
 #include "update_orchestrator.h"
+#include "usb_device_info.h"
 
 namespace ddd::gui {
 
@@ -53,7 +54,9 @@ struct UpdateVersionRow {
 // channel rather than pretending it can self-update.
 std::vector<UpdateVersionRow> UpdateVersionRows(
     const QString& application_version, const capture::DeviceIdentity& device,
-    bool device_attached, const capture::UpdateManifest* bundle);
+    bool device_attached, const capture::UpdateManifest* bundle,
+    capture::DevicePersonality personality =
+        capture::DevicePersonality::kApplication);
 
 // The rows as rich text, laid out as a table.
 QString UpdateVersionTable(const std::vector<UpdateVersionRow>& rows);
@@ -91,5 +94,28 @@ QString UpdateCompleteText(const capture::DeviceIdentity& identity);
 // A failure, in the calm terms the *If an update fails* documentation page
 // uses: what happened, whether the device is safe, and the one next step.
 QString UpdateFailureText(const QString& problem);
+
+// What a device that is not running the Duplicator's firmware is, and what to
+// do about it. Empty for a device that is running it.
+//
+// The two cases it covers read very differently to the person in front of
+// them and are identical on the wire, so this says both rather than guessing
+// at one: a device in the boot ROM has either never been programmed or had an
+// update interrupted, and the same one action fixes it either way. Somebody
+// who has just soldered a kit is not told they have broken it, and somebody
+// whose update was interrupted is not told their device is new.
+//
+// The words here are the words the *If an update fails* documentation page
+// uses. A user reading "recovery mode" in this dialog and finding a page that
+// calls it something else has been given two problems.
+QString DevicePersonalityText(capture::DevicePersonality personality);
+
+// The label on the button that starts the install: "Update" for a device that
+// has firmware, "Program this device" for one that has none.
+QString InstallActionLabel(capture::DevicePersonality personality);
+
+// How the device list names a device that is not running the Duplicator's
+// firmware, appended to its path. Empty for one that is.
+QString DeviceListPersonalitySuffix(capture::DevicePersonality personality);
 
 }  // namespace ddd::gui

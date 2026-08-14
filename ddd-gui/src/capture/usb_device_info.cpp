@@ -31,21 +31,40 @@ const char* DeviceSpeedName(DeviceSpeed speed) {
   return "unknown speed";
 }
 
-const DeviceInfo* SelectDevice(const std::vector<DeviceInfo>& devices,
-                               const std::string& preferred_path) {
-  if (devices.empty()) {
-    return nullptr;
+const char* DevicePersonalityName(DevicePersonality personality) {
+  switch (personality) {
+    case DevicePersonality::kApplication:
+      return "Duplicator firmware";
+    case DevicePersonality::kRecovery:
+      return "recovery mode";
+    case DevicePersonality::kFlashProgrammer:
+      return "Cypress flash programmer";
   }
+  return "unknown";
+}
+
+const DeviceInfo* SelectDevice(const std::vector<DeviceInfo>& devices,
+                               const std::string& preferred_path,
+                               DeviceSelection selection) {
+  const auto acceptable = [selection](const DeviceInfo& device) {
+    return selection == DeviceSelection::kAny || device.is_application();
+  };
 
   if (!preferred_path.empty()) {
     for (const DeviceInfo& device : devices) {
-      if (device.path == preferred_path) {
+      if (device.path == preferred_path && acceptable(device)) {
         return &device;
       }
     }
   }
 
-  return &devices.front();
+  for (const DeviceInfo& device : devices) {
+    if (acceptable(device)) {
+      return &device;
+    }
+  }
+
+  return nullptr;
 }
 
 }  // namespace ddd::capture

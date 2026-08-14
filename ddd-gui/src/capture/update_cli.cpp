@@ -15,6 +15,8 @@
 #include <ostream>
 #include <vector>
 
+#include "device_programmer.h"
+#include "device_recovery.h"
 #include "device_updater.h"
 #include "logger.h"
 #include "update_bundle.h"
@@ -91,6 +93,13 @@ std::string UpdateCliUsage() {
          "device, then\n"
          "                        stop without sending anything\n"
          "  --help                Show this text\n"
+         "\n"
+         "A device with no working firmware — one that has never been "
+         "programmed, or one\n"
+         "whose update was interrupted — enumerates as the FX3 boot ROM and "
+         "is programmed\n"
+         "by this same command, from this same bundle. There is nothing "
+         "different to run.\n"
          "\n"
          "Exit codes: 0 success, 2 usage, 3 bundle, 4 no device, 5 update "
          "failed.\n";
@@ -211,32 +220,56 @@ int RunUpdateCli(const std::vector<std::string>& args, std::ostream& out,
     return kUpdateCliNoDevice;
   }
 
-  const DeviceInfo* const selected = SelectDevice(devices, options.device_path);
+  // Any personality, because a device with no working firmware is one of the
+  // two this tool exists to program — the other being a device that has one
+  // and wants a newer.
+  const DeviceInfo* const selected =
+      SelectDevice(devices, options.device_path, DeviceSelection::kAny);
   if (selected == nullptr) {
     error << "No Domesday Duplicator is attached.\n";
     return kUpdateCliNoDevice;
   }
 
-  out << "Device at " << selected->path << ": " << selected->product_string
-      << "\n";
+  const bool recovery = selected->personality == DevicePersonality::kRecovery;
 
-  std::unique_ptr<IDeviceUpdater> updater =
-      MakeDeviceUpdater(*usb, selected->path, &logger);
-  if (updater == nullptr) {
-    error << "The device could not be opened.\n";
+  if (selected->personality == DevicePersonality::kFlashProgrammer) {
+    error << "The device at " << selected->path
+          << " is running the Cypress flash programmer, left behind by an "
+             "fx3-programmer session.\nPower cycle it and try again.\n";
     return kUpdateCliNoDevice;
   }
 
-  const std::optional<DeviceIdentity> identity = updater->ReadIdentity();
-  if (!identity.has_value()) {
-    error << "The device did not answer.\n";
-    return kUpdateCliNoDevice;
+  out << "Device at " << selected->path << ": "
+      << (recovery ? "recovery mode — no working firmware"
+                   : selected->product_string)
+      << "\n";
+
+  // A device in recovery has no identity to read: there is nothing running on
+  // it to answer. The gate is told which it is and makes the checks that
+  // still apply.
+  DeviceIdentity identity;
+  std::unique_ptr<IDeviceUpdater> updater;
+
+  if (!recovery) {
+    updater = MakeDeviceUpdater(*usb, selected->path, &logger);
+    if (updater == nullptr) {
+      error << "The device could not be opened.\n";
+      return kUpdateCliNoDevice;
+    }
+
+    const std::optional<DeviceIdentity> read = updater->ReadIdentity();
+    if (!read.has_value()) {
+      error << "The device did not answer.\n";
+      return kUpdateCliNoDevice;
+    }
+    identity = *read;
   }
 
   UpdateGateInput gate_input;
   gate_input.application_version = std::string(Version());
   gate_input.device_attached = true;
-  gate_input.device = *identity;
+  gate_input.device = identity;
+  gate_input.device_personality = selected->personality;
 
   const UpdateGateResult gate = CheckUpdateGate(bundle->manifest, gate_input);
   for (const std::string& reason : gate.reasons) {
@@ -251,29 +284,56 @@ int RunUpdateCli(const std::vector<std::string>& args, std::ostream& out,
   }
 
   if (options.dry_run) {
-    out << "The bundle verifies and can be installed on this device. Nothing "
-           "was sent.\n";
+    out << "The bundle verifies and can be "
+        << (recovery ? "programmed onto this device"
+                     : "installed on this device")
+        << ". Nothing was sent.\n";
     return kUpdateCliSuccess;
   }
 
+  if (recovery) {
+    out << "This device has no working firmware. Programming it from this "
+           "bundle.\n";
+  }
   out << "Installing. Leave the device plugged in and powered.\n";
 
-  UpdateOrchestrator orchestrator(*updater, &logger);
-
+  // One line per stage rather than one per poll: this output is read in a
+  // terminal and in a CI log, and neither is improved by a thousand
+  // percentages.
   UpdateStage last_stage = UpdateStage::kFailed;
-  orchestrator.SetProgressCallback(
-      [&out, &last_stage](const UpdateProgress& step) {
-        // One line per stage rather than one per poll: this output is read in a
-        // terminal and in a CI log, and neither is improved by a thousand
-        // percentages.
-        if (step.stage == last_stage) {
-          return;
-        }
-        last_stage = step.stage;
-        out << UpdateStageName(step.stage) << ": " << step.message << "\n";
-      });
+  const UpdateProgressCallback report = [&out,
+                                         &last_stage](const UpdateProgress& s) {
+    if (s.stage == last_stage) {
+      return;
+    }
+    last_stage = s.stage;
+    out << UpdateStageName(s.stage) << ": " << s.message << "\n";
+  };
 
-  const UpdateOutcome outcome = orchestrator.Run(*bundle);
+  UpdateOutcome outcome;
+
+  if (recovery) {
+    // The recovery path and the ordinary path end in the same place: the
+    // installer's prelude wakes the device with this bundle's own firmware
+    // and then runs the very same orchestrator over it.
+    DeviceAccess access;
+    const std::string recovery_path = selected->path;
+    access.open_programmer = [usb = usb.get(), recovery_path, &logger] {
+      return MakeDeviceProgrammer(*usb, recovery_path, &logger);
+    };
+    access.open_updater = [usb = usb.get(),
+                           &logger](const std::string& device_path) {
+      return MakeDeviceUpdater(*usb, device_path, &logger);
+    };
+
+    RecoveryInstaller installer(std::move(access), &logger);
+    installer.SetProgressCallback(report);
+    outcome = installer.Run(*bundle);
+  } else {
+    UpdateOrchestrator orchestrator(*updater, &logger);
+    orchestrator.SetProgressCallback(report);
+    outcome = orchestrator.Run(*bundle);
+  }
 
   if (!outcome.succeeded) {
     error << outcome.problem << "\n";

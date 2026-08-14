@@ -3,7 +3,7 @@
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 801 across five
+reorganisation there were **no automated tests at all**. There are now 844 across five
 components, plus three gateware testbenches, a lint pass over five Verilog modules, a static
 check on the documentation site, and a licence-header check and an update-bundle check over
 the whole tree. That is a
@@ -145,7 +145,7 @@ corruption is only detectable by comparing against an original that may no longe
 One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
 two bytes, which is Windows.
 
-### 4.2 `ddd-gui/` — 705 tests (699 without hardware)
+### 4.2 `ddd-gui/` — 748 tests (742 without hardware)
 
 The replacement capture application. Split by what a test needs rather than by what it
 covers: `ddd_capture_tests` links no Qt at all, which is what makes the engine's Qt-free
@@ -160,7 +160,7 @@ rule enforceable — if the engine ever grows a Qt dependency, that binary stops
 | `tests/unit/test_disk_buffer_ring.cpp` | The producer-to-consumer handoff: geometry rounding, overflow detection, fill-level accounting, a contended run of 4,000 slots checked serial-by-serial, and that an abort releases waiters on **both** sides | T1 |
 | `tests/unit/test_monitor_tap.cpp` | The wait-free publishers: 200,000 stats publications against a hammering reader with no torn read, triple-buffered snapshots never seen half-written, a slow reader dropping snapshots rather than delaying the writer, and the writer's own publish cost measured with four readers hammering and with none | T1 |
 | `tests/unit/test_capture_pipeline.cpp` | The orchestrator: start/stop/abort, error latching precedence, injected faults surfacing as their own codes, a stalled source declared stalled rather than waited for, and a sink attached mid-stream receiving whole buffers with no sample lost or repeated | T1 |
-| `tests/unit/test_usb_device.cpp` | The SuperSpeed rule, preferred-device selection, and the USB transfer layout: transfers a whole number of packets, dividing a buffer exactly, the queue capped at the usbfs limit — and a simulation walking the transfers through several laps of the ring to prove buffers are handed over in the order the consumer reads them | T1 |
+| `tests/unit/test_usb_device.cpp` | The SuperSpeed rule, device personalities — a device with no firmware never selected for capture even when it is the remembered preference, found when a caller asks for any personality, and a change of personality counting as a change of device — preferred-device selection, and the USB transfer layout: transfers a whole number of packets, dividing a buffer exactly, the queue capped at the usbfs limit — and a simulation walking the transfers through several laps of the ring to prove buffers are handed over in the order the consumer reads them | T1 |
 | `tests/unit/test_firmware_version.cpp` | The firmware version comparison: commits parsed out of the USB product string, dirty builds on either side, stamps of differing length from one commit still matching, and an application that cannot name its own commit staying quiet | T1 |
 | `tests/unit/test_digest.cpp` | SHA-256 against the published FIPS 180-2 vectors and the million-character case, the streaming interface agreeing with the one-shot function at every chunk boundary, and hex parsing refusing anything but 64 hex characters | T1 |
 | `tests/unit/test_json_value.cpp` | The manifest parser's strictness stated as tests: duplicate keys, trailing content, comments, trailing commas, leading zeros, unescaped control characters, lone surrogates and runaway nesting each refused by name — plus numbers surviving a round trip as the text they arrived as | T1 |
@@ -169,8 +169,10 @@ rule enforceable — if the engine ever grows a Qt dependency, that binary stops
 | `tests/unit/test_update_bundle.cpp` | The archive: entries round-tripped through the writer and reader including the empty, exactly-one-block and one-byte-over cases; directories, paths, bad checksums, truncation and duplicate names refused; and, at bundle level, a tampered manifest, a tampered payload, a wrong length, a missing payload, a missing signature and a manifest that is not the first entry each refused with their own message | T1 |
 | `tests/golden/test_stock_tar_bundle.cpp` | A bundle **as `tools/make-update-bundle.sh` really produced it** — GNU tar's bytes, minisign's signature — opened, verified and compared against what this project's own writer produces. The one test that says the reader reads what the release tooling writes rather than only what this code writes | T1, T2 |
 | `tests/unit/test_update_key.cpp` | Which signatures a build accepts: a development bundle accepted with the explicit opt-in and refused without it, a bundle whose claimed channel and signing key disagree refused, the compiled-in development key checked against the one in `tools/keys/`, and the default policy proved able to open something at all | T1 |
+| `tests/unit/test_boot_image.cpp` | The FX3 boot image, read from the host's side: a well-formed image parsed into its sections with the offsets landing on the right bytes, and every malformed case refused with a sentence — a missing signature, an image that is not executable code, a type the boot ROM would not run, a checksum that does not match, a truncated file, bytes after the checksum, an image with nothing in it, and a section length that would wrap when multiplied into a byte count | T1 |
+| `tests/unit/test_device_recovery.cpp` | Programming a device that has no firmware to be programmed with: the prelude downloading each section and starting it, the downloaded bytes proved to be the image's own, the updater opened at the path the device *came back* at rather than the one it left, and then the ordinary update running unchanged — plus every way the prelude can fail, all of which are things that happen to a device nobody is holding: a bundle with no firmware in it, a payload that is not an image, a download stopping part way, a device that will not start what it was given, one that never comes back, and a cancellation, each proved to leave nothing written | T1 |
 | `tests/unit/test_device_updater.cpp` | The status packet: every field decoded at its offset, the three counters proved not interchangeable, the wrong length refused, a phase or error code this build does not know refused rather than narrated — and that every error code has its own sentence, none of them repeating another's | T1 |
-| `tests/unit/test_update_gate.cpp` | The install-time gate: a bundle needing a newer application refused with that verdict rather than a generic one, an unknown manifest schema refused, firmware or gateware speaking a version outside this build's range refused in both directions, a downgrade inside the range allowed, a build that cannot order its own version saying so rather than assuming, and the gateware floor not applied to a device whose FPGA never answered | T1 |
+| `tests/unit/test_update_gate.cpp` | The install-time gate: a bundle needing a newer application refused with that verdict rather than a generic one, an unknown manifest schema refused, firmware or gateware speaking a version outside this build's range refused in both directions, a downgrade inside the range allowed, a build that cannot order its own version saying so rather than assuming, the gateware floor not applied to a device whose FPGA never answered, and a device with no firmware passing the checks that need an identity while being refused a bundle that carries no firmware to give it | T1 |
 | `tests/unit/test_update_orchestrator.cpp` | The whole flow against a fake device: an install proved by reading the identity back, every chunk but the last page-aligned, the chunk size taken from the device and rounded down to whole pages, the stages reported in order, transfer progress monotonic and reaching its total — and each failure branch by name: no update agent, a capture running, a payload that is not firmware, a stream digest mismatch, a readback mismatch, a device that stops answering, one that never returns, one that comes back running the wrong build, and a cancellation proved to leave nothing committed | T1 |
 | `tests/unit/test_update_cli.cpp` | `ddd-update`'s command line and its exit codes: each option parsed, `--device` with nothing after it refused, two bundles refused, and a missing file reported as a bundle error before any device is touched | T1 |
 | `tests/analysis/test_front_end_gain.cpp` | The board's SW401 gain switch: all fifteen switch patterns against the gain and full-scale input on the hardware calculations sheet, that closing a second switch *lowers* the gain because the resistors are in parallel, all-switches-open treated as no declaration rather than as unity, and an undeclared gain converting nothing at all | T1 |
@@ -199,6 +201,7 @@ rule enforceable — if the engine ever grows a Qt dependency, that binary stops
 | `tests/gui/widget/test_about_dialog.cpp` | That the logo and the application icon are compiled into the binary and load — the failure a static library's dropped resource initialiser causes, which appears only in the real application because the test binaries link it differently — and that the dialog is wider than the text it has to lay out, cuts no line off at the right-hand edge, can still be scrolled to text that does not fit, carries the logo and the notices, and has a link that can be followed | T1 |
 | `tests/gui/widget/test_main_window_panels.cpp` | The dock panel framework: every panel present, floatable, toggled from the View menu, a layout that survives a restart, that no panel demands so much height that the column it shares stops being resizable, and that the separator above the bottom panel can actually be dragged in both directions — the failure a zero-height central widget causes, which resizes fine when asked in code and not at all with the mouse | T1 |
 | `tests/gui/widget/test_capture_panel.cpp` | The capture controls: the device list, a USB 2 device named as such and refused, each button reading as the next thing that will happen and turning green while monitoring and red while capturing without changing size — the layout shift a stylesheet on a button causes, because the size the stylesheet path computes is not the one the platform style chose — device and test mode locked while streaming, the destination fixed once the file is open while the duration and low-space settings stay live, test mode taking the name field away, and free space shown as how much capture it holds rather than as a size | T1 |
+| `tests/gui/widget/test_update_page.cpp` | The whole update flow as a widget, driven against fakes with nothing plugged in — including branches a bench cannot be asked for. A verified bundle enabling the install and saying so, a development bundle bannered, a file that is not a bundle and one that is not there each refused with a reason, a bundle needing a newer application disabling the button, a successful install reporting what the device now runs, and each failure by name: a capture in progress, a corrupted transfer caught before anything is committed, a device that never comes back, and the wrong build coming back not being called a success. Plus a device with no firmware: named as being in recovery mode with both ways it gets there stated, offered **Program this device** rather than a repair, its version rows reading "None installed" and "Cannot be read", and a payload that is not firmware proved never to reach the device's memory | T1 |
 | `tests/gui/widget/test_analysis_dialog.cpp` | The analysis dialog: pass and fail reported with the break's offset, pass and fail coloured differently through the theme tokens, an unreadable file distinguished from a failed one, the cancel button becoming the close button, and a dialog destroyed mid-analysis joining its worker rather than leaving a thread running into a destroyed object | T1 |
 | `tests/gui/widget/test_statistics_panel.cpp` | That the figures reach the right labels: the four integrity states reading differently, a new run clearing the last one's numbers, a finished run leaving them up, and the three capture-only rows blank while monitoring and filled in once a writer is attached | T1 |
 | `tests/gui/widget/test_waveform_panel.cpp` | The scope panel: the span choices reaching the plot, persistence off until asked for, the cursor reading in codes alone until a gain is declared, the plot painting empty, full and in persistence mode, and — counted in pixels a person could actually see — persistence leaving earlier sweeps on screen while its absence leaves only the latest | T1 |
@@ -488,10 +491,11 @@ Everything below writes the FX3's boot EEPROM. **Nothing automated does this** (
 §4): each step is a deliberate human act, and this section exists so that it is the same
 deliberate human act every time.
 
-You need a Duplicator and a USB 3 port. Two of the steps — provisioning a unit that has
-never carried this firmware (U0), and recovering from the deliberate interruption (U3) —
-also need the J4 jumper and `fx3-programmer`. Everything else is done from the
-application, which is the whole point of the mechanism.
+You need a Duplicator and a USB 3 port. One step — provisioning a unit running firmware
+from before the update agent existed (U0) — needs the J4 jumper and `fx3-programmer`.
+Everything else is done from the application, which is the whole point of the mechanism,
+and that now includes recovering a unit whose update was interrupted (U5) and bringing up
+a kit that has never been programmed at all (U6).
 
 ### What to have ready before you start
 
@@ -644,17 +648,21 @@ than assumed.
    a device that does not enumerate, or one that enumerates as `1209:2347` and does not
    work — falsifies V1 and is a finding that changes the design, not a test failure to
    retry.
-5. Recover — and **the jumper is not needed here**. J4 is how a *working* device is forced
-   into bootloader mode; a device that has fallen back is already in it, and
-   `fx3-programmer -l` will list it as `Mode=Bootloader`. That is the whole point of the
-   fallback state: it is directly programmable.
+5. Recover with **U5 below**, which is the point of this whole procedure: a device that
+   has fallen back is directly programmable from the application, with no jumper and no
+   shell. J4 is how a *working* device is forced into bootloader mode; a device that has
+   fallen back is already in it.
+
+   If U5 is what is under test and has not yet been shown to work, the shell route still
+   exists as a fallback — `fx3-programmer -l` lists a fallen-back device as
+   `Mode=Bootloader`:
 
    ```bash
    FX3_FLASH_PROG=fx3/programmer/cyfxflashprog.img \
      ./fx3/programmer/build/fx3-programmer -p fx3/firmware/build/firmware.img -v
    ```
 
-   Power-cycle afterwards. Record whether you used `-p` or a `-u` RAM load followed by U1.
+   Power-cycle afterwards. Record which route you used.
 
 Repeat step 2 at two other points — very early in *Sending*, and during *The device is
 checking what it wrote* — and confirm the same fallback each time. The second of those is
@@ -672,6 +680,67 @@ Each of these must be refused, and refused with a sentence rather than a code:
 | Choose a file that is not a bundle | A reason, and **Update** stays disabled |
 | Choose a bundle whose `minimum_application_version` is above this build | "Update the application first", and **Update** stays disabled |
 | Close the Firmware window mid-update | It explains why not, and says when it will be safe |
+| With a device in recovery mode, choose a bundle carrying only gateware | "This device has no working firmware, and this update file does not contain any", and **Program this device** stays disabled |
+
+### U5 — recovering an interrupted update, from the application alone
+
+The other half of U3, and the reason U3's recovery step no longer needs a shell. Start
+from a device left in bootloader mode by U3.
+
+1. Confirm the state without opening anything: the application's status bar reads **Device
+   attached with no firmware**, and the Capture panel's device list names the port with
+   *recovery mode, no firmware installed*. Monitoring and capture are both unavailable.
+2. Open **Help → Firmware…**. The page says the device is in recovery mode, that its
+   firmware is missing, and that it is not damaged. The firmware row reads **None
+   installed** and the gateware row **Cannot be read**.
+3. The button reads **Program this device**, not "Update" and not "Repair".
+4. Choose the bundle from U1 and press it. The stages must run:
+
+   | Stage | What is happening |
+   | --- | --- |
+   | *Starting the device up* | The firmware is going into the FX3's **RAM**. Nothing permanent is written in this stage |
+   | *Sending the update to the device* | **The EEPROM is written here**, by the firmware that has just been loaded |
+   | *The device is checking what it wrote* | Readback and digest, exactly as in U1 |
+   | *Restarting the device* | It disconnects and reconnects by itself |
+   | *Confirming the new version* | The commit is read back off the device |
+
+5. **Pass** = the confirmation quotes the bundle's commit, the device enumerates as
+   `1209:2347`, and a capture runs. No jumper was fitted and no shell command was used at
+   any point.
+6. Repeat once with the cable pulled during *Starting the device up*. Expect the device to
+   come back in recovery mode again, unchanged, and step 4 to succeed on a second attempt
+   — nothing permanent is written in that stage, so an interruption there costs a retry
+   and nothing else.
+
+Also run it headlessly, which drives the identical engine path:
+
+```bash
+ddd-update build/domesday-duplicator-update-0.0.0-dev.dddfw    # expect 0
+```
+
+with the device in recovery mode. It must report the device as being in recovery mode and
+programme it without any extra option.
+
+**On Windows**, expect the device *not to appear at all* until WinUSB has been bound to
+`04b4:00f3` with Zadig. Confirm both halves of that: that it is missing before the
+binding, and that steps 1 to 5 then run identically to Linux afterwards. That binding
+step is a documented user procedure, on the *If an update fails* page.
+
+### U6 — a kit that has never been programmed
+
+The same procedure as U5, on a device that has never held this firmware at all. A blank
+EEPROM and one corrupted by an interrupted update are indistinguishable on the wire, so
+this is a test of the *wording* as much as of the mechanism — and of the assumption that
+they really are indistinguishable.
+
+Use a SuperSpeed Explorer Kit that has never been programmed, or erase one deliberately.
+
+1. Plug it in with **no jumper fitted**. It must enumerate as `04b4:00f3`.
+2. Follow U5 from step 1. Every screen must read the same as it did there.
+3. **Pass** = the kit reaches working firmware from the application alone, and at no point
+   is the user told that anything is broken, damaged or needs repairing. A person who has
+   just soldered a board has not broken anything, and being told they have is a failure of
+   this step even when the programming succeeds.
 
 ### When to run it
 
@@ -679,6 +748,8 @@ Each of these must be refused, and refused with a sentence rather than a code:
 - After any change to `update-agent.c`, which is the half of the update path no host test
   reaches.
 - U3 in particular after any change to the order in which pages are written.
+- U5 and U6 after any change to `device_programmer.cpp` or `boot_image.cpp`, which are the
+  only code in the application that hands bytes to a device's boot ROM.
 
 ### What it does not cover
 

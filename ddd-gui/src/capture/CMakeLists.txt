@@ -24,12 +24,15 @@ endif()
 
 add_library(ddd_capture STATIC
     ${ddd_capture_usb_sources}
+    boot_image.cpp
     capture_format.cpp
     capture_naming.cpp
     capture_pipeline.cpp
     capture_provenance.cpp
     capture_reader.cpp
     device_monitor.cpp
+    device_programmer.cpp
+    device_recovery.cpp
     device_updater.cpp
     digest.cpp
     disk_buffer_ring.cpp

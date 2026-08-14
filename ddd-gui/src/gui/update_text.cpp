@@ -40,8 +40,16 @@ bool SameBuild(const std::string& left, const std::string& right) {
 
 std::vector<UpdateVersionRow> UpdateVersionRows(
     const QString& application_version, const capture::DeviceIdentity& device,
-    bool device_attached, const capture::UpdateManifest* bundle) {
+    bool device_attached, const capture::UpdateManifest* bundle,
+    capture::DevicePersonality personality) {
   std::vector<UpdateVersionRow> rows;
+
+  // A device that is not running the Duplicator's firmware reports no
+  // versions, because there is nothing on it to report them. Saying "not
+  // reported" three times would look like three faults; saying what the
+  // device actually is, once per row, says the one true thing.
+  const bool reports_versions =
+      personality == capture::DevicePersonality::kApplication;
 
   // The application, first, and in the list even though this dialog cannot
   // update it: leaving it out would answer two thirds of "am I up to date".
@@ -62,13 +70,15 @@ std::vector<UpdateVersionRow> UpdateVersionRows(
 
   UpdateVersionRow firmware;
   firmware.name = Translate("Firmware");
-  if (device_attached) {
+  if (!device_attached) {
+    firmware.installed = Translate("No device attached");
+  } else if (!reports_versions) {
+    firmware.installed = Translate("None installed");
+  } else {
     const std::optional<std::string> commit =
         capture::ParseFirmwareCommit(device.product_string);
     firmware.installed =
         commit.has_value() ? FromStdString(*commit) : NotReported();
-  } else {
-    firmware.installed = Translate("No device attached");
   }
   if (bundle != nullptr && bundle->firmware.has_value()) {
     firmware.available = FromStdString(bundle->firmware->identity);
@@ -76,8 +86,9 @@ std::vector<UpdateVersionRow> UpdateVersionRows(
     const std::optional<std::string> commit =
         capture::ParseFirmwareCommit(device.product_string);
     firmware.changes =
-        device_attached &&
-        !(commit.has_value() && SameBuild(*commit, bundle->firmware->identity));
+        device_attached && (!reports_versions ||
+                            !(commit.has_value() &&
+                              SameBuild(*commit, bundle->firmware->identity)));
   }
   rows.push_back(firmware);
 
@@ -85,6 +96,11 @@ std::vector<UpdateVersionRow> UpdateVersionRows(
   gateware.name = Translate("Gateware");
   if (!device_attached) {
     gateware.installed = Translate("No device attached");
+  } else if (!reports_versions) {
+    // Not "none": the FPGA is a separate part with its own memory, and
+    // whatever is in it is untouched by the FX3 having no firmware. What is
+    // true is that nothing can ask it.
+    gateware.installed = Translate("Cannot be read");
   } else if (!device.gateware_present) {
     gateware.installed = NotReported();
   } else if (device.gateware_commit.empty()) {
@@ -95,7 +111,7 @@ std::vector<UpdateVersionRow> UpdateVersionRows(
   if (bundle != nullptr && bundle->gateware.has_value()) {
     gateware.available = FromStdString(bundle->gateware->identity);
     gateware.changes =
-        device_attached &&
+        device_attached && reports_versions &&
         !SameBuild(device.gateware_commit, bundle->gateware->identity);
   }
   rows.push_back(gateware);
@@ -135,6 +151,8 @@ QString UpdateStageTitle(capture::UpdateStage stage) {
   switch (stage) {
     case capture::UpdateStage::kChecking:
       return Translate("Checking the update");
+    case capture::UpdateStage::kPreparing:
+      return Translate("Starting the device up");
     case capture::UpdateStage::kTransferring:
       return Translate("Sending the update to the device");
     case capture::UpdateStage::kWriting:
@@ -255,6 +273,51 @@ QString UpdateFailureText(const QString& problem) {
              "Your device is not damaged. An update that stops part way "
              "leaves it either as it was or in recovery mode, and this "
              "window can repair it either way.");
+}
+
+QString DevicePersonalityText(capture::DevicePersonality personality) {
+  switch (personality) {
+    case capture::DevicePersonality::kApplication:
+      return {};
+
+    case capture::DevicePersonality::kRecovery:
+      return Translate(
+          "<b>This device is in recovery mode.</b> Its firmware is missing, "
+          "which means either that it has never been programmed or that an "
+          "update did not finish. Either way it is not damaged, and choosing "
+          "an update file below will program it.");
+
+    case capture::DevicePersonality::kFlashProgrammer:
+      return Translate(
+          "<b>This device is running a programming tool.</b> Something left "
+          "it there part way through writing its firmware. Unplug it, plug it "
+          "back in, and it will return to recovery mode, where this window "
+          "can program it.");
+  }
+  return {};
+}
+
+QString InstallActionLabel(capture::DevicePersonality personality) {
+  // "Program", not "repair", and the difference matters: somebody holding a
+  // board they have just built has not broken anything, and a device that has
+  // never been programmed is indistinguishable on the wire from one whose
+  // update was interrupted. One word that is true of both is better than a
+  // guess between them.
+  return personality == capture::DevicePersonality::kApplication
+             ? Translate("Update")
+             : Translate("Program this device");
+}
+
+QString DeviceListPersonalitySuffix(capture::DevicePersonality personality) {
+  switch (personality) {
+    case capture::DevicePersonality::kApplication:
+      return {};
+    case capture::DevicePersonality::kRecovery:
+      return Translate(" — recovery mode, no firmware installed");
+    case capture::DevicePersonality::kFlashProgrammer:
+      return Translate(" — running a programming tool; unplug and reconnect");
+  }
+  return {};
 }
 
 }  // namespace ddd::gui

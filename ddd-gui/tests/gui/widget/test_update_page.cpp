@@ -22,6 +22,7 @@
 #include <memory>
 #include <vector>
 
+#include "fake_device_programmer.h"
 #include "fake_device_updater.h"
 #include "firmware_dialog.h"
 #include "update_bundle.h"
@@ -124,24 +125,62 @@ class BorrowedUpdater : public capture::IDeviceUpdater {
   FakeDeviceUpdater* fake_ = nullptr;
 };
 
-// A page, and the fake it will hand to its worker. The fake outlives the
-// page, so a test can read what happened after the update has finished.
+// A non-owning IDeviceProgrammer, for the same reason BorrowedUpdater is.
+class BorrowedProgrammer : public capture::IDeviceProgrammer {
+ public:
+  explicit BorrowedProgrammer(capture::FakeDeviceProgrammer* fake)
+      : fake_(fake) {}
+
+  bool WriteRam(uint32_t address, std::span<const uint8_t> data) override {
+    return fake_->WriteRam(address, data);
+  }
+  bool Start(uint32_t entry_address) override {
+    return fake_->Start(entry_address);
+  }
+  std::optional<std::string> WaitForApplication(
+      std::chrono::milliseconds timeout) override {
+    return fake_->WaitForApplication(timeout);
+  }
+
+ private:
+  capture::FakeDeviceProgrammer* fake_ = nullptr;
+};
+
+// A page, and the fakes it will hand to its worker. They outlive the page, so
+// a test can read what happened after the update has finished.
 struct PageUnderTest {
   std::unique_ptr<FakeDeviceUpdater> device =
       std::make_unique<FakeDeviceUpdater>();
+  std::unique_ptr<capture::FakeDeviceProgrammer> programmer =
+      std::make_unique<capture::FakeDeviceProgrammer>();
   std::unique_ptr<UpdatePage> page;
 
   explicit PageUnderTest(
-      const QString& application_version = QStringLiteral("1.4.0")) {
+      const QString& application_version = QStringLiteral("1.4.0"),
+      capture::DevicePersonality personality =
+          capture::DevicePersonality::kApplication) {
     device->SetIdentity(FixtureDevice());
 
     UpdatePage::Device seam;
     seam.attached = true;
-    seam.identity = FixtureDevice();
+    seam.personality = personality;
+
+    // A device in recovery mode reports no identity, because there is nothing
+    // running on it to report one.
+    if (personality == capture::DevicePersonality::kApplication) {
+      seam.identity = FixtureDevice();
+    }
 
     FakeDeviceUpdater* const raw = device.get();
-    seam.open = [raw]() -> std::unique_ptr<capture::IDeviceUpdater> {
+    seam.open =
+        [raw](const std::string&) -> std::unique_ptr<capture::IDeviceUpdater> {
       return std::make_unique<BorrowedUpdater>(raw);
+    };
+
+    capture::FakeDeviceProgrammer* const raw_programmer = programmer.get();
+    seam.open_programmer =
+        [raw_programmer]() -> std::unique_ptr<capture::IDeviceProgrammer> {
+      return std::make_unique<BorrowedProgrammer>(raw_programmer);
     };
 
     page = std::make_unique<UpdatePage>(application_version, std::move(seam));
@@ -372,6 +411,78 @@ TEST(UpdatePageTest, TheWrongBuildComingBackIsNotCalledASuccess) {
   const QString status = test.Label(UpdatePage::kStatusLabelName)->text();
   EXPECT_FALSE(status.contains(QStringLiteral("Update complete")));
   EXPECT_TRUE(status.contains(QStringLiteral("deadbeef")));
+}
+
+// --- A device with no firmware ---------------------------------------------
+//
+// The state every kit arrives in, and the state an interrupted update leaves
+// behind. They are indistinguishable on the wire, so the page says what is
+// true of both and offers the one action that fixes either.
+
+TEST(UpdatePageRecoveryTest, ADeviceWithNoFirmwareIsNamedAndExplained) {
+  const PageUnderTest test(QStringLiteral("1.4.0"),
+                           capture::DevicePersonality::kRecovery);
+
+  const QString versions = test.Label(UpdatePage::kVersionsLabelName)->text();
+
+  EXPECT_TRUE(versions.contains(QStringLiteral("recovery mode")))
+      << "the device's state is not named: " << versions.toStdString();
+  EXPECT_TRUE(versions.contains(QStringLiteral("never been programmed")))
+      << "a user with a newly built board is not told this is normal";
+  EXPECT_TRUE(versions.contains(QStringLiteral("not damaged")))
+      << "the question the user is actually asking goes unanswered";
+  EXPECT_TRUE(versions.contains(QStringLiteral("None installed")))
+      << "the firmware row does not say there is no firmware";
+}
+
+// "Program", not "repair": somebody holding a board they have just built has
+// not broken anything, and the application cannot tell the two cases apart.
+TEST(UpdatePageRecoveryTest, TheButtonOffersToProgramRatherThanToRepair) {
+  const PageUnderTest test(QStringLiteral("1.4.0"),
+                           capture::DevicePersonality::kRecovery);
+
+  EXPECT_EQ(test.Button(UpdatePage::kInstallButtonName)->text(),
+            QStringLiteral("Program this device"));
+}
+
+TEST(UpdatePageRecoveryTest, AVerifiedBundleEnablesProgrammingARecoveryDevice) {
+  const BundleFile bundle;
+  PageUnderTest test(QStringLiteral("1.4.0"),
+                     capture::DevicePersonality::kRecovery);
+
+  test.page->LoadBundle(bundle.path());
+
+  EXPECT_TRUE(test.Button(UpdatePage::kInstallButtonName)->isEnabled())
+      << "a verified bundle cannot be installed on a device that needs it";
+}
+
+// The fixture bundle's firmware payload is text rather than an FX3 image, so
+// this drives the whole recovery flow as far as the parser and stops there —
+// which is the check that a bundle carrying something that is not firmware
+// never reaches a device's memory.
+TEST(UpdatePageRecoveryTest, APayloadThatIsNotFirmwareNeverReachesTheDevice) {
+  const BundleFile bundle;
+  PageUnderTest test(QStringLiteral("1.4.0"),
+                     capture::DevicePersonality::kRecovery);
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_TRUE(test.RunToCompletion());
+
+  EXPECT_EQ(test.programmer->sections_written(), 0u);
+  EXPECT_FALSE(test.programmer->started());
+
+  const QString status = test.Label(UpdatePage::kStatusLabelName)->text();
+  EXPECT_TRUE(status.contains(QStringLiteral("not damaged")))
+      << "status was: " << status.toStdString();
+}
+
+TEST(UpdatePageRecoveryTest, ADeviceRunningAProgrammingToolSaysHowToClearIt) {
+  const PageUnderTest test(QStringLiteral("1.4.0"),
+                           capture::DevicePersonality::kFlashProgrammer);
+
+  const QString versions = test.Label(UpdatePage::kVersionsLabelName)->text();
+  EXPECT_TRUE(versions.contains(QStringLiteral("Unplug it")))
+      << "no way out is offered: " << versions.toStdString();
 }
 
 // --- The dialog around it --------------------------------------------------

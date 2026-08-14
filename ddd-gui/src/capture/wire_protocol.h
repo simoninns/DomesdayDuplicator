@@ -26,6 +26,43 @@ namespace ddd::capture {
 inline constexpr uint16_t kVendorId = 0x1209;
 inline constexpr uint16_t kProductId = 0x2347;
 
+// The identifiers a Duplicator wears when it is *not* running its own
+// firmware.
+//
+// These are Cypress's, burned into the FX3's boot ROM and into the secondary
+// loader, and they are the only way a device with no working firmware can be
+// found at all. They are not this project's numbers to change, which is
+// exactly why they belong here beside the ones that are: all four are the
+// wire, and none of them may be altered by either end alone.
+inline constexpr uint16_t kCypressVendorId = 0x04b4;
+
+// The FX3 boot ROM, waiting for a host. What a kit that has never been
+// programmed looks like, and what a kit whose EEPROM image the boot ROM
+// rejects falls back to.
+inline constexpr uint16_t kRecoveryProductId = 0x00f3;
+
+// The Cypress secondary loader, running in RAM. Nothing in this application
+// puts a device here; fx3-programmer does, transiently, while it writes an
+// EEPROM.
+inline constexpr uint16_t kFlashProgrammerProductId = 0x4720;
+
+// The boot ROM's RAM download command: wValue and wIndex carry the low and
+// high halves of the load address, and a transfer with no data stage at the
+// end is the jump to the entry point.
+//
+// Implemented by the boot ROM and by nothing else — once a device is running
+// firmware, the ROM is no longer in control and this request is simply not
+// answered.
+inline constexpr uint8_t kRamDownloadRequest = 0xA0;
+
+// The secondary loader's identification request, and the eight bytes it
+// answers with. The only reliable way to tell the loader from anything else
+// wearing a Cypress identifier: the product identifier alone is a hint, and
+// this is the confirmation.
+inline constexpr uint8_t kFlashProgrammerProbeRequest = 0xB0;
+inline constexpr size_t kFlashProgrammerProbeLength = 8;
+inline constexpr char kFlashProgrammerMagic[] = "FX3PROG";
+
 // The bulk IN endpoint the sample stream arrives on
 inline constexpr uint8_t kBulkInEndpoint = 0x81;
 

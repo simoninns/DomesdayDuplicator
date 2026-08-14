@@ -52,6 +52,8 @@ const char* UpdateStageName(UpdateStage stage) {
   switch (stage) {
     case UpdateStage::kChecking:
       return "Checking";
+    case UpdateStage::kPreparing:
+      return "Preparing device";
     case UpdateStage::kTransferring:
       return "Sending";
     case UpdateStage::kWriting:

@@ -350,10 +350,11 @@ TEST(UpdateEstimate, GrowsWithThePayloadAndIsNeverZero) {
 
 TEST(UpdateStageNames, EveryStageIsNamed) {
   const UpdateStage stages[] = {
-      UpdateStage::kChecking,   UpdateStage::kTransferring,
-      UpdateStage::kWriting,    UpdateStage::kVerifying,
-      UpdateStage::kRestarting, UpdateStage::kConfirming,
-      UpdateStage::kComplete,   UpdateStage::kFailed};
+      UpdateStage::kChecking,     UpdateStage::kPreparing,
+      UpdateStage::kTransferring, UpdateStage::kWriting,
+      UpdateStage::kVerifying,    UpdateStage::kRestarting,
+      UpdateStage::kConfirming,   UpdateStage::kComplete,
+      UpdateStage::kFailed};
 
   for (UpdateStage stage : stages) {
     EXPECT_STRNE(UpdateStageName(stage), "Unknown");

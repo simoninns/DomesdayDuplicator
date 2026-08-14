@@ -72,8 +72,14 @@ Options:
                         stop without sending anything
   --help                Show this text
 
+A device with no working firmware — one that has never been programmed, or one
+whose update was interrupted — enumerates as the FX3 boot ROM and is programmed
+by this same command, from this same bundle. There is nothing different to run.
+
 Exit codes: 0 success, 2 usage, 3 bundle, 4 no device, 5 update failed.
 ```
+
+`ddd-update` handles a device in recovery mode without being told to. It notices the personality during enumeration, hands the boot ROM the bundle's own `firmware.img`, waits for the device to come back as a Duplicator, and then runs the ordinary install over it — which is what makes `dev-bundle.sh && ddd-update` the loop for bringing up a bare Explorer Kit as well as for iterating on a working one. The mechanism is on the [Device update mechanism](device-update-mechanism.md) page.
 
 The exit codes are distinct on purpose: a script driving a bench procedure wants to know whether it has a bad file (3) or a bad device (4, 5). `--dry-run` is the one mode that touches no device state at all — it verifies the signature, checks every payload digest, runs the compatibility gate against the attached device, and stops. It is what a script checks a bundle with.
 

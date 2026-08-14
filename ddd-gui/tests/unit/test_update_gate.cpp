@@ -37,6 +37,16 @@ UpdateManifest MakeManifest() {
   return manifest;
 }
 
+// A gateware payload, for the cases that need a bundle carrying one.
+UpdateComponent GatewareComponent() {
+  UpdateComponent gateware;
+  gateware.file = "gateware-app.rpd";
+  gateware.length = 2048;
+  gateware.identity = "0123abcd";
+  gateware.interface_version = 1;
+  return gateware;
+}
+
 UpdateGateInput MakeInput() {
   UpdateGateInput input;
   input.application_version = "1.4.0";
@@ -194,6 +204,56 @@ TEST(UpdateGate, DoesNotUseTheGatewareCheckWhenNoGatewareAnswered) {
   input.device.register_map_version = 0;
 
   const UpdateGateResult result = CheckUpdateGate(manifest, input);
+
+  EXPECT_TRUE(result.allowed());
+}
+
+// --- A device with no firmware ---------------------------------------------
+
+// It has no identity to report, so every check that compares against one has
+// nothing to compare and correctly stays quiet. What must not happen is a
+// refusal built out of the absence.
+TEST(UpdateGate, ADeviceInRecoveryPassesTheChecksThatNeedAnIdentity) {
+  const UpdateManifest manifest = MakeManifest();
+
+  UpdateGateInput input = MakeInput();
+  input.device_personality = DevicePersonality::kRecovery;
+  input.device = DeviceIdentity{};
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, input);
+
+  EXPECT_TRUE(result.allowed());
+}
+
+// The one check that only applies there: nothing on the device can write
+// gateware, because there is nothing running on it at all.
+TEST(UpdateGate, ADeviceInRecoveryRefusesABundleWithNoFirmware) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.firmware.reset();
+  manifest.gateware = GatewareComponent();
+
+  UpdateGateInput input = MakeInput();
+  input.device_personality = DevicePersonality::kRecovery;
+  input.device = DeviceIdentity{};
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, input);
+
+  EXPECT_FALSE(result.allowed());
+  EXPECT_EQ(result.verdict, UpdateGateVerdict::kIncompatible);
+  ASSERT_FALSE(result.reasons.empty());
+  EXPECT_NE(result.reasons.front().find("does not contain any"),
+            std::string::npos)
+      << result.reasons.front();
+}
+
+// The same bundle on a working device is fine: a gateware-only update needs
+// no firmware, and this refusal is about the device rather than the file.
+TEST(UpdateGate, AGatewareOnlyBundleIsStillFineOnAWorkingDevice) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.firmware.reset();
+  manifest.gateware = GatewareComponent();
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, MakeInput());
 
   EXPECT_TRUE(result.allowed());
 }

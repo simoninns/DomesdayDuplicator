@@ -5,5 +5,6 @@ nav:
   - Windows (MSI): install-msi.md
   - Capture formats: capture-formats.md
   - Updating your Domesday Duplicator: updating-your-domesday-duplicator.md
+  - If an update fails: if-an-update-fails.md
   - Building from source: building-from-source.md
   - User Guide for Linux: user-guide.md
