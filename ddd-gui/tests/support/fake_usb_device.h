@@ -36,6 +36,16 @@ namespace ddd::capture {
 // Thread-safety: SetDevices() and Enumerate() may be called concurrently, since
 // the device monitor enumerates from its own thread while a test changes what
 // is attached from the main one.
+// A control channel that stalls everything, which is what a device with no
+// update agent in its firmware does.
+class SilentControlChannel : public IUsbControlChannel {
+ public:
+  int Transfer(uint8_t, uint8_t, uint16_t, uint16_t, std::span<uint8_t>,
+               unsigned int) override {
+    return -1;
+  }
+};
+
 class FakeUsbDevice : public IUsbDevice {
  public:
   FakeUsbDevice() = default;
@@ -99,6 +109,27 @@ class FakeUsbDevice : public IUsbDevice {
 
     result = TransferResult::kSuccess;
     return std::make_unique<SyntheticSource>(source_options_);
+  }
+
+  // A control channel is offered only for a path this fake is presenting, so
+  // that "the device went away" is a state a test can simply arrange.
+  //
+  // The channel itself answers nothing: the update flow is tested against
+  // FakeDeviceUpdater, which models the protocol, rather than against a
+  // synthetic byte stream that would have to reimplement the firmware to be
+  // any use. What this exists for is the code that only wants to know
+  // whether a device could be opened at all.
+  std::unique_ptr<IUsbControlChannel> OpenControlChannel(
+      const std::string& path) override {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    ++control_channel_count_;
+
+    for (const DeviceInfo& info : devices_) {
+      if (info.path == path) {
+        return std::make_unique<SilentControlChannel>();
+      }
+    }
+    return nullptr;
   }
 
   // --- What the test decides ----------------------------------------------
@@ -215,6 +246,10 @@ class FakeUsbDevice : public IUsbDevice {
     const std::lock_guard<std::mutex> guard(mutex_);
     return opened_options_;
   }
+  uint64_t control_channel_count() const {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return control_channel_count_;
+  }
 
  private:
   mutable std::mutex mutex_;
@@ -235,6 +270,7 @@ class FakeUsbDevice : public IUsbDevice {
   uint64_t open_count_ = 0;
   uint64_t configuration_count_ = 0;
   uint64_t register_read_count_ = 0;
+  uint64_t control_channel_count_ = 0;
   std::string opened_path_;
   std::string configured_path_;
   std::string read_path_;

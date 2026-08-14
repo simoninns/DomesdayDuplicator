@@ -3,7 +3,7 @@
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 711 across five
+reorganisation there were **no automated tests at all**. There are now 801 across five
 components, plus three gateware testbenches, a lint pass over five Verilog modules, a static
 check on the documentation site, and a licence-header check and an update-bundle check over
 the whole tree. That is a
@@ -145,7 +145,7 @@ corruption is only detectable by comparing against an original that may no longe
 One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
 two bytes, which is Windows.
 
-### 4.2 `ddd-gui/` — 616 tests (610 without hardware)
+### 4.2 `ddd-gui/` — 705 tests (699 without hardware)
 
 The replacement capture application. Split by what a test needs rather than by what it
 covers: `ddd_capture_tests` links no Qt at all, which is what makes the engine's Qt-free
@@ -168,6 +168,11 @@ rule enforceable — if the engine ever grows a Qt dependency, that binary stops
 | `tests/unit/test_update_manifest.cpp` | The manifest schema: the fixture read field by field and written back byte-identically, a one-component bundle accepted and an empty one refused, an unknown schema version stopping the parse rather than producing a list, every problem reported rather than only the first, and dotted versions ordered while commit hashes and `unknown` are refused an ordering at all | T1 |
 | `tests/unit/test_update_bundle.cpp` | The archive: entries round-tripped through the writer and reader including the empty, exactly-one-block and one-byte-over cases; directories, paths, bad checksums, truncation and duplicate names refused; and, at bundle level, a tampered manifest, a tampered payload, a wrong length, a missing payload, a missing signature and a manifest that is not the first entry each refused with their own message | T1 |
 | `tests/golden/test_stock_tar_bundle.cpp` | A bundle **as `tools/make-update-bundle.sh` really produced it** — GNU tar's bytes, minisign's signature — opened, verified and compared against what this project's own writer produces. The one test that says the reader reads what the release tooling writes rather than only what this code writes | T1, T2 |
+| `tests/unit/test_update_key.cpp` | Which signatures a build accepts: a development bundle accepted with the explicit opt-in and refused without it, a bundle whose claimed channel and signing key disagree refused, the compiled-in development key checked against the one in `tools/keys/`, and the default policy proved able to open something at all | T1 |
+| `tests/unit/test_device_updater.cpp` | The status packet: every field decoded at its offset, the three counters proved not interchangeable, the wrong length refused, a phase or error code this build does not know refused rather than narrated — and that every error code has its own sentence, none of them repeating another's | T1 |
+| `tests/unit/test_update_gate.cpp` | The install-time gate: a bundle needing a newer application refused with that verdict rather than a generic one, an unknown manifest schema refused, firmware or gateware speaking a version outside this build's range refused in both directions, a downgrade inside the range allowed, a build that cannot order its own version saying so rather than assuming, and the gateware floor not applied to a device whose FPGA never answered | T1 |
+| `tests/unit/test_update_orchestrator.cpp` | The whole flow against a fake device: an install proved by reading the identity back, every chunk but the last page-aligned, the chunk size taken from the device and rounded down to whole pages, the stages reported in order, transfer progress monotonic and reaching its total — and each failure branch by name: no update agent, a capture running, a payload that is not firmware, a stream digest mismatch, a readback mismatch, a device that stops answering, one that never returns, one that comes back running the wrong build, and a cancellation proved to leave nothing committed | T1 |
+| `tests/unit/test_update_cli.cpp` | `ddd-update`'s command line and its exit codes: each option parsed, `--device` with nothing after it refused, two bundles refused, and a missing file reported as a bundle error before any device is touched | T1 |
 | `tests/analysis/test_front_end_gain.cpp` | The board's SW401 gain switch: all fifteen switch patterns against the gain and full-scale input on the hardware calculations sheet, that closing a second switch *lowers* the gain because the resistors are in parallel, all-switches-open treated as no declaration rather than as unity, and an undeclared gain converting nothing at all | T1 |
 | `tests/analysis/test_waveform_mapping.cpp` | The scope's arithmetic: sample and code to pixel and back, span and offset, a cursor clamped to the window, column decimation keeping the extremes of what it covers while leaving genuinely empty columns empty, and that every span the panel offers fits inside a snapshot rather than being silently clamped to less time than its label claims | T1 |
 | `tests/analysis/test_signal_levels.cpp` | The nominal capture level: the 75% bounds landing on codes 128 and 896, symmetrical about mid-scale because the signal swings both ways about 0 V, leaving headroom before the converter clips, and a range failing nominal if either end does | T1 |
@@ -252,12 +257,13 @@ device — which bricks the FX3, recoverable only via the PMODE jumper. The path
 tests guard the D13 fix, where every candidate path used to be relative to the working
 directory, so an installed binary could not find the secondary loader at all.
 
-### 4.4 `fx3/firmware/` — two tests
+### 4.4 `fx3/firmware/` — three tests
 
 | File | Covers | Tiers |
 | --- | --- | --- |
 | `tests/descriptor-golden.sh` | The generated USB product descriptor: two fixed commit strings in, byte-for-byte comparison against `tests/descriptor-{0123abcd,unknown}.h`, including the computed length byte | T2 |
 | `tests/register-map` | The host-testable half of the FPGA register map: which addresses exist, which are writable, and what the firmware refuses to relay | T1 |
+| `tests/update-protocol` | The host-testable half of the device update protocol: the `UPDATE_BEGIN` packet decoded and a reserved flag refused, the status packet's fields at their offsets, which requests are admitted in which phase, out-of-order and oversized chunks refused, the capture/update exclusion, a failure staying stuck at its first cause, an image without the `'CY'` signature refused before anything is written, and the EEPROM paging arithmetic — slave addressing, write spans capped at a page, read spans capped at a bank, page padding, and a walk over a whole firmware image proving the writes cover it exactly once with no page or slave boundary crossed | T1 |
 
 The generated header is the *only* path by which a version reaches the device — the FX3
 serves `USB_DESC_PRODUCT_BYTES` verbatim as its product string descriptor, so a wrong length
@@ -279,10 +285,18 @@ separate, unreferenced symbol which `--gc-sections` discards before it ever reac
 device, so nothing host-side can observe it — which is exactly why the version now travels
 through the product descriptor above instead.
 
-There is no unit tier here and there cannot usefully be one: every source file in the
-component is freestanding ARM926EJ-S code calling into the Cypress SDK, so the build host
-cannot execute any of it. What *is* testable is the host-side tooling that decides what ends
-up in the image.
+The unit tier here covers exactly the two source files written to be SDK-free —
+`fpga-register-map.c` and `update-protocol.c` — and it exists because of what those two
+files decide. Everything else in the component is freestanding ARM926EJ-S code calling into
+the Cypress SDK, so the build host cannot execute any of it; a change to `update-agent.c`'s
+I2C sequencing is a bench change and nothing here will catch it.
+
+Keeping those two SDK-free is worth the effort it costs. The decisions in them — which
+registers a host may write, which requests are refused, and where each byte of a firmware
+image lands in the boot EEPROM — are exactly the sort that fail quietly on hardware, by
+allowing something rather than by crashing. An off-by-one in the paging arithmetic writes
+past a page or a slave boundary and leaves a device that will not enumerate, and a bench is
+a poor place to discover that.
 
 ### 4.5 `fx3/mkimage/` — 32 tests
 
@@ -351,7 +365,7 @@ make simulation and synthesis disagree; the packet-length assertion is what turn
 probably fine" into something checked.
 
 **What is not covered, and cannot be for free:** `buffer.v`, and therefore the design as a
-whole. See the caveat in §6.
+whole. See the caveat in §7.
 
 Lint runs with `-Wall`, and everything it reports is either a failure or a waiver carrying
 its reason in `fpga/verilator-waivers.vlt`. The waived findings — a blocking assignment in
@@ -468,7 +482,93 @@ Analogue performance. The test pattern is generated *after* the ADC, so it prove
 path is lossless and says nothing about gain, filtering or noise. Those remain manual bench
 measurements against the calculations in `hardware/doc/`.
 
-## 6. Planned work
+## 6. The firmware update procedure (T5)
+
+Everything below writes the FX3's boot EEPROM. **Nothing automated does this** (AGENTS.md
+§4): each step is a deliberate human act, and this section exists so that it is the same
+deliberate human act every time.
+
+You need a Duplicator, a USB 3 port, and — for the recovery step alone — the J4 jumper and
+`fx3-programmer`. Everything else is done from the application.
+
+### What to have ready before you start
+
+- A development bundle of the firmware under test: `./tools/dev-bundle.sh` after building
+  the firmware, which writes `build/domesday-duplicator-update-0.0.0-dev.dddfw`.
+- A **known-good** bundle of the firmware currently on the device, so that any state this
+  procedure leaves the unit in can be undone without a jumper.
+- The commit each of them carries, so the identity check at the end means something. The
+  bundle's manifest states it; `tar -xOf <bundle> manifest.json` prints it.
+
+### U1 — the ordinary update, from the application
+
+1. Attach the device. Confirm **Help → Firmware…** reports the commit you expect.
+2. On the **Update** tab, choose the bundle. Confirm it reports *verified*, names the
+   version, shows the development banner, and enables **Update**.
+3. Press **Update**. Watch each stage: sending, writing, checking, restarting, confirming.
+   Record roughly how long the write and the check each took — the application's estimate is
+   derived from a nominal EEPROM rate, and this is the only measurement of the real one.
+4. **Pass** = the confirmation names the bundle's commit, and it is not the commit the
+   device started with.
+5. Re-open **Help → Firmware…**. The versions page must agree with the confirmation.
+
+### U2 — the same update, headlessly
+
+```bash
+ddd-update --dry-run build/domesday-duplicator-update-0.0.0-dev.dddfw   # expect 0
+ddd-update build/domesday-duplicator-update-0.0.0-dev.dddfw             # expect 0
+```
+
+**Pass** = both exit zero, and the second prints the device's commit read back after the
+restart. This is the same engine code the application drives, so a disagreement between U1
+and U2 is a finding in itself.
+
+### U3 — interrupted update, and the fallback it depends on (verification item V1)
+
+**This is the load-bearing one.** The whole safety story rests on a kit whose EEPROM holds a
+*corrupt* image falling back to the USB bootloader, and that has to be demonstrated rather
+than assumed.
+
+1. Start an update as in U1.
+2. **Pull the USB cable** while the *writing* stage is in progress — after the transfer bar
+   has filled and before the checking stage starts. The signature page is written last, so
+   at this point the EEPROM holds a partial image with no valid signature.
+3. Plug the device back in.
+4. **Pass** = the device enumerates as `04b4:00f3`, the Cypress bootloader. Anything else —
+   a device that does not enumerate, or one that enumerates as `1209:2347` and does not
+   work — falsifies V1 and is a finding that changes the design, not a test failure to
+   retry.
+5. Recover: fit J4, power-cycle, and `fx3-programmer -i <known-good firmware.img>`; or
+   RAM-load with `-u` and then run U1 again. Record which you used.
+
+Repeat step 2 at two other points — during the transfer, and during the checking stage — and
+confirm the same fallback each time.
+
+### U4 — the refusals
+
+Each of these must be refused, and refused with a sentence rather than a code:
+
+| Do this | Expect |
+| --- | --- |
+| Start a capture, then try to update | "The device is capturing. Stop the capture and try again." |
+| Start an update, then try to start a capture | The capture does not start |
+| Choose a file that is not a bundle | A reason, and **Update** stays disabled |
+| Choose a bundle whose `minimum_application_version` is above this build | "Update the application first", and **Update** stays disabled |
+| Close the Firmware window mid-update | It explains why not, and says when it will be safe |
+
+### When to run it
+
+- Before any release that changes the FX3 firmware.
+- After any change to `update-agent.c`, which is the half of the update path no host test
+  reaches.
+- U3 in particular after any change to the order in which pages are written.
+
+### What it does not cover
+
+The FPGA target. `0xD5` stalls and an update naming target 1 is refused, so there is nothing
+to exercise yet; the gateware procedures land in the phase that first performs them.
+
+## 7. Planned work
 
 Listed so this document can be read as a status report rather than a wish list.
 
@@ -477,7 +577,7 @@ Listed so this document can be read as a status report rather than a wish list.
 | CI test lanes | — | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
 | SPDX conversion of the remaining long-form headers | T4 | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
 | Finish validating the single-clock gateware | T5 | See below. The board is programmed and a 16-minute capture came back clean; four checks remain |
-| Device-update bench procedures | T5 | The update, interruption and recovery procedures for each target. Nothing to record yet: the bundle format and its tooling exist, and no device-side protocol does. Each procedure lands in the phase that first performs it, alongside §5 — never written ahead of being run |
+| Device-update bench procedures for the FPGA target | T5 | §6 covers the FX3 target. The EPCS procedures — gateware update, interrupted write falling back to the factory image, and the throughput measurement — land in the phase that first performs them, never written ahead of being run |
 
 ### Validating the single-clock gateware
 
@@ -548,7 +648,7 @@ Verilog with ordinary testbenches. Only the top level is left needing `altpll`, 
 only thing that reaches is the pin mapping and the clock generation, both of which §5
 covers on hardware.
 
-## 7. Conventions for new tests
+## 8. Conventions for new tests
 
 - **One tier label per test.** If a test seems to need two, it is usually two tests. The
   exception is a file whose cases genuinely span T1 and T2, like the sample codec.

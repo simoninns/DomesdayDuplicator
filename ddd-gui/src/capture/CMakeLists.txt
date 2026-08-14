@@ -30,6 +30,7 @@ add_library(ddd_capture STATIC
     capture_provenance.cpp
     capture_reader.cpp
     device_monitor.cpp
+    device_updater.cpp
     digest.cpp
     disk_buffer_ring.cpp
     firmware_version.cpp
@@ -51,7 +52,11 @@ add_library(ddd_capture STATIC
     thread_priority.cpp
     transfer_result.cpp
     update_bundle.cpp
+    update_cli.cpp
+    update_gate.cpp
+    update_key.cpp
     update_manifest.cpp
+    update_orchestrator.cpp
     usb_device.cpp
     usb_device_info.cpp
     version.cpp

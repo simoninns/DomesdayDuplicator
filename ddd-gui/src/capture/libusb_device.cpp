@@ -125,6 +125,47 @@ class ScopedDeviceList {
   ssize_t count_ = 0;
 };
 
+// A device held open for a run of control transfers — the update path's
+// channel. See IUsbControlChannel for why the register requests do not use
+// one and this does.
+class LibUsbControlChannel : public IUsbControlChannel {
+ public:
+  LibUsbControlChannel(libusb_device_handle* handle, bool claimed,
+                       ILogger* logger)
+      : handle_(handle), claimed_(claimed), logger_(logger) {}
+
+  ~LibUsbControlChannel() override {
+    if (claimed_) {
+      libusb_release_interface(handle_, kInterfaceNumber);
+    }
+    libusb_close(handle_);
+  }
+
+  int Transfer(uint8_t request_type, uint8_t request, uint16_t value,
+               uint16_t index, std::span<uint8_t> data,
+               unsigned int timeout_milliseconds) override {
+    const int result = libusb_control_transfer(
+        handle_, request_type, request, value, index, data.data(),
+        static_cast<uint16_t>(data.size()), timeout_milliseconds);
+
+    // A stall arrives as LIBUSB_ERROR_PIPE and is how a device says it does
+    // not implement a request. It is the caller's business, not an error to
+    // log: the update flow asks devices things they may not be able to do,
+    // and finding out is the point of asking.
+    if (result < 0 && result != LIBUSB_ERROR_PIPE && logger_ != nullptr) {
+      logger_->Debug(std::string("Update control transfer 0x") +
+                     std::to_string(request) +
+                     " failed: " + libusb_error_name(result));
+    }
+    return result;
+  }
+
+ private:
+  libusb_device_handle* handle_ = nullptr;
+  bool claimed_ = false;
+  ILogger* logger_ = nullptr;
+};
+
 class LibUsbDevice : public IUsbDevice {
  public:
   explicit LibUsbDevice(ILogger* logger) : logger_(logger) {}
@@ -183,6 +224,12 @@ class LibUsbDevice : public IUsbDevice {
       info.path = BuildDevicePath(device);
       info.speed = SpeedFromLibUsb(libusb_get_device_speed(device));
       info.product_string = ReadProductString(device, descriptor.iProduct);
+
+      // The vendor protocol version lives in the high byte of bcdDevice, so
+      // it arrives with the descriptor and costs nothing: no open, no
+      // claim, no request.
+      info.protocol_version = (descriptor.bcdDevice >> 8) & 0xFF;
+
       devices.push_back(std::move(info));
     }
 
@@ -309,6 +356,23 @@ class LibUsbDevice : public IUsbDevice {
     result = TransferResult::kSuccess;
     return std::make_unique<LibUsbSource>(context_, handle, endpoint,
                                           max_packet_bytes, options, logger_);
+  }
+
+  std::unique_ptr<IUsbControlChannel> OpenControlChannel(
+      const std::string& path) override {
+    libusb_device_handle* handle = nullptr;
+    if (!Open(path, handle, nullptr)) {
+      return nullptr;
+    }
+
+    // The interface is claimed if it can be, and the channel works either
+    // way. Control transfers on endpoint zero do not require a claim, and
+    // insisting on one would refuse to update a device that some other
+    // process happened to have open — which is exactly the state a device
+    // gets into when a previous attempt left something behind.
+    const bool claimed = libusb_claim_interface(handle, kInterfaceNumber) == 0;
+
+    return std::make_unique<LibUsbControlChannel>(handle, claimed, logger_);
   }
 
  private:

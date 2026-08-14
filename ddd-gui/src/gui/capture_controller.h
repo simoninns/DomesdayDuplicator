@@ -80,6 +80,22 @@ class CaptureController : public QObject {
 
   const CaptureSettings& settings() const { return settings_; }
 
+  // The USB backend, borrowed. Exposed so that the update flow can open the
+  // same device this is watching, through the same backend, rather than
+  // starting a second one — two libusb contexts enumerating the same bus is
+  // a way to get two different answers about what is attached.
+  capture::IUsbDevice* usb_device() const { return device_; }
+
+  // Stop enumerating while something else owns the device.
+  //
+  // The device monitor opens every attached device to read its identity, and
+  // an update holds one open for minutes. Enumerating underneath that is at
+  // best wasted work and at worst a second claim on an interface that is
+  // being written to — and the device disappears and comes back during an
+  // update anyway, so the monitor's report would be noise a user should not
+  // be shown.
+  void SetDeviceMonitorSuspended(bool suspended);
+
   // The signal panels' source of waveform and spectrum frames. Owned here
   // rather than by a panel because it is tied to the run rather than to any one
   // display: it is attached when a run starts and detached when it ends, and

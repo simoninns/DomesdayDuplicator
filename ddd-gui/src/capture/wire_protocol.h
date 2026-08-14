@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 // The USB side of the device contract. Nothing here needs libusb, so the values
@@ -86,6 +87,54 @@ inline constexpr uint16_t MakeRegisterWrite(uint8_t address, uint8_t value) {
 inline constexpr uint16_t MakeTestModeWrite(bool test_mode) {
   return MakeRegisterWrite(kRegisterTestMode, test_mode ? 1 : 0);
 }
+
+// The device update agent.
+//
+// Six requests on endpoint 0, by which the host hands the FX3 a firmware or
+// gateware image and the FX3 writes it to the medium the host cannot reach.
+// The full contract is the "Device update mechanism" page of the
+// documentation site; this is the host's copy of the numbers.
+inline constexpr uint8_t kUpdateStatusRequest = 0xD0;
+inline constexpr uint8_t kUpdateBeginRequest = 0xD1;
+inline constexpr uint8_t kUpdateDataRequest = 0xD2;
+inline constexpr uint8_t kUpdateFinishRequest = 0xD3;
+inline constexpr uint8_t kDeviceResetRequest = 0xD4;
+inline constexpr uint8_t kFpgaReconfigRequest = 0xD5;
+
+// wIndex selects the target throughout: 0 is the FX3's boot EEPROM, 1 is
+// the FPGA's EPCS application image.
+inline constexpr uint16_t kUpdateTargetFirmware = 0;
+inline constexpr uint16_t kUpdateTargetGateware = 1;
+
+// The fixed sizes of the two packets that are not payload.
+inline constexpr size_t kUpdateStatusLength = 16;
+inline constexpr size_t kUpdateBeginLength = 40;
+
+// The EEPROM page size, which is the alignment every chunk but the last has
+// to respect so the firmware can write a chunk straight to the medium.
+inline constexpr size_t kUpdateChunkAlignment = 64;
+
+// The vendor protocol version this build understands, as the firmware
+// advertises it in the high byte of bcdDevice.
+//
+// A range and not a single value, and that is the point of it. A build that
+// only accepted the version it shipped alongside would treat every additive
+// change as an incompatibility, which is the same as having no versioning
+// at all. Below the minimum is firmware too old to speak to; above the
+// maximum is firmware that may mean something different by a field of the
+// same name, and guessing is how a device gets flashed with something
+// nobody described.
+inline constexpr int kProtocolVersionMinimum = 1;
+inline constexpr int kProtocolVersionMaximum = 1;
+
+// Firmware predating the field at all reports zero, because bcdDevice was a
+// dead 0x0000 until the update work needed somewhere to state what the
+// firmware speaks. It is not a version and does not compare as one.
+inline constexpr int kProtocolVersionUnknown = 0;
+
+// The register map versions this build understands, on the same rule.
+inline constexpr int kRegisterMapVersionMinimum = 1;
+inline constexpr int kRegisterMapVersionMaximum = 2;
 
 // The dormant start/stop request.
 //

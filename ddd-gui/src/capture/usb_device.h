@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -108,6 +109,37 @@ TransferLayout PlanTransferLayout(size_t slot_bytes, size_t slot_count,
                                   size_t endpoint_max_packet_bytes,
                                   const UsbSourceOptions& options);
 
+// A device held open for a run of control transfers.
+//
+// The register requests above open the device, do one transfer and close it
+// again, which is right for something that happens when a device is noticed.
+// It is wrong for an update: a firmware image is a hundred chunks and a
+// gateware image is several hundred more, and an open and a close around each
+// one is a large fraction of the time an update takes.
+//
+// Thread-safety: NOT thread-safe. One thread owns a channel for its lifetime.
+class IUsbControlChannel {
+ public:
+  IUsbControlChannel() = default;
+  virtual ~IUsbControlChannel() = default;
+
+  IUsbControlChannel(const IUsbControlChannel&) = delete;
+  IUsbControlChannel& operator=(const IUsbControlChannel&) = delete;
+  IUsbControlChannel(IUsbControlChannel&&) = delete;
+  IUsbControlChannel& operator=(IUsbControlChannel&&) = delete;
+
+  // One vendor control transfer. `data` is the data stage, empty for a
+  // request that has none, and its direction is the one `request_type`
+  // declares.
+  //
+  // Returns the number of bytes transferred, or a negative number if the
+  // request failed — which includes the device stalling, the ordinary way a
+  // device says it does not implement something.
+  virtual int Transfer(uint8_t request_type, uint8_t request, uint16_t value,
+                       uint16_t index, std::span<uint8_t> data,
+                       unsigned int timeout_milliseconds) = 0;
+};
+
 // A USB backend: how devices are found, configured and opened for streaming.
 //
 // An interface rather than a concrete class for two reasons. One is that there
@@ -172,6 +204,12 @@ class IUsbDevice {
   virtual std::unique_ptr<ISampleSource> OpenSource(
       const std::string& path, const UsbSourceOptions& options,
       TransferResult& result) = 0;
+
+  // Open a device for a run of control transfers, and keep it open until the
+  // returned channel is destroyed. Returns nothing if the device is not
+  // there or could not be opened.
+  virtual std::unique_ptr<IUsbControlChannel> OpenControlChannel(
+      const std::string& path) = 0;
 };
 
 // The backend for this platform: WinUSB on Windows, libusb everywhere else.

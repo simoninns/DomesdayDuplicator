@@ -9,6 +9,7 @@ USB 3.0.
 | [firmware/gpif/](firmware/gpif/) | GPIF II Designer project for the parallel interface state machine |
 | [mkimage/](mkimage/) | `fx3-mkimage`, the host tool converting the linked ELF into the boot-loadable image |
 | [programmer/](programmer/) | `fx3-programmer`, the host-side libusb tool that loads firmware onto the device |
+| [firmware/src/vendor/](firmware/src/vendor/) | The pinned SHA-256 the update agent hashes with — see its `VENDOR.md` |
 | [sdk/](sdk/) | Vendored subset of the Cypress EZ-USB FX3 SDK 1.3.5 that the firmware links against |
 
 ## Typical workflow
@@ -30,6 +31,26 @@ cmake --build programmer/build
 
 See [firmware/README.md](firmware/README.md) and [programmer/README.md](programmer/README.md)
 for prerequisites, permanent (EEPROM) programming and troubleshooting.
+
+## The firmware is its own flasher
+
+The FX3 boots from an I2C EEPROM, and its I2C pins are dedicated — not shared with the
+16-bit GPIF bus or the UART — so the running firmware can bring up the I2C block and
+rewrite its own boot source. It does: `firmware/src/update-agent.c` is the flasher and
+`firmware/src/update-protocol.c` is the half of it that can be tested on a build machine.
+
+What that means in practice is that **the workflow above is for a new board, not for an
+update**. A unit that already has this firmware is updated over its one USB cable from the
+capture application's Firmware window, or headlessly with `ddd-update` — no jumper, no
+`fx3-programmer`, and no power cycle. The image is verified as it arrives and read back
+off the EEPROM afterwards, and the page carrying the boot ROM's `'CY'` signature is
+written last, so an update interrupted anywhere before that leaves a kit which falls back
+to the USB bootloader rather than one that half-works.
+
+`fx3-programmer` and the J4 jumper remain what they always were: how a bare board is
+provisioned for the first time, and how a unit is recovered when something has gone wrong
+enough that it cannot recover itself. The protocol is on the *Device update mechanism*
+documentation page and the developer loop is on *Developer update loop*.
 
 ## The board this runs on
 

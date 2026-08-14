@@ -28,6 +28,7 @@
 #include "application_logger.h"
 #include "capture_controller.h"
 #include "capture_panel.h"
+#include "device_updater.h"
 #include "firmware_dialog.h"
 #include "log_message_model.h"
 #include "log_panel.h"
@@ -278,22 +279,62 @@ void MainWindow::ShowFirmwareDialog() {
   // so opening this reads nothing and cannot block. It also means the dialog
   // works with no controller at all, which is how the widget tests build the
   // window: it then shows this build and says no device is attached.
-  if (capture_controller_ != nullptr) {
-    const std::vector<capture::DeviceInfo> devices =
-        capture_controller_->devices();
-    const capture::DeviceInfo* const selected = capture::SelectDevice(
-        devices,
-        capture_controller_->settings().preferred_device_path.toStdString());
-
-    if (selected != nullptr) {
-      versions.device_attached = true;
-      versions.product_string =
-          QString::fromStdString(selected->product_string);
-      versions.gateware = capture_controller_->fpga_version();
-    }
+  if (capture_controller_ == nullptr) {
+    FirmwareDialog dialog(versions, this);
+    dialog.exec();
+    return;
   }
 
-  FirmwareDialog dialog(versions, this);
+  const std::vector<capture::DeviceInfo> devices =
+      capture_controller_->devices();
+  const capture::DeviceInfo* const selected = capture::SelectDevice(
+      devices,
+      capture_controller_->settings().preferred_device_path.toStdString());
+
+  UpdatePage::Device device;
+  std::string device_path;
+
+  if (selected != nullptr) {
+    versions.device_attached = true;
+    versions.product_string = QString::fromStdString(selected->product_string);
+    versions.gateware = capture_controller_->fpga_version();
+
+    device_path = selected->path;
+    device.attached = true;
+    device.identity.product_string = selected->product_string;
+    device.identity.protocol_version = selected->protocol_version;
+    device.identity.gateware_present = versions.gateware.present;
+    device.identity.register_map_version = versions.gateware.map_version;
+    device.identity.gateware_commit = versions.gateware.commit;
+  }
+
+  // Opened lazily, when a user has chosen a file and confirmed. The dialog
+  // itself still touches nothing.
+  capture::IUsbDevice* const usb = capture_controller_->usb_device();
+  device.open = [usb, device_path,
+                 logger = static_cast<capture::ILogger*>(
+                     logger_)]() -> std::unique_ptr<capture::IDeviceUpdater> {
+    if (usb == nullptr || device_path.empty()) {
+      return nullptr;
+    }
+    return capture::MakeDeviceUpdater(*usb, device_path, logger);
+  };
+
+  FirmwareDialog dialog(versions, std::move(device), this);
+
+  if (UpdatePage* const page = dialog.update_page(); page != nullptr) {
+    // The monitor opens every attached device to read its identity, and an
+    // update holds one open for minutes and makes it disappear and come back
+    // in the middle. Suspending it for the duration is what keeps those two
+    // out of each other's way — and what keeps the device list from
+    // announcing a disconnection the user was told to expect.
+    connect(page, &UpdatePage::BusyChanged, this, [this](bool busy) {
+      if (capture_controller_ != nullptr) {
+        capture_controller_->SetDeviceMonitorSuspended(busy);
+      }
+    });
+  }
+
   dialog.exec();
 }
 

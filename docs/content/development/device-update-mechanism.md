@@ -2,11 +2,15 @@
 
 How a Domesday Duplicator updates its own firmware and gateware over the one USB cable it already has, with no jumper, no second cable, no Quartus and no command line.
 
-!!! note "Specification, not yet a description"
+!!! note "Half specification, half description"
 
-    This page is **normative**: it defines the protocol, the register map and the compatibility rules that the firmware, the gateware and the capture application are being built to. As of the phase that introduced it, none of the device-side protocol exists yet — the FX3 firmware answers no `0xD0`–`0xD5` request and the gateware implements register map version 1. What does exist is the bundle format, its tooling and the host-side reader; those have their own pages and their own tests.
+    This page is **normative**: it defines the protocol, the register map and the compatibility rules that the firmware, the gateware and the capture application are built to. Half of it now describes something that exists.
 
-    Where this page says "the firmware does X", read "the firmware is required to do X". Where a decision is still waiting on a measurement, it says so.
+    **Target 0 — the FX3 boot EEPROM — is implemented.** The firmware answers `0xD0`–`0xD4`, brings up its own I2C block, writes and verifies its own boot EEPROM, and advertises a protocol version in `bcdDevice`. The application installs a bundle through it and `ddd-update` does the same headlessly.
+
+    **Target 1 — the FPGA's EPCS — is not.** `0xD5` stalls, an `UPDATE_BEGIN` naming target 1 is refused with `UPDATE_ERROR_TARGET`, and the gateware still implements register map version 1 with no flash bridge. Everything this page says about the EPCS, the boot block and `IMAGE_ROLE` is still specification.
+
+    Where this page says "the firmware does X" about target 1, read "the firmware is required to do X".
 
 ## The problem
 
@@ -68,11 +72,21 @@ The digest arrives *before* the first byte of payload, which is what lets the fi
 
 `wValue` carries the chunk index, starting at zero and incrementing by one. A chunk that arrives out of order fails the transfer rather than being buffered: the host is a program, not a network, and a gap in the sequence means something has gone wrong that reordering would hide.
 
-Every chunk but the last is the full chunk size the device advertises in `0xD0`. Chunks are acknowledged by the control transfer itself; per-target flow control — I2C page-write timing, EPCS busy polling — happens inside the firmware between chunks, so the host never has to know the medium's timing.
+Every chunk but the last is the full chunk size the device advertises in `0xD0`, and **every chunk but the last must be a whole number of 64-byte pages**. That is the one constraint the protocol puts on the host, and it is there so that the firmware can write a chunk straight to the medium with no assembly buffer in between — a page write that crosses a page boundary wraps to the start of the same page on every EEPROM these kits ship with, so the alignment has to hold somewhere and the host is the cheapest place for it to hold. The last chunk carries whatever is left; the firmware zero-pads its final page on the way out, and the padding is outside the payload the digest covers.
+
+A host that takes the advertised chunk size and rounds it *down* to a multiple of 64 satisfies this for any advertised size, which is what the application does rather than assuming 2048.
+
+Chunks are acknowledged by the control transfer itself; per-target flow control — I2C page-write timing, EPCS busy polling — happens inside the firmware between chunks, so the host never has to know the medium's timing.
 
 ### `0xD3` UPDATE_FINISH
 
 The firmware completes any outstanding writes, reads the written region **back from the medium**, recomputes SHA-256 over what it read, and compares it against the digest from `UPDATE_BEGIN`. Only on a match does it write the commit record. The result is read with `0xD0`; `UPDATE_FINISH` itself does not stall on a verification failure, because "the update failed and here is why" is more useful than a stalled endpoint.
+
+`UPDATE_FINISH` **returns immediately**. It checks the stream digest — the cheap half, over bytes already in RAM — and if that passes it moves to the verifying phase and hands the readback to the firmware's application thread. The readback is tens of seconds of I2C for the EEPROM and minutes for the EPCS, and a control request that took that long to answer would be abandoned by the host long before it did. The host watches the `bytes verified` counter and waits for the phase to reach complete or failed.
+
+That split is also why the phase, rather than a lock, decides which of the firmware's two threads may touch the medium. Every request the USB setup callback would honour is refused during the verifying phase, so the application thread has the medium to itself; and `UPDATE_STATUS`, which is what the host's progress display is made of, stays answerable throughout because it takes no lock at all.
+
+The same asymmetry explains which failures stall and which do not. A request whose *shape* is wrong — an `UPDATE_BEGIN` that is not 40 bytes, a chunk larger than the advertised maximum — is refused before its data stage is read, and stalls. A request whose content is refused has already had its data read, and the USB hardware acknowledges a control-OUT transfer as soon as its last byte arrives; so those are answered through `UPDATE_STATUS`, which is where a host should be looking anyway.
 
 ### `0xD0` UPDATE_STATUS
 
@@ -132,7 +146,9 @@ Compatibility is decided machine-to-machine, in both directions, and never infer
 Two integers carry the compatibility information, one from each half of the device:
 
 - the gateware's **register-map version**, register `0x01`, which already exists;
-- the firmware's **protocol version**, carried in the USB descriptor's `bcdDevice` field. That field is currently a dead `0x0000`, and it is the ideal place for this: the host reads it during enumeration, before opening the device and without sending a single vendor request, so a device speaking a protocol this application does not understand can be recognised before anything is asked of it.
+- the firmware's **protocol version**, carried in the USB descriptor's `bcdDevice` field. That field was a dead `0x0000` until this work, and it is the ideal place for it: the host reads it during enumeration, before opening the device and without sending a single vendor request, so a device speaking a protocol this application does not understand can be recognised before anything is asked of it.
+
+    The version is the **high byte** and the low byte is zero, so version 1 is `0x0100` and `lsusb` reads it as `1.00` rather than as something that looks like a mistake. The host compares the high byte. Firmware predating the field reports zero, which is not a version and must not be ordered against one — the application treats it as old firmware it may update and must not make claims about.
 
 Both follow the same bump rule. **An additive change does not bump the version; a change that would break an existing host does.** Adding a register, a status field or a new request number is additive — an old host ignores what it does not know about. Changing the meaning of an existing field, removing one, or changing the order of a sequence is breaking.
 
@@ -197,11 +213,20 @@ The application's own words for these states and this page's words are meant to 
 | --- | --- |
 | `ddd-gui/src/capture/update_bundle.h` | The bundle reader, and the order the checks happen in |
 | `ddd-gui/src/capture/update_manifest.h` | The manifest model and the version comparison |
+| `ddd-gui/src/capture/update_key.h` | Which signatures a build accepts, and what each one proves |
+| `ddd-gui/src/capture/update_gate.h` | The install-time compatibility gate |
+| `ddd-gui/src/capture/device_updater.h` | The seam every update runs through, and the status packet |
+| `ddd-gui/src/capture/update_orchestrator.h` | The flow: verify, program, reset, confirm |
+| `ddd-gui/src/capture/update_cli.h` | `ddd-update`, over the identical engine path |
 | `ddd-gui/src/capture/digest.h` | SHA-256, the one digest |
 | `ddd-gui/src/capture/minisign_verify.h` | Signature verification |
 | `ddd-gui/src/capture/wire_protocol.h` | The host's copy of the request numbers and register addresses |
+| `ddd-gui/src/gui/update_page.h` | The staged flow a user sees |
 | `tools/make-update-bundle.sh` | Bundle assembly and signing |
-| `fx3/firmware/src/` | The on-device update agent (not yet written) |
+| `fx3/firmware/src/update-protocol.h` | The protocol's decisions, host-testable and SDK-free |
+| `fx3/firmware/src/update-agent.h` | The on-device flasher: I2C, page writes, readback |
 | `fpga/common/` | The flash bridge and reconfiguration control (not yet written) |
+
+The split in `fx3/firmware/` mirrors the one `fpga-register-map.h` and `fpga-registers.h` already have, and for the same reason. `update-protocol.c` includes no SDK header, so it compiles and runs on a build machine — and the arithmetic that decides where each byte of a firmware image lands in the boot EEPROM is exactly the sort that fails quietly on hardware. `update-agent.c` is the half that cannot be tested anywhere but a bench.
 
 Related pages: [Update bundle format](update-bundle-format.md), [EPCS layout and boot flow](epcs-layout-and-boot-flow.md), [Developer update loop](developer-update-loop.md), [FPGA register interface](fpga-register-interface.md).

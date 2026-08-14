@@ -181,6 +181,9 @@ The gateware generates no pattern of its own. What the LEDs mean once the FX3 ow
 | `0x81` | Enumerated, register link up |
 | `0xFF` | The host is collecting |
 | `0x55` | The FPGA reported a buffer overflow |
+| `0x18` | The firmware is rewriting its own boot EEPROM |
+
+The update pattern is the one of these a user is most likely to be looking at while wondering whether to unplug something, which is why it has a pattern of its own rather than sharing "collecting". It is the only one lit by a pair of centre LEDs, so it is distinguishable at a glance from across a room.
 
 The gateware will accept a host write to this register, but the FX3 refuses to relay one, because the LEDs are a status output and status outputs have exactly one owner. Two writers means the display shows whichever wrote last, which is worse than useless during a fault — the state the LEDs exist to report is the state where you can least afford to distrust them.
 

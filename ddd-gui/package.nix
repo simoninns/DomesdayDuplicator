@@ -113,6 +113,13 @@ stdenv.mkDerivation (finalAttrs: {
         ;;
     esac
 
+    # ddd-update is the headless half of the device update path, over the same Qt-free
+    # engine the application's update dialog drives. Asking it for its usage text is
+    # enough to prove it was built and linked; it needs a device to do anything else, and
+    # nothing automated in this project ever writes to one (AGENTS.md §4).
+    "$out/bin/ddd-update" --help > /dev/null
+    echo "ddd-update: present"
+
     runHook postInstallCheck
   '';
 

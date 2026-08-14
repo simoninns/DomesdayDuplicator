@@ -88,6 +88,14 @@ void CaptureController::Start() {
   });
 }
 
+void CaptureController::SetDeviceMonitorSuspended(bool suspended) {
+  // Null-checked because Start() may never have been called, or may have
+  // failed, and neither is a reason to refuse an update.
+  if (monitor_ != nullptr) {
+    monitor_->SetSuspended(suspended);
+  }
+}
+
 void CaptureController::SetSettings(const CaptureSettings& settings) {
   settings_ = settings;
   SaveCaptureSettings(settings_);

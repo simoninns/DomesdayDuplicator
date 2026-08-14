@@ -461,6 +461,15 @@ jobs:
             *) echo "Version not carried into the binary" >&2; exit 1 ;;
           esac
 
+      # ddd-update is the headless half of the device update path, over the same Qt-free
+      # engine the application's update dialog drives. Asking it for its usage text proves
+      # it built and linked; anything else needs a device, and nothing in CI ever writes
+      # to one (AGENTS.md §4).
+      - name: Check ddd-update runs (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: ./build/bin/ddd-update --help
+
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
@@ -471,6 +480,8 @@ jobs:
             build/bin/ddd-gui
             build/bin/ddd-gui.exe
             build/bin/ddd-gui.app/**
+            build/bin/ddd-update
+            build/bin/ddd-update.exe
           retention-days: 30
           if-no-files-found: error
 

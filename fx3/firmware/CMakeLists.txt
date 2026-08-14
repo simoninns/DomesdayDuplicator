@@ -93,7 +93,17 @@ set(C_SOURCES
     src/domesday-duplicator.c
     src/fpga-register-map.c
     src/fpga-registers.c
+    src/update-agent.c
+    src/update-protocol.c
     src/usb-descriptor.c
+)
+
+# The vendored SHA-256, kept in a source list of its own so the warning flags below can
+# be applied to project code and not to code the project must not edit (AGENTS.md §3,
+# src/vendor/VENDOR.md). It is the same pinned upstream version ddd-gui vendors, because
+# the device and the host have to compute the same number for the same bytes.
+set(VENDOR_SOURCES
+    src/vendor/sha-256.c
 )
 
 set(ASM_SOURCES
@@ -103,8 +113,13 @@ set(ASM_SOURCES
 # Create executable
 add_executable(${PROJECT_NAME}.elf
     ${C_SOURCES}
+    ${VENDOR_SOURCES}
     ${ASM_SOURCES}
 )
+
+# -Wall applies to project sources only. A warning in the vendored digest is not ours to
+# fix and the next refresh from upstream would reintroduce it anyway.
+set_source_files_properties(${VENDOR_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-all")
 
 # Include directories
 target_include_directories(${PROJECT_NAME}.elf PRIVATE

@@ -28,6 +28,29 @@
 //#define PID_H	0x00
 //#define PID_L	0xF1
 
+// The vendor protocol version, carried in bcdDevice.
+//
+// This field was a dead 0x0000 until the device-update work needed somewhere to state
+// what the firmware speaks. It is the ideal place for it: the host reads bcdDevice
+// during enumeration, before opening the device and without sending a single vendor
+// request, so a device speaking a protocol the application does not understand can be
+// recognised before anything is asked of it. A vendor request could not do that, and a
+// commit hash - which is what the product string carries - identifies a build and
+// orders nothing.
+//
+// The version is the high byte and the low byte is zero, so lsusb reads it as "1.00"
+// rather than as something that looks like a mistake. The host compares the high byte
+// against the range of versions it supports.
+//
+// The bump rule, which is the whole value of the field: an additive change does not
+// bump it and a change that would break an existing host does. Adding a vendor request
+// number, a status field or a register is additive - an old host ignores what it does
+// not know about. Changing the meaning of an existing field, removing one, or changing
+// the order of a sequence is breaking. Version 1 is the protocol described on the
+// "Device update mechanism" documentation page.
+#define PROTOCOL_VERSION_L	0x00
+#define PROTOCOL_VERSION_H	0x01
+
 // Standard device descriptor for USB 3.0
 const uint8_t USB30DeviceDscr[] __attribute__ ((aligned (32))) = {
     0x12,                           // Descriptor size
@@ -39,7 +62,7 @@ const uint8_t USB30DeviceDscr[] __attribute__ ((aligned (32))) = {
     0x09,                           // Maximum packet size for EP0 : 2^9
     VID_L,VID_H,                    // Vendor ID
     PID_L,PID_H,                    // Product ID
-    0x00,0x00,                      // Device release number
+    PROTOCOL_VERSION_L,PROTOCOL_VERSION_H, // Vendor protocol version (bcdDevice)
     0x01,                           // Manufacture string index
     0x02,                           // Product string index
     0x00,                           // Serial number string index
@@ -57,7 +80,7 @@ const uint8_t USB20DeviceDscr[] __attribute__ ((aligned (32))) = {
     0x40,                           // Maximum packet size for EP0 : 64 bytes
     VID_L,VID_H,                    // Vendor ID
     PID_L,PID_H,                    // Product ID
-    0x00,0x00,                      // Device release number
+    PROTOCOL_VERSION_L,PROTOCOL_VERSION_H, // Vendor protocol version (bcdDevice)
     0x01,                           // Manufacture string index
     0x02,                           // Product string index
     0x00,                           // Serial number string index

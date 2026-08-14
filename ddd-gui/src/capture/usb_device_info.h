@@ -64,6 +64,17 @@ struct DeviceInfo {
   // it could not be read; see firmware_version.h for what is done with it.
   std::string product_string;
 
+  // The vendor protocol version, from the high byte of the device
+  // descriptor's bcdDevice field.
+  //
+  // Read during enumeration, before the device is opened and without sending
+  // it a single request, which is what makes it usable as a compatibility
+  // gate: a device speaking a protocol this build does not understand can be
+  // recognised before anything is asked of it. Zero for firmware predating
+  // the field, where bcdDevice was a dead 0x0000 — that is not a version and
+  // must not be compared as one.
+  int protocol_version = 0;
+
   DeviceSpeed speed = DeviceSpeed::kUnknown;
 
   bool CanCarryCapture() const { return SpeedCanCarryCapture(speed); }
@@ -74,7 +85,7 @@ struct DeviceInfo {
   // same path.
   bool operator==(const DeviceInfo& other) const {
     return path == other.path && product_string == other.product_string &&
-           speed == other.speed;
+           protocol_version == other.protocol_version && speed == other.speed;
   }
   bool operator!=(const DeviceInfo& other) const { return !(*this == other); }
 };

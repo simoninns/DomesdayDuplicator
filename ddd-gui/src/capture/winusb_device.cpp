@@ -158,6 +158,65 @@ class ScopedWinUsbHandles {
   WINUSB_INTERFACE_HANDLE interface_ = nullptr;
 };
 
+// A device held open for a run of control transfers — the update path's
+// channel. See IUsbControlChannel for why the register requests do not use
+// one and this does.
+class WinUsbControlChannel : public IUsbControlChannel {
+ public:
+  WinUsbControlChannel(HANDLE device, WINUSB_INTERFACE_HANDLE interface_handle,
+                       ILogger* logger)
+      : device_(device), interface_(interface_handle), logger_(logger) {}
+
+  ~WinUsbControlChannel() override {
+    if (interface_ != nullptr) {
+      WinUsb_Free(interface_);
+    }
+    if (device_ != nullptr) {
+      CloseHandle(device_);
+    }
+  }
+
+  int Transfer(uint8_t request_type, uint8_t request, uint16_t value,
+               uint16_t index, std::span<uint8_t> data,
+               unsigned int timeout_milliseconds) override {
+    // WinUSB's control-pipe timeout is a policy on the handle rather than a
+    // per-transfer argument, so it is set before each transfer that wants a
+    // different one. Zero means wait indefinitely, which is what the update
+    // requests that write flash need.
+    ULONG timeout = timeout_milliseconds;
+    WinUsb_SetPipePolicy(interface_, 0, PIPE_TRANSFER_TIMEOUT, sizeof(timeout),
+                         &timeout);
+
+    WINUSB_SETUP_PACKET setup = {};
+    setup.RequestType = request_type;
+    setup.Request = request;
+    setup.Value = value;
+    setup.Index = index;
+    setup.Length = static_cast<USHORT>(data.size());
+
+    ULONG transferred = 0;
+    if (WinUsb_ControlTransfer(
+            interface_, setup, data.empty() ? nullptr : data.data(),
+            static_cast<ULONG>(data.size()), &transferred, nullptr) != TRUE) {
+      // A stalled request is how a device says it does not implement
+      // something, and the update flow asks devices things they may not be
+      // able to do. It is the caller's business rather than an error.
+      if (logger_ != nullptr) {
+        logger_->Debug("Update control transfer 0x" + std::to_string(request) +
+                       " failed with error " + std::to_string(GetLastError()));
+      }
+      return -1;
+    }
+
+    return static_cast<int>(transferred);
+  }
+
+ private:
+  HANDLE device_ = nullptr;
+  WINUSB_INTERFACE_HANDLE interface_ = nullptr;
+  ILogger* logger_ = nullptr;
+};
+
 class WinUsbDevice : public IUsbDevice {
  public:
   explicit WinUsbDevice(ILogger* logger) : logger_(logger) {}
@@ -196,6 +255,10 @@ class WinUsbDevice : public IUsbDevice {
 
       DeviceInfo info;
       info.path = ToUtf8(path);
+
+      // The vendor protocol version lives in the high byte of bcdDevice, so
+      // it arrives with the descriptor already read above and costs nothing.
+      info.protocol_version = (descriptor.bcdDevice >> 8) & 0xFF;
 
       UCHAR pipe_id = 0;
       size_t max_packet_bytes = 0;
@@ -275,6 +338,21 @@ class WinUsbDevice : public IUsbDevice {
 
     data = std::move(buffer);
     return true;
+  }
+
+  std::unique_ptr<IUsbControlChannel> OpenControlChannel(
+      const std::string& path) override {
+    ScopedWinUsbHandles handles;
+    if (!OpenSelected(path, handles, nullptr)) {
+      return nullptr;
+    }
+
+    HANDLE device = nullptr;
+    WINUSB_INTERFACE_HANDLE interface_handle = nullptr;
+    handles.Release(device, interface_handle);
+
+    return std::make_unique<WinUsbControlChannel>(device, interface_handle,
+                                                  logger_);
   }
 
   std::unique_ptr<ISampleSource> OpenSource(const std::string& path,

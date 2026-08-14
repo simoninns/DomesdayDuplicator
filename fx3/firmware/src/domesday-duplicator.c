@@ -25,6 +25,7 @@
 #include "domesday-duplicator.h"
 #include "domesday-duplicator-gpif.h"
 #include "fpga-registers.h"
+#include "update-agent.h"
 
 // Global definitions
 CyU3PThread glAppThread; // Application thread structure
@@ -57,6 +58,15 @@ volatile CyBool_t dataCollectionFlag = CyFalse; // Flag to show if the host appl
 // stack for the same reason - and because that stack belongs to the USB driver.
 static uint8_t glRegisterBuffer[FPGA_REGISTER_READ_MAX] __attribute__ ((aligned (32)));
 
+// Staging for the update requests' data stages, aligned for the same reason.
+//
+// One buffer for the largest UPDATE_DATA chunk and one for the fixed-size
+// UPDATE_BEGIN and UPDATE_STATUS packets. Static rather than on the setup
+// callback's stack because two kilobytes does not belong on a stack that
+// belongs to the USB driver.
+static uint8_t glUpdateChunkBuffer[UPDATE_MAX_CHUNK] __attribute__ ((aligned (32)));
+static uint8_t glUpdatePacketBuffer[UPDATE_BEGIN_LENGTH] __attribute__ ((aligned (32)));
+
 // Main application function
 int main(void)
 {
@@ -86,9 +96,15 @@ int main(void)
     }
 
     // Initialise the IO matrix
+    //
+    // I2C is enabled because the firmware is its own flasher: the FX3 boots from an I2C
+    // EEPROM and the update agent rewrites it in place. The I2C lines are dedicated on
+    // this device - the SDK is explicit that they are not multiplexed and are available
+    // in every configuration except when claimed as GPIOs - so turning them on costs the
+    // GPIF bus and the UART nothing, and lppMode below is unchanged.
     io_cfg.isDQ32Bit = CyFalse; // Data bus is 16-bits
     io_cfg.useUart   = CyTrue;
-    io_cfg.useI2C    = CyFalse;
+    io_cfg.useI2C    = CyTrue;
     io_cfg.useI2S    = CyFalse;
     io_cfg.useSpi    = CyFalse;
     io_cfg.lppMode   = CY_U3P_IO_MATRIX_LPP_UART_ONLY; // 16-bit data bus with UART
@@ -297,13 +313,47 @@ void domDupThreadInitialise(uint32_t input)
     // version reaches the console whether or not a host ever connects, and on
     // the application thread rather than in a callback, because it retries
     // for as long as the FPGA might still be loading from EPCS.
+    //
+    // This identity read is also what the gateware's remote-update watchdog will
+    // be tickled by once the factory/application split exists: the application
+    // image tickles the watchdog when its SPI register interface decodes a first
+    // valid transaction, and this read is that transaction. It happens within a
+    // second of power-up whether or not a host is attached, which is the property
+    // the watchdog policy depends on.
     fpgaRegistersProbe(FPGA_STARTUP_PROBE_ATTEMPTS);
+
+    // Bring up the I2C block so the firmware can rewrite its own boot EEPROM.
+    //
+    // After the kernel is running, because CyU3PI2cInit() allocates. A failure
+    // here is not fatal - the device enumerates and captures normally, and the
+    // only thing lost is the ability to update itself, which the host is told
+    // about explicitly rather than by a device that answers nothing.
+    status = updateAgentStart();
+    if (status != CY_U3P_SUCCESS) {
+        CyU3PDebugPrint(4, "domDupThreadInitialise(): updateAgentStart failed, Error code = %d; "
+            "device updates unavailable\r\n", status);
+    }
 
     // Initialise the application
     domDupInitialiseApplication();
 
     // Main application thread loop
     while(1) {
+        // The readback half of an update, handed here by UPDATE_FINISH.
+        //
+        // It runs on this thread rather than in the setup callback because it
+        // reads the whole written region back off the EEPROM, which takes tens of
+        // seconds - far longer than a control request may take to answer. The host
+        // watches it through UPDATE_STATUS, whose verified counter this advances,
+        // and nothing else in this loop runs while it does. That is deliberate:
+        // the capture path is stopped by state for the duration of an update, so
+        // there is nothing else here worth doing.
+        if (updateAgentVerifyPending()) {
+            if (fpgaRegistersPresent()) fpgaRegistersSetLeds(FPGA_LED_UPDATING);
+            updateAgentVerify();
+            ledPatternShown = 0;
+        }
+
         if (glForceLinkU2) {
             // The host has placed the function in suspend via SET_FEATURE(FUNCTION_SUSPEND),
             // so hold the USB 3.0 link in U2 for as long as that condition lasts.
@@ -382,7 +432,8 @@ void domDupThreadInitialise(uint32_t input)
 		// written only when the answer has actually changed. A failed write leaves
 		// ledPatternShown alone, so the next pass tries again.
 		if (fpgaRegistersPresent()) {
-			if (input0Flag) ledPattern = FPGA_LED_BUFFER_ERROR;
+			if (updateAgentInProgress()) ledPattern = FPGA_LED_UPDATING;
+			else if (input0Flag) ledPattern = FPGA_LED_BUFFER_ERROR;
 			else if (dataCollectionFlag) ledPattern = FPGA_LED_CAPTURING;
 			else ledPattern = FPGA_LED_READY;
 
@@ -823,6 +874,81 @@ void gpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State)
 	if (Event == CYU3P_GPIF_EVT_SM_INTERRUPT) CyU3PDebugPrint(8, "gpifDmaEventCB(): Unhandled INT_CPU signal received from GPIF\r\n");
 }
 
+// Handle one of the 0xD0 to 0xD5 device-update requests.
+//
+// Split out of the setup callback because it is the whole of a second protocol and
+// reads as one. Returns whether the request was handled at all; an unhandled request
+// leaves endpoint 0 to be stalled, which is how a device tells a host that it cannot
+// do something. *sendAck is set for the requests that have no data stage of their own.
+//
+// A refusal is reported through UPDATE_STATUS rather than through a stalled endpoint,
+// and that is a deliberate asymmetry with the capture requests. The SDK completes a
+// control-OUT transfer with a positive acknowledgement as soon as the last byte of its
+// data stage has been read, so a request whose payload has been read cannot then be
+// stalled - but more to the point, "the update failed and here is which check caught
+// it" is worth far more to whoever is looking at the screen than an endpoint that
+// simply stopped answering. Only a request whose *shape* is wrong stalls, because that
+// one can be refused before its data is taken.
+static CyBool_t domDupHandleUpdateRequest(uint8_t bRequest, uint16_t wValue,
+	uint16_t wIndex, uint16_t wLength, CyBool_t *sendAck)
+{
+	CyU3PReturnStatus_t status;
+	uint16_t readCount = 0;
+
+	switch (bRequest) {
+	case UPDATE_REQUEST_STATUS:
+		// Answerable at any time, including when no update has ever been started, and
+		// it is how the host discovers the chunk size rather than assuming one.
+		if (wLength < UPDATE_STATUS_LENGTH) return CyFalse;
+		updateAgentStatus(glUpdatePacketBuffer);
+		CyU3PUsbSendEP0Data(UPDATE_STATUS_LENGTH, glUpdatePacketBuffer);
+		return CyTrue;
+
+	case UPDATE_REQUEST_BEGIN:
+		if (wLength != UPDATE_BEGIN_LENGTH) return CyFalse;
+
+		status = CyU3PUsbGetEP0Data(UPDATE_BEGIN_LENGTH, glUpdatePacketBuffer, &readCount);
+		if (status != CY_U3P_SUCCESS) return CyFalse;
+
+		updateAgentBegin((uint8_t)wIndex, glUpdatePacketBuffer, readCount,
+			dataCollectionFlag);
+		return CyTrue;
+
+	case UPDATE_REQUEST_DATA:
+		if (wLength == 0 || wLength > UPDATE_MAX_CHUNK) return CyFalse;
+
+		status = CyU3PUsbGetEP0Data(wLength, glUpdateChunkBuffer, &readCount);
+		if (status != CY_U3P_SUCCESS) return CyFalse;
+
+		updateAgentData((uint8_t)wIndex, wValue, glUpdateChunkBuffer, readCount);
+		return CyTrue;
+
+	case UPDATE_REQUEST_FINISH:
+		updateAgentFinish((uint8_t)wIndex);
+		*sendAck = CyTrue;
+		return CyTrue;
+
+	case UPDATE_REQUEST_RESET:
+		// Acknowledged before the reset, because after it there is no firmware left to
+		// answer with and the host would see the request fail on a device that did
+		// exactly what it was asked.
+		CyU3PUsbAckSetup();
+		CyU3PDebugPrint(4, "domDupHandleUpdateRequest(): host requested a device reset\r\n");
+		CyU3PThreadSleep(100);
+		updateAgentResetDevice();
+		return CyTrue;
+
+	case UPDATE_REQUEST_FPGA_RECONFIG:
+		// Target 1's half of the mechanism arrives with the gateware's flash bridge.
+		// Stalling is the honest answer until it does; answering would tell a host that
+		// a reconfiguration it asked for had happened.
+		return CyFalse;
+
+	default:
+		return CyFalse;
+	}
+}
+
 // USB set-up request callback
 CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 {
@@ -849,9 +975,40 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 
     // Handle vendor specific requests from the host
     if (bType == CY_U3P_USB_VENDOR_RQT) {
+    	// The update requests are handled outside the glIsApplnActive guard below, and
+    	// that is not an oversight. glIsApplnActive is false whenever the capture path
+    	// is not up - which includes a device attached to a USB 2.0 port, where the
+    	// capture path is deliberately never started. Updating firmware needs kilobytes
+    	// per second and no isochronous guarantees at all, so a device on a 2.0 port is
+    	// a device that can perfectly well be repaired; refusing to talk to it would
+    	// leave the one case where an update is most likely to be wanted unreachable.
+    	if (bRequest >= UPDATE_REQUEST_STATUS && bRequest <= UPDATE_REQUEST_FPGA_RECONFIG) {
+    		isHandled = domDupHandleUpdateRequest(bRequest, wValue, wIndex, wLength, &sendAck);
+
+    		// ACK here and return: the block below decides on requests this one has
+    		// already answered, and 0xD0 has completed its own transfer by sending data.
+    		if (sendAck) CyU3PUsbAckSetup();
+    		return isHandled;
+    	}
+
     	if (glIsApplnActive) {
 			// Handle vendor request for collection start/stop
 			if (bRequest == 0xB5) {
+				// Capture and update are mutually exclusive by state, not by convention.
+				// The update side of that is updateBeginIsAllowed(), which refuses an
+				// UPDATE_BEGIN while a capture is running; this is the other side. A
+				// capture started part way through an EEPROM rewrite would have the FPGA
+				// streaming into a DMA path whose owning thread is busy driving I2C.
+				//
+				// The stop half of the request is deliberately not gated: stopping
+				// something that is not running is harmless, and refusing it would be a
+				// way to leave collectData asserted.
+				if (wValue == 1 && updateAgentInProgress()) {
+					CyU3PDebugPrint(4, "domDupUSBSetupCB(): START data collection refused - "
+						"a device update is in progress\r\n");
+					return CyFalse;
+				}
+
 				if (wValue == 1) {
 					// Start collection request from USB host
 					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: START data collection\r\n");

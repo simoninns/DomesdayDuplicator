@@ -22,11 +22,19 @@ tap, the FLAC writer and reader, and the orchestrator that runs them all on thei
 threads — driven either by a real device or by a synthetic source that generates the
 device's stream in software at its real 80 MB/s.
 
-**The update bundle reader**. The host half of the device-update work: a strict manifest
-parser, a ustar reader and writer, SHA-256, and minisign signature verification — enough
-to open a `.dddfw` bundle, prove it came from the holder of the key and prove it carries
-the bytes that key signed for. Nothing installs one yet; the device-side protocol is
-specified on the *Device update mechanism* documentation page and is not written.
+**Device updates**. Help → Firmware… gains an Update page: choose a `.dddfw` bundle and
+the application verifies its signature and every payload digest, compares the installed
+and available versions of all three parts, runs the compatibility gate, and — after one
+confirmation — streams the firmware to the device, watches it write and verify it, waits
+for it to restart, and reports the version it reads back off the live device. Every stage
+says what is happening and how long it will take, and every failure says whether the
+device is safe (it always is) and what to do next.
+
+The engine half of that is Qt-free, so `ddd-update` drives the identical code path from a
+shell — `dev-bundle.sh && ddd-update` is the whole edit-to-running-device loop. The FX3
+target is complete; the FPGA's EPCS target is refused with a clear reason until the
+gateware's flash bridge exists. The protocol is on the *Device update mechanism*
+documentation page.
 
 **Monitor mode**. Attach a device, press *Start monitoring*, and the signal is validated,
 measured and displayed while nothing is written anywhere. The Capture panel finds devices
@@ -161,6 +169,7 @@ src/capture/      ddd::capture — the engine. Qt-free, by rule.
 src/analysis/     ddd::analysis — the display mathematics. Qt-free, for the same reason.
 src/gui/          ddd::gui — the Qt layer, built as a static library, plus main().
 src/gui/resources/ the application's graphics, compiled in (a local copy, AGENTS.md §2)
+src/update-cli/   ddd-update — a main() over the engine. Links no Qt, deliberately.
 src/vendor/       the only third-party sources here: SHA-256 and Ed25519. See VENDOR.md.
 cmake/            FindFLAC.cmake, a component-local copy (AGENTS.md §2)
 tests/unit/       T1, engine. Links no Qt at all.
@@ -179,6 +188,10 @@ clang-tidy, and excluded from the clang-format glob. Everything the engine sees 
 two wrappers, `digest.h` and `minisign_verify.h`, so replacing an implementation later is
 a change to two files. Its provenance, licences and refresh procedure are in
 [src/vendor/VENDOR.md](src/vendor/VENDOR.md).
+
+`src/update-cli/` is one file, and its value is negative space: it links `ddd_capture` and
+nothing else, so it stops linking the moment a Qt dependency reaches the update path. That
+is the same enforcement `ddd_capture_tests` provides for the capture engine.
 
 `src/analysis/` is separate from the engine because none of it is needed to make a
 capture, and separate from the GUI because a QPainter cannot be unit tested while the

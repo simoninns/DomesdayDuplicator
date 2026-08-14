@@ -11,18 +11,35 @@
 
 #include "firmware_dialog.h"
 
+#include <QCloseEvent>
 #include <QDialogButtonBox>
 #include <QLabel>
+#include <QMessageBox>
 #include <QScrollArea>
 #include <QStyle>
+#include <QTabWidget>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <utility>
+
+#include "version.h"
 
 namespace ddd::gui {
 
 FirmwareDialog::FirmwareDialog(const FirmwareVersions& versions,
                                QWidget* parent)
     : QDialog(parent) {
+  Build(versions, std::nullopt);
+}
+
+FirmwareDialog::FirmwareDialog(const FirmwareVersions& versions,
+                               UpdatePage::Device device, QWidget* parent)
+    : QDialog(parent) {
+  Build(versions, std::move(device));
+}
+
+void FirmwareDialog::Build(const FirmwareVersions& versions,
+                           std::optional<UpdatePage::Device> device) {
   setWindowTitle(tr("Firmware"));
 
   auto* layout = new QVBoxLayout(this);
@@ -59,10 +76,34 @@ FirmwareDialog::FirmwareDialog(const FirmwareVersions& versions,
   constexpr int kSmallestScrollHeight = 120;
   scroll->setMinimumHeight(kSmallestScrollHeight);
 
-  layout->addWidget(scroll, 1);
+  if (device.has_value()) {
+    // Two pages rather than one longer one: "what is it running" and "install
+    // something else" are different questions, and a user with the first
+    // should not have to scroll past the second.
+    tabs_ = new QTabWidget(this);
+    tabs_->setObjectName(QLatin1String(kTabsName));
+    tabs_->addTab(scroll, tr("Versions"));
+
+    const std::string_view application = capture::Version();
+    update_ = new UpdatePage(
+        QString::fromUtf8(application.data(),
+                          static_cast<qsizetype>(application.size())),
+        std::move(*device), this);
+    update_->setObjectName(QLatin1String(kUpdatePageName));
+
+    auto* update_container = new QScrollArea(this);
+    update_container->setWidgetResizable(true);
+    update_container->setFrameShape(QFrame::NoFrame);
+    update_container->setWidget(update_);
+
+    tabs_->addTab(update_container, tr("Update"));
+    layout->addWidget(tabs_, 1);
+  } else {
+    layout->addWidget(scroll, 1);
+  }
 
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
-  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::accept);
+  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
   connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
   layout->addWidget(buttons);
 
@@ -75,6 +116,38 @@ FirmwareDialog::FirmwareDialog(const FirmwareVersions& versions,
       std::max(text_->heightForWidth(kTextWidthPixels), kSmallestScrollHeight));
   resize(sizeHint().width(),
          sizeHint().height() + (wanted - kSmallestScrollHeight));
+}
+
+bool FirmwareDialog::CanClose() {
+  if (update_ == nullptr || !update_->busy()) {
+    return true;
+  }
+
+  // Explained rather than merely refused, and it says when it will be safe.
+  // Closing this window is the obvious way to try to stop an update, and it
+  // is the one way to leave a device half-written.
+  QMessageBox::information(
+      this, tr("Update in progress"),
+      tr("The device is being updated. Closing this window now would leave "
+         "the update unfinished.\n\nLeave the device plugged in. You can "
+         "close this window as soon as the update has finished, or press "
+         "Stop to end it safely."));
+  return false;
+}
+
+void FirmwareDialog::closeEvent(QCloseEvent* event) {
+  if (!CanClose()) {
+    event->ignore();
+    return;
+  }
+  QDialog::closeEvent(event);
+}
+
+void FirmwareDialog::reject() {
+  if (!CanClose()) {
+    return;
+  }
+  QDialog::reject();
 }
 
 }  // namespace ddd::gui

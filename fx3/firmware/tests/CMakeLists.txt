@@ -56,7 +56,33 @@ if(HOST_CC)
 
     add_test(NAME register-map COMMAND ${REGISTER_MAP_TEST})
     set_tests_properties(register-map PROPERTIES LABELS "unit")
+
+    # T1 — the device update protocol's decisions, built the same way and for the same
+    # reason. This one earns its keep more than most: what it covers is the arithmetic
+    # that decides where each byte of a firmware image lands in the boot EEPROM, and the
+    # cost of getting that wrong is a device that will not enumerate.
+    set(UPDATE_PROTOCOL_TEST ${CMAKE_CURRENT_BINARY_DIR}/update-protocol-test)
+    set(UPDATE_PROTOCOL_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/update-protocol-test.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/update-protocol.c
+    )
+
+    add_custom_command(
+        OUTPUT ${UPDATE_PROTOCOL_TEST}
+        COMMAND ${HOST_CC} -std=c11 -O1 -Wall -Wextra -Werror
+                -I${CMAKE_CURRENT_SOURCE_DIR}/../src
+                -o ${UPDATE_PROTOCOL_TEST} ${UPDATE_PROTOCOL_SOURCES}
+        DEPENDS ${UPDATE_PROTOCOL_SOURCES}
+                ${CMAKE_CURRENT_SOURCE_DIR}/../src/update-protocol.h
+        COMMENT "Building host test update-protocol-test"
+        VERBATIM
+    )
+
+    add_custom_target(update_protocol_test ALL DEPENDS ${UPDATE_PROTOCOL_TEST})
+
+    add_test(NAME update-protocol COMMAND ${UPDATE_PROTOCOL_TEST})
+    set_tests_properties(update-protocol PROPERTIES LABELS "unit")
 else()
     message(WARNING
-        "No host C compiler found; the register-map unit test will not be built or run.")
+        "No host C compiler found; the host-side unit tests will not be built or run.")
 endif()

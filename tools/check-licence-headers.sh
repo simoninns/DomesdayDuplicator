@@ -84,6 +84,13 @@ exempt=(
     # each is copied byte-for-byte from a pinned release; the versions, digests and the
     # reasoning are in ddd-gui/src/vendor/VENDOR.md.
     "ddd-gui/src/vendor"
+
+    # The firmware's copy of the same pinned SHA-256, byte-for-byte identical to the one
+    # above. Two copies because AGENTS.md §2 forbids cross-component includes and these
+    # are a hosted C++ application and a bare-metal ARM build; one pin because the device
+    # and the host have to compute the same number for the same bytes. See
+    # fx3/firmware/src/vendor/VENDOR.md.
+    "fx3/firmware/src/vendor"
 )
 
 is_exempt() {

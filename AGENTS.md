@@ -128,6 +128,7 @@ styles (`ddd-gui/` is Google style, gate-enforced) and different architectures.
 │   ├── .clangd                # per-component, see §7
 │   ├── firmware/
 │   │   ├── src/               # firmware C sources
+│   │   │   └── vendor/        # the same pinned SHA-256 ddd-gui vendors, second copy
 │   │   ├── tests/             # descriptor golden test and its reference headers
 │   │   ├── gpif/              # GPIF II Designer project (not built)
 │   │   ├── CMakeLists.txt
@@ -154,7 +155,8 @@ styles (`ddd-gui/` is Google style, gate-enforced) and different architectures.
 │   ├── src/
 │   │   ├── capture/           # ddd::capture — the engine. Qt-free, by rule
 │   │   ├── vendor/            # the only third-party sources here: SHA-256 and Ed25519
-│   │   └── gui/               # ddd::gui — Qt layer (static lib) plus main()
+│   │   ├── gui/               # ddd::gui — Qt layer (static lib) plus main()
+│   │   └── update-cli/        # ddd-update — a main() over the engine, links no Qt
 │   └── tests/
 │       ├── unit/              # T1, engine. Links no Qt — that is the rule's enforcement
 │       └── gui/unit/          # T1, Qt layer, under a QCoreApplication
@@ -189,6 +191,7 @@ violate for the first time.
 | `fpga/src/IPpllGenerator.v` | Originally MegaWizard output, but **treated as source of truth**. Change `defparam` values deliberately; do not reformat |
 | `gui/src/DomesdayDuplicator/qcustomplot.{cpp,h}` | Vendored third-party library |
 | `ddd-gui/src/vendor/**` | Vendored Monocypher and SHA-256. Copied byte-for-byte from pinned releases; refresh wholesale and update the digests in [ddd-gui/src/vendor/VENDOR.md](ddd-gui/src/vendor/VENDOR.md). The build keeps them out of `-Wall`, clang-format and clang-tidy so there is never a reason to touch them |
+| `fx3/firmware/src/vendor/**` | The firmware's copy of the *same pinned* SHA-256, byte-for-byte identical to the one above. Two copies because §2 forbids cross-component includes; one pin because the device and the host have to compute the same number for the same bytes. Refresh both together — [fx3/firmware/src/vendor/VENDOR.md](fx3/firmware/src/vendor/VENDOR.md) |
 | `hardware/pcb/Gerber/`, `hardware/pcb/PDF/` | Plotted from the KiCad project. Regenerate, do not edit |
 
 The root `.editorconfig` marks these paths as `unset` so a "format on save" cannot quietly
@@ -437,6 +440,9 @@ cmake --build fx3/programmer/build
 
 # Package what is built locally as a signed development update bundle (needs minisign)
 ./tools/dev-bundle.sh
+
+# Install one onto an attached device. Same engine the application's update dialog drives
+./ddd-gui/build/bin/ddd-update --dry-run build/domesday-duplicator-update-0.0.0-dev.dddfw
 ```
 
 Build directories are `build/` under each component and are gitignored. Never build in-tree.
@@ -457,8 +463,8 @@ nix flake check                    # everything, on a clean machine
 ctest --test-dir gui/build         # one component
 ```
 
-**What exists today: 711 tests across five components** — 37 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 616 in `ddd-gui/` (the capture engine — sample and wire
+**What exists today: 801 tests across five components** — 37 in `gui/` (UTF-8 conversion, the
+10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 705 in `ddd-gui/` (the capture engine — sample and wire
 formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
 metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
 against each other, capture naming and provenance, the offline test-data analyser and its
@@ -472,17 +478,22 @@ checked for its own specific message — plus the Qt-free display mathematics be
 signal panels:
 the board's front-end gain declaration, the scope's sample-to-pixel mapping, the amplitude
 history ring, an FFT checked against a directly evaluated DFT, and the spectrum scaling;
-six of those need a device attached and are labelled `hil` — plus the device-update bundle:
-SHA-256 against the published vectors, the strict manifest parser, the ustar reader and
-writer, and signature verification checked against signatures minisign itself produced),
+six of those need a device attached and are labelled `hil` — plus the whole device-update
+path: SHA-256 against the published vectors, the strict manifest parser, the ustar reader
+and writer, signature verification checked against signatures minisign itself produced,
+which signing keys a build accepts and what each one proves, the install-time
+compatibility gate in both directions, the status packet's decoding, `ddd-update`'s exit
+codes, and the complete update flow — stage by stage and failure by failure — driven
+against a fake device and, in the widget tests, against a real signed bundle written to
+disk),
 24 in `fx3/programmer/` (EEPROM paging arithmetic,
-secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and two
-in `fx3/firmware/` (the generated USB product descriptor, and the host-testable half of the register map). `fpga/` adds five
+secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and three
+in `fx3/firmware/` (the generated USB product descriptor, the host-testable half of the register map, and the host-testable half of the device update protocol including its EEPROM paging arithmetic). `fpga/` adds five
 Verilog testbenches, a `-Wall` lint pass over six modules, a timing-constraint check and a
 bitstream-digest test, none of them under CTest — there is no CMake there. `hardware/` has **no automated coverage yet**;
 `docs/` has a static check only. Across the whole tree, `licence-headers` and
 `update-bundle` are T4 checks with no component of their own (§5.4, and the *Update bundle
-format* documentation page). TESTING.md §6 says what is planned and in which phase.
+format* documentation page). TESTING.md §7 says what is planned and in which phase.
 
 `fpga/DomesdayDuplicator.v`, the top level, is deliberately uncovered: it instantiates
 Altera's `altpll`, which has no free simulation model, so the pin mapping and the clock
@@ -561,8 +572,9 @@ Third-party components keep their own licences:
   [fx3/programmer/VENDOR.md](fx3/programmer/VENDOR.md)
 - `gui/src/DomesdayDuplicator/qcustomplot.*` — GPLv3, upstream
 - `ddd-gui/src/vendor/monocypher*` — BSD-2-Clause or CC0-1.0, at your option
-- `ddd-gui/src/vendor/sha-256.*` — Unlicense or 0BSD, at your option; see
-  [ddd-gui/src/vendor/VENDOR.md](ddd-gui/src/vendor/VENDOR.md) for both
+- `ddd-gui/src/vendor/sha-256.*` and `fx3/firmware/src/vendor/sha-256.*` — Unlicense or
+  0BSD, at your option; see [ddd-gui/src/vendor/VENDOR.md](ddd-gui/src/vendor/VENDOR.md)
+  and [fx3/firmware/src/vendor/VENDOR.md](fx3/firmware/src/vendor/VENDOR.md)
 
 Do not add a dependency whose licence is incompatible with GPLv3 without raising it first.
 

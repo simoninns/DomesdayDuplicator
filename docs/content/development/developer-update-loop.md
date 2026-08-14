@@ -59,9 +59,29 @@ Two things follow from it being the same code path rather than a parallel implem
 
 `dev-bundle.sh && ddd-update` is the whole edit-to-running-device loop.
 
-!!! warning "`ddd-update` does not exist yet"
+```
+Usage:
+  ddd-update [options] <bundle.dddfw>
 
-    It arrives with the phase that gives the FX3 its self-update firmware. Until then tiers 1 and 2 are what there is: tier 2 produces a real bundle today, and it is verifiable today with `minisign` and `tar` — see [Update bundle format](update-bundle-format.md) — but nothing yet installs one.
+Options:
+  --device <path>       Update the device at this path, when several are attached
+  --dev-update-key      Accept a bundle signed with the development key, whose
+                        secret half is public. Proves the file is well formed and
+                        nothing about where it came from
+  --dry-run             Verify the bundle and check it against the device, then
+                        stop without sending anything
+  --help                Show this text
+
+Exit codes: 0 success, 2 usage, 3 bundle, 4 no device, 5 update failed.
+```
+
+The exit codes are distinct on purpose: a script driving a bench procedure wants to know whether it has a bad file (3) or a bad device (4, 5). `--dry-run` is the one mode that touches no device state at all — it verifies the signature, checks every payload digest, runs the compatibility gate against the attached device, and stops. It is what a script checks a bundle with.
+
+`ddd-update` is built by `cmake --build ddd-gui/build` alongside the application, and by `nix build .#ddd-gui`. It links no Qt, which is not a detail: that is the enforcement of the rule that the updater engine is Qt-free. If a Qt dependency ever creeps into the update path, this target stops linking.
+
+!!! note "Today's bundles are firmware-only"
+
+    The FX3 half of the update mechanism is finished; the FPGA half is not. A bundle carrying gateware verifies and displays perfectly well, and the firmware refuses the gateware target with a clear reason rather than pretending. `dev-bundle.sh` will happily package a `.rpd` if you have built one — it just cannot be installed yet.
 
 ## What CI does with the same tooling
 

@@ -68,6 +68,7 @@
 #define FPGA_LED_READY                  (0x81u)     // enumerated, register link up
 #define FPGA_LED_CAPTURING              (0xFFu)     // the host is collecting
 #define FPGA_LED_BUFFER_ERROR           (0x55u)     // the FPGA reported an overflow
+#define FPGA_LED_UPDATING               (0x18u)     // rewriting the boot EEPROM
 
 // Does this identity block come from a gateware register bank?
 int fpgaIdentityIsValid(const uint8_t *identity);
