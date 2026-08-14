@@ -18,6 +18,7 @@
 #include <memory>
 #include <vector>
 
+#include "capture_metatypes.h"
 #include "device_recovery.h"
 #include "device_updater.h"
 #include "update_key.h"
@@ -77,15 +78,23 @@ class UpdateWorker : public QObject {
   void Run();
 
  signals:
-  // `stage` is a capture::UpdateStage. Sent as an int because a queued
-  // connection carrying an engine enum would need it registered with the
-  // meta-object system, and there is nothing here that a plain int does not
-  // say.
-  void Progress(int stage, quint64 done, quint64 total, const QString& message);
+  // `stage` is a capture::UpdateStage and `target` a capture::UpdateTarget.
+  // Both are sent as ints because a queued connection carrying an engine
+  // enum would need it registered with the meta-object system, and there is
+  // nothing here that a plain int does not say.
+  //
+  // The target is what lets the page say *which* half of the device a stage
+  // is about, which matters because a bundle carrying both visits the
+  // transfer, write and verify stages twice.
+  void Progress(int stage, int target, quint64 done, quint64 total,
+                const QString& message);
 
-  // Exactly once, whatever happened. `problem` is empty on success.
+  // Exactly once, whatever happened. `problem` is empty on success, and the
+  // identity is what the device reported when it came back — read off it
+  // rather than assumed from what was installed, which is the difference
+  // between an update that was performed and one that is proved.
   void Finished(bool succeeded, const QString& problem,
-                const QString& product_string, const QString& gateware_commit);
+                const capture::DeviceIdentity& identity);
 
  private:
   UpdateDevice device_;

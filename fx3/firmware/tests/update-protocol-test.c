@@ -14,12 +14,14 @@
     What is covered here is everything that decides whether a byte gets
     written and where: the state machine that admits or refuses each
     request, the paging arithmetic that keeps a write inside one page and
-    one slave, and the packet encoding the host's progress display is made
-    of. An off-by-one in any of it leaves a device that will not boot, and
-    a bench is a poor place to find that out.
+    one slave or one flash page and one erased sector, the checksum the
+    FPGA's boot block carries, and the packet encoding the host's progress
+    display is made of. An off-by-one in any of it leaves a device that will
+    not boot, and a bench is a poor place to find that out.
 
-    The I2C transport in update-agent.c has no coverage here and cannot
-    have any — it is an EEPROM, and the only test for it is a board.
+    The transports in update-agent.c and epcs-flash.c have no coverage here
+    and cannot have any — one is an EEPROM and the other is four links of
+    SPI ending in a flash, and the only test for either is a board.
 
 ************************************************************************/
 
@@ -156,11 +158,13 @@ static void testBeginAdmission(void)
     checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u, 1),
                 UPDATE_ERROR_BUSY, "an update is refused while a capture runs");
 
-    // The gateware target arrives with the flash bridge. Refused rather than
-    // accepted and ignored, so a host built against a later firmware finds
-    // out before it streams a megabyte.
     checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS, 65536u, 0),
-                UPDATE_ERROR_TARGET, "the EPCS target is refused by this firmware");
+                UPDATE_ERROR_NONE, "an ordinary gateware update is admitted");
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS, 65536u, 1),
+                UPDATE_ERROR_BUSY, "a gateware update is refused while a capture runs");
+
+    // Refused rather than accepted and ignored, so a host built against a
+    // later firmware finds out before it streams a megabyte.
     checkNumber(updateBeginIsAllowed(&state, 7u, 65536u, 0),
                 UPDATE_ERROR_TARGET, "an unknown target is refused");
 
@@ -175,6 +179,22 @@ static void testBeginAdmission(void)
     checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM,
                                      UPDATE_EEPROM_SIZE, 0),
                 UPDATE_ERROR_NONE, "a payload that exactly fills the EEPROM is admitted");
+
+    // The gateware's bound is the region above the application address, not
+    // the whole device. An image that ran past the end would be written
+    // until the address wrapped, which on this medium means over the factory
+    // image — the one thing on the device a field update may never touch.
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS,
+                                     UPDATE_EPCS_SIZE -
+                                     UPDATE_EPCS_APPLICATION_ADDRESS, 0),
+                UPDATE_ERROR_NONE, "a gateware image filling the region is admitted");
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS,
+                                     (UPDATE_EPCS_SIZE -
+                                      UPDATE_EPCS_APPLICATION_ADDRESS) + 1u, 0),
+                UPDATE_ERROR_LENGTH, "a gateware image past the end of the device is refused");
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS,
+                                     UPDATE_GATEWARE_MINIMUM_LENGTH - 1u, 0),
+                UPDATE_ERROR_LENGTH, "a gateware image too short to be one is refused");
 
     // A second BEGIN during a transfer is refused rather than restarting it.
     makeReceiving(&state, 65536u);
@@ -252,6 +272,27 @@ static void testChunkAdmission(void)
     state.phase = UPDATE_PHASE_VERIFYING;
     checkNumber(updateChunkIsAllowed(&state, UPDATE_TARGET_EEPROM, 0u, 64u),
                 UPDATE_ERROR_SEQUENCE, "a chunk during verification is refused");
+
+    // The alignment is the page size of the medium the chunk is going to,
+    // and the EPCS's page is four times the EEPROM's. A chunk of two EEPROM
+    // pages is a legal EEPROM chunk and an illegal gateware one.
+    makeReceiving(&state, 4096u);
+    state.target = UPDATE_TARGET_EPCS;
+    checkNumber(updateChunkIsAllowed(&state, UPDATE_TARGET_EPCS, 0u, 128u),
+                UPDATE_ERROR_CHUNK, "a mid-transfer gateware chunk of two EEPROM pages is refused");
+    checkNumber(updateChunkIsAllowed(&state, UPDATE_TARGET_EPCS, 0u,
+                                     UPDATE_EPCS_PAGE_SIZE),
+                UPDATE_ERROR_NONE, "a mid-transfer gateware chunk of one flash page is admitted");
+    checkNumber(updateChunkIsAllowed(&state, UPDATE_TARGET_EPCS, 0u, 2048u),
+                UPDATE_ERROR_NONE, "the advertised chunk size suits both media");
+    checkNumber(updateChunkIsAllowed(&state, UPDATE_TARGET_EEPROM, 0u, 2048u),
+                UPDATE_ERROR_TARGET, "a firmware chunk during a gateware update is refused");
+
+    // The last chunk carries whatever is left, on either medium.
+    makeReceiving(&state, 300u);
+    state.target = UPDATE_TARGET_EPCS;
+    checkNumber(updateChunkIsAllowed(&state, UPDATE_TARGET_EPCS, 0u, 300u),
+                UPDATE_ERROR_NONE, "the final gateware chunk need not be page-aligned");
 }
 
 static void testFinishAdmission(void)
@@ -443,6 +484,249 @@ static void testFullImageCoverage(void)
                 "the image takes one write per page after the held-back first");
 }
 
+static void testGatewarePlausibility(void)
+{
+    // A raw EPCS byte stream carries no signature, so length is all there
+    // is to check — and it is checked rather than nothing being checked.
+    check(updateGatewareIsPlausible(368000u),
+          "an image the size of a real gateware is plausible");
+    check(!updateGatewareIsPlausible(0u), "an empty gateware image is refused");
+    check(!updateGatewareIsPlausible(UPDATE_GATEWARE_MINIMUM_LENGTH - 1u),
+          "a gateware image shorter than a flash page is refused");
+    check(updateGatewareIsPlausible(UPDATE_EPCS_SIZE -
+                                    UPDATE_EPCS_APPLICATION_ADDRESS),
+          "an image exactly filling the application region is plausible");
+    check(!updateGatewareIsPlausible((UPDATE_EPCS_SIZE -
+                                      UPDATE_EPCS_APPLICATION_ADDRESS) + 1u),
+          "an image one byte past the end of the device is refused");
+}
+
+static void testEpcsDeviceIdentification(void)
+{
+    checkNumber(updateEpcsCapacity(UPDATE_EPCS_ID_EPCS64), 0x800000u,
+                "an EPCS64 holds eight megabytes");
+    checkNumber(updateEpcsCapacity(UPDATE_EPCS_ID_EPCS16), 0x200000u,
+                "an EPCS16 holds two megabytes");
+
+    // The two readings that mean nothing is there. SPI has no
+    // acknowledgement, so a bridge writing into nothing returns whatever the
+    // line carries — all ones if it floats, all zeros if it is held down —
+    // and neither is an identifier however much it looks like one.
+    checkNumber(updateEpcsCapacity(0x00u), 0u, "an all-zero answer is not a device");
+    checkNumber(updateEpcsCapacity(0xFFu), 0u, "an all-ones answer is not a device");
+
+    check(updateEpcsDeviceIsUsable(UPDATE_EPCS_ID_EPCS64,
+                                   UPDATE_EPCS_APPLICATION_ADDRESS, 368000u),
+          "a real gateware image fits an EPCS64 at the application address");
+    check(!updateEpcsDeviceIsUsable(0x00u, UPDATE_EPCS_APPLICATION_ADDRESS, 1024u),
+          "a device that did not identify itself is not written to");
+
+    // A board carrying the smaller flash of an earlier revision is a real
+    // thing to meet, and the honest answer to one is "this does not fit".
+    check(!updateEpcsDeviceIsUsable(UPDATE_EPCS_ID_EPCS16,
+                                    UPDATE_EPCS_APPLICATION_ADDRESS, 368000u),
+          "an image that does not fit the device is refused");
+    check(updateEpcsDeviceIsUsable(UPDATE_EPCS_ID_EPCS64,
+                                   UPDATE_EPCS_APPLICATION_ADDRESS,
+                                   0x800000u - UPDATE_EPCS_APPLICATION_ADDRESS),
+          "an image exactly filling the device is accepted");
+    check(!updateEpcsDeviceIsUsable(UPDATE_EPCS_ID_EPCS64,
+                                    UPDATE_EPCS_APPLICATION_ADDRESS,
+                                    (0x800000u - UPDATE_EPCS_APPLICATION_ADDRESS) + 1u),
+          "an image one byte too large for the device is refused");
+}
+
+static void testEpcsGeometry(void)
+{
+    // A page program that runs past the end of its page wraps to the start
+    // of the same page, exactly as the EEPROM's does.
+    checkNumber(updateEpcsWriteSpan(UPDATE_EPCS_APPLICATION_ADDRESS, 4096u),
+                UPDATE_EPCS_PAGE_SIZE, "a program is capped at one page");
+    checkNumber(updateEpcsWriteSpan(UPDATE_EPCS_APPLICATION_ADDRESS, 10u), 10u,
+                "a program shorter than a page is not padded here");
+    checkNumber(updateEpcsWriteSpan(UPDATE_EPCS_APPLICATION_ADDRESS + 64u, 4096u),
+                UPDATE_EPCS_PAGE_SIZE - 64u,
+                "a program from mid-page stops at the page boundary");
+    checkNumber(updateEpcsWriteSpan(UPDATE_EPCS_APPLICATION_ADDRESS, 0u), 0u,
+                "nothing remaining is nothing to program");
+
+    // The layout the factory image and the boot block encoder agree on. An
+    // application image that did not start on a sector boundary could not be
+    // erased without erasing something else.
+    check(updateEpcsSectorStartsHere(UPDATE_EPCS_APPLICATION_ADDRESS),
+          "the application region starts on a sector boundary");
+    check(updateEpcsSectorStartsHere(UPDATE_EPCS_BOOT_BLOCK_ADDRESS),
+          "the boot block has a sector of its own");
+    check(!updateEpcsSectorStartsHere(UPDATE_EPCS_APPLICATION_ADDRESS + 1u),
+          "a byte into a sector is not the start of one");
+    check(updateEpcsSectorStartsHere(UPDATE_EPCS_APPLICATION_ADDRESS +
+                                     UPDATE_EPCS_SECTOR_SIZE),
+          "the next sector starts one sector along");
+
+    checkNumber(updateEpcsSectorBase(UPDATE_EPCS_APPLICATION_ADDRESS + 1u),
+                UPDATE_EPCS_APPLICATION_ADDRESS, "an address maps to its own sector");
+    checkNumber(updateEpcsSectorBase(UPDATE_EPCS_APPLICATION_ADDRESS +
+                                     UPDATE_EPCS_SECTOR_SIZE - 1u),
+                UPDATE_EPCS_APPLICATION_ADDRESS, "the last byte of a sector maps to its base");
+
+    // The application region must not overlap the boot block, and the boot
+    // block must not overlap the factory image. Checked here because all
+    // three addresses are constants that somebody could plausibly adjust.
+    check(UPDATE_EPCS_BOOT_BLOCK_ADDRESS < UPDATE_EPCS_APPLICATION_ADDRESS,
+          "the boot block sits below the application image");
+    check((UPDATE_EPCS_BOOT_BLOCK_ADDRESS + UPDATE_EPCS_SECTOR_SIZE) <=
+          UPDATE_EPCS_APPLICATION_ADDRESS,
+          "the boot block's sector does not reach the application image");
+    check(UPDATE_BOOT_BLOCK_LENGTH <= UPDATE_EPCS_PAGE_SIZE,
+          "the boot block is one page program");
+}
+
+// Walk a whole gateware image the way the agent does, checking that the
+// programs cover it exactly once and that each sector is erased exactly once
+// and always before anything in it is written.
+//
+// This is the property the individual span tests cannot state, and the one
+// that matters: an erase issued a page too late destroys what was just
+// written to that sector, and the symptom is a unit that quietly boots its
+// factory image days later.
+static void testGatewareImageCoverage(void)
+{
+    const uint32_t length = 368011u;
+    uint32_t offset = 0u;
+    uint32_t erases = 0u;
+    uint32_t programs = 0u;
+    int crossedPage = 0;
+    int wroteBeforeErase = 0;
+    uint32_t erasedThrough = UPDATE_EPCS_APPLICATION_ADDRESS;
+
+    while (offset < length) {
+        const uint32_t address = UPDATE_EPCS_APPLICATION_ADDRESS + offset;
+        const uint32_t remaining = length - offset;
+        const uint16_t span = updateEpcsWriteSpan(address, remaining);
+
+        if (span == 0u) {
+            printf("FAIL: the program span stalled at %lu\n", (unsigned long)offset);
+            failures++;
+            return;
+        }
+
+        if (updateEpcsSectorStartsHere(address)) {
+            erases++;
+            erasedThrough = address + UPDATE_EPCS_SECTOR_SIZE;
+        }
+
+        if ((address + span) > erasedThrough) {
+            wroteBeforeErase = 1;
+        }
+
+        if ((address % UPDATE_EPCS_PAGE_SIZE) + span > UPDATE_EPCS_PAGE_SIZE) {
+            crossedPage = 1;
+        }
+
+        offset += span;
+        programs++;
+    }
+
+    check(!crossedPage, "no program in a whole image crosses a page boundary");
+    check(!wroteBeforeErase, "nothing is programmed into a sector that has not been erased");
+    checkNumber(offset, length, "the programs cover the image exactly");
+    checkNumber(erases, (length + UPDATE_EPCS_SECTOR_SIZE - 1u) /
+                UPDATE_EPCS_SECTOR_SIZE, "one erase per sector the image occupies");
+    checkNumber(programs, (length + UPDATE_EPCS_PAGE_SIZE - 1u) /
+                UPDATE_EPCS_PAGE_SIZE, "one program per page of the image");
+}
+
+static void testCrc32(void)
+{
+    static const uint8_t check_vector[9] = {
+        '1', '2', '3', '4', '5', '6', '7', '8', '9'
+    };
+    const uint8_t zero = 0x00u;
+    uint32_t crc;
+    uint32_t split;
+
+    // The published check value for CRC-32, which is what pins this
+    // implementation to the one zlib computes in make-boot-block.py and the
+    // one fpga/factory/crc32.v computes in the factory image's fabric.
+    // Three implementations of one checksum in three languages, and this is
+    // the number that says they are the same checksum.
+    crc = updateCrc32Final(updateCrc32Update(UPDATE_CRC32_INITIAL,
+                                             check_vector, 9u));
+    checkNumber(crc, 0xCBF43926u, "the CRC-32 check value is the published one");
+
+    checkNumber(updateCrc32Final(UPDATE_CRC32_INITIAL), 0u,
+                "the CRC of nothing at all is zero");
+
+    // Folded a byte at a time or all at once, it is the same number — which
+    // is what lets the agent accumulate one over a flash it reads back in
+    // whatever spans the buffer allows.
+    split = UPDATE_CRC32_INITIAL;
+    split = updateCrc32Update(split, check_vector, 4u);
+    split = updateCrc32Update(split, check_vector + 4u, 5u);
+    checkNumber(updateCrc32Final(split), 0xCBF43926u,
+                "a CRC folded in two pieces matches one folded whole");
+
+    check(updateCrc32Final(updateCrc32Update(UPDATE_CRC32_INITIAL, &zero, 1u)) !=
+          updateCrc32Final(UPDATE_CRC32_INITIAL),
+          "a zero byte changes the CRC");
+}
+
+static void testBootBlockEncoding(void)
+{
+    // The twenty-four bytes fpga/make-boot-block.py produces for a
+    // thousand-byte image of ascending values at the application address,
+    // field for field and byte for byte. The encoder on the host and the
+    // encoder on the device write the same block or a unit boots the wrong
+    // half of its flash.
+    static const uint8_t expected[UPDATE_BOOT_BLOCK_LENGTH] = {
+        0x44u, 0x44u, 0x42u, 0x42u,             // "DDBB"
+        0x01u, 0x00u,                           // layout version 1
+        0x00u, 0x00u,                           // reserved
+        0x00u, 0x00u, 0x20u, 0x00u,             // application at 0x200000
+        0x00u, 0x04u, 0x00u, 0x00u,             // 1024 bytes
+        0x26u, 0x4Cu, 0x0Bu, 0xB7u,             // the image's CRC-32
+        0x28u, 0x12u, 0xD1u, 0xB9u,             // the block's own CRC-32
+    };
+
+    uint8_t image[1024];
+    uint8_t block[UPDATE_BOOT_BLOCK_LENGTH];
+    uint32_t imageCrc;
+    uint32_t index;
+
+    for (index = 0u; index < sizeof(image); index++) {
+        image[index] = (uint8_t)(index & 0xFFu);
+    }
+
+    imageCrc = updateCrc32Final(updateCrc32Update(UPDATE_CRC32_INITIAL, image,
+                                                  (uint32_t)sizeof(image)));
+    checkNumber(imageCrc, 0xB70B4C26u, "the image CRC matches the host encoder's");
+
+    updateBootBlockEncode(block, UPDATE_EPCS_APPLICATION_ADDRESS,
+                          (uint32_t)sizeof(image), imageCrc);
+
+    for (index = 0u; index < UPDATE_BOOT_BLOCK_LENGTH; index++) {
+        if (block[index] != expected[index]) {
+            printf("FAIL: boot block byte %u is 0x%02X, expected 0x%02X\n",
+                   (unsigned)index, block[index], expected[index]);
+            failures++;
+        }
+    }
+
+    // The block's own checksum covers the twenty bytes before it, which is
+    // what distinguishes a block half written by an interrupted update from
+    // an intact block describing a damaged image.
+    checkNumber(updateCrc32Final(updateCrc32Update(UPDATE_CRC32_INITIAL, block,
+                                                   UPDATE_BOOT_BLOCK_HEADER_LENGTH)),
+                0xB9D11228u, "the header CRC covers the first twenty bytes");
+
+    // A different image gives a different block, which is the whole reason
+    // the block is rewritten on every update rather than left alone.
+    updateBootBlockEncode(block, UPDATE_EPCS_APPLICATION_ADDRESS,
+                          (uint32_t)sizeof(image) - 1u, imageCrc);
+    check(block[12] != expected[12] || block[13] != expected[13],
+          "a different length reaches the encoded block");
+}
+
 int main(void)
 {
     testBeginDecode();
@@ -458,6 +742,12 @@ int main(void)
     testEepromReadSpans();
     testPagePadding();
     testFullImageCoverage();
+    testGatewarePlausibility();
+    testEpcsDeviceIdentification();
+    testEpcsGeometry();
+    testGatewareImageCoverage();
+    testCrc32();
+    testBootBlockEncoding();
 
     if (failures != 0) {
         printf("update-protocol-test: FAIL (%d failures)\n", failures);

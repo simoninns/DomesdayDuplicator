@@ -73,12 +73,51 @@ CyBool_t fpgaRegistersProbe(uint8_t attempts);
 // refuse on, so that a host request never waits on retries.
 CyBool_t fpgaRegistersPresent(void);
 
+// Does the gateware the last probe found carry the flash bridge?
+//
+// The gateware update path refuses on this rather than discovering it by
+// writing to registers that are not there. A gateware predating map version
+// 2 answers everything the capture path needs and has no bridge at all, so
+// the writes would go nowhere and the readback would be whatever the flash
+// happened to hold — which is precisely the failure mode that must not be
+// reported as a successful update.
+CyBool_t fpgaRegistersHasFlashBridge(void);
+
+// Which of the two gateware images answered the last probe. Meaningless
+// unless fpgaRegistersHasFlashBridge() is true.
+uint8_t fpgaRegistersImageRole(void);
+
+// Forget what the last probe found, so the application thread looks again.
+//
+// Called when the FPGA has been told to reconfigure: everything above is
+// answered from the identity block read at the last probe, and reloading the
+// FPGA is precisely the operation that changes which image that block came
+// from. The thread's periodic recheck picks the new one up a couple of
+// seconds later.
+void fpgaRegistersForgetProbe(void);
+
 // Read length bytes starting at address. The address auto-increments in the
 // gateware, so the identity block is one transfer.
 CyBool_t fpgaRegistersRead(uint8_t address, uint8_t *buffer, uint8_t length);
 
 // Write one byte to one register.
 CyBool_t fpgaRegistersWrite(uint8_t address, uint8_t value);
+
+// Write a run of bytes in one framed transaction.
+//
+// The address auto-increments in the gateware exactly as it does for a read,
+// so this writes consecutive registers — with one exception that is the
+// reason this exists at all. BRIDGE_DATA at 0x22 does *not* increment: it is
+// a port rather than a location, and each byte written to it shifts one byte
+// out to the EPCS. A flash page program is therefore one transaction of 260
+// bytes rather than 260 transactions of one, which halves the cost of the
+// slowest operation in a gateware update.
+//
+// Safe at any length: the bridge's own shift takes eight of its 10 MHz clock
+// periods, which is less than a microsecond, and the next byte of this
+// transaction cannot arrive for tens of microseconds.
+CyBool_t fpgaRegistersWriteBurst(uint8_t address, const uint8_t *data,
+                                 uint16_t length);
 
 // Drive the status LEDs. A no-op returning CyFalse when no bank was found.
 CyBool_t fpgaRegistersSetLeds(uint8_t pattern);

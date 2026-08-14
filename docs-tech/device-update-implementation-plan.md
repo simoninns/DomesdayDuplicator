@@ -536,20 +536,34 @@ is performed.
 
 ### Phase 5 — Gateware update path (target 1)
 
-- FX3: EPCS driver through the bridge (RDID sanity check, sector erase, page program,
-  read) behind `0xD1–0xD3` target 1; `0xD5` reconfig; SHA-256 readback verify from the
-  EPCS (integrity link 6) before the boot block is written; progress reporting
-  granular enough for a minutes-long operation.
-- GUI: second target in the update flow — the wizard gains its *Updating gateware*
-  stage with the multi-minute time estimate and distinct transfer/write/verify
-  progress; boot-block commit ordering; factory-mode repair flow ("reinstall
-  gateware" as a single calm button, worded as in *If an update fails*).
-- Bench: full gateware update from the running application image; interrupted-update
-  test (power pull mid-write → boots factory → GUI repair); throughput measurement
-  (item V6; optimise the bit-bang only if it dominates), raw-image bit order locked by
-  provenance (V7).
+**Software complete; the bench half is outstanding and needs a provisioned unit.**
+
+- FX3: EPCS driver through the bridge (`epcs-flash.c`: silicon-ID sanity check, sector
+  erase, page program, read, reconfiguration trigger) behind `0xD1–0xD3` target 1 and
+  `0xD5`; SHA-256 readback verify from the EPCS (integrity link 6) and the boot block's
+  CRC-32 accumulated over the same pass; the boot block written, read back and compared
+  last. Sectors are erased as the write first enters them, so an update abandoned before
+  its first chunk leaves the previous gateware running. Register map v2 is now what the
+  firmware is built against, and the bridge registers are not host-writable — the
+  firmware owns them.
+- GUI: second target throughout — per-component stage titles, the multi-minute estimate
+  derived from the bridge's cost per byte, a transfer message that explains the erase
+  pauses, an install-time gate that refuses a gateware update to a device whose gateware
+  has no flash bridge, and the factory-image repair flow: *recovery gateware running*
+  named in the dialog, the gateware row reading **Recovery gateware**, and a single
+  **Reinstall gateware** button that runs an ordinary update.
+- Chunk alignment is now 256 bytes on the host, which satisfies both media for any
+  advertised chunk size.
+- **Outstanding — bench:** full gateware update from the running application image;
+  interrupted-update test (power pull mid-write → boots factory → GUI repair);
+  throughput measurement (item V6; optimise the bit-bang only if it dominates —
+  the read path is the half that would change, and it is in the frozen image);
+  silicon identifier and raw-image bit order confirmed against a part (V7). All of it
+  needs a unit provisioned with the Phase 4 dual-image `.jic`, which has not been done.
+  TESTING.md §7 records what the first session has to establish.
 - **Exit:** gateware updated GUI-to-device in a few minutes, survivable at any
-  interruption point, identity-verified after reboot.
+  interruption point, identity-verified after reboot. **Not yet met** — everything
+  testable without hardware passes; nothing has run on a board.
 
 ### Phase 6 — Release pipeline
 

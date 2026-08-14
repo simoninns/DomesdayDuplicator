@@ -91,6 +91,7 @@ endif()
 set(C_SOURCES
     src/cyfxtx.c
     src/domesday-duplicator.c
+    src/epcs-flash.c
     src/fpga-register-map.c
     src/fpga-registers.c
     src/update-agent.c

@@ -45,6 +45,12 @@
 
 static CyBool_t glFpgaPresent = CyFalse;
 
+// What the last successful probe read. Kept so that "does this gateware
+// carry the flash bridge" and "which image is running" are answered from
+// the identity block that was actually read rather than by reading the
+// registers again on every question.
+static uint8_t glFpgaIdentity[FPGA_IDENTITY_LENGTH];
+
 // One transfer at a time.
 //
 // The application thread writes the LED register as capture state changes,
@@ -266,6 +272,32 @@ CyBool_t fpgaRegistersWrite(uint8_t address, uint8_t value)
     return CyTrue;
 }
 
+CyBool_t fpgaRegistersWriteBurst(uint8_t address, const uint8_t *data,
+                                 uint16_t length)
+{
+    uint16_t index;
+
+    if (data == NULL || length == 0u || address > FPGA_REGISTER_ADDRESS_MAX) {
+        return CyFalse;
+    }
+
+    if (!takeLock()) {
+        return CyFalse;
+    }
+
+    selectFpga();
+    (void)transferByte(address);            // read bit clear
+
+    for (index = 0u; index < length; index++) {
+        (void)transferByte(data[index]);
+    }
+
+    deselectFpga();
+    releaseLock();
+
+    return CyTrue;
+}
+
 CyBool_t fpgaRegistersSetLeds(uint8_t pattern)
 {
     if (!glFpgaPresent) {
@@ -280,9 +312,32 @@ CyBool_t fpgaRegistersPresent(void)
     return glFpgaPresent;
 }
 
+CyBool_t fpgaRegistersHasFlashBridge(void)
+{
+    if (!glFpgaPresent) {
+        return CyFalse;
+    }
+
+    return fpgaIdentityHasFlashBridge(glFpgaIdentity) ? CyTrue : CyFalse;
+}
+
+uint8_t fpgaRegistersImageRole(void)
+{
+    if (!glFpgaPresent) {
+        return FPGA_IMAGE_ROLE_APPLICATION;
+    }
+
+    return fpgaIdentityImageRole(glFpgaIdentity);
+}
+
+void fpgaRegistersForgetProbe(void)
+{
+    glFpgaPresent = CyFalse;
+}
+
 CyBool_t fpgaRegistersProbe(uint8_t attempts)
 {
-    uint8_t identity[FPGA_IDENTITY_LENGTH];
+    uint8_t *const identity = glFpgaIdentity;
     char commit[FPGA_COMMIT_LENGTH + 1];
     uint8_t attempt;
 
@@ -322,6 +377,16 @@ CyBool_t fpgaRegistersProbe(uint8_t attempts)
         fpgaIdentityMapVersion(identity),
         (commit[0] != '\0') ? commit : "unknown",
         fpgaIdentityIsDirty(identity) ? " (dirty)" : "");
+
+    // Worth a line of its own, because it is the difference between a unit
+    // that can capture and one that cannot. A device in the factory image
+    // answers everything here perfectly well and has no capture path at all.
+    if (fpgaIdentityHasFlashBridge(identity) &&
+        fpgaIdentityImageRole(identity) == FPGA_IMAGE_ROLE_FACTORY) {
+        CyU3PDebugPrint(4, "fpgaRegistersProbe(): the FPGA is running its factory image - "
+            "this unit is in gateware recovery and cannot capture until the gateware "
+            "is reinstalled\r\n");
+    }
 
     if (fpgaIdentityMapVersion(identity) != FPGA_IDENTITY_MAP_VERSION) {
         CyU3PDebugPrint(4, "fpgaRegistersProbe(): gateware implements register map version %d, "

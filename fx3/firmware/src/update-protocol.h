@@ -41,10 +41,10 @@
 #define UPDATE_REQUEST_RESET            (0xD4u)
 #define UPDATE_REQUEST_FPGA_RECONFIG    (0xD5u)
 
-// wIndex selects the target throughout. Target 1 is the FPGA's EPCS
-// configuration flash, reached through the gateware's flash bridge; the
-// firmware in this phase answers for target 0 only and refuses target 1
-// with UPDATE_ERROR_TARGET rather than pretending.
+// wIndex selects the target throughout. Target 0 is the FX3's own boot
+// EEPROM, written over I2C; target 1 is the FPGA's EPCS configuration
+// flash, reached through the gateware's flash bridge. Anything else is
+// refused with UPDATE_ERROR_TARGET rather than pretending.
 #define UPDATE_TARGET_EEPROM            (0u)
 #define UPDATE_TARGET_EPCS              (1u)
 
@@ -74,6 +74,78 @@
 
 // The largest image the boot EEPROM can hold: 2 Mbit across four slaves.
 #define UPDATE_EEPROM_SIZE              (4u * UPDATE_EEPROM_SLAVE_SIZE)
+
+// EPCS geometry. A program must not cross a 256-byte page and an erase is
+// always a whole 64 KiB sector, which together are what decide where a
+// gateware update may start and where each of its writes may end.
+//
+// These are a deliberate second copy of the addresses in
+// fpga/make-boot-block.py and fpga/factory/bootLoader.v (AGENTS.md §2).
+// Three readers agree about this layout - the encoder that writes the boot
+// block, the fabric that reads it at power-on, and this firmware that
+// rewrites both halves - and they are three languages on three processors.
+#define UPDATE_EPCS_PAGE_SIZE           (256u)
+#define UPDATE_EPCS_SECTOR_SIZE         (65536u)
+
+// The whole of an EPCS64, which is what the DE0-Nano carries.
+#define UPDATE_EPCS_SIZE                (0x800000u)
+
+// Where the two field-writable regions live. The factory image at 0x000000
+// is never written from here by any path: it is JTAG-provisioned once and
+// the freeze policy in fpga/factory/README.md is what keeps it that way.
+#define UPDATE_EPCS_BOOT_BLOCK_ADDRESS  (0x100000u)
+#define UPDATE_EPCS_APPLICATION_ADDRESS (0x200000u)
+
+// The EPCS command set, as much of it as this firmware issues. The gateware
+// bridge knows none of these - it shifts bytes - so this is the only place
+// in the device where the flash's own protocol is written down.
+#define UPDATE_EPCS_WRITE_ENABLE        (0x06u)
+#define UPDATE_EPCS_READ_STATUS         (0x05u)
+#define UPDATE_EPCS_READ_BYTES          (0x03u)
+#define UPDATE_EPCS_PAGE_PROGRAM        (0x02u)
+#define UPDATE_EPCS_ERASE_SECTOR        (0xD8u)
+#define UPDATE_EPCS_READ_SILICON_ID     (0xABu)
+
+// Bit 0 of the status register is set while an erase or a program is in
+// progress. Bit 1 reports the write-enable latch.
+#define UPDATE_EPCS_STATUS_BUSY         (0x01u)
+#define UPDATE_EPCS_STATUS_WRITE_ENABLE (0x02u)
+
+// How many dummy bytes follow the read-silicon-identifier command before
+// the device answers.
+#define UPDATE_EPCS_ID_DUMMY_BYTES      (3u)
+
+// The silicon identifiers this firmware recognises, from the Altera serial
+// configuration device datasheet. The sanity check is not "is it exactly
+// the part we expect": it is "is there a serial flash on the far end of the
+// bridge at all, and is it big enough for what is about to be written".
+// The two readings that mean *nothing is there* - all-ones from a floating
+// line, all-zeros from one held down - are neither of these, which is the
+// whole point of checking.
+#define UPDATE_EPCS_ID_EPCS16           (0x14u)
+#define UPDATE_EPCS_ID_EPCS64           (0x16u)
+#define UPDATE_EPCS_ID_EPCS128          (0x18u)
+
+// The boot block: the twenty-four bytes at UPDATE_EPCS_BOOT_BLOCK_ADDRESS
+// that tell the factory image where the application image is and what it
+// should checksum to. Writing it is the last act of a gateware update, and
+// it is what makes an application image count.
+#define UPDATE_BOOT_BLOCK_LENGTH        (24u)
+#define UPDATE_BOOT_BLOCK_HEADER_LENGTH (20u)
+#define UPDATE_BOOT_BLOCK_LAYOUT_VERSION (1u)
+
+// "DDBB", most significant byte first, so that it reads as itself in a dump
+// of the flash - the one field anybody looks at with their eyes.
+#define UPDATE_BOOT_BLOCK_MAGIC_0       (0x44u)
+#define UPDATE_BOOT_BLOCK_MAGIC_1       (0x44u)
+#define UPDATE_BOOT_BLOCK_MAGIC_2       (0x42u)
+#define UPDATE_BOOT_BLOCK_MAGIC_3       (0x42u)
+
+// The smallest plausible gateware image. A raw EPCS byte stream carries no
+// signature to check - unlike an FX3 boot image, which starts with 'CY' -
+// so length is the only thing that can be said about it before it is
+// written, and it is said rather than nothing being said.
+#define UPDATE_GATEWARE_MINIMUM_LENGTH  (UPDATE_EPCS_PAGE_SIZE)
 
 // The first two bytes of an FX3 boot image. The boot ROM looks for these, so
 // an image that does not carry them is not a thing this device could ever
@@ -233,5 +305,66 @@ uint16_t updateEepromReadSpan(uint32_t address, uint32_t remaining,
 // image is zero-padded, because a page is the smallest thing that can be
 // written.
 uint32_t updateEepromPadToPage(uint32_t length);
+
+// Is this a gateware image the EPCS could hold at the application address?
+//
+// The counterpart of updateImageIsPlausible() for target 1, and weaker than
+// it on purpose: a raw EPCS byte stream has no signature, so the only thing
+// that can be checked before the first sector is erased is that the length
+// is one an application image could have.
+int updateGatewareIsPlausible(uint32_t totalLength);
+
+// How many bytes the device with this silicon identifier holds, or zero if
+// it is not one this firmware recognises.
+uint32_t updateEpcsCapacity(uint8_t siliconId);
+
+// Is the device that answered one this firmware may write, and large enough
+// to hold `bytes` at `address`?
+int updateEpcsDeviceIsUsable(uint8_t siliconId, uint32_t address,
+                             uint32_t bytes);
+
+// The largest program that may start at this address: at most a page, and
+// never across a page boundary. Returns 0 when nothing remains.
+//
+// A page program that runs past the end of its page wraps to the start of
+// the same page rather than continuing, exactly as the EEPROM's does, so
+// this is a hard limit and not a performance hint.
+uint16_t updateEpcsWriteSpan(uint32_t address, uint32_t remaining);
+
+// Does an erase have to happen before this address is written?
+//
+// True at each sector boundary. The update writes the application image
+// strictly in address order, so erasing the sector an address opens is both
+// necessary and sufficient - and it means an image occupying six sectors
+// costs six erases rather than erasing the whole device.
+int updateEpcsSectorStartsHere(uint32_t address);
+
+// The sector containing this address, as the address of its first byte.
+uint32_t updateEpcsSectorBase(uint32_t address);
+
+// CRC-32, the one the boot block carries.
+//
+// The ordinary reflected CRC-32 - polynomial 0xEDB88320, initial value all
+// ones, final complement - which is what zlib computes and what
+// fpga/factory/crc32.v implements in the factory image's fabric. Three
+// implementations of one checksum, because the encoder, the reader and this
+// writer are in three languages; the published check value pins all three.
+//
+// The running value is the raw register, so a caller starts at
+// UPDATE_CRC32_INITIAL, folds bytes in with updateCrc32Update() and takes
+// the result through updateCrc32Final() exactly once.
+#define UPDATE_CRC32_INITIAL            (0xFFFFFFFFu)
+
+uint32_t updateCrc32Update(uint32_t crc, const uint8_t *data, uint32_t length);
+uint32_t updateCrc32Final(uint32_t crc);
+
+// Encode the twenty-four bytes of the boot block.
+//
+// `out` is UPDATE_BOOT_BLOCK_LENGTH bytes. `imageCrc` is the finished
+// CRC-32 of the application image as read back off the flash, never as it
+// arrived over USB: the block's whole job is to describe what is on the
+// medium.
+void updateBootBlockEncode(uint8_t *out, uint32_t address, uint32_t length,
+                           uint32_t imageCrc);
 
 #endif // _UPDATE_PROTOCOL_H_

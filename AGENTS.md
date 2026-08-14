@@ -477,8 +477,8 @@ nix flake check                    # everything, on a clean machine
 ctest --test-dir gui/build         # one component
 ```
 
-**What exists today: 844 tests across five components** — 37 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 748 in `ddd-gui/` (the capture engine — sample and wire
+**What exists today: 872 tests across five components** — 37 in `gui/` (UTF-8 conversion, the
+10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 776 in `ddd-gui/` (the capture engine — sample and wire
 formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
 metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
 against each other, capture naming and provenance, the offline test-data analyser and its
@@ -499,13 +499,16 @@ which signing keys a build accepts and what each one proves, the install-time
 compatibility gate in both directions, the status packet's decoding, `ddd-update`'s exit
 codes, the complete update flow — stage by stage and failure by failure — driven
 against a fake device and, in the widget tests, against a real signed bundle written to
-disk, and the recovery path that programs a device with no firmware at all: the FX3 boot
-image parsed and every malformed form of it refused, the prelude that hands that image to
-a device's boot ROM, and the wording a user meets when their board has never been
-programmed),
+disk — for the gateware target as well as the firmware, with both halves installed from one
+bundle, each proved to reach the half it was for, and the FPGA told to reload itself only
+when a gateware was actually installed — the recovery path that programs a device with no
+firmware at all: the FX3 boot image parsed and every malformed form of it refused, the
+prelude that hands that image to a device's boot ROM, and the wording a user meets when
+their board has never been programmed; and the second rescue state, a unit whose FPGA came
+up in its factory image, named and repaired by an ordinary update),
 24 in `fx3/programmer/` (EEPROM paging arithmetic,
 secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and three
-in `fx3/firmware/` (the generated USB product descriptor, the host-testable half of the register map, and the host-testable half of the device update protocol including its EEPROM paging arithmetic). `fpga/` adds eight
+in `fx3/firmware/` (the generated USB product descriptor, the host-testable half of the register map, and the host-testable half of the device update protocol including both media's paging arithmetic, the boot block it writes at the end of a gateware update, and the CRC-32 that block carries). `fpga/` adds eight
 Verilog testbenches — including the factory image's boot decision, driven against a model
 of the EPCS64 — a `-Wall` lint pass over twelve modules across both images, a
 timing-constraint check per image, a bitstream-digest test and a boot-block encoder test,

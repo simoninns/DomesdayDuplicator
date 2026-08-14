@@ -20,6 +20,7 @@
 
 #include "device_updater.h"
 #include "digest.h"
+#include "wire_protocol.h"
 
 namespace ddd::capture {
 
@@ -76,7 +77,8 @@ class FakeDeviceUpdater : public IDeviceUpdater {
     identity_.product_string = "Domesday Duplicator (0123abcd)";
     identity_.protocol_version = 1;
     identity_.gateware_present = true;
-    identity_.register_map_version = 1;
+    identity_.register_map_version = kRegisterMapVersionWithImageRole;
+    identity_.image_role = kImageRoleApplication;
     identity_.gateware_commit = "0123abcd";
 
     // The chunk size is answerable before anything has been started, because
@@ -155,11 +157,14 @@ class FakeDeviceUpdater : public IDeviceUpdater {
       return false;
     }
 
-    // Every chunk but the last is a whole number of EEPROM pages, which is
-    // the firmware's rule and therefore a rule this fake enforces — a host
-    // that broke it would otherwise pass here and fail on hardware.
+    // Every chunk but the last is a whole number of the target medium's
+    // pages, which is the firmware's rule and therefore a rule this fake
+    // enforces — a host that broke it would otherwise pass here and fail on
+    // hardware. The EPCS's page is four times the EEPROM's, so a chunk that
+    // is legal for one target is not automatically legal for the other.
+    const uint64_t page = target == UpdateTarget::kGateware ? 256 : 64;
     const uint64_t remaining = expected_length_ - received_.size();
-    if (data.size() < remaining && (data.size() % 64) != 0) {
+    if (data.size() < remaining && (data.size() % page) != 0) {
       status_.phase = UpdatePhase::kFailed;
       status_.error = DeviceUpdateError::kChunk;
       return false;
@@ -200,6 +205,12 @@ class FakeDeviceUpdater : public IDeviceUpdater {
       status_.error = DeviceUpdateError::kStreamDigest;
       return false;
     }
+
+    // Kept per target, because a bundle carrying both components opens a
+    // second transfer that would otherwise overwrite the record of the
+    // first — and "did the right bytes reach the right half of the device"
+    // is the question these tests exist to answer.
+    committed_[target] = received_;
 
     status_.phase = UpdatePhase::kWriting;
     return true;
@@ -258,6 +269,14 @@ class FakeDeviceUpdater : public IDeviceUpdater {
   // --- What the test can check ----------------------------------------------
 
   const std::vector<uint8_t>& received() const { return received_; }
+
+  // What was committed to one target, which survives a later transfer to
+  // the other one. Empty if that target was never finished.
+  const std::vector<uint8_t>& received(UpdateTarget target) const {
+    static const std::vector<uint8_t> nothing;
+    const auto found = committed_.find(target);
+    return found == committed_.end() ? nothing : found->second;
+  }
   uint64_t begin_count() const { return begin_count_; }
   uint64_t chunk_count() const { return chunk_count_; }
   uint64_t reset_count() const { return reset_count_; }
@@ -302,6 +321,7 @@ class FakeDeviceUpdater : public IDeviceUpdater {
   uint64_t expected_length_ = 0;
   Sha256Digest expected_digest_{};
   std::vector<uint8_t> received_;
+  std::map<UpdateTarget, std::vector<uint8_t>> committed_;
   uint16_t next_chunk_ = 0;
 
   uint64_t begin_count_ = 0;

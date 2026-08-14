@@ -163,9 +163,16 @@ inline constexpr uint16_t kUpdateTargetGateware = 1;
 inline constexpr size_t kUpdateStatusLength = 16;
 inline constexpr size_t kUpdateBeginLength = 40;
 
-// The EEPROM page size, which is the alignment every chunk but the last has
-// to respect so the firmware can write a chunk straight to the medium.
-inline constexpr size_t kUpdateChunkAlignment = 64;
+// The alignment every chunk but the last has to respect, so the firmware can
+// write a chunk straight to its medium with no assembly buffer in between.
+//
+// One number for both targets, and it is the larger of the two page sizes:
+// the FX3's boot EEPROM has a 64-byte page and the FPGA's configuration
+// flash a 256-byte one, and a chunk that is a whole number of the larger is
+// a whole number of the smaller as well. A host that rounds the device's
+// advertised chunk size down to a multiple of this satisfies both media for
+// any advertised size, which is what the alignment is for.
+inline constexpr size_t kUpdateChunkAlignment = 256;
 
 // The vendor protocol version this build understands, as the firmware
 // advertises it in the high byte of bcdDevice.

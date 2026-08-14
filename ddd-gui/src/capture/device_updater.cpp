@@ -16,6 +16,7 @@
 #include <thread>
 #include <vector>
 
+#include "fpga_version.h"
 #include "logger.h"
 #include "usb_device.h"
 #include "usb_device_info.h"
@@ -93,29 +94,22 @@ class UsbDeviceUpdater : public IDeviceUpdater {
     // The gateware's identity block is read through this channel rather than
     // through IUsbDevice::ReadRegisters, which would open and close the
     // device underneath a channel that already has it open.
-    std::array<uint8_t, kIdentityLength> registers{};
+    std::vector<uint8_t> registers(kIdentityLength);
     const int read = channel_->Transfer(
         kVendorReadRequestType, kRegisterReadRequest, kRegisterId, 0,
         std::span<uint8_t>(registers), kShortTimeoutMilliseconds);
 
-    if (read == static_cast<int>(registers.size()) &&
-        registers[kRegisterId] == kIdentityValue) {
-      identity.gateware_present = true;
-      identity.register_map_version = registers[kRegisterMapVersion];
+    if (read == static_cast<int>(registers.size())) {
+      // Parsed by the same code the rest of the application parses this
+      // block with. Two readers of twelve bytes that disagreed about which
+      // byte was the image role would be two readers that disagreed about
+      // whether a device could capture.
+      const FpgaVersion gateware = ParseFpgaIdentity(registers);
 
-      // Commit characters, stopping at the first that is not a hex digit so
-      // that a misread link cannot put arbitrary bytes into the interface.
-      for (size_t index = 0; index < kCommitLength; ++index) {
-        const char character =
-            static_cast<char>(registers[kRegisterCommit + index]);
-        const bool is_hex = (character >= '0' && character <= '9') ||
-                            (character >= 'a' && character <= 'f') ||
-                            (character >= 'A' && character <= 'F');
-        if (!is_hex) {
-          break;
-        }
-        identity.gateware_commit.push_back(character);
-      }
+      identity.gateware_present = gateware.present;
+      identity.register_map_version = gateware.map_version;
+      identity.image_role = gateware.image_role;
+      identity.gateware_commit = gateware.commit;
     }
 
     return identity;
@@ -266,6 +260,19 @@ class UsbDeviceUpdater : public IDeviceUpdater {
 };
 
 }  // namespace
+
+bool DeviceIdentity::GatewareCanBeUpdated() const {
+  return gateware_present &&
+         register_map_version >= kRegisterMapVersionWithImageRole;
+}
+
+bool DeviceIdentity::GatewareIsRecovery() const {
+  // The same rule FpgaVersion applies to the same registers, and it has to
+  // be: a role byte read from a gateware whose map predates the register is
+  // a byte that means nothing, and reading it as "factory" would put a
+  // working device into a recovery state that does not exist for it.
+  return GatewareCanBeUpdated() && image_role == kImageRoleFactory;
+}
 
 const char* UpdateTargetName(UpdateTarget target) {
   switch (target) {

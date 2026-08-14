@@ -30,8 +30,18 @@
 #define FPGA_REGISTER_MAP_VERSION       (0x01u)
 #define FPGA_REGISTER_BUILD_FLAGS       (0x02u)
 #define FPGA_REGISTER_COMMIT            (0x03u)
+#define FPGA_REGISTER_IMAGE_ROLE        (0x0Bu)
 #define FPGA_REGISTER_TEST_MODE         (0x10u)
 #define FPGA_REGISTER_LED               (0x11u)
+
+// Map version 2's flash bridge and reconfiguration control. These are the
+// only registers whose writes have an effect outside the register bank:
+// through them the firmware reaches the EPCS configuration flash and asks
+// the FPGA to reload itself.
+#define FPGA_REGISTER_BRIDGE_UNLOCK     (0x20u)
+#define FPGA_REGISTER_BRIDGE_CONTROL    (0x21u)
+#define FPGA_REGISTER_BRIDGE_DATA       (0x22u)
+#define FPGA_REGISTER_RECONFIG_CONTROL  (0x23u)
 
 // The command byte carries a seven-bit address, so this is the whole space
 #define FPGA_REGISTER_ADDRESS_MAX       (0x7Fu)
@@ -45,16 +55,65 @@
 // distinguishes a real register bank from either.
 #define FPGA_IDENTITY_VALUE             (0x44u)
 
-// The map version this firmware was written against
-#define FPGA_IDENTITY_MAP_VERSION       (0x01u)
+// The map version this firmware was written against.
+//
+// Version 2 is the one that carries the flash bridge, so it is not only a
+// version this firmware knows about: it is the version a device has to
+// implement before its gateware can be updated at all. A device reporting
+// version 1 is a device that predates the two-image model and needs the
+// bench procedure once.
+#define FPGA_IDENTITY_MAP_VERSION       (0x02u)
 
-// Identity block: signature, map version, build flags, eight commit characters
-#define FPGA_IDENTITY_LENGTH            (11u)
+// The oldest map version whose gateware carries the flash bridge
+#define FPGA_MAP_VERSION_WITH_BRIDGE    (0x02u)
+
+// Identity block: signature, map version, build flags, eight commit
+// characters and the image role, contiguous so that one transaction fetches
+// all of it.
+#define FPGA_IDENTITY_LENGTH            (12u)
 #define FPGA_COMMIT_LENGTH              (8u)
 
 // Bits of FPGA_REGISTER_BUILD_FLAGS
 #define FPGA_BUILD_FLAG_DIRTY           (0x01u)
 #define FPGA_BUILD_FLAG_COMMIT          (0x02u)
+
+// What FPGA_REGISTER_IMAGE_ROLE reports. Only meaningful from map version 2;
+// a version 1 gateware has no such register and reads 0x00 for it, which is
+// why the role is believed only when the map version says it exists.
+#define FPGA_IMAGE_ROLE_FACTORY         (0x00u)
+#define FPGA_IMAGE_ROLE_APPLICATION     (0x01u)
+
+// The four bytes that unlock the flash bridge, written one per transaction
+// to FPGA_REGISTER_BRIDGE_UNLOCK. Any other write there locks it again.
+//
+// Four bytes rather than one magic value because the register address
+// post-increments, so each byte is a transaction of its own and no run of
+// bytes across the map can produce the sequence as a side effect. The lock
+// is what stands between a stray register write and an unbootable board.
+#define FPGA_BRIDGE_UNLOCK_0            (0x44u)
+#define FPGA_BRIDGE_UNLOCK_1            (0x44u)
+#define FPGA_BRIDGE_UNLOCK_2            (0x55u)
+#define FPGA_BRIDGE_UNLOCK_3            (0xAAu)
+
+// Anything at all relocks it; zero by convention.
+#define FPGA_BRIDGE_LOCK                (0x00u)
+
+// FPGA_REGISTER_BRIDGE_UNLOCK reads the lock state rather than the position
+// in the sequence.
+#define FPGA_BRIDGE_UNLOCKED            (0x01u)
+
+// Bits of FPGA_REGISTER_BRIDGE_CONTROL: write bit 0 to assert the flash's
+// chip select; read bit 0 back as that state and bit 1 as a byte shift in
+// progress.
+#define FPGA_BRIDGE_SELECT              (0x01u)
+#define FPGA_BRIDGE_BUSY                (0x02u)
+
+// Bits of FPGA_REGISTER_RECONFIG_CONTROL. Writing bit 1 is what makes the
+// FPGA reload itself after a gateware update: it returns to the factory
+// image, which then makes the same boot decision it makes at every power-on
+// with whatever the flash now holds.
+#define FPGA_RECONFIG_TICKLE            (0x01u)
+#define FPGA_RECONFIG_TRIGGER           (0x02u)
 
 // The largest read a single vendor request may ask for
 #define FPGA_REGISTER_READ_MAX          (64u)
@@ -79,6 +138,18 @@ uint8_t fpgaIdentityMapVersion(const uint8_t *identity);
 
 // Was the gateware built from a tree with uncommitted changes?
 int fpgaIdentityIsDirty(const uint8_t *identity);
+
+// Which of the two gateware images answered, or FPGA_IMAGE_ROLE_APPLICATION
+// for a map version that predates the question.
+//
+// The charitable default is deliberate: a version 1 gateware is a single
+// image and it captures, so reporting it as a factory image would put a
+// working device into a recovery state that does not exist for it.
+uint8_t fpgaIdentityImageRole(const uint8_t *identity);
+
+// Does this gateware carry the flash bridge, and can it therefore have its
+// own configuration flash rewritten from here?
+int fpgaIdentityHasFlashBridge(const uint8_t *identity);
 
 // The commit the gateware was built from, as a NUL-terminated string.
 //

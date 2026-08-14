@@ -19,6 +19,7 @@
 #include <string>
 
 #include "digest.h"
+#include "wire_protocol.h"
 
 namespace ddd::capture {
 
@@ -125,6 +126,31 @@ struct DeviceIdentity {
 
   int register_map_version = 0;
   std::string gateware_commit;
+
+  // Which of the two gateware images answered. Only meaningful from
+  // register map version 2, which is the version that has two of them.
+  //
+  // The default is the application image and not the register's own zero,
+  // because zero *is* the factory image: an identity that was filled in
+  // without this field would otherwise describe a perfectly good unit as
+  // being in recovery. Every path that reads the register sets it.
+  int image_role = kImageRoleApplication;
+
+  // Can this device's gateware be rewritten from here at all?
+  //
+  // It takes a gateware carrying the flash bridge, which is map version 2
+  // and later. A device below that is not broken — it captures perfectly
+  // well — but the only route to its configuration flash is through fabric
+  // it does not have, so it needs the bench procedure once.
+  bool GatewareCanBeUpdated() const;
+
+  // Is the FPGA running its resident factory image — a unit in gateware
+  // recovery, with a register bank and a flash bridge and no capture path
+  // at all?
+  //
+  // False when the role is unknown, which is the right answer for gateware
+  // predating the split: that is one image and it captures.
+  bool GatewareIsRecovery() const;
 };
 
 // A device that can be updated.

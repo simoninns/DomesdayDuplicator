@@ -34,7 +34,7 @@ void UpdateWorker::Run() {
     emit Finished(false,
                   tr("The device could not be opened for updating. Unplug it, "
                      "plug it back in, and try again."),
-                  QString(), QString());
+                  capture::DeviceIdentity{});
     return;
   }
 
@@ -42,14 +42,15 @@ void UpdateWorker::Run() {
   const std::optional<capture::UpdateBundle> bundle =
       capture::OpenUpdateBundleForPolicy(archive_, policy_, &error);
   if (!bundle.has_value()) {
-    emit Finished(false, QString::fromStdString(error), QString(), QString());
+    emit Finished(false, QString::fromStdString(error),
+                  capture::DeviceIdentity{});
     return;
   }
 
   const auto cancelled = [this] { return cancelled_.load(); };
   const auto report = [this](const capture::UpdateProgress& step) {
-    emit Progress(static_cast<int>(step.stage), step.done, step.total,
-                  QString::fromStdString(step.message));
+    emit Progress(static_cast<int>(step.stage), static_cast<int>(step.target),
+                  step.done, step.total, QString::fromStdString(step.message));
   };
 
   capture::UpdateOutcome outcome;
@@ -72,8 +73,7 @@ void UpdateWorker::Run() {
   }
 
   emit Finished(outcome.succeeded, QString::fromStdString(outcome.problem),
-                QString::fromStdString(outcome.identity.product_string),
-                QString::fromStdString(outcome.identity.gateware_commit));
+                outcome.identity);
 }
 
 }  // namespace ddd::gui

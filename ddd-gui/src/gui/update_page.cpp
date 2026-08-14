@@ -92,7 +92,7 @@ UpdatePage::UpdatePage(QString application_version, Device device,
   connect(cancel_, &QPushButton::clicked, this, &UpdatePage::CancelUpdate);
   buttons->addWidget(cancel_);
 
-  install_ = new QPushButton(InstallActionLabel(device_.personality), this);
+  install_ = new QPushButton(InstallButtonLabel(), this);
   install_->setObjectName(QLatin1String(kInstallButtonName));
   install_->setDefault(true);
   connect(install_, &QPushButton::clicked, this, &UpdatePage::StartUpdate);
@@ -136,10 +136,19 @@ void UpdatePage::RefreshVersions() {
   // Above the table rather than below it: what state the device is in is the
   // thing that explains why the table says what it says, and a user reading
   // "None installed" needs the explanation before the surprise, not after it.
+  //
+  // The two states are mutually exclusive in practice — a device with no
+  // firmware cannot report which gateware image it is running — but both are
+  // asked about rather than one being assumed to rule the other out.
   if (device_.attached) {
     const QString state = DevicePersonalityText(device_.personality);
     if (!state.isEmpty()) {
       text = state + QStringLiteral("<br><br>") + text;
+    }
+
+    const QString gateware = GatewareRecoveryText(device_.identity);
+    if (!gateware.isEmpty()) {
+      text = gateware + QStringLiteral("<br><br>") + text;
     }
   }
 
@@ -147,7 +156,7 @@ void UpdatePage::RefreshVersions() {
 }
 
 QString UpdatePage::InstallButtonLabel() const {
-  return InstallActionLabel(device_.personality);
+  return InstallActionLabel(device_.personality, in_gateware_recovery());
 }
 
 void UpdatePage::SetBundleState(const QString& summary, const QString& banner) {
@@ -304,7 +313,8 @@ void UpdatePage::StartUpdate() {
   connect(worker_, &UpdateWorker::Finished, this, &UpdatePage::HandleFinished);
 
   progress_->setRange(0, 0);
-  ShowStage(capture::UpdateStage::kChecking, QString());
+  ShowStage(capture::UpdateStage::kChecking, capture::UpdateTarget::kFirmware,
+            QString());
   RefreshButtons();
   emit BusyChanged(true);
 
@@ -322,19 +332,21 @@ void UpdatePage::CancelUpdate() {
   }
 }
 
-void UpdatePage::ShowStage(capture::UpdateStage stage, const QString& message) {
-  QString text =
-      QStringLiteral("<b>%1</b>").arg(UpdateStageTitle(stage).toHtmlEscaped());
+void UpdatePage::ShowStage(capture::UpdateStage stage,
+                           capture::UpdateTarget target,
+                           const QString& message) {
+  QString text = QStringLiteral("<b>%1</b>")
+                     .arg(UpdateStageTitle(stage, target).toHtmlEscaped());
   if (!message.isEmpty()) {
     text += QStringLiteral("<br>") + message.toHtmlEscaped();
   }
   status_->setText(text);
 }
 
-void UpdatePage::HandleProgress(int stage, quint64 done, quint64 total,
-                                const QString& message) {
+void UpdatePage::HandleProgress(int stage, int target, quint64 done,
+                                quint64 total, const QString& message) {
   const auto update_stage = static_cast<capture::UpdateStage>(stage);
-  ShowStage(update_stage, message);
+  ShowStage(update_stage, static_cast<capture::UpdateTarget>(target), message);
 
   // A stage with no meaningful proportion gets a busy indicator and a line
   // saying what it is waiting for, rather than a bar invented to fill the
@@ -350,8 +362,7 @@ void UpdatePage::HandleProgress(int stage, quint64 done, quint64 total,
 }
 
 void UpdatePage::HandleFinished(bool succeeded, const QString& problem,
-                                const QString& product_string,
-                                const QString& gateware_commit) {
+                                const capture::DeviceIdentity& identity) {
   if (thread_ != nullptr) {
     thread_->quit();
     thread_->wait();
@@ -371,10 +382,8 @@ void UpdatePage::HandleFinished(bool succeeded, const QString& problem,
   if (succeeded) {
     // The device is read back rather than assumed, so what is shown here is
     // what the device says it is running and not what the update intended.
-    capture::DeviceIdentity identity;
-    identity.product_string = product_string.toStdString();
-    identity.gateware_commit = gateware_commit.toStdString();
-    identity.gateware_present = !gateware_commit.isEmpty();
+    // That includes which gateware image answered, which is how a unit that
+    // was in gateware recovery stops being described as one.
     device_.identity = identity;
     device_.attached = true;
 

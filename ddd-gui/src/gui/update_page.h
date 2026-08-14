@@ -129,11 +129,10 @@ class UpdatePage : public QWidget {
   void ChooseBundle();
   void StartUpdate();
   void CancelUpdate();
-  void HandleProgress(int stage, quint64 done, quint64 total,
+  void HandleProgress(int stage, int target, quint64 done, quint64 total,
                       const QString& message);
   void HandleFinished(bool succeeded, const QString& problem,
-                      const QString& product_string,
-                      const QString& gateware_commit);
+                      const capture::DeviceIdentity& identity);
 
  private:
   void RefreshVersions();
@@ -147,7 +146,18 @@ class UpdatePage : public QWidget {
   bool in_recovery() const {
     return device_.personality == capture::DevicePersonality::kRecovery;
   }
-  void ShowStage(capture::UpdateStage stage, const QString& message);
+
+  // Whether the FPGA is running its resident factory image. A working
+  // device with no capture path, which is a different state from a device
+  // with no firmware and is repaired by a different half of the bundle.
+  bool in_gateware_recovery() const {
+    return device_.attached &&
+           device_.personality == capture::DevicePersonality::kApplication &&
+           device_.identity.GatewareIsRecovery();
+  }
+
+  void ShowStage(capture::UpdateStage stage, capture::UpdateTarget target,
+                 const QString& message);
   void SetBundleState(const QString& summary, const QString& banner);
 
   QString application_version_;

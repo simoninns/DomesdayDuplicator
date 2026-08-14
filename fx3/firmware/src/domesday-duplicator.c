@@ -939,10 +939,17 @@ static CyBool_t domDupHandleUpdateRequest(uint8_t bRequest, uint16_t wValue,
 		return CyTrue;
 
 	case UPDATE_REQUEST_FPGA_RECONFIG:
-		// Target 1's half of the mechanism arrives with the gateware's flash bridge.
-		// Stalling is the honest answer until it does; answering would tell a host that
-		// a reconfiguration it asked for had happened.
-		return CyFalse;
+		// Refused, by stalling, when no gateware with a flash bridge is answering or
+		// while a transfer is open. Acknowledging either would tell a host that a
+		// reconfiguration it asked for had happened.
+		//
+		// The FPGA reconfigures a few milliseconds after this returns and the register
+		// link goes away with it, so the host follows this with a device reset rather
+		// than leaving the firmware holding a capture path whose clock has stopped.
+		if (!updateAgentReconfigureFpga()) return CyFalse;
+
+		*sendAck = CyTrue;
+		return CyTrue;
 
 	default:
 		return CyFalse;

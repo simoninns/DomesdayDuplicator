@@ -48,6 +48,34 @@ int fpgaIdentityIsDirty(const uint8_t *identity)
     return ((identity[FPGA_REGISTER_BUILD_FLAGS] & FPGA_BUILD_FLAG_DIRTY) != 0u) ? 1 : 0;
 }
 
+uint8_t fpgaIdentityImageRole(const uint8_t *identity)
+{
+    if (!fpgaIdentityIsValid(identity)) {
+        return FPGA_IMAGE_ROLE_APPLICATION;
+    }
+
+    // A gateware whose map predates the register has no answer to give, and
+    // the honest reading of that is "this is the one image there is".
+    if (fpgaIdentityMapVersion(identity) < FPGA_MAP_VERSION_WITH_BRIDGE) {
+        return FPGA_IMAGE_ROLE_APPLICATION;
+    }
+
+    return identity[FPGA_REGISTER_IMAGE_ROLE];
+}
+
+int fpgaIdentityHasFlashBridge(const uint8_t *identity)
+{
+    if (!fpgaIdentityIsValid(identity)) {
+        return 0;
+    }
+
+    // A range with no upper bound, because the bridge is additive: a later
+    // map version may add registers beside it but cannot take it away
+    // without being a different device.
+    return (fpgaIdentityMapVersion(identity) >= FPGA_MAP_VERSION_WITH_BRIDGE)
+        ? 1 : 0;
+}
+
 void fpgaIdentityCommitText(const uint8_t *identity, char *text, size_t size)
 {
     size_t index = 0u;

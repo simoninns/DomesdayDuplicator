@@ -82,7 +82,17 @@ capture::DeviceIdentity FixtureDevice() {
   identity.protocol_version = 1;
   identity.gateware_present = true;
   identity.register_map_version = 2;
+  identity.image_role = capture::kImageRoleApplication;
   identity.gateware_commit = "0123abcd";
+  return identity;
+}
+
+// The same device with its FPGA running the resident factory image: the
+// firmware is fine, the register bank answers, and there is no capture path
+// at all until the gateware is reinstalled.
+capture::DeviceIdentity GatewareRecoveryDevice() {
+  capture::DeviceIdentity identity = FixtureDevice();
+  identity.image_role = capture::kImageRoleFactory;
   return identity;
 }
 
@@ -158,7 +168,11 @@ struct PageUnderTest {
   explicit PageUnderTest(
       const QString& application_version = QStringLiteral("1.4.0"),
       capture::DevicePersonality personality =
-          capture::DevicePersonality::kApplication) {
+          capture::DevicePersonality::kApplication,
+      bool gateware_recovery = false) {
+    // What the device reports once the update has finished with it, which is
+    // an ordinary working unit in every case — including the one that
+    // started in gateware recovery, because that is what repairing it means.
     device->SetIdentity(FixtureDevice());
 
     UpdatePage::Device seam;
@@ -168,7 +182,8 @@ struct PageUnderTest {
     // A device in recovery mode reports no identity, because there is nothing
     // running on it to report one.
     if (personality == capture::DevicePersonality::kApplication) {
-      seam.identity = FixtureDevice();
+      seam.identity =
+          gateware_recovery ? GatewareRecoveryDevice() : FixtureDevice();
     }
 
     FakeDeviceUpdater* const raw = device.get();
@@ -486,6 +501,68 @@ TEST(UpdatePageRecoveryTest, ADeviceRunningAProgrammingToolSaysHowToClearIt) {
 }
 
 // --- The dialog around it --------------------------------------------------
+
+// --- A device whose FPGA is running its recovery gateware -------------------
+//
+// A different state from a device with no firmware, and one the application
+// can name exactly rather than guess at: the FPGA says which of its two
+// images answered. The unit works, enumerates and cannot capture.
+
+TEST(UpdatePageGatewareRecoveryTest, TheStateIsNamedAndExplained) {
+  const PageUnderTest test(QStringLiteral("1.4.0"),
+                           capture::DevicePersonality::kApplication, true);
+
+  const QString versions = test.Label(UpdatePage::kVersionsLabelName)->text();
+
+  EXPECT_TRUE(versions.contains(QStringLiteral("recovery gateware"),
+                                Qt::CaseInsensitive))
+      << "the device's state is not named: " << versions.toStdString();
+  EXPECT_TRUE(versions.contains(QStringLiteral("not damaged")))
+      << "the question the user is actually asking goes unanswered";
+  EXPECT_TRUE(versions.contains(QStringLiteral("Recovery gateware")))
+      << "the gateware row does not say what is installed";
+}
+
+// One calm button, and the verb is the true one: the firmware is fine and
+// what is wanted is the half whose last update did not finish.
+TEST(UpdatePageGatewareRecoveryTest, TheButtonOffersToReinstallTheGateware) {
+  const PageUnderTest test(QStringLiteral("1.4.0"),
+                           capture::DevicePersonality::kApplication, true);
+
+  EXPECT_EQ(test.Button(UpdatePage::kInstallButtonName)->text(),
+            QStringLiteral("Reinstall gateware"));
+}
+
+// The repair is an ordinary update: the same bundle, the same protocol, the
+// same commit ordering. Nothing about this path is special-cased, which is
+// what makes it the path that has been exercised every time.
+TEST(UpdatePageGatewareRecoveryTest, TheRepairIsAnOrdinaryUpdate) {
+  const BundleFile bundle;
+  PageUnderTest test(QStringLiteral("1.4.0"),
+                     capture::DevicePersonality::kApplication, true);
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_TRUE(test.Button(UpdatePage::kInstallButtonName)->isEnabled())
+      << "a unit in gateware recovery is not offered the update that repairs "
+         "it";
+
+  ASSERT_TRUE(test.RunToCompletion());
+
+  const std::span<const uint8_t> expected =
+      capture::test::Bytes(capture::test::kGatewarePayload);
+  EXPECT_EQ(test.device->received(capture::UpdateTarget::kGateware),
+            std::vector<uint8_t>(expected.begin(), expected.end()));
+  EXPECT_EQ(test.device->reconfigure_count(), 1u);
+
+  // And the device that came back is described by what it now reports, so
+  // the state it was in is gone from the screen as well as from the flash.
+  const QString versions = test.Label(UpdatePage::kVersionsLabelName)->text();
+  EXPECT_FALSE(versions.contains(QStringLiteral("recovery gateware"),
+                                 Qt::CaseInsensitive))
+      << "the repaired device is still described as being in recovery";
+  EXPECT_EQ(test.Button(UpdatePage::kInstallButtonName)->text(),
+            QStringLiteral("Update"));
+}
 
 TEST(FirmwareDialogUpdateTest, TheDialogGainsAnUpdatePageWhenGivenADevice) {
   UpdatePage::Device seam;

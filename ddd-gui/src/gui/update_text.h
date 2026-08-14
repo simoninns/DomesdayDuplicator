@@ -64,6 +64,16 @@ QString UpdateVersionTable(const std::vector<UpdateVersionRow>& rows);
 // A stage's title, in the plain language the documentation uses.
 QString UpdateStageTitle(capture::UpdateStage stage);
 
+// The same, naming which half of the device the stage is about.
+//
+// Three of the stages carry a component and the rest do not, and a bundle
+// with both in it visits those three twice. Without the name the screen
+// would show the same three titles twice over with the bar restarting in
+// the middle, which reads as an update that went wrong rather than one that
+// is half done.
+QString UpdateStageTitle(capture::UpdateStage stage,
+                         capture::UpdateTarget target);
+
 // "about 4 minutes", "about 30 seconds". Deliberately coarse: a figure to the
 // second would be precise about something that is a guess, and the number a
 // user needs is the one that decides whether to go and make tea.
@@ -110,9 +120,27 @@ QString UpdateFailureText(const QString& problem);
 // calls it something else has been given two problems.
 QString DevicePersonalityText(capture::DevicePersonality personality);
 
-// The label on the button that starts the install: "Update" for a device that
-// has firmware, "Program this device" for one that has none.
-QString InstallActionLabel(capture::DevicePersonality personality);
+// What a device running its factory gateware is, and what to do about it.
+// Empty for every other device, including one whose gateware predates the
+// two-image model and therefore has no recovery state to be in.
+//
+// This is the FPGA's counterpart to DevicePersonalityText: the unit is
+// working, enumerated and answering, and it cannot capture. Said in the
+// interface because nothing else about the device would tell a user —
+// the version rows would show a gateware commit, and it would be the wrong
+// one to be reassured by.
+QString GatewareRecoveryText(const capture::DeviceIdentity& device);
+
+// The label on the button that starts the install: "Update" for an ordinary
+// device, "Program this device" for one with no firmware, and "Reinstall
+// gateware" for one running its factory image.
+//
+// Three words for three states, and the third is the one worth being
+// careful about: a unit in gateware recovery is not broken and is not new.
+// It is a unit whose last gateware update did not finish, and the honest
+// verb for finishing it is "reinstall".
+QString InstallActionLabel(capture::DevicePersonality personality,
+                           bool gateware_recovery = false);
 
 // How the device list names a device that is not running the Duplicator's
 // firmware, appended to its path. Empty for one that is.

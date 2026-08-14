@@ -53,7 +53,12 @@ UpdateGateInput MakeInput() {
   input.device_attached = true;
   input.device.protocol_version = 1;
   input.device.gateware_present = true;
-  input.device.register_map_version = 1;
+
+  // A device whose gateware carries the flash bridge, which is what a
+  // gateware update goes through. The version-1 cases below say so
+  // explicitly, because that is the interesting half of the check.
+  input.device.register_map_version = kRegisterMapVersionWithImageRole;
+  input.device.image_role = kImageRoleApplication;
   return input;
 }
 
@@ -254,6 +259,88 @@ TEST(UpdateGate, AGatewareOnlyBundleIsStillFineOnAWorkingDevice) {
   manifest.gateware = GatewareComponent();
 
   const UpdateGateResult result = CheckUpdateGate(manifest, MakeInput());
+
+  EXPECT_TRUE(result.allowed());
+}
+
+// --- Whether this device can take a gateware update at all -----------------
+
+// The route to the configuration flash runs through the gateware's own flash
+// bridge, so a gateware that predates the bridge cannot replace itself. That
+// is a fact about the device, known before a byte moves, and the refusal
+// names the one thing that fixes it.
+TEST(UpdateGate, RefusesGatewareForADeviceWhoseGatewareHasNoFlashBridge) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.gateware = GatewareComponent();
+
+  UpdateGateInput input = MakeInput();
+  input.device.register_map_version = 1;
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, input);
+
+  EXPECT_FALSE(result.allowed());
+  EXPECT_EQ(result.verdict, UpdateGateVerdict::kIncompatible);
+  ASSERT_FALSE(result.reasons.empty());
+  EXPECT_NE(result.reasons.front().find("bench procedure"), std::string::npos)
+      << result.reasons.front();
+}
+
+TEST(UpdateGate, RefusesGatewareForADeviceWhoseFpgaDidNotAnswer) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.gateware = GatewareComponent();
+
+  UpdateGateInput input = MakeInput();
+  input.device.gateware_present = false;
+  input.device.register_map_version = 0;
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, input);
+
+  EXPECT_FALSE(result.allowed());
+  EXPECT_EQ(result.verdict, UpdateGateVerdict::kIncompatible);
+}
+
+// The same device takes a firmware-only bundle without complaint. The check
+// is about what the bundle asks the device to do, not about the device.
+TEST(UpdateGate, AllowsFirmwareForADeviceWhoseGatewareCannotBeUpdated) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.compatibility.minimum_register_map_version = 0;
+
+  UpdateGateInput input = MakeInput();
+  input.device.register_map_version = 1;
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, input);
+
+  EXPECT_TRUE(result.allowed());
+}
+
+// A unit running its factory gateware is exactly the unit a gateware update
+// repairs: the factory image carries the bridge for that reason, and
+// refusing it would refuse help to the device that most needs it.
+TEST(UpdateGate, AllowsGatewareForADeviceRunningItsRecoveryGateware) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.gateware = GatewareComponent();
+
+  UpdateGateInput input = MakeInput();
+  input.device.image_role = kImageRoleFactory;
+  ASSERT_TRUE(input.device.GatewareIsRecovery());
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, input);
+
+  EXPECT_TRUE(result.allowed());
+}
+
+// A device with no firmware has nothing to read a register with, so the
+// gateware check has nothing to check and correctly stays quiet. It is asked
+// again when the device comes back, by the firmware just written to it.
+TEST(UpdateGate, DoesNotAskADeviceInRecoveryAboutItsGateware) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.gateware = GatewareComponent();
+
+  UpdateGateInput input = MakeInput();
+  input.device_personality = DevicePersonality::kRecovery;
+  input.device = DeviceIdentity{};
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, input);
 
   EXPECT_TRUE(result.allowed());
 }

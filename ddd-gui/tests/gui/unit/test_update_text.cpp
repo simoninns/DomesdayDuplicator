@@ -281,5 +281,104 @@ TEST(UpdateTextTest, EverythingInTheBundleChangesOnADeviceWithNoFirmware) {
   EXPECT_TRUE(rows[1].changes) << "the firmware row is not marked as changing";
 }
 
+// --- A unit running its recovery gateware ----------------------------------
+
+capture::DeviceIdentity MakeGatewareRecoveryDevice() {
+  capture::DeviceIdentity device = MakeDevice();
+  device.register_map_version = capture::kRegisterMapVersionWithImageRole;
+  device.image_role = capture::kImageRoleFactory;
+  return device;
+}
+
+// The stages a bundle with both halves visits twice each say which half they
+// are about. Without the name the screen shows the same three titles twice
+// over with the bar restarting in the middle, which reads as an update that
+// went wrong rather than one that is half done.
+TEST(UpdateTextTest, TheStagesWithAComponentSayWhichOneTheyAreAbout) {
+  const capture::UpdateStage staged[] = {capture::UpdateStage::kTransferring,
+                                         capture::UpdateStage::kWriting,
+                                         capture::UpdateStage::kVerifying};
+
+  for (capture::UpdateStage stage : staged) {
+    const QString firmware =
+        UpdateStageTitle(stage, capture::UpdateTarget::kFirmware);
+    const QString gateware =
+        UpdateStageTitle(stage, capture::UpdateTarget::kGateware);
+
+    EXPECT_TRUE(firmware.contains(QStringLiteral("firmware")));
+    EXPECT_TRUE(gateware.contains(QStringLiteral("gateware")));
+    EXPECT_NE(firmware, gateware);
+  }
+}
+
+// The rest happen once for the whole update rather than once per component,
+// so naming one would be naming the wrong thing.
+TEST(UpdateTextTest, TheStagesWithoutAComponentDoNotNameOne) {
+  const capture::UpdateStage whole[] = {
+      capture::UpdateStage::kChecking, capture::UpdateStage::kRestarting,
+      capture::UpdateStage::kConfirming, capture::UpdateStage::kComplete,
+      capture::UpdateStage::kFailed};
+
+  for (capture::UpdateStage stage : whole) {
+    EXPECT_EQ(UpdateStageTitle(stage, capture::UpdateTarget::kGateware),
+              UpdateStageTitle(stage));
+  }
+}
+
+// A unit in gateware recovery is working, enumerated and answering, and it
+// cannot capture. Nothing else about the device would say so — the version
+// row would show a gateware commit, and it would be the wrong one to be
+// reassured by.
+TEST(UpdateTextTest, TheRecoveryGatewareStateIsExplained) {
+  const QString text = GatewareRecoveryText(MakeGatewareRecoveryDevice());
+
+  EXPECT_FALSE(text.isEmpty());
+  EXPECT_TRUE(
+      text.contains(QStringLiteral("recovery gateware"), Qt::CaseInsensitive));
+
+  // The same reassurance every other failure state carries, because it is
+  // true here too and it is the question a user is actually asking.
+  EXPECT_TRUE(text.contains(QStringLiteral("not damaged")));
+}
+
+TEST(UpdateTextTest, AWorkingGatewareHasNothingToExplain) {
+  EXPECT_TRUE(GatewareRecoveryText(MakeDevice()).isEmpty());
+
+  // And neither has gateware that predates the two-image model: it is one
+  // image, it captures, and it has no recovery state to be in.
+  capture::DeviceIdentity old = MakeDevice();
+  old.register_map_version = 1;
+  old.image_role = capture::kImageRoleFactory;
+  EXPECT_TRUE(GatewareRecoveryText(old).isEmpty());
+}
+
+// "Reinstall", not "repair" and not "program": the firmware is fine, and
+// what is wanted is the half that did not finish arriving.
+TEST(UpdateTextTest, TheActionForGatewareRecoveryIsAReinstall) {
+  const QString label =
+      InstallActionLabel(capture::DevicePersonality::kApplication, true);
+
+  EXPECT_TRUE(label.contains(QStringLiteral("Reinstall")));
+  EXPECT_TRUE(label.contains(QStringLiteral("gateware")));
+}
+
+// The row says what is installed, and on a unit in recovery the honest
+// answer is not the resident image's commit — which would read as a
+// perfectly ordinary gateware version.
+TEST(UpdateTextTest, TheGatewareRowNamesTheRecoveryImageRatherThanItsCommit) {
+  const capture::UpdateManifest manifest = MakeManifest("0123abcd", "0123abcd");
+
+  const std::vector<UpdateVersionRow> rows = UpdateVersionRows(
+      QStringLiteral("1.4.0"), MakeGatewareRecoveryDevice(), true, &manifest);
+
+  ASSERT_EQ(rows.size(), 3u);
+  EXPECT_EQ(rows[2].installed, QStringLiteral("Recovery gateware"));
+
+  // And it is marked as a change even though the bundle's commit matches
+  // what the factory image reports: it is not the commit being replaced, it
+  // is the absence of a working one.
+  EXPECT_TRUE(rows[2].changes);
+}
+
 }  // namespace
 }  // namespace ddd::gui

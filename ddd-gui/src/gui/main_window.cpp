@@ -338,6 +338,7 @@ void MainWindow::ShowFirmwareDialog() {
       device.identity.protocol_version = selected->protocol_version;
       device.identity.gateware_present = versions.gateware.present;
       device.identity.register_map_version = versions.gateware.map_version;
+      device.identity.image_role = versions.gateware.image_role;
       device.identity.gateware_commit = versions.gateware.commit;
     }
   }

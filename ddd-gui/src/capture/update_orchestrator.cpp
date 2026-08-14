@@ -27,20 +27,33 @@ namespace {
 //
 // The EEPROM figure is the one that is measured: 64-byte pages over a
 // 400 kHz I2C bus with an acknowledgement poll between them, written once
-// and read back once. The EPCS figure is a placeholder until the gateware's
-// flash bridge exists to measure — it is deliberately slow, because an
-// estimate that is too long makes a user wait and an estimate that is too
-// short makes them unplug the device.
+// and read back once.
+//
+// The EPCS figure is derived rather than measured, and the derivation is
+// worth keeping because it is not obvious why the smaller number is the
+// slower medium. Every byte of a gateware image crosses a bit-banged SPI
+// link to the FPGA at roughly a hundred microseconds per byte: writing costs
+// one such byte, because a whole flash page goes out in one framed
+// transaction, and reading costs four, because each byte needs a write to
+// shift it and a read to collect it. Write once and read back once is
+// therefore about five hundred microseconds a byte, plus a second of erase
+// per 64 KiB sector. That is around two thousand bytes a second, and it is
+// deliberately the pessimistic end: an estimate that is too long makes a
+// user wait, and an estimate that is too short makes them unplug the device.
+//
+// Replaced with a measurement when verification item V6 is taken on the
+// bench, which is also where the decision to optimise the bit-bang is made.
 constexpr double kEepromBytesPerSecond = 12000.0;
-constexpr double kEpcsBytesPerSecond = 4000.0;
+constexpr double kEpcsBytesPerSecond = 2000.0;
 
 // The device restarting and coming back, which no amount of arithmetic will
 // predict.
 constexpr int kRestartSeconds = 10;
 
-// A chunk is a whole number of EEPROM pages except the last, which is what
-// lets the firmware write a chunk straight to the medium with no assembly
-// buffer in between.
+// A chunk is a whole number of the medium's pages except the last, which is
+// what lets the firmware write a chunk straight to the medium with no
+// assembly buffer in between. One alignment covers both targets — see
+// kUpdateChunkAlignment.
 uint64_t AlignedChunk(uint64_t maximum) {
   const uint64_t aligned = maximum - (maximum % kUpdateChunkAlignment);
   return aligned == 0 ? kUpdateChunkAlignment : aligned;
@@ -197,12 +210,27 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
   const uint64_t chunk_bytes = AlignedChunk(initial->maximum_chunk_bytes);
 
   // Named for what the *host* is doing, because that is what the progress
-  // bar measures. On the firmware target the device is writing each chunk to
-  // its EEPROM as it arrives — there is no assembly buffer — so this stage is
-  // where most of the writing happens, and the message says so rather than
-  // leaving a user to infer it from a "writing" stage that never appears.
-  Report(UpdateStage::kTransferring, target, 0, total,
-         "Sending the update to the device, which writes it as it arrives.");
+  // bar measures. On both targets the device writes each chunk to its medium
+  // as it arrives — there is no assembly buffer — so this stage is where
+  // most of the writing happens, and the message says so rather than leaving
+  // a user to infer it from a "writing" stage that never appears.
+  //
+  // The gateware message says one thing more, because the gateware target
+  // does one thing more: it erases each 64 KiB sector as the write reaches
+  // it, which takes about a second and stops the bar for that long, roughly
+  // every thirty chunks. A progress bar that pauses for a second with no
+  // explanation is a progress bar a user starts to distrust.
+  const std::string sending =
+      target == UpdateTarget::kGateware
+          ? std::string(
+                "Sending the gateware to the device, which erases and writes "
+                "its flash as it arrives. It pauses every few seconds while a "
+                "block is erased.")
+          : std::string(
+                "Sending the firmware to the device, which writes it as it "
+                "arrives.");
+
+  Report(UpdateStage::kTransferring, target, 0, total, sending);
 
   if (!device_.Begin(target, total, component.sha256)) {
     outcome.stage = UpdateStage::kFailed;
@@ -244,8 +272,7 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
     sent += span;
     ++index;
 
-    Report(UpdateStage::kTransferring, target, sent, total,
-           "Sending the update to the device, which writes it as it arrives.");
+    Report(UpdateStage::kTransferring, target, sent, total, sending);
   }
 
   // The device now hashes the stream it received and, if that matches, reads
@@ -270,14 +297,11 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
     return false;
   }
 
-  // No stage is announced here. Which one comes next is the device's business
-  // and it differs by target: the EEPROM has already been written page by page
-  // as the chunks arrived, so it goes straight to reading back, while the EPCS
-  // has a real erase-and-program phase after the transfer. Announcing a
-  // writing stage on the way out of the transfer would flash a stage the
-  // device is not in — briefly on the EEPROM, and wrongly on any target whose
-  // first act is something else. AwaitCompletion's first poll reports whatever
-  // the device actually says.
+  // No stage is announced here. Which one comes next is the device's
+  // business: both media have already been written as the chunks arrived, so
+  // both go on to read back — but the device is the thing that says so, and
+  // announcing a stage on its behalf would flash a stage it is not in.
+  // AwaitCompletion's first poll reports whatever the device actually says.
   return AwaitCompletion(target, total, outcome);
 }
 

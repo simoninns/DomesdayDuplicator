@@ -2,7 +2,7 @@
 
     update-agent.h
 
-    Rewriting the FX3's own boot EEPROM, commanded from the host
+    Rewriting the device's two flash memories, commanded from the host
     DomesdayDuplicator - LaserDisc RF sampler
     SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
@@ -11,12 +11,28 @@
     means, and every decision that can be made without touching hardware,
     is in update-protocol.h — which is where the host-testable half lives.
 
-    The FX3 boots from an I2C EEPROM on the Explorer Kit. Its I2C pins are
-    dedicated — not shared with the 16-bit GPIF bus or the UART — so the
-    running firmware can bring up the I2C block and rewrite its own boot
-    source with no jumper, no second cable and no personality change. That
-    is the whole of the mechanism: this file is the flasher, and the host
-    is only the thing that hands it bytes.
+    One agent, two targets, and they are unalike in everything except the
+    protocol that reaches them.
+
+    **Target 0, the FX3's boot EEPROM.** The FX3 boots from an I2C EEPROM on
+    the Explorer Kit. Its I2C pins are dedicated — not shared with the
+    16-bit GPIF bus or the UART — so the running firmware can bring up the
+    I2C block and rewrite its own boot source with no jumper, no second
+    cable and no personality change. The commit is the first page, which
+    carries the 'CY' signature, and it is written last.
+
+    **Target 1, the FPGA's EPCS configuration flash.** No wire runs from the
+    FX3 to the FPGA's configuration circuitry, so this goes the long way
+    round: the SPI register link to the gateware, the flash bridge, the
+    asmiblock and then the flash. epcs-flash.h holds that route; what is
+    here is the sequencing above it. The commit is the boot block, and it is
+    written last.
+
+    Both are the same shape on purpose. Everything is written and verified
+    before the one write that makes it count, so an update interrupted
+    anywhere leaves a device in a rescue state the capture application
+    recognises — the USB bootloader for the FX3, the factory gateware for
+    the FPGA — and never one that half works.
 
     Two threads reach this file, and which one may act is decided by the
     phase rather than by a lock:
@@ -77,9 +93,14 @@ CyBool_t updateAgentInProgress(void);
 CyBool_t updateAgentBegin(uint8_t target, const uint8_t *data, uint16_t length,
                           CyBool_t captureRunning);
 
-// UPDATE_DATA. The chunk is hashed and written straight to the EEPROM,
-// except for the first page, which is held back until everything else has
-// been written and verified.
+// UPDATE_DATA. The chunk is hashed and written straight to the medium as
+// it arrives, with no assembly buffer in between.
+//
+// On the EEPROM the first page is held back until everything else has been
+// written and verified. On the EPCS nothing is held back — the commit is a
+// separate boot block rather than a page of the image — but each sector is
+// erased as the write first enters it, which is why one chunk in thirty-two
+// takes about a second longer than its neighbours.
 CyBool_t updateAgentData(uint8_t target, uint16_t index, uint8_t *data,
                          uint16_t length);
 
@@ -100,16 +121,25 @@ void updateAgentStatus(uint8_t *out);
 // Does the application thread have verification work to do?
 CyBool_t updateAgentVerifyPending(void);
 
-// Read the written region back off the EEPROM, check it against the digest
-// UPDATE_BEGIN carried, and only then write the signature page that makes
-// the image bootable.
+// Read the written region back off the medium, check it against the digest
+// UPDATE_BEGIN carried, and only then write the record that makes the image
+// count.
 //
-// Runs on the application thread and takes tens of seconds. The commit
-// ordering is the safety mechanism: until the last write here, the EEPROM
-// holds an image the boot ROM rejects, so an update interrupted anywhere
-// before it leaves a device that falls back to the USB bootloader — a
-// state the capture application recognises and can repair from.
+// Runs on the application thread and takes tens of seconds for the EEPROM
+// and a minute or two for the EPCS. The commit ordering is the safety
+// mechanism in both cases: until the last write here, the medium holds
+// something its reader rejects — an image the boot ROM will not accept, or
+// a boot block whose checksum does not describe what is beside it — so an
+// update interrupted anywhere before it leaves a device in a rescue state
+// the capture application recognises and can repair from.
 void updateAgentVerify(void);
+
+// UPDATE_FPGA_RECONFIG. Ask the FPGA to reload itself, which is how a
+// gateware update takes effect without a power cycle.
+//
+// Refused when no gateware with a flash bridge answered, because
+// acknowledging it would tell a host that a reconfiguration had happened.
+CyBool_t updateAgentReconfigureFpga(void);
 
 // Cold reset, so the device re-reads its boot source and comes back
 // running whatever is now in the EEPROM. Does not return.

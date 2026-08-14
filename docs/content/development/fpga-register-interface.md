@@ -131,15 +131,17 @@ Map version `0x02`, which is what both gateware images in this repository report
 | `0x10` | `TEST_MODE` | RW | `0x00` | yes |
 | `0x11` | `LED` | RW | `0x01` | no |
 | `0x12` to `0x1F` | — | unmapped | | |
-| `0x20` | `BRIDGE_UNLOCK` | RW | `0x00` | yes |
-| `0x21` | `BRIDGE_CONTROL` | RW | `0x00` | yes |
-| `0x22` | `BRIDGE_DATA` | RW | — | yes |
-| `0x23` | `RECONFIG_CONTROL` | RW | `0x00` | yes |
+| `0x20` | `BRIDGE_UNLOCK` | RW | `0x00` | no |
+| `0x21` | `BRIDGE_CONTROL` | RW | `0x00` | no |
+| `0x22` | `BRIDGE_DATA` | RW | — | no |
+| `0x23` | `RECONFIG_CONTROL` | RW | `0x00` | no |
 | `0x24` to `0x7F` | — | unmapped | | |
 
 Version 1 changed nothing below `0x0B`, and the identity block at `0x00` to `0x0A` is frozen across all map versions, so a host that does not recognise the version can still read who it is talking to. `0x20` to `0x23` are the flash bridge and the reconfiguration control, through which the FX3 reaches the EPCS configuration flash and triggers reconfiguration; they are defined on the [device update mechanism](device-update-mechanism.md) page and summarised below.
 
 "Host-writable" is a firmware policy, not a gateware one. The gateware accepts a write to any read/write register from whoever is on the link; the FX3 is what declines to relay some of them.
+
+**Only `TEST_MODE` is host-writable, and the flash bridge is the reason that matters.** `0x20` to `0x23` are refused as firmly as the LED register and for a stronger reason: the firmware owns the bridge during an update, and a host writing to `BRIDGE_DATA` between two of the firmware's own writes would shift an unaccounted byte into a flash command in progress. The bridge's four-byte unlock is what stands between a *stray* write and an unbootable board; refusing to relay the write at all is what stands between a deliberate one and the same result. Everything a host legitimately wants from the bridge — write this gateware, reload the FPGA — it asks for through `0xD1`–`0xD3` and `0xD5`, where the firmware is the one holding the sequence.
 
 ### Identity block, `0x00` to `0x0A`
 
@@ -249,7 +251,7 @@ Carrying both operands in `wValue` keeps the request to a setup packet with no d
 The firmware stalls endpoint 0 — the USB way of saying "not supported" — rather than failing quietly, for:
 
 * `0xB7` with `wValue` above `0x7F`, `wLength` of 0, or `wLength` above 64
-* `0xB8` naming a register that is not host-writable: every read-only register, `LED`, and every unmapped address
+* `0xB8` naming a register that is not host-writable: every read-only register, `LED`, the four flash-bridge and reconfiguration registers, and every unmapped address
 * either request when the start-up probe did not find the register bank
 * either request before the application is active
 

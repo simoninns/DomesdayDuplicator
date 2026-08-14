@@ -121,14 +121,15 @@ TEST(UpdateOrchestrator, TakesTheChunkSizeFromTheDevice) {
 
 // A device whose advertised maximum is not a whole number of pages still has
 // to be sent whole pages, because that is the firmware's rule and not the
-// advertisement's.
+// advertisement's — and the page it is rounded to is the larger of the two
+// media's, so the same chunk suits either target.
 TEST(UpdateOrchestrator, RoundsAnAwkwardChunkSizeDownToWholePages) {
   const TestBundle test(4100);
   FakeDeviceUpdater device;
   device.SetMaximumChunkBytes(1000);
 
   EXPECT_TRUE(RunUpdate(device, test.bundle).succeeded);
-  EXPECT_EQ(device.largest_chunk(), 960u);
+  EXPECT_EQ(device.largest_chunk(), 768u);
 }
 
 TEST(UpdateOrchestrator, ReportsEveryStageInOrder) {
@@ -329,6 +330,176 @@ TEST(UpdateOrchestrator, StopsWhenAskedTo) {
             std::string::npos);
 }
 
+// --- The gateware target ---------------------------------------------------
+
+// A bundle carrying both halves, which is what a release bundle is.
+struct BothTargetsBundle {
+  std::vector<uint8_t> firmware_payload;
+  std::vector<uint8_t> gateware_payload;
+  UpdateBundle bundle;
+
+  BothTargetsBundle()
+      : firmware_payload(MakePayload(4100)),
+        // Not a round number of chunks and not a round number of flash
+        // pages, so both the last-chunk case and the last-page case are
+        // exercised by an ordinary run.
+        gateware_payload(MakePayload(9000)) {
+    bundle.manifest.manifest_version = kUpdateManifestVersion;
+    bundle.manifest.channel = UpdateChannel::kDevelopment;
+    bundle.manifest.version = "0.0.0";
+    bundle.manifest.commit = "0123abcd";
+
+    UpdateComponent firmware;
+    firmware.file = "firmware.img";
+    firmware.length = firmware_payload.size();
+    firmware.sha256 = Sha256(std::span<const uint8_t>(firmware_payload));
+    firmware.identity = "0123abcd";
+    firmware.interface_version = 1;
+    bundle.manifest.firmware = firmware;
+    bundle.firmware = firmware_payload;
+
+    UpdateComponent gateware;
+    gateware.file = "gateware-app.rpd";
+    gateware.length = gateware_payload.size();
+    gateware.sha256 = Sha256(std::span<const uint8_t>(gateware_payload));
+    gateware.identity = "0123abcd";
+    gateware.interface_version = 2;
+    bundle.manifest.gateware = gateware;
+    bundle.gateware = gateware_payload;
+  }
+};
+
+// Both halves, in order, each proved by its own digest, and the FPGA told to
+// reload itself before the device is reset.
+TEST(UpdateOrchestrator, InstallsBothHalvesAndReloadsTheFpga) {
+  const BothTargetsBundle test;
+  FakeDeviceUpdater device;
+
+  const UpdateOutcome outcome = RunUpdate(device, test.bundle);
+
+  EXPECT_TRUE(outcome.succeeded);
+  EXPECT_TRUE(outcome.identity_confirmed);
+
+  // Two transfers, and the bytes of each reached the half they were for.
+  EXPECT_EQ(device.begin_count(), 2u);
+  EXPECT_EQ(device.received(UpdateTarget::kFirmware), test.firmware_payload);
+  EXPECT_EQ(device.received(UpdateTarget::kGateware), test.gateware_payload);
+
+  // Reconfiguration stops the clock underneath the capture path, so it is
+  // always followed by the reset rather than left to the next power cycle.
+  EXPECT_EQ(device.reconfigure_count(), 1u);
+  EXPECT_EQ(device.reset_count(), 1u);
+}
+
+// A firmware-only bundle must not ask the FPGA to reload itself. Doing so
+// would interrupt a perfectly good gateware for no reason, and on a unit
+// whose boot block is invalid it would drop a working session into recovery.
+TEST(UpdateOrchestrator, DoesNotReloadTheFpgaWhenNoGatewareWasInstalled) {
+  const TestBundle test;
+  FakeDeviceUpdater device;
+
+  EXPECT_TRUE(RunUpdate(device, test.bundle).succeeded);
+  EXPECT_EQ(device.reconfigure_count(), 0u);
+}
+
+// The stage sequence a user watching a two-part update sees: the transfer,
+// write and verify stages happen once per component, and each one says which
+// component it is about.
+TEST(UpdateOrchestrator, ReportsEachComponentsStagesAgainstItsOwnTarget) {
+  const BothTargetsBundle test;
+  FakeDeviceUpdater device;
+  std::vector<UpdateProgress> progress;
+
+  EXPECT_TRUE(RunUpdate(device, test.bundle, &progress).succeeded);
+
+  int firmware_transfers = 0;
+  int gateware_transfers = 0;
+  int gateware_verifies = 0;
+
+  for (const UpdateProgress& step : progress) {
+    if (step.stage == UpdateStage::kTransferring) {
+      if (step.target == UpdateTarget::kFirmware) {
+        ++firmware_transfers;
+      } else {
+        ++gateware_transfers;
+      }
+    }
+    if (step.stage == UpdateStage::kVerifying &&
+        step.target == UpdateTarget::kGateware) {
+      ++gateware_verifies;
+    }
+  }
+
+  EXPECT_GT(firmware_transfers, 0);
+  EXPECT_GT(gateware_transfers, 0);
+  EXPECT_GT(gateware_verifies, 0);
+}
+
+// The gateware's transfer message warns about the erase pauses, because a
+// bar that stops for a second every thirty chunks with no explanation is a
+// bar a user starts to distrust.
+TEST(UpdateOrchestrator, SaysWhyTheGatewareTransferPauses) {
+  const BothTargetsBundle test;
+  FakeDeviceUpdater device;
+  std::vector<UpdateProgress> progress;
+
+  EXPECT_TRUE(RunUpdate(device, test.bundle, &progress).succeeded);
+
+  bool mentions_erasing = false;
+  for (const UpdateProgress& step : progress) {
+    if (step.stage == UpdateStage::kTransferring &&
+        step.target == UpdateTarget::kGateware &&
+        step.message.find("erase") != std::string::npos) {
+      mentions_erasing = true;
+    }
+  }
+
+  EXPECT_TRUE(mentions_erasing);
+}
+
+// Every chunk but the last is a whole number of the target medium's pages,
+// and the EPCS's page is four times the EEPROM's. The fake enforces both, so
+// a host that sent an EEPROM-aligned chunk to the flash fails here.
+TEST(UpdateOrchestrator, GatewareChunksAreAlignedToTheFlashPage) {
+  const BothTargetsBundle test;
+  FakeDeviceUpdater device;
+
+  // Awkward on purpose: rounded down to whole flash pages this is 768, and
+  // rounded down to EEPROM pages alone it would be 960.
+  device.SetMaximumChunkBytes(1000);
+
+  EXPECT_TRUE(RunUpdate(device, test.bundle).succeeded);
+}
+
+// The device is asked to reload its gateware and refuses. That leaves a unit
+// whose flash is written and whose FPGA is still running the old image,
+// which is a real state and one the user is told how to leave.
+TEST(UpdateOrchestrator, ReportsAnFpgaThatWillNotReload) {
+  const BothTargetsBundle test;
+  FakeDeviceUpdater device;
+  device.SetReconfigureSucceeds(false);
+
+  const UpdateOutcome outcome = RunUpdate(device, test.bundle);
+
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_EQ(outcome.stage, UpdateStage::kFailed);
+  EXPECT_NE(outcome.problem.find("plug it back in"), std::string::npos)
+      << outcome.problem;
+}
+
+// A device that comes back running gateware the manifest did not describe is
+// not a successful update, however well the writing went.
+TEST(UpdateOrchestrator, RefusesToCallItDoneWhenTheWrongGatewareCameBack) {
+  const BothTargetsBundle test;
+  FakeDeviceUpdater device;
+  device.SetFault(FakeDeviceUpdater::Fault::kWrongIdentityAfterUpdate);
+
+  const UpdateOutcome outcome = RunUpdate(device, test.bundle);
+
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_FALSE(outcome.identity_confirmed);
+}
+
 // --- The estimate the interface shows before anything moves ---------------
 
 TEST(UpdateEstimate, GrowsWithThePayloadAndIsNeverZero) {
@@ -346,6 +517,28 @@ TEST(UpdateEstimate, GrowsWithThePayloadAndIsNeverZero) {
 
   EXPECT_GT(small_seconds, 0);
   EXPECT_GT(large_seconds, small_seconds);
+}
+
+// The gateware is the slower medium by a wide margin — every byte crosses a
+// bit-banged link four links deep, and it is read back as well as written —
+// so an estimate that treated the two alike would be wrong in the direction
+// that makes users unplug the device.
+TEST(UpdateEstimate, TheGatewareIsEstimatedAsTheSlowerMedium) {
+  UpdateComponent component;
+  component.length = 350000;
+
+  UpdateManifest firmware_only;
+  firmware_only.firmware = component;
+
+  UpdateManifest gateware_only;
+  gateware_only.gateware = component;
+
+  EXPECT_GT(EstimateUpdateSeconds(gateware_only),
+            EstimateUpdateSeconds(firmware_only));
+
+  // And a real gateware image is a minutes-long operation, which is what the
+  // interface has to say before the first byte moves.
+  EXPECT_GT(EstimateUpdateSeconds(gateware_only), 60);
 }
 
 TEST(UpdateStageNames, EveryStageIsNamed) {

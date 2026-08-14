@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "device_updater.h"
 #include "monitor_tap.h"
 #include "usb_device_info.h"
 
@@ -34,6 +35,12 @@
 // travel through the meta-object system.
 Q_DECLARE_METATYPE(ddd::capture::CaptureStats)
 Q_DECLARE_METATYPE(std::vector<ddd::capture::DeviceInfo>)
+
+// What the device said it was running once an update had finished with it.
+// Carried whole rather than as the two strings a summary line needs, because
+// what the update page has to decide afterwards — whether the FPGA came back
+// in its factory image — is not in either of them.
+Q_DECLARE_METATYPE(ddd::capture::DeviceIdentity)
 
 // The analysis frames. Plain vectors rather than named types because that is
 // what they are — a run of converter codes and a run of decibel figures — and

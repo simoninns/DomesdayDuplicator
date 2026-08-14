@@ -266,7 +266,7 @@ directory, so an installed binary could not find the secondary loader at all.
 | --- | --- | --- |
 | `tests/descriptor-golden.sh` | The generated USB product descriptor: two fixed commit strings in, byte-for-byte comparison against `tests/descriptor-{0123abcd,unknown}.h`, including the computed length byte | T2 |
 | `tests/register-map` | The host-testable half of the FPGA register map: which addresses exist, which are writable, and what the firmware refuses to relay | T1 |
-| `tests/update-protocol` | The host-testable half of the device update protocol: the `UPDATE_BEGIN` packet decoded and a reserved flag refused, the status packet's fields at their offsets, which requests are admitted in which phase, out-of-order and oversized chunks refused, the capture/update exclusion, a failure staying stuck at its first cause, an image without the `'CY'` signature refused before anything is written, and the EEPROM paging arithmetic — slave addressing, write spans capped at a page, read spans capped at a bank, page padding, and a walk over a whole firmware image proving the writes cover it exactly once with no page or slave boundary crossed | T1 |
+| `tests/update-protocol` | The host-testable half of the device update protocol: the `UPDATE_BEGIN` packet decoded and a reserved flag refused, the status packet's fields at their offsets, which requests are admitted in which phase, out-of-order and oversized chunks refused, the capture/update exclusion, a failure staying stuck at its first cause, an image without the `'CY'` signature refused before anything is written, and the paging arithmetic for **both** media — the EEPROM's slave addressing, write spans capped at a page, read spans capped at a bank and page padding, the EPCS's program spans and sector boundaries, and a walk over a whole image of each proving the writes cover it exactly once with no page, slave or sector boundary crossed and nothing programmed into a sector that has not been erased. Plus what the two media's readers have to agree about: the flash's silicon identifiers and whether an image fits the device that answered, the CRC-32 pinned to its published check value, and the boot block encoded byte for byte against a golden block `fpga/make-boot-block.py` produced | T1 |
 
 The generated header is the *only* path by which a version reaches the device — the FX3
 serves `USB_DESC_PRODUCT_BYTES` verbatim as its product string descriptor, so a wrong length
@@ -772,8 +772,18 @@ Use a SuperSpeed Explorer Kit that has never been programmed, or erase one delib
 
 ### What it does not cover
 
-The FPGA target. `0xD5` stalls and an update naming target 1 is refused, so there is nothing
-to exercise yet; the gateware procedures land in the phase that first performs them.
+The FPGA target. The firmware now answers for it — `0xD1`–`0xD3` write the EPCS through the
+gateware's flash bridge and `0xD5` reconfigures the FPGA — but **none of it has been run on a
+board**, because running it needs a unit provisioned with a dual-image flash and no unit has
+been. The gateware procedures are written up in the session that first performs them, and
+§7 lists what that session has to establish.
+
+Everything about target 1 that can be checked without hardware has been: the paging and
+sector arithmetic, the boot block's encoding checked byte for byte against the encoder the
+build uses, the CRC-32 pinned to its published check value, the compatibility gate that
+refuses a gateware update to a device that cannot take one, and the whole flow driven
+through the application against a fake device. None of that is evidence that a real flash
+was written correctly, and this section exists to say so.
 
 ## 7. Planned work
 
@@ -784,7 +794,7 @@ Listed so this document can be read as a status report rather than a wish list.
 | CI test lanes | — | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
 | SPDX conversion of the remaining long-form headers | T4 | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
 | Finish validating the single-clock gateware | T5 | See below. The board is programmed and a 16-minute capture came back clean; four checks remain |
-| Device-update bench procedures for the FPGA target | T5 | §6 covers the FX3 target. The EPCS procedures — gateware update, interrupted write falling back to the factory image, and the throughput measurement — land in the phase that first performs them, never written ahead of being run |
+| Device-update bench procedures for the FPGA target | T5 | §6 covers the FX3 target. The firmware, the gateware and the application halves of the EPCS path are all built; nothing has run on a board. The first session confirms, in this order: the flash identifies itself through the bridge and names a device the firmware recognises (**V7**, and the silicon identifier is currently taken from the datasheet rather than from a part); a gateware update from the running application image completes and the unit comes back reporting the new gateware commit; the throughput is measured against the estimate the application shows before it starts (**V6** — and only if the bit-bang dominates is the bridge's read path worth changing, which is a change to the frozen image); power is pulled mid-write and the unit boots the factory image with `IMAGE_ROLE` reading `0x00`, the application names it *recovery gateware*, and **Reinstall gateware** repairs it; the same from a freshly provisioned unit, which starts in that state by construction; and the boot block sector is erased by JTAG to confirm the same fall-back from the other direction. Written up in the session that performs them, never ahead of it |
 | Dual-image provisioning and the factory-to-application handover | T5 | Both gateware images build and the boot decision is simulated, but no unit has been provisioned with a dual-image flash. First bench session confirms: the provisioning `.jic` programs, the unit comes up in the factory image with `IMAGE_ROLE` reading `0x00`, the reconfiguration block's parameter encoding is the one `remoteUpdate.v` assumes, the handover to the application image works and `IMAGE_ROLE` then reads `0x01`, the watchdog period is measured against a worst-case FX3 boot before it is frozen, and the FX3's "FPGA ready" timing assumption still holds across two configurations rather than one. Not written up ahead of being run |
 
 ### Validating the single-clock gateware

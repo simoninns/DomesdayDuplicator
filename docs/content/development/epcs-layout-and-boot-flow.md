@@ -4,9 +4,9 @@ How the DE0-Nano's configuration flash is divided, which half of it can be updat
 
 !!! note "Built, simulated, and not yet on a board"
 
-    The gateware described here exists: `fpga/factory/` and `fpga/application/` both compile, the boot decision is simulated end to end against a model of the EPCS64, and one `.jic` carries both images at the addresses below.
+    The gateware described here exists: `fpga/factory/` and `fpga/application/` both compile, the boot decision is simulated end to end against a model of the EPCS64, and one `.jic` carries both images at the addresses below. The firmware that writes the flash exists too, and the arithmetic it uses — the paging, the sector erases, the boot block's own encoding and checksum — is tested on a build host against the same twenty-four bytes `make-boot-block.py` writes.
 
-    What has not happened yet is the bench. No unit has been provisioned with a dual-image flash, the handover from factory to application has never run on hardware, and two numbers in the factory image — the reconfiguration block's parameter encoding and the watchdog period — are written from the device documentation rather than from a measurement. Both are marked in the source and in [`fpga/factory/README.md`](https://github.com/simoninns/DomesdayDuplicator/blob/main/fpga/factory/README.md), and **both must be confirmed before the factory image is frozen into fielded hardware**.
+    What has not happened yet is the bench. No unit has been provisioned with a dual-image flash, the handover from factory to application has never run on hardware, and no gateware update has been performed on a real device. Four numbers are written from documentation rather than from a measurement: the reconfiguration block's parameter encoding, the watchdog period, the flash's silicon identifier, and how long a gateware update takes. The first two are marked in the source and in [`fpga/factory/README.md`](https://github.com/simoninns/DomesdayDuplicator/blob/main/fpga/factory/README.md), and **both must be confirmed before the factory image is frozen into fielded hardware**. The last two are settled by the first update performed on a board, and are verification items V6 and V7 in TESTING.md.
 
 ## Two images, and why the resident one is tiny
 
@@ -92,7 +92,7 @@ The block carries its own checksum as well as the image's, so a boot block that 
 
 The application's start address is stored rather than assumed, so that the future second slot needs no change to the factory image's logic. That is the one piece of forward compatibility the frozen image gets, and it is cheap: it is a field it reads instead of a constant it holds.
 
-The encoder for this format is [`fpga/make-boot-block.py`](https://github.com/simoninns/DomesdayDuplicator/blob/main/fpga/make-boot-block.py), whose output is checked field by field, by offset, in `fpga/tests/test_boot_block.py` — and the same twenty-four bytes appear in the gateware testbench that reads them, so a change to the format on one side fails on the other.
+There are two encoders for this format and they are checked against each other. [`fpga/make-boot-block.py`](https://github.com/simoninns/DomesdayDuplicator/blob/main/fpga/make-boot-block.py) writes the block for a build, and its output is checked field by field, by offset, in `fpga/tests/test_boot_block.py`. `updateBootBlockEncode()` in the FX3 firmware writes it on the device at the end of every gateware update, and its output is checked against a golden block the Python encoder produced. The same twenty-four bytes appear again in the gateware testbench that reads them — so a change to the format in any one of the three fails in the other two.
 
 **CRC32 rather than SHA-256, and this is the only place in the update chain where that is true.** The check runs in the factory image's fabric, where a SHA-256 core cannot be justified in an image whose entire purpose is to be small and never change. It defends against *corruption only* — and it only has to. Authenticity was settled before the boot block was ever written: the bundle's signature, the digest checked on the way into the device, and the digest recomputed from the flash after the write. An attacker who could write the boot block could write the application image too, and no digest in the factory image would help. The trade-off is stated here rather than left to be discovered, because a lone CRC in a document full of SHA-256 looks like an oversight until you know why it is not.
 
@@ -164,7 +164,7 @@ Once, with a cable, and then never again:
 4. Write the boot block, which is the last step of any gateware update and is what makes an application image count.
 5. Power-cycle again and confirm `IMAGE_ROLE` now reads `0x01`.
 
-Step 4 is the one that needs the update path, so **a freshly provisioned unit is in recovery until a gateware update has been performed on it.** That is not a workaround; it is the same commit ordering every later update follows, exercised once at the beginning. What it does mean is that provisioning and the first gateware update are one procedure rather than two.
+Step 4 is the one that needs the update path, and the update path is what writes it: the application's **Reinstall gateware** button performs the whole of an ordinary gateware update, and its last act is the boot block. So **a freshly provisioned unit is in recovery until a gateware update has been performed on it.** That is not a workaround; it is the same commit ordering every later update follows, exercised once at the beginning. What it does mean is that provisioning and the first gateware update are one procedure rather than two — and that the first thing a newly provisioned unit proves is the mechanism every later update depends on.
 
 The boot block is not in the `.jic` because Quartus' converter cannot place arbitrary data in one for this device family. That was tried, with every spelling of the option its own converter recognises, and it refuses the conversion; the `boot-block.bin` written beside the `.jic` is the same twenty-four bytes, for the same image, ready for whatever writes it.
 
@@ -182,6 +182,7 @@ From that point the application image is field-updatable over the single USB cab
 | `fpga/common/sim/` | Models of the two device primitives and of the EPCS64, so the boot path simulates against a flash rather than a stub |
 | `fpga/make-boot-block.py` | The encoder for the format above |
 | `fpga/provisioning/` | The conversion that puts both images in one flash file |
-| `fx3/firmware/src/` | The EPCS driver that speaks through the bridge (not yet written) |
+| `fx3/firmware/src/epcs-flash.h` | The EPCS driver that speaks through the bridge |
+| `fx3/firmware/src/update-protocol.h` | The device's copy of the layout above, and its encoder for the boot block |
 
 Related pages: [Device update mechanism](device-update-mechanism.md), [FPGA register interface](fpga-register-interface.md), [Update bundle format](update-bundle-format.md).

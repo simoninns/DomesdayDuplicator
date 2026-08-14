@@ -2,15 +2,15 @@
 
 How a Domesday Duplicator updates its own firmware and gateware over the one USB cable it already has, with no jumper, no second cable, no Quartus and no command line.
 
-!!! note "Half specification, half description"
+!!! note "Specification first, and now built end to end"
 
-    This page is **normative**: it defines the protocol, the register map and the compatibility rules that the firmware, the gateware and the capture application are built to. Half of it now describes something that exists.
+    This page is **normative**: it defines the protocol, the register map and the compatibility rules that the firmware, the gateware and the capture application are built to. All of it now describes something that exists.
 
-    **Target 0 — the FX3 boot EEPROM — is implemented.** The firmware answers `0xD0`–`0xD4`, brings up its own I2C block, writes and verifies its own boot EEPROM, and advertises a protocol version in `bcdDevice`. The application installs a bundle through it and `ddd-update` does the same headlessly.
+    **Target 0 — the FX3 boot EEPROM — is implemented and proved on hardware.** The firmware answers `0xD0`–`0xD4`, brings up its own I2C block, writes and verifies its own boot EEPROM, and advertises a protocol version in `bcdDevice`. The application installs a bundle through it and `ddd-update` does the same headlessly.
 
-    **Target 1 — the FPGA's EPCS — is not, but the gateware half of it now is.** Both gateware images implement register map version 2: `IMAGE_ROLE` answers at `0x0B`, the flash bridge answers at `0x20`–`0x22`, the reconfiguration control at `0x23`, and the factory image makes the boot decision this page describes. What is missing is the firmware: `0xD5` stalls, an `UPDATE_BEGIN` naming target 1 is refused with `UPDATE_ERROR_TARGET`, and nothing yet drives the bridge from the FX3 side.
+    **Target 1 — the FPGA's EPCS — is implemented and not yet proved on hardware.** The firmware drives the EPCS through the gateware's flash bridge: it identifies the flash, erases and programs the application region, reads it back to check the digest, writes the boot block last, and answers `0xD5`. Both gateware images implement register map version 2 around it. What has not happened is the bench — no unit has been provisioned with a dual-image flash, so the whole of the gateware path has been exercised only against the host-side tests and the free-tool simulation.
 
-    Where this page says "the firmware does X" about target 1, read "the firmware is required to do X". Where it says the gateware does something, it does — though not yet on a board: no unit has been provisioned with a dual-image flash, and the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md) page says what that leaves open.
+    Two numbers on this page are therefore still written from documentation rather than from a measurement: how long a gateware update takes, and the flash's silicon identifier. Both are in the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md) page's list of what the first bench session settles.
 
 ## The problem
 
@@ -72,11 +72,13 @@ The digest arrives *before* the first byte of payload, which is what lets the fi
 
 `wValue` carries the chunk index, starting at zero and incrementing by one. A chunk that arrives out of order fails the transfer rather than being buffered: the host is a program, not a network, and a gap in the sequence means something has gone wrong that reordering would hide.
 
-Every chunk but the last is the full chunk size the device advertises in `0xD0`, and **every chunk but the last must be a whole number of 64-byte pages**. That is the one constraint the protocol puts on the host, and it is there so that the firmware can write a chunk straight to the medium with no assembly buffer in between — a page write that crosses a page boundary wraps to the start of the same page on every EEPROM these kits ship with, so the alignment has to hold somewhere and the host is the cheapest place for it to hold. The last chunk carries whatever is left; the firmware zero-pads its final page on the way out, and the padding is outside the payload the digest covers.
+Every chunk but the last is the full chunk size the device advertises in `0xD0`, and **every chunk but the last must be a whole number of the target medium's pages** — 64 bytes for the EEPROM, 256 for the EPCS. That is the one constraint the protocol puts on the host, and it is there so that the firmware can write a chunk straight to the medium with no assembly buffer in between: a page write that runs past the end of its page wraps to the start of the same page on both media, so the alignment has to hold somewhere and the host is the cheapest place for it to hold.
 
-A host that takes the advertised chunk size and rounds it *down* to a multiple of 64 satisfies this for any advertised size, which is what the application does rather than assuming 2048.
+A host that takes the advertised chunk size and rounds it *down* to a multiple of **256** satisfies both targets for any advertised size, which is what the application does rather than assuming 2048. One alignment for both, because a whole number of the larger page is a whole number of the smaller one.
 
-Chunks are acknowledged by the control transfer itself; per-target flow control — I2C page-write timing, EPCS busy polling — happens inside the firmware between chunks, so the host never has to know the medium's timing.
+The last chunk carries whatever is left. On the EEPROM the firmware zero-pads its final page on the way out, and the padding is outside the payload the digest covers; on the EPCS nothing beyond the payload is written at all, because an erased flash byte already reads as what an unwritten byte should be.
+
+Chunks are acknowledged by the control transfer itself; per-target flow control — I2C page-write timing, EPCS busy polling — happens inside the firmware between chunks, so the host never has to know the medium's timing. **The host must therefore put no deadline on `0xD2`**, and this matters far more for the gateware than for the firmware: the chunk that opens a new 64 KiB flash sector pays for that sector's erase, which the part specifies at a second typically and three at worst. Roughly one chunk in thirty is seconds long, and the application's progress line says so rather than leaving a bar to pause unexplained.
 
 ### `0xD3` UPDATE_FINISH
 
@@ -108,6 +110,26 @@ The status request is answerable at any time, including when no update is in pro
 `0xD4` is `CyU3PDeviceReset(CyFalse)` — a cold reset, so the FX3 re-reads its boot source and comes back running whatever is now in the EEPROM. It also closes a long-standing gap: until now the host had no way to reboot the device at all.
 
 `0xD5` writes the reconfiguration trigger through the gateware's `rublock` control. Reconfiguration stops `USB_PCLK` underneath the GPIF, so `0xD5` is always followed by `0xD4`: the FX3 is reset rather than left holding a capture path whose clock has gone away.
+
+It is refused — by stalling — when no gateware carrying the flash bridge is answering, and while a transfer is open. Acknowledging either would tell a host that a reconfiguration had happened when nothing had, and the second case would pull the bridge out from under a write in progress.
+
+What the FPGA reconfigures *to* is the factory image, not the application image. The factory image then makes the same boot decision it makes at every power-on, with whatever the flash now holds. That asymmetry is deliberate: an update ends with the device booting the way it always boots, rather than the way a special case in the application image thought it should, so the path taken after an update is the path every unit has exercised since it was provisioned.
+
+## Writing the EPCS: what target 1 actually does
+
+The route is four links deep — bit-banged SPI to the register bank, the flash bridge at `0x20`–`0x22`, the `asmiblock` primitive, then the flash — and every decision along it is made in the firmware. The gateware shifts bytes and knows none of the commands below.
+
+**At `0xD1`**, before a byte is accepted: the firmware checks that a gateware carrying the bridge is answering, unlocks the bridge, reads the flash's silicon identifier with `0xAB`, and checks that the device it names is large enough to hold the image at the application address. A flash that answers `0x00` or `0xFF` has not answered at all — those are the two readings of a line with nothing driving it — and both are refused with `UPDATE_ERROR_HARDWARE`. Nothing is erased at this point, so an update abandoned before its first chunk leaves the previous gateware intact and running.
+
+**At each `0xD2`**, in address order from `0x200000`: where a chunk crosses into a sector that has not been erased, that sector is erased; then each page of the chunk is programmed with `WREN` and `0x02`, with the status register polled until the write-in-progress bit clears. The image is written strictly forwards, so erasing the sector an address opens is both necessary and sufficient, and an image occupying six sectors costs six erases rather than erasing a device that is mostly factory image.
+
+**At `0xD3`**, and then on the application thread: the stream digest is checked, and the whole written region is read back off the flash and hashed. One pass, two accumulators — SHA-256 for integrity link 6, and the CRC-32 the boot block will carry, so the checksum the factory image validates at every power-on is computed from the flash rather than from what the host sent.
+
+**Only then the boot block**, at `0x100000`: its sector erased, the twenty-four bytes programmed, and read back and compared before the update is called complete. That last write is the commit, and everything above it is arranged so that losing power at any point before it leaves a unit that boots the factory image and says so.
+
+The bridge is unlocked for the duration of one flash operation and locked again afterwards, which also releases the flash's pins — so between operations the gateware is not connected to the flash at all. Locking mid-operation would release those pins with a command in flight, which is why the unlock spans the whole of one rather than each framed command inside it.
+
+**Throughput is the open question, not correctness.** A page program is one framed register transaction of 260 bytes, because `BRIDGE_DATA` does not auto-increment — so writing costs one link-crossing per flash byte. Reading costs four, because latching the byte that came back needs a write to shift it and a read to collect it, and the register bank drives zeros on `MISO` during a write transaction so the two cannot share a frame. Write once, read back once, and a 350 KB image is a minutes-long operation. Whether that is two minutes or five is a measurement (verification item V6 in TESTING.md), and if it proves to dominate, the fix is a bridge that starts the next shift on a read — a change to the gateware, and therefore to the frozen half of it, which is exactly why it is not being made ahead of the measurement.
 
 ### Commit ordering is the safety mechanism
 
@@ -279,12 +301,13 @@ Windows binds drivers by USB identifier, and a device in recovery mode reports d
 | `ddd-gui/src/capture/wire_protocol.h` | The host's copy of the request numbers and register addresses |
 | `ddd-gui/src/gui/update_page.h` | The staged flow a user sees |
 | `tools/make-update-bundle.sh` | Bundle assembly and signing |
-| `fx3/firmware/src/update-protocol.h` | The protocol's decisions, host-testable and SDK-free |
-| `fx3/firmware/src/update-agent.h` | The on-device flasher: I2C, page writes, readback |
+| `fx3/firmware/src/update-protocol.h` | The protocol's decisions, host-testable and SDK-free: both media's paging arithmetic, the boot block's format and the CRC-32 it carries |
+| `fx3/firmware/src/update-agent.h` | The on-device flasher: both targets, the readbacks, and the commit ordering |
+| `fx3/firmware/src/epcs-flash.h` | The route to the configuration flash, and the only place the EPCS command sequences live |
 | `fpga/common/flashBridge.v` | The flash bridge, and the lock that keeps it inert |
 | `fpga/common/remoteUpdate.v` | The reconfiguration trigger and the configuration watchdog |
 | `fpga/factory/bootLoader.v` | The boot decision the factory image makes at power-on |
 
-The split in `fx3/firmware/` mirrors the one `fpga-register-map.h` and `fpga-registers.h` already have, and for the same reason. `update-protocol.c` includes no SDK header, so it compiles and runs on a build machine — and the arithmetic that decides where each byte of a firmware image lands in the boot EEPROM is exactly the sort that fails quietly on hardware. `update-agent.c` is the half that cannot be tested anywhere but a bench.
+The split in `fx3/firmware/` mirrors the one `fpga-register-map.h` and `fpga-registers.h` already have, and for the same reason. `update-protocol.c` includes no SDK header, so it compiles and runs on a build machine — and the arithmetic that decides where each byte lands, on either medium, is exactly the sort that fails quietly on hardware. It carries the boot block's encoder too, checked byte for byte against the one `fpga/make-boot-block.py` writes, because a device and a build tool that disagreed about those twenty-four bytes would be a unit that booted the wrong half of its flash. `update-agent.c` and `epcs-flash.c` are the halves that cannot be tested anywhere but a bench.
 
 Related pages: [Update bundle format](update-bundle-format.md), [EPCS layout and boot flow](epcs-layout-and-boot-flow.md), [Developer update loop](developer-update-loop.md), [FPGA register interface](fpga-register-interface.md).

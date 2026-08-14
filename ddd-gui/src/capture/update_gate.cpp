@@ -118,6 +118,32 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
     }
   }
 
+  // Whether this device can take a gateware update at all.
+  //
+  // The route to the EPCS runs through the gateware's own flash bridge, so a
+  // device below map version 2 has no route: the writes would go nowhere and
+  // the readback would be whatever the flash happened to hold. Checked here
+  // rather than discovered at the first chunk, because it is a fact about
+  // this device and this file that is known before anything moves.
+  //
+  // Skipped for a device in recovery, which has no firmware running and
+  // therefore nothing to read a register with. It is asked again when the
+  // device comes back, by the firmware that has just been written to it.
+  if (manifest.gateware.has_value() &&
+      input.device_personality == DevicePersonality::kApplication) {
+    if (!input.device.gateware_present) {
+      refuse(UpdateGateVerdict::kIncompatible,
+             "This device's FPGA is not answering, so its gateware cannot be "
+             "updated from here. Reconnect the device, and if it still does "
+             "not answer, the bench procedure will program it.");
+    } else if (!input.device.GatewareCanBeUpdated()) {
+      refuse(UpdateGateVerdict::kIncompatible,
+             "This device's gateware predates the update mechanism and cannot "
+             "replace itself. It has to be programmed once with the bench "
+             "procedure before gateware updates can be installed from here.");
+    }
+  }
+
   if (manifest.gateware.has_value()) {
     const int64_t version = manifest.gateware->interface_version;
     if (version > kRegisterMapVersionMaximum) {

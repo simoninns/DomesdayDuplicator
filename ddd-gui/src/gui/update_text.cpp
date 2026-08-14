@@ -103,6 +103,11 @@ std::vector<UpdateVersionRow> UpdateVersionRows(
     gateware.installed = Translate("Cannot be read");
   } else if (!device.gateware_present) {
     gateware.installed = NotReported();
+  } else if (device.GatewareIsRecovery()) {
+    // Not the commit, which would be the resident image's and would read as
+    // a perfectly ordinary gateware version. What is installed, as far as
+    // anything that could capture is concerned, is nothing.
+    gateware.installed = Translate("Recovery gateware");
   } else if (device.gateware_commit.empty()) {
     gateware.installed = Translate("Unknown");
   } else {
@@ -110,9 +115,14 @@ std::vector<UpdateVersionRow> UpdateVersionRows(
   }
   if (bundle != nullptr && bundle->gateware.has_value()) {
     gateware.available = FromStdString(bundle->gateware->identity);
+
+    // A unit in recovery is always changed by a gateware update, whatever
+    // the factory image's commit happens to be — it is not the commit that
+    // is being replaced, it is the absence of a working one.
     gateware.changes =
         device_attached && reports_versions &&
-        !SameBuild(device.gateware_commit, bundle->gateware->identity);
+        (device.GatewareIsRecovery() ||
+         !SameBuild(device.gateware_commit, bundle->gateware->identity));
   }
   rows.push_back(gateware);
 
@@ -169,6 +179,29 @@ QString UpdateStageTitle(capture::UpdateStage stage) {
       return Translate("The update did not finish");
   }
   return Translate("Working");
+}
+
+QString UpdateStageTitle(capture::UpdateStage stage,
+                         capture::UpdateTarget target) {
+  const bool gateware = target == capture::UpdateTarget::kGateware;
+
+  switch (stage) {
+    case capture::UpdateStage::kTransferring:
+      return gateware ? Translate("Sending the gateware to the device")
+                      : Translate("Sending the firmware to the device");
+    case capture::UpdateStage::kWriting:
+      return gateware ? Translate("The device is writing the gateware")
+                      : Translate("The device is writing the firmware");
+    case capture::UpdateStage::kVerifying:
+      return gateware
+                 ? Translate("The device is checking the gateware it wrote")
+                 : Translate("The device is checking the firmware it wrote");
+
+    default:
+      // Every other stage happens once for the whole update rather than once
+      // per component, so naming one would be naming the wrong thing.
+      return UpdateStageTitle(stage);
+  }
 }
 
 QString FormatUpdateEstimate(int seconds) {
@@ -297,15 +330,38 @@ QString DevicePersonalityText(capture::DevicePersonality personality) {
   return {};
 }
 
-QString InstallActionLabel(capture::DevicePersonality personality) {
+QString GatewareRecoveryText(const capture::DeviceIdentity& device) {
+  if (!device.GatewareIsRecovery()) {
+    return {};
+  }
+
+  // The same words the *If an update fails* documentation page uses. A user
+  // reading "recovery gateware" here and finding a page that calls it
+  // something else has been given two problems.
+  return Translate(
+      "<b>This device is running its recovery gateware.</b> Its FPGA holds a "
+      "small resident image that cannot capture, which is what it falls back "
+      "to when a gateware update does not finish. The device is not damaged, "
+      "and choosing an update file below will reinstall the gateware.");
+}
+
+QString InstallActionLabel(capture::DevicePersonality personality,
+                           bool gateware_recovery) {
   // "Program", not "repair", and the difference matters: somebody holding a
   // board they have just built has not broken anything, and a device that has
   // never been programmed is indistinguishable on the wire from one whose
   // update was interrupted. One word that is true of both is better than a
   // guess between them.
-  return personality == capture::DevicePersonality::kApplication
-             ? Translate("Update")
-             : Translate("Program this device");
+  if (personality != capture::DevicePersonality::kApplication) {
+    return Translate("Program this device");
+  }
+
+  // A unit in gateware recovery is a different case and can be named
+  // exactly, because the FPGA says which image it is running: the firmware
+  // is fine, the gateware is the resident one, and what is wanted is the
+  // half that is missing.
+  return gateware_recovery ? Translate("Reinstall gateware")
+                           : Translate("Update");
 }
 
 QString DeviceListPersonalitySuffix(capture::DevicePersonality personality) {
