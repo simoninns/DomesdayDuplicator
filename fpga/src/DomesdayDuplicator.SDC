@@ -91,10 +91,21 @@ create_generated_clock -name fx3_pclk \
     [get_ports {GPIO1[31]}]
 
 # The ADC's 40 MHz sampling clock: the divide-by-two register's output, driven
-# onto a pin. Sourcing it from the register's own clock pin rather than from
-# the PLL keeps this correct if the PLL hierarchy is ever renamed.
+# onto a pin.
+#
+# Sourced from the PLL rather than from the divider's own clock pin, which is
+# what this said first and which Quartus rejected outright: "Argument -source
+# is a collection with more than one object". The FAST_OUTPUT_REGISTER
+# assignment on this pin makes the fitter duplicate the divider, one copy in
+# the I/O cell and one in the fabric driving sample_enable, so the register
+# name matches two pins and is not a usable source. The .qsf predicted the
+# duplication; this file did not account for it.
+#
+# It failed loudly, but everything downstream of it failed quietly: with no
+# adc_clock defined, the two set_input_delay commands and both multicycle
+# exceptions below were dropped as well, and the ADC databus went unanalysed.
 create_generated_clock -name adc_clock \
-    -source [get_pins {adc_clock_divider|clk}] \
+    -source [get_pins $pll_clock_pin] \
     -divide_by 2 \
     [get_ports {GPIO0[33]}]
 

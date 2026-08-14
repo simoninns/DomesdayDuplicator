@@ -201,20 +201,31 @@ nix build .#fx3-programmer
 
 Everything except producing a bitstream is free software and needs no Quartus.
 
-### Lint and simulation
+### Lint, simulation and constraints
 
 ```bash
 nix develop .#fpga
 
 ./fpga/tests/run-lint.sh      # T4: verilator --lint-only over the hand-written modules
 ./fpga/tests/run-sim.sh       # T3: the module testbenches, under Icarus Verilog
+./fpga/tests/run-style.sh     # T4: formatting and style, via verible
+./fpga/tests/run-sdc.sh       # T4: the timing constraints parse and cover every pin
+./fpga/tests/run-version.sh   # T2: the commit-to-register version stamp generator
 ```
 
-Both already work out of tree — they build in a temporary directory and leave nothing behind.
-They are the same checks CI runs, as `nix flake check`'s `fpga-lint` and `fpga-sim`, so a
-clean run locally means a clean run there.
+They all work out of tree — they build in a temporary directory and leave nothing behind.
+They are the same checks CI runs, as `nix flake check`'s `fpga-lint`, `fpga-sim`,
+`fpga-style`, `fpga-sdc` and `fpga-version`, so a clean run locally means a clean run there.
 
-Without Nix you need `verilator` and `iverilog` from your distribution.
+`run-sdc.sh` is worth knowing about, because the timing constraints are the one gateware
+source file only Quartus consumes, and Quartus never runs in CI. It checks the two things
+that can be checked for free: that the file is valid Tcl, and that it names every pin the
+top level maps — a constraint covering fifteen of sixteen databus pins leaves the sixteenth
+unanalysed, and nothing else in the tree would notice. Whether the numbers in it are right,
+and whether the design meets them, still needs a Quartus run.
+
+Without Nix you need `verilator`, `iverilog`, `verible`, `tclsh` and Python from your
+distribution.
 
 ### Building the bitstream
 

@@ -43,8 +43,9 @@ Change the PLL multiply/divide by editing the `defparam` block directly. `altpll
 ordinary instantiable megafunction; the wizard only ever wrote the file out. The 80 MHz
 system clock was retuned that way, without the wizard.
 
-There used to be a second one, `IPfifo.v`, wrapping `dcfifo`. `fifo.v` replaced it — see
-[docs-tech/single-clock-gateware-plan.md](../docs-tech/single-clock-gateware-plan.md).
+There used to be a second one, `IPfifo.v`, wrapping `dcfifo`, from when the design had two
+clock domains and needed a FIFO that spanned them. `fifo.v` replaced it when the gateware
+moved to a single 80 MHz clock, which is also what made the buffering path simulable.
 
 `IPpllGenerator.ppf` is a wizard *parameter* file, listed in the project as a `MISC_FILE`. It
 plays no part in compilation.

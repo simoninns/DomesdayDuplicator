@@ -445,6 +445,40 @@ Listed so this document can be read as a status report rather than a wish list.
 | --- | --- | --- |
 | CI test lanes | — | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
 | SPDX conversion of the remaining long-form headers | T4 | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
+| Finish validating the single-clock gateware | T5 | See below. The board is programmed and a 16-minute capture came back clean; four checks remain |
+
+### Validating the single-clock gateware
+
+The gateware moved from two clock domains joined by an Altera `dcfifo` to one 80 MHz clock
+and the project's own `fifo.v`, with the 40 MSPS sampling rate decimated from that clock. It
+is verified in simulation (five testbenches), by lint and style, by a constraint check, and by
+a Quartus build whose timing closes with every slack positive and whose memory infers as 32
+M9K blocks.
+
+**Programmed and partly validated on 2026-08-14.** A 16-minute capture of 38,363,201,536
+samples completed with no sequence break. That result carries weight because
+`capture_pipeline.cpp` validates the sequence counter over *every* buffer, unconditionally and
+before the test-mode branch, and stops the capture the moment one is wrong — so a capture that
+ran to completion is a positive statement that nothing was dropped between the ADC and the
+host, not merely an absence of complaints.
+
+What is left:
+
+1. **A test-mode capture analysed offline** with `--analyse-test-data`. Not redundant with the
+   live check above: it reads the file back off the disk, so it also covers the FLAC encoder,
+   the filesystem and the drive (§5, and the caveat in `test_data_analysis.h`).
+2. **A capture of 30 minutes or more**, to catch timing marginality too rare for 16.
+3. **A noise-floor comparison against a pre-change capture.** The one analogue change is that
+   the ADC's clock now comes from a fabric flip-flop rather than a PLL output. Jitter at
+   40 MSPS is expected to be negligible, but "expected" is not measured.
+4. **A deliberate stall test**: pause the host reader mid-capture and confirm `bufferError` and
+   the resulting sequence-number gap behave as documented.
+
+Note for step 1: `--analyse-test-data` checks the 0…1020 **test-mode ramp**, so running it on
+an ordinary RF capture reports a break within the first few samples. That is the tool being
+asked the wrong question, not a fault. The sequence numbers are not available as a fallback,
+because the capture application converts each sample back to the 10-bit domain and writes only
+that — the sequence field exists during a capture and nowhere afterwards.
 
 The gateware items that used to be on this list are done: the `-Wall` lint pass and the
 `dataGenerator`, `fx3StateMachine` and `spiRegisters` testbenches are all in §4.7, and the
