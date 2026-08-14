@@ -78,6 +78,12 @@ exempt=(
     # QCustomPlot, third-party GPLv3, vendored upstream and updated wholesale.
     "gui/src/DomesdayDuplicator/qcustomplot.cpp"
     "gui/src/DomesdayDuplicator/qcustomplot.h"
+
+    # Vendored cryptography — Monocypher (BSD-2-Clause or CC0-1.0) and Alain Mosnier's
+    # SHA-256 (Unlicense or 0BSD). Each file carries its own upstream licence text, and
+    # each is copied byte-for-byte from a pinned release; the versions, digests and the
+    # reasoning are in ddd-gui/src/vendor/VENDOR.md.
+    "ddd-gui/src/vendor"
 )
 
 is_exempt() {

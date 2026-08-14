@@ -6,3 +6,7 @@ nav:
   - Hardware Testing: hardware-testing.md
   - Software Guide: software-guide.md
   - FPGA Register Interface: fpga-register-interface.md
+  - Device update mechanism: device-update-mechanism.md
+  - Update bundle format: update-bundle-format.md
+  - EPCS layout and boot flow: epcs-layout-and-boot-flow.md
+  - Developer update loop: developer-update-loop.md

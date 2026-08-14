@@ -131,6 +131,8 @@ Map version `0x01`. Reads of unmapped addresses return `0x00`, so the map is ext
 | `0x11` | `LED` | RW | `0x01` | no |
 | `0x12` to `0x7F` | — | unmapped | | |
 
+Map version `0x02` is **specified but not yet implemented**: it adds an `IMAGE_ROLE` register at `0x0B` and a flash bridge at `0x20` to `0x23`, through which the FX3 reaches the EPCS configuration flash and triggers reconfiguration. Everything above is unchanged by it, and the identity block is frozen across all map versions. The definitions are on the [device update mechanism](device-update-mechanism.md) page; the gateware in this repository reports `0x01`.
+
 "Host-writable" is a firmware policy, not a gateware one. The gateware accepts a write to any read/write register from whoever is on the link; the FX3 is what declines to relay some of them.
 
 ### Identity block, `0x00` to `0x0A`

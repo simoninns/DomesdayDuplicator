@@ -63,6 +63,10 @@ pkgs.mkShell {
       # Test
       gtest
 
+      # Signing and verifying update bundles — tools/make-update-bundle.sh and
+      # tools/dev-bundle.sh both need it, and so does the update-bundle check.
+      minisign
+
       # Gateware: lint and simulate without Quartus
       verible
       verilator
@@ -93,6 +97,8 @@ pkgs.mkShell {
     echo "  nix develop .#fpga        Verilog lint and simulation (no Quartus)"
     echo "  nix develop .#hardware    KiCad"
     echo "  nix develop .#docs        MkDocs documentation site"
+    echo
+    echo "  ./tools/dev-bundle.sh     package what is built locally as an update bundle"
     echo
     echo "  nix build .#gui .#fx3-programmer .#docs-site"
     echo "  nix flake check           build everything and run the T1-T4 tests"

@@ -22,6 +22,12 @@ tap, the FLAC writer and reader, and the orchestrator that runs them all on thei
 threads — driven either by a real device or by a synthetic source that generates the
 device's stream in software at its real 80 MB/s.
 
+**The update bundle reader**. The host half of the device-update work: a strict manifest
+parser, a ustar reader and writer, SHA-256, and minisign signature verification — enough
+to open a `.dddfw` bundle, prove it came from the holder of the key and prove it carries
+the bytes that key signed for. Nothing installs one yet; the device-side protocol is
+specified on the *Device update mechanism* documentation page and is not written.
+
 **Monitor mode**. Attach a device, press *Start monitoring*, and the signal is validated,
 measured and displayed while nothing is written anywhere. The Capture panel finds devices
 as they are plugged in and unplugged, refuses one attached at a speed that cannot carry
@@ -155,6 +161,7 @@ src/capture/      ddd::capture — the engine. Qt-free, by rule.
 src/analysis/     ddd::analysis — the display mathematics. Qt-free, for the same reason.
 src/gui/          ddd::gui — the Qt layer, built as a static library, plus main().
 src/gui/resources/ the application's graphics, compiled in (a local copy, AGENTS.md §2)
+src/vendor/       the only third-party sources here: SHA-256 and Ed25519. See VENDOR.md.
 cmake/            FindFLAC.cmake, a component-local copy (AGENTS.md §2)
 tests/unit/       T1, engine. Links no Qt at all.
 tests/analysis/   T1, display mathematics. Links no Qt either.
@@ -165,6 +172,13 @@ tests/gui/widget/ T1, widgets. Needs a QApplication and the offscreen platform p
 tests/hardware/   T5, needs a device attached. Labelled `hil`; never runs in CI.
 tests/support/    Fixtures shared between test binaries.
 ```
+
+`src/vendor/` is a target of its own so that the quality gates that apply to this
+project's code cannot apply to code this project must not edit: no `-Wall -Wextra`, no
+clang-tidy, and excluded from the clang-format glob. Everything the engine sees of it is
+two wrappers, `digest.h` and `minisign_verify.h`, so replacing an implementation later is
+a change to two files. Its provenance, licences and refresh procedure are in
+[src/vendor/VENDOR.md](src/vendor/VENDOR.md).
 
 `src/analysis/` is separate from the engine because none of it is needed to make a
 capture, and separate from the GUI because a QPainter cannot be unit tested while the

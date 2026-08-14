@@ -30,14 +30,17 @@ add_library(ddd_capture STATIC
     capture_provenance.cpp
     capture_reader.cpp
     device_monitor.cpp
+    digest.cpp
     disk_buffer_ring.cpp
     firmware_version.cpp
     flac_sink.cpp
     fpga_version.cpp
     flac_writer.cpp
     free_space.cpp
+    json_value.cpp
     logger.cpp
     memory_lock.cpp
+    minisign_verify.cpp
     monitor_tap.cpp
     sample_metrics.cpp
     sample_sink.cpp
@@ -47,6 +50,8 @@ add_library(ddd_capture STATIC
     test_pattern_verifier.cpp
     thread_priority.cpp
     transfer_result.cpp
+    update_bundle.cpp
+    update_manifest.cpp
     usb_device.cpp
     usb_device_info.cpp
     version.cpp
@@ -58,6 +63,12 @@ target_compile_options(ddd_capture PRIVATE -Wall -Wextra)
 
 target_include_directories(ddd_capture SYSTEM PUBLIC ${FLAC_INCLUDE_DIRS})
 target_link_libraries(ddd_capture PUBLIC ${FLAC_LIBRARIES} Threads::Threads)
+
+# The vendored SHA-256 and Ed25519, behind digest.h and minisign_verify.h. PRIVATE
+# because nothing outside those two wrappers may reach the vendored headers — a call to
+# crypto_ed25519_check from anywhere else would be a second place that knows which
+# implementation this is (src/vendor/VENDOR.md).
+target_link_libraries(ddd_capture PRIVATE ddd_vendor_crypto)
 
 # The USB backend's own dependencies. On Windows both libraries ship with the SDK and
 # with mingw-w64, so there is nothing to find; everywhere else libusb comes from

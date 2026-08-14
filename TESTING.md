@@ -3,9 +3,10 @@
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 605 across five
+reorganisation there were **no automated tests at all**. There are now 711 across five
 components, plus three gateware testbenches, a lint pass over five Verilog modules, a static
-check on the documentation site and a licence-header check over the whole tree. That is a
+check on the documentation site, and a licence-header check and an update-bundle check over
+the whole tree. That is a
 start, not a suite, and this document says so where it applies rather than describing an
 aspiration as though it were a fact.
 
@@ -128,12 +129,14 @@ The licence-header check (§4.8) belongs to no component and needs no toolchain 
 
 ## 4. What exists today
 
-### 4.1 `gui/` — 21 tests
+### 4.1 `gui/` — 37 tests
 
 | File | Covers | Tiers |
 | --- | --- | --- |
 | `tests/test_stringutilities.cpp` | UTF-8 ↔ wide-string conversion: round trips, all four UTF-8 sequence lengths, surrogate pairs, truncated input, embedded NUL | T1 |
 | `tests/test_samplecodec.cpp` | The 10-bit/16-bit sample codec: exhaustive round trip over all 1024 values in all 4 slot positions, bit-position isolation, golden byte vectors, the test-pattern ramp | T1, T2 |
+| `tests/test_flacroundtrip.cpp` | The FLAC writer and reader against each other, and the container's bytes at fixed offsets | T1, T2 |
+| `tests/test_testdataanalyser.cpp` | The offline test-pattern analyser: an unbroken ramp, an injected discontinuity, and the exit codes a script depends on | T1 |
 
 The codec tests are the most valuable thing in the suite. A defect there does not crash and
 does not print an error — it silently corrupts every capture that is ever converted, and the
@@ -142,7 +145,7 @@ corruption is only detectable by comparing against an original that may no longe
 One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
 two bytes, which is Windows.
 
-### 4.2 `ddd-gui/` — 527 tests (521 without hardware)
+### 4.2 `ddd-gui/` — 616 tests (610 without hardware)
 
 The replacement capture application. Split by what a test needs rather than by what it
 covers: `ddd_capture_tests` links no Qt at all, which is what makes the engine's Qt-free
@@ -159,6 +162,12 @@ rule enforceable — if the engine ever grows a Qt dependency, that binary stops
 | `tests/unit/test_capture_pipeline.cpp` | The orchestrator: start/stop/abort, error latching precedence, injected faults surfacing as their own codes, a stalled source declared stalled rather than waited for, and a sink attached mid-stream receiving whole buffers with no sample lost or repeated | T1 |
 | `tests/unit/test_usb_device.cpp` | The SuperSpeed rule, preferred-device selection, and the USB transfer layout: transfers a whole number of packets, dividing a buffer exactly, the queue capped at the usbfs limit — and a simulation walking the transfers through several laps of the ring to prove buffers are handed over in the order the consumer reads them | T1 |
 | `tests/unit/test_firmware_version.cpp` | The firmware version comparison: commits parsed out of the USB product string, dirty builds on either side, stamps of differing length from one commit still matching, and an application that cannot name its own commit staying quiet | T1 |
+| `tests/unit/test_digest.cpp` | SHA-256 against the published FIPS 180-2 vectors and the million-character case, the streaming interface agreeing with the one-shot function at every chunk boundary, and hex parsing refusing anything but 64 hex characters | T1 |
+| `tests/unit/test_json_value.cpp` | The manifest parser's strictness stated as tests: duplicate keys, trailing content, comments, trailing commas, leading zeros, unescaped control characters, lone surrogates and runaway nesting each refused by name — plus numbers surviving a round trip as the text they arrived as | T1 |
+| `tests/unit/test_minisign_verify.cpp` | Signature verification against signatures **minisign 0.12 produced**, in both its modes: a manifest with one byte changed refused, an edited trusted comment refused because the second signature covers it, a signature from another key refused, and malformed key and signature files refused | T1 |
+| `tests/unit/test_update_manifest.cpp` | The manifest schema: the fixture read field by field and written back byte-identically, a one-component bundle accepted and an empty one refused, an unknown schema version stopping the parse rather than producing a list, every problem reported rather than only the first, and dotted versions ordered while commit hashes and `unknown` are refused an ordering at all | T1 |
+| `tests/unit/test_update_bundle.cpp` | The archive: entries round-tripped through the writer and reader including the empty, exactly-one-block and one-byte-over cases; directories, paths, bad checksums, truncation and duplicate names refused; and, at bundle level, a tampered manifest, a tampered payload, a wrong length, a missing payload, a missing signature and a manifest that is not the first entry each refused with their own message | T1 |
+| `tests/golden/test_stock_tar_bundle.cpp` | A bundle **as `tools/make-update-bundle.sh` really produced it** — GNU tar's bytes, minisign's signature — opened, verified and compared against what this project's own writer produces. The one test that says the reader reads what the release tooling writes rather than only what this code writes | T1, T2 |
 | `tests/analysis/test_front_end_gain.cpp` | The board's SW401 gain switch: all fifteen switch patterns against the gain and full-scale input on the hardware calculations sheet, that closing a second switch *lowers* the gain because the resistors are in parallel, all-switches-open treated as no declaration rather than as unity, and an undeclared gain converting nothing at all | T1 |
 | `tests/analysis/test_waveform_mapping.cpp` | The scope's arithmetic: sample and code to pixel and back, span and offset, a cursor clamped to the window, column decimation keeping the extremes of what it covers while leaving genuinely empty columns empty, and that every span the panel offers fits inside a snapshot rather than being silently clamped to less time than its label claims | T1 |
 | `tests/analysis/test_signal_levels.cpp` | The nominal capture level: the 75% bounds landing on codes 128 and 896, symmetrical about mid-scale because the signal swings both ways about 0 V, leaving headroom before the converter clips, and a range failing nominal if either end does | T1 |
@@ -243,11 +252,12 @@ device — which bricks the FX3, recoverable only via the PMODE jumper. The path
 tests guard the D13 fix, where every candidate path used to be relative to the working
 directory, so an installed binary could not find the secondary loader at all.
 
-### 4.4 `fx3/firmware/` — one golden test
+### 4.4 `fx3/firmware/` — two tests
 
 | File | Covers | Tiers |
 | --- | --- | --- |
 | `tests/descriptor-golden.sh` | The generated USB product descriptor: two fixed commit strings in, byte-for-byte comparison against `tests/descriptor-{0123abcd,unknown}.h`, including the computed length byte | T2 |
+| `tests/register-map` | The host-testable half of the FPGA register map: which addresses exist, which are writable, and what the firmware refuses to relay | T1 |
 
 The generated header is the *only* path by which a version reaches the device — the FX3
 serves `USB_DESC_PRODUCT_BYTES` verbatim as its product string descriptor, so a wrong length
@@ -349,10 +359,14 @@ sequential logic, two incomplete `case` statements, an implicit width promotion,
 control-bus bits fixed by the PCB — are each pinned by one of the testbenches above rather
 than merely declared benign.
 
-### 4.8 Repository-wide — the licence-header check
+### 4.8 Repository-wide — the licence-header and update-bundle checks
 
-One check has no component: `tools/check-licence-headers.sh`, the `licence-headers` flake
-check (T4). Every project-authored `.c .h .cpp .inl .v .py .sh .nix .S` file must carry both
+Two checks have no component, because their subject is the whole tree rather than any part
+of it. Both are T4 and both live in `nix/checks.nix`.
+
+#### `licence-headers`
+
+`tools/check-licence-headers.sh`, the `licence-headers` flake check (T4). Every project-authored `.c .h .cpp .inl .v .py .sh .nix .S` file must carry both
 a copyright statement and a licence statement in its first 40 lines; a file missing either
 fails the build.
 
@@ -369,6 +383,23 @@ the point. An exemption nobody had to write is an exemption nobody reviewed.
 The check reads only tracked files. It asks git when git is there, and walks the tree when it
 is not — inside the Nix sandbox the flake source *is* the tracked set, so both routes see the
 same files. Without that, a local run would header-check every `moc_*.cpp` in `gui/build/`.
+
+#### `update-bundle`
+
+Every commit assembles a real update bundle with `tools/make-update-bundle.sh` — a
+firmware-only, development-signed one over a synthetic payload — and takes it apart again.
+It checks that the entries come out in the order the format fixes, that the signature
+verifies, that the manifest's digest matches the payload, and that assembling the same
+inputs twice gives byte-identical files.
+
+Everything after the bundle exists is done with **stock tools**: GNU `tar` lists it,
+`minisign` verifies it, `sha256sum` checks the digest. That is the point of the check.
+The application's own reader is covered by the tests in §4.2, and a check that used this
+project's reader to validate this project's writer could only ever say that the two agree
+with each other.
+
+Nothing here writes to a device. The payload is a text file, and installing a bundle stays
+a deliberate human act (AGENTS.md §4).
 
 ### 4.9 Everything else — nothing yet
 
@@ -446,6 +477,7 @@ Listed so this document can be read as a status report rather than a wish list.
 | CI test lanes | — | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
 | SPDX conversion of the remaining long-form headers | T4 | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
 | Finish validating the single-clock gateware | T5 | See below. The board is programmed and a 16-minute capture came back clean; four checks remain |
+| Device-update bench procedures | T5 | The update, interruption and recovery procedures for each target. Nothing to record yet: the bundle format and its tooling exist, and no device-side protocol does. Each procedure lands in the phase that first performs it, alongside §5 — never written ahead of being run |
 
 ### Validating the single-clock gateware
 

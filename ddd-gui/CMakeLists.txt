@@ -15,7 +15,11 @@
 #                  it. `ddd-gui` itself is then a main() over that library.
 
 cmake_minimum_required(VERSION 3.21)
-project(ddd-gui VERSION 1.0 LANGUAGES CXX)
+
+# C is here for one reason: the vendored cryptography in src/vendor is C, and compiling it
+# as C++ would mean modifying it, which vendored code is exactly what we do not do
+# (AGENTS.md §3). No project-authored source is C.
+project(ddd-gui VERSION 1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -98,6 +102,7 @@ else()
     include(GNUInstallDirs)
 endif()
 
+add_subdirectory(src/vendor)
 add_subdirectory(src/capture)
 add_subdirectory(src/analysis)
 add_subdirectory(src/gui)
@@ -140,6 +145,11 @@ if(DDD_ENABLE_CLANG_FORMAT)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.h"
         )
+
+        # src/vendor is upstream cryptography, copied byte-for-byte and never edited
+        # (AGENTS.md §3, src/vendor/VENDOR.md). Reformatting it would make the next
+        # refresh a merge instead of a copy.
+        list(FILTER ddd_format_sources EXCLUDE REGEX "/src/vendor/")
 
         file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/clang-format-stamps")
 

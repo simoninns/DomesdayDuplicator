@@ -66,6 +66,7 @@ jobs:
               - flake.nix
               - flake.lock
               - nix/**
+              - tools/**
               - .github/workflows/**
             gui:
               - *shared
@@ -183,6 +184,53 @@ jobs:
           # without re-running CI (P7-7). This is not the release archive — GitHub expires
           # these, which is why releases attach their own copies.
           name: fx3-artifacts-${{ github.sha }}
+          path: artifacts/
+          retention-days: 30
+          if-no-files-found: error
+
+  # The update bundle, assembled on every commit that touches the firmware or the tooling.
+  #
+  # Two things happen here and they are not the same thing. The check proves the packaging
+  # works — entry order, signature, digests, byte-for-byte reproducibility — against a
+  # synthetic payload and with stock tar, minisign and sha256sum. The step after it then
+  # packages *this commit's real firmware* into a development bundle and uploads it, so
+  # every commit has an artefact somebody can take to bench hardware and install with the
+  # same code path a release uses.
+  #
+  # It is signed with the committed development key, which proves the bundle is well
+  # formed and proves nothing at all about where it came from. That is the whole point of
+  # the channel being in the manifest: a release build of the application refuses it.
+  # Nothing here writes to a device (AGENTS.md §4) — CI assembles a file, and installing
+  # it stays a deliberate human act.
+  update-bundle:
+    name: Update bundle
+    needs: changes
+    if: needs.changes.outputs.fx3 == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check the bundle tooling
+        run: nix build --print-build-logs .#checks.x86_64-linux.update-bundle
+
+      - name: Assemble a development bundle from this commit's firmware
+        run: |
+          set -euo pipefail
+          nix build .#fx3-firmware --out-link result-firmware
+
+          # --inputs-from . takes minisign from this flake's locked nixpkgs rather than
+          # from whatever the registry points at today, so the tool that signs in CI is
+          # pinned like everything else.
+          nix shell --inputs-from . nixpkgs#minisign --command \
+            ./tools/dev-bundle.sh \
+              --output "artifacts/domesday-duplicator-update-${GITHUB_SHA:0:8}-dev.dddfw"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-bundle-${{ github.sha }}
           path: artifacts/
           retention-days: 30
           if-no-files-found: error

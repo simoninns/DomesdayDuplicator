@@ -69,6 +69,27 @@ target_link_libraries(ddd_capture_tests PRIVATE
 )
 target_include_directories(ddd_capture_tests PRIVATE support)
 
+# T1 — the device-update bundle: the digest, the JSON reader, the manifest, the archive
+# and the signature verifier.
+#
+# A binary of its own rather than more files in ddd_capture_tests, because this is the
+# only part of the engine whose input is a file a user downloaded from somewhere. Keeping
+# it separate means `ctest -R update` runs exactly the suite that covers that surface,
+# which is the suite anyone touching the update path needs to be able to run in a second.
+ddd_add_test(ddd_update_tests "unit"
+    unit/test_digest.cpp
+    unit/test_json_value.cpp
+    unit/test_minisign_verify.cpp
+    unit/test_update_manifest.cpp
+    unit/test_update_bundle.cpp
+)
+target_link_libraries(ddd_update_tests PRIVATE
+    ddd_capture
+    GTest::gtest
+    GTest::gtest_main
+)
+target_include_directories(ddd_update_tests PRIVATE support)
+
 # T1 — the display mathematics. Links no Qt either, for the same reason ddd_capture_tests
 # does not: a QPainter cannot be unit tested, and everything worth testing about a plot is
 # the arithmetic behind it rather than the pixels it produced.
@@ -94,12 +115,14 @@ target_link_libraries(ddd_analysis_tests PRIVATE
 ddd_add_test(ddd_capture_format_tests "unit;golden"
     golden/test_flac_round_trip.cpp
     golden/test_test_data_analysis.cpp
+    golden/test_stock_tar_bundle.cpp
 )
 target_link_libraries(ddd_capture_format_tests PRIVATE
     ddd_capture
     GTest::gtest
     GTest::gtest_main
 )
+target_include_directories(ddd_capture_format_tests PRIVATE support)
 
 # T1 — the whole pipeline at the device's real rate, driven by the synthetic source.
 #

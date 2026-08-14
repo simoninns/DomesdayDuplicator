@@ -128,7 +128,9 @@
       # no ctest suite and no package that CI can build, so its lint, style, simulation and
       # version checks are added here explicitly — they are the only automated coverage the
       # Verilog gets.
-      # The licence-header check belongs to no component at all, so it comes from nix/.
+      # The licence-header and update-bundle checks belong to no component at all, so they
+      # come from nix/: one is about every file in the tree, the other about the release
+      # tooling in tools/, and neither has a component to live beside.
       #
       # `bitstream` is removed rather than never added, so that a future package added to
       # the unfree set cannot reach `checks` by being forgotten about here.
@@ -147,6 +149,7 @@
           fpga-provenance = fpgaChecks.provenance;
           fpga-version = fpgaChecks.version;
           licence-headers = repoChecks.licence-headers;
+          update-bundle = repoChecks.update-bundle;
         }
       );
 
