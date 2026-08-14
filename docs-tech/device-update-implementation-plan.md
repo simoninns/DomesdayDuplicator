@@ -242,6 +242,86 @@ the signing, or the integrity chain.
 - Flatpak/MSI/DMG packaging gains whatever network permission the fetch needs
   (Flatpak: `--share=network` is already required for nothing else — verify in
   packaging phase).
+- **The application itself is part of the check, not the install.** The same
+  releases-API query that finds a device bundle also notices a newer `ddd-gui`
+  release; the update page then shows all three versions (application, firmware,
+  gateware) and, for the application, routes to the platform's own channel rather
+  than self-updating — Flathub for the Flatpak (a sandboxed app cannot replace
+  itself, and should not try), the release MSI/DMG downloads for Windows/macOS.
+  The manifest's `minimum GUI version` is enforced, not advisory: a bundle requiring
+  a newer application disables the device-update button and says "update the
+  application first", so the ordering users must follow is the only ordering the UI
+  permits.
+
+### Update experience (what the user sees)
+
+The update flow is written for the archivist, not the developer: at every moment the
+screen answers *what is happening, how long it will take, and what I should (not) do*.
+This is a requirement on the GUI phases, not a polish item for the end.
+
+- **A staged, wizard-like flow** with plain-language stages, each with its own
+  progress and a one-line description of what the device is doing:
+  1. *Checking* — versions found, what will change (application / firmware /
+     gateware), release notes line shown;
+  2. *Downloading* — bytes progress, verified tick when the signature and digests
+     pass ("update verified as authentic");
+  3. *Updating firmware* / 4. *Updating gateware* — per-stage progress bars fed by
+     `0xD0` (transfer, write, verify shown distinctly), a realistic time estimate
+     up front ("about 4 minutes"), and the one instruction that matters, stated
+     before the first byte moves and shown throughout: **"Leave the device plugged
+     in and powered."**;
+  5. *Restarting device* — "the Duplicator will disconnect and reconnect by itself;
+     this is normal";
+  6. *Confirming* — "your device now reports firmware X / gateware Y — update
+     complete."
+- **Progress is honest**: stage-level bars from real device state, never a fake
+  spinner over a minutes-long silence; if a stage's duration is unknowable the UI
+  says what it is waiting for instead of guessing.
+- **Errors speak user, not errno**: every failure state names what happened, whether
+  the device is safe (it always is — say so), and the exact next step, which is
+  usually a single button ("Try again", "Repair firmware", "Reinstall gateware").
+  The rescue states are described in the same calm terms the *If an update fails*
+  documentation page uses — the dialog and the docs tell one story.
+- **Interruption-proofing in the UI as well as the protocol**: the window prevents
+  capture, sleep and accidental close while programming, and if the user tries to
+  quit it explains why not now (and when it will be safe).
+- Every state of this flow is drivable through the `IDeviceUpdater` fake, so the
+  complete wizard — including every error and rescue branch — is exercised in
+  widget tests with no hardware attached.
+
+### Compatibility gates (no way to flash past what the GUI can use)
+
+Version compatibility is enforced machine-to-machine at two moments, in both
+directions — never inferred from commit strings, which identify builds but order
+nothing:
+
+- **Machine-readable capability versions on the device.** The gateware already
+  advertises its register-map version (register `0x01`); the FX3 firmware starts
+  advertising a **protocol version in `bcdDevice`** (currently a dead `0x0000` in the
+  descriptor), readable by the GUI without any vendor command. Both are integers with
+  defined bump rules — additive changes don't bump, breaking changes do — and the GUI
+  is built knowing the *range* of each it supports, not a single expected value.
+- **Install-time gate (the one this section exists for):** before any byte is
+  streamed, the running GUI checks the bundle manifest's `minimum GUI version` and
+  the bundle components' declared protocol/map versions against its own supported
+  ranges. A bundle whose firmware or gateware requires a newer application than the
+  one performing the update **disables the install with "update the application
+  first"** — a user cannot use the current GUI to flash the device beyond that same
+  GUI's understanding. The GUI likewise refuses manifests whose schema version it
+  does not know.
+- **Connect-time gate (the second-order case):** a device can meet an old GUI having
+  been updated elsewhere by a newer one. On every connect the GUI compares the
+  device's advertised versions against its ranges: device *newer* than the GUI
+  understands → a clear "this firmware requires a newer application" state with
+  capture disabled and the application-update routing offered (a wrong-protocol
+  capture must not limp along); device *older* → the existing
+  mismatch warning, now with the device-update offer attached. The current
+  commit-prefix `FirmwareVersionCheck` remains as a freshness hint only; it no longer
+  carries compatibility weight.
+- **Downgrades** are permitted deliberately (rollback is a feature, and the archive
+  of release bundles on GitHub is the rollback source) but pass through the same two
+  gates, so a downgrade below the running GUI's minimum is refused the same way an
+  overreaching upgrade is.
 
 ### Developer loop (no release required)
 
@@ -327,10 +407,12 @@ feature merges without its page is visibly incomplete. Final page set:
 never opened a terminal):
 
 - *Updating your Domesday Duplicator* — checking for updates, what the version
-  comparison shows, the one-confirmation install, what each progress stage means and
-  roughly how long it takes, and the post-update "your device now reports…"
-  confirmation. (Lands with Phase 7, when the online flow completes; a file-picker
-  interim version lands with Phase 2.)
+  comparison shows (application, firmware and gateware — and that the application
+  updates through Flathub or the release installers, not from inside the app), the
+  one-confirmation device install, what each progress stage means and roughly how
+  long it takes, and the post-update "your device now reports…" confirmation. (Lands
+  with Phase 7, when the online flow completes; a file-picker interim version lands
+  with Phase 2.)
 - *If an update fails* — what "recovery mode" (FX3 bootloader) and "recovery gateware
   running" (factory image) look like in the GUI, the one-click repairs, and the
   reassurance that an interrupted update cannot brick the unit. Ends with a pointer
@@ -373,7 +455,9 @@ is performed.
 
 - Write the normative docs: update protocol page and register map v2 in
   `docs/content/development/`; EPCS layout and boot-block format; bundle/manifest
-  schema; the factory freeze policy.
+  schema; the factory freeze policy; the compatibility model (protocol version in
+  `bcdDevice`, map version register, bump rules, GUI supported ranges, the
+  install-time and connect-time gates).
 - Implement `tools/make-update-bundle.sh` + a pure manifest/ustar library in
   `ddd-gui/src/capture/` with unit tests (reader and writer round-trip).
 - Vendor the crypto once, small and shared: a public-domain SHA-256 (used by the
@@ -396,11 +480,14 @@ is performed.
   `fx3-paging.h` and its tests); held-back first page; the vendored SHA-256 hashing
   both the incoming stream and the post-write readback (integrity links 5–6);
   capture/update mutual exclusion; identity read during init (needed later for the
-  watchdog tickle, harmless now).
+  watchdog tickle, harmless now); `bcdDevice` starts carrying the protocol version.
 - GUI: `IDeviceUpdater` seam + fake; update page in the firmware dialog with
   file-picker bundles only; worker-thread orchestrator with progress from `0xD0`;
   post-reset identity confirmation; the release/development key acceptance rules
-  (dev key by explicit opt-in only, bannered in the UI).
+  (dev key by explicit opt-in only, bannered in the UI). The staged wizard of
+  *Update experience* ships here in its firmware-only form — stages, honest
+  progress, "leave the device plugged in", plain-language errors, widget tests over
+  the fake for every branch — it is not deferred to a polish phase.
 - `ddd-update` CLI over the same engine path (verify → program → reset → identity
   check, non-zero exit on failure) — completing the developer loop
   (`dev-bundle.sh && ddd-update`) and giving the bench procedures their scriptable
@@ -445,8 +532,10 @@ is performed.
   read) behind `0xD1–0xD3` target 1; `0xD5` reconfig; SHA-256 readback verify from the
   EPCS (integrity link 6) before the boot block is written; progress reporting
   granular enough for a minutes-long operation.
-- GUI: second target in the update flow; boot-block commit ordering; factory-mode
-  repair flow ("reinstall gateware" from a bundle).
+- GUI: second target in the update flow — the wizard gains its *Updating gateware*
+  stage with the multi-minute time estimate and distinct transfer/write/verify
+  progress; boot-block commit ordering; factory-mode repair flow ("reinstall
+  gateware" as a single calm button, worded as in *If an update fails*).
 - Bench: full gateware update from the running application image; interrupted-update
   test (power pull mid-write → boots factory → GUI repair); throughput measurement
   (item V6; optimise the bit-bang only if it dominates), raw-image bit order locked by
@@ -477,8 +566,13 @@ is performed.
 
 ### Phase 7 — Online fetch and user-facing polish
 
-- GitHub releases fetcher, opt-in automatic check, download + SHA-256 verify, unified
-  install UX with per-component version comparison; packaging permission review.
+- GitHub releases fetcher, opt-in automatic check, download + SHA-256 verify —
+  completing the wizard's *Checking* and *Downloading* stages (release-notes line,
+  "verified as authentic" tick) — and the unified install UX with per-component
+  version comparison covering all three versions — application, firmware, gateware —
+  including the application-update notice routed to the platform channel and the
+  enforced `minimum GUI version` gate ("update the application first"); packaging
+  permission review.
 - Documentation moves: "Updating your Domesday Duplicator" becomes a user-section
   page; the JTAG/jumper procedures move to a provisioning/recovery appendix.
 - **Exit:** end-to-end rehearsal — a real release, discovered and installed from
