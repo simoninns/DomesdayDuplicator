@@ -21,7 +21,17 @@ FreeSpace AvailableSpace(const std::filesystem::path& directory) {
     return result;
   }
 
+  // Asked explicitly, because the two platforms disagree about what a missing
+  // directory means. POSIX statvfs fails on one, so space() reports an error;
+  // Windows resolves the volume out of the path and never looks at the
+  // directory at all, so space() succeeds and answers for the whole drive. The
+  // header promises "not known" for a path that is not there, and that promise
+  // has to hold on both.
   std::error_code error;
+  if (!std::filesystem::is_directory(directory, error)) {
+    return result;
+  }
+
   const std::filesystem::space_info info =
       std::filesystem::space(directory, error);
   if (error) {

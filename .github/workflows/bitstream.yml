@@ -122,6 +122,8 @@ jobs:
       # design and no public substituter will ever have it. This is the project's own
       # private copy of the closure, keyed on the lock file that decides which Quartus
       # this is: a flake.lock bump gets a cold run and everything else gets a warm one.
+      # A cache entry is immutable once written, so an entry that turns out to be bad is
+      # abandoned by changing the `quartus-cyclone4` prefix, not by deleting anything.
       - name: Restore the Quartus closure
         id: quartus-cache
         uses: actions/cache@v4
@@ -129,22 +131,39 @@ jobs:
           path: ~/quartus-closure
           key: quartus-cyclone4-${{ hashFiles('flake.lock') }}
 
-      # --all rather than a named path: the directory holds this one closure and nothing
-      # else, and naming a store path here would mean hard-coding a hash that changes with
-      # every nixpkgs bump. --no-check-sigs because the cache is ours and unsigned; it is
-      # written by the export step below and read by nothing else.
-      - name: Import the cached closure
-        if: steps.quartus-cache.outputs.cache-hit == 'true'
-        run: nix copy --no-check-sigs --from "file://$HOME/quartus-closure" --all
-
-      # On a hit this is instantaneous and proves the import worked. On a miss this is the
-      # multi-GB fetch from Intel's CDN, and it is a step of its own so that the log says
-      # plainly which of the two happened and what it cost.
+      # The restored directory is offered to Nix as a substituter rather than imported with
+      # `nix copy --all`, which was how this worked until it was first exercised warm and
+      # failed every time.
+      #
+      # `--all` enumerates a binary cache by scanning its .narinfo files, and a narinfo is
+      # named for the hash alone — so every path came back as `<hash>-x`, with its real name
+      # lost. The copy then could not match those against the full names recorded in the
+      # References fields, and stopped at the first one: `path '...-fontconfig-2.18.2-bin'
+      # is not valid`. A cold run never noticed, because the import step is skipped on a
+      # miss.
+      #
+      # As a substituter, Nix asks for the paths it needs by name and fetches only those,
+      # which also makes an incomplete or absent cache cost a slow run rather than a failed
+      # one. --no-require-sigs because this cache is ours and unsigned. The guard is there
+      # because Nix rejects a file:// substituter whose directory does not exist, which is
+      # exactly the case on a cache miss.
+      #
+      # On a hit this is a local copy of a few GB. On a miss it is the fetch from Intel's
+      # CDN, and it is a step of its own so the log says plainly which happened and what it
+      # cost.
       - name: Realise Quartus
         run: |
           set -euo pipefail
+          substituter=()
+          if [[ -f "$HOME/quartus-closure/nix-cache-info" ]]; then
+            substituter=(--extra-substituters "file://$HOME/quartus-closure" --no-require-sigs)
+          else
+            echo "No usable closure cache; Quartus will be fetched from upstream."
+          fi
+
           start=$SECONDS
-          path=$(nix build --print-build-logs --no-link --print-out-paths .#quartus-prime-lite)
+          path=$(nix build --print-build-logs --no-link --print-out-paths \
+                   "${substituter[@]}" .#quartus-prime-lite)
           echo "Quartus: ${path}"
           echo "Took $((SECONDS - start))s (cache hit: ${{ steps.quartus-cache.outputs.cache-hit || 'false' }})"
 

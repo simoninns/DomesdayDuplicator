@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -550,11 +551,22 @@ TEST_F(CaptureToDiskTest, NoDurationLimitMeansTheCaptureRunsUntilStopped) {
 // attached, and the stream is left alone: a capture that could not start is not
 // a reason to stop monitoring.
 TEST_F(CaptureToDiskTest, AFolderThatCannotBeWrittenToIsReported) {
-  Settings([](CaptureSettings& settings) {
-    // A path under a regular file, which cannot be turned into a directory on
-    // any platform this runs on.
-    settings.capture_directory = QStringLiteral("/dev/null/not-a-directory");
-  });
+  // A path under a regular file, which cannot be turned into a directory on any
+  // platform this runs on. The file has to be one this test made: the previous
+  // /dev/null/not-a-directory is unusable only on Unix, and on Windows those
+  // are ordinary names that get created on demand.
+  const std::filesystem::path blocker = directory_ / "a-regular-file";
+  {
+    std::ofstream file(blocker);
+    ASSERT_TRUE(file.good());
+  }
+
+  // Set directly rather than through Settings(), which takes a plain function
+  // pointer and so cannot carry the path this test just made.
+  CaptureSettings settings = controller_->settings();
+  settings.capture_directory =
+      QString::fromStdString((blocker / "not-a-directory").string());
+  controller_->SetSettings(settings);
 
   QSignalSpy failures(controller_.get(), &CaptureController::Failed);
 

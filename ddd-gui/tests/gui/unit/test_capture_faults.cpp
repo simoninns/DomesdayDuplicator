@@ -17,6 +17,7 @@
 #include <QString>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -247,8 +248,19 @@ TEST_F(CaptureFaultTest, ABrokenRampIsReportedAsAVerificationFailure) {
 }
 
 TEST_F(CaptureFaultTest, AFileThatCannotBeCreatedIsReportedAsSuch) {
+  // A path below a regular file, which no platform will turn into a directory.
+  // This used to be /dev/null/not-a-directory, which is only unusable on Unix:
+  // on Windows those are ordinary names, the directory was created, and the
+  // capture started perfectly happily.
+  const std::filesystem::path blocker = directory_ / "a-regular-file";
+  {
+    std::ofstream file(blocker);
+    ASSERT_TRUE(file.good());
+  }
+
   CaptureSettings settings = controller_->settings();
-  settings.capture_directory = QStringLiteral("/dev/null/not-a-directory");
+  settings.capture_directory =
+      QString::fromStdString((blocker / "not-a-directory").string());
   controller_->SetSettings(settings);
 
   controller_->StartMonitoring();

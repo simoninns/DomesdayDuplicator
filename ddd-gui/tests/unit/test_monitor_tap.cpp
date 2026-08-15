@@ -84,8 +84,17 @@ TEST(StatsPublisherTest, AReaderNeverSeesTwoGenerationsMixedTogether) {
     }
   });
 
-  for (uint64_t index = 1; index <= 200'000; ++index) {
+  uint64_t index = 1;
+  for (; index <= 200'000; ++index) {
     publisher.Publish(StatsFor(index));
+  }
+
+  // See the snapshot test below: the writer can finish before the reader thread
+  // is first scheduled, and then this test asserts on a reader that never ran.
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(10);
+  while (reads.load() == 0 && std::chrono::steady_clock::now() < deadline) {
+    publisher.Publish(StatsFor(index++));
   }
 
   stop = true;
@@ -186,8 +195,21 @@ TEST(SnapshotPublisherTest, AHammeringReaderNeverSeesAHalfWrittenSnapshot) {
   });
 
   std::vector<uint8_t> source(kSnapshotBytes);
-  for (uint64_t index = 1; index <= 20'000; ++index) {
+  uint64_t index = 1;
+  for (; index <= 20'000; ++index) {
     std::fill(source.begin(), source.end(), static_cast<uint8_t>(index));
+    publisher.Publish(source.data(), source.size());
+  }
+
+  // Twenty thousand publications is around twenty milliseconds, and on a loaded
+  // runner the reader thread has been known not to be scheduled once in that
+  // time — which failed the run below having tested nothing. Keep publishing
+  // until it has read at least once, bounded so a reader that is genuinely
+  // stuck still fails rather than hangs.
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(10);
+  while (reads.load() == 0 && std::chrono::steady_clock::now() < deadline) {
+    std::fill(source.begin(), source.end(), static_cast<uint8_t>(index++));
     publisher.Publish(source.data(), source.size());
   }
 
