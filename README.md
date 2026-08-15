@@ -55,7 +55,7 @@ failure rather than an environment quirk.
 
 | Component | Native | Nix |
 | --- | --- | --- |
-| Capture application | `cmake -B gui/build -S gui && cmake --build gui/build` | `nix build .#gui` · `nix develop .#gui` |
+| Capture application | `cmake -B ddd-gui/build -S ddd-gui && cmake --build ddd-gui/build` | `nix build .#ddd-gui` · `nix develop .#ddd-gui` |
 | FX3 firmware | `cmake -B fx3/firmware/build -S fx3/firmware -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake && cmake --build fx3/firmware/build` | `nix build .#fx3-firmware` · `nix develop .#fx3` |
 | FX3 programmer | `cmake -B fx3/programmer/build -S fx3/programmer && cmake --build fx3/programmer/build` | `nix build .#fx3-programmer` · `nix develop .#fx3` |
 | FPGA gateware | `./fpga/build-local.sh` (needs Quartus Prime Lite) | `nix build .#bitstream` · `nix develop .#fpga-quartus` |

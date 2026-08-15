@@ -92,7 +92,7 @@ pkgs.mkShell {
     echo
     echo "Component shells (run from anywhere in the working tree):"
     echo
-    echo "  nix develop .#gui         Qt 6 capture GUI and tools"
+    echo "  nix develop .#ddd-gui     Qt 6 capture application and tools"
     echo "  nix develop .#fx3         FX3 firmware and programmer"
     echo "  nix develop .#fpga        Verilog lint and simulation (no Quartus)"
     echo "  nix develop .#hardware    KiCad"
@@ -100,7 +100,7 @@ pkgs.mkShell {
     echo
     echo "  ./tools/dev-bundle.sh     package what is built locally as an update bundle"
     echo
-    echo "  nix build .#gui .#fx3-programmer .#docs-site"
+    echo "  nix build .#ddd-gui .#fx3-programmer .#docs-site"
     echo "  nix flake check           build everything and run the T1-T4 tests"
     echo
     echo "Editor configuration: https://simoninns.github.io/domesdayduplicator/development/editor-setup/"

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata for the capture application.
+
+  Required by Flathub, and it is also what gives the application its name, summary and
+  version history in GNOME Software and KDE Discover. The <release> list is rewritten from
+  the tag by the packaging job rather than maintained by hand, because a hand-maintained
+  version history goes stale the first time someone forgets it.
+
+  **The identifier is deliberately not the one gui/ used.** The application this replaces
+  shipped as io.github.simoninns.DomesdayDuplicator; this one is a separate identifier so
+  that an existing install is never silently upgraded over by a rewrite that has not yet
+  reached feature parity. The two can sit side by side, and retiring the old one is then a
+  decision somebody makes rather than something an update does to them.
+
+  Changing an identifier after the first publish is a migration rather than an edit, so it
+  wants deciding before then. It is set once, in ddd-gui/CMakeLists.txt, and every file
+  that needs it is named after it.
+
+  SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<component type="desktop-application">
+  <id>io.github.simoninns.DddGui</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>Domesday Duplicator</name>
+  <summary>Capture LaserDisc and VHS RF over USB 3.0</summary>
+
+  <description>
+    <p>
+      The Domesday Duplicator is an open-hardware RF capture device that samples at
+      40 million samples per second with 10-bit resolution and streams the result over
+      USB 3.0. This application drives it: one-click capture, live signal amplitude
+      monitoring, a spectrum and waveform view, capture metadata, and updates for the
+      device's own firmware and gateware over the same cable.
+    </p>
+    <p>
+      Captures are written as FLAC (.ldf), the format the ld-decode and vhs-decode
+      toolchains read directly, at roughly half the size of the raw sample data.
+    </p>
+    <p>
+      Reaching the device needs udev rules installed on the host, which a Flatpak cannot do
+      for you — see the installation documentation.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.simoninns.DddGui.desktop</launchable>
+
+  <url type="homepage">https://github.com/simoninns/DomesdayDuplicator</url>
+  <url type="bugtracker">https://github.com/simoninns/DomesdayDuplicator/issues</url>
+  <url type="help">https://simoninns.github.io/DomesdayDuplicator/</url>
+
+  <developer id="io.github.simoninns">
+    <name>Simon Inns</name>
+  </developer>
+
+  <content_rating type="oars-1.1"/>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <releases>
+    <!-- Replaced from the tag by the packaging job; this entry is the placeholder that
+         keeps the file valid before the first release. -->
+    <release version="0.0.0" date="2026-08-15">
+      <description>
+        <p>Development build.</p>
+      </description>
+    </release>
+  </releases>
+</component>

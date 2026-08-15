@@ -25,6 +25,20 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# The application's identity on a desktop: the Flatpak app ID, the .desktop file's name,
+# the AppStream component ID and the installed icon's name are all this string, and the
+# files under packaging/assets/ are named after it.
+#
+# It is deliberately not gui/'s io.github.simoninns.DomesdayDuplicator. That application
+# is still in the repository and may still be installed on somebody's machine; a shared
+# identifier would mean installing this one replaces it, which is not a decision a package
+# manager should make on a user's behalf while this one is still reaching parity. The
+# Windows installer keeps them apart the same way, with its own UpgradeCode.
+#
+# Changing this after the first publish is a migration rather than an edit — Flathub and
+# Windows both key on it — so it wants settling before the first release that ships it.
+set(DDD_APP_ID "io.github.simoninns.DddGui")
+
 # Emit compile_commands.json so clangd — and therefore any editor — can index the tree
 # without a per-editor project file (AGENTS.md §7.1).
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

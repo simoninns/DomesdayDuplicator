@@ -1,0 +1,66 @@
+# Flatpak manifest for the capture application.
+#
+# Runtime is org.kde.Platform because the application is Qt 6; the KDE runtime carries Qt
+# itself, libusb and libFLAC, so this manifest builds one module and nothing else.
+#
+# 6.11 is a floor, not a preference. libusb reached the freedesktop-sdk base the KDE runtime
+# is built on in 25.08, so 6.9 and earlier carry libFLAC but no libusb, and the build fails
+# at the find_package for it. The packaging workflow reads this value rather than repeating
+# it.
+#
+# The .desktop file, the AppStream metadata and the icons are installed by the CMake build
+# (see ../../CMakeLists.txt) rather than copied here, so there is one definition of the
+# application ID rather than two that can drift apart.
+#
+# BUILD_TESTING is off: the suite needs gtest, which the runtime does not carry, and it has
+# already run in CI against the same commit. A Flatpak build that also built the tests would
+# be adding a dependency to prove something already proved.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+app-id: io.github.simoninns.DddGui
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+command: ddd-gui
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=x11
+
+  # Raw USB access to the capture device. Flatpak has no narrower static permission for
+  # USB — --device=all is the only option that grants it, and the capture path is a libusb
+  # bulk transfer, so there is no portal alternative. This is the permission a Flathub
+  # review will ask about, and the answer is that the application's entire purpose is
+  # talking to one specific USB 3.0 device. The same permission covers updating the
+  # device's own firmware and gateware, which is the same cable and the same endpoint.
+  - --device=all
+
+  # Captures are large and usually land on an external or secondary drive, and the file
+  # chooser portal only grants the single file picked — which is no use for choosing an
+  # output directory that a multi-hour capture then writes into.
+  - --filesystem=home
+  - --filesystem=/run/media
+  - --filesystem=/media
+  - --filesystem=/mnt
+
+modules:
+  - name: ddd-gui
+    buildsystem: cmake-ninja
+    subdir: ddd-gui
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_TESTING=OFF
+      # Passed in by the packaging workflow. Without it CMake asks git, and there is no
+      # .git inside a flatpak-builder sandbox, so the application would report its version
+      # as "unknown" — which is what the release gate fails a build for.
+      - -DDDD_VERSION=@DDD_VERSION@
+      # The release signing key, whose public half is committed. The source below is the
+      # repository root rather than ddd-gui/ alone, so tools/keys/ is inside the sandbox
+      # and CMake's in-tree default would find it — this states it rather than relying on
+      # a relative path that a subdir build makes surprising.
+      - -DDDD_RELEASE_UPDATE_KEY_FILE=/run/build/ddd-gui/tools/keys/release.pub
+    sources:
+      - type: dir
+        path: ../../..

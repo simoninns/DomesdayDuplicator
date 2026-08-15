@@ -84,7 +84,7 @@ jobs:
 
       - name: Configure and build
         run: |
-          cmake -B build -S gui -G Ninja \
+          cmake -B build -S ddd-gui -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
             -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}"
@@ -97,8 +97,9 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf stage && mkdir -p stage
-          cp build/bin/DomesdayDuplicator.exe stage/
-          windeployqt --release --no-translations --no-system-d3d-compiler stage/DomesdayDuplicator.exe
+          cp build/bin/ddd-gui.exe stage/
+          cp build/bin/ddd-update.exe stage/
+          windeployqt --release --no-translations --no-system-d3d-compiler stage/ddd-gui.exe
 
           # windeployqt follows Qt only. libFLAC, libogg and libusb come from the MSYS2
           # prefix, which does not exist on a user's machine, so they are copied
@@ -148,7 +149,7 @@ jobs:
       - name: Check the staged application runs
         shell: pwsh
         run: |
-          $reported = & .\stage\DomesdayDuplicator.exe --version
+          $reported = & .\stage\ddd-gui.exe --version
           Write-Host "Packaged application reports: $reported"
           if ($reported -match 'unknown') {
             Write-Error "The packaged application reports an unknown version"
@@ -198,9 +199,9 @@ jobs:
           & candle -arch x64 `
             -dStageDir=stage `
             -dProductVersion="${{ steps.version.outputs.msi_version }}" `
-            -dIconFile="gui\src\DomesdayDuplicator\Graphics\ApplicationIcon\Application.ico" `
+            -dIconFile="ddd-gui\src\gui\resources\icon.ico" `
             -dLicenseRtf="wix-license.rtf" `
-            gui\packaging\windows\product.wxs files.wxs
+            ddd-gui\packaging\windows\product.wxs files.wxs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           & light -ext WixUIExtension -cultures:en-us `
@@ -218,7 +219,7 @@ jobs:
           $msi = Get-ChildItem dist\*.msi | Select-Object -First 1
           Start-Process msiexec.exe -ArgumentList "/i", "`"$($msi.FullName)`"", "/quiet", "/norestart", "/l*v", "install.log" -Wait -NoNewWindow
 
-          $installed = "${env:ProgramFiles}\Domesday Duplicator\DomesdayDuplicator.exe"
+          $installed = "${env:ProgramFiles}\Domesday Duplicator\ddd-gui.exe"
           if (-not (Test-Path $installed)) {
             Get-Content install.log -Tail 50
             Write-Error "The MSI did not install $installed"

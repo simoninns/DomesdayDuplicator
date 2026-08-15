@@ -77,13 +77,21 @@ gateware, firmware, host software and documentation.
 
 Five toolchains, four target architectures. Assume nothing transfers between them.
 
-`gui/` and `ddd-gui/` are two capture applications, deliberately, for now. `gui/` is the
-one that captures today. `ddd-gui/` is its replacement, built to
-[docs-tech/ddd-gui-implementation-plan.md](docs-tech/ddd-gui-implementation-plan.md) and
-not yet a supported capture path; it replaces `gui/` once it has passed the §5 hardware
-capture-integrity procedure in [TESTING.md](TESTING.md). Until then, **do not delete
-`gui/`, and do not port changes between them by reflex** — they have different code
-styles (`ddd-gui/` is Google style, gate-enforced) and different architectures.
+`gui/` and `ddd-gui/` are two capture applications, deliberately, for now. `ddd-gui/` is
+the one being built to
+[docs-tech/ddd-gui-implementation-plan.md](docs-tech/ddd-gui-implementation-plan.md), and
+since 2026-08-15 it is the one CI builds, tests, packages and releases — every Flatpak,
+DMG and MSI carries it, under an application ID of its own so that an existing install of
+the other is never silently replaced.
+
+`gui/` is kept as a reference until its replacement has passed the §5 hardware
+capture-integrity procedure in [TESTING.md](TESTING.md). **Nothing in CI builds or tests
+it.** `nix build .#gui` and `cmake -S gui` still work, and that is the whole of its
+support: a change there is verified by whoever makes it or not at all.
+
+**Do not delete `gui/`, and do not port changes between them by reflex** — they have
+different code styles (`ddd-gui/` is Google style, gate-enforced) and different
+architectures.
 
 ### 1.2 Repository layout
 
@@ -382,9 +390,9 @@ flake, so the directory you are in makes no difference; the `.#name` selects the
 
 ```bash
 nix develop                  # all free components in one shell
-nix develop .#gui            # or .#fx3, .#fpga, .#hardware, .#docs
+nix develop .#ddd-gui        # or .#fx3, .#fpga, .#hardware, .#docs
 nix develop .#fpga-quartus   # adds Quartus; x86_64-linux only, multi-GB first download
-nix build .#gui .#fx3-firmware .#fx3-programmer .#fx3-mkimage
+nix build .#ddd-gui .#fx3-firmware .#fx3-programmer .#fx3-mkimage
 nix flake check              # build everything and run the T1-T4 tests
 ```
 
@@ -570,9 +578,15 @@ Two rules follow from this, and they constrain how you change build files:
    Versions are *injected* — `-DFIRMWARE_VERSION=`, `-DDDD_VERSION=` — with the git lookup as
    a fallback for local developer builds only. The release workflow fails if any artefact
    reports `unknown`.
-2. **Do not remove the native build matrix in favour of Nix.** Nix cannot produce the Windows
-   binary. The two paths coexist deliberately; deleting the native jobs would silently drop a
-   supported platform from every future release.
+2. **Never leave a supported platform without a native build somewhere.** Nix cannot produce
+   the Windows binary or the macOS bundle, so those artefacts have to come from a platform
+   toolchain. Since 2026-08-15 that toolchain runs *only inside the packaging workflows*
+   (`package-windows.yml`, `package-macos.yml`), which build, install and launch what they
+   package — the standalone native build matrix was removed because Nix is the only supported
+   development environment and a build nobody installs proved less than the installer does.
+   The constraint that survives is the coverage, not the jobs: do not reduce the packaging
+   workflows to artefact assembly, because then nothing compiles this application on Windows
+   or macOS at all.
 
 The FPGA used to be the exception — built locally and attached by hand — and since 2026-08-14
 it is not. Quartus is still unfree, GB-scale and `redistributable = false`, so it is still

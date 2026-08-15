@@ -5,10 +5,17 @@
 # lived at fx3/.github and gui/.github, where GitHub does not look for them; they are
 # deleted rather than left as decoration.
 #
-# Two build paths for the GUI, deliberately (P7-2): Nix for reproducibility on Linux, and
-# the native toolchains because Nix cannot produce a Windows binary and because the
-# packaging jobs need the platform toolchain anyway. The firmware has one, because nothing
-# needs it built any other way.
+# One build path per component, because Nix is the only supported development environment
+# (maintainer, 2026-08-15). The capture application is built and tested by its Nix package;
+# its two quality gates run in the development shell, so CI analyses with the same pinned
+# clang-tools a developer has. The native toolchains survive only inside the packaging
+# workflows, where they are unavoidable — Nix cannot produce an MSI or a DMG — and those
+# jobs build, install and launch what they package, which is the platform coverage the
+# deleted native jobs used to provide.
+#
+# The application under gui/ is no longer built, tested or packaged here. It remains in the
+# repository as a reference until ddd-gui reaches feature parity, and nothing in CI verifies
+# it in the meantime.
 #
 # **Every push builds and packages everything**, on every branch (maintainer, 2026-08-13).
 # An earlier revision path-filtered branch builds so that a docs-only change skipped the
@@ -53,7 +60,6 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      gui: ${{ steps.decide.outputs.gui }}
       # No dash in the name: GitHub expression syntax would read `outputs.ddd-gui` as a
       # subtraction.
       dddgui: ${{ steps.decide.outputs.dddgui }}
@@ -74,9 +80,6 @@ jobs:
               - nix/**
               - tools/**
               - .github/workflows/**
-            gui:
-              - *shared
-              - gui/**
             dddgui:
               - *shared
               - ddd-gui/**
@@ -101,7 +104,6 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             echo "Pull request: building only what changed"
             {
-              echo "gui=${{ steps.filter.outputs.gui }}"
               echo "dddgui=${{ steps.filter.outputs.dddgui }}"
               echo "fx3=${{ steps.filter.outputs.fx3 }}"
               echo "fpga=${{ steps.filter.outputs.fpga }}"
@@ -110,7 +112,7 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           else
             echo "Building everything for ${GITHUB_REF} (${GITHUB_EVENT_NAME})"
-            for component in gui dddgui fx3 fpga docs; do
+            for component in dddgui fx3 fpga docs; do
               echo "${component}=true" >> "$GITHUB_OUTPUT"
             done
             echo "everything=true" >> "$GITHUB_OUTPUT"
@@ -132,9 +134,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - component: gui
-            enabled: gui
-            attrs: .#gui
           - component: ddd-gui
             enabled: dddgui
             attrs: .#ddd-gui
@@ -255,256 +254,36 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: nix flake check --print-build-logs
 
-  gui-native:
-    name: GUI (${{ matrix.name }})
-    needs: changes
-    if: needs.changes.outputs.gui == 'true'
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: linux-x64
-            runner: ubuntu-latest
-          - name: macos-arm64
-            runner: macos-latest
-          - name: windows-x64
-            runner: windows-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build pkg-config libgl-dev \
-            qt6-base-dev libqt6serialport6-dev qt6-tools-dev \
-            libusb-1.0-0-dev libflac-dev libogg-dev libgtest-dev
-
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: brew install cmake ninja pkg-config qt@6 libusb flac googletest
-
-      - name: Set up MSYS2 (Windows)
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-toolchain
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-pkgconf
-            mingw-w64-ucrt-x86_64-qt6-base
-            mingw-w64-ucrt-x86_64-qt6-serialport
-            mingw-w64-ucrt-x86_64-qt6-tools
-            mingw-w64-ucrt-x86_64-libusb
-            mingw-w64-ucrt-x86_64-flac
-            mingw-w64-ucrt-x86_64-libogg
-            mingw-w64-ucrt-x86_64-gtest
-
-      - name: Configure and build (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          if [[ "${RUNNER_OS}" == "macOS" ]]; then
-            export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
-          fi
-          cmake -B build -S gui -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTING=ON \
-            -DDDD_VERSION="${GITHUB_SHA:0:8}"
-          cmake --build build
-
-      - name: Configure and build (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          cmake -B build -S gui -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTING=ON \
-            -DDDD_VERSION="${GITHUB_SHA:0:8}"
-          cmake --build build
-
-      # T1 and T2 on every platform. T5 never runs here: it needs a physical device, and a
-      # test that "passes" because no hardware was attached is worse than no test (P7-6).
-      - name: Test (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          export QT_QPA_PLATFORM=offscreen
-          ctest --test-dir build --output-on-failure --label-exclude 'hil'
-
-      - name: Test (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: ctest --test-dir build --output-on-failure --label-exclude 'hil'
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          # Build artefacts, not release assets: the installers built by the packaging
-          # workflows are what a release ships (P7-2).
-          name: gui-${{ matrix.name }}-${{ github.sha }}
-          # One pattern per platform layout, and only one of them matches on any given
-          # runner. The macOS entry is a directory because the target is MACOSX_BUNDLE, so
-          # CMake writes an .app there rather than a bare executable.
-          path: |
-            build/bin/DomesdayDuplicator
-            build/bin/DomesdayDuplicator.exe
-            build/bin/DomesdayDuplicator.app/**
-          retention-days: 30
-          if-no-files-found: error
-
-  # The capture application being built to replace gui/. The same three platforms as
-  # gui-native, and for the same reason: Nix cannot produce the Windows binary, and the
-  # native toolchains are what a user actually installs.
+  # The two quality gates, run in the development shell so that CI and a developer's
+  # machine are analysing with the *same* clang-format and clang-tidy. That is not a
+  # convenience: these gates are version-sensitive, and this project has already spent a
+  # day on a CI failure no developer could reproduce because the runner's clang-tidy knew
+  # a check the pinned one did not. A gate that can disagree with the shell it is meant to
+  # enforce is a gate that reports on the toolchain rather than on the code.
   #
-  # Its two quality gates run here and not in the Nix build — the packaging sandbox has an
-  # unrelated clang-format and an unwrapped clang-tidy — so this job is the only place
-  # where a formatting or lint regression is caught.
-  ddd-gui-native:
-    name: Capture application (${{ matrix.name }})
+  # It compiles the tests as well as the application, because clang-tidy only sees what is
+  # compiled and the last three findings were all in test code. It runs no tests: the Nix
+  # build above already runs the suite against the same commit.
+  quality-gates:
+    name: Quality gates
     needs: changes
+    runs-on: ubuntu-latest
     if: needs.changes.outputs.dddgui == 'true'
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: linux-x64
-            runner: ubuntu-latest
-          - name: macos-arm64
-            runner: macos-latest
-          - name: windows-x64
-            runner: windows-latest
 
     steps:
       - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
+      # Both gates are attached to the build: clang-format as its own target, clang-tidy
+      # through CXX_CLANG_TIDY, so compiling is what runs them.
+      - name: clang-format and clang-tidy
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build pkg-config libgl-dev clang-tidy clang-format \
-            libgtest-dev libflac-dev libusb-1.0-0-dev
-
-      # Qt from here rather than from apt, because this application's floor is 6.5 —
-      # QStyleHints::colorScheme() is how it follows the desktop's light/dark setting —
-      # and the runner image ships 6.4.2. An apt Qt therefore fails at configure, which
-      # is what it did from the day this job was added until this step existed.
-      #
-      # Pinned rather than tracking latest: the point of a native job is to build the way
-      # a distribution does, and a version that moved under us would turn every unrelated
-      # run into a Qt upgrade. gui/ keeps its apt Qt, whose floor is 6.2.
-      - name: Install Qt (Linux)
-        if: runner.os == 'Linux'
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: '6.8.*'
-          cache: true
-
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: brew install cmake ninja pkg-config qt@6 googletest llvm flac libusb
-
-      - name: Set up MSYS2 (Windows)
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-toolchain
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-pkgconf
-            mingw-w64-ucrt-x86_64-qt6-base
-            mingw-w64-ucrt-x86_64-qt6-tools
-            mingw-w64-ucrt-x86_64-gtest
-            mingw-w64-ucrt-x86_64-flac
-            mingw-w64-ucrt-x86_64-clang-tools-extra
-
-      - name: Configure and build (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          if [[ "${RUNNER_OS}" == "macOS" ]]; then
-            export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
-            export PATH="$(brew --prefix llvm)/bin:${PATH}"
-          fi
-          cmake -B build -S ddd-gui -G Ninja \
+          nix develop -c cmake -B build -S ddd-gui -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
             -DDDD_VERSION="${GITHUB_SHA:0:8}"
-          cmake --build build
-
-      - name: Configure and build (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          cmake -B build -S ddd-gui -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTING=ON \
-            -DDDD_VERSION="${GITHUB_SHA:0:8}"
-          cmake --build build
-
-      # T1 on every platform. T5 never runs here: it needs a physical device, and a test
-      # that "passes" because no hardware was attached is worse than no test.
-      - name: Test (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          export QT_QPA_PLATFORM=offscreen
-          ctest --test-dir build --output-on-failure --label-exclude 'hil'
-
-      - name: Test (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: ctest --test-dir build --output-on-failure --label-exclude 'hil'
-
-      # The version has to survive into the binary, or a released artefact cannot be traced
-      # to the commit that produced it. Checked here rather than only in the Nix build,
-      # because the native build is the one the installers are made from.
-      - name: Check the reported version (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          export QT_QPA_PLATFORM=offscreen
-          reported=$(./build/bin/ddd-gui --version)
-          echo "ddd-gui: ${reported}"
-          case "${reported}" in
-            *"${GITHUB_SHA:0:8}"*) ;;
-            *) echo "Version not carried into the binary" >&2; exit 1 ;;
-          esac
-
-      # ddd-update is the headless half of the device update path, over the same Qt-free
-      # engine the application's update dialog drives. Asking it for its usage text proves
-      # it built and linked; anything else needs a device, and nothing in CI ever writes
-      # to one (AGENTS.md §4).
-      - name: Check ddd-update runs (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: ./build/bin/ddd-update --help
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: ddd-gui-${{ matrix.name }}-${{ github.sha }}
-          # One pattern per platform layout, and only one of them matches on any given
-          # runner. The macOS entry is a directory because the target is MACOSX_BUNDLE.
-          path: |
-            build/bin/ddd-gui
-            build/bin/ddd-gui.exe
-            build/bin/ddd-gui.app/**
-            build/bin/ddd-update
-            build/bin/ddd-update.exe
-          retention-days: 30
-          if-no-files-found: error
+          nix develop -c cmake --build build
 
   # The installers are built on every push, on every branch, and each packaging workflow
   # installs what it built and runs it. That is the end-to-end validation: a Flatpak, a DMG
@@ -515,18 +294,18 @@ jobs:
   # already built them.
   package-flatpak:
     name: Package
-    needs: [changes, gui-native]
-    if: github.event_name != 'pull_request' && needs.changes.outputs.gui == 'true'
+    needs: [changes, quality-gates]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.dddgui == 'true'
     uses: ./.github/workflows/package-flatpak.yml
 
   package-macos:
     name: Package
-    needs: [changes, gui-native]
-    if: github.event_name != 'pull_request' && needs.changes.outputs.gui == 'true'
+    needs: [changes, quality-gates]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.dddgui == 'true'
     uses: ./.github/workflows/package-macos.yml
 
   package-windows:
     name: Package
-    needs: [changes, gui-native]
-    if: github.event_name != 'pull_request' && needs.changes.outputs.gui == 'true'
+    needs: [changes, quality-gates]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.dddgui == 'true'
     uses: ./.github/workflows/package-windows.yml

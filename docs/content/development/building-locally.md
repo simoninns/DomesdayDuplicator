@@ -22,7 +22,8 @@ exactly what it needs, pinned by the repository's single `flake.lock`.
 
 | Shell | Carries |
 | --- | --- |
-| `nix develop .#gui` | Qt 6, libusb, libFLAC, GoogleTest, CMake, Ninja, clangd |
+| `nix develop .#ddd-gui` | Qt 6, libusb, libFLAC, GoogleTest, CMake, Ninja, clangd, clang-format and clang-tidy |
+| `nix develop .#gui` | the same, for the superseded application still in the tree |
 | `nix develop .#fx3` | `arm-none-eabi-gcc`, CMake, Ninja, libusb, GoogleTest |
 | `nix develop .#fpga` | verible, verilator, iverilog, gtkwave — free tools, no Quartus |
 | `nix develop .#fpga-quartus` | the above plus Quartus Prime Lite (`x86_64-linux` only, several GB) |
@@ -54,11 +55,25 @@ The GUI has no such trap, but the same habit applies for consistency.
 ## The capture application
 
 ```bash
-nix develop .#gui          # or install the dependencies below
+nix develop .#ddd-gui      # or install the dependencies below
 
-cmake -B build/gui -S gui -G Ninja
-cmake --build build/gui
+cmake -B build/ddd-gui -S ddd-gui -G Ninja
+cmake --build build/ddd-gui
 ```
+
+Building it also runs its two quality gates: `clang-format` as a build target and
+`clang-tidy` through `CXX_CLANG_TIDY`, so compiling is what runs them. **Use the Nix shell
+for this even if you build everything else natively.** Both tools change their check sets
+between releases, and CI runs them from this shell — a locally-installed clang-tidy of a
+different version will disagree with CI in both directions, passing what CI fails and
+occasionally the reverse.
+
+One consequence worth knowing: changing `.clang-tidy` does not invalidate object files, so
+an incremental build re-analyses only what you edited. After a config change, build from a
+clean tree before believing a green result.
+
+The superseded application is still in the tree and still builds — `-S gui`, and
+`nix build .#gui` — but nothing in CI builds, tests or packages it.
 
 The binary lands at `build/gui/bin/DomesdayDuplicator`.
 
@@ -117,8 +132,8 @@ distributions do not pull it in automatically.
 ### As a Nix package
 
 ```bash
-nix build .#gui
-./result/bin/DomesdayDuplicator --version
+nix build .#ddd-gui
+./result/bin/ddd-gui --version
 ```
 
 This builds hermetically, runs the test suite as part of the build, and checks the installed

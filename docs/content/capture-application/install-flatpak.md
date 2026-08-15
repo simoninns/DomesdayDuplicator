@@ -21,7 +21,7 @@ flatpak install --user DomesdayDuplicator-<version>.flatpak
 Run it from your desktop's application menu, or:
 
 ```bash
-flatpak run io.github.simoninns.DomesdayDuplicator
+flatpak run io.github.simoninns.DddGui
 ```
 
 ## You still need udev rules
@@ -64,7 +64,7 @@ paths are why that works without further configuration.
 If your drive mounts somewhere else, grant it explicitly:
 
 ```bash
-flatpak override --user --filesystem=/path/to/drive io.github.simoninns.DomesdayDuplicator
+flatpak override --user --filesystem=/path/to/drive io.github.simoninns.DddGui
 ```
 
 ## Update
@@ -76,7 +76,7 @@ flatpak install --user DomesdayDuplicator-<newer-version>.flatpak
 ## Uninstall
 
 ```bash
-flatpak uninstall --user io.github.simoninns.DomesdayDuplicator
+flatpak uninstall --user io.github.simoninns.DddGui
 ```
 
 The udev rules are separate and stay behind; remove

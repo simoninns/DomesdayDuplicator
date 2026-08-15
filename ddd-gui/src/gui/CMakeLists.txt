@@ -78,3 +78,30 @@ install(TARGETS ddd-gui
     BUNDLE DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# Desktop integration. Installed on Linux only: macOS gets this from the .app bundle's
+# Info.plist and Windows from the MSI's shortcut, so installing freedesktop files there
+# would just be litter.
+#
+# The Flatpak build reads these out of the install prefix rather than carrying its own
+# copies, which is what stops the manifest and the application disagreeing about the
+# application ID — there is one definition, DDD_APP_ID in the top-level CMakeLists, and
+# both the filenames and the installed names are derived from it.
+if(UNIX AND NOT APPLE)
+    set(DDD_PACKAGING_ASSETS "${CMAKE_CURRENT_SOURCE_DIR}/../../packaging/assets")
+
+    install(FILES "${DDD_PACKAGING_ASSETS}/${DDD_APP_ID}.desktop"
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
+
+    install(FILES "${DDD_PACKAGING_ASSETS}/${DDD_APP_ID}.metainfo.xml"
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo")
+
+    # The same PNGs the application shows in its own About dialog, installed under the
+    # icon name the .desktop file asks for. icon.ico beside them is the Windows installer's
+    # copy of the same artwork, built from this set.
+    foreach(icon_size 16 24 32 48 64 128 256)
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/icon-${icon_size}.png"
+                DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/${icon_size}x${icon_size}/apps"
+                RENAME "${DDD_APP_ID}.png")
+    endforeach()
+endif()

@@ -1,8 +1,14 @@
-# The GUI release stream (P7-8, P7-9, P7-10, P7-18).
+# The capture application's release stream (P7-8, P7-9, P7-10, P7-18).
 #
 # Triggered by gui-v* tags only. A firmware tag must not run this workflow and this
 # workflow must not build firmware: two streams that both rebuild everything are one
 # stream with extra steps.
+#
+# What it packages is ddd-gui. The application it replaces is still in the repository
+# under gui/, and is no longer built, tested, packaged or released by anything in CI — it
+# is kept as a reference until the replacement reaches feature parity, and nothing about
+# it is verified in the meantime. The tag prefix stays gui-v*: it names the stream, not
+# the directory.
 #
 # What a complete gui-v* release carries:
 #

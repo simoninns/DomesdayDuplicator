@@ -68,12 +68,17 @@
       packages = forAllSystems (
         pkgs:
         rec {
+          # The application `ddd-gui` replaces. Still packaged, so that anybody who needs
+          # the capture path that has years of use behind it can still build it — and
+          # deliberately **not** in `checks` below, so `nix flake check` no longer builds
+          # or tests it. It is a reference kept until the replacement reaches feature
+          # parity, and nothing in CI verifies it in the meantime (maintainer,
+          # 2026-08-15). Removing the directory is a separate decision from removing it
+          # from CI, and this is only the second.
           gui = pkgs.qt6Packages.callPackage ./gui/package.nix { dddVersion = version; };
 
-          # The capture application being built to replace `gui`. Both are packaged while
-          # that is in progress: `gui` is the one that captures today, and removing it
-          # before its replacement has passed the hardware capture-integrity gate would
-          # leave the project with no working capture path at all.
+          # The capture application, and what every packaging and release workflow now
+          # builds.
           ddd-gui = pkgs.qt6Packages.callPackage ./ddd-gui/package.nix {
             dddVersion = version;
             # Present from the commit that publishes a release key and absent before it,
@@ -95,7 +100,7 @@
             firmwareVersion = version;
           };
 
-          default = gui;
+          default = ddd-gui;
         }
         // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           fx3-programmer = pkgs.callPackage ./fx3/programmer/package.nix { };
@@ -166,6 +171,10 @@
         builtins.removeAttrs self.packages.${pkgs.stdenv.hostPlatform.system} [
           "bitstream"
           "quartus-prime-lite"
+          # The superseded capture application. Still a package, so it can be built on
+          # purpose; not a check, so no contributor's `nix flake check` and no CI run
+          # spends time building and testing an application nothing ships.
+          "gui"
         ]
         // {
           fpga-lint = fpgaChecks.lint;

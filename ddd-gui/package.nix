@@ -50,6 +50,11 @@ stdenv.mkDerivation (finalAttrs: {
       ./cmake
       ./src
       ./tests
+      # The .desktop file and the AppStream metadata, which the Linux install rules put
+      # into the output. Inside the fileset rather than outside it because the build
+      # genuinely reads them: a build that installs a file it cannot see fails, which is
+      # how this was found.
+      ./packaging
     ];
   };
 

@@ -19,7 +19,13 @@ That is a change from how this project worked until Phase 6 of the device-update
 
 ### Per-commit tier — `nix flake check` and `build.yml`
 
-Unchanged in cost by any of this. It builds the firmware, the programmer, both capture applications and the documentation site; it lints and simulates **both** gateware images with the free tools; it runs the bundle tooling's own self-test; and it assembles a firmware-only *development bundle* from that commit's firmware, so every commit has an artefact somebody can take to bench hardware.
+It builds the firmware, the programmer, the capture application and the documentation site; it lints and simulates **both** gateware images with the free tools; it runs the bundle tooling's own self-test; and it assembles a firmware-only *development bundle* from that commit's firmware, so every commit has an artefact somebody can take to bench hardware.
+
+**Nix is the only supported development environment, and the CI shape follows from that** (maintainer, 2026-08-15). There are no native build jobs: each component is built and tested by its Nix package, and the three platform toolchains survive only inside the packaging workflows, where they are unavoidable — Nix produces neither an MSI nor a DMG. Those jobs build, install and launch what they package, so platform coverage comes from the artefacts a user actually receives rather than from a build nobody installs.
+
+The capture application's two quality gates — `clang-format` and `clang-tidy` — run in a separate job, inside `nix develop`. That is deliberate and was learned the hard way: both are version-sensitive, and when CI used a runner's toolchain while developers used the pinned one, the project spent a day on a failure nobody could reproduce locally, because the two disagreed about which checks existed. A gate that can disagree with the shell it enforces reports on the toolchain, not on the code.
+
+The application under `gui/` is **not** built, tested or packaged by any of this. It remains in the repository as a reference until its replacement reaches feature parity; `nix build .#gui` still works, and nothing in CI verifies it.
 
 `nix flake check` deliberately contains no Quartus. A contributor fixing a typo must not need an unfree-enabled Nix configuration and a multi-gigabyte download to find out whether their change is sound.
 
