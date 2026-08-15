@@ -24,6 +24,12 @@
 # release-firmware.yml handle those, and they call the same reusable packaging workflows.
 # Listing tags here as well would build every installer twice for each release.
 #
+# The FPGA bitstream is absent for a different reason: it needs Quartus, which is unfree and
+# GB-scale, so it is built by bitstream.yml on gateware changes rather than on every push.
+# What runs here for the gateware is the free-tool tier — lint, style, simulation,
+# constraints, version and provenance — and that is deliberate: a contributor must never
+# need an unfree download to find out whether their change is sound.
+#
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 name: Build

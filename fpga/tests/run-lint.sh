@@ -12,10 +12,10 @@
 #   nix develop .#fpga -c fpga/tests/run-lint.sh
 #   nix build .#checks.x86_64-linux.fpga-lint
 #
-# This is the only automated check the gateware gets in CI. Bitstream builds
-# need Quartus, which is unfree, x86_64-linux only and cannot come from a
-# binary cache, so it never runs on a runner — see fpga/README.md, "Why this is
-# not built by CI".
+# This, and the other free-tool checks beside it, are what the gateware gets in
+# the per-commit CI tier. Bitstream builds need Quartus, which is unfree,
+# x86_64-linux only and cannot come from a binary cache, so they run in a
+# dedicated workflow instead — see fpga/README.md, "How the bitstream is built".
 
 set -euo pipefail
 

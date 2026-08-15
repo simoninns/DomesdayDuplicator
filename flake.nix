@@ -54,12 +54,13 @@
       # Components are callPackage'd from the same .nix files their own flakes use, so there
       # is exactly one definition of each and no cross-flake inputs to keep in step.
       #
-      # `bitstream` is the exception to every rule here: it is the only unfree output, it
-      # exists on x86_64-linux alone, and it is deliberately absent from `checks` — Quartus
-      # is redistributable = false, so it can never come from a binary cache, and the
-      # bitstream is built locally and attached to releases by hand rather than by CI. The
-      # decision and the three ways it could reach CI later are in fpga/README.md,
-      # "Why this is not built by CI".
+      # `bitstream` and `quartus-prime-lite` are the exceptions to every rule here: they are
+      # the only unfree outputs, they exist on x86_64-linux alone, and both are deliberately
+      # absent from `checks`. Quartus is redistributable = false, so it can never come from
+      # cache.nixos.org — which is why it stays out of the per-commit `nix flake check` tier
+      # that every contributor runs. It is built by the dedicated bitstream and release
+      # workflows instead; the full model is in the "Release pipeline" page of the
+      # documentation site and in fpga/README.md, "How the bitstream is built".
       #
       # Merged per system, not with `//` across two forAllSystems/forLinux calls: `//` is
       # a shallow update, so the Linux set would replace the portable one wholesale and
@@ -73,7 +74,15 @@
           # that is in progress: `gui` is the one that captures today, and removing it
           # before its replacement has passed the hardware capture-integrity gate would
           # leave the project with no working capture path at all.
-          ddd-gui = pkgs.qt6Packages.callPackage ./ddd-gui/package.nix { dddVersion = version; };
+          ddd-gui = pkgs.qt6Packages.callPackage ./ddd-gui/package.nix {
+            dddVersion = version;
+            # Present from the commit that publishes a release key and absent before it,
+            # so this is the one place the flake asks whether the file exists rather than
+            # asserting that it does. The alternative — a path that must exist — would
+            # make every build of the tree fail until the key was generated.
+            releaseUpdateKeyFile =
+              if builtins.pathExists ./tools/keys/release.pub then ./tools/keys/release.pub else null;
+          };
 
           docs-site = pkgs.callPackage ./docs/package.nix { };
 
@@ -96,6 +105,18 @@
             quartus-prime-lite = quartus;
             bitstreamVersion = version;
           };
+
+          # The toolchain itself, as an output, so that CI can name the thing it caches.
+          # A workflow that wanted to warm a Quartus closure without this would have to
+          # reach into the bitstream derivation's inputs and hope the attribute path
+          # stayed put; naming it here makes the cache key a build definition rather than
+          # a guess, and `nix build .#quartus-prime-lite` is also the shortest way for a
+          # human to find out whether the Intel fetch still resolves.
+          #
+          # Exposing it redistributes nothing: this is a derivation that fetches from
+          # Intel's CDN, not a copy of Quartus, and the closure cache the workflows use
+          # is project-private for exactly that reason.
+          quartus-prime-lite = quartus;
         }
       );
 
@@ -132,15 +153,20 @@
       # come from nix/: one is about every file in the tree, the other about the release
       # tooling in tools/, and neither has a component to live beside.
       #
-      # `bitstream` is removed rather than never added, so that a future package added to
-      # the unfree set cannot reach `checks` by being forgotten about here.
+      # The unfree outputs are removed rather than never added, so that a future package
+      # added to that set cannot reach `checks` by being forgotten about here. Keep this
+      # list in step with the `quartusSystem` block in `packages` above: `nix flake check`
+      # is the tier every contributor runs, and it must not need an unfree download.
       checks = forAllSystems (
         pkgs:
         let
           fpgaChecks = pkgs.callPackage ./fpga/checks.nix { };
           repoChecks = pkgs.callPackage ./nix/checks.nix { src = self; };
         in
-        builtins.removeAttrs self.packages.${pkgs.stdenv.hostPlatform.system} [ "bitstream" ]
+        builtins.removeAttrs self.packages.${pkgs.stdenv.hostPlatform.system} [
+          "bitstream"
+          "quartus-prime-lite"
+        ]
         // {
           fpga-lint = fpgaChecks.lint;
           fpga-style = fpgaChecks.style;

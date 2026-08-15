@@ -10,3 +10,4 @@ nav:
   - Update bundle format: update-bundle-format.md
   - EPCS layout and boot flow: epcs-layout-and-boot-flow.md
   - Developer update loop: developer-update-loop.md
+  - Release pipeline: release-pipeline.md

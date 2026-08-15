@@ -39,8 +39,8 @@ must be read before anything in that directory is edited.**
 | [provisioning/](provisioning/) | The conversion that puts both images in one flash file |
 | [tests/](tests/) | Testbenches and the lint, style, simulation and constraint runners |
 | [configs/](configs/) | udev rules for the USB-Blaster JTAG cable |
-| `package.nix` | The bitstream build. Not in CI — see [Reproducibility](#reproducibility) |
-| `checks.nix` | Lint and simulation checks, which *are* in CI |
+| `package.nix` | The bitstream build. Its own CI workflow — see [How the bitstream is built](#how-the-bitstream-is-built) |
+| `checks.nix` | Lint and simulation checks, which are in the per-commit tier |
 | `build-local.sh` | Out-of-tree local build of both images |
 | `make-boot-block.py` | The boot block that tells the factory image where the application image is |
 | `bitstream-provenance.py` | Provenance record and digests for a built bitstream |
@@ -118,7 +118,8 @@ break both.
 
 All of them run unchanged as `nix flake check` checks (`fpga-lint`, `fpga-style`,
 `fpga-sim`, `fpga-sdc`, `fpga-version`, `fpga-provenance`, `fpga-boot-block`), and they are
-the only automated coverage the gateware gets in CI — bitstream builds cannot run there.
+the automated coverage the gateware gets on every commit; the bitstream itself is compiled by
+a separate workflow ([How the bitstream is built](#how-the-bitstream-is-built)).
 
 The simulation that matters most is `tb_bootLoader`, which builds the factory image's boot
 path exactly as its top level wires it — boot logic, flash bridge, active serial block,
@@ -335,41 +336,53 @@ demonstrates that the processor count does not affect the fit.
 `ROUTER_TIMING_OPTIMIZATION_LEVEL` was considered and left alone: it is only worth pinning if
 routing varies between runs, and it does not.
 
-## Why this is not built by CI
+## How the bitstream is built
 
-**Decided 2026-08-12: leave the bitstream out of CI for the time being.** The blocker is not
-technical difficulty, it is cost and a licence judgement:
+**Decided 2026-08-14, superseding "leave the bitstream out of CI for the time being": Quartus
+runs in CI, in workflows of its own.** The facts that made the earlier decision have not
+changed — `quartus-prime-lite` is `x86_64-linux` only, unfree, and marked
+**`redistributable = false`** in nixpkgs, so it can never be served from `cache.nixos.org` and
+every cold run must fetch it from Altera. What changed is where that cost is paid.
 
-- `quartus-prime-lite` is `x86_64-linux` only, unfree, and marked **`redistributable = false`**
-  in nixpkgs — so it can never be served from `cache.nixos.org`. Every cold CI run must fetch
-  it afresh.
-- The fetch itself is unattended-friendly: a plain `fetchurl` from
-  `downloads.intel.com/akdlm/software/acdsinst/…`, with no login and no click-through. So CI
-  *can* do it.
-- Even restricted to `supportedDevices = [ "Cyclone IV" ]`, the download is GB-scale and the
-  unpacked store path larger again — tight against a GitHub-hosted runner's ~14 GB of disk.
+| Tier | Quartus? | What builds the gateware |
+| --- | --- | --- |
+| `nix flake check`, and the per-commit `build.yml` | **no** | lint, style, simulation, constraints, version and boot-block checks — the free tools only |
+| `bitstream.yml` — gateware changes, manual dispatch, and called from a release tag | yes | `nix build .#bitstream`, both images, with digests and provenance |
+| `release-firmware.yml` — `fw-v*` tags | yes, via the above | every released artefact, built from the tagged commit |
+| `reproducibility-audit.yml` — weekly | yes, via the above | rebuilds the latest release and compares digests |
 
-The three ways it could reach CI, when the time comes:
+The per-commit tier is the one every contributor runs, and it stays free of unfree downloads:
+a one-line documentation fix must never require a multi-gigabyte toolchain to validate. The
+dedicated workflows pay for Quartus only when the gateware or a release actually needs it.
 
-| Option | Speed | Cost | Licence |
-| --- | --- | --- | --- |
-| **Self-hosted runner** with a warm Nix store | Minutes | A machine to run and maintain | Clean — nothing is redistributed |
-| GitHub-hosted, fetch from Altera each run | 20–40 min | None | Clean — fetched from source |
-| GitHub-hosted + private binary cache | 5–10 min | Cachix/S3 and credentials | **Judgement call** — `redistributable = false` is precisely about not redistributing these binaries |
+What makes the CI build viable, all of it encoded in the workflow rather than in folklore:
 
-**Intended shape when adopted:** the GUI and FX3 build per commit; the bitstream on `fw-v*`
-tags and manual dispatch only, so a firmware release still gets a bitstream built from the
-release commit without paying for Quartus on every push. The two-stream release split makes
-this cheaper than it would be under a single tag — Quartus would run only on firmware
-releases, not on every GUI release.
+- the closure is **cached**, privately to this repository, keyed on `flake.lock`; a cold miss
+  falls back to the hash-pinned fetch from Altera's CDN, which is slow but never wrong;
+- the runner's disk is prepared first — the stock image's preinstalled toolchains have to go
+  to fit the closure plus two compiles into ~14 GB;
+- `supportedDevices = [ "Cyclone IV" ]` in `flake.nix` keeps the download to one device family
+  instead of six.
 
-The consequence for releases today: **the bitstream is built locally and attached by hand**,
-with its provenance record. Publishing the canonical digest is what makes it independently
-verifiable anyway — anyone with the same pinned Quartus can rebuild and compare, with no CI
-involvement at all.
+**Licence position.** Prime Lite needs no licence file, and installing it in CI from Altera's
+own installer is ordinary use. Caching the closure so that *our own* CI need not re-download
+it is also ordinary use; publishing that cache would be redistribution, which is why the cache
+is private and why third-party Docker images of Quartus — the MiSTer community's route — are
+rejected here.
 
-`verilator --lint-only` ([tests/run-lint.sh](tests/run-lint.sh)) *does* run in CI, so the
-gateware is not entirely uncovered there.
+The consequence for releases: **every released bitstream is CI-built from the tagged commit**,
+attached automatically with its provenance record. Nothing is built on a maintainer's machine
+and nothing is attached by hand. The full model, including key custody and the reproducibility
+audit, is on the *Release pipeline* page of the documentation site.
+
+Local builds remain first class for development and bench work — `./build-local.sh` and
+`nix build .#bitstream` are unchanged, and are what you should use while iterating. It is
+only the *release* artefacts that are defined as CI-built.
+
+If Quartus-in-CI ever proves unsustainable (cache eviction economics, runner disk limits,
+Intel CDN rot), the fallback is preserved in git history: maintainer-built bitstreams
+committed to a tracked `fpga/prebuilt/` directory behind a digest-and-source-tree-hash gate,
+auditable because of the same byte-identical reproducibility measured above.
 
 ## Documentation
 

@@ -1,0 +1,33 @@
+/************************************************************************
+
+    update_release_key.h.in
+
+    The release signing key this build pins, generated at configure time
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+************************************************************************/
+
+// Generated from this template by CMake. Do not edit the copy in the build
+// directory; edit the template, or change which key is pinned with
+// -DDDD_RELEASE_UPDATE_KEY_FILE=<path to a minisign .pub>.
+//
+// The key is embedded as a raw string literal so that the file's bytes reach
+// the binary exactly as minisign wrote them — a public key that had to survive
+// shell quoting, CMake escaping and a C string escape on its way in is a key
+// that could arrive subtly wrong, and a wrong key fails at the only moment it
+// is ever used, which is on a user's machine.
+//
+// Empty when no key is pinned. That is a real state, not a placeholder: such a
+// build can install development bundles and honestly cannot verify a release
+// one. See update_key.cpp.
+
+#pragma once
+
+namespace ddd::capture::generated {
+
+inline constexpr char kReleaseUpdateKeyText[] =
+    R"DDDRELEASEKEY(@DDD_RELEASE_UPDATE_KEY_TEXT@)DDDRELEASEKEY";
+
+}  // namespace ddd::capture::generated

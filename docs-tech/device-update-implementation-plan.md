@@ -567,8 +567,14 @@ is performed.
 
 ### Phase 6 — Release pipeline
 
+**Workflows and policy complete; two maintainer acts outstanding (the release keypair,
+and the first tagged release), and the exit criterion cannot be met without them.**
+
 - Extend the bitstream build to emit `gateware-app.rpd` + dual-image `.jic` + the
-  provenance file covering them.
+  provenance file covering them. *(Already delivered by Phase 4: `fpga/package.nix`
+  emits `application/DomesdayDuplicator_auto.rpd`, `provisioning/…​.jic`, the boot
+  block and a provenance record whose digest set covers `.sof`, `.jic`, `.rpd` and
+  `.bin` alike.)*
 - Author the **bitstream workflow**: `nix build .#bitstream` with unfree allowed,
   Quartus-closure caching (Actions cache or project-private binary cache; cold miss
   falls back to the hash-pinned Intel installer), runner disk preparation, artefact +
@@ -582,9 +588,23 @@ is performed.
   caveats in `README.md` and `fpga/README.md`, and the released-bitstreams-built-
   locally statement in `AGENTS.md` — all now describe the per-commit tier only, with
   the dedicated workflows called out. The maintainer's release act becomes: tag.
+- The release key is pinned at *build* time, never read at run time: CMake compiles
+  `tools/keys/release.pub` into the application (auto-detected in-tree,
+  `-DDDD_RELEASE_UPDATE_KEY_FILE` otherwise, and refused if it looks like the
+  development key). A build with no key pinned installs development bundles only and
+  says so — the honest state, not a placeholder.
+- **Outstanding — maintainer:** generate the release keypair (`minisign -G -W`), set
+  `UPDATE_SIGNING_KEY` as a repository secret and commit `tools/keys/release.pub`; then
+  cut the first `fw-v*` tag. The release workflow refuses to run without both, by
+  design — a release signed with anything else is a release the application rejects.
+  `tools/release/compatibility.env` carries a deliberate floor of `0.0.0` for the
+  minimum application version until there is a numbered application release to name;
+  raise it in the commit that first makes a higher floor true.
 - **Exit:** a tagged release candidate produces a signed `.dddfw` attached by CI with
   every payload CI-built from the tag, installable via the Phase 2/5 file-picker
-  path; the audit job has run green at least once against a real release.
+  path; the audit job has run green at least once against a real release. **Not yet
+  met** — the pipeline is in place and everything testable without a key and a tag
+  passes; no release has been cut.
 
 ### Phase 7 — Online fetch and user-facing polish
 

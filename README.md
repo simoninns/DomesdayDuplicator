@@ -84,9 +84,12 @@ reasoning is in the header comment of [flake.nix](flake.nix).
 
 Two caveats on the FPGA row. Quartus Prime Lite is unfree, `x86_64-linux` only and cannot be
 served from a binary cache, so `nix build .#bitstream` means a multi-gigabyte first download
-and is excluded from `nix flake check` and from CI. `nix develop .#fpga` — without
-`-quartus` — gives the free tools instead: Verilog lint, simulation and a language server,
-with no Quartus at all, and that covers most gateware work.
+and is excluded from `nix flake check` — the per-commit tier must never require an unfree
+download of anyone. It *is* built by CI, in a workflow of its own that runs on gateware
+changes and from release tags, so every released bitstream is CI-built from the tagged commit
+([release pipeline](https://simoninns.github.io/domesdayduplicator/development/release-pipeline/)).
+`nix develop .#fpga` — without `-quartus` — gives the free tools instead: Verilog lint,
+simulation and a language server, with no Quartus at all, and that covers most gateware work.
 
 Build directories are `build/` under each component and are gitignored. Never build in-tree:
 in the gateware's project directories in particular, Quartus rewrites the tracked `.qsf` on

@@ -1,22 +1,46 @@
-# The firmware and gateware release stream (P7-8 … P7-11, P7-18).
+# The firmware and gateware release stream (P7-8 … P7-11, P7-18; Phase 6 of the
+# device-update plan).
 #
 # Triggered by fw-v* tags only, and it builds no GUI installers — the capture application
 # releases separately under gui-v*.
 #
+# **Everything in a release is built by CI from the tagged commit.** That is the change this
+# workflow carries: the bitstream used to be built on the maintainer's machine and attached
+# by hand, and this file used to publish a draft so that a firmware release could not go out
+# with the gateware quietly missing. Both are gone. bitstream.yml compiles Quartus from the
+# tag, this workflow assembles and signs the update bundle from those exact bytes, and the
+# maintainer's release act is: tag.
+#
 # What a complete fw-v* release carries:
 #
-#   firmware.img / firmware.elf / firmware.map     CI (nix build .#fx3-firmware)
-#   fx3-programmer-<ver>-linux-x64                 CI (nix build .#fx3-programmer)
-#   DomesdayDuplicator.sof / .jic                  MANUAL — local Quartus build
-#   bitstream-provenance.txt                       MANUAL — provenance + digests
-#   SHA256SUMS                                     CI, extended by hand for the bitstream
-#   PROVENANCE.txt                                 CI
+#   domesday-duplicator-update-<ver>.dddfw          CI — the signed device update bundle
+#   firmware.img / firmware.elf / firmware.map      CI (nix build .#fx3-firmware)
+#   fx3-programmer-<ver>-linux-x64                  CI (nix build .#fx3-programmer)
+#   DomesdayDuplicatorProvisioning.jic              CI (nix build .#bitstream) — bench
+#                                                   provisioning of a new board, both images
+#   DomesdayDuplicator_auto.rpd                     CI — the raw application image; also
+#                                                   inside the bundle, published for
+#                                                   inspection
+#   DomesdayDuplicatorFactory.sof / .map / boot-block.bin
+#                                                   CI — the rest of the provisioning set
+#   bitstream-provenance.txt                        CI — Quartus version, digests, both
+#                                                   release and canonical
+#   SHA256SUMS / PROVENANCE.txt                     CI
 #
-# The bitstream is the deliberate exception. Quartus is unfree, redistributable = false and
-# GB-scale, so it can never come from a binary cache and every cold CI run would fetch it
-# afresh; the decision recorded in the implementation plan is to build it locally and
-# attach it by hand. This workflow therefore publishes the release as a **draft**, so that
-# a firmware release cannot be published with the bitstream quietly missing (P7-11).
+# The bundle is the only asset a device installs by itself, and it is the only signed one:
+# its manifest carries every payload's SHA-256 and is signed with the release key, so the
+# application can prove what it is about to write before it writes it. The other assets are
+# for bench work and for inspection, and SHA256SUMS covers them.
+#
+# Key custody: the release secret key is the repository secret UPDATE_SIGNING_KEY, generated
+# with `minisign -G -W` (no passphrase, because a passphrase in a second secret protects
+# nothing that the first secret does not already expose). Its public half is committed at
+# tools/keys/release.pub and compiled into the application, so a bundle this workflow signs
+# is a bundle the application accepts, and nothing else is. Rotation is a matching pair of
+# commits: new public key here, new secret in the repository settings, and release notes
+# saying so — older applications keep verifying older bundles against the older key.
+#
+# Nothing here writes to a device (AGENTS.md §4).
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -36,12 +60,26 @@ permissions:
   contents: write
 
 jobs:
+  # Quartus, from the tag. Called rather than repeated: the caching, the disk preparation
+  # and the licence position all live in bitstream.yml, and a release that built the
+  # gateware its own way would be a second definition of what a bitstream is.
+  bitstream:
+    name: Bitstream
+    uses: ./.github/workflows/bitstream.yml
+    with:
+      ref: ${{ github.event.inputs.tag || github.ref }}
+      artifact_name: bitstream-release
+      retention_days: 90
+
   publish:
     name: Build and publish
+    needs: bitstream
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
@@ -54,6 +92,13 @@ jobs:
           nix build --print-build-logs .#fx3-firmware --out-link result-firmware
           nix build --print-build-logs .#fx3-programmer --out-link result-programmer
 
+      - name: Fetch the bitstreams built from the tag
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bitstream-release-*
+          path: bitstream
+          merge-multiple: true
+
       - name: Collect the assets
         shell: bash
         run: |
@@ -65,17 +110,34 @@ jobs:
           cp -L result-firmware/*.img result-firmware/*.elf result-firmware/*.map release-artifacts/ 2>/dev/null || \
             cp -rL result-firmware/* release-artifacts/
           cp -L result-programmer/bin/fx3-programmer "release-artifacts/fx3-programmer-${VERSION}-linux-x64"
+
+          # The gateware assets, flattened out of the layout the bitstream build publishes.
+          # Named one by one rather than copied wholesale: the compilation reports and the
+          # .cdf files are useful in the workflow artefact and are noise on a release page.
+          cp -L bitstream/provisioning/DomesdayDuplicatorProvisioning.jic \
+                bitstream/provisioning/DomesdayDuplicatorProvisioning.map \
+                bitstream/provisioning/boot-block.bin \
+                bitstream/application/DomesdayDuplicator_auto.rpd \
+                bitstream/factory/DomesdayDuplicatorFactory.sof \
+                bitstream/bitstream-provenance.txt \
+                release-artifacts/
+
           chmod +w release-artifacts/*
           ls -la release-artifacts
 
-      # P7-9: a firmware image that reports "unknown" is untraceable, which is the whole
-      # reason this phase exists. The version reaches the USB product descriptor (D4), so
-      # it is present in the image itself and can be checked without a device.
+      # P7-9: an artefact that reports "unknown" is untraceable, which is the whole reason
+      # this gate exists. The version reaches the USB product descriptor (D4), so it is in
+      # the image itself and can be checked without a device.
+      #
+      # Seven characters, not eight: a Nix build stamps `self.shortRev`, which is git's
+      # seven. The application compares commit stamps on their common prefix for exactly
+      # this reason (ddd-gui/src/capture/firmware_version.h), so a seven-character identity
+      # in the manifest matches an eight-character one on a device and the other way round.
       - name: Check the firmware carries the commit
         shell: bash
         run: |
           set -euo pipefail
-          SHORT_SHA="${GITHUB_SHA:0:8}"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
           IMG=$(ls release-artifacts/*.img | head -1)
 
           if grep -aq "unknown" "${IMG}"; then
@@ -88,6 +150,130 @@ jobs:
           fi
           echo "Firmware image carries commit ${SHORT_SHA}"
 
+      # The bitstream carries its commit in its own provenance record, which the build
+      # already refuses to produce with an unknown commit. This is the second half: that
+      # the commit it names is *this tag's*, and not an artefact fetched from elsewhere.
+      - name: Check the bitstream was built from the tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          if ! grep -q "commit  *${SHORT_SHA}" release-artifacts/bitstream-provenance.txt; then
+            echo "The bitstream provenance does not name ${SHORT_SHA}:" >&2
+            grep -m1 "commit" release-artifacts/bitstream-provenance.txt >&2
+            exit 1
+          fi
+          echo "Bitstream built from commit ${SHORT_SHA}"
+
+      # The one asset a device installs by itself, and the point in the chain where a right
+      # manifest could be married to a wrong payload. make-update-bundle.sh re-reads the
+      # finished file with stock tar, minisign and sha256sum before it exits, so a bundle
+      # that assembles is a bundle that has already been taken apart and checked once.
+      - name: Assemble and sign the update bundle
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#fw-v}"
+          IDENTITY="${GITHUB_SHA:0:7}"
+
+          if [[ ! "${VERSION}" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "The tag ${TAG} does not give a dotted numeric version" >&2
+            exit 1
+          fi
+
+          if [[ -z "${UPDATE_SIGNING_KEY}" ]]; then
+            echo "The repository secret UPDATE_SIGNING_KEY is not set." >&2
+            echo "A release bundle signed with anything else is a release bundle the" >&2
+            echo "application will refuse, so this is a failure and not a warning." >&2
+            exit 1
+          fi
+          if [[ ! -f tools/keys/release.pub ]]; then
+            echo "tools/keys/release.pub is missing: this commit pins no release key," >&2
+            echo "so an application built from it could not verify what CI signed." >&2
+            exit 1
+          fi
+
+          # The secret never touches the working tree — a file under $RUNNER_TEMP is off
+          # the checkout, so nothing can archive or upload it by accident.
+          key_file="${RUNNER_TEMP}/release.key"
+          printf '%s\n' "${UPDATE_SIGNING_KEY}" > "${key_file}"
+          chmod 600 "${key_file}"
+
+          # The compatibility policy is a tracked decision; the interface versions are facts
+          # read out of the sources that implement them, so the manifest cannot claim a
+          # protocol the firmware does not speak or a register map the gateware does not
+          # implement.
+          # shellcheck source=/dev/null
+          source tools/release/compatibility.env
+
+          PROTOCOL_VERSION=$(sed -n 's/^#define PROTOCOL_VERSION_H[[:space:]]*0x0*\([0-9A-Fa-f]\+\).*/\1/p' \
+            fx3/firmware/src/usb-descriptor.c | head -1)
+          MAP_VERSION=$(sed -n "s/.*localparam \[7:0\] MapVersion = 8'h0*\([0-9A-Fa-f]\+\).*/\1/p" \
+            fpga/common/spiRegisters.v | head -1)
+          EPCS_LAYOUT_VERSION=$(sed -n 's/^LAYOUT_VERSION = \([0-9]\+\).*/\1/p' \
+            fpga/make-boot-block.py | head -1)
+
+          for name in PROTOCOL_VERSION MAP_VERSION EPCS_LAYOUT_VERSION; do
+            if [[ -z "${!name}" ]]; then
+              echo "Could not read ${name} out of the sources" >&2
+              exit 1
+            fi
+          done
+          echo "protocol ${PROTOCOL_VERSION}, register map ${MAP_VERSION}, EPCS layout ${EPCS_LAYOUT_VERSION}"
+
+          nix shell --inputs-from . nixpkgs#minisign --command \
+            ./tools/make-update-bundle.sh \
+              --output "release-artifacts/domesday-duplicator-update-${VERSION}.dddfw" \
+              --version "${VERSION}" \
+              --commit "${IDENTITY}" \
+              --channel release \
+              --secret-key "${key_file}" \
+              --public-key tools/keys/release.pub \
+              --notes "Domesday Duplicator firmware and gateware ${TAG}." \
+              --firmware release-artifacts/firmware.img \
+              --firmware-identity "${IDENTITY}" \
+              --firmware-interface-version "$((16#${PROTOCOL_VERSION}))" \
+              --gateware release-artifacts/DomesdayDuplicator_auto.rpd \
+              --gateware-identity "${IDENTITY}" \
+              --gateware-interface-version "$((16#${MAP_VERSION}))" \
+              --minimum-application-version "${MINIMUM_APPLICATION_VERSION}" \
+              --minimum-register-map-version "$((16#${MAP_VERSION}))" \
+              --epcs-layout-version "${EPCS_LAYOUT_VERSION}"
+
+          rm -f "${key_file}"
+
+      # An independent read of the finished bundle, against the *committed* public key —
+      # the same bytes the application compiles in. The assembler already verified its own
+      # output, which is the check that catches a mistake; this is the check that catches
+      # the wrong key being used at all, and it costs a second.
+      - name: Verify the bundle against the pinned public key
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#fw-v}"
+          BUNDLE="release-artifacts/domesday-duplicator-update-${VERSION}.dddfw"
+
+          work=$(mktemp -d)
+          tar --extract --file "${BUNDLE}" --directory "${work}"
+
+          nix shell --inputs-from . nixpkgs#minisign --command \
+            minisign -Vm "${work}/manifest.json" -p tools/keys/release.pub \
+                     -x "${work}/manifest.minisig"
+
+          grep -q '"channel": "release"' "${work}/manifest.json" || {
+            echo "The bundle does not declare the release channel" >&2
+            exit 1
+          }
+
+          echo "### Update bundle" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat "${work}/manifest.json" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
       - name: Generate SHA256SUMS and PROVENANCE.txt
         shell: bash
         run: |
@@ -98,6 +284,7 @@ jobs:
           sha256sum * > SHA256SUMS
 
           NIXPKGS_REV=$(python3 -c "import json;print(json.load(open('../flake.lock'))['nodes']['nixpkgs']['locked']['rev'])")
+          QUARTUS=$(sed -n 's/^  quartus  *//p' bitstream-provenance.txt | head -1)
 
           cat > PROVENANCE.txt <<EOF
           Domesday Duplicator — firmware and gateware release ${TAG}
@@ -108,20 +295,28 @@ jobs:
           flake.lock nixpkgs: ${NIXPKGS_REV}
 
           Toolchains
-            FX3 firmware:  arm-none-eabi-gcc from the pinned nixpkgs, via nix build .#fx3-firmware
+            FX3 firmware:   arm-none-eabi-gcc from the pinned nixpkgs, via nix build .#fx3-firmware
             FX3 programmer: the same pin, via nix build .#fx3-programmer
-            FPGA bitstream: NOT BUILT BY CI — see below
+            FPGA gateware:  ${QUARTUS}, via nix build .#bitstream on a GitHub-hosted runner
 
-          The FPGA bitstream
-            Quartus Prime Lite is unfree, redistributable = false and GB-scale, so it can
-            never be served from a binary cache and is not run in CI. The bitstream is built
-            locally and attached to this release by hand, together with its
-            bitstream-provenance.txt, which records the Quartus version, the machine that
-            built it and both digests (the .jic is reproducible byte for byte; the .sof
-            needs its canonical digest because it embeds a compile timestamp).
+          Every artefact in this release was built by CI from the tagged commit. No binary
+          here was built on a maintainer's machine, and nothing was attached by hand.
 
-            This release is created as a DRAFT for that reason. Attach the bitstream, extend
-            SHA256SUMS to cover it, then publish.
+          The update bundle
+            domesday-duplicator-update-*.dddfw is the file the capture application installs.
+            Its manifest carries the SHA-256 of every payload and is signed with the project
+            release key; the matching public key is committed at tools/keys/release.pub and
+            compiled into the application, which accepts nothing else. The application
+            re-checks every digest before it writes, and the device re-checks them again by
+            reading back what it wrote.
+
+          Reproducing this release
+            The gateware is byte-identical across rebuilds of the same commit on the same
+            Quartus, so bitstream-provenance.txt's canonical digests can be checked against
+            a rebuild: nix build .#bitstream, then fpga/bitstream-provenance.py. The
+            scheduled reproducibility audit does exactly that against this release, and
+            fails loudly if a digest has drifted. The .sof files carry a compile timestamp,
+            which is why they have a canonical digest as well as a release one.
 
           Notes
             This release contains firmware and gateware only. The capture application is
@@ -130,31 +325,24 @@ jobs:
 
           cat PROVENANCE.txt
 
-      - name: Publish as a draft
+      - name: Publish
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: Firmware and gateware ${{ github.event.inputs.tag || github.ref_name }}
           files: release-artifacts/*
-          # Draft, not published: the bitstream is attached by hand and a firmware release
-          # without one is incomplete (P7-11). Publishing is the maintainer's explicit act
-          # after that, rather than something this workflow does on their behalf.
-          draft: true
           generate_release_notes: true
           body: |
-            FX3 firmware, FX3 programmer and FPGA gateware for the Domesday Duplicator.
+            FX3 firmware, FPGA gateware and the FX3 programmer for the Domesday Duplicator.
 
-            **Before publishing this draft**, per the release checklist:
+            **Updating an existing Duplicator**: download the
+            `domesday-duplicator-update-*.dddfw` file and open it from the capture
+            application — *Help → Firmware…*. Everything else attached here is for bench
+            provisioning of a new board or for inspection.
 
-            1. Build the bitstream locally — `nix build .#bitstream`, or `./fpga/build-local.sh`.
-            2. Attach `DomesdayDuplicator.sof`, `DomesdayDuplicator.jic` and
-               `bitstream-provenance.txt`.
-            3. Append their digests to `SHA256SUMS`, so one manifest covers every asset
-               regardless of where it was built.
-            4. Check the firmware and the bitstream provenance both name this tag's commit.
-
-            The bitstream is not built by CI: Quartus is unfree, `redistributable = false`
-            and GB-scale. `bitstream-provenance.txt` is what makes the hand-built artefact
-            independently verifiable.
+            Every asset was built by CI from this tag. `SHA256SUMS` covers all of them,
+            `PROVENANCE.txt` records the toolchains, and `bitstream-provenance.txt` carries
+            the gateware digests in both release and canonical form so a rebuild can be
+            compared against them.
 
             **The capture application releases separately**, under `gui-v*` tags.

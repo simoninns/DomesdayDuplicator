@@ -106,9 +106,14 @@ styles (`ddd-gui/` is Google style, gate-enforced) and different architectures.
 │   ├── check-licence-headers.sh
 │   ├── make-update-bundle.sh  # assemble and sign a .dddfw device update bundle
 │   ├── dev-bundle.sh          # the developer loop's wrapper around it
-│   └── keys/                  # the development signing keypair — the secret half is
-│                              # committed deliberately, see §5.5
-├── .github/workflows/         # deploy-docs.yml — builds the site with Nix
+│   ├── keys/                  # the development signing keypair — the secret half is
+│   │                          # committed deliberately, see §5.5. release.pub joins it
+│   │                          # when a release key is generated; the secret never does
+│   └── release/               # release policy the tag pins: compatibility.env
+├── .github/workflows/         # build.yml per commit; bitstream.yml for Quartus;
+│                              # release-firmware.yml and release-gui.yml for the two
+│                              # release streams; reproducibility-audit.yml weekly;
+│                              # deploy-docs.yml builds the site with Nix
 ├── docs/
 │   ├── mkdocs.yml             # site config; docs_dir is "content", never "site"
 │   └── content/               # the site's markdown, one directory per nav section
@@ -127,7 +132,7 @@ styles (`ddd-gui/` is Google style, gate-enforced) and different architectures.
 │   ├── make-boot-block.py     # the boot block the factory image reads at power-on
 │   ├── build-local.sh         # out-of-tree local build of both images
 │   ├── checks.nix             # fpga-lint, fpga-sim, fpga-provenance, fpga-boot-block
-│   ├── package.nix            # the bitstreams — unfree, x86_64-linux, not in CI
+│   ├── package.nix            # the bitstreams — unfree, x86_64-linux, own CI workflow
 │   └── quartus-shell.nix      # nix develop .#fpga-quartus
 ├── fx3/
 │   ├── README.md
@@ -401,9 +406,10 @@ to follow when the component flake is the entry point. The full reasoning is in 
 comment of [flake.nix](flake.nix).
 
 Quartus is unfree, x86_64-linux only and not redistributable, so the bitstream build is
-guarded by system and never runs in CI — but it still comes from the root flake, fed by a
-second import of the *same locked* nixpkgs with `allowUnfree` set. Containing an unfree
-dependency does not require a second lock file. `nix develop .#fpga` gives the *free* tools —
+guarded by system and kept out of `nix flake check` — but it still comes from the root flake,
+fed by a second import of the *same locked* nixpkgs with `allowUnfree` set. Containing an
+unfree dependency does not require a second lock file. It is built by dedicated CI workflows
+rather than by the per-commit tier (§9). `nix develop .#fpga` gives the *free* tools —
 Verilog lint, simulation and a language server — with no Quartus download at all.
 
 NixOS users get device permissions from `nixosModules.udev`:
@@ -554,7 +560,8 @@ built from the release commit** — not a rebuild of roughly that source.
 | GUI (Linux x64/ARM64, Windows x64, macOS x64/ARM64) | CI | Every commit |
 | `firmware.img` / `.elf` / `.map` | CI (`nix build .#fx3-firmware`) | Every commit |
 | `fx3-programmer` | CI (`nix build .#fx3-programmer`) | Every commit |
-| FPGA `.sof` / `.jic` | **Local build, attached by hand** | Per release |
+| FPGA `.sof` / `.jic` / `.rpd` | CI (`nix build .#bitstream`, `bitstream.yml`) | Gateware changes, dispatch, and every `fw-v*` tag |
+| `…​.dddfw` update bundle | CI (`release-firmware.yml`), signed with the release key | Every `fw-v*` tag |
 
 Two rules follow from this, and they constrain how you change build files:
 
@@ -567,10 +574,19 @@ Two rules follow from this, and they constrain how you change build files:
    binary. The two paths coexist deliberately; deleting the native jobs would silently drop a
    supported platform from every future release.
 
-The FPGA is the exception because Quartus is unfree, GB-scale and `redistributable = false`,
-so it can never come from a binary cache and every cold CI run would re-fetch it. It is
-therefore excluded from CI for now, built locally, and attached to releases with a provenance
-record and published digests.
+The FPGA used to be the exception — built locally and attached by hand — and since 2026-08-14
+it is not. Quartus is still unfree, GB-scale and `redistributable = false`, so it is still
+excluded from `nix flake check` and from the per-commit tier: a contributor must never need an
+unfree download to validate a change. It runs in dedicated workflows instead
+(`bitstream.yml`, called from `release-firmware.yml`), with its closure cached privately to
+this repository. Do not re-add it to `nix flake check`, and do not remove it from the release
+path: the two halves of that arrangement are what make "every artefact is CI-built from the
+tag" true without taxing every commit.
+
+The release key follows from the same rule. The bundle's manifest is signed in CI with the
+secret in `UPDATE_SIGNING_KEY`; the public half is committed at `tools/keys/release.pub` and
+compiled into the application, never read from disk at run time. A key an application loads
+at run time is a key an attacker can replace.
 
 A note on reproducibility, since it is easy to get wrong in both directions: Quartus *fitting*
 is deterministic — same source, same seed, same toolchain gives the same placement and
@@ -579,8 +595,9 @@ routing, regardless of the build machine. What is **not** guaranteed is byte-ide
 rebuild will hash-match the released file, and do not assume the design differs just because
 it does not.
 
-Full model: [fpga/README.md](fpga/README.md) → *Reproducibility* and *Why this is not built
-by CI*.
+Full model: [fpga/README.md](fpga/README.md) → *Reproducibility* and *How the bitstream is
+built*, and the *Release pipeline* page of the documentation site for the workflows, key
+custody and the reproducibility audit.
 
 ## 10. Licensing
 

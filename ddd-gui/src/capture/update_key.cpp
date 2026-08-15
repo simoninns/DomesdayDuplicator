@@ -12,6 +12,7 @@
 #include "update_key.h"
 
 #include "minisign_verify.h"
+#include "update_release_key.h"
 
 namespace ddd::capture {
 namespace {
@@ -29,15 +30,16 @@ constexpr std::string_view kDevelopmentKeyText =
 
 // The release key, pinned at build time.
 //
-// Empty until the release pipeline exists to hold the secret half. That is a
-// real state and not a placeholder: this build can install development
-// bundles and honestly cannot verify a release one, and saying so is better
-// than pretending to a trust it does not have.
-#if defined(DDD_RELEASE_UPDATE_KEY)
-constexpr std::string_view kReleaseKeyText = DDD_RELEASE_UPDATE_KEY;
-#else
-constexpr std::string_view kReleaseKeyText = "";
-#endif
+// generated/update_release_key.h is written by CMake from whichever key the
+// build was pointed at — tools/keys/release.pub for an in-tree build, an
+// explicit -DDDD_RELEASE_UPDATE_KEY_FILE otherwise. The key text is checked
+// for shape there, so anything that arrives here is at least a public key.
+//
+// Empty when no key was pinned. That is a real state and not a placeholder:
+// this build can install development bundles and honestly cannot verify a
+// release one, and saying so is better than pretending to a trust it does not
+// have.
+constexpr std::string_view kReleaseKeyText = generated::kReleaseUpdateKeyText;
 
 std::optional<MinisignPublicKey> ParseKey(std::string_view text) {
   if (text.empty()) {

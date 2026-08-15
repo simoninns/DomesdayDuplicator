@@ -4,18 +4,22 @@
 # SPDX-FileCopyrightText: 2026 Simon Inns
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Unlike every other package in this repository, this one is **not** built by CI
-# and is **not** in `nix flake check`. Quartus Prime Lite is unfree,
-# x86_64-linux only, and marked `redistributable = false` — so it can never be
-# served from a binary cache, and every cold build would have to fetch several
-# gigabytes from Altera. The decision and the three ways it could reach CI later
-# are recorded in fpga/README.md, "Why this is not built by CI".
+# Unlike every other package in this repository, this one is **not** in
+# `nix flake check`. Quartus Prime Lite is unfree, x86_64-linux only, and marked
+# `redistributable = false` — so it can never be served from a binary cache, and
+# making it a dependency of the check every contributor runs would put a
+# multi-gigabyte unfree download in front of a one-line documentation fix.
 #
-# What this derivation is for is making the *local* build repeatable: same
-# inputs, same command line, an output directory that always contains the same
-# set of files, and a provenance record generated rather than typed. The dev
-# shell (`nix develop .#fpga-quartus`) remains the primary way to work on the
-# gateware.
+# It *is* built by CI, in a workflow of its own: .github/workflows/bitstream.yml
+# on gateware changes and manual dispatch, and from the tag by
+# release-firmware.yml, so every released bitstream is CI-built from the tagged
+# commit. fpga/README.md, "How the bitstream is built", has the full model.
+#
+# What this derivation is for is making the build repeatable wherever it runs:
+# same inputs, same command line, an output directory that always contains the
+# same set of files, and a provenance record generated rather than typed. The
+# dev shell (`nix develop .#fpga-quartus`) remains the primary way to work on
+# the gateware.
 #
 # Reproducibility, measured rather than assumed (P6-9): two compiles of the same
 # commit on the same toolchain produce a byte-identical .jic and a .sof that
@@ -189,9 +193,10 @@ stdenvNoCC.mkDerivation {
       device update writes, the boot block that describes it, and a
       provenance record with digests for all of them.
 
-      Not part of `nix flake check` and not built by CI: Quartus is unfree,
-      x86_64-linux only, and non-redistributable, so it cannot come from a
-      binary cache.
+      Not part of `nix flake check`: Quartus is unfree, x86_64-linux only, and
+      non-redistributable, so it cannot come from a binary cache and has no
+      place in the check every contributor runs. It is built by the dedicated
+      bitstream and release workflows instead.
     '';
     homepage = "https://github.com/simoninns/DomesdayDuplicator";
     # The gateware is GPLv3. The toolchain that compiles it is not free

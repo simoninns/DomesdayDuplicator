@@ -27,6 +27,12 @@
   # in a Nix sandbox, so CMake's own git fallback cannot fire and this must be passed — the
   # flake passes self.shortRev. A build that reports "unknown" fails the release gate.
   dddVersion ? "unknown",
+  # The minisign public key whose signatures this build accepts as releases. The source
+  # fileset below closes over ddd-gui/ alone, so the repository's tools/keys/release.pub is
+  # not visible to CMake's in-tree default and the flake passes the path in. Null gives a
+  # build with no release key pinned: it can install development bundles and honestly
+  # cannot verify a release one.
+  releaseUpdateKeyFile ? null,
   # Set false to skip the test suite (it needs an offscreen Qt platform plugin)
   doCheck ? true,
 }:
@@ -73,7 +79,13 @@ stdenv.mkDerivation (finalAttrs: {
     # statement about the code. They run in the dev shell and in the native CI build.
     (lib.cmakeBool "DDD_ENABLE_CLANG_FORMAT" false)
     (lib.cmakeBool "DDD_ENABLE_CLANG_TIDY" false)
-  ];
+  ]
+  # Passed rather than left to CMake's in-tree default, because the fileset above cannot
+  # see tools/keys/release.pub. Omitted entirely when there is no key: a flag with an empty
+  # value would be a path that does not exist, which the build treats as an error.
+  ++ lib.optional (releaseUpdateKeyFile != null) (
+    lib.cmakeFeature "DDD_RELEASE_UPDATE_KEY_FILE" "${releaseUpdateKeyFile}"
+  );
 
   inherit doCheck;
 

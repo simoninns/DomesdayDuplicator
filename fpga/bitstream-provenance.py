@@ -5,11 +5,15 @@ Domesday Duplicator - LaserDisc RF sampler
 SPDX-FileCopyrightText: 2018-2026 Simon Inns
 SPDX-License-Identifier: GPL-3.0-or-later
 
-The FPGA bitstream is the one release artefact CI does not build. Quartus is
-unfree, x86_64-linux only and marked non-redistributable, so it can never be
-served from a binary cache and does not go on a runner; the maintainer builds
-it locally and attaches it by hand. That makes provenance the artefact's own
-responsibility, because nothing else records it.
+The FPGA bitstream is built by its own CI workflow rather than by the
+per-commit tier: Quartus is unfree, x86_64-linux only and marked
+non-redistributable, so it can never be served from a binary cache and cannot
+be a dependency of the `nix flake check` every contributor runs. That makes
+this record the artefact's own statement of where it came from — which
+toolchain, which commit, and which digests a rebuild must agree with. The
+scheduled reproducibility audit compares a fresh build of a release tag
+against the canonical digests below, so this file is machine-read as well as
+human-read.
 
 Two kinds of digest, because they answer different questions:
 
@@ -239,8 +243,9 @@ def main():
         "Domesday Duplicator FPGA bitstream",
         "==================================",
         "",
-        "Built outside CI. See fpga/README.md, 'Why this is not built by CI', for",
-        "why, and 'Reproducibility' in the same file for how to reproduce it.",
+        "Built by the bitstream workflow, or locally by build-local.sh. See",
+        "fpga/README.md, 'How the bitstream is built', for which tier builds it,",
+        "and 'Reproducibility' in the same file for how to rebuild and compare.",
         "",
         "Source",
         "------",

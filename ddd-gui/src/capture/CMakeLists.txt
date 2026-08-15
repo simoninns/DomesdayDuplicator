@@ -93,3 +93,11 @@ endif()
 # Only this target sees the version stamp, so a new commit rebuilds one object file rather
 # than every Qt translation unit in the application.
 target_compile_definitions(ddd_capture PRIVATE DDD_VERSION="${DDD_VERSION}")
+
+# The pinned release signing key, decided in the top-level CMakeLists.txt and delivered as a
+# generated header rather than a compile definition: the key is two lines of text, and a
+# multi-line string reaching a compiler through -D is a string that has to survive three
+# layers of quoting. @ONLY so that nothing but the key's own placeholder is substituted.
+configure_file(update_release_key.h.in
+               "${CMAKE_CURRENT_BINARY_DIR}/generated/update_release_key.h" @ONLY)
+target_include_directories(ddd_capture PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")

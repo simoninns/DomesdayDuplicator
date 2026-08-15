@@ -67,6 +67,67 @@ endif()
 
 message(STATUS "Application version: ${DDD_VERSION}")
 
+# Which update signing key this build trusts.
+#
+# A release build pins the release public key and accepts nothing else; a build with no
+# release key pinned can verify no release bundle at all and says so rather than pretending
+# to a trust it does not have (src/capture/update_key.cpp). The key is therefore a *build*
+# input and never a file the application reads at run time — a key loaded from disk is a key
+# an attacker can replace, and then the whole integrity chain proves nothing.
+#
+# The default is the repository's own tools/keys/release.pub when it is there, so that an
+# in-tree build — a contributor's, or the native CI build the installers are made from —
+# pins the same key a release does without anyone having to remember a flag. A build whose
+# source tree does not carry that file (the Nix package closes over ddd-gui/ alone) passes
+# the path explicitly. Publishing a release key is therefore one commit, not a sweep through
+# every build definition.
+set(DDD_RELEASE_UPDATE_KEY_FILE "" CACHE FILEPATH
+    "minisign public key (.pub) whose signatures this build accepts as releases")
+
+if(NOT DDD_RELEASE_UPDATE_KEY_FILE AND
+   EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../tools/keys/release.pub")
+    set(DDD_RELEASE_UPDATE_KEY_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../tools/keys/release.pub")
+endif()
+
+set(DDD_RELEASE_UPDATE_KEY_TEXT "")
+
+if(DDD_RELEASE_UPDATE_KEY_FILE)
+    if(NOT EXISTS "${DDD_RELEASE_UPDATE_KEY_FILE}")
+        message(FATAL_ERROR
+            "DDD_RELEASE_UPDATE_KEY_FILE points at ${DDD_RELEASE_UPDATE_KEY_FILE}, "
+            "which does not exist. A release build that silently fell back to no key "
+            "would ship an application that refuses every release bundle.")
+    endif()
+
+    file(READ "${DDD_RELEASE_UPDATE_KEY_FILE}" DDD_RELEASE_UPDATE_KEY_TEXT)
+
+    # Shape-checked here rather than only at run time, because a mistyped path or a secret
+    # half committed by accident should stop the build rather than produce a binary that
+    # fails on a user's machine. Two lines, the first an untrusted comment, is what a
+    # minisign public key is; the secret half's comment line differs, and its data line is
+    # far longer than the 56 characters a public key encodes to.
+    string(REGEX MATCH "^untrusted comment:[^\n]*\n[A-Za-z0-9+/=]+\n?$"
+           DDD_RELEASE_UPDATE_KEY_SHAPE "${DDD_RELEASE_UPDATE_KEY_TEXT}")
+    if(NOT DDD_RELEASE_UPDATE_KEY_SHAPE)
+        message(FATAL_ERROR
+            "${DDD_RELEASE_UPDATE_KEY_FILE} is not a minisign public key: expected an "
+            "untrusted comment line followed by one base64 line.")
+    endif()
+
+    # The development key is committed, secret half and all, so pinning it as *the release
+    # key* would make every development bundle verify as a release — which is precisely the
+    # confusion the two-key scheme exists to make impossible.
+    if(DDD_RELEASE_UPDATE_KEY_TEXT MATCHES "development")
+        message(FATAL_ERROR
+            "${DDD_RELEASE_UPDATE_KEY_FILE} looks like the development key. Its secret "
+            "half is public; it can never be a release key.")
+    endif()
+
+    message(STATUS "Release update key: ${DDD_RELEASE_UPDATE_KEY_FILE}")
+else()
+    message(STATUS "Release update key: none pinned — development bundles only")
+endif()
+
 # Qt 6.5 is the floor, not 6.2 as in gui/: QStyleHints::colorScheme() and its change
 # signal arrived in 6.5, and they are how the application follows the desktop's light/dark
 # setting. Without them the theme could only ever be guessed from the palette.
