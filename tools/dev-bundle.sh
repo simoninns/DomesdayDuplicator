@@ -121,9 +121,10 @@ fi
 # more reliably than a suffix somebody might not read.
 [[ -n "$version" ]] || version="0.0.0"
 
-# The commit stamped into the manifest, and the identity the device is expected to report
-# afterwards. A dirty tree is marked, because a bare hash from one names a commit that
-# does not contain the code being packaged.
+# The commit stamped into the manifest as the bundle's own. It describes the tree the
+# bundle was assembled from and nothing else — what each payload will report is read from
+# that payload below. A dirty tree is marked, because a bare hash from one names a commit
+# that does not contain the code being packaged.
 commit="$(git -C "$root" rev-parse --short=8 HEAD 2>/dev/null || echo unknown)"
 if [[ -n "$(git -C "$root" status --porcelain 2>/dev/null)" ]]; then
     commit="$commit-dirty"
@@ -142,15 +143,62 @@ arguments=(
     --notes "Development build from $commit — not a release."
 )
 
+# The identity a payload carries is a property of the payload, not of the tree it is
+# packaged from, and the two are only the same when everything was just rebuilt. Taking it
+# from git instead cost a bench run: HEAD moved between the build and the packaging, the
+# manifest promised a commit nothing inside it could report, and a multi-minute gateware
+# update failed at its last step with the flash already correctly written.
+#
+# So each identity is read out of the artefact that will have to report it.
+
+# What the firmware will put in its USB product string, read from the image that will be
+# installed. The descriptor is UTF-16, so the nulls come out before the match; tr and grep
+# rather than strings, because this script depends on nothing binutils provides.
+firmware_identity=""
 if [[ -n "$firmware" ]]; then
-    # The identity is the commit, because that is what the firmware stamps into its USB
-    # product string. On a dirty tree the device will report the bare hash without the
-    # marker, so the post-update check compares prefixes rather than whole strings — see
-    # ddd-gui/src/capture/firmware_version.h.
-    arguments+=(--firmware "$firmware" --firmware-identity "$commit")
+    # `|| true` because no match is an answer, not an error: under pipefail an
+    # empty grep would abort the script here and the explanation below would
+    # never be printed.
+    firmware_identity="$(LC_ALL=C tr -d '\0' <"$firmware" |
+        LC_ALL=C grep -aoE 'Domesday Duplicator \([0-9A-Fa-f]{7,8}(-dirty)?\)' |
+        head -1 | sed -E 's/^.*\((.*)\)$/\1/' || true)"
+    [[ -n "$firmware_identity" ]] || die "cannot read a version out of $firmware.
+It names no build, so a bundle carrying it could not say what installing it produces.
+Rebuild the firmware, or use make-update-bundle.sh directly with --firmware-identity."
+fi
+
+# What the gateware will report through its identity registers. bitstream-provenance.txt
+# sits one level above the image in both layouts — fpga/build/ and result-bitstream/ — and
+# is generated from the compile rather than typed.
+gateware_identity=""
+if [[ -n "$gateware" ]]; then
+    provenance="$(dirname "$(dirname "$gateware")")/bitstream-provenance.txt"
+    if [[ -f "$provenance" ]]; then
+        gateware_identity="$(sed -n 's/^[[:space:]]*commit[[:space:]]\{1,\}\([^[:space:]]\{1,\}\)[[:space:]]*$/\1/p' \
+            "$provenance" | head -1 || true)"
+    fi
+    [[ -n "$gateware_identity" ]] || die "cannot tell which commit $gateware was built from.
+Expected a provenance record at $provenance, which ./fpga/build-local.sh and
+nix build .#bitstream both write beside the images they compile.
+Rebuild the gateware, or use make-update-bundle.sh directly with --gateware-identity."
+fi
+
+# Packaging artefacts older than the tree is legitimate — it is what happens whenever the
+# gateware is left alone while the firmware is worked on — so this is worth saying and not
+# worth refusing.
+for pair in "firmware:$firmware_identity" "gateware:$gateware_identity"; do
+    name="${pair%%:*}"
+    identity="${pair#*:}"
+    if [[ -n "$identity" && "$identity" != "$commit" ]]; then
+        echo "note: the $name was built from $identity, and this tree is at $commit." >&2
+    fi
+done
+
+if [[ -n "$firmware" ]]; then
+    arguments+=(--firmware "$firmware" --firmware-identity "$firmware_identity")
 fi
 if [[ -n "$gateware" ]]; then
-    arguments+=(--gateware "$gateware" --gateware-identity "$commit")
+    arguments+=(--gateware "$gateware" --gateware-identity "$gateware_identity")
 fi
 
 echo "Packaging a development bundle from what is built locally:"

@@ -58,6 +58,13 @@ module spiRegisters (
     output [ 7:0] window_write_data,
     input  [31:0] window_read_data,
 
+    // BENCH DIAGNOSTIC. The remote update block's own account of itself,
+    // presented read-only at 0x30 to 0x37, least significant byte first.
+    // Reads of unmapped addresses return zero, so gateware without this
+    // reads as zero here and a host can tell the two apart by the
+    // signature in the top two bytes.
+    input  [63:0] diagnostics,
+
     // One clock high for each data byte of a framed transaction that
     // completes. This is what the application image tickles the
     // reconfiguration watchdog with: it says the fabric decoded something,
@@ -182,6 +189,14 @@ module spiRegisters (
                 7'h21:   read_register = window_read_data[15:8];
                 7'h22:   read_register = window_read_data[23:16];
                 7'h23:   read_register = window_read_data[31:24];
+                7'h30:   read_register = diagnostics[7:0];
+                7'h31:   read_register = diagnostics[15:8];
+                7'h32:   read_register = diagnostics[23:16];
+                7'h33:   read_register = diagnostics[31:24];
+                7'h34:   read_register = diagnostics[39:32];
+                7'h35:   read_register = diagnostics[47:40];
+                7'h36:   read_register = diagnostics[55:48];
+                7'h37:   read_register = diagnostics[63:56];
                 default: read_register = 8'h00;
             endcase
         end

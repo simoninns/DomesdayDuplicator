@@ -252,10 +252,29 @@ module tb_bootLoader;
 
         check(reconfigure_request, 1'b1, "a valid boot block triggers reconfiguration");
 
+        // The bridge must be locked - the active serial pins released -
+        // before the handover, because the reconfiguration that follows
+        // reads the application image over those very pins. Left driven,
+        // the load fails on a flash the engine cannot select and the
+        // device cycles between the images for ever, which is how the
+        // first bench session found this.
+        check({31'd0, flash_drive}, 32'd0,
+              "the active serial pins are released before the handover");
+
         // The request reaches the block a little later than it is made:
         // the block runs at a quarter of this clock and the request is
         // stretched to be sure it lands.
         repeat (200) @(posedge clock);
+
+        // The two option bits the handbook says the factory configuration
+        // must turn on (Table 8-23). Their absence was the root cause of
+        // the first bench session's reconfiguration loop: the application
+        // image loaded and its startup hung for want of a clock, which no
+        // amount of correcting the boot address could fix.
+        check({31'd0, remote_update_0.remote_update_0.osc_int_enabled}, 32'd1,
+              "the startup oscillator option bit was written");
+        check({31'd0, remote_update_0.remote_update_0.early_confdone}, 32'd1,
+              "the early CONF_DONE option bit was written");
 
         check(remote_update_0.remote_update_0.written_boot_address, IMAGE_ADDRESS,
               "the image address reached the remote update block");

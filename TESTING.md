@@ -504,7 +504,7 @@ Analogue performance. The test pattern is generated *after* the ADC, so it prove
 path is lossless and says nothing about gain, filtering or noise. Those remain manual bench
 measurements against the calculations in `hardware/doc/`.
 
-## 6. The firmware update procedure (T5)
+## 6. The device update procedures (T5)
 
 Everything below writes the FX3's boot EEPROM. **Nothing automated does this** (AGENTS.md
 §4): each step is a deliberate human act, and this section exists so that it is the same
@@ -769,21 +769,113 @@ Use a SuperSpeed Explorer Kit that has never been programmed, or erase one delib
 - U3 in particular after any change to the order in which pages are written.
 - U5 and U6 after any change to `device_programmer.cpp` or `boot_image.cpp`, which are the
   only code in the application that hands bytes to a device's boot ROM.
+- G1 after any change to `epcs-flash.c`, `remoteUpdate.v`, `bootLoader.v` or
+  `flashBridge.v` — and after any change to how the `.rpd` is generated, because the byte
+  orientation it is emitted in is load-bearing (§6, defect 5).
 
-### What it does not cover
+### G0 — provisioning a unit with the dual-image flash
 
-The FPGA target. The firmware now answers for it — `0xD1`–`0xD3` write the EPCS through the
-gateware's flash bridge and `0xD5` reconfigures the FPGA — but **none of it has been run on a
-board**, because running it needs a unit provisioned with a dual-image flash and no unit has
-been. The gateware procedures are written up in the session that first performs them, and
-§7 lists what that session has to establish.
+Performed first on 2026-08-15. Needs the USB-Blaster and `nix build .#bitstream`.
 
-Everything about target 1 that can be checked without hardware has been: the paging and
-sector arithmetic, the boot block's encoding checked byte for byte against the encoder the
-build uses, the CRC-32 pinned to its published check value, the compatibility gate that
-refuses a gateware update to a device that cannot take one, and the whole flow driven
-through the application against a fake device. None of that is evidence that a real flash
-was written correctly, and this section exists to say so.
+1. Check the memory map beside the `.jic` before programming anything:
+   `provisioning/DomesdayDuplicatorProvisioning.map` must place the factory image at
+   `0x000000` and the application image at `0x200000`, with the gap at `0x100000` for the
+   boot block. Those addresses are the layout; a `.map` that disagrees means the `.cof`
+   has drifted and nothing downstream is meaningful.
+2. `jtagconfig` must name the USB-Blaster and the EP4CE22.
+3. From a writable copy of the provisioning directory:
+   `quartus_pgm DomesdayDuplicatorProvisioning_write_jic.cdf`. Eleven seconds: erase,
+   blank-check, program, CRC verify. The programmer also prints the EPCS silicon ID —
+   `0x16`, which must match `UPDATE_EPCS_ID_EPCS64` in the firmware.
+4. Power-cycle. **The erase is page-selective**, so what the unit boots into depends on
+   what the boot block sector held before: a unit whose flash never carried a boot block
+   comes up in the factory image with `IMAGE_ROLE` reading `0x00` and the application
+   showing *recovery gateware*; a unit reprovisioned over a working installation keeps
+   its boot block, and if the page content still matches the block's CRC it boots
+   straight to the application. Both are correct.
+5. The programmer leaves the FPGA running its flash loader, not this project's gateware,
+   so the first thing after any JTAG programming is a power-cycle. An update attempted
+   before it is refused with *"the FPGA is not answering"*, which is the gate doing its
+   job.
+
+### G1 — the gateware update, and the handover it ends in
+
+The same wizard/`ddd-update` flow as U1/U2 with a bundle carrying gateware. What is
+different from the FX3 target: the erase pauses the transfer message warns about, the
+multi-minute estimate, and the reboot at the end being a *reconfiguration* — the factory
+image validates what was written and hands the FPGA over to it.
+
+**Pass** = after the update's restart the gateware row shows the bundle's commit,
+`IMAGE_ROLE` reads `0x01`, and a capture runs. A power-cycle then proves the cold path:
+factory validates the image over the bridge (about a quarter of a second for a compressed
+image), arms the reconfiguration block, and hands over — the unit must come up in the
+application image with no cable and no host.
+
+Measured on first performance (V6): a 212 KB compressed image sends in **17 s**
+(~12.5 KB/s against the estimate's deliberately pessimistic 2 KB/s) and the device-side
+readback verify takes **59 s** (~3.6 KB/s). The readback dominates, and its cost lives in
+the frozen factory image's bridge — known before the freeze, which is what V6 was for. An
+uncompressed image (719 KB) scales linearly: 57 s send, 200 s verify.
+
+### What the first bench session established, and how
+
+The handover did not work when first performed, and the defects it surfaced are worth
+recording because every one of them passed every host-side test. All five are now fixed
+and pinned — the first four by testbenches, the fifth by the `.cof` comment:
+
+1. **All three reconfiguration parameter numbers were wrong** (`remoteUpdate.v`): the
+   boot address was written to the read-only state register and the watchdog timeout to
+   the early-CONF_DONE bit. Corrected against Table 17 of the Remote Update IP User
+   Guide; the input register was then read back on hardware to prove each write lands.
+2. **The `Osc_int` and `Cd_early` option bits were never written.** The handbook requires
+   the factory configuration to set both; the simulation model now records them and
+   `tb_bootLoader` fails if they are not set.
+3. **The boot loader never relocked the flash bridge**, leaving the fabric driving the
+   AS pins into the handover. The firmware always had this discipline (`epcsLock()`);
+   the gateware gained a `StateRelock`, and the testbench asserts the pins are released
+   before the reconfiguration request.
+4. **The reconfigure and tickle strobes were 200 ns** against the handbook's 250 ns
+   minimum. Now 800 ns.
+5. **The `.rpd` bit orientation — V7.** The AS engine consumes configuration bytes
+   LSB-first while SPI delivers MSB-first, so the flash must hold each byte
+   bit-reversed. `quartus_pgm` performs that reversal when programming a `.jic`; the
+   update path writes the `.rpd` verbatim. With `rpd_little_endian=1` every image the
+   updater wrote was bit-backwards on the wire — the fabric's own CRC verify passed,
+   because it read back exactly the bytes it wrote, and only the AS engine ever saw the
+   garbage. Found with a logic analyser on the EPCS pins: the page that boots delivers
+   `56 EF EF …` and the updater's page delivered `6A F7 F7 …` — the same header,
+   reversed. The application `.cof` now sets `rpd_little_endian=0`, making the `.rpd`
+   wire-true, and the comment beside it says why that value is load-bearing.
+
+The trace that settled it also settled **V7's other half and V4**: the engine's preamble
+reads the flash's electronic signature (`0xAB` → `0x16`) before every load, and the
+attempt itself was a FAST_READ (`0x0B`) at exactly `0x200000` — the staged address,
+committed and used. The **watchdog tickle** is proven by the application image surviving
+past the ~54 s timeout with the watchdog enabled: the FX3's register traffic resets it.
+
+Diagnostics added during the session and kept: registers `0x30`–`0x37` expose the
+reconfiguration block's own account of the boot — MSM mode, the previous attempt's
+trigger condition, and every field of the staged update register, read back after the
+writes. Signature `0xDD` in the top byte distinguishes "gateware without the instrument"
+from "no answer". They cost microseconds at boot and they are how the parameter defects
+were measured rather than guessed.
+
+### What it does not cover yet
+
+The interruption cases for the gateware target: power pulled mid-write (which must leave
+the previous image bootable, since sectors are erased as the write enters them), power
+pulled during the readback verify, and the boot block sector erased by JTAG to force the
+fall-back from the other direction. Those come after the clean path they interrupt, and
+the clean path has now been shown once.
+
+The watchdog period is still the 12-bit maximum (~54 s at the internal oscillator's
+nominal rate) rather than a measured margin over the worst-case FX3 boot — it must be
+narrowed before the factory image is frozen, and V5's double-configuration timing should
+be measured properly at the same sitting. And the boot logic still has no guard against
+an application image that validates, configures and is nonetheless dead: such an image
+would cycle factory→application forever at about three seconds a lap. `Cd_early` now
+probes the image before every attempt, which narrows the window to exactly that case,
+but the deliberate second-attempt refusal the plan calls for remains open.
 
 ## 7. Planned work
 
@@ -794,9 +886,9 @@ Listed so this document can be read as a status report rather than a wish list.
 | CI test lanes | — | Run T1–T4 in the consolidated workflow. T5 never runs in CI |
 | SPDX conversion of the remaining long-form headers | T4 | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
 | Finish validating the single-clock gateware | T5 | See below. The board is programmed and a 16-minute capture came back clean; four checks remain |
-| Device-update bench procedures for the FPGA target | T5 | §6 covers the FX3 target. The firmware, the gateware and the application halves of the EPCS path are all built; nothing has run on a board. The first session confirms, in this order: the flash identifies itself through the bridge and names a device the firmware recognises (**V7**, and the silicon identifier is currently taken from the datasheet rather than from a part); a gateware update from the running application image completes and the unit comes back reporting the new gateware commit; the throughput is measured against the estimate the application shows before it starts (**V6** — and only if the bit-bang dominates is the bridge's read path worth changing, which is a change to the frozen image); power is pulled mid-write and the unit boots the factory image with `IMAGE_ROLE` reading `0x00`, the application names it *recovery gateware*, and **Reinstall gateware** repairs it; the same from a freshly provisioned unit, which starts in that state by construction; and the boot block sector is erased by JTAG to confirm the same fall-back from the other direction. Written up in the session that performs them, never ahead of it |
+| Gateware-target interruption tests | T5 | The clean path ran on 2026-08-15 and is §6 (G0/G1): provisioning, the update, the factory→application handover, V4, V6 and V7 all performed or measured, and the five defects the session surfaced are recorded there. What remains is the interruption half: power pulled mid-write and during the readback verify, the boot block sector erased by JTAG, and the *recovery gateware* → **Reinstall gateware** repair flow driven from each of those states |
 | First release through the CI pipeline | T4/T5 | The bitstream, release and reproducibility-audit workflows exist and every part of them that can be exercised without a signing key and a tag has been: the bundle assembles and verifies against a pinned public key, an application built with that key pinned accepts it and one built without refuses it, and a release build refuses a development-signed bundle unless the opt-in is given. What remains needs the maintainer: generate the release keypair, set `UPDATE_SIGNING_KEY`, commit `tools/keys/release.pub`, then tag. The rehearsal is then: the tag publishes a release whose every asset was CI-built from it, the `.dddfw` installs onto bench hardware through the file-picker path with the device reporting the identities the manifest names, and the audit job runs green against that release at least once |
-| Dual-image provisioning and the factory-to-application handover | T5 | Both gateware images build and the boot decision is simulated, but no unit has been provisioned with a dual-image flash. First bench session confirms: the provisioning `.jic` programs, the unit comes up in the factory image with `IMAGE_ROLE` reading `0x00`, the reconfiguration block's parameter encoding is the one `remoteUpdate.v` assumes, the handover to the application image works and `IMAGE_ROLE` then reads `0x01`, the watchdog period is measured against a worst-case FX3 boot before it is frozen, and the FX3's "FPGA ready" timing assumption still holds across two configurations rather than one. Not written up ahead of being run |
+| Watchdog period and handover timing, before the freeze | T5 | The handover works (§6 G1, 2026-08-15) and the watchdog tickle is proven by the application surviving past the timeout. Still open before the factory image is frozen: narrow `WatchdogTimeout` from the 12-bit maximum to a measured margin over the worst-case FX3 boot, measure the double-configuration time against the FX3's "FPGA ready" assumption (**V5**), and give the boot logic its deliberate second-attempt refusal so a validating-but-dead application image parks in recovery instead of cycling |
 
 ### Validating the single-clock gateware
 

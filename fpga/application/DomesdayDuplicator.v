@@ -361,6 +361,7 @@ module DomesdayDuplicator (
         .spi_mosi         (fx3_spi_mosi),
         .spi_chip_select_n(fx3_spi_chip_select_n),
         .window_read_data (window_read_data),
+        .diagnostics      (remote_update_diagnostics),
 
         // Outputs
         .spi_miso           (fx3_spi_miso),
@@ -428,6 +429,10 @@ module DomesdayDuplicator (
     // merely proving it configured - which the configuration CRC already did.
     // A host reconfiguration request through this block returns the device to
     // the factory image, which then makes the boot decision again.
+    // BENCH DIAGNOSTIC. The remote update block's account of itself,
+    // carried to the register bank and presented read-only at 0x30.
+    wire [63:0] remote_update_diagnostics;
+
     remoteUpdate remote_update_0 (
         // Inputs
         .reset_n            (reset_n),
@@ -439,8 +444,9 @@ module DomesdayDuplicator (
         .boot_address       (24'd0),
         .reconfigure_request(1'b0),
 
-        // Output
-        .control_read(reconfiguration_read)
+        // Outputs
+        .control_read(reconfiguration_read),
+        .diagnostics (remote_update_diagnostics)
     );
 
 endmodule

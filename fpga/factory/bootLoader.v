@@ -107,9 +107,10 @@ module bootLoader (
     localparam [3:0] StateImageData = 4'd9;
     localparam [3:0] StateImageSettle = 4'd10;
     localparam [3:0] StateImageCheck = 4'd11;
-    localparam [3:0] StateArm = 4'd12;
-    localparam [3:0] StateHandOver = 4'd13;
-    localparam [3:0] StateRecovery = 4'd14;
+    localparam [3:0] StateRelock = 4'd12;
+    localparam [3:0] StateArm = 4'd13;
+    localparam [3:0] StateHandOver = 4'd14;
+    localparam [3:0] StateRecovery = 4'd15;
 
     reg  [ 3:0] state;
     reg  [ 7:0] settle_count;
@@ -132,6 +133,8 @@ module bootLoader (
     reg  [31:0] application_length;
     reg  [31:0] application_crc;
     reg  [31:0] header_crc;
+
+    reg         image_valid;
 
     reg         crc_restart;
     reg         crc_valid;
@@ -189,6 +192,7 @@ module bootLoader (
             byte_count            <= 32'd0;
 
             window_write_reg      <= 1'b0;
+            image_valid           <= 1'b0;
             window_address_reg    <= 2'd0;
             window_write_data_reg <= 8'h00;
             shift_started         <= 1'b0;
@@ -414,11 +418,33 @@ module bootLoader (
                 end
 
                 StateImageCheck: begin
-                    if (application_crc == crc_value) begin
-                        state <= StateArm;
-                    end else begin
-                        state <= StateRecovery;
-                    end
+                    image_valid <= (application_crc == crc_value);
+                    state       <= StateRelock;
+                end
+
+                // Lock the bridge, which releases the active serial pins.
+                //
+                // This is the state whose absence cost the first bench
+                // session a day. flash_drive follows the bridge's unlock,
+                // so without an explicit relock the fabric is still
+                // holding DCLK, nCSO and ASDO - with the flash deselected
+                // - at the moment the reconfiguration it is about to
+                // request needs those pins to read the application image.
+                // The load then fails on a flash that can never answer,
+                // the device records an nSTATUS error and reverts here,
+                // and the unit cycles for ever. The firmware locks after
+                // every flash operation for the same reason; this was the
+                // one caller that did not.
+                //
+                // Locked on the recovery path too: a gateware that is not
+                // deliberately talking to the flash should not be wired to
+                // it, and the FX3 performs its own unlock when an update
+                // starts.
+                StateRelock: begin
+                    window_write_reg      <= 1'b1;
+                    window_address_reg    <= BridgeUnlock;
+                    window_write_data_reg <= 8'h00;
+                    state                 <= image_valid ? StateArm : StateRecovery;
                 end
 
                 StateArm: begin

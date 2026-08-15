@@ -17,7 +17,20 @@
 	<create_cvp_file>0</create_cvp_file>
 	<create_hps_iocsr>0</create_hps_iocsr>
 	<auto_create_rpd>1</auto_create_rpd>
-	<rpd_little_endian>1</rpd_little_endian>
+	<!--
+	    0, deliberately, and this is load-bearing: it makes the .rpd's
+	    bytes the bytes an AS read must deliver. The configuration engine
+	    consumes the stream LSB-first while SPI delivers MSB-first, so the
+	    flash must hold each byte bit-reversed - quartus_pgm performs that
+	    reversal when it programs a .jic, but the update path writes the
+	    .rpd verbatim. With this set to 1 every image the updater wrote was
+	    bit-backwards on the wire: the fabric's own CRC check passed, the
+	    AS engine rejected the header, and the device cycled between the
+	    images for a day of bench time. Confirmed by logic analyser on the
+	    EPCS pins: the page that boots delivers 56 EF EF..., the page the
+	    updater wrote delivered 6A F7 F7... - the same header, reversed.
+	-->
+	<rpd_little_endian>0</rpd_little_endian>
 	<options>
 		<map_file>1</map_file>
 	</options>

@@ -60,6 +60,7 @@ module tb_spiRegisters;
     wire    [ 1:0] window_address;
     wire    [ 7:0] window_write_data;
     reg     [31:0] window_read_data;
+    reg     [63:0] diagnostics;
     wire           transaction_decoded;
 
     integer        window_writes;
@@ -74,6 +75,10 @@ module tb_spiRegisters;
     reg     [ 7:0] spi_received;
     reg     [ 7:0] read_data           [0:15];
 
+    // Distinguishable in every byte, so a wrong byte order fails rather
+    // than reading plausibly.
+    localparam [63:0] DIAGNOSTICS_CONTENTS = 64'hDD01_8877_6655_4433;
+
     spiRegisters #(
         .CommitText(COMMIT_TEXT),
         .BuildFlags(BUILD_FLAGS),
@@ -85,6 +90,7 @@ module tb_spiRegisters;
         .spi_mosi           (spi_mosi),
         .spi_chip_select_n  (spi_chip_select_n),
         .window_read_data   (window_read_data),
+        .diagnostics        (diagnostics),
         .spi_miso           (spi_miso),
         .test_mode          (test_mode),
         .leds               (leds),
@@ -220,6 +226,7 @@ module tb_spiRegisters;
         last_window_address = 2'd0;
         last_window_data    = 8'h00;
         window_read_data    = WINDOW_CONTENTS;
+        diagnostics         = DIAGNOSTICS_CONTENTS;
 
         reset_n             = 1'b0;
         spi_clock           = 1'b0;
@@ -291,8 +298,22 @@ module tb_spiRegisters;
         // This is what lets the map grow: a host that reads an address this
         // gateware does not implement gets zero rather than nonsense, and
         // learns what is implemented from the map version instead.
-        spi_read(7'h30, 8'd1);
+        spi_read(7'h40, 8'd1);
         check(read_data[0], 8'h00, "unmapped address reads zero");
+
+        // --- The 0x30 to 0x37 diagnostics window ---
+        //
+        // Least significant byte first, the same order the 0x20 window
+        // uses, so one convention covers both.
+        spi_read(7'h30, 8'd8);
+        check(read_data[0], 8'h33, "diagnostics byte 0");
+        check(read_data[1], 8'h44, "diagnostics byte 1");
+        check(read_data[2], 8'h55, "diagnostics byte 2");
+        check(read_data[3], 8'h66, "diagnostics byte 3");
+        check(read_data[4], 8'h77, "diagnostics byte 4");
+        check(read_data[5], 8'h88, "diagnostics byte 5");
+        check(read_data[6], 8'h01, "diagnostics byte 6");
+        check(read_data[7], 8'hDD, "diagnostics byte 7");
 
         // --- The 0x20 to 0x23 window ---
         //

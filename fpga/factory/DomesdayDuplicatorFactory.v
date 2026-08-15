@@ -196,6 +196,7 @@ module DomesdayDuplicatorFactory (
         .spi_mosi         (fx3_spi_mosi),
         .spi_chip_select_n(fx3_spi_chip_select_n),
         .window_read_data (window_read_data),
+        .diagnostics      (remote_update_diagnostics),
 
         // Outputs
         .spi_miso           (fx3_spi_miso),
@@ -278,7 +279,18 @@ module DomesdayDuplicatorFactory (
     wire [23:0] boot_address;
     wire        reconfigure_request;
 
-    remoteUpdate remote_update_0 (
+    // BENCH DIAGNOSTIC. The remote update block's account of itself,
+    // carried to the register bank and presented read-only at 0x30.
+    wire [63:0] remote_update_diagnostics;
+
+    // BENCH DIAGNOSTIC, NOT A SETTING TO SHIP. Holds the handover so the
+    // block's own account of it can be read: the readings are latched in
+    // the last instant before the device reconfigures, which is a window
+    // no host can sample. With this set the unit stays in this image and
+    // the numbers sit still at registers 0x30 to 0x37.
+    remoteUpdate #(
+        .DiagnosticHold(1'b0)
+    ) remote_update_0 (
         // Inputs
         .reset_n            (boot_reset_n),
         .clock              (system_clock),
@@ -289,8 +301,9 @@ module DomesdayDuplicatorFactory (
         .boot_address       (boot_address),
         .reconfigure_request(reconfigure_request),
 
-        // Output
-        .control_read(reconfiguration_read)
+        // Outputs
+        .control_read(reconfiguration_read),
+        .diagnostics (remote_update_diagnostics)
     );
 
     bootLoader boot_loader_0 (

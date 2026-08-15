@@ -193,3 +193,11 @@ lint_off -rule UNUSEDSIGNAL -file "*/DomesdayDuplicatorFactory.v" -match "*test_
 // source names each one as unused in the signal map. They stay in the bus
 // because the pin assignments are fixed by the PCB.
 lint_off -rule UNUSEDSIGNAL -file "*/DomesdayDuplicator.v" -match "*fx3_control*"
+
+// remoteUpdate.v: the top five bits of the block's read data are unused.
+//
+// data_out is 29 bits because that is the widest thing the block returns - the
+// watchdog timeout value. The three things this design reads are narrower: two
+// bits of state mode, five of trigger condition, twenty-four of boot address.
+// Widening the reads to consume bits nothing means would be inventing a field.
+lint_off -rule UNUSEDSIGNAL -file "*/remoteUpdate.v" -match "*block_data_out*"
