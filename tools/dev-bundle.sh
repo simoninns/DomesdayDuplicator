@@ -22,7 +22,7 @@
 #
 #   firmware   fx3/firmware/build/firmware.img, then result-firmware/firmware.img,
 #              then result/firmware.img
-#   gateware   fpga/build/output_files/*.rpd, then result-bitstream/*.rpd
+#   gateware   fpga/build/application/*.rpd, then result-bitstream/application/*.rpd
 #
 # A firmware-only bundle is legal by schema, so a firmware developer never needs Quartus
 # for this loop; a gateware-only bundle is legal too. Nothing found at all is an error.
@@ -95,7 +95,13 @@ fi
 if [[ -z "$gateware" ]]; then
     # Globbed rather than named, because the raw image's filename follows the Quartus
     # project rather than a convention this script gets to set.
-    for candidate in "$root"/fpga/build/output_files/*.rpd "$root"/result-bitstream/*.rpd; do
+    #
+    # The application directory specifically, in both layouts. That is the half a device
+    # update rewrites; the factory image is written by JTAG once and a bundle must never
+    # carry it. It emits no .rpd today, so this is a statement of intent rather than a
+    # filter — but the intent is the part worth writing down.
+    for candidate in "$root"/fpga/build/application/*.rpd \
+                     "$root"/result-bitstream/application/*.rpd; do
         if [[ -f "$candidate" ]]; then
             gateware="$candidate"
             break

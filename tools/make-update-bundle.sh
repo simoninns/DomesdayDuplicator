@@ -174,13 +174,21 @@ trap 'rm -rf "$stage"' EXIT
 
 # Payloads are copied under the names the format fixes, so the manifest's "file" fields and
 # the archive's entry names cannot drift apart.
+#
+# Made writable after the copy, because cp takes the source's mode and a payload built by
+# Nix arrives from the store read-only. The verification pass below extracts the finished
+# bundle back over this directory, which cannot overwrite a file it is not allowed to
+# write — and result-firmware/firmware.img and result-bitstream/… are the documented way
+# to build one, so this is the ordinary path rather than an odd one.
 if [[ -n "$firmware" ]]; then
     [[ -f "$firmware" ]] || die "no such firmware image: $firmware"
     cp "$firmware" "$stage/firmware.img"
+    chmod u+w "$stage/firmware.img"
 fi
 if [[ -n "$gateware" ]]; then
     [[ -f "$gateware" ]] || die "no such gateware image: $gateware"
     cp "$gateware" "$stage/gateware-app.rpd"
+    chmod u+w "$stage/gateware-app.rpd"
 fi
 
 # The manifest. Written by hand rather than by a JSON library so that this script needs

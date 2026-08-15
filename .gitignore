@@ -146,3 +146,12 @@ compile_commands.json
 
 # direnv machine-local overrides
 .envrc.local
+
+# The release signing key's secret half, which must never be committed.
+# `minisign -G -W -p tools/keys/release.pub -s release.key` writes it into the
+# working directory, and the procedure in docs/content/development/release-pipeline.md
+# says to move it offline and delete it — this is the backstop for the run where
+# somebody types `git add -A` first. Named rather than globbed: tools/keys/development.key
+# is committed deliberately, secret half and all, and `*.key` would hide it.
+/release.key
+/tools/keys/release.key
