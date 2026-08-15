@@ -67,7 +67,11 @@ TEST(WaveformMappingTest, TheCursorReadsBackTheSampleUnderIt) {
 TEST(WaveformMappingTest, TheCursorReadsBackTheCodeUnderIt) {
   const WaveformMapping mapping = MakeMapping();
 
-  for (double code = 0.0; code <= 1023.0; code += 37.0) {
+  // Stepped by an index rather than by accumulating the code itself, so that
+  // the value under test is exact at every step and a round-trip failure can
+  // only be the mapping's.
+  for (int step = 0; step * 37 <= 1023; ++step) {
+    const double code = step * 37;
     EXPECT_NEAR(mapping.YToCode(mapping.CodeToY(code)), code, 1e-9);
   }
 }
