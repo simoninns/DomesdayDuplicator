@@ -62,6 +62,13 @@ The first stage is the slow one, and it is slow because it is doing two things a
 Duplicator writes the update as it receives it rather than collecting it first. There is no
 separate "writing" step to wait for.
 
+**An update carrying gateware takes minutes rather than seconds**, and the checking stage is
+the longest part of it — around a minute where the sending took twenty seconds, because the
+route to that chip's memory is much faster to write than to read back. The progress line
+says which stage it is in, and it will also pause for a second or so at intervals while a
+block of that memory is erased. Both are normal. The window's estimate before you start is
+deliberately pessimistic, so finishing early is the usual outcome.
+
 At the end you will see something like:
 
 > **Update complete**

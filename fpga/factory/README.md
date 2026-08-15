@@ -64,24 +64,62 @@ line. The FX3 is booting at the same moment, and a device that only entered its
 application image when the FX3 happened to release reset early enough would fail
 intermittently, in the field, for a reason nobody could see.
 
-## What still has to be confirmed on the bench
+## What the bench has settled, and what it has not
 
-Two things in this image are written from the documentation of the device rather than from
-a measurement, and **both must be confirmed before this image is frozen into fielded
-hardware**. Both are marked in the source where they appear.
+The handover ran on hardware for the first time on 2026-08-15 (TESTING.md §6, G0 and G1).
+A unit provisioned with a dual-image flash now updates over USB and cold-boots into the
+application image with no host attached.
 
-1. **The remote update parameter encoding** — `ParamBootAddress`, `ParamWatchdogValue` and
-   `ParamWatchdogEnable` in [../common/remoteUpdate.v](../common/remoteUpdate.v). They say
-   how the application's start address and the watchdog timeout are presented to the
-   device's reconfiguration block. Getting them wrong fails safely - the application image
-   is never entered and the unit stays here, which is the state it is in before it has ever
-   been provisioned - but it fails.
+**The remote update parameter encoding is confirmed.** All three parameter numbers were
+wrong - the boot address was written to a read-only register and the watchdog timeout to
+the early-CONF_DONE bit - and each is now checked against Table 17 of the Remote Update IP
+User Guide, read back out of the block on hardware through registers `0x30`-`0x37`, and
+pinned by `../tests/tb_bootLoader.v`.
 
-2. **The watchdog period.** `WatchdogTimeout` is currently the largest value the field
-   holds, which is the deliberately generous end of the range. The period has to sit
-   comfortably above the worst case of an FX3 boot plus its identity read; that figure is a
-   measurement nobody has taken yet, and a period set too short means a device that drops
-   into recovery whenever the FX3 boots slowly.
+That entry used to claim getting them wrong *fails safely*, and it is worth recording that
+the claim was false. The unit did not stay here. It reconfigured, failed, reverted, and
+reconfigured again, about three seconds a lap, indefinitely - a state that is neither
+recovery nor operation and that announces itself only as a blinking LED. **A failure in
+this image is not automatically a fall-back to this image**, and nothing about the design
+makes it one.
+
+Three things still have to be settled before this image is frozen, and all three are
+listed in TESTING.md §7:
+
+1. **The watchdog period.** `WatchdogTimeout` is still the largest value the field holds,
+   which is the deliberately generous end of the range. The mechanism is proven - an
+   application image ran well past the ~54 s timeout with the watchdog enabled, which it
+   could only do if the FX3's register traffic were resetting the timer - but the period
+   has to be narrowed to a measured margin over the worst case of an FX3 boot plus its
+   identity read. A period set too short means a device that drops into recovery whenever
+   the FX3 boots slowly.
+
+2. **The double-configuration time** (V5). Power-on is now two configurations rather than
+   one, and the FX3 firmware assumes the FPGA is ready well under a second. Nobody has
+   timed it against that assumption.
+
+3. **The refusal to make a second attempt.** The boot logic has no guard against an
+   application image that validates, configures, and is nonetheless dead - which is the
+   cycling case above. `Cd_early` now has the device check the image before committing to
+   it, which narrows the window to exactly that case, but the deliberate parking in
+   recovery after a failed attempt is still owed.
+
+## What the handover has to do, and why each part is there
+
+Four things, in this order, and the first bench session had to correct every one of them:
+
+1. **Relock the flash bridge.** Reading the boot block leaves the fabric driving the
+   flash's pins, and those are the pins the configuration engine is about to use. The
+   bridge is relocked on both paths out of the boot decision, before anything is armed.
+2. **Write `Osc_int` and `Cd_early`.** The device handbook requires the factory
+   configuration to set both, and this design set neither.
+3. **Stage the boot address** as a full 24-bit byte address; the block stores bits 23:2
+   and appends two zeros at boot.
+4. **Hold every strobe for at least 250 ns.** They were 200 ns. They are 800 ns now.
+
+The first three are asserted by `../tests/tb_bootLoader.v` - it fails if the bridge still
+drives the flash pins at handover, if either option bit is clear, or if the staged address
+is not the application's.
 
 What *is* established, by Quartus rather than by assumption: the reconfiguration block's
 clock is specified for a 25 ns minimum period and 10.1 ns minimum high and low times on

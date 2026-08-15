@@ -158,12 +158,28 @@ power-up, with **both** images: the factory image at address 0 and the capture g
 `0x200000`. It takes appreciably longer than the `.sof` path, because it programs the flash
 through the FPGA rather than configuring the FPGA directly.
 
-Then power cycle the board. It comes up running the **factory image**, which is the resident
-boot loader rather than the capture gateware: the boot block that points at the capture
-image has not been written yet, and writing it is the last step of a gateware update rather
-than part of this file. Until then the capture application reports the unit as running
-recovery gateware, which is the state the [EPCS layout and boot flow](../epcs-layout-and-boot-flow.md)
-page describes.
+The programmer prints the flash's silicon identifier as it works. It must read `0x16`, the
+EPCS64's, which is the same value the firmware checks before it will write a byte.
+
+**Then power cycle the board, and treat that as part of the procedure rather than as
+housekeeping.** The programmer reaches the flash by loading a serial flash loader into the
+FPGA, and it leaves that running — so until the board is power cycled the FPGA is running
+Altera's loader and not this project's gateware at all. It answers nothing on the register
+link, and an update attempted in that state is refused with *"the FPGA is not answering"*.
+
+What it comes up as depends on what was in the flash before, because **the erase is
+page-selective and the boot block sector is outside the pages this file writes**:
+
+- a board being provisioned for the first time has no boot block, so it comes up running the
+  **factory image** — the resident boot loader rather than the capture gateware. The capture
+  application reports it as running recovery gateware. Writing the boot block is the last
+  step of a gateware update rather than part of this file, so that is the expected state;
+- a board being *re*-provisioned keeps its existing boot block, and if the application image
+  just written still matches the CRC that block records, it boots straight into the capture
+  gateware.
+
+Both are correct. The [EPCS layout and boot flow](../epcs-layout-and-boot-flow.md) page
+describes the states and what makes an application image count.
 
 **This is the last time a cable is needed.** From here the capture gateware is updated over
 the same USB cable the Duplicator already uses.
@@ -172,16 +188,27 @@ the same USB cable the Duplicator already uses.
 
 ### The LEDs
 
-The DE0-NANO's eight LEDs run a distinctive bouncing pattern — one lit LED sweeping up the
-row and back down again — whenever the gateware is running.
+The gateware generates no pattern of its own. It lights **LED 0 alone** coming out of reset
+and then leaves the row to the FX3, which drives it over the register link as a status
+display. So the LEDs answer a different question than they used to, and a more useful one:
 
-This is a better check than it looks. The LED logic is clocked from the FPGA's PLL output,
-the same clock that drives the FX3 interface, so **a moving pattern means the PLL has locked
-and the design is clocking**. A frozen or dark row means it has not.
+| What you see | What it means |
+| --- | --- |
+| Nothing lit | The FPGA is unconfigured — its pins are high-Z |
+| One LED, steady | Gateware configured and running, and the FX3 has not spoken to it yet |
+| A firmware pattern | The FX3 is talking to it. The patterns are listed on the [FPGA register interface](../fpga-register-interface.md#led-0x11) page |
+| One LED, blinking every few seconds | **Not a pattern.** The FPGA is configuring repeatedly — see below |
 
-The pattern also stops if the FPGA is held in reset, which the FX3 does — so if the LEDs
-freeze when you press reset on the FX3 board and resume afterwards, the two boards are
-talking to each other.
+The blinking case is worth knowing on sight, because it is what a broken handover looks like
+and it is easy to read as a heartbeat. Each brief flash is a configuration completing, the
+FX3 not getting far enough to write the register, and the board reverting; the lap time is a
+few seconds. A unit doing this is not running the capture gateware at all, whatever the
+cable says.
+
+The old bouncing-LED check — one lit LED sweeping up the row and back — belonged to gateware
+predating the register interface, where it doubled as a PLL-lock indicator. The equivalent
+check now is the register bank answering at all: the identity block cannot be read unless the
+design is clocked and the PLL is locked.
 
 ### The device on USB
 

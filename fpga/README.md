@@ -54,7 +54,7 @@ Inside `application/`:
 | `DomesdayDuplicator.qsf` | Quartus settings — device, pin assignments, source list |
 | `DomesdayDuplicator.qpf` | Quartus project file |
 | `DomesdayDuplicator.SDC` | Timing constraints. Checked by `tests/run-sdc.sh`; the I/O delay values in its header are pessimistic placeholders pending the datasheets |
-| `DomesdayDuplicator.cof` | Conversion to the raw image bytes a device update writes |
+| `DomesdayDuplicator.cof` | Conversion to the raw image bytes a device update writes. Its `rpd_little_endian` setting decides the bit orientation of those bytes and is load-bearing — read the comment beside it before changing anything here |
 | `dataGenerator.v` | ADC sampling and the built-in test-data generator |
 | `buffer.v` | Sample buffering between the sampling side and the FX3 |
 | `fifo.v` | The single-clock FIFO `buffer.v` is built from |
@@ -67,7 +67,7 @@ Inside `common/`:
 | `spiRegisters.v` | The register bank the FX3 reads and writes over SPI, register map version 2 |
 | `flashBridge.v` | The explicitly-unlocked pass-through to the EPCS, registers `0x20`–`0x22` |
 | `asmiBlock.v` | Access to the configuration flash pins, which are not user I/O |
-| `remoteUpdate.v` | Reconfiguration and the configuration watchdog, register `0x23` |
+| `remoteUpdate.v` | Reconfiguration and the configuration watchdog, register `0x23`, and the block's read-back of its own setup at `0x30`–`0x37` |
 | `version.vh` | Generated build stamp the register bank reports; regenerated into the build directory by `generate-version.sh` |
 | `IPpllGenerator.v` | Instantiation of the Altera `altpll` primitive |
 | `sim/` | Behavioural models of the two device primitives and of the EPCS64 itself, so the free tools can simulate what the real parts do. Test fixtures; never compiled into a bitstream |
@@ -199,7 +199,7 @@ Either produces, in a directory laid out like the sources:
 | Output | What it is |
 | --- | --- |
 | `application/DomesdayDuplicator.sof` | Volatile JTAG configuration of the capture gateware |
-| `application/DomesdayDuplicator_auto.rpd` | The application image as bytes in the flash — what a device update writes |
+| `application/DomesdayDuplicator_auto.rpd` | The application image as bytes in the flash — what a device update writes, verbatim and bit for bit |
 | `factory/DomesdayDuplicatorFactory.sof` | Volatile JTAG configuration of the factory image |
 | `provisioning/DomesdayDuplicatorProvisioning.jic` | **Both images**, at their EPCS64 addresses. This is what provisions a board |
 | `provisioning/DomesdayDuplicatorProvisioning.map` | Where the converter actually put them — the check on the layout |
@@ -247,9 +247,18 @@ cd factory      && quartus_pgm DomesdayDuplicatorFactory_write_sof.cdf        # 
 application half is updated over the USB cable it already has — see the
 [device update mechanism](../docs/content/development/device-update-mechanism.md).
 
+**Power cycle after any of the three**, and after the `.jic` in particular: `quartus_pgm`
+reaches the flash by loading a serial flash loader into the FPGA and leaves it running, so
+until the board is power cycled the FPGA is running Altera's loader rather than either of
+these images. It answers nothing on the register link, and an update attempted in that
+state is refused for exactly that reason.
+
 One thing the provisioning file does *not* carry is the boot block: it is written to
 `0x100000` by the update path, on a device, and until it is there a freshly provisioned
-unit comes up in the factory image and reports itself in recovery. `boot-block.bin` beside
+unit comes up in the factory image and reports itself in recovery. The erase is
+page-selective, so *re*-provisioning a working unit leaves its old boot block in place, and
+a unit whose new application image still matches that block's CRC boots straight into it.
+`boot-block.bin` beside
 the `.jic` is exactly the twenty-four bytes for the application image built alongside it.
 Quartus' converter has no way to place arbitrary data in a `.jic` for this device family —
 tried, and it refuses the conversion — so the two artefacts stay separate.

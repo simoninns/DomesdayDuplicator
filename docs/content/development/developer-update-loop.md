@@ -27,9 +27,19 @@ It builds nothing itself, deliberately. Building the firmware is `cmake --build 
 | | Looked for, in order |
 | --- | --- |
 | firmware | `fx3/firmware/build/firmware.img`, `result-firmware/firmware.img`, `result/firmware.img` |
-| gateware | `fpga/build/output_files/*.rpd`, `result-bitstream/*.rpd` |
+| gateware | `fpga/build/application/*.rpd`, `result-bitstream/application/*.rpd` |
+
+The **application** directory specifically, in both layouts. That is the half a device update rewrites; the factory image is written by JTAG once and a bundle must never carry it.
 
 A bundle with one component is a complete bundle, so **a firmware developer never needs Quartus for this loop** and a gateware developer never needs the ARM cross-toolchain. Nothing built at all is an error, with a reminder of the two build commands.
+
+### Each payload's identity is read out of the payload
+
+The commit a bundle *claims* for each component is read from the artefact that will have to report it — the firmware's USB product string out of `firmware.img`, the gateware's commit out of the `bitstream-provenance.txt` beside the image — and not from the working tree.
+
+They are only the same thing when everything was just rebuilt, and taking the tree's commit instead cost a bench run: HEAD moved between a build and the packaging, the manifest promised a commit nothing inside it could report, and a multi-minute gateware update failed at its very last step with the flash already correctly written. The install-time check that caught it was right; the bundle was wrong.
+
+So packaging an artefact older than the tree is legitimate — it is what happens whenever the gateware is left alone while the firmware is worked on — and the script prints a note saying which commit each half really came from. What it will not do is guess: an artefact it cannot read an identity out of is refused, with the rebuild command to run.
 
 It works natively and under `nix develop`. Outside Nix you need `minisign` and GNU `tar` on `PATH`; both are ordinary distribution packages.
 
@@ -85,9 +95,11 @@ The exit codes are distinct on purpose: a script driving a bench procedure wants
 
 `ddd-update` is built by `cmake --build ddd-gui/build` alongside the application, and by `nix build .#ddd-gui`. It links no Qt, which is not a detail: that is the enforcement of the rule that the updater engine is Qt-free. If a Qt dependency ever creeps into the update path, this target stops linking.
 
-!!! note "Today's bundles are firmware-only"
+!!! note "Both halves install"
 
-    The FX3 half of the update mechanism is finished; the FPGA half is not. A bundle carrying gateware verifies and displays perfectly well, and the firmware refuses the gateware target with a clear reason rather than pretending. `dev-bundle.sh` will happily package a `.rpd` if you have built one — it just cannot be installed yet.
+    Both targets install, and `ddd-update` drives them without being told which is which. The firmware half has worked since Phase 2; the gateware half was first performed on hardware on 2026-08-15 (TESTING.md §6). Expect the gateware target to take minutes rather than seconds, and to end in a reconfiguration rather than a device reset.
+
+    The one prerequisite is that the unit has been **provisioned** with the dual-image flash over JTAG, once, before any of this works — a unit whose FPGA carries a single old image has nothing behind the capture gateware to be updated *by*, and the firmware says so rather than trying. That procedure is on the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md#provisioning-a-unit) page.
 
 ## What CI does with the same tooling
 

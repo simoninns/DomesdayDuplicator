@@ -135,9 +135,11 @@ Map version `0x02`, which is what both gateware images in this repository report
 | `0x21` | `BRIDGE_CONTROL` | RW | `0x00` | no |
 | `0x22` | `BRIDGE_DATA` | RW | — | no |
 | `0x23` | `RECONFIG_CONTROL` | RW | `0x00` | no |
-| `0x24` to `0x7F` | — | unmapped | | |
+| `0x24` to `0x2F` | — | unmapped | | |
+| `0x30` to `0x37` | `RU_DIAG_0` to `RU_DIAG_7` | RO | — | — |
+| `0x38` to `0x7F` | — | unmapped | | |
 
-Version 1 changed nothing below `0x0B`, and the identity block at `0x00` to `0x0A` is frozen across all map versions, so a host that does not recognise the version can still read who it is talking to. `0x20` to `0x23` are the flash bridge and the reconfiguration control, through which the FX3 reaches the EPCS configuration flash and triggers reconfiguration; they are defined on the [device update mechanism](device-update-mechanism.md) page and summarised below.
+Version 1 changed nothing below `0x0B`, and the identity block at `0x00` to `0x0A` is frozen across all map versions, so a host that does not recognise the version can still read who it is talking to. `0x20` to `0x23` are the flash bridge and the reconfiguration control, through which the FX3 reaches the EPCS configuration flash and triggers reconfiguration; they are defined on the [device update mechanism](device-update-mechanism.md) page and summarised below. `0x30` to `0x37` are a bench instrument: the reconfiguration block's read-back of its own setup, added at map version 2 without bumping it, because read-only registers at addresses that used to read zero break nothing.
 
 "Host-writable" is a firmware policy, not a gateware one. The gateware accepts a write to any read/write register from whoever is on the link; the FX3 is what declines to relay some of them.
 
@@ -216,6 +218,33 @@ Four registers that reach outside the register bank. They are defined in full on
 
 **The bridge is inert until it is unlocked.** Anything that can send `0xB8` can reach these addresses and the flash holds the only copy of the gateware, so the unlock is what stands between a stray write and an unbootable board. While the bridge is locked the gateware does not drive the flash's pins at all. `nReset` locks it, and so does a completed reconfiguration.
 
+### Remote update diagnostics, `0x30` to `0x37`
+
+Eight read-only bytes carrying one 64-bit word: the reconfiguration block's own account of how the last boot was set up, read back out of the block itself rather than reported by the logic that drove it.
+
+The word is presented **least significant byte first**, so `0x30` is bits 7:0 and `0x37` is bits 63:56 — one eight-byte transaction, and a host assembles it in the order the bytes arrive.
+
+| Bits | Field |
+| --- | --- |
+| 63:56 | Signature, `0xDD` |
+| 55 | All reads completed |
+| 54:53 | Master state machine mode — `00` factory, `01` application |
+| 52:48 | The trigger condition of the previous configuration attempt |
+| 47:24 | The staged boot address, as the block holds it |
+| 23:12 | The watchdog timeout value |
+| 11 | Watchdog enabled |
+| 10 | `Osc_int` — internal oscillator selected |
+| 9 | `Cd_early` — early configuration check enabled |
+| 8:0 | Reserved, read as 0 |
+
+**The signature is what makes the window safe to read.** An unmapped address returns `0x00`, so gateware built without this instrument reads as all zeros here and is indistinguishable from a working one that has been set up entirely wrongly — which is exactly the case somebody reading these registers is trying to tell apart. `0xDD` in the top byte says the instrument is present; the "all reads completed" bit says it finished.
+
+This exists because the parameters written to the reconfiguration block are otherwise unobservable. They are write-only from the fabric's point of view, they take effect only at the next configuration, and a wrong one produces a device that reconfigures in a loop rather than an error anybody can read. Three of them *were* wrong, and this window is how each was measured rather than guessed — the story is in TESTING.md §6 and on the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md) page.
+
+It is kept rather than removed after the diagnosis, at a cost of a few microseconds of reads during boot and no runtime cost at all. The values are sampled once, immediately after the block is set up, and then stand still.
+
+**`MAP_VERSION` does not bump for this.** Adding read-only registers at previously unmapped addresses is additive under the rule on the [device update mechanism](device-update-mechanism.md) page: an older host reads the addresses it knows and never asks for these, and a host that does ask a gateware without them gets zeros and the missing signature. Both images carry the window, because it lives in `remoteUpdate.v`, which both images carry.
+
 ## USB interface
 
 Two vendor requests act on the register bank directly, so a register added to the map later needs no firmware change to become reachable from the host. They replaced the bit-flag configuration request `0xB6`, which is retired.
@@ -286,7 +315,7 @@ The lines are push-pull over a few centimetres through two headers, which is unr
 | --- | --- |
 | `fpga/common/spiRegisters.v` | The slave and the registers, shared by both images |
 | `fpga/common/flashBridge.v` | `0x20` to `0x22`, and the lock |
-| `fpga/common/remoteUpdate.v` | `0x23`, the watchdog and the reconfiguration trigger |
+| `fpga/common/remoteUpdate.v` | `0x23`, the watchdog, the reconfiguration trigger, and the `0x30`–`0x37` read-back |
 | `fpga/generate-version.sh` | The build stamp the identity block reports |
 | `fx3/firmware/src/fpga-registers.c` | The bit-banged SPI master |
 | `fx3/firmware/src/fpga-register-map.c` | The map, and every decision about it that needs no hardware |

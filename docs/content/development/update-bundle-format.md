@@ -20,6 +20,8 @@ domesday-duplicator-update-<version>.dddfw     uncompressed ustar archive
 
 **The gateware payload is the application image only.** The factory image and the combined provisioning `.jic` are release artefacts too, for bench provisioning, but they are not in the bundle: the bundle contains only what the device is permitted to write to itself.
 
+**And it is written to the flash verbatim** — no header stripped, no bytes reordered, nothing interpreted, by the application or the firmware or the gateware. So the `.rpd` in a bundle must already be in the bit orientation the FPGA's configuration engine reads, which is decided when Quartus emits it and is not observable anywhere downstream: an image in the wrong orientation passes the signature, every digest, and the device's own readback, and then configures nothing. The [EPCS layout and boot flow](epcs-layout-and-boot-flow.md#the-bytes-in-the-flash-are-bit-reversed) page has the detail; what belongs here is that this format carries a payload no check in it can validate the meaning of.
+
 **Components are individually optional.** A firmware-only bundle is a complete bundle. That is what the developer loop produces, what per-commit CI produces, and what the early phases of this work shipped before the gateware path existed. A bundle with no components at all is refused.
 
 ## Reading one by hand

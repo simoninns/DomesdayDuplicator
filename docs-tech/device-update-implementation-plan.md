@@ -116,6 +116,14 @@ host or no host. A wedged application image (configures, but its fabric/SPI is d
 therefore times out and the device reverts to factory. A corrupt application image
 fails configuration CRC and reverts to factory without the watchdog's help.
 
+Two things the bench added to this account. The factory image must **relock the flash
+bridge** before it hands over, or the fabric is still driving the pins the configuration
+engine needs, and it must write the `Osc_int` and `Cd_early` option bits the handbook
+requires of a factory configuration. And "reverts to factory" is not the same as "parks in
+factory": the factory image makes the same decision again from the same flash, so an image
+that configures and is dead cycles at about three seconds a lap rather than stopping. The
+deliberate refusal to make a second attempt is outstanding pre-freeze work.
+
 The update flow writes the application image first, verifies it by readback CRC, and
 writes the boot block **last**; an interrupted gateware update leaves an invalid boot
 block and the unit simply stays in factory. Rollback is "erase the boot block sector".
@@ -531,12 +539,17 @@ is performed.
 - Bench: JTAG-provision a unit with the dual-image `.jic` — the last time a cable is
   required. Verify factory→application boot, watchdog fallback with a deliberately
   wedged application image, and the FX3 "FPGA ready" timing assumption (items V4, V5).
-- **Exit:** provisioned unit boots to application; corrupting the boot block by JTAG
-  lands it in factory with the GUI showing recovery state.
+- **Exit: met for the boot path, 2026-08-15.** A unit was provisioned and cold-boots
+  factory→application with no host attached (TESTING.md §6, G0); V4 is confirmed twice
+  over, from the block's own read-back and from an analyser watching the configuration
+  engine read at `0x200000`. Still outstanding: **V5**, the double-configuration timing
+  against the FX3's readiness assumption, and the other half of the exit criterion —
+  corrupting the boot block by JTAG and confirming the GUI's recovery state — which is
+  grouped with the Phase 5 interruption tests below because it is the same sitting.
 
 ### Phase 5 — Gateware update path (target 1)
 
-**Software complete; the bench half is outstanding and needs a provisioned unit.**
+**The clean path is proved on hardware (2026-08-15); the interruption half is outstanding.**
 
 - FX3: EPCS driver through the bridge (`epcs-flash.c`: silicon-ID sanity check, sector
   erase, page program, read, reconfiguration trigger) behind `0xD1–0xD3` target 1 and
@@ -554,16 +567,24 @@ is performed.
   **Reinstall gateware** button that runs an ordinary update.
 - Chunk alignment is now 256 bytes on the host, which satisfies both media for any
   advertised chunk size.
-- **Outstanding — bench:** full gateware update from the running application image;
-  interrupted-update test (power pull mid-write → boots factory → GUI repair);
-  throughput measurement (item V6; optimise the bit-bang only if it dominates —
-  the read path is the half that would change, and it is in the frozen image);
-  silicon identifier and raw-image bit order confirmed against a part (V7). All of it
-  needs a unit provisioned with the Phase 4 dual-image `.jic`, which has not been done.
-  TESTING.md §7 records what the first session has to establish.
+- **Done on the bench, 2026-08-15** (TESTING.md §6, G1): a full gateware update from the
+  running application image, ending in the handover, with the identity verified after the
+  reconfiguration and a capture run over the result. **V6**: 17 s to send a 212 KB
+  compressed image and 59 s for the device-side readback verify — the read path dominates
+  as predicted, and it is in the frozen image, so this is the number the freeze decision
+  rests on. **V7**: both halves — the silicon identifier (`0x16`) seen on the wire, and the
+  raw-image bit order, which was **wrong**. `rpd_little_endian` had the updater writing
+  every image bit-reversed with respect to what the configuration engine reads; nothing in
+  the integrity chain can see this, because the flash matches what was sent. Four further
+  gateware defects were found and fixed in the same session; all five are recorded in
+  TESTING.md §6 and the two that are policy are on the EPCS layout page.
+- **Outstanding — bench:** the interruption cases. Power pulled mid-write (which must leave
+  the previous image bootable), power pulled during the readback verify, the boot block
+  sector erased by JTAG, and the *recovery gateware* → **Reinstall gateware** repair driven
+  from each of those states.
 - **Exit:** gateware updated GUI-to-device in a few minutes, survivable at any
-  interruption point, identity-verified after reboot. **Not yet met** — everything
-  testable without hardware passes; nothing has run on a board.
+  interruption point, identity-verified after reboot. **Met except for survivability**,
+  which is what the outstanding tests above are for.
 
 ### Phase 6 — Release pipeline
 
@@ -760,8 +781,17 @@ Phase 6 exists.
   gets disproportionate review and bench soak in Phase 4 — it is the one component a
   field update can never fix.
 - **Watchdog policy**: the tickle-after-first-SPI-transaction design needs the
-  watchdog period comfortably above worst-case FX3 boot + identity read; measured in
-  Phase 4 before the policy is frozen into the factory image.
+  watchdog period comfortably above worst-case FX3 boot + identity read. The mechanism
+  is proved (an application image ran well past the ~54 s timeout with the watchdog
+  enabled) but the period is still the field's maximum rather than a measured margin;
+  it was not measured in Phase 4 and remains outstanding before the freeze.
+- **The integrity chain cannot see the flash's bit orientation**, and this bit the
+  project once. Every check compares the flash against what was sent, and an image
+  written in the wrong bit order matches itself perfectly; only the configuration engine
+  ever sees the difference, and it cannot report. The orientation is decided by
+  `rpd_little_endian` in the application `.cof` and is now commented as load-bearing, but
+  the general lesson stands: **anything the host and device agree on cannot be validated
+  by them agreeing**, and this is the only such thing left in the chain.
 - **Quartus-in-CI sustainability**: the release path now depends on a multi-gigabyte
   unfree toolchain materialising on a hosted runner — cache eviction makes releases
   slow, Intel CDN link rot makes them fail (visible immediately, since the fetch is

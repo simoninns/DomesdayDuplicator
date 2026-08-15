@@ -8,9 +8,9 @@ How a Domesday Duplicator updates its own firmware and gateware over the one USB
 
     **Target 0 — the FX3 boot EEPROM — is implemented and proved on hardware.** The firmware answers `0xD0`–`0xD4`, brings up its own I2C block, writes and verifies its own boot EEPROM, and advertises a protocol version in `bcdDevice`. The application installs a bundle through it and `ddd-update` does the same headlessly.
 
-    **Target 1 — the FPGA's EPCS — is implemented and not yet proved on hardware.** The firmware drives the EPCS through the gateware's flash bridge: it identifies the flash, erases and programs the application region, reads it back to check the digest, writes the boot block last, and answers `0xD5`. Both gateware images implement register map version 2 around it. What has not happened is the bench — no unit has been provisioned with a dual-image flash, so the whole of the gateware path has been exercised only against the host-side tests and the free-tool simulation.
+    **Target 1 — the FPGA's EPCS — is implemented and proved on hardware.** The firmware drives the EPCS through the gateware's flash bridge: it identifies the flash, erases and programs the application region, reads it back to check the digest, writes the boot block last, and answers `0xD5`. Both gateware images implement register map version 2 around it. A unit was provisioned, updated and handed over from the factory image to the application image on 2026-08-15; the procedure is §6 of TESTING.md, and the defects that first session found are recorded there and on the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md) page.
 
-    Two numbers on this page are therefore still written from documentation rather than from a measurement: how long a gateware update takes, and the flash's silicon identifier. Both are in the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md) page's list of what the first bench session settles.
+    Both numbers this page used to carry from documentation are now measurements: the flash's silicon identifier is `0x16`, and how long an update takes is under [Writing the EPCS](#writing-the-epcs-what-target-1-actually-does) below. What has *not* been exercised is the interruption half — power lost mid-write or mid-verify — which is the next bench session, and which the commit ordering below is what will be under test.
 
 ## The problem
 
@@ -119,7 +119,7 @@ What the FPGA reconfigures *to* is the factory image, not the application image.
 
 The route is four links deep — bit-banged SPI to the register bank, the flash bridge at `0x20`–`0x22`, the `asmiblock` primitive, then the flash — and every decision along it is made in the firmware. The gateware shifts bytes and knows none of the commands below.
 
-**At `0xD1`**, before a byte is accepted: the firmware checks that a gateware carrying the bridge is answering, unlocks the bridge, reads the flash's silicon identifier with `0xAB`, and checks that the device it names is large enough to hold the image at the application address. A flash that answers `0x00` or `0xFF` has not answered at all — those are the two readings of a line with nothing driving it — and both are refused with `UPDATE_ERROR_HARDWARE`. Nothing is erased at this point, so an update abandoned before its first chunk leaves the previous gateware intact and running.
+**At `0xD1`**, before a byte is accepted: the firmware checks that a gateware carrying the bridge is answering, unlocks the bridge, reads the flash's silicon identifier with `0xAB` — the EPCS64 answers `0x16`, confirmed on the bench both through this path and on an analyser watching the configuration engine do the same thing — and checks that the device it names is large enough to hold the image at the application address. A flash that answers `0x00` or `0xFF` has not answered at all — those are the two readings of a line with nothing driving it — and both are refused with `UPDATE_ERROR_HARDWARE`. Nothing is erased at this point, so an update abandoned before its first chunk leaves the previous gateware intact and running.
 
 **At each `0xD2`**, in address order from `0x200000`: where a chunk crosses into a sector that has not been erased, that sector is erased; then each page of the chunk is programmed with `WREN` and `0x02`, with the status register polled until the write-in-progress bit clears. The image is written strictly forwards, so erasing the sector an address opens is both necessary and sufficient, and an image occupying six sectors costs six erases rather than erasing a device that is mostly factory image.
 
@@ -129,7 +129,11 @@ The route is four links deep — bit-banged SPI to the register bank, the flash 
 
 The bridge is unlocked for the duration of one flash operation and locked again afterwards, which also releases the flash's pins — so between operations the gateware is not connected to the flash at all. Locking mid-operation would release those pins with a command in flight, which is why the unlock spans the whole of one rather than each framed command inside it.
 
-**Throughput is the open question, not correctness.** A page program is one framed register transaction of 260 bytes, because `BRIDGE_DATA` does not auto-increment — so writing costs one link-crossing per flash byte. Reading costs four, because latching the byte that came back needs a write to shift it and a read to collect it, and the register bank drives zeros on `MISO` during a write transaction so the two cannot share a frame. Write once, read back once, and a 350 KB image is a minutes-long operation. Whether that is two minutes or five is a measurement (verification item V6 in TESTING.md), and if it proves to dominate, the fix is a bridge that starts the next shift on a read — a change to the gateware, and therefore to the frozen half of it, which is exactly why it is not being made ahead of the measurement.
+**The payload is written exactly as the bundle carries it**, byte for byte and bit for bit. Nothing in this path reorders anything, which is why the orientation of the bits inside the `.rpd` is decided when Quartus emits it and is load-bearing there: an image in the wrong orientation passes every check on this page that can produce a message — the signature, links 5 and 6, the readback — and is then rejected by link 7, which has nowhere to report to and only makes the device reconfigure again. That is [described in full](epcs-layout-and-boot-flow.md#the-bytes-in-the-flash-are-bit-reversed) on the layout page, and it is stated here because the firmware's refusal to interpret the payload is what makes it someone else's job.
+
+**Throughput was the open question, not correctness — and it is now measured.** A page program is one framed register transaction of 260 bytes, because `BRIDGE_DATA` does not auto-increment — so writing costs one link-crossing per flash byte. Reading costs four, because latching the byte that came back needs a write to shift it and a read to collect it, and the register bank drives zeros on `MISO` during a write transaction so the two cannot share a frame.
+
+V6, on the bench: a 212 KB compressed image sends in **17 seconds** and its device-side readback verify takes **59 seconds**; an uncompressed 719 KB image scales linearly at 57 seconds and 200 seconds. The readback dominates, as the asymmetry above predicts, and its cost lives in the frozen factory image's bridge — which is precisely why the measurement was wanted before the freeze rather than after it. The available fix, if it ever matters enough, is a bridge that starts the next shift on a read.
 
 ### Commit ordering is the safety mechanism
 
@@ -161,8 +165,9 @@ The gateware's register interface gains a role register and a flash bridge. Ever
 | `0x21` | `BRIDGE_CONTROL` | RW | `0x00` | Chip select assert and deassert |
 | `0x22` | `BRIDGE_DATA` | RW | — | One SPI byte out, the simultaneously shifted byte in |
 | `0x23` | `RECONFIG_CONTROL` | RW | `0x00` | Arm and trigger reconfiguration; watchdog tickle |
+| `0x30`–`0x37` | `RU_DIAG_0`–`7` | RO | — | The reconfiguration block's read-back of its own setup, signature `0xDD` |
 
-`MAP_VERSION` at `0x01` reads `0x02` for gateware implementing this.
+`MAP_VERSION` at `0x01` reads `0x02` for gateware implementing this. The diagnostics window was added after version 2 was defined and does **not** bump it, which is the additive rule below applied to its own map: read-only registers at addresses that previously read `0x00` cannot break a host that does not know about them. It is documented on the [FPGA register interface](fpga-register-interface.md) page.
 
 **`IMAGE_ROLE` exists so that "which image am I running?" is a question with an answer.** Without it the only way to tell a factory image from an application image would be to infer it from what else is present, and a recovery state the application has to guess at is a recovery state it will sometimes get wrong.
 
@@ -235,6 +240,8 @@ Both targets fail into a state the application can recognise and repair, and nei
 | Gateware update interrupted | Boot block invalid, the FPGA stays in the factory image | "Recovery gateware running — reinstall gateware", with a one-click repair |
 | Application image wedged | Remote-update watchdog expires, the FPGA reverts to factory | As above |
 | Both, or something stranger | | The bench procedures in the provisioning appendix, which need a cable |
+
+The third row has a caveat the bench made concrete. The watchdog reverts a wedged image to factory, and the factory image then makes the same decision from the same flash and hands over again — so an image that configures cleanly and is dead cycles rather than parking. The unit is not damaged and a reinstall repairs it, but the state does not announce itself as clearly as the row implies. A deliberate refusal to make a second attempt is owed before the factory image is frozen; the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md#boot-flow) page carries it as outstanding work.
 
 The application's own words for these states and this page's words are meant to be the same words. A user reading "recovery gateware running" in a dialog and then finding a page that calls it something else has been given two problems.
 
