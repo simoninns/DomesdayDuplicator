@@ -155,6 +155,20 @@ jobs:
           nix copy --to "file://$HOME/quartus-closure?compression=zstd" .#quartus-prime-lite
           du -sh "$HOME/quartus-closure"
 
+      # Quartus is not a Nix-native package: it runs inside an FHS environment, which is
+      # built on bubblewrap, which needs an unprivileged user namespace. Ubuntu 24.04
+      # restricts those with an AppArmor profile, and the runner image inherits it — so
+      # the compile fails at its first line with `bwrap: setting up uid map: Permission
+      # denied` and never reaches Quartus at all.
+      #
+      # Lifted here rather than worked around in the derivation: the restriction is a
+      # property of this runner image, and an FHS environment is how every unfree
+      # toolchain of this kind is packaged. `|| true` because a future image that does
+      # not carry the knob is a fine outcome, not a failure.
+      - name: Allow the unprivileged user namespaces bubblewrap needs
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
       # Both images, the provisioning .jic, the raw application image a device update
       # writes, the boot block and the provenance record — fpga/package.nix decides all of
       # that, and this workflow deliberately knows none of it. The derivation's own

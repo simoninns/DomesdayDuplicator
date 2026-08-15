@@ -42,6 +42,16 @@ constexpr double kTopDecibels = 0.0;
 constexpr double kBottomDecibels = -100.0;
 constexpr double kDecibelsPerGridLine = 20.0;
 
+// How many gridlines that gives, counting both ends. Every loop over the scale
+// counts these rather than accumulating a double, because a float loop counter
+// accumulates its own rounding error: the last line of a long scale lands a
+// little off where the arithmetic says it should, and the compiler cannot warn
+// about a value that is only slightly wrong. It is also a finding clang-tidy
+// makes, under a name that has changed between releases — so the fix is here
+// rather than in a suppression that only some versions would need.
+constexpr int kDecibelGridLines =
+    static_cast<int>((kTopDecibels - kBottomDecibels) / kDecibelsPerGridLine);
+
 // 2 MHz gridlines put the LaserDisc FM carrier — around 8 MHz — between two of
 // them rather than on one, which is what makes a drift visible, and keep the
 // axis readable across every displayed range rather than only the widest.
@@ -331,23 +341,25 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
 
   if (spectrogram) {
     // Frequency runs up the side here, so its gridlines are horizontal.
-    for (double frequency = kGridFrequencyStepHz;
-         frequency < maximum_frequency_hz_; frequency += kGridFrequencyStepHz) {
+    for (int line = 1; line * kGridFrequencyStepHz < maximum_frequency_hz_;
+         ++line) {
+      const double frequency = line * kGridFrequencyStepHz;
       const double y =
           area.bottom() - (frequency / maximum_frequency_hz_ * area.height());
       painter.drawLine(QPointF(area.left(), y), QPointF(area.right(), y));
     }
   } else {
-    for (double level = kTopDecibels; level >= kBottomDecibels;
-         level -= kDecibelsPerGridLine) {
+    for (int line = 0; line <= kDecibelGridLines; ++line) {
+      const double level = kTopDecibels - (line * kDecibelsPerGridLine);
       const double proportion =
           (level - kBottomDecibels) / (kTopDecibels - kBottomDecibels);
       const double y = area.bottom() - (proportion * area.height());
       painter.drawLine(QPointF(area.left(), y), QPointF(area.right(), y));
     }
 
-    for (double frequency = kGridFrequencyStepHz;
-         frequency < maximum_frequency_hz_; frequency += kGridFrequencyStepHz) {
+    for (int line = 1; line * kGridFrequencyStepHz < maximum_frequency_hz_;
+         ++line) {
+      const double frequency = line * kGridFrequencyStepHz;
       const double x =
           area.left() + (frequency / maximum_frequency_hz_ * area.width());
       painter.drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
@@ -357,8 +369,9 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
   painter.setPen(theme_tokens::MutedText(colours));
 
   if (spectrogram) {
-    for (double frequency = 0.0; frequency <= maximum_frequency_hz_;
-         frequency += kGridFrequencyStepHz) {
+    for (int label = 0; label * kGridFrequencyStepHz <= maximum_frequency_hz_;
+         ++label) {
+      const double frequency = label * kGridFrequencyStepHz;
       const double y =
           area.bottom() - (frequency / maximum_frequency_hz_ * area.height());
       painter.drawText(QRectF(0.0, y - (metrics.height() / 2.0),
@@ -382,13 +395,15 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
 
     const double step = TimeAxisStepSeconds(window);
     painter.setPen(theme_tokens::GridLine(colours));
-    for (double ago = step; ago < window; ago += step) {
+    for (int mark = 1; mark * step < window; ++mark) {
+      const double ago = mark * step;
       const double x = area.right() - (ago / window * area.width());
       painter.drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
     }
 
     painter.setPen(theme_tokens::MutedText(colours));
-    for (double ago = step; ago < window; ago += step) {
+    for (int mark = 1; mark * step < window; ++mark) {
+      const double ago = mark * step;
       const double x = area.right() - (ago / window * area.width());
       painter.drawText(
           QRectF(x - 40.0, area.bottom() + 2.0, 80.0, kAxisHeightPixels - 2.0),
@@ -397,8 +412,8 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
     return;
   }
 
-  for (double level = kTopDecibels; level >= kBottomDecibels;
-       level -= kDecibelsPerGridLine) {
+  for (int line = 0; line <= kDecibelGridLines; ++line) {
+    const double level = kTopDecibels - (line * kDecibelsPerGridLine);
     const double proportion =
         (level - kBottomDecibels) / (kTopDecibels - kBottomDecibels);
     const double y = area.bottom() - (proportion * area.height());
@@ -408,8 +423,9 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
                      tr("%1 dB").arg(level, 0, 'f', 0));
   }
 
-  for (double frequency = 0.0; frequency <= maximum_frequency_hz_;
-       frequency += kGridFrequencyStepHz) {
+  for (int label = 0; label * kGridFrequencyStepHz <= maximum_frequency_hz_;
+       ++label) {
+    const double frequency = label * kGridFrequencyStepHz;
     const double x =
         area.left() + (frequency / maximum_frequency_hz_ * area.width());
     painter.drawText(

@@ -391,7 +391,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             cmake ninja-build pkg-config libgl-dev clang-tidy clang-format \
-            qt6-base-dev qt6-tools-dev libgtest-dev libflac-dev libusb-1.0-0-dev
+            libgtest-dev libflac-dev libusb-1.0-0-dev
+
+      # Qt from here rather than from apt, because this application's floor is 6.5 —
+      # QStyleHints::colorScheme() is how it follows the desktop's light/dark setting —
+      # and the runner image ships 6.4.2. An apt Qt therefore fails at configure, which
+      # is what it did from the day this job was added until this step existed.
+      #
+      # Pinned rather than tracking latest: the point of a native job is to build the way
+      # a distribution does, and a version that moved under us would turn every unrelated
+      # run into a Qt upgrade. gui/ keeps its apt Qt, whose floor is 6.2.
+      - name: Install Qt (Linux)
+        if: runner.os == 'Linux'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.*'
+          cache: true
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
