@@ -13,10 +13,13 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <thread>
@@ -61,8 +64,20 @@ int SoakSeconds() {
     return 60;
   }
 
-  const int seconds = std::atoi(configured);
-  return (seconds > 0) ? seconds : 60;
+  // strtol rather than atoi, which reports nothing: it cannot distinguish
+  // "0" from "overnight" from an empty string, and all three would silently
+  // become the default here. A soak that quietly ran for the default length
+  // when it was asked for eight hours is a soak whose result means nothing.
+  char* end = nullptr;
+  errno = 0;
+  const std::int64_t seconds = std::strtoll(configured, &end, 10);
+
+  if (end == configured || *end != '\0' || errno != 0 || seconds <= 0 ||
+      seconds > std::numeric_limits<int>::max()) {
+    return 60;
+  }
+
+  return static_cast<int>(seconds);
 }
 
 std::filesystem::path TemporaryCapturePath() {

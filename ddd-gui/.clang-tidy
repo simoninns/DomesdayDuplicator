@@ -4,15 +4,19 @@
 # SPDX-FileCopyrightText: 2026 Simon Inns
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# cert-flp30-c is named on purpose, and it is the one entry here that is not just a
-# family. It is the float-loop-counter rule, which newer clang-tidy releases also carry
-# as bugprone-float-loop-counter — so which of the two names exists depends on the
-# version doing the analysis, and a config naming only the family catches it on some
-# machines and not others. That is not hypothetical: this project ran eight commits with
-# a CI failure no developer's clang-tidy could reproduce, because the runners had the
-# name that fires and the development shell had the name that does not. Both are listed,
-# an unknown check name is ignored rather than an error, so this holds whichever way the
-# toolchain moves.
-Checks: '-*,google-*,bugprone-*,cert-flp30-c,-bugprone-easily-swappable-parameters,-bugprone-exception-escape,modernize-use-override'
+# cert-* is here for one reason, and it is worth stating because it looks redundant
+# beside bugprone-*. Recent clang-tidy releases have been renaming CERT rules into the
+# bugprone- family: bugprone-float-loop-counter is cert-flp30-c, bugprone-random-
+# generator-seed is cert-msc51-cpp, and so on. Which name exists depends on the release
+# doing the analysis — so a config naming only bugprone-* enables those rules on a new
+# clang-tidy and silently drops them on an older one.
+#
+# That is not hypothetical. This project ran eight commits red on a finding no
+# developer's clang-tidy could reproduce, because the CI runners had the name that fires
+# and the development shell had the name that does not; and each fix then revealed the
+# next one, because a failing build stops before the files behind it are analysed.
+# Naming both families makes the enabled set the same on every machine. An unknown check
+# name is ignored rather than an error, so this holds whichever way the toolchain moves.
+Checks: '-*,google-*,bugprone-*,cert-*,-bugprone-easily-swappable-parameters,-bugprone-exception-escape,modernize-use-override'
 WarningsAsErrors: '*'
 HeaderFilterRegex: 'ddd-gui/(src|tests)/'

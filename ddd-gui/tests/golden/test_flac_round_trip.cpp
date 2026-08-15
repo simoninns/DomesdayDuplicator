@@ -72,6 +72,15 @@ std::vector<uint16_t> SampleValues(size_t count) {
   std::vector<uint16_t> values;
   values.reserve(count);
 
+  // The constant seed is the point of a golden test and not an oversight: the
+  // same samples have to come out of every run on every machine, or a failure
+  // means "the data was different" rather than "the codec was". clang-tidy
+  // flags a predictable sequence because predictability is usually a security
+  // fault; here it is the property under test. Both the cert- and bugprone-
+  // names are listed because which one exists depends on the clang-tidy
+  // release, and a suppression naming only one is a suppression that lapses.
+  //
+  // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp,bugprone-random-generator-seed)
   std::mt19937 generator(1234);
   std::uniform_int_distribution<int> noise(-8, 8);
 

@@ -28,7 +28,11 @@
 namespace ddd::gui {
 namespace {
 
-const QString kNone = QString::fromUtf8("—");
+// A function rather than a namespace-scope constant: constructing a QString
+// before main() runs is an allocation whose failure has nowhere to go, and
+// clang-tidy is right to say so. Constructed on each call, which costs nothing
+// a test can measure.
+QString None() { return QString::fromUtf8("—"); }
 
 analysis::FrontEndGain Undeclared() { return analysis::FrontEndGain(); }
 
@@ -80,7 +84,7 @@ TEST(StatisticsPresenterTest, ThroughputIsGivenInBothUnitsAUserCaresAbout) {
 TEST(StatisticsPresenterTest, NoThroughputYetIsBlankRatherThanZero) {
   // A hard zero reads as "it is running and delivering nothing", which is a
   // different and much more alarming statement than "it has not started".
-  EXPECT_EQ(FormatThroughput(0.0), kNone);
+  EXPECT_EQ(FormatThroughput(0.0), None());
 }
 
 TEST(StatisticsPresenterTest, TheAmplitudeIsGivenAsAProportionOfTheRange) {
@@ -106,7 +110,7 @@ TEST(StatisticsPresenterTest, HalfTheRangeReadsAsHalfTheRange) {
 
 TEST(StatisticsPresenterTest, NoSamplesYetIsBlank) {
   const capture::SampleMetricsSnapshot metrics;
-  EXPECT_EQ(FormatAmplitude(metrics, Undeclared()), kNone);
+  EXPECT_EQ(FormatAmplitude(metrics, Undeclared()), None());
 }
 
 TEST(StatisticsPresenterTest, ShortElapsedTimesAreSecondsAndLongOnesAreClocks) {
@@ -185,7 +189,7 @@ TEST(StatisticsPresenterTest, AnUndeclaredGainSaysSoRatherThanShowingADash) {
   const StatisticsView view =
       PresentIdleStatistics(Undeclared(), capture::DeviceSpeed::kUnknown);
 
-  EXPECT_NE(view.front_end_gain, kNone);
+  EXPECT_NE(view.front_end_gain, None());
   EXPECT_TRUE(view.front_end_gain.contains(QStringLiteral("Not declared")))
       << view.front_end_gain.toStdString();
 }
@@ -196,9 +200,9 @@ TEST(StatisticsPresenterTest, IdleShowsNothingMeasuredAndWhatIsStillKnown) {
   const StatisticsView view =
       PresentIdleStatistics(Declared(), capture::DeviceSpeed::kSuper);
 
-  EXPECT_EQ(view.throughput, kNone);
-  EXPECT_EQ(view.signal_level, kNone);
-  EXPECT_EQ(view.samples, kNone);
+  EXPECT_EQ(view.throughput, None());
+  EXPECT_EQ(view.signal_level, None());
+  EXPECT_EQ(view.samples, None());
   EXPECT_EQ(view.buffer_percent, 0);
 
   // The link speed and the declared gain are facts about the setup, not
@@ -215,7 +219,7 @@ TEST(StatisticsPresenterTest, NoWriterMeansNothingWritten) {
   const StatisticsView view = PresentStatistics(RunningStats(), Undeclared(),
                                                 capture::DeviceSpeed::kSuper);
 
-  EXPECT_EQ(view.bytes_written, kNone);
+  EXPECT_EQ(view.bytes_written, None());
 }
 
 // --- The three capture-only figures --------------------------------------
@@ -232,7 +236,7 @@ TEST(StatisticsPresenterTest, TheEncoderBacklogIsBlankWhileMerelyMonitoring) {
   const StatisticsView view =
       PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
 
-  EXPECT_EQ(view.encoder_backlog, kNone);
+  EXPECT_EQ(view.encoder_backlog, None());
 }
 
 TEST(StatisticsPresenterTest, TheEncoderBacklogIsShownAsTimeWhileCapturing) {
@@ -260,7 +264,7 @@ TEST(StatisticsPresenterTest,
   const StatisticsView view =
       PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
 
-  EXPECT_NE(view.encoder_backlog, kNone);
+  EXPECT_NE(view.encoder_backlog, None());
   EXPECT_TRUE(view.encoder_backlog.contains(QStringLiteral("0.0 ms")))
       << view.encoder_backlog.toStdString();
 }
@@ -288,7 +292,7 @@ TEST(StatisticsPresenterTest, AVolumeThatCannotBeReadIsUnknownRatherThanFull) {
       PresentStatistics(RunningStats(), Undeclared(),
                         capture::DeviceSpeed::kSuper, capture::FreeSpace{});
 
-  EXPECT_EQ(view.space_remaining, kNone);
+  EXPECT_EQ(view.space_remaining, None());
 }
 
 // The two panels that show free space share this formatter, so they cannot end
