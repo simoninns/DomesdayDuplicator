@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "device_programmer.h"
@@ -97,6 +98,19 @@ class UpdatePage : public QWidget {
   UpdatePage(QString application_version, Device device,
              QWidget* parent = nullptr);
   ~UpdatePage() override;
+
+  // Which signatures this page accepts. Defaults to DefaultUpdateKeyPolicy(),
+  // which is the release key alone in a build that pins one; the application's
+  // --dev-update-key is what widens it, and a widget test sets it so that the
+  // flow can be driven with a development-signed fixture whatever key the
+  // build was given.
+  //
+  // Set it before a bundle is loaded. A bundle already verified against the
+  // previous policy is not re-verified by this, and the worker takes whatever
+  // is set when the install starts.
+  void SetKeyPolicy(capture::UpdateKeyPolicy policy) {
+    policy_ = std::move(policy);
+  }
 
   // Load a bundle from a file, exactly as the Choose button does. Separate
   // from the button so a test can drive the flow without a file dialog, which

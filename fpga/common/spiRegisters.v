@@ -63,7 +63,7 @@ module spiRegisters (
     // Reads of unmapped addresses return zero, so gateware without this
     // reads as zero here and a host can tell the two apart by the
     // signature in the top two bytes.
-    input  [63:0] diagnostics,
+    input [63:0] diagnostics,
 
     // One clock high for each data byte of a framed transaction that
     // completes. This is what the application image tickles the

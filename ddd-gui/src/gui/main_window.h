@@ -12,6 +12,9 @@
 #pragma once
 
 #include <QMainWindow>
+#include <utility>
+
+#include "update_key.h"
 
 class QDockWidget;
 
@@ -55,6 +58,15 @@ class MainWindow : public QMainWindow {
   // watch the diagnostics.
   void ShowLogPanel();
 
+  // Which signatures the firmware dialog's update page accepts. Used by
+  // --dev-update-key, and set once at startup rather than reachable from the
+  // interface: widening what this build trusts is a decision made when the
+  // application is launched, not one a user can be talked into part way
+  // through an install.
+  void SetUpdateKeyPolicy(capture::UpdateKeyPolicy policy) {
+    update_key_policy_ = std::move(policy);
+  }
+
  protected:
   void closeEvent(QCloseEvent* event) override;
 
@@ -79,6 +91,10 @@ class MainWindow : public QMainWindow {
   // note rather than a fault and must never appear over that window, least of
   // all over an update's own explanation of what went wrong.
   bool firmware_dialog_open_ = false;
+
+  // What the update page verifies against, unless --dev-update-key widened it.
+  capture::UpdateKeyPolicy update_key_policy_ =
+      capture::DefaultUpdateKeyPolicy();
 
   ThemeController* theme_controller_;
   ApplicationLogger* logger_;

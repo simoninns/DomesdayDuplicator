@@ -378,6 +378,9 @@ void MainWindow::ShowFirmwareDialog() {
   firmware_dialog_open_ = true;
 
   if (UpdatePage* const page = dialog.update_page(); page != nullptr) {
+    // Before anything can be chosen, because it decides what verifies.
+    page->SetKeyPolicy(update_key_policy_);
+
     // The monitor opens every attached device to read its identity, and an
     // update holds one open for minutes and makes it disappear and come back
     // in the middle. Suspending it for the duration is what keeps those two

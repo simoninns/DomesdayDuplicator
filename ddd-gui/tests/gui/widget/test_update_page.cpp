@@ -27,6 +27,7 @@
 #include "firmware_dialog.h"
 #include "update_bundle.h"
 #include "update_fixtures.h"
+#include "update_key.h"
 #include "update_page.h"
 
 namespace ddd::gui {
@@ -199,6 +200,16 @@ struct PageUnderTest {
     };
 
     page = std::make_unique<UpdatePage>(application_version, std::move(seam));
+
+    // The fixture bundle is signed with the development key, and whether the
+    // default policy accepts one depends on whether the build pinned a release
+    // key — which is a property of how this was configured, not of the flow
+    // under test. Set explicitly so these tests measure the same thing in
+    // every build; AReleaseBuildRefusesADevelopmentBundle below is what covers
+    // the default.
+    capture::UpdateKeyPolicy policy;
+    policy.accept_development_key = true;
+    page->SetKeyPolicy(std::move(policy));
   }
 
   QLabel* Label(const char* name) const {
@@ -275,6 +286,33 @@ TEST(UpdatePageTest, ADevelopmentBundleIsBanneredAsSuch) {
   ASSERT_NE(banner, nullptr);
   EXPECT_TRUE(banner->isVisibleTo(test.page.get()));
   EXPECT_TRUE(banner->text().contains(QStringLiteral("development")));
+}
+
+// The other half of the same policy, and the half that is easy to lose: with a
+// release key pinned, the default is the release key alone, and a bundle signed
+// with the development key is refused rather than quietly installed. This build
+// only pins a key when tools/keys/release.pub is present, so the assertion is
+// conditional on that — the alternative would be a test that fails on every
+// developer's machine or passes vacuously on CI, and neither says anything.
+TEST(UpdatePageTest,
+     TheDefaultPolicyRefusesADevelopmentBundleWhenAKeyIsPinned) {
+  if (!capture::HasReleaseUpdateKey()) {
+    GTEST_SKIP() << "this build pins no release key, so the development key is "
+                    "the only one it could verify anything against";
+  }
+
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  // Undo the fixture's opt-in: what is under test here is what a shipped
+  // build does with a file it has no reason to trust.
+  test.page->SetKeyPolicy(capture::DefaultUpdateKeyPolicy());
+  test.page->LoadBundle(bundle.path());
+
+  EXPECT_FALSE(test.Button(UpdatePage::kInstallButtonName)->isEnabled())
+      << "a release build offered to install a development-signed bundle";
+  EXPECT_FALSE(test.Label(UpdatePage::kBundleLabelName)->text().isEmpty())
+      << "the refusal was silent";
 }
 
 TEST(UpdatePageTest, AFileThatIsNotABundleIsRefusedWithAReason) {

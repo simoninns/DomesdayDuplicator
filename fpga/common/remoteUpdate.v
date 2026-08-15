@@ -286,17 +286,25 @@ module remoteUpdate (
     // Every field of the input register, read back after the writes: the
     // question this instrument answers now is not which address was
     // staged but whether each write landed at all.
-    assign diagnostics = {8'hDD,
-                          diag_complete, diag_mode, diag_trigger,
-                          diag_boot_address, diag_timer,
-                          diag_wd_en, diag_osc_int, diag_cd_early, 9'd0};
+    assign diagnostics = {
+        8'hDD,
+        diag_complete,
+        diag_mode,
+        diag_trigger,
+        diag_boot_address,
+        diag_timer,
+        diag_wd_en,
+        diag_osc_int,
+        diag_cd_early,
+        9'd0
+    };
 
     // A tickle from either source. The register write is what a host uses
     // deliberately; the decoded transaction is what happens on a healthy
     // device with nothing plugged into it, because the FX3 reads the
     // identity block during its own start-up.
-    wire        tickle = transaction_decoded || (window_write && window_write_data[0]);
-    wire        reconfigure_now = reconfigure_request || (window_write && window_write_data[1]);
+    wire tickle = transaction_decoded || (window_write && window_write_data[0]);
+    wire reconfigure_now = reconfigure_request || (window_write && window_write_data[1]);
 
     // Bit 2 is what the boot logic waits on before it hands over, and bit
     // 1 is what a host polls while a parameter write is in flight. Bit 0
@@ -323,11 +331,11 @@ module remoteUpdate (
 
     always @(posedge clock, negedge reset_n) begin
         if (!reset_n) begin
-            state            <= StateIdle;
-            param_select     <= 3'd0;
-            param_data       <= 24'd0;
-            armed            <= 1'b0;
-            write_pending    <= 1'b0;
+            state              <= StateIdle;
+            param_select       <= 3'd0;
+            param_data         <= 24'd0;
+            armed              <= 1'b0;
+            write_pending      <= 1'b0;
             read_source_select <= 2'b00;
             read_assert        <= 4'd0;
             read_timer         <= 10'd0;
@@ -340,9 +348,9 @@ module remoteUpdate (
             diag_osc_int       <= 1'b0;
             diag_cd_early      <= 1'b0;
             diag_complete      <= 1'b0;
-            reconfigure_hold <= 7'd0;
-            tickle_hold      <= 7'd0;
-            block_busy_sync  <= 2'b00;
+            reconfigure_hold   <= 7'd0;
+            tickle_hold        <= 7'd0;
+            block_busy_sync    <= 2'b00;
         end else begin
             block_busy_sync <= {block_busy_sync[0], block_busy_raw};
 

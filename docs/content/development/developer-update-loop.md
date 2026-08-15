@@ -52,8 +52,12 @@ The bundle is signed with `tools/keys/development.key`, whose secret half is **c
 A development signature proves the bundle is well formed and proves nothing whatever about where it came from. That is the entire point of it being a separate key and a separate channel:
 
 - a **release build** of the application pins the release public key and accepts nothing else;
-- accepting the development key requires an explicit, per-invocation opt-in — `--dev-update-key`, or a debug build, which implies it;
+- accepting the development key requires an explicit, per-invocation opt-in — `--dev-update-key`, which both `ddd-update` and the application itself take, or a debug build, which implies it;
 - a development-signed bundle is bannered prominently as such in the update interface, every time.
+
+So on a build that pins a release key — which is what a release is, and what `nix build .#ddd-gui` produces once `tools/keys/release.pub` exists — installing your own bundle from the **Update** tab means launching the application as `ddd-gui --dev-update-key`. Without it the file verifies against nothing the build trusts and the install button stays disabled, which is the correct answer to a file the application has no reason to trust and a surprising one if you built the file yourself five minutes ago.
+
+The flag is per-run and never persisted, and it widens the policy rather than replacing it: a release-signed bundle still verifies against the release key first, and the development key is never consulted for one.
 
 There is no unsigned path at all. The development key *is* the unsigned-equivalent, made explicit and impossible to confuse with a release. An actually-unsigned format would have needed a second route through verification, and a second route through verification is where the bugs live.
 

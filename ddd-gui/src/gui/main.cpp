@@ -14,6 +14,7 @@
 #include <QString>
 #include <QTextStream>
 #include <memory>
+#include <utility>
 
 #include "about_text.h"
 #include "analysis_cli.h"
@@ -63,6 +64,19 @@ int main(int argc, char* argv[]) {
       QStringLiteral("file"));
   parser.addOption(analyse_option);
 
+  // The same opt-in ddd-update carries, and worth the same words. A release
+  // build pins the release key and accepts nothing else; this widens it for
+  // one run, and the update page banners every development-signed bundle it
+  // then opens. Without it a developer's own bundle cannot be installed from
+  // a release-configured build at all, which is the intended default and a
+  // poor experience for the one person it should not obstruct.
+  const QCommandLineOption development_key_option(
+      QStringLiteral("dev-update-key"),
+      QStringLiteral("Accept an update file signed with the development key, "
+                     "whose secret half is public. It proves the file is well "
+                     "formed and nothing about where it came from."));
+  parser.addOption(development_key_option);
+
   parser.process(app);
 
   // Before the logger, the theme and the window, so that nothing about this
@@ -94,6 +108,15 @@ int main(int argc, char* argv[]) {
   ddd::gui::MainWindow window(&theme_controller, &logger, &capture_controller);
   if (parser.isSet(debug_option)) {
     window.ShowLogPanel();
+  }
+  if (parser.isSet(development_key_option)) {
+    ddd::capture::UpdateKeyPolicy policy =
+        ddd::capture::DefaultUpdateKeyPolicy();
+    policy.accept_development_key = true;
+    window.SetUpdateKeyPolicy(std::move(policy));
+    logger.Info(
+        "Accepting development-signed update files for this run "
+        "(--dev-update-key).");
   }
   window.show();
 

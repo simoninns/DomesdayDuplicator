@@ -69,40 +69,40 @@ module altremote_update #(
     localparam integer WriteClocks = 4;
 
     // What the fabric asked for, for a testbench to check
-    reg     [23:0] written_boot_address;
-    reg     [11:0] written_watchdog_value;
-    reg            watchdog_enabled;
-    reg            early_confdone;
-    reg            osc_int_enabled;
-    integer        illegal_parameter_writes;
-    integer        reconfigure_count;
-    integer        timer_reset_count;
+    reg     [              23:0] written_boot_address;
+    reg     [              11:0] written_watchdog_value;
+    reg                          watchdog_enabled;
+    reg                          early_confdone;
+    reg                          osc_int_enabled;
+    integer                      illegal_parameter_writes;
+    integer                      reconfigure_count;
+    integer                      timer_reset_count;
 
-    reg            busy_reg;
-    integer        busy_clocks;
+    reg                          busy_reg;
+    integer                      busy_clocks;
 
     // What a read returns. Table 18 pairs a read_source with a param, and
     // the model answers only the pairings this design issues - anything
     // else reads as zero, so a design that asks for something it has not
     // thought about gets an obviously wrong answer rather than a plausible
     // one.
-    reg [out_data_width-1:0] data_out_reg;
+    reg     [out_data_width-1:0] data_out_reg;
 
     // The mode the model reports at param 000. Parameters are writable in
     // factory mode only, so a testbench that wants to prove a design
     // checks the mode can force it.
-    reg                [1:0] msm_mode;
-    reg                [4:0] trigger_condition;
+    reg     [               1:0] msm_mode;
+    reg     [               4:0] trigger_condition;
 
     // The stored 22-bit boot address field, which is what an
     // input-register read presents in its low bits - measured on the
     // bench: writing 0x200000 reads back 0x080000.
-    reg               [21:0] boot_address_field;
+    reg     [              21:0] boot_address_field;
 
     // What Past Status 1 reports: the 24-bit byte address the previous
     // configuration attempt used, and set by a testbench rather than by
     // anything here, because a simulated device cannot configure.
-    reg               [23:0] past_boot_address;
+    reg     [              23:0] past_boot_address;
 
     assign busy      = busy_reg;
     assign data_out  = data_out_reg;
@@ -113,21 +113,21 @@ module altremote_update #(
     assign pof_error = 1'b0;
 
     initial begin
-        written_boot_address   = 24'd0;
-        written_watchdog_value = 12'd0;
-        watchdog_enabled       = 1'b0;
-        early_confdone         = 1'b0;
-        osc_int_enabled        = 1'b0;
+        written_boot_address     = 24'd0;
+        written_watchdog_value   = 12'd0;
+        watchdog_enabled         = 1'b0;
+        early_confdone           = 1'b0;
+        osc_int_enabled          = 1'b0;
         illegal_parameter_writes = 0;
-        reconfigure_count      = 0;
-        timer_reset_count      = 0;
-        busy_reg               = 1'b0;
-        busy_clocks            = 0;
-        data_out_reg           = {out_data_width{1'b0}};
-        msm_mode               = 2'b00;  // factory
-        trigger_condition      = 5'b00000;
-        boot_address_field     = 22'd0;
-        past_boot_address      = 24'd0;
+        reconfigure_count        = 0;
+        timer_reset_count        = 0;
+        busy_reg                 = 1'b0;
+        busy_clocks              = 0;
+        data_out_reg             = {out_data_width{1'b0}};
+        msm_mode                 = 2'b00;  // factory
+        trigger_condition        = 5'b00000;
+        boot_address_field       = 22'd0;
+        past_boot_address        = 24'd0;
     end
 
     always @(posedge clock) begin
@@ -152,21 +152,21 @@ module altremote_update #(
                     // cd_early. Recorded because writing it is what the
                     // first bring-up did by accident, and a testbench
                     // should be able to fail on it happening again.
-                    3'b001:  early_confdone <= data_in[0];
-                    3'b010:  written_watchdog_value <= data_in[11:0];
-                    3'b011:  watchdog_enabled <= data_in[0];
+                    3'b001: early_confdone <= data_in[0];
+                    3'b010: written_watchdog_value <= data_in[11:0];
+                    3'b011: watchdog_enabled <= data_in[0];
                     // The write presents the full 24-bit byte address;
                     // the block stores data_in[23:2] as the upper 22 bits
                     // of it and appends 2'b00 at boot (Table 17, Quartus
                     // 13.1 and later). written_boot_address records the
                     // byte address the device would boot from; the stored
                     // field is what an input-register read returns.
-                    3'b100:  begin
+                    3'b100: begin
                         written_boot_address <= {data_in[23:2], 2'b00};
                         boot_address_field   <= data_in[23:2];
                     end
-                    3'b101:  illegal_parameter_writes <= illegal_parameter_writes + 1;
-                    3'b110:  osc_int_enabled <= data_in[0];
+                    3'b101: illegal_parameter_writes <= illegal_parameter_writes + 1;
+                    3'b110: osc_int_enabled <= data_in[0];
                     default: begin
                         // 000 and 111 are read only. Ignored rather than
                         // recorded: a testbench that expected a write to
@@ -174,24 +174,34 @@ module altremote_update #(
                     end
                 endcase
             end else if (read_param && !busy_reg) begin
-                busy_reg    <= 1'b1;
-                busy_clocks <= WriteClocks;
+                busy_reg     <= 1'b1;
+                busy_clocks  <= WriteClocks;
 
-                case ({read_source, param})
-                    {2'b00, 3'b000}: data_out_reg <= {{(out_data_width-2){1'b0}}, msm_mode};
-                    {2'b01, 3'b111}: data_out_reg <= {{(out_data_width-5){1'b0}}, trigger_condition};
-                    {2'b10, 3'b111}: data_out_reg <= {{(out_data_width-5){1'b0}}, trigger_condition};
+                // Zeroed first, so each pairing below assigns only the bits it
+                // answers with and an unlisted one is left reading as zero.
+                // Writing the zero extension into every arm instead is the same
+                // model and does not fit the project's line length.
+                data_out_reg <= {out_data_width{1'b0}};
+
+                case ({
+                    read_source, param
+                })
+                    {2'b00, 3'b000} : data_out_reg[1:0] <= msm_mode;
+                    {2'b01, 3'b111} : data_out_reg[4:0] <= trigger_condition;
+                    {2'b10, 3'b111} : data_out_reg[4:0] <= trigger_condition;
                     // Past Status 1: the byte address the previous
                     // configuration attempt used, 24 bits (Table 18).
-                    {2'b01, 3'b100}: data_out_reg <= {{(out_data_width-24){1'b0}}, past_boot_address};
+                    {2'b01, 3'b100} : data_out_reg[23:0] <= past_boot_address;
                     // The input register presents the stored 22-bit field
                     // in its low bits, not the byte address.
-                    {2'b11, 3'b100}: data_out_reg <= {{(out_data_width-22){1'b0}}, boot_address_field};
-                    {2'b11, 3'b010}: data_out_reg <= {{(out_data_width-12){1'b0}}, written_watchdog_value};
-                    {2'b11, 3'b011}: data_out_reg <= {{(out_data_width-1){1'b0}}, watchdog_enabled};
-                    {2'b11, 3'b110}: data_out_reg <= {{(out_data_width-1){1'b0}}, osc_int_enabled};
-                    {2'b11, 3'b001}: data_out_reg <= {{(out_data_width-1){1'b0}}, early_confdone};
-                    default:         data_out_reg <= {out_data_width{1'b0}};
+                    {2'b11, 3'b100} : data_out_reg[21:0] <= boot_address_field;
+                    {2'b11, 3'b010} : data_out_reg[11:0] <= written_watchdog_value;
+                    {2'b11, 3'b011} : data_out_reg[0] <= watchdog_enabled;
+                    {2'b11, 3'b110} : data_out_reg[0] <= osc_int_enabled;
+                    {2'b11, 3'b001} : data_out_reg[0] <= early_confdone;
+                    default: begin
+                        // The zero above stands.
+                    end
                 endcase
             end else if (busy_reg) begin
                 if (busy_clocks <= 1) begin
