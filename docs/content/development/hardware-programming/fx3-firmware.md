@@ -217,6 +217,7 @@ $ for d in /sys/bus/usb/devices/*/; do
 | `iProduct` still shows the old commit | The EEPROM write did not take, or J4 is still fitted so it booted over USB instead. Re-check step 3b and that J4 is **removed** |
 | `iProduct` shows `unknown` | The firmware was built without version information. Rebuild passing `-DFIRMWARE_VERSION=` |
 | Device enumerates at 480 Mbps | USB 2.0 fallback. Use a USB 3.0 port and a cable rated for it |
+| The **host** takes ~20 seconds to wake from sleep, with a blank screen | Not a device fault. A board left in bootloader mode across a suspend — see [below](#leaving-the-board-in-bootloader-mode-can-stall-suspend-and-resume) |
 
 ### There is no software reset
 
@@ -224,6 +225,52 @@ $ for d in /sys/bus/usb/devices/*/; do
 reset command, and the Domesday Duplicator firmware implements only its own capture control
 requests. **Changing boot mode always means a physical power cycle**, with J4 fitted or
 removed to choose where the device boots from.
+
+### Leaving the board in bootloader mode can stall suspend and resume
+
+Finish a programming session by putting the board back to application firmware, or by
+unplugging it. A board left sitting in bootloader mode is running the Cypress boot ROM, and
+the boot ROM does not survive a host suspend reliably.
+
+On Linux, waking from S3 with an `04b4:00f3` device still attached can stall the kernel's
+device-resume phase for around twenty seconds:
+
+```
+usb 7-3.3: reset high-speed USB device number 23 using xhci_hcd
+usb 7-3.3: device descriptor read/64, error -110
+```
+
+`-110` is `-ETIMEDOUT`: after resetting the port, the kernel asked the device for its
+descriptors and got no answer. All of that happens before `Restarting tasks`, so userspace —
+including whatever is drawing your screen — is still frozen for the whole stall. **The
+machine looks dead**, with a blank display and no response to input, until the kernel gives
+up on the device and lets userspace run again.
+
+It is not deterministic. The same board in the same state has resumed cleanly from a short
+suspend and stalled after a long one, so a session that ended fine yesterday is no guarantee.
+A board running application firmware (`1209:2347`) is unaffected — it resumes in the same
+fraction of a second as a machine with nothing on the port at all.
+
+The cure is to not leave it there: remove J4 and power cycle when you have finished, or
+unplug the cable. Nothing in this project can do it for you, because
+[there is no software reset](#there-is-no-software-reset) — the boot ROM has no command that
+would return the device to application firmware, and the host cannot power cycle it.
+
+If you would rather the host coped, Linux can be told to power the port down at suspend
+rather than trying to resume the device:
+
+```
+usbcore.quirks=04b4:00f3:m,04b4:4720:m
+```
+
+`m` is `USB_QUIRK_DISCONNECT_SUSPEND`, which makes `usb_suspend()` call `usb_port_disable()`
+on the way into suspend. At resume there is nothing on the port to reset, so the timeout never
+happens and the device re-enumerates normally afterwards. `4720` is the transient
+flash-programmer identity, which is the same boot-ROM-era code and worth covering too. This is
+a boot parameter, so it needs a reboot to take effect — and unrecognised flag letters are
+*silently ignored*, so check the letter against
+`Documentation/admin-guide/kernel-parameters.txt` for your own kernel rather than expecting a
+typo to report itself.
 
 ### Recovering a device that will not boot
 

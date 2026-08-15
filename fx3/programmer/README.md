@@ -191,6 +191,14 @@ fx3-programmer -d 0 -p firmware.img -v
 
 Then remove J4 and power cycle to boot the programmed firmware.
 
+**Do that even if you are not finished.** A board left sitting in bootloader mode is running
+the Cypress boot ROM, which does not survive a host suspend reliably: on Linux, waking from
+S3 with an `04b4:00f3` device attached can hang the kernel's device-resume phase for ~20
+seconds on a `device descriptor read/64, error -110` timeout, with userspace — and therefore
+the display — frozen throughout. The machine looks dead until the kernel gives up. A board
+running application firmware is unaffected. Details and a host-side kernel quirk are in
+[FX3 firmware](../../docs/content/development/hardware-programming/fx3-firmware.md#leaving-the-board-in-bootloader-mode-can-stall-suspend-and-resume).
+
 ## Programming the FX3 with Domesday Duplicator Firmware
 
 This section describes how to program the FX3 device with firmware built from the Domesday Duplicator firmware project.
