@@ -73,16 +73,43 @@ module tb_spiRegisters;
     integer        read_index;
 
     reg     [ 7:0] spi_received;
-    reg     [ 7:0] read_data           [0:15];
+    reg     [ 7:0] spi_received_absent;
+    reg     [ 7:0] read_data           [0:31];
+    reg     [ 7:0] read_data_absent    [0:31];
 
     // Distinguishable in every byte, so a wrong byte order fails rather
     // than reading plausibly.
     localparam [63:0] DIAGNOSTICS_CONTENTS = 64'hDD01_8877_6655_4433;
 
+    // The capture buffer instrument's shadow bank and its geometry, filled so
+    // that every byte carries the address it should appear at: the first byte
+    // of the bank is 0x10 at address 0x41, and the geometry is 0x51 to 0x56.
+    localparam [127:0] TELEMETRY_CONTENTS = 128'h1F1E_1D1C_1B1A_1918_1716_1514_1312_1110;
+    localparam [47:0] TELEMETRY_GEOMETRY = 48'h5655_5453_5251;
+
+    reg     [127:0] telemetry;
+    reg     [ 47:0] telemetry_geometry;
+    wire            telemetry_latch;
+    integer         telemetry_latches;
+
+    // The same bank compiled without the instrument, which is what the factory
+    // image is and what every gateware built before the window existed is. It
+    // sees exactly the same wire, so the only difference between the two is
+    // the parameter.
+    wire            spi_miso_absent;
+    wire            telemetry_latch_absent;
+    wire            test_mode_absent;
+    wire    [  7:0] leds_absent;
+    wire            window_write_absent;
+    wire    [  1:0] window_address_absent;
+    wire    [  7:0] window_write_data_absent;
+    wire            transaction_decoded_absent;
+
     spiRegisters #(
-        .CommitText(COMMIT_TEXT),
-        .BuildFlags(BUILD_FLAGS),
-        .ImageRole (IMAGE_ROLE)
+        .CommitText      (COMMIT_TEXT),
+        .BuildFlags      (BUILD_FLAGS),
+        .ImageRole       (IMAGE_ROLE),
+        .TelemetryPresent(1'b1)
     ) dut (
         .reset_n            (reset_n),
         .clock              (clock),
@@ -91,13 +118,41 @@ module tb_spiRegisters;
         .spi_chip_select_n  (spi_chip_select_n),
         .window_read_data   (window_read_data),
         .diagnostics        (diagnostics),
+        .telemetry          (telemetry),
+        .telemetry_geometry (telemetry_geometry),
         .spi_miso           (spi_miso),
         .test_mode          (test_mode),
         .leds               (leds),
         .window_write       (window_write),
         .window_address     (window_address),
         .window_write_data  (window_write_data),
+        .telemetry_latch    (telemetry_latch),
         .transaction_decoded(transaction_decoded)
+    );
+
+    spiRegisters #(
+        .CommitText      (COMMIT_TEXT),
+        .BuildFlags      (BUILD_FLAGS),
+        .ImageRole       (IMAGE_ROLE),
+        .TelemetryPresent(1'b0)
+    ) dut_absent (
+        .reset_n            (reset_n),
+        .clock              (clock),
+        .spi_clock          (spi_clock),
+        .spi_mosi           (spi_mosi),
+        .spi_chip_select_n  (spi_chip_select_n),
+        .window_read_data   (window_read_data),
+        .diagnostics        (diagnostics),
+        .telemetry          (telemetry),
+        .telemetry_geometry (telemetry_geometry),
+        .spi_miso           (spi_miso_absent),
+        .test_mode          (test_mode_absent),
+        .leds               (leds_absent),
+        .window_write       (window_write_absent),
+        .window_address     (window_address_absent),
+        .window_write_data  (window_write_data_absent),
+        .telemetry_latch    (telemetry_latch_absent),
+        .transaction_decoded(transaction_decoded_absent)
     );
 
     // The window's writes and the decoded-byte pulses are one clock wide,
@@ -111,6 +166,10 @@ module tb_spiRegisters;
 
         if (transaction_decoded) begin
             decoded_bytes <= decoded_bytes + 1;
+        end
+
+        if (telemetry_latch) begin
+            telemetry_latches <= telemetry_latches + 1;
         end
     end
 
@@ -139,12 +198,14 @@ module tb_spiRegisters;
     task spi_byte;
         input [7:0] send;
         begin
-            spi_received = 8'h00;
+            spi_received        = 8'h00;
+            spi_received_absent = 8'h00;
             for (bit_index = 7; bit_index >= 0; bit_index = bit_index - 1) begin
                 spi_mosi = send[bit_index];
                 #HALF_BIT;
-                spi_clock               = 1'b1;
-                spi_received[bit_index] = spi_miso;
+                spi_clock                      = 1'b1;
+                spi_received[bit_index]        = spi_miso;
+                spi_received_absent[bit_index] = spi_miso_absent;
                 #HALF_BIT;
                 spi_clock = 1'b0;
             end
@@ -189,7 +250,8 @@ module tb_spiRegisters;
             spi_byte({1'b1, start_address});
             for (read_index = 0; read_index < count; read_index = read_index + 1) begin
                 spi_byte(8'h00);
-                read_data[read_index] = spi_received;
+                read_data[read_index]        = spi_received;
+                read_data_absent[read_index] = spi_received_absent;
             end
             spi_deselect;
         end
@@ -223,10 +285,13 @@ module tb_spiRegisters;
         errors              = 0;
         window_writes       = 0;
         decoded_bytes       = 0;
+        telemetry_latches   = 0;
         last_window_address = 2'd0;
         last_window_data    = 8'h00;
         window_read_data    = WINDOW_CONTENTS;
         diagnostics         = DIAGNOSTICS_CONTENTS;
+        telemetry           = TELEMETRY_CONTENTS;
+        telemetry_geometry  = TELEMETRY_GEOMETRY;
 
         reset_n             = 1'b0;
         spi_clock           = 1'b0;
@@ -298,7 +363,7 @@ module tb_spiRegisters;
         // This is what lets the map grow: a host that reads an address this
         // gateware does not implement gets zero rather than nonsense, and
         // learns what is implemented from the map version instead.
-        spi_read(7'h40, 8'd1);
+        spi_read(7'h60, 8'd1);
         check(read_data[0], 8'h00, "unmapped address reads zero");
 
         // --- The 0x30 to 0x37 diagnostics window ---
@@ -314,6 +379,74 @@ module tb_spiRegisters;
         check(read_data[5], 8'h88, "diagnostics byte 5");
         check(read_data[6], 8'h01, "diagnostics byte 6");
         check(read_data[7], 8'hDD, "diagnostics byte 7");
+
+        // --- The capture buffer instrument, 0x40 to 0x56 ---
+        //
+        // Seventeen bytes in one transaction - the signature and the shadow
+        // bank - which is what a host polls during a capture. The bytes are
+        // filled so that each carries the address it should appear at, so a
+        // field split across the wrong bytes fails here rather than reaching a
+        // host as a plausible wrong number.
+        telemetry_latches = 0;
+        spi_read(7'h40, 8'd17);
+        check(read_data[0], 8'hBD, "the instrument's signature");
+        check(read_data[1], 8'h10, "shadow bank byte at 0x41");
+        check(read_data[2], 8'h11, "shadow bank byte at 0x42");
+        check(read_data[8], 8'h17, "shadow bank byte at 0x48");
+        check(read_data[16], 8'h1F, "shadow bank byte at 0x50");
+
+        // Reading the signature is what samples the instrument, and it does it
+        // exactly once however many bytes the transaction goes on to read. A
+        // second pulse would clear an interval the host has not been given.
+        check(telemetry_latches, 1, "a read of the block samples once");
+
+        // The geometry is static, so reading it does not sample anything. A
+        // host that wants to know the buffer's dimensions must be able to ask
+        // without consuming somebody's measurement.
+        telemetry_latches = 0;
+        spi_read(7'h51, 8'd6);
+        check(read_data[0], 8'h51, "geometry byte at 0x51");
+        check(read_data[5], 8'h56, "geometry byte at 0x56");
+        check(telemetry_latches, 0, "reading the geometry does not sample");
+
+        // A write to the signature address samples nothing either. Writes have
+        // no business disturbing an interval, and the address is read-only in
+        // any case.
+        telemetry_latches = 0;
+        spi_write_one(7'h40, 8'hFF);
+        check(telemetry_latches, 0, "a write to the signature does not sample");
+        spi_read(7'h40, 8'd1);
+        check(read_data[0], 8'hBD, "the signature survives a write");
+
+        // A read that arrives at the signature by auto-increment does not
+        // sample. The transaction started somewhere else, so it is reading
+        // something else, and consuming a measurement it never asked for would
+        // make every long read from below the window a silent theft.
+        telemetry_latches = 0;
+        spi_read(7'h3F, 8'd4);
+        check(read_data[0], 8'h00, "unmapped 0x3F reads zero");
+        check(read_data[1], 8'hBD, "and the read runs on into the signature");
+        check(telemetry_latches, 0, "arriving by auto-increment does not sample");
+
+        // --- The same bank without the instrument ---
+        //
+        // What the factory image is, and what every gateware built before this
+        // window existed is. The window folds away entirely: the signature
+        // reads as an unmapped address, which is exactly how a host tells the
+        // two apart.
+        telemetry_latches = 0;
+        spi_read(7'h40, 8'd17);
+        check(read_data_absent[0], 8'h00, "no signature without the instrument");
+        check(read_data_absent[1], 8'h00, "no shadow bank without the instrument");
+        check(read_data_absent[16], 8'h00, "and none of it at the far end either");
+        spi_read(7'h51, 8'd6);
+        check(read_data_absent[0], 8'h00, "no geometry without the instrument");
+
+        // The identity block is unaffected, so a host reads who it is talking
+        // to in the same way from either image
+        spi_read(7'h00, 8'd2);
+        check(read_data_absent[0], 8'h44, "the ID register without the instrument");
+        check(read_data_absent[1], 8'h02, "the map version is unchanged by the window");
 
         // --- The 0x20 to 0x23 window ---
         //

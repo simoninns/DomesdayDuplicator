@@ -51,6 +51,8 @@ class StatisticsPanel : public QWidget {
   static constexpr const char* kThroughputLabelName = "statistics_throughput";
   static constexpr const char* kSequenceLabelName = "statistics_sequence";
   static constexpr const char* kBufferBarName = "statistics_buffer_fill";
+  static constexpr const char* kBackPressureBarName =
+      "statistics_back_pressure";
   static constexpr const char* kAmplitudeLabelName = "statistics_amplitude";
   static constexpr const char* kExtremesLabelName = "statistics_extremes";
   static constexpr const char* kClippingLabelName = "statistics_clipping";
@@ -81,6 +83,8 @@ class StatisticsPanel : public QWidget {
   QLabel* throughput_ = nullptr;
   QLabel* sequence_ = nullptr;
   QProgressBar* buffer_fill_ = nullptr;
+  QProgressBar* back_pressure_ = nullptr;
+  BackPressureHold back_pressure_hold_;
   QLabel* amplitude_ = nullptr;
   QLabel* extremes_ = nullptr;
   QLabel* clipping_ = nullptr;

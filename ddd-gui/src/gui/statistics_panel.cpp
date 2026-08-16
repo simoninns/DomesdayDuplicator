@@ -22,6 +22,21 @@
 #include "free_space.h"
 
 namespace ddd::gui {
+namespace {
+
+// What the bar means before there is a reading to describe. Once one arrives,
+// the tooltip becomes the figures behind it.
+QString BackPressureTip() {
+  return StatisticsPanel::tr(
+      "How full the FPGA's capture buffer got. A packet is offered to the FX3 "
+      "once half the buffer is queued and taken immediately, so a working "
+      "capture fills it to about half on every packet — that is the buffer "
+      "working, not a warning. Above half is the host having been late, and "
+      "the top of the scale is the buffer full, which means samples were "
+      "lost.");
+}
+
+}  // namespace
 
 StatisticsPanel::StatisticsPanel(CaptureController* controller, QWidget* parent)
     : QWidget(parent), controller_(controller) {
@@ -65,6 +80,17 @@ StatisticsPanel::StatisticsPanel(CaptureController* controller, QWidget* parent)
 
   throughput_ = add_row(tr("Throughput"), kThroughputLabelName);
   sequence_ = add_row(tr("Integrity"), kSequenceLabelName, true);
+
+  // The device's buffer, then this machine's, in the order the samples travel
+  // through them. Read together they say which end of the chain is struggling:
+  // the device's buffer fills when the host cannot take packets fast enough,
+  // and the host's queue fills when the disk or the encoder cannot keep up.
+  back_pressure_ = new QProgressBar(contents);
+  back_pressure_->setObjectName(QLatin1String(kBackPressureBarName));
+  back_pressure_->setRange(0, 100);
+  back_pressure_->setValue(0);
+  back_pressure_->setToolTip(BackPressureTip());
+  form->addRow(tr("Back pressure"), back_pressure_);
 
   buffer_fill_ = new QProgressBar(contents);
   buffer_fill_->setObjectName(QLatin1String(kBufferBarName));
@@ -158,6 +184,10 @@ void StatisticsPanel::OnDevicesChanged(
 }
 
 void StatisticsPanel::ShowIdle() {
+  // Nothing is draining the device when no capture is running, so its buffer
+  // sits full and any figure would be a lie. The hold is cleared with it, or
+  // the last run's worst moment would linger over the next one.
+  back_pressure_hold_.Reset();
   Apply(PresentIdleStatistics(declared_gain_, link_, destination_space_));
 }
 
@@ -192,6 +222,20 @@ void StatisticsPanel::Apply(const StatisticsView& view) {
 
   buffer_fill_->setValue(view.buffer_percent);
   buffer_fill_->setFormat(view.buffer);
+
+  // Held rather than shown directly: a reading covers a quarter of a second and
+  // reports the worst moment in it, so a single bad interval would otherwise be
+  // a flash too brief to see.
+  back_pressure_->setValue(
+      back_pressure_hold_.Apply(view.back_pressure_percent));
+  back_pressure_->setFormat(view.back_pressure);
+
+  // The tooltip carries the figures the caption has no room for, and it changes
+  // with them: a user who has just seen the bar move wants the detail of that
+  // reading, not a paragraph written before the capture started.
+  back_pressure_->setToolTip(view.back_pressure_detail.isEmpty()
+                                 ? BackPressureTip()
+                                 : view.back_pressure_detail);
 }
 
 }  // namespace ddd::gui

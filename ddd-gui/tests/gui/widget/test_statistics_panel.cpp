@@ -88,6 +88,50 @@ TEST(StatisticsPanelTest, PublishedStatisticsReachEveryField) {
       << bar->format().toStdString();
 }
 
+TEST(StatisticsPanelTest, TheBackPressureBarShowsWhatTheDeviceReported) {
+  StatisticsPanel panel(nullptr);
+
+  // What a working capture reports: filled to the packet threshold and taken
+  // away again. The bar has to show that as use rather than as nothing, which
+  // is the whole reason it is scaled on the buffer and not on the trouble.
+  ddd::capture::CaptureStats stats;
+  stats.device_buffer.present = true;
+  stats.device_buffer.peak = 8194;
+  stats.device_buffer.used_now = 3120;
+  stats.device_buffer.packets_read = 1221;
+  stats.device_buffer.depth_words = 16384;
+  stats.device_buffer.packet_words = 8192;
+  stats.device_buffer.near_full_words = 12288;
+
+  panel.OnStatsUpdated(stats);
+
+  auto* bar = panel.findChild<QProgressBar*>(
+      QLatin1String(StatisticsPanel::kBackPressureBarName));
+  ASSERT_NE(bar, nullptr);
+
+  EXPECT_EQ(bar->value(), 50);
+  EXPECT_TRUE(bar->format().contains(QStringLiteral("8194")))
+      << bar->format().toStdString();
+
+  // The tooltip becomes the figures behind the bar once there are some
+  EXPECT_TRUE(bar->toolTip().contains(QStringLiteral("1221")))
+      << bar->toolTip().toStdString();
+}
+
+TEST(StatisticsPanelTest, TheBackPressureBarSaysNothingWhenTheDeviceCannot) {
+  // A device that cannot report its buffer must not look like one whose buffer
+  // is untroubled — a fresh panel showing a confident zero would be the display
+  // inventing a measurement.
+  StatisticsPanel panel(nullptr);
+
+  auto* bar = panel.findChild<QProgressBar*>(
+      QLatin1String(StatisticsPanel::kBackPressureBarName));
+  ASSERT_NE(bar, nullptr);
+
+  EXPECT_EQ(bar->value(), 0);
+  EXPECT_EQ(bar->format(), QString::fromUtf8("—"));
+}
+
 // The three capture-only rows. Blank while monitoring, because none of them
 // describes anything that is happening: there is no encoder, and nothing has
 // been written.

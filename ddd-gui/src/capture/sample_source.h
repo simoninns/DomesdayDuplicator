@@ -16,6 +16,7 @@
 #include <string>
 
 #include "disk_buffer_ring.h"
+#include "fpga_telemetry.h"
 #include "transfer_result.h"
 
 namespace ddd::capture {
@@ -103,6 +104,23 @@ class ISampleSource {
   // Release whatever Prepare() acquired. Always called if Prepare() was, even
   // if Run() was not.
   virtual void Finish() = 0;
+
+  // The device's most recent account of its own capture buffer.
+  //
+  // Not pure, and the default is the honest answer for every source that is not
+  // a device: a synthetic source has no buffer to report on, and a reading that
+  // is not present is what the display shows as "not reported" rather than as
+  // an untroubled device.
+  //
+  // Taking the reading is the source's own job because the source is what holds
+  // the device open — the interface is claimed for the duration of a capture,
+  // so a second handle could not ask — and because a backend is the only thing
+  // that knows how to ask a question without disturbing what it is streaming.
+  //
+  // Thread-safety: called from the orchestrator's processing thread while Run()
+  // is executing on another. Implementations publish through a wait-free tap
+  // (monitor_tap.h) rather than locking.
+  virtual FpgaTelemetry DeviceTelemetry() const { return {}; }
 };
 
 }  // namespace ddd::capture

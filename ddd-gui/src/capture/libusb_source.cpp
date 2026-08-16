@@ -12,6 +12,7 @@
 
 #include "libusb_source.h"
 
+#include <span>
 #include <utility>
 
 #include "logger.h"
@@ -25,6 +26,15 @@ namespace {
 // callback whenever they complete, and this only bounds how long an abort takes
 // to be noticed once every transfer has already been cancelled.
 constexpr int64_t kEventTimeoutMicroseconds = 100'000;
+
+// How long a buffer reading may take before it is abandoned. The device
+// answers in about two milliseconds, so this is not a deadline anything is
+// expected to approach — it is what stops a request outliving the capture that
+// asked for it.
+constexpr unsigned int kTelemetryTimeoutMilliseconds = 1000;
+
+// Refusals before the device is left alone for the rest of the run.
+constexpr int kTelemetryMaxFailures = 2;
 
 const char* TransferStatusName(int status) {
   switch (status) {
@@ -109,6 +119,17 @@ TransferResult LibUsbSource::Prepare(const DiskBufferRing& ring) {
     }
   }
 
+  // One control transfer, reused for every buffer reading. Its buffer carries
+  // libusb's setup packet as well as the block, which is why it is longer than
+  // the block is.
+  telemetry_transfer_ = libusb_alloc_transfer(0);
+  if (telemetry_transfer_ == nullptr) {
+    last_error_ = "libusb could not allocate a transfer structure";
+    return TransferResult::kUsbTransferFailure;
+  }
+  telemetry_buffer_.assign(LIBUSB_CONTROL_SETUP_SIZE + kTelemetryBlockLength,
+                           0);
+
   if (logger_ != nullptr) {
     logger_->Info(
         "libusb: " + std::to_string(layout_.transfer_count) + " transfers of " +
@@ -182,7 +203,14 @@ TransferResult LibUsbSource::Run(DiskBufferRing& ring, SourceControl& control) {
   timeout.tv_usec =
       static_cast<decltype(timeout.tv_usec)>(kEventTimeoutMicroseconds);
 
+  telemetry_in_flight_ = false;
+  telemetry_primed_ = false;
+  telemetry_failures_ = 0;
+  telemetry_due_ = std::chrono::steady_clock::now();
+
   while (!failed_ && transfers_in_flight_ > 0) {
+    PollTelemetry();
+
     libusb_handle_events_timeout_completed(context_, &timeout, nullptr);
 
     // An abort has to be noticed here as well as in the callback: if the device
@@ -191,6 +219,13 @@ TransferResult LibUsbSource::Run(DiskBufferRing& ring, SourceControl& control) {
     if (control.AbortRequested() || ring.AbortRequested()) {
       Fail(TransferResult::kForcedAbort, "The capture was stopped by force");
     }
+  }
+
+  // A reading in flight is outstanding in exactly the same way as a bulk
+  // transfer, and its buffer is a member of this object, so it has to be
+  // cancelled and reaped here too.
+  if (telemetry_in_flight_) {
+    libusb_cancel_transfer(telemetry_transfer_);
   }
 
   // Everything still outstanding has to be cancelled and reaped before the
@@ -217,10 +252,98 @@ TransferResult LibUsbSource::Run(DiskBufferRing& ring, SourceControl& control) {
     }
   }
 
+  while (telemetry_in_flight_) {
+    libusb_handle_events_timeout_completed(context_, &timeout, nullptr);
+  }
+
   ring_ = nullptr;
   control_ = nullptr;
 
   return result_;
+}
+
+void LibUsbSource::PollTelemetry() {
+  // Never two at once, and never before the interval is up. A device that has
+  // refused twice is left alone for the rest of the run: it is firmware that
+  // predates the register requests, and every further poll would be a stall on
+  // endpoint 0 in exchange for nothing.
+  if (telemetry_in_flight_ || telemetry_failures_ >= kTelemetryMaxFailures) {
+    return;
+  }
+
+  const std::chrono::steady_clock::time_point now =
+      std::chrono::steady_clock::now();
+  if (now < telemetry_due_) {
+    return;
+  }
+  telemetry_due_ =
+      now + std::chrono::milliseconds(kTelemetryIntervalMilliseconds);
+
+  // Vendor request, device to host. Assembled as a byte rather than by or-ing
+  // the enumerations together, which C++20 deprecates between different
+  // enumeration types.
+  constexpr uint8_t kVendorReadRequestType =
+      static_cast<uint8_t>(LIBUSB_ENDPOINT_IN) |
+      static_cast<uint8_t>(LIBUSB_REQUEST_TYPE_VENDOR) |
+      static_cast<uint8_t>(LIBUSB_RECIPIENT_DEVICE);
+
+  libusb_fill_control_setup(telemetry_buffer_.data(), kVendorReadRequestType,
+                            kRegisterReadRequest, kRegisterTelemetryId, 0,
+                            kTelemetryBlockLength);
+
+  libusb_fill_control_transfer(
+      telemetry_transfer_, handle_, telemetry_buffer_.data(),
+      &LibUsbSource::TelemetryTrampoline, this, kTelemetryTimeoutMilliseconds);
+
+  if (libusb_submit_transfer(telemetry_transfer_) != 0) {
+    // Deliberately not a capture failure. This is an instrument, and a capture
+    // that stopped because its instrument could not be read would be the
+    // instrument doing precisely the damage it exists to detect.
+    ++telemetry_failures_;
+    return;
+  }
+
+  telemetry_in_flight_ = true;
+}
+
+void LIBUSB_CALL LibUsbSource::TelemetryTrampoline(libusb_transfer* transfer) {
+  static_cast<LibUsbSource*>(transfer->user_data)->OnTelemetryCompletion();
+}
+
+void LibUsbSource::OnTelemetryCompletion() {
+  telemetry_in_flight_ = false;
+
+  if (telemetry_transfer_->status != LIBUSB_TRANSFER_COMPLETED) {
+    // A stall is the ordinary way a device says it does not implement a
+    // request, so firmware without the register requests arrives here. A
+    // cancellation is this object shutting down and is not a refusal.
+    if (telemetry_transfer_->status != LIBUSB_TRANSFER_CANCELLED) {
+      ++telemetry_failures_;
+    }
+    return;
+  }
+
+  if (telemetry_transfer_->actual_length < kTelemetryBlockLength) {
+    ++telemetry_failures_;
+    return;
+  }
+
+  const std::span<const uint8_t> block(
+      libusb_control_transfer_get_data(telemetry_transfer_),
+      static_cast<size_t>(kTelemetryBlockLength));
+
+  const FpgaTelemetry telemetry = ParseFpgaTelemetry(block);
+
+  // The first reading of a run is thrown away — see telemetry_primed_. What it
+  // is good for is having taken place: the read is what clears the device's
+  // interval counters, so the reading after it covers this capture and nothing
+  // before it.
+  if (!telemetry_primed_) {
+    telemetry_primed_ = true;
+    return;
+  }
+
+  telemetry_.Publish(telemetry);
 }
 
 void LIBUSB_CALL LibUsbSource::CompletionTrampoline(libusb_transfer* transfer) {
@@ -336,6 +459,11 @@ void LibUsbSource::Fail(TransferResult result, std::string detail) {
 }
 
 void LibUsbSource::Finish() {
+  if (telemetry_transfer_ != nullptr) {
+    libusb_free_transfer(telemetry_transfer_);
+    telemetry_transfer_ = nullptr;
+  }
+
   for (Transfer& entry : transfers_) {
     if (entry.transfer != nullptr) {
       libusb_free_transfer(entry.transfer);

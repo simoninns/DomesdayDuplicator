@@ -51,7 +51,13 @@ module buffer (
     output [15:0] data_out,
 
     output reg data_available,
-    output reg buffer_error
+    output reg buffer_error,
+
+    // The back-pressure instrument. telemetry_latch samples it, and everything
+    // else about it leaves this module read-only - see bufferMonitor.v.
+    input          telemetry_latch,
+    output [127:0] telemetry,
+    output [ 47:0] telemetry_geometry
 );
 
     // The packet size, in words, and the same number three places agree on:
@@ -63,6 +69,12 @@ module buffer (
     // stall is paid for out of: 8192 words at 40 MSPS is 205 us of grace, the
     // same as the old pair of buffers gave, in the same total memory.
     localparam integer FifoDepth = 16384;
+
+    // Three quarters of the depth, which is half the headroom above the packet
+    // threshold. Occupancy at or above this is what the instrument counts time
+    // against: the FIFO reaching half is ordinary, and reaching this means half
+    // of what a stall is paid out of has already been spent.
+    localparam integer NearFullWords = 12288;
 
     localparam integer UsedBits = $clog2(FifoDepth + 1);
     localparam integer PacketBits = $clog2(PacketWords + 1);
@@ -104,6 +116,28 @@ module buffer (
         .data_out     (data_out),
         .full         (fifo_full),
         .used_words   (used_words)
+    );
+
+    // The back-pressure instrument ------------------------------------------
+    //
+    // Given the same signals this module reasons about, and given them as
+    // inputs only. It cannot affect any of them, which is what makes it safe to
+    // read a running capture with.
+
+    bufferMonitor #(
+        .FifoDepth    (FifoDepth),
+        .PacketWords  (PacketWords),
+        .NearFullWords(NearFullWords)
+    ) buffer_monitor_0 (
+        .reset_n     (reset_n),
+        .clock       (clock),
+        .used_words  (used_words),
+        .write_enable(write_enable),
+        .overflow    (overflow),
+        .is_reading  (is_reading),
+        .latch       (telemetry_latch),
+        .telemetry   (telemetry),
+        .geometry    (telemetry_geometry)
     );
 
     // Packet availability ---------------------------------------------------

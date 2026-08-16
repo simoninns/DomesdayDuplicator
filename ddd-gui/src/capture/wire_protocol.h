@@ -112,6 +112,59 @@ inline constexpr uint8_t kImageRoleApplication = 0x01;
 // The map version at which the image role became meaningful.
 inline constexpr int kRegisterMapVersionWithImageRole = 2;
 
+// The capture buffer's back-pressure instrument.
+//
+// A read-only block at addresses that used to be unmapped, self-described by a
+// signature rather than by a map version — the same arrangement as the remote
+// update diagnostics window, and additive in the same way: gateware without it
+// reads zero here, and this build then knows it is talking to a device that
+// cannot report its buffer rather than to one whose buffer is empty.
+//
+// Reading kRegisterTelemetryId is what samples the instrument. It is the one
+// read in this map with an effect, and it is what makes a reading coherent:
+// the counters are sampled into a shadow bank in a single gateware clock and
+// the host then reads the shadow, rather than reading live counters a byte at
+// a time over a link that takes about 80 microseconds per byte.
+inline constexpr uint8_t kRegisterTelemetryId = 0x40;
+inline constexpr uint8_t kTelemetryIdValue = 0xBD;
+
+// The whole block, signature through geometry, which is one request.
+//
+// The geometry is included in every poll rather than read once and remembered
+// because a remembered figure is a figure that can belong to a different
+// device. Six extra bytes cost about half a millisecond of a poll that happens
+// a few times a second.
+inline constexpr uint8_t kTelemetryBlockLength = 23;
+
+// The layout this build understands, as the low nibble of the status byte
+// reports it. A change to what any field means changes this.
+inline constexpr uint8_t kTelemetryFormat = 1;
+
+// Offsets within the block, from kRegisterTelemetryId. Every multi-byte field
+// is two bytes, least significant first.
+inline constexpr size_t kTelemetryOffsetStatus = 1;
+inline constexpr size_t kTelemetryOffsetLatchCount = 2;
+inline constexpr size_t kTelemetryOffsetUsedNow = 3;
+inline constexpr size_t kTelemetryOffsetPeak = 5;
+inline constexpr size_t kTelemetryOffsetPeakLifetime = 7;
+inline constexpr size_t kTelemetryOffsetOverflows = 9;
+inline constexpr size_t kTelemetryOffsetDropped = 11;
+inline constexpr size_t kTelemetryOffsetPackets = 13;
+inline constexpr size_t kTelemetryOffsetNearFull = 15;
+inline constexpr size_t kTelemetryOffsetDepth = 17;
+inline constexpr size_t kTelemetryOffsetPacketWords = 19;
+inline constexpr size_t kTelemetryOffsetNearFullWords = 21;
+
+// Bits of the status byte.
+inline constexpr uint8_t kTelemetryFormatMask = 0x0F;
+inline constexpr uint8_t kTelemetryFlagOverflowSeen = 0x10;
+inline constexpr uint8_t kTelemetryFlagSaturated = 0x20;
+
+// Samples per unit of the near-full counter. The gateware prescales it because
+// a quarter of a second at or above the threshold is ten million samples and
+// the field is sixteen bits.
+inline constexpr unsigned kTelemetryNearFullPrescale = 256;
+
 // The fixed value at kRegisterId.
 //
 // Neither 0x00 nor 0xFF deliberately: SPI has no acknowledgement, so an FPGA

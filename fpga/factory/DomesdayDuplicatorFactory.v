@@ -181,22 +181,33 @@ module DomesdayDuplicatorFactory (
     // there is not meant to be.
     wire        test_mode_unused;
 
+    // For the same reason it has a capture buffer instrument, and this image
+    // has no buffer. TelemetryPresent is left off, which folds the window away
+    // entirely: 0x40 upwards reads zero here, exactly as it did before the
+    // window was defined, and a host reading this image sees an unmapped
+    // address rather than an instrument reporting a capture that cannot happen.
+    wire        telemetry_latch_unused;
+
     spiRegisters #(
         .CommitText(`GATEWARE_COMMIT_TEXT),
         .BuildFlags(`GATEWARE_BUILD_FLAGS),
 
         // The one line in this file that decides what a host calls this
         // unit's state
-        .ImageRole(8'h00)
+        .ImageRole(8'h00),
+
+        .TelemetryPresent(1'b0)
     ) spi_registers_0 (
         // Inputs
-        .reset_n          (register_reset_n),
-        .clock            (system_clock),
-        .spi_clock        (fx3_spi_clock),
-        .spi_mosi         (fx3_spi_mosi),
-        .spi_chip_select_n(fx3_spi_chip_select_n),
-        .window_read_data (window_read_data),
-        .diagnostics      (remote_update_diagnostics),
+        .reset_n           (register_reset_n),
+        .clock             (system_clock),
+        .spi_clock         (fx3_spi_clock),
+        .spi_mosi          (fx3_spi_mosi),
+        .spi_chip_select_n (fx3_spi_chip_select_n),
+        .window_read_data  (window_read_data),
+        .diagnostics       (remote_update_diagnostics),
+        .telemetry         (128'd0),
+        .telemetry_geometry(48'd0),
 
         // Outputs
         .spi_miso           (fx3_spi_miso),
@@ -205,7 +216,8 @@ module DomesdayDuplicatorFactory (
         .window_write       (window_write_registers),
         .window_address     (window_address_registers),
         .window_write_data  (window_write_data_registers),
-        .transaction_decoded(transaction_decoded)
+        .transaction_decoded(transaction_decoded),
+        .telemetry_latch    (telemetry_latch_unused)
     );
 
     assign LED = leds;

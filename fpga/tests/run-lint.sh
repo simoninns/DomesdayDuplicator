@@ -39,6 +39,7 @@ waivers="$fpga/verilator-waivers.vlt"
 modules=(
     "application:DomesdayDuplicator"
     "application:buffer"
+    "application:bufferMonitor"
     "application:dataGenerator"
     "application:fifo"
     "application:fx3StateMachine"

@@ -37,6 +37,22 @@ struct StatisticsView {
   QString buffer;
   int buffer_percent = 0;
 
+  // The device's own buffer.
+  //
+  // The bar is how full it got, as a fraction of the whole buffer, so that
+  // ordinary use is visible: a working capture fills it to the packet threshold
+  // and no further, which is half, and a bar that sat at zero through all of
+  // that could not be told from one that was broken. Half is therefore the mark
+  // where ordinary use ends rather than a warning, and the caption is what says
+  // which side of it this reading is on.
+  QString back_pressure;
+  int back_pressure_percent = 0;
+
+  // The figures behind the bar, for the tooltip: what the buffer did, what it
+  // has done since the device was opened, and what it cost. Too much for a
+  // caption and exactly what somebody who has just noticed the bar move wants.
+  QString back_pressure_detail;
+
   QString signal_level;
   QString extremes;
   QString clipping;
@@ -82,6 +98,35 @@ StatisticsView PresentStatistics(const capture::CaptureStats& stats,
 StatisticsView PresentIdleStatistics(const analysis::FrontEndGain& gain,
                                      capture::DeviceSpeed speed,
                                      const capture::FreeSpace& space = {});
+
+// The back-pressure bar's fall-off.
+//
+// A reading covers a quarter of a second and reports the worst moment in it, so
+// a single bad interval is a 250 ms flash on a bar that is otherwise still —
+// which a user watching a capture will simply not see. This holds the peak and
+// lets it fall a fraction at a time, the way a level meter does.
+//
+// Separate from PresentStatistics because it is the one part of the display
+// with memory, and a class with one number in it can be tested for the property
+// that matters: a spike is visible for about a second and then gone.
+class BackPressureHold {
+ public:
+  // Numerator and denominator of what survives each reading. Seven tenths per
+  // quarter second puts a spike below a tenth of its height after a second.
+  static constexpr int kDecayNumerator = 7;
+  static constexpr int kDecayDenominator = 10;
+
+  // Take a reading and return what should be shown.
+  int Apply(int sample);
+
+  // Back to nothing shown, for the end of a run.
+  void Reset() { displayed_ = 0; }
+
+  int displayed() const { return displayed_; }
+
+ private:
+  int displayed_ = 0;
+};
 
 // A byte count as a size a person reads. GB and not GiB: a drive is sold in the
 // former, and a user comparing this figure with what their file manager says

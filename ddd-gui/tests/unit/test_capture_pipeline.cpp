@@ -20,6 +20,7 @@
 #include "logger.h"
 #include "recording_sink.h"
 #include "synthetic_source.h"
+#include "wire_protocol.h"
 
 namespace ddd::capture {
 namespace {
@@ -128,6 +129,108 @@ class CapturePipelineTest : public ::testing::Test {
   std::vector<std::pair<LogLevel, std::string>> log_;
   CallbackLogger logger_;
 };
+
+// A source that reports a device buffer, so that everything downstream of the
+// reading can be tested with nothing plugged in.
+//
+// `advance` is what separates the two things worth checking: a device that
+// keeps answering with the same reading, and one that answers with a new one.
+// The pipeline publishes statistics far more often than a real source takes a
+// reading, so telling those apart is the whole job.
+class TelemetrySource : public SyntheticSource {
+ public:
+  TelemetrySource(const Options& options, FpgaTelemetry reading, bool advance)
+      : SyntheticSource(options), reading_(reading), advance_(advance) {}
+
+  FpgaTelemetry DeviceTelemetry() const override {
+    if (advance_) {
+      ++reading_.latch_count;
+    }
+    return reading_;
+  }
+
+ private:
+  // Mutable because DeviceTelemetry() is const on the interface — a real
+  // backend reads a wait-free tap there rather than changing anything. Touched
+  // only by the processing thread, which is the only caller.
+  mutable FpgaTelemetry reading_;
+  bool advance_ = false;
+};
+
+FpgaTelemetry MakeReading() {
+  FpgaTelemetry reading;
+  reading.present = true;
+  reading.format = kTelemetryFormat;
+  reading.latch_count = 3;
+  reading.used_now = 4000;
+  reading.peak = 12288;
+  reading.peak_since_open = 12288;
+  reading.overflow_events = 2;
+  reading.dropped_words = 40;
+  reading.depth_words = 16384;
+  reading.packet_words = 8192;
+  reading.near_full_words = 12288;
+  return reading;
+}
+
+// --- The device's buffer ---------------------------------------------------
+
+TEST_F(CapturePipelineTest, TheDeviceBufferReachesTheStatistics) {
+  SyntheticSource::Options source_options = BaseSourceOptions();
+  source_options.slot_limit = 20;
+  TelemetrySource source(source_options, MakeReading(), false);
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(),
+                             BasePipelineOptions()));
+
+  const RunResult outcome = RunToCompletion(pipeline);
+  EXPECT_EQ(outcome.result, TransferResult::kSuccess);
+
+  EXPECT_TRUE(outcome.stats.device_buffer.present);
+  EXPECT_EQ(outcome.stats.device_buffer.peak, 12288);
+
+  // Half the headroom above the packet threshold, which is the scale the
+  // indicator is drawn on
+  EXPECT_EQ(outcome.stats.peak_back_pressure_percent, 100);
+  EXPECT_EQ(outcome.stats.peak_device_buffer_words, 12288);
+}
+
+TEST_F(CapturePipelineTest, OneReadingIsCountedOnce) {
+  // The pipeline publishes statistics every buffer and a real source takes a
+  // reading a few times a second, so the same reading is seen many times over.
+  // Adding it in each time would multiply every total by however many buffers
+  // went by while the device stood still.
+  SyntheticSource::Options source_options = BaseSourceOptions();
+  source_options.slot_limit = 20;
+  TelemetrySource source(source_options, MakeReading(), false);
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(),
+                             BasePipelineOptions()));
+
+  const RunResult outcome = RunToCompletion(pipeline);
+
+  EXPECT_EQ(outcome.stats.device_overflow_events, 2u);
+  EXPECT_EQ(outcome.stats.device_dropped_words, 40u);
+}
+
+TEST_F(CapturePipelineTest, EachNewReadingIsAccumulated) {
+  // The device's counters clear when they are read, so the totals over a run
+  // exist only as the sum of the readings taken during it.
+  SyntheticSource::Options source_options = BaseSourceOptions();
+  source_options.slot_limit = 20;
+  TelemetrySource source(source_options, MakeReading(), true);
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(),
+                             BasePipelineOptions()));
+
+  const RunResult outcome = RunToCompletion(pipeline);
+
+  EXPECT_GE(outcome.stats.device_overflow_events, 4u);
+  EXPECT_GE(outcome.stats.device_dropped_words, 80u);
+}
 
 // --- Lifetime --------------------------------------------------------------
 

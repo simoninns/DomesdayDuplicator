@@ -308,19 +308,29 @@ module DomesdayDuplicator (
         .data_out(data_generator_out)  // 16-bit data out
     );
 
+    // The capture buffer's back-pressure instrument, on its way to the register
+    // bank. The latch pulse comes back the other way and is the only thing the
+    // host can do to the buffer at all.
+    wire [127:0] buffer_telemetry;
+    wire [ 47:0] buffer_telemetry_geometry;
+    wire         buffer_telemetry_latch;
+
     // FIFO buffer
     buffer buffer_0 (
         // Inputs
-        .reset_n     (reset_n),             // Not reset
-        .clock       (system_clock),        // 80 MHz system clock
-        .write_enable(sample_enable),       // 1 = a sample is written this edge
-        .data_in     (data_generator_out),  // 16-bit ADC data bus input
-        .is_reading  (fx3_is_reading),      // 1 = FX3 is reading data
+        .reset_n        (reset_n),                // Not reset
+        .clock          (system_clock),           // 80 MHz system clock
+        .write_enable   (sample_enable),          // 1 = a sample is written this edge
+        .data_in        (data_generator_out),     // 16-bit ADC data bus input
+        .is_reading     (fx3_is_reading),         // 1 = FX3 is reading data
+        .telemetry_latch(buffer_telemetry_latch), // 1 = sample the instrument
 
         // Outputs
-        .data_out      (fx3_databus),         // 16-bit data output
-        .data_available(fx3_data_available),  // Set if a whole packet is queued
-        .buffer_error  (fx3_buffer_error)     // Set if a sample had to be dropped
+        .data_out          (fx3_databus),               // 16-bit data output
+        .data_available    (fx3_data_available),        // Set if a whole packet is queued
+        .buffer_error      (fx3_buffer_error),          // Set if a sample had to be dropped
+        .telemetry         (buffer_telemetry),          // The instrument's shadow bank
+        .telemetry_geometry(buffer_telemetry_geometry)  // and the constants to read it by
     );
 
     // FX3 GPIF state-machine logic
@@ -352,25 +362,31 @@ module DomesdayDuplicator (
 
         // This is the capture gateware, which is what a host reads out of
         // IMAGE_ROLE to know it is not looking at a unit in recovery
-        .ImageRole(8'h01)
+        .ImageRole(8'h01),
+
+        // and the image that has a capture buffer to report on
+        .TelemetryPresent(1'b1)
     ) spi_registers_0 (
         // Inputs
-        .reset_n          (reset_n),
-        .clock            (system_clock),
-        .spi_clock        (fx3_spi_clock),
-        .spi_mosi         (fx3_spi_mosi),
-        .spi_chip_select_n(fx3_spi_chip_select_n),
-        .window_read_data (window_read_data),
-        .diagnostics      (remote_update_diagnostics),
+        .reset_n           (reset_n),
+        .clock             (system_clock),
+        .spi_clock         (fx3_spi_clock),
+        .spi_mosi          (fx3_spi_mosi),
+        .spi_chip_select_n (fx3_spi_chip_select_n),
+        .window_read_data  (window_read_data),
+        .diagnostics       (remote_update_diagnostics),
+        .telemetry         (buffer_telemetry),
+        .telemetry_geometry(buffer_telemetry_geometry),
 
         // Outputs
         .spi_miso           (fx3_spi_miso),
-        .test_mode          (fx3_test_mode),       // 1 = test data generator selected
-        .leds               (LED),                 // Driven by the FX3, for status
+        .test_mode          (fx3_test_mode),          // 1 = test data generator selected
+        .leds               (LED),                    // Driven by the FX3, for status
         .window_write       (window_write),
         .window_address     (window_address),
         .window_write_data  (window_write_data),
-        .transaction_decoded(transaction_decoded)
+        .transaction_decoded(transaction_decoded),
+        .telemetry_latch    (buffer_telemetry_latch)
     );
 
     // Flash bridge and reconfiguration control

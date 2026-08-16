@@ -43,7 +43,8 @@ trap 'rm -rf "$work"' EXIT
 # down to a model of the EPCS64, because the decision it tests is the one
 # thing in this repository that a field update can never repair.
 benches=(
-    "tb_buffer:application/buffer,application/fifo"
+    "tb_buffer:application/buffer,application/fifo,application/bufferMonitor"
+    "tb_bufferMonitor:application/bufferMonitor"
     "tb_dataGenerator:application/dataGenerator"
     "tb_fifo:application/fifo"
     "tb_fx3StateMachine:application/fx3StateMachine"

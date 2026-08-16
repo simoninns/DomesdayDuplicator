@@ -50,36 +50,51 @@ module tb_buffer;
     // the flag is high for 2001 edges after the overflow.
     localparam integer ERROR_HOLD_EDGES = 2001;
 
-    reg            reset_n;
-    reg            clock;
-    reg            write_enable;
-    reg            is_reading;
-    reg     [15:0] data_in;
+    reg             reset_n;
+    reg             clock;
+    reg             write_enable;
+    reg             is_reading;
+    reg     [ 15:0] data_in;
 
-    wire    [15:0] data_out;
-    wire           data_available;
-    wire           buffer_error;
+    wire    [ 15:0] data_out;
+    wire            data_available;
+    wire            buffer_error;
 
-    integer        errors;
-    integer        i;
-    integer        j;
-    integer        held;
+    integer         errors;
+    integer         i;
+    integer         j;
+    integer         held;
 
     // The next value the writer will present, and the value the reader expects
     // next. A FIFO means these are the same sequence, offset by whatever is
     // still queued.
-    reg     [15:0] write_value;
-    reg     [15:0] read_value;
+    reg     [ 15:0] write_value;
+    reg     [ 15:0] read_value;
+
+    // The back-pressure instrument, which this module instantiates. What is
+    // tested here is the wiring: the instrument has a testbench of its own, and
+    // what that one cannot check is that this module hands it the occupancy of
+    // the FIFO it is actually reporting on.
+    reg             telemetry_latch;
+    wire    [127:0] telemetry;
+    wire    [ 47:0] telemetry_geometry;
+
+    wire    [ 15:0] telemetry_used_now = telemetry[31:16];
+    wire    [ 15:0] telemetry_peak = telemetry[47:32];
+    wire    [ 15:0] telemetry_dropped = telemetry[95:80];
 
     buffer dut (
-        .reset_n       (reset_n),
-        .clock         (clock),
-        .write_enable  (write_enable),
-        .data_in       (data_in),
-        .is_reading    (is_reading),
-        .data_out      (data_out),
-        .data_available(data_available),
-        .buffer_error  (buffer_error)
+        .reset_n           (reset_n),
+        .clock             (clock),
+        .write_enable      (write_enable),
+        .data_in           (data_in),
+        .is_reading        (is_reading),
+        .telemetry_latch   (telemetry_latch),
+        .data_out          (data_out),
+        .data_available    (data_available),
+        .buffer_error      (buffer_error),
+        .telemetry         (telemetry),
+        .telemetry_geometry(telemetry_geometry)
     );
 
     // 80 MHz — 12.5 ns period
@@ -159,14 +174,25 @@ module tb_buffer;
         end
     endtask
 
+    // Sample the instrument, as the register bank does: one clock of latch
+    task take_reading;
+        begin
+            telemetry_latch = 1'b1;
+            cycle(1'b0, 1'b0);
+            telemetry_latch = 1'b0;
+            cycle(1'b0, 1'b0);
+        end
+    endtask
+
     initial begin
-        errors       = 0;
-        write_enable = 1'b0;
-        is_reading   = 1'b0;
-        data_in      = 16'd0;
-        write_value  = 16'd0;
-        read_value   = 16'd0;
-        reset_n      = 1'b0;
+        errors          = 0;
+        write_enable    = 1'b0;
+        is_reading      = 1'b0;
+        data_in         = 16'd0;
+        write_value     = 16'd0;
+        read_value      = 16'd0;
+        telemetry_latch = 1'b0;
+        reset_n         = 1'b0;
 
         @(posedge clock);
         #1 reset_n = 1'b1;
@@ -319,6 +345,36 @@ module tb_buffer;
         check(data_available, 32'd1, "the buffer works after a reset");
         read_packet(1'b0);
         check(data_available, 32'd0, "the packet after a reset is a whole packet");
+
+        // --- The back-pressure instrument -----------------------------------
+        //
+        // Wiring, not arithmetic: tb_bufferMonitor covers what the instrument
+        // computes, and what it cannot cover is that this module gives it the
+        // occupancy of the FIFO it is reporting on rather than, say, the
+        // occupancy one packet ago. Reading zero here would be the symptom of
+        // an instrument connected to nothing, which is exactly the failure a
+        // separate testbench for it would not find.
+        reset_n = 1'b0;
+        @(posedge clock);
+        #1 reset_n = 1'b1;
+
+        check({16'd0, telemetry_geometry[15:0]}, FIFO_DEPTH, "the instrument reports the depth");
+        check({16'd0, telemetry_geometry[31:16]}, PACKET_WORDS, "and the packet size");
+
+        write_value = 16'h1000;
+        write_samples(PACKET_WORDS / 2);
+        take_reading;
+        check({16'd0, telemetry_used_now}, PACKET_WORDS / 2, "the instrument sees the occupancy");
+        check({16'd0, telemetry_peak}, PACKET_WORDS / 2, "and the peak of the interval");
+        check({16'd0, telemetry_dropped}, 32'd0, "nothing dropped filling half a packet");
+
+        // An overflow is the one event the instrument and the error pin both
+        // report, so they must agree about it
+        write_samples(FIFO_DEPTH - (PACKET_WORDS / 2));
+        write_samples(3);
+        check(buffer_error, 32'd1, "the error pin is raised by the overflow");
+        take_reading;
+        check({16'd0, telemetry_dropped}, 32'd3, "and the instrument counted the same drops");
 
         if (errors == 0) begin
             $display("tb_buffer: PASS");

@@ -65,6 +65,22 @@ module spiRegisters (
     // signature in the top two bytes.
     input [63:0] diagnostics,
 
+    // The capture buffer's back-pressure instrument, presented read-only at
+    // 0x41 to 0x50 with its geometry at 0x51 to 0x56, least significant byte
+    // first. Only the image that has a capture path has anything to say here,
+    // so TelemetryPresent gates the whole window and the factory image
+    // compiles without it - reading 0x40 there returns zero exactly as it did
+    // before this window existed.
+    input [127:0] telemetry,
+    input [ 47:0] telemetry_geometry,
+
+    // One clock high when a read transaction is commanded at TELEM_ID, which
+    // is what samples the instrument. It is the one read in this map with an
+    // effect, and the effect is confined to the instrument's own shadow
+    // registers - see the register interface documentation, and bufferMonitor.v
+    // for why the alternative is a torn reading rather than a slower one.
+    output telemetry_latch,
+
     // One clock high for each data byte of a framed transaction that
     // completes. This is what the application image tickles the
     // reconfiguration watchdog with: it says the fabric decoded something,
@@ -92,6 +108,13 @@ module spiRegisters (
     // top level is the only place that does.
     parameter [7:0] ImageRole = 8'h01;
 
+    // Whether this image carries the capture buffer instrument. Off by
+    // default, because the bank is shared and the image that does not have a
+    // capture path has nothing to instrument; the application top level is the
+    // only place that turns it on. With it off the whole window constant-folds
+    // away, so the image without it is the image it was before.
+    parameter [0:0] TelemetryPresent = 1'b0;
+
     // The register map this bank implements, reported at 0x01. Version 2
     // adds IMAGE_ROLE and the 0x20 to 0x23 window; everything version 1
     // defined is unchanged, and the identity block is frozen across all
@@ -104,6 +127,13 @@ module spiRegisters (
     // transaction, is exactly wrong for it - a run of writes to one address
     // is how a multi-byte flash transaction is expressed.
     localparam [6:0] BridgeDataAddress = 7'h22;
+
+    // The instrument's signature, and the address that carries it. An unmapped
+    // address reads zero, so a host tells gateware that has this window from
+    // gateware that does not by reading this byte - the same arrangement the
+    // 0x30 window uses, and the reason neither needed a map version.
+    localparam [6:0] TelemetryIdAddress = 7'h40;
+    localparam [7:0] TelemetryIdValue = 8'hBD;
 
     // Input synchronisers ---------------------------------------------------
 
@@ -197,6 +227,29 @@ module spiRegisters (
                 7'h35:   read_register = diagnostics[47:40];
                 7'h36:   read_register = diagnostics[55:48];
                 7'h37:   read_register = diagnostics[63:56];
+                7'h40:   read_register = TelemetryPresent ? TelemetryIdValue : 8'h00;
+                7'h41:   read_register = TelemetryPresent ? telemetry[7:0] : 8'h00;
+                7'h42:   read_register = TelemetryPresent ? telemetry[15:8] : 8'h00;
+                7'h43:   read_register = TelemetryPresent ? telemetry[23:16] : 8'h00;
+                7'h44:   read_register = TelemetryPresent ? telemetry[31:24] : 8'h00;
+                7'h45:   read_register = TelemetryPresent ? telemetry[39:32] : 8'h00;
+                7'h46:   read_register = TelemetryPresent ? telemetry[47:40] : 8'h00;
+                7'h47:   read_register = TelemetryPresent ? telemetry[55:48] : 8'h00;
+                7'h48:   read_register = TelemetryPresent ? telemetry[63:56] : 8'h00;
+                7'h49:   read_register = TelemetryPresent ? telemetry[71:64] : 8'h00;
+                7'h4A:   read_register = TelemetryPresent ? telemetry[79:72] : 8'h00;
+                7'h4B:   read_register = TelemetryPresent ? telemetry[87:80] : 8'h00;
+                7'h4C:   read_register = TelemetryPresent ? telemetry[95:88] : 8'h00;
+                7'h4D:   read_register = TelemetryPresent ? telemetry[103:96] : 8'h00;
+                7'h4E:   read_register = TelemetryPresent ? telemetry[111:104] : 8'h00;
+                7'h4F:   read_register = TelemetryPresent ? telemetry[119:112] : 8'h00;
+                7'h50:   read_register = TelemetryPresent ? telemetry[127:120] : 8'h00;
+                7'h51:   read_register = TelemetryPresent ? telemetry_geometry[7:0] : 8'h00;
+                7'h52:   read_register = TelemetryPresent ? telemetry_geometry[15:8] : 8'h00;
+                7'h53:   read_register = TelemetryPresent ? telemetry_geometry[23:16] : 8'h00;
+                7'h54:   read_register = TelemetryPresent ? telemetry_geometry[31:24] : 8'h00;
+                7'h55:   read_register = TelemetryPresent ? telemetry_geometry[39:32] : 8'h00;
+                7'h56:   read_register = TelemetryPresent ? telemetry_geometry[47:40] : 8'h00;
                 default: read_register = 8'h00;
             endcase
         end
@@ -220,6 +273,7 @@ module spiRegisters (
     reg  [1:0] window_write_address;
     reg  [7:0] window_write_byte;
     reg        data_byte_complete;
+    reg        telemetry_latch_pulse;
 
     // The byte as it stands once the bit currently on spi_mosi is taken in
     wire [7:0] shift_in_next = {shift_in, spi_mosi_sync[1]};
@@ -244,30 +298,32 @@ module spiRegisters (
     assign window_address      = window_write_address;
     assign window_write_data   = window_write_byte;
     assign transaction_decoded = data_byte_complete;
+    assign telemetry_latch     = telemetry_latch_pulse;
 
     always @(posedge clock, negedge reset_n) begin
         if (!reset_n) begin
-            shift_in             <= 7'd0;
-            shift_out            <= 8'h00;
-            bit_count            <= 3'd0;
-            command_received     <= 1'b0;
-            read_transfer        <= 1'b0;
-            address              <= 7'h00;
-            miso_out             <= 1'b0;
+            shift_in              <= 7'd0;
+            shift_out             <= 8'h00;
+            bit_count             <= 3'd0;
+            command_received      <= 1'b0;
+            read_transfer         <= 1'b0;
+            address               <= 7'h00;
+            miso_out              <= 1'b0;
 
-            window_write_pulse   <= 1'b0;
-            window_write_address <= 2'd0;
-            window_write_byte    <= 8'h00;
-            data_byte_complete   <= 1'b0;
+            window_write_pulse    <= 1'b0;
+            window_write_address  <= 2'd0;
+            window_write_byte     <= 8'h00;
+            data_byte_complete    <= 1'b0;
+            telemetry_latch_pulse <= 1'b0;
 
-            test_mode_register   <= 8'h00;
+            test_mode_register    <= 8'h00;
 
             // One LED lit, which says "configured and running, but the FX3 has
             // not written here yet". An unconfigured FPGA shows none, because
             // its pins are high-Z, and the firmware overwrites this within a
             // second of enumerating - so the board distinguishes three states
             // on hardware whose only other diagnostic is a UART header.
-            led_register         <= 8'h01;
+            led_register          <= 8'h01;
         end else if (spi_chip_select_n_level) begin
             // Chip select is deasserted, so no transfer is in progress.
             //
@@ -276,19 +332,21 @@ module spiRegisters (
             // reset, or by a board powering up mid-byte - leave nothing behind.
             // A partly received data byte cannot reach a register, because a
             // register is only written on the eighth bit of a byte.
-            shift_in           <= 7'd0;
-            shift_out          <= 8'h00;
-            bit_count          <= 3'd0;
-            command_received   <= 1'b0;
-            miso_out           <= 1'b0;
+            shift_in              <= 7'd0;
+            shift_out             <= 8'h00;
+            bit_count             <= 3'd0;
+            command_received      <= 1'b0;
+            miso_out              <= 1'b0;
 
-            window_write_pulse <= 1'b0;
-            data_byte_complete <= 1'b0;
+            window_write_pulse    <= 1'b0;
+            data_byte_complete    <= 1'b0;
+            telemetry_latch_pulse <= 1'b0;
         end else begin
-            // Both of these are one clock wide, so they are cleared on every
-            // clock and raised only by the byte that earned them
-            window_write_pulse <= 1'b0;
-            data_byte_complete <= 1'b0;
+            // All three of these are one clock wide, so they are cleared on
+            // every clock and raised only by the byte that earned them
+            window_write_pulse    <= 1'b0;
+            data_byte_complete    <= 1'b0;
+            telemetry_latch_pulse <= 1'b0;
 
             if (spi_clock_rising) begin
                 shift_in  <= shift_in_next[6:0];
@@ -304,6 +362,25 @@ module spiRegisters (
                         // so a read's first returned byte is always zero and the
                         // register contents start with the second
                         shift_out <= shift_in_next[7] ? read_register(shift_in_next[6:0]) : 8'h00;
+
+                        // Sample the capture buffer instrument.
+                        //
+                        // On the command byte of a read that begins at
+                        // TELEM_ID, and only there. Not on a write, which has
+                        // no business disturbing an interval, and not on an
+                        // auto-incremented address that happens to arrive at
+                        // TELEM_ID - a read that started lower is reading
+                        // something else and must not silently consume
+                        // somebody's measurement.
+                        //
+                        // The byte this decision loads is TELEM_ID itself,
+                        // which is a constant, so it does not matter that it
+                        // is loaded before the sample is taken. The first byte
+                        // that comes out of the shadow is loaded a whole SPI
+                        // byte later, by which time the sample is eight clocks
+                        // old at the slowest link this bank accepts.
+                        telemetry_latch_pulse <= TelemetryPresent && shift_in_next[7]
+                            && (shift_in_next[6:0] == TelemetryIdAddress);
                     end else begin
                         // A whole data byte of a framed transaction has
                         // arrived, which is the fabric proving it decoded

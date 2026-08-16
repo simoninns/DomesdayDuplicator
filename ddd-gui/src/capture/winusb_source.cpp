@@ -15,6 +15,8 @@
 #ifdef _WIN32
 
 #include <algorithm>
+#include <array>
+#include <span>
 #include <utility>
 
 #include "logger.h"
@@ -28,6 +30,13 @@ namespace {
 // device completes a transfer every couple of milliseconds and never reaches
 // the timeout at all.
 constexpr DWORD kCompletionWaitMilliseconds = 100;
+
+// Vendor request, device to host. The same value the other backends use, spelt
+// out here because this file cannot reach libusb's constants.
+constexpr UCHAR kVendorReadRequestType = 0xC0;
+
+// Refusals before the device is left alone for the rest of the run.
+constexpr int kTelemetryMaxFailures = 2;
 
 }  // namespace
 
@@ -199,10 +208,16 @@ TransferResult WinUsbSource::Run(DiskBufferRing& ring, SourceControl& control) {
     }
   }
 
+  telemetry_primed_ = false;
+  telemetry_failures_ = 0;
+  telemetry_due_ = std::chrono::steady_clock::now();
+
   size_t current = 0;
   bool drained = false;
 
   while (!failed_ && !drained) {
+    PollTelemetry();
+
     Transfer& entry = transfers_[current];
 
     if (!entry.submitted) {
@@ -372,6 +387,60 @@ void WinUsbSource::Fail(TransferResult result, std::string detail) {
       logger_->Error("winusb: " + last_error_);
     }
   }
+}
+
+void WinUsbSource::PollTelemetry() {
+  if (telemetry_failures_ >= kTelemetryMaxFailures) {
+    return;
+  }
+
+  const std::chrono::steady_clock::time_point now =
+      std::chrono::steady_clock::now();
+  if (now < telemetry_due_) {
+    return;
+  }
+  telemetry_due_ =
+      now + std::chrono::milliseconds(kTelemetryIntervalMilliseconds);
+
+  std::array<UCHAR, kTelemetryBlockLength> block{};
+
+  WINUSB_SETUP_PACKET setup = {};
+  setup.RequestType = kVendorReadRequestType;
+  setup.Request = kRegisterReadRequest;
+  setup.Value = kRegisterTelemetryId;
+  setup.Index = 0;
+  setup.Length = static_cast<USHORT>(block.size());
+
+  ULONG transferred = 0;
+  if (WinUsb_ControlTransfer(interface_handle_, setup, block.data(),
+                             static_cast<ULONG>(block.size()), &transferred,
+                             nullptr) != TRUE) {
+    // Deliberately not a capture failure. This is an instrument, and a capture
+    // that stopped because its instrument could not be read would be the
+    // instrument doing precisely the damage it exists to detect. A stall is
+    // how firmware without the register requests answers.
+    ++telemetry_failures_;
+    return;
+  }
+
+  if (transferred < block.size()) {
+    ++telemetry_failures_;
+    return;
+  }
+
+  const FpgaTelemetry telemetry = ParseFpgaTelemetry(std::span<const uint8_t>(
+      reinterpret_cast<const uint8_t*>(block.data()), block.size()));
+
+  // The first reading of a run is thrown away — see telemetry_primed_. What it
+  // is good for is having taken place: the read is what clears the device's
+  // interval counters, so the reading after it covers this capture and nothing
+  // before it.
+  if (!telemetry_primed_) {
+    telemetry_primed_ = true;
+    return;
+  }
+
+  telemetry_.Publish(telemetry);
 }
 
 void WinUsbSource::Finish() {

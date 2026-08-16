@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "fpga_telemetry.h"
 #include "sample_metrics.h"
 #include "sequence_validator.h"
 #include "transfer_result.h"
@@ -68,7 +69,47 @@ struct CaptureStats {
   bool test_pattern_checked = false;
   bool test_pattern_passed = true;
 
+  // The device's own account of its capture buffer, as of the most recent
+  // reading. Not present for a source that is not a device, and not present
+  // for gateware that predates the instrument — which is a different thing
+  // from a device reporting an empty buffer, and has to stay different all the
+  // way to the display.
+  FpgaTelemetry device_buffer;
+
+  // The worst of it over the whole run, kept for the same reason
+  // peak_slots_in_use is: a capture that was fine except for one stall thirty
+  // minutes in reads as perfect from the live figures alone.
+  int peak_back_pressure_percent = 0;
+  uint16_t peak_device_buffer_words = 0;
+
+  // Totals over the run, accumulated a reading at a time. The device's
+  // counters are per-interval and clear when they are read, so these are the
+  // only place a total exists at all.
+  uint64_t device_overflow_events = 0;
+  uint64_t device_dropped_words = 0;
+
   SampleMetricsSnapshot metrics;
+};
+
+// Publishes the device's buffer readings from the thread that takes them.
+//
+// The same sequence lock as StatsPublisher and for the same reason, with one
+// difference worth stating: the writer here is the *transfer* thread, because
+// that is the thread that owns the device handle and can ask it anything. The
+// reader is the processing thread, which folds the reading into the statistics
+// block. Neither ever waits for the other, so a reading in progress can never
+// hold up either the capture or the display.
+class TelemetryPublisher {
+ public:
+  void Publish(const FpgaTelemetry& telemetry);
+
+  // Take a consistent copy. Returns a default-constructed value — present
+  // false — until something has been published.
+  FpgaTelemetry Read() const;
+
+ private:
+  std::atomic<uint64_t> sequence_{0};
+  FpgaTelemetry value_;
 };
 
 // Publishes a value that readers can take a consistent copy of without ever

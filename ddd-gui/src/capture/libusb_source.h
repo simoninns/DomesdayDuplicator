@@ -15,11 +15,13 @@
 #include <libusb.h>
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
 
+#include "monitor_tap.h"
 #include "sample_source.h"
 #include "usb_device.h"
 
@@ -67,6 +69,21 @@ class LibUsbSource : public ISampleSource {
   TransferResult Run(DiskBufferRing& ring, SourceControl& control) override;
   void Finish() override;
 
+  FpgaTelemetry DeviceTelemetry() const override { return telemetry_.Read(); }
+
+  // How often the gateware's capture buffer is read, in milliseconds.
+  //
+  // Four times a second. Each reading costs one control request of 23 bytes,
+  // which the FX3 answers by bit-banging its register link at about 80
+  // microseconds a byte — so this is roughly two milliseconds of the device's
+  // endpoint-0 thread every 250, and nothing at all of the path the samples
+  // take, which is a hardware DMA channel the FX3's CPU never touches.
+  //
+  // Faster would not say more: each reading already reports the *peak* of its
+  // own interval, so nothing is missed between them, and the peak of a shorter
+  // interval is a smaller number rather than a better one.
+  static constexpr int kTelemetryIntervalMilliseconds = 250;
+
   // What Prepare() worked out. Exposed so a caller can log it and a test can
   // check it against PlanTransferLayout().
   const TransferLayout& layout() const { return layout_; }
@@ -90,6 +107,20 @@ class LibUsbSource : public ISampleSource {
 
   static void LIBUSB_CALL CompletionTrampoline(libusb_transfer* transfer);
   void OnCompletion(Transfer& entry);
+
+  // Ask the gateware how its capture buffer is doing, at most every
+  // kTelemetryIntervalMilliseconds.
+  //
+  // Asynchronous, and submitted from inside the event loop, which is the whole
+  // of why it cannot cost a sample: the request is reaped by the same
+  // libusb_handle_events() call that reaps the bulk transfers, so nothing waits
+  // for it and the completion callback that is allowed to block is never
+  // blocked by it. A synchronous request from another thread would contend with
+  // that callback for libusb's event lock, which is the one arrangement that
+  // could turn a slow reading into a stalled capture.
+  void PollTelemetry();
+  static void LIBUSB_CALL TelemetryTrampoline(libusb_transfer* transfer);
+  void OnTelemetryCompletion();
 
   // Record the first failure. Later ones are consequences of it.
   void Fail(TransferResult result, std::string detail);
@@ -118,6 +149,29 @@ class LibUsbSource : public ISampleSource {
   std::string last_error_;
 
   bool interface_claimed_ = false;
+
+  // The buffer telemetry request and what it lands in. One transfer, reused for
+  // every reading, and never more than one of them in flight.
+  libusb_transfer* telemetry_transfer_ = nullptr;
+  std::vector<uint8_t> telemetry_buffer_;
+  bool telemetry_in_flight_ = false;
+  std::chrono::steady_clock::time_point telemetry_due_{};
+
+  // The first reading of a run is thrown away. Its interval reaches back to
+  // whenever the registers were last read, which is before this capture
+  // started — and with nothing draining the device, its buffer sits full and
+  // overflowing. Publishing that would open every capture with a report of a
+  // catastrophe that never happened.
+  bool telemetry_primed_ = false;
+
+  // Refusals, counted so that a device that cannot answer is asked a couple of
+  // times and then left alone. Gateware without the instrument answers a read
+  // of an unmapped address with zeros rather than a stall, so this is really
+  // about firmware that predates the register requests, where every poll is a
+  // stall on endpoint 0 for nothing.
+  int telemetry_failures_ = 0;
+
+  TelemetryPublisher telemetry_;
 };
 
 }  // namespace ddd::capture

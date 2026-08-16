@@ -21,11 +21,13 @@
 #include <Windows.h>
 #include <winusb.h>
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
 
+#include "monitor_tap.h"
 #include "sample_source.h"
 #include "usb_device.h"
 
@@ -82,6 +84,13 @@ class WinUsbSource : public ISampleSource {
   const TransferLayout& layout() const { return layout_; }
   const std::string& last_error() const { return last_error_; }
 
+  FpgaTelemetry DeviceTelemetry() const override { return telemetry_.Read(); }
+
+  // How often the gateware's capture buffer is read. Deliberately the same
+  // figure as the libusb backend's, so that the two platforms display the same
+  // instrument rather than two instruments with the same name.
+  static constexpr int kTelemetryIntervalMilliseconds = 250;
+
  private:
   struct Transfer {
     OVERLAPPED overlapped = {};
@@ -93,6 +102,18 @@ class WinUsbSource : public ISampleSource {
   };
 
   bool SubmitTransfer(Transfer& entry);
+
+  // Ask the gateware how its capture buffer is doing, at most every
+  // kTelemetryIntervalMilliseconds.
+  //
+  // Synchronous, unlike the libusb backend's, and that is a property of the two
+  // APIs rather than a difference of opinion: WinUSB has no completion callback
+  // to hang an asynchronous control request on, and this loop is a sequence of
+  // waits rather than an event loop. Blocking it for the two milliseconds the
+  // device takes to answer costs nothing, because the bulk reads it is waiting
+  // for were submitted long ago and are serviced by the driver, not by this
+  // thread — several megabytes of them are outstanding at any moment.
+  void PollTelemetry();
 
   // Wait for one request, looking around every so often so that an abort is
   // noticed even when the device has gone silent. Returns false if the wait
@@ -121,6 +142,18 @@ class WinUsbSource : public ISampleSource {
 
   TransferResult result_ = TransferResult::kSuccess;
   std::string last_error_;
+
+  std::chrono::steady_clock::time_point telemetry_due_{};
+
+  // The first reading of a run is thrown away: its interval reaches back to
+  // before this capture started, when nothing was draining the device and its
+  // buffer sat full and overflowing.
+  bool telemetry_primed_ = false;
+
+  // Refusals, after which the device is left alone for the rest of the run
+  int telemetry_failures_ = 0;
+
+  TelemetryPublisher telemetry_;
 };
 
 }  // namespace ddd::capture

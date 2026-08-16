@@ -65,6 +65,158 @@ capture::CaptureStats RunningStats() {
   return stats;
 }
 
+// A device reading, as the gateware's instrument produces one. The geometry is
+// the real one: a 16384-word buffer offered in 8192-word packets, so the
+// headroom every percentage is measured against is the 8192 words above a
+// packet.
+capture::FpgaTelemetry Reading(uint16_t peak, uint16_t overflows = 0) {
+  capture::FpgaTelemetry reading;
+  reading.present = true;
+  reading.format = capture::kTelemetryFormat;
+  reading.used_now = 4000;
+  reading.peak = peak;
+  reading.peak_since_open = peak;
+  reading.overflow_events = overflows;
+  reading.depth_words = 16384;
+  reading.packet_words = 8192;
+  reading.near_full_words = 12288;
+  return reading;
+}
+
+// --- The device's buffer ---------------------------------------------------
+//
+// The bar is how full the buffer got, and the reason it is that rather than how
+// much trouble the device was in is a bench observation: on a working capture
+// the trouble figure is zero for hours, and a bar that never leaves zero cannot
+// be told from one that is broken. The verdict lives in the caption instead.
+
+TEST(StatisticsPresenterTest, AWorkingCaptureShowsTheBufferBeingUsed) {
+  // What the hardware actually reports: the buffer fills to the packet
+  // threshold, the FX3 takes the packet, and it never goes higher. Half the
+  // buffer, every packet, for the whole run — the instrument's proof that it is
+  // reading a device rather than reading nothing.
+  capture::CaptureStats stats = RunningStats();
+  stats.device_buffer = Reading(8194);
+  stats.device_buffer.used_now = 3120;
+
+  const StatisticsView view =
+      PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
+
+  EXPECT_EQ(view.back_pressure_percent, 50);
+  EXPECT_TRUE(view.back_pressure.contains(QStringLiteral("8194")))
+      << view.back_pressure.toStdString();
+  EXPECT_TRUE(view.back_pressure.contains(QStringLiteral("16384")))
+      << view.back_pressure.toStdString();
+
+  // The occupancy at the instant of the reading leads, because it is the only
+  // figure here that changes from one reading to the next: the peak of a
+  // capture that is keeping up is the packet threshold plus a word or two,
+  // every time, and a caption that led with it looked frozen.
+  EXPECT_TRUE(view.back_pressure.startsWith(QStringLiteral("now 3120")))
+      << view.back_pressure.toStdString();
+
+  // And it is not reported as trouble, because it is not
+  EXPECT_EQ(stats.device_buffer.BackPressurePercent(), 0);
+}
+
+TEST(StatisticsPresenterTest, AStretchedDeviceSaysSoInWords) {
+  capture::CaptureStats stats = RunningStats();
+  stats.device_buffer = Reading(10240);
+
+  const StatisticsView view =
+      PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
+
+  // 10240 of 16384 words is 62% of the buffer...
+  EXPECT_EQ(view.back_pressure_percent, 62);
+
+  // ...and 2048 words into the 8192 of reserve above a packet, which is the
+  // figure that says how much trouble that is
+  EXPECT_EQ(stats.device_buffer.BackPressurePercent(), 25);
+  EXPECT_TRUE(view.back_pressure.contains(QStringLiteral("reserve")))
+      << view.back_pressure.toStdString();
+}
+
+TEST(StatisticsPresenterTest, TheTooltipCarriesWhatTheCaptionCannot) {
+  capture::CaptureStats stats = RunningStats();
+  stats.device_buffer = Reading(8194);
+  stats.device_buffer.packets_read = 1221;
+  stats.device_buffer.peak_since_open = 9000;
+
+  const StatisticsView view =
+      PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
+
+  // The packets taken are the plainest evidence that the device is draining
+  EXPECT_TRUE(view.back_pressure_detail.contains(QStringLiteral("1221")))
+      << view.back_pressure_detail.toStdString();
+  EXPECT_TRUE(view.back_pressure_detail.contains(QStringLiteral("9000")))
+      << view.back_pressure_detail.toStdString();
+}
+
+TEST(StatisticsPresenterTest, ADeviceThatIsNotMovingSaysIdle) {
+  // Nothing filling and nothing draining. Distinct from a device that cannot
+  // report, and distinct from one whose buffer is simply empty at this instant.
+  capture::CaptureStats stats = RunningStats();
+  stats.device_buffer = Reading(0);
+  stats.device_buffer.used_now = 0;
+
+  const StatisticsView view =
+      PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
+
+  EXPECT_EQ(view.back_pressure_percent, 0);
+  EXPECT_TRUE(view.back_pressure.contains(QStringLiteral("Idle")))
+      << view.back_pressure.toStdString();
+}
+
+TEST(StatisticsPresenterTest, LostSamplesReplaceThePercentageWithTheDamage) {
+  // Once samples have been lost the percentages have stopped being the
+  // interesting numbers.
+  capture::CaptureStats stats = RunningStats();
+  stats.device_buffer = Reading(16384, 2);
+  stats.device_overflow_events = 3;
+  stats.device_dropped_words = 4200;
+
+  const StatisticsView view =
+      PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
+
+  // A full buffer is the top of the bar, and is what overflow means
+  EXPECT_EQ(view.back_pressure_percent, 100);
+  EXPECT_EQ(stats.device_buffer.BackPressurePercent(), 100);
+  EXPECT_TRUE(view.back_pressure.contains(QStringLiteral("4200")))
+      << view.back_pressure.toStdString();
+}
+
+TEST(StatisticsPresenterTest, GatewareWithoutTheInstrumentSaysSo) {
+  // The case that must not read as a healthy device: gateware that predates the
+  // instrument captures perfectly well and simply cannot answer the question.
+  const StatisticsView view = PresentStatistics(RunningStats(), Undeclared(),
+                                                capture::DeviceSpeed::kSuper);
+
+  EXPECT_EQ(view.back_pressure_percent, 0);
+  EXPECT_TRUE(view.back_pressure.contains(QStringLiteral("Not reported")))
+      << view.back_pressure.toStdString();
+}
+
+TEST(StatisticsPresenterTest, ASpikeStaysVisibleForAboutASecond) {
+  // A reading covers a quarter of a second and reports the worst moment in it,
+  // so a single bad interval would otherwise be a flash nobody sees. Four
+  // readings later it is down to a quarter of its height, and it is gone
+  // before it can be mistaken for a device still in trouble.
+  BackPressureHold hold;
+
+  EXPECT_EQ(hold.Apply(100), 100);
+  EXPECT_EQ(hold.Apply(0), 70);
+  EXPECT_EQ(hold.Apply(0), 49);
+  EXPECT_EQ(hold.Apply(0), 34);
+  EXPECT_EQ(hold.Apply(0), 23);
+
+  // A higher reading always wins immediately: the hold may only delay a fall,
+  // never a rise.
+  EXPECT_EQ(hold.Apply(80), 80);
+
+  hold.Reset();
+  EXPECT_EQ(hold.displayed(), 0);
+}
+
 // --- Units ---------------------------------------------------------------
 
 // Both units, because they answer different questions. MB/s is what a disk is

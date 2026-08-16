@@ -50,6 +50,36 @@ CaptureStats StatsPublisher::Read() const {
   }
 }
 
+void TelemetryPublisher::Publish(const FpgaTelemetry& telemetry) {
+  sequence_.fetch_add(1, std::memory_order_release);
+  std::atomic_thread_fence(std::memory_order_release);
+
+  value_ = telemetry;
+
+  std::atomic_thread_fence(std::memory_order_release);
+  sequence_.fetch_add(1, std::memory_order_release);
+}
+
+FpgaTelemetry TelemetryPublisher::Read() const {
+  FpgaTelemetry copy;
+
+  while (true) {
+    const uint64_t before = sequence_.load(std::memory_order_acquire);
+    if ((before & 1U) != 0) {
+      continue;
+    }
+
+    std::atomic_thread_fence(std::memory_order_acquire);
+    copy = value_;
+    std::atomic_thread_fence(std::memory_order_acquire);
+
+    const uint64_t after = sequence_.load(std::memory_order_acquire);
+    if (before == after) {
+      return copy;
+    }
+  }
+}
+
 SnapshotPublisher::SnapshotPublisher(size_t snapshot_bytes)
     : snapshot_bytes_(snapshot_bytes) {
   for (Buffer& buffer : buffers_) {

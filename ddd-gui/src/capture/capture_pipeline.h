@@ -223,6 +223,18 @@ class CapturePipeline {
   TestPatternVerifier::Result test_pattern_result_;
   bool test_pattern_checked_ = false;
 
+  // The device's buffer readings, accumulated across the run. The latch count
+  // is what tells one reading from the same reading seen again — the source
+  // takes one a few times a second and this thread publishes far more often
+  // than that.
+  bool device_buffer_seen_ = false;
+  bool device_buffer_squeezed_ = false;
+  uint8_t device_buffer_latch_ = 0;
+  int peak_back_pressure_percent_ = 0;
+  uint16_t peak_device_buffer_words_ = 0;
+  uint64_t device_overflow_events_ = 0;
+  uint64_t device_dropped_words_ = 0;
+
   StatsPublisher stats_;
 
   // Behind a pointer because a run may ask for a different snapshot size than

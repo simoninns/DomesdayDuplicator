@@ -12,6 +12,7 @@
 #include "statistics_presenter.h"
 
 #include <QCoreApplication>
+#include <algorithm>
 
 #include "gain_choices.h"
 #include "sample_format.h"
@@ -47,6 +48,91 @@ QString DescribeLinkSpeed(capture::DeviceSpeed speed) {
     return None();
   }
   return QString::fromUtf8(capture::DeviceSpeedName(speed));
+}
+
+// The caption on the back-pressure bar.
+//
+// Words rather than percentages, because the words are what say the buffer is
+// being used at all. A capture that is working fills it to the packet threshold
+// on every packet the FX3 takes — 8194 of 16384 words on the hardware this was
+// written against — and a caption that reported that as "0%" was true, useless,
+// and indistinguishable from an instrument that was not reading anything.
+//
+// Four cases. The difference between the first two is the point of them: a
+// device that cannot report its buffer must not look like a device whose buffer
+// is untroubled. Gateware that predates the instrument is perfectly good at
+// capturing, so that is a statement about the display and not a fault.
+QString DescribeBackPressure(const capture::CaptureStats& stats) {
+  const capture::FpgaTelemetry& device = stats.device_buffer;
+
+  if (!device.present) {
+    return Translate("Not reported by this gateware");
+  }
+
+  if (device.peak == 0 && device.packets_read == 0) {
+    // Nothing has moved at all: the device is attached and answering, and its
+    // buffer is neither filling nor draining.
+    return Translate("Idle");
+  }
+
+  if (stats.device_overflow_events > 0) {
+    // Once samples have been lost the percentages have stopped being the
+    // interesting numbers, so the caption becomes the damage instead.
+    return Translate("%1 overflows, %2 samples lost")
+        .arg(stats.device_overflow_events)
+        .arg(stats.device_dropped_words);
+  }
+
+  if (device.BackPressurePercent() > 0) {
+    // Above the packet threshold: the FX3 was late and the buffer is into the
+    // room a stall is paid out of. This is the reading worth noticing, and it
+    // says so in words rather than leaving the bar to be interpreted.
+    return Translate("%1 of %2 words — %3% into the reserve")
+        .arg(device.peak)
+        .arg(device.depth_words)
+        .arg(device.BackPressurePercent());
+  }
+
+  // The ordinary case, and the one that has to look ordinary.
+  //
+  // The occupancy at the instant of the reading leads, because it is the figure
+  // that changes: it is the sawtooth sampled at whatever phase the reading
+  // caught it in. The peak follows it and is deliberately dull — a working
+  // capture fills to the packet threshold and is drained from there, so the
+  // peak is that threshold plus the two words the FPGA adds while the FX3 is
+  // starting, on every interval, for ever. That figure only becomes news when
+  // it stops being constant, which is exactly when the caption below takes
+  // over.
+  return Translate("now %1, peak %2 of %3")
+      .arg(device.used_now)
+      .arg(device.peak)
+      .arg(device.depth_words);
+}
+
+// What is behind the bar, for the tooltip.
+QString DetailBackPressure(const capture::CaptureStats& stats) {
+  const capture::FpgaTelemetry& device = stats.device_buffer;
+
+  if (!device.present) {
+    return QString();
+  }
+
+  return Translate(
+             "Peak %1 of %2 words this reading, %3 since the device was "
+             "opened.\n"
+             "A packet is offered at %4 words and taken immediately, so on a "
+             "capture that is keeping up the peak is that figure plus a word "
+             "or two on every reading — a peak that stops being constant is "
+             "the host having been late.\n"
+             "%5 packets taken since the last reading; %6 overflows and %7 "
+             "samples lost this run.")
+      .arg(device.peak)
+      .arg(device.depth_words)
+      .arg(device.peak_since_open)
+      .arg(device.packet_words)
+      .arg(device.packets_read)
+      .arg(stats.device_overflow_events)
+      .arg(stats.device_dropped_words);
 }
 
 }  // namespace
@@ -153,6 +239,7 @@ StatisticsView PresentIdleStatistics(const analysis::FrontEndGain& gain,
   view.throughput = None();
   view.integrity = None();
   view.buffer = None();
+  view.back_pressure = None();
   view.signal_level = None();
   view.extremes = None();
   view.clipping = None();
@@ -187,6 +274,14 @@ StatisticsView PresentStatistics(const capture::CaptureStats& stats,
                       .arg(stats.slot_count)
                       .arg(stats.peak_slots_in_use);
   }
+
+  // The bar is how full the buffer got, not how much trouble it was in. See
+  // StatisticsView::back_pressure_percent: the trouble figure is zero for hours
+  // on a working capture, and a bar that never leaves zero is one nobody
+  // believes when it finally moves.
+  view.back_pressure_percent = stats.device_buffer.PeakPercentOfDepth();
+  view.back_pressure = DescribeBackPressure(stats);
+  view.back_pressure_detail = DetailBackPressure(stats);
 
   view.signal_level = FormatAmplitude(stats.metrics, gain);
 
@@ -240,6 +335,12 @@ StatisticsView PresentStatistics(const capture::CaptureStats& stats,
   }
 
   return view;
+}
+
+int BackPressureHold::Apply(int sample) {
+  const int decayed = displayed_ * kDecayNumerator / kDecayDenominator;
+  displayed_ = std::max(sample, decayed);
+  return displayed_;
 }
 
 }  // namespace ddd::gui

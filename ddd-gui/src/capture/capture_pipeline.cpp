@@ -11,6 +11,7 @@
 
 #include "capture_pipeline.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "logger.h"
@@ -19,6 +20,14 @@
 
 namespace ddd::capture {
 namespace {
+
+// The back pressure at which a run is worth mentioning in the log, once.
+//
+// Fifty on this scale is the near-full mark the gateware itself counts against:
+// half the room above a packet, which is half of what a stall on this machine
+// is paid out of. A capture that reaches it is working, and is closer to not
+// working than anybody would guess from the fact that it succeeded.
+constexpr int kSqueezedBackPressure = 50;
 
 // How often the control thread looks around. Nothing on a deadline depends on
 // this: it is only the resolution of the stall watchdog and of noticing that a
@@ -82,6 +91,13 @@ bool CapturePipeline::Start(ISampleSource* source,
   test_pattern_verifier_ = TestPatternVerifier{};
   test_pattern_result_ = TestPatternVerifier::Result{};
   test_pattern_checked_ = false;
+  device_buffer_seen_ = false;
+  device_buffer_squeezed_ = false;
+  device_buffer_latch_ = 0;
+  peak_back_pressure_percent_ = 0;
+  peak_device_buffer_words_ = 0;
+  device_overflow_events_ = 0;
+  device_dropped_words_ = 0;
   transfers_completed_ = 0;
   buffers_processed_ = 0;
   sink_change_requests_ = 0;
@@ -283,6 +299,57 @@ void CapturePipeline::PublishStats() {
   stats.test_pattern_checked = test_pattern_checked_;
   stats.test_pattern_passed = !test_pattern_verifier_.HasFailed();
   stats.metrics = metrics_.Snapshot();
+
+  // The device's account of its own capture buffer, and the totals built from
+  // it.
+  //
+  // The device counts per interval and clears when it is read, so a total
+  // exists only here. This runs far more often than the source takes a reading,
+  // which is why the totals are accumulated only when the latch count moves:
+  // adding the same reading in on every publication would multiply every figure
+  // by however many buffers went by while it stood still.
+  const FpgaTelemetry telemetry =
+      (source_ != nullptr) ? source_->DeviceTelemetry() : FpgaTelemetry{};
+
+  if (telemetry.present &&
+      (!device_buffer_seen_ || telemetry.latch_count != device_buffer_latch_)) {
+    device_buffer_seen_ = true;
+    device_buffer_latch_ = telemetry.latch_count;
+
+    device_overflow_events_ += telemetry.overflow_events;
+    device_dropped_words_ += telemetry.dropped_words;
+    peak_device_buffer_words_ =
+        std::max(peak_device_buffer_words_, telemetry.peak);
+    peak_back_pressure_percent_ =
+        std::max(peak_back_pressure_percent_, telemetry.BackPressurePercent());
+
+    if (logger_ != nullptr) {
+      // Per reading rather than per interval of trouble, which bounds this at
+      // the rate the source polls — a few lines a second at worst, and only
+      // while samples are actually being lost.
+      if (telemetry.overflow_events > 0) {
+        logger_->Warning(
+            "The device's capture buffer overflowed: " +
+            std::to_string(telemetry.overflow_events) + " stalls, " +
+            std::to_string(telemetry.dropped_words) +
+            " samples lost. The host is not taking packets fast enough.");
+      } else if (!device_buffer_squeezed_ &&
+                 telemetry.BackPressurePercent() >= kSqueezedBackPressure) {
+        // Once per run: this is a warning that a capture is running closer to
+        // the edge than it should, and repeating it would say nothing new.
+        device_buffer_squeezed_ = true;
+        logger_->Info("The device's capture buffer reached " +
+                      std::to_string(telemetry.PeakPercentOfDepth()) +
+                      "% — over half the room a stall is paid out of");
+      }
+    }
+  }
+
+  stats.device_buffer = telemetry;
+  stats.peak_back_pressure_percent = peak_back_pressure_percent_;
+  stats.peak_device_buffer_words = peak_device_buffer_words_;
+  stats.device_overflow_events = device_overflow_events_;
+  stats.device_dropped_words = device_dropped_words_;
 
   stats_.Publish(stats);
 }
@@ -497,6 +564,20 @@ void CapturePipeline::ControlThread() {
         " samples, peak queue depth " +
         std::to_string(final_stats.peak_slots_in_use) + " of " +
         std::to_string(final_stats.slot_count));
+
+    // The device's half of the same account. Worth a line of its own at the end
+    // of every run, because it is the figure that says whether a capture that
+    // succeeded was ever in danger — and the one nobody thinks to look for
+    // until a later capture fails.
+    if (device_buffer_seen_) {
+      logger_->Info(
+          "Device buffer: peak back pressure " +
+          std::to_string(final_stats.peak_back_pressure_percent) + "%, peak " +
+          std::to_string(final_stats.peak_device_buffer_words) + " words, " +
+          std::to_string(final_stats.device_overflow_events) + " overflows, " +
+          std::to_string(final_stats.device_dropped_words) +
+          " samples dropped");
+    }
   }
 }
 

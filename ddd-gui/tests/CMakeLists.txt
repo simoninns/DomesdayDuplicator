@@ -56,6 +56,7 @@ ddd_add_test(ddd_capture_tests "unit"
     unit/test_capture_pipeline.cpp
     unit/test_firmware_version.cpp
     unit/test_fpga_version.cpp
+    unit/test_fpga_telemetry.cpp
     unit/test_usb_device.cpp
     unit/test_device_monitor.cpp
     unit/test_capture_naming.cpp
