@@ -390,7 +390,7 @@ A failed probe is logged to the UART console and is **not** fatal. The device st
 | Gateware with a newer map version | Identity block reads; `MAP_VERSION` unrecognised |
 | Working, matched set | Identity block reads; commit matches the application's |
 
-The capture application reports all of these in its **Help → Firmware** dialog and none of them prevent a capture. A version that cannot be read or does not match is a note to the user, never a refusal to work.
+The capture application reports all of these in its **Tools → Firmware** dialog and none of them prevent a capture. A version that cannot be read or does not match is a note to the user, never a refusal to work.
 
 ## Signal integrity
 

@@ -152,17 +152,22 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
 
   sample_rate_combo_ = new QComboBox(contents);
   sample_rate_combo_->setObjectName(QLatin1String(kSampleRateComboName));
-  sample_rate_combo_->addItem(tr("40 Msps — every sample"),
+  // Named by what each rate is for rather than by what it does to the samples.
+  // "2:1 decimated" is a fact about the implementation, and the choice being
+  // made here is which format is being captured — which is the thing the user
+  // actually knows when they arrive at this control.
+  sample_rate_combo_->addItem(tr("40 MSPS for LaserDisc"),
                               capture::kUndecimatedFactor);
-  sample_rate_combo_->addItem(tr("20 Msps — 2:1 decimated, for tape"),
+  sample_rate_combo_->addItem(tr("20 MSPS for VHS"),
                               capture::kTapeDecimationFactor);
   sample_rate_combo_->setToolTip(
-      tr("The converter always runs at 40 Msps. Decimating halves that in the "
+      tr("The converter always runs at 40 MSPS. Decimating halves that in the "
          "FPGA, which low-passes the signal at 10 MHz first and then keeps "
-         "every second sample — enough for tape RF, whose bandwidth is a "
-         "fraction of a LaserDisc's, and half the file. Energy close to "
-         "10 MHz still folds down around it, so a signal with content up "
-         "there should be captured at the full rate."));
+         "every second sample — half the file, and enough for any tape RF, "
+         "whose bandwidth is a fraction of a LaserDisc's. VHS names the common "
+         "case rather than the only one: Betamax and Video8 are the same "
+         "choice. Energy close to 10 MHz still folds down around it, so a "
+         "signal with content up there should be captured at the full rate."));
   form->addRow(tr("Sample rate"), sample_rate_combo_);
 
   compression_spin_ = new QSpinBox(contents);

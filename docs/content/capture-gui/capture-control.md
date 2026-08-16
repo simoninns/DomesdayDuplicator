@@ -41,7 +41,7 @@ The list says what is wrong with a device rather than hiding it:
 | Entry | What it means |
 | --- | --- |
 | A bare path | A capture device, ready |
-| *— recovery mode, no firmware installed* | The device's USB chip has no firmware it will run. It cannot capture, and [Help ▸ Firmware…](if-an-update-fails.md) can program it |
+| *— recovery mode, no firmware installed* | The device's USB chip has no firmware it will run. It cannot capture, and [Tools ▸ Firmware…](if-an-update-fails.md) can program it |
 | *— connected at insufficient speed* | It enumerated below SuperSpeed. It is on a USB 2 port or through a hub that is, and cannot carry 80 MB/s |
 
 A device with no firmware is listed rather than hidden. Reporting "no device attached" to
@@ -104,8 +104,14 @@ Both are read back by **Tools → Analyse test data…** and by `--analyse-test-
 
 | Choice | What you get |
 | --- | --- |
-| **40 Msps — every sample** | The converter's own rate. What a LaserDisc capture needs, and the default |
-| **20 Msps — 2:1 decimated, for tape** | Half the rate, half the file |
+| **40 MSPS for LaserDisc** | Every sample, the converter's own rate. The default |
+| **20 MSPS for VHS** | Half the rate, half the file |
+
+The choices are named by what they are for rather than by what they do to the samples: "2:1
+decimated" is a fact about the implementation, and the decision being made here is which
+format is going through the machine. **VHS names the common case rather than the only one** —
+Betamax, Video8 and any other tape format are the same choice, because what they share is a
+bandwidth that is a fraction of a LaserDisc's.
 
 The converter always runs at 40 Msps. **Decimation happens in the FPGA, not on this
 machine**, and that is what makes it worth having: halving the rate correctly means

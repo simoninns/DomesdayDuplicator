@@ -516,7 +516,7 @@ dropped samples are the failure mode that matters and the one that is invisible 
 The gateware can halve the sampling rate (`DECIMATION`, register `0x12`), and the decimator
 sits in front of the test-data generator — so a test capture at 20 Msps is an unbroken ramp
 exactly as one at 40 Msps is, and **step 4 must be run at both rates**. It is the same
-procedure with **Sample rate** set to *20 Msps* for the second pass, and the same pass
+procedure with **Sample rate** set to *20 MSPS for VHS* for the second pass, and the same pass
 condition.
 
 That covers the plumbing: that the decimated stream is contiguous, that the sequence counter
@@ -622,7 +622,7 @@ The reconfigure is not optional. `FIRMWARE_VERSION` is worked out at configure t
 `cmake --build` alone rebuilds the image with the *previous* stamp and the bundle would
 carry a commit the device already reports.
 
-1. Attach the device. Confirm **Help → Firmware…** reports the commit you expect — the one
+1. Attach the device. Confirm **Tools → Firmware…** reports the commit you expect — the one
    U0 flashed, not the one in the bundle.
 2. On the **Update** tab, press **Choose update file…** and pick the bundle above. Confirm
    it reports *verified*, names the version, shows the development banner, states a time
@@ -647,7 +647,7 @@ carry a commit the device already reports.
    measurement of the real one.
 4. **Pass** = the confirmation names the bundle's commit, and it is not the commit the
    device started with.
-5. Re-open **Help → Firmware…**. The versions page must agree with the confirmation.
+5. Re-open **Tools → Firmware…**. The versions page must agree with the confirmation.
 
 ### U2 — the same update, headlessly
 
@@ -748,7 +748,7 @@ from a device left in bootloader mode by U3.
 1. Confirm the state without opening anything: the application's status bar reads **Device
    attached with no firmware**, and the Capture panel's device list names the port with
    *recovery mode, no firmware installed*. Monitoring and capture are both unavailable.
-2. Open **Help → Firmware…**. The page says the device is in recovery mode, that its
+2. Open **Tools → Firmware…**. The page says the device is in recovery mode, that its
    firmware is missing, and that it is not damaged. The firmware row reads **None
    installed** and the gateware row **Cannot be read**.
 3. The button reads **Program this device**, not "Update" and not "Repair".

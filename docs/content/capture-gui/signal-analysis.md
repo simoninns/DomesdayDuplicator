@@ -35,7 +35,7 @@ was ever stored in the derived units.
 ## At 20 Msps
 
 Every figure on these three panels is a property of the stream, so all of them follow the
-[Sample rate](capture-control.md#sample-rate) setting. Choose **20 Msps** and:
+[Sample rate](capture-control.md#sample-rate) setting. Choose **20 MSPS for VHS** and:
 
 | Reading | At 40 Msps | At 20 Msps |
 | --- | --- | --- |

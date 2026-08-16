@@ -63,12 +63,12 @@ the way of somebody taking both sides of a disc.
 | --- | --- | --- |
 | **File** | Settings… | [Settings](settings.md) |
 | | Exit | Closes the window, saving the layout |
-| **Tools** | Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
-| | Analyse test data… | Check a test-mode capture off the disk |
 | **View** | Panels | Show and hide the six panels |
 | | Theme | Auto, Light, Dark |
-| **Help** | Firmware… | Which build each part of the device is running, and the Update page — see [Updating your Duplicator](updating-your-domesday-duplicator.md) |
-| | About | The build this binary was made from |
+| **Tools** | Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
+| | Analyse test data… | Check a test-mode capture off the disk |
+| | Firmware… | Which build each part of the device is running, and the Update page — see [Updating your Duplicator](updating-your-domesday-duplicator.md) |
+| **Help** | About | The build this binary was made from |
 
 **Help ▸ About** carries the same version string `--version` prints, and that is deliberate
 rather than duplication: the Windows build has no console attached, so on the platform with

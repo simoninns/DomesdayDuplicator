@@ -22,7 +22,7 @@ tap, the FLAC writer and reader, and the orchestrator that runs them all on thei
 threads — driven either by a real device or by a synthetic source that generates the
 device's stream in software at its real 80 MB/s.
 
-**Device updates**. Help → Firmware… gains an Update page: choose a `.dddfw` bundle and
+**Device updates**. Tools → Firmware… gains an Update page: choose a `.dddfw` bundle and
 the application verifies its signature and every payload digest, compares the installed
 and available versions of all three parts, runs the compatibility gate, and — after one
 confirmation — streams the firmware to the device, watches it write and verify it, waits

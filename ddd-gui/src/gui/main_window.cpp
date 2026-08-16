@@ -234,8 +234,6 @@ void MainWindow::BuildMenus() {
   file_menu->addSeparator();
   file_menu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
-  BuildToolsMenu();
-
   QMenu* view_menu = menuBar()->addMenu(tr("&View"));
 
   // Built from each dock's own toggle action, so the menu cannot drift from the
@@ -274,15 +272,14 @@ void MainWindow::BuildMenus() {
             [this, mode] { theme_controller_->SetMode(mode); });
   }
 
+  BuildToolsMenu();
+
   QMenu* help_menu = menuBar()->addMenu(tr("&Help"));
-  help_menu->addAction(tr("&Firmware\u2026"), this,
-                       &MainWindow::ShowFirmwareDialog);
-  help_menu->addSeparator();
   help_menu->addAction(tr("&About"), this, &MainWindow::ShowAboutDialog);
 }
 
 void MainWindow::BuildToolsMenu() {
-  // A menu of its own, because both entries are about checking the instrument
+  // A menu of its own, because every entry is about checking the instrument
   // rather than about taking a recording. Test mode in particular was on the
   // Capture panel, where it sat among the settings of an ordinary capture and
   // read as one of them — it is the opposite: it replaces the signal with a
@@ -302,6 +299,10 @@ void MainWindow::BuildToolsMenu() {
   tools_menu->addSeparator();
   tools_menu->addAction(tr("&Analyse test data…"), this,
                         &MainWindow::ShowAnalysisDialog);
+
+  tools_menu->addSeparator();
+  tools_menu->addAction(tr("&Firmware…"), this,
+                        &MainWindow::ShowFirmwareDialog);
 
   if (capture_controller_ == nullptr) {
     // Nothing to put the device into test mode with. Shown rather than hidden
