@@ -100,7 +100,7 @@ void SnapshotAnalyser::Poll() {
 
   if (spectrum_.Analyse(codes_.data(), codes_.size())) {
     emit SpectrumReady(spectrum_.magnitudes_db(), spectrum_.peak_hold_db(),
-                       spectrum_.snapshot_db());
+                       spectrum_.snapshot_db(), spectrum_.segment_count());
   }
 }
 

@@ -109,6 +109,17 @@ class WaveformPlot : public QWidget {
   // instant of it. Zero until the first paint.
   size_t sweep_count() const { return sweeps_.size(); }
 
+  // Whether the trigger is on and nothing crossed it, so the sweeps on screen
+  // start wherever the transfer did.
+  //
+  // Worth asking, and worth saying on the display, because the two states look
+  // identical for exactly the signal that produces one: a flat input drawn
+  // free-running is a flat line, and a flat input drawn triggered would be the
+  // same flat line. Without this the panel shows a trigger marker and a ticked
+  // box over a trace that is not triggered at all, which is a display claiming
+  // a property of the picture that the picture has not got.
+  bool free_running() const { return triggered_ && !armed_; }
+
  signals:
   // The sample and code under the pointer. Emitted with the sample index into
   // the snapshot, which is what the panel turns into a time offset.
@@ -141,6 +152,10 @@ class WaveformPlot : public QWidget {
   std::vector<double> triggers_;
   std::vector<double> sweeps_;
   bool sweeps_valid_ = false;
+
+  // Whether the sweeps above came from crossings of the trigger level rather
+  // than from the start of the snapshot.
+  bool armed_ = false;
 
   // Reused across sweeps rather than rebuilt per sweep, which at thirty sweeps
   // a frame is thirty allocations that need not happen.

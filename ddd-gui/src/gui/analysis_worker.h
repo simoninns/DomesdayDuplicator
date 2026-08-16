@@ -83,9 +83,15 @@ class SnapshotAnalyser : public QObject {
   // Three readings of the same transform, because the two displays want
   // different ones: the trace wants the averaged levels and its peak hold,
   // the spectrogram wants this snapshot alone.
+  //
+  // segments is how many half-overlapped segments were averaged to produce
+  // them. Carried with the levels rather than worked out by the panel because
+  // it depends on the length of the buffer that happened to arrive, and a
+  // readout that stated a figure the measurement did not use would be the
+  // least useful kind of wrong: plausible, and unfalsifiable by looking.
   void SpectrumReady(const std::vector<double>& magnitudes_db,
                      const std::vector<double>& peak_hold_db,
-                     const std::vector<double>& snapshot_db);
+                     const std::vector<double>& snapshot_db, size_t segments);
 
  private:
   // Guards the source pointer and the read through it, and nothing else. Held
@@ -141,12 +147,11 @@ class AnalysisWorker : public QObject {
  signals:
   void WaveformReady(const std::vector<uint16_t>& codes);
 
-  // Three readings of the same transform, because the two displays want
-  // different ones: the trace wants the averaged levels and its peak hold,
-  // the spectrogram wants this snapshot alone.
+  // Three readings of the same transform and the number of segments they were
+  // averaged over. See SnapshotAnalyser::SpectrumReady.
   void SpectrumReady(const std::vector<double>& magnitudes_db,
                      const std::vector<double>& peak_hold_db,
-                     const std::vector<double>& snapshot_db);
+                     const std::vector<double>& snapshot_db, size_t segments);
 
  private:
   QThread thread_;

@@ -59,6 +59,14 @@ If nothing crosses the level — a flat input, or one that never comes back down
 to re-arm — the display free-runs rather than freezing. A trace that has gone flat is
 exactly when you need to see it.
 
+When that happens the plot says **free running** in its top-left corner and the trigger
+marker is not drawn. The box stays ticked, because the trigger is still on and still
+looking; what has changed is the picture, and that is where it is said. The distinction
+matters precisely because the two cases look identical for the signal that causes one: a
+flat input drawn free-running and the same input drawn triggered are the same flat line, and
+without the note you would be looking at an untriggered trace with a marker on it claiming
+otherwise.
+
 ### Span
 
 How much time is on screen: **0.5 µs**, **1 µs** (the default), **2**, **5**, **10**,
@@ -129,9 +137,11 @@ The same signal by frequency. Two views of it, chosen with the first control.
 
 ### Spectrum
 
-A live trace: level against frequency, 0 dB being a full-scale sine wave. That reference is
-the one you can act on — a carrier at −6 dB is using half the converter's range, and the
-number says so without anybody having to know how the transform was normalised.
+A live trace: level against frequency, **0 dBFS** being a full-scale sine wave. That reference
+is the one you can act on — a carrier at −6 dBFS is using half the converter's range, and the
+number says so without anybody having to know how the transform was normalised. Every level
+this panel states carries the unit, on the scale and in the readouts alike, because decibels
+without the other half of the ratio are not a level.
 
 Each snapshot the pipeline publishes is 32,768 samples — 819 µs of signal — and all of it is
 measured. The snapshot is cut into half-overlapping segments, each one is windowed and
@@ -144,6 +154,14 @@ There are far more bins than pixels, so each column of the display draws the **h
 it covers rather than the first or the average: a narrow carrier that fell between two
 sampled bins would otherwise simply not be drawn, which on a display whose job is finding
 carriers is the one failure that matters.
+
+**The strongest peak is marked**, with its frequency and level, without your having to point
+at anything. A ring sits on the highest point of the live trace and the label beside it reads
+the same way the cursor does. This is the reading somebody adjusting a player actually wants —
+*what is the carrier doing* — and it is the one an analyser gives you without being asked. If
+nothing on the trace rises above the bottom of the scale, nothing is marked: a marker sitting
+on the floor of an empty display would be pointing at the absence of a signal and calling it
+the strongest one.
 
 ### Spectrogram
 
@@ -162,6 +180,42 @@ own measurement — and averaging belongs to the trace alone. At the heavy setti
 filter reaches back most of a second, which is a third of the width of a minute-long
 waterfall; a transient smoothed by that would be smeared across several rows of the one
 display whose entire purpose is saying *when* something happened.
+
+### RBW
+
+In the top-left corner of the plot, in both views: **RBW 14.6 kHz · 15 avg**. The resolution
+bandwidth the measurement was made at, and how many segments were averaged for it.
+
+An analyser is never without this figure, because every level on the screen depends on it. A
+noise floor is spread across the whole spectrum, so a narrower bandwidth collects less of it
+and the floor reads lower — the same signal measured at half the bandwidth shows a floor 3 dB
+down, with no change to the signal at all. A level with no bandwidth beside it is not a
+measurement, and two levels taken at different Resolution settings are not comparable.
+
+Note it is **not** the same number the Resolution control gives. That control names the bin
+spacing — 9.8 kHz at the default — and the Hann window in use collects from half again wider
+than a bin, so the real bandwidth is 14.6 kHz. The control names the spacing because the
+spacing is what the choice is about; the corner names the bandwidth because the bandwidth is
+what the levels depend on.
+
+The **avg** figure is how many half-overlapping segments went into this measurement, and it
+follows from the Resolution: fifteen at the default, seven in the middle, three at the
+narrowest. It is a statement about how steady the reading is rather than about what it says.
+
+### The filter corner
+
+A dashed violet line at **13.2 MHz** in both views, labelled.
+
+That is where the board's anti-aliasing filter turns over. Everything above it is the
+filter's skirt and the noise underneath it, not the signal — the roll-off you can see there
+is the hardware doing what it is for. It is marked because it is the one feature of either
+picture that belongs to the instrument rather than to the disc, and a reader who does not
+know that is looking at a spectrum falling away above 13 MHz and wondering what is wrong with
+the player.
+
+On the spectrum it is a vertical line; on the spectrogram, where frequency runs up the side,
+it is a horizontal one. Both are at the same frequency on the same axis, whichever spacing is
+in use.
 
 ### Log frequency
 
@@ -211,6 +265,8 @@ resolves the FM carrier and its sidebands comfortably while keeping the steadies
 
 A bin is not quite the same thing as the resolution: the Hann window collects from rather
 wider than one bin's spacing, so the default's real resolution bandwidth is about 14.6 kHz.
+That is the figure the corner of the plot states, and the one to quote when comparing
+levels — see [RBW](#rbw) above.
 
 ### Averaging
 
@@ -258,6 +314,8 @@ that column was measured, so a feature can be located in time as well as in freq
 
 The level it reports is the one drawn in the column under the pointer, computed by the same
 code that drew it — so the readout and the picture cannot disagree, on either axis spacing.
+Pointing at the marked peak gives the same words the marker beside it does, for the same
+reason: it is the same reading, not a second one.
 
 ## Amplitude History
 

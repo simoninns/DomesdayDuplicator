@@ -31,9 +31,17 @@
 namespace ddd::gui {
 namespace {
 
-constexpr int kScaleWidthPixels = 46;
 constexpr int kAxisHeightPixels = 20;
 constexpr int kPlotMarginPixels = 6;
+
+// The gap between the level scale's text and the plot it labels.
+constexpr double kScaleTextGapPixels = 6.0;
+
+// How far the annotations sit inside the plot's corners.
+constexpr double kAnnotationInsetPixels = 4.0;
+
+// The radius of the peak marker's dot, in pixels.
+constexpr double kPeakMarkerRadius = 3.0;
 
 // The display range. The analyser's own floor is -120 dB, which is below
 // anything a 10-bit converter can show: its quantisation noise sits around
@@ -139,6 +147,27 @@ QString FormatSpectrumResolution(size_t transform_size) {
   return SpectrumPanel::tr("%1 kHz bins").arg(spacing / 1000.0, 0, 'f', 1);
 }
 
+QString FormatResolutionBandwidth(size_t transform_size, size_t segments) {
+  const double bandwidth = analysis::SpectrumAnalyser::NoiseBandwidthHz(
+      transform_size, capture::kSampleRateHz);
+
+  // Kilohertz throughout. Every transform size on offer lands between 3 and
+  // 15 kHz, so a unit that switched would be a unit that never switched.
+  const QString stated =
+      SpectrumPanel::tr("RBW %1 kHz").arg(bandwidth / 1000.0, 0, 'f', 1);
+
+  if (segments == 0) {
+    return stated;
+  }
+  return SpectrumPanel::tr("%1 · %2 avg")
+      .arg(stated)
+      .arg(static_cast<qulonglong>(segments));
+}
+
+QString FormatLevelTick(double level_db) {
+  return SpectrumPanel::tr("%1 dBFS").arg(level_db, 0, 'f', 0);
+}
+
 QString FormatAxisTick(double frequency_hz) {
   // Megahertz throughout, and bare, as this axis has always been labelled — a
   // scale that changed units partway up would need a suffix on every mark to
@@ -207,9 +236,11 @@ SpectrumPlot::SpectrumPlot(QWidget* parent) : QWidget(parent) {
 
 void SpectrumPlot::SetSpectrum(const std::vector<double>& magnitudes_db,
                                const std::vector<double>& peak_hold_db,
-                               const std::vector<double>& snapshot_db) {
+                               const std::vector<double>& snapshot_db,
+                               size_t segments) {
   magnitudes_db_ = magnitudes_db;
   peak_hold_db_ = peak_hold_db;
+  segments_ = segments;
 
   if (!clock_.isValid()) {
     clock_.start();
@@ -286,6 +317,7 @@ void SpectrumPlot::SetPeakHoldVisible(bool visible) {
 void SpectrumPlot::Clear() {
   magnitudes_db_.clear();
   peak_hold_db_.clear();
+  segments_ = 0;
   history_.Clear();
   clock_.invalidate();
   spectrogram_valid_ = false;
@@ -293,8 +325,17 @@ void SpectrumPlot::Clear() {
   update();
 }
 
+double SpectrumPlot::ScaleWidth() const {
+  // The widest label the scale will ever draw, measured in the font it will be
+  // drawn in. Fixed at 46 pixels this used to clip "-100 dBFS" to "-100 dB",
+  // and would clip it again at the next font or display scale somebody used.
+  const QFontMetrics metrics(font());
+  return metrics.horizontalAdvance(FormatLevelTick(kBottomDecibels)) +
+         kScaleTextGapPixels;
+}
+
 QRectF SpectrumPlot::PlotArea() const {
-  const double left = kScaleWidthPixels;
+  const double left = ScaleWidth();
   const double top = kPlotMarginPixels;
   const double plot_width = std::max(0.0, width() - left - kPlotMarginPixels);
   const double plot_height = std::max(0.0, height() - top - kAxisHeightPixels);
@@ -551,10 +592,10 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
     for (const double frequency : ticks) {
       const double y =
           area.bottom() - (axis.ProportionOf(frequency) * area.height());
-      painter.drawText(QRectF(0.0, y - (metrics.height() / 2.0),
-                              kScaleWidthPixels - 6.0, metrics.height()),
-                       Qt::AlignRight | Qt::AlignVCenter,
-                       FormatAxisTick(frequency));
+      painter.drawText(
+          QRectF(0.0, y - (metrics.height() / 2.0),
+                 area.left() - kScaleTextGapPixels, metrics.height()),
+          Qt::AlignRight | Qt::AlignVCenter, FormatAxisTick(frequency));
     }
 
     // The time axis, in seconds into the past. The rate frames arrive at is not
@@ -594,10 +635,10 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
     const double proportion =
         (level - kBottomDecibels) / (kTopDecibels - kBottomDecibels);
     const double y = area.bottom() - (proportion * area.height());
-    painter.drawText(QRectF(0.0, y - (metrics.height() / 2.0),
-                            kScaleWidthPixels - 6.0, metrics.height()),
-                     Qt::AlignRight | Qt::AlignVCenter,
-                     tr("%1 dB").arg(level, 0, 'f', 0));
+    painter.drawText(
+        QRectF(0.0, y - (metrics.height() / 2.0),
+               area.left() - kScaleTextGapPixels, metrics.height()),
+        Qt::AlignRight | Qt::AlignVCenter, FormatLevelTick(level));
   }
 
   for (const double frequency : ticks) {
@@ -607,6 +648,169 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
         QRectF(x - 30.0, area.bottom() + 2.0, 60.0, kAxisHeightPixels - 2.0),
         Qt::AlignHCenter | Qt::AlignTop, FormatAxisTick(frequency));
   }
+}
+
+void SpectrumPlot::PaintLabel(QPainter& painter, const QRectF& box,
+                              Qt::Alignment alignment, const QString& text,
+                              const QColor& ink) {
+  // Not quite opaque: an annotation that blanked what was under it would hide
+  // the very trace a reader is comparing it against.
+  QColor backing = palette().color(QPalette::Base);
+  backing.setAlpha(200);
+  painter.fillRect(box, backing);
+
+  painter.setPen(ink);
+  painter.drawText(box, static_cast<int>(alignment), text);
+}
+
+void SpectrumPlot::PaintAnnotation(QPainter& painter, const QRectF& area) {
+  if (magnitudes_db_.size() < 2) {
+    return;
+  }
+
+  // The transform that produced these levels, read back from how many of them
+  // there are rather than from the control. The control is what was asked for;
+  // this is what arrived, and between a user moving it and the worker building
+  // the new analyser those are briefly different things.
+  const size_t transform_size = (magnitudes_db_.size() - 1) * 2;
+  const QString text = FormatResolutionBandwidth(transform_size, segments_);
+
+  const QFontMetrics metrics(painter.font());
+  const QRectF box(
+      area.left() + kAnnotationInsetPixels, area.top() + kAnnotationInsetPixels,
+      metrics.horizontalAdvance(text) + kScaleTextGapPixels, metrics.height());
+
+  PaintLabel(painter, box, Qt::AlignCenter, text,
+             theme_tokens::MutedText(palette()));
+}
+
+void SpectrumPlot::PaintFilterCorner(QPainter& painter, const QRectF& area,
+                                     bool dark) {
+  const analysis::FrequencyAxis axis = Axis();
+  const double proportion = axis.ProportionOf(analysis::kLowPassCornerHz);
+
+  // Off the end of the axis is possible in principle and worth handling: a
+  // marker clamped to an edge would claim the corner was somewhere it is not.
+  if (proportion <= 0.0 || proportion >= 1.0) {
+    return;
+  }
+
+  const QString text =
+      tr("%1 MHz filter")
+          .arg(analysis::kLowPassCornerHz / 1'000'000.0, 0, 'g', 3);
+
+  const QFontMetrics metrics(painter.font());
+  const double text_width =
+      metrics.horizontalAdvance(text) + kScaleTextGapPixels;
+
+  const QColor ink = theme_tokens::PlotColor(
+      theme_tokens::PlotColorToken::kFilterCorner, dark);
+  painter.setPen(QPen(ink, 1.0, Qt::DashLine));
+
+  if (view_ == SpectrumView::kSpectrogram) {
+    // Frequency runs up the side here, so the corner is a horizontal line.
+    const double y = area.bottom() - (proportion * area.height());
+    painter.drawLine(QPointF(area.left(), y), QPointF(area.right(), y));
+
+    // Labelled at the right-hand end, where the newest column is: the corner
+    // sits high on the axis and the left-hand end is where the annotation in
+    // the opposite corner already is.
+    PaintLabel(painter,
+               QRectF(area.right() - text_width - kAnnotationInsetPixels,
+                      y - metrics.height() - 1.0, text_width, metrics.height()),
+               Qt::AlignCenter, text, ink);
+    return;
+  }
+
+  const double x = area.left() + (proportion * area.width());
+  painter.drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
+
+  // To the right of the line, unless that would run off the plot — which on a
+  // decade axis, where the corner sits at 92% of the width, it always does.
+  const bool fits_right =
+      x + kAnnotationInsetPixels + text_width <= area.right();
+  const double left = fits_right ? x + kAnnotationInsetPixels
+                                 : x - kAnnotationInsetPixels - text_width;
+
+  PaintLabel(painter,
+             QRectF(left, area.top() + kAnnotationInsetPixels, text_width,
+                    metrics.height()),
+             Qt::AlignCenter, text, ink);
+}
+
+void SpectrumPlot::PaintPeakMarker(QPainter& painter, const QRectF& area) {
+  if (magnitudes_db_.size() < 2 || area.width() < 1.0) {
+    return;
+  }
+
+  const analysis::FrequencyAxis axis = Axis();
+  const int columns = static_cast<int>(area.width());
+
+  // The highest column of the drawn trace, found the same way the trace was
+  // drawn — so the marker lands on the picture rather than near it. Taking the
+  // highest bin instead would put the label at a frequency no pixel shows.
+  int peak_column = 0;
+  double peak_level = kBottomDecibels;
+  for (int column = 0; column < columns; ++column) {
+    const double level = ColumnLevel(magnitudes_db_, axis, column, columns);
+    if (level > peak_level) {
+      peak_level = level;
+      peak_column = column;
+    }
+  }
+
+  // Nothing above the bottom of the scale: an empty run, or a signal that has
+  // gone away. A marker here would be pointing at the floor.
+  if (peak_level <= kBottomDecibels) {
+    return;
+  }
+
+  // The middle of the column, because that is the frequency the column stands
+  // for; its left-hand edge is where it starts.
+  const double frequency = axis.FrequencyAt(
+      (static_cast<double>(peak_column) + 0.5) / static_cast<double>(columns));
+
+  const double proportion =
+      (peak_level - kBottomDecibels) / (kTopDecibels - kBottomDecibels);
+  const double x = area.left() + peak_column;
+  const double y =
+      area.bottom() - (std::clamp(proportion, 0.0, 1.0) * area.height());
+
+  // The window's own text colour rather than a plot colour. This is the
+  // instrument speaking, not another trace, and a reader should not have to
+  // work out whether the marker is part of the signal.
+  const QColor ink = palette().color(QPalette::WindowText);
+
+  painter.setRenderHint(QPainter::Antialiasing, true);
+  painter.setPen(QPen(ink, 1.0));
+  painter.setBrush(Qt::NoBrush);
+  painter.drawEllipse(QPointF(x, y), kPeakMarkerRadius, kPeakMarkerRadius);
+  painter.setRenderHint(QPainter::Antialiasing, false);
+
+  // The same words the cursor uses for the same reading, so that pointing at
+  // the peak confirms the marker rather than paraphrasing it.
+  const QString text = FormatSpectrumCursor(frequency, peak_level);
+
+  const QFontMetrics metrics(painter.font());
+  const double text_width =
+      metrics.horizontalAdvance(text) + kScaleTextGapPixels;
+
+  // Above the marker where there is room, below it when the peak is near the
+  // top of the scale — which for a healthy carrier at the default reference is
+  // most of the time.
+  const double gap = kPeakMarkerRadius + kAnnotationInsetPixels;
+  const bool above = y - gap - metrics.height() >= area.top();
+  const double top = above ? y - gap - metrics.height() : y + gap;
+
+  // And shifted along when it would otherwise run off either edge. A carrier
+  // near the top of the band sits at the right-hand end of the axis, which is
+  // where there is least room for the label naming it.
+  const double left =
+      std::clamp(x - (text_width / 2.0), area.left(),
+                 std::max(area.left(), area.right() - text_width));
+
+  PaintLabel(painter, QRectF(left, top, text_width, metrics.height()),
+             Qt::AlignCenter, text, ink);
 }
 
 void SpectrumPlot::paintEvent(QPaintEvent* event) {
@@ -627,10 +831,17 @@ void SpectrumPlot::paintEvent(QPaintEvent* event) {
     // Under the grid, so the frequency lines stay readable over it.
     PaintSpectrogram(painter, area, dark);
     PaintGrid(painter, area);
+    PaintFilterCorner(painter, area, dark);
+    PaintAnnotation(painter, area);
     return;
   }
 
   PaintGrid(painter, area);
+
+  // Under both traces. These say what the instrument is doing; the traces are
+  // what it measured, and the measurement is what a reader is looking at.
+  PaintFilterCorner(painter, area, dark);
+  PaintAnnotation(painter, area);
 
   if (peak_hold_visible_) {
     // Drawn first, so the live trace sits on top of its own history rather than
@@ -643,6 +854,10 @@ void SpectrumPlot::paintEvent(QPaintEvent* event) {
   PaintTrace(painter, area, magnitudes_db_,
              theme_tokens::PlotColor(
                  theme_tokens::PlotColorToken::kSpectrumTrace, dark));
+
+  // Last, so that the one thing on the display a reader is meant to be able to
+  // read off without pointing at anything is not drawn over by a trace.
+  PaintPeakMarker(painter, area);
 }
 
 void SpectrumPlot::mouseMoveEvent(QMouseEvent* event) {
@@ -918,8 +1133,9 @@ void SpectrumPanel::ApplyResolution() {
 
 void SpectrumPanel::OnSpectrumReady(const std::vector<double>& magnitudes_db,
                                     const std::vector<double>& peak_hold_db,
-                                    const std::vector<double>& snapshot_db) {
-  plot_->SetSpectrum(magnitudes_db, peak_hold_db, snapshot_db);
+                                    const std::vector<double>& snapshot_db,
+                                    size_t segments) {
+  plot_->SetSpectrum(magnitudes_db, peak_hold_db, snapshot_db, segments);
 
   // The measured window settles quickly and then drifts by fractions of a
   // percent. Announced only when it has moved enough to matter, because

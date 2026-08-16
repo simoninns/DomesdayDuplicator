@@ -60,9 +60,13 @@ class SpectrumPlot : public QWidget {
   // The trace draws the averaged levels and their peak hold; the spectrogram
   // records snapshot_db, which is this transform alone. Passing one vector for
   // both would put the trace's averaging into the waterfall's time axis.
+  //
+  // segments is how many were averaged, for the readout in the corner. Zero
+  // means nobody said, and the readout then states the bandwidth alone rather
+  // than inventing a figure for it.
   void SetSpectrum(const std::vector<double>& magnitudes_db,
                    const std::vector<double>& peak_hold_db,
-                   const std::vector<double>& snapshot_db);
+                   const std::vector<double>& snapshot_db, size_t segments = 0);
   void SetPeakHoldVisible(bool visible);
   void SetView(SpectrumView view);
 
@@ -89,6 +93,16 @@ class SpectrumPlot : public QWidget {
   // The mapping the trace, the waterfall, the grid and both cursors all share.
   analysis::FrequencyAxis Axis() const;
 
+  // The plot area, excluding the scale this widget draws down its left-hand
+  // side and the axis it draws below.
+  //
+  // Public because everything that has to agree with the picture — the cursor,
+  // the markers, and the tests that check where a carrier landed — needs the
+  // same rectangle the painting used. The width of the scale follows from the
+  // font, so a test that assumed a number here would be measuring the machine
+  // it ran on.
+  QRectF PlotArea() const;
+
   const analysis::SpectrogramHistory& history() const { return history_; }
 
  signals:
@@ -108,13 +122,44 @@ class SpectrumPlot : public QWidget {
   void changeEvent(QEvent* event) override;
 
  private:
-  // The plot area, excluding the axis labels this widget draws itself.
-  QRectF PlotArea() const;
+  // Room for the level scale down the left-hand side, measured from the font
+  // rather than fixed. "-100 dBFS" is wider than the 46 pixels this used to
+  // reserve, and the label was silently clipped to "-100 dB" — which is not a
+  // cosmetic fault on a display whose whole business is stating levels.
+  double ScaleWidth() const;
 
   void PaintTrace(QPainter& painter, const QRectF& area,
                   const std::vector<double>& levels, const QColor& colour);
   void PaintSpectrogram(QPainter& painter, const QRectF& area, bool dark);
   void PaintGrid(QPainter& painter, const QRectF& area);
+
+  // An annotation, with the window's own background behind it.
+  //
+  // Backed rather than drawn straight onto the picture because every one of
+  // these sits over something: a trace, a colour ramp, or the part of a
+  // waterfall that happens to be brightest. Text the same lightness as what is
+  // behind it is not dimmer, it is absent.
+  void PaintLabel(QPainter& painter, const QRectF& box, Qt::Alignment alignment,
+                  const QString& text, const QColor& ink);
+
+  // What the instrument is set to, in the corner of the plot: the resolution
+  // bandwidth and how many segments were averaged for it. An analyser states
+  // this because every level on the screen depends on it — the same noise
+  // floor reads six decibels lower at half the bandwidth, and without the
+  // figure beside it a level is not a measurement.
+  void PaintAnnotation(QPainter& painter, const QRectF& area);
+
+  // Where the board's anti-aliasing filter turns over. Drawn in both views,
+  // because the roll-off above it is the one part of either picture that is
+  // the hardware rather than the signal, and a reader who does not know that
+  // is looking at a carrier that falls away and wondering what happened.
+  void PaintFilterCorner(QPainter& painter, const QRectF& area, bool dark);
+
+  // The strongest thing on the trace, named. The norm is that an analyser
+  // says what the biggest peak is without being asked: the cursor answers
+  // "what is here", and this answers "what is there", which is the question
+  // somebody watching a player being adjusted actually has.
+  void PaintPeakMarker(QPainter& painter, const QRectF& area);
 
   // The level drawn in one pixel column: the highest bin that column covers.
   //
@@ -156,6 +201,9 @@ class SpectrumPlot : public QWidget {
   std::vector<double> magnitudes_db_;
   std::vector<double> peak_hold_db_;
   bool peak_hold_visible_ = true;
+
+  // Segments behind the levels above, and zero before anything has said.
+  size_t segments_ = 0;
 
   SpectrumView view_ = SpectrumView::kTrace;
   analysis::FrequencyScale scale_ = analysis::FrequencyScale::kLogarithmic;
@@ -219,9 +267,13 @@ class SpectrumPanel : public QWidget {
   void TimeWindowChanged(double seconds);
 
  public slots:
+  // segments defaults so that a caller with nothing to say about it — a test
+  // feeding levels, or any future producer that does not average — is not made
+  // to invent one. The readout leaves the figure out rather than showing zero.
   void OnSpectrumReady(const std::vector<double>& magnitudes_db,
                        const std::vector<double>& peak_hold_db,
-                       const std::vector<double>& snapshot_db);
+                       const std::vector<double>& snapshot_db,
+                       size_t segments = 0);
   void OnMonitoringChanged(bool monitoring);
 
  private:
@@ -279,5 +331,25 @@ QString FormatSecondsAgo(double seconds);
 // A transform size as the resolution it buys, which is the half of the trade a
 // user can act on: "9.8 kHz bins" rather than "4096 points".
 QString FormatSpectrumResolution(size_t transform_size);
+
+// The instrument's settings as the corner of the plot states them:
+// "RBW 14.6 kHz · 15 avg", or the bandwidth alone when the segment count is
+// not known.
+//
+// The bandwidth quoted is the resolution bandwidth and not the bin spacing —
+// 14.6 kHz for a 4,096-point transform, where the bins are 9.8 kHz apart. That
+// is the figure an analyser states because it is the one the noise floor
+// follows: the Hann window collects from half again wider than a bin, and a
+// panel that quoted the spacing here would be understating its own bandwidth
+// by 1.8 dB. The Resolution control still names the spacing, because that is
+// what the choice being made there is about.
+QString FormatResolutionBandwidth(size_t transform_size, size_t segments);
+
+// A level as the scale down the side states it: "0 dBFS", "-100 dBFS".
+//
+// Full scale is a full-scale sine wave, which is the reference the whole panel
+// is normalised to, and saying so on every mark is what stops a level being
+// read as decibels of something else.
+QString FormatLevelTick(double level_db);
 
 }  // namespace ddd::gui

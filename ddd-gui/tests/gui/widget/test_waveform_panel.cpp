@@ -25,6 +25,7 @@
 
 #include "front_end_gain.h"
 #include "sample_format.h"
+#include "theme_color_tokens.h"
 #include "waveform_panel.h"
 
 namespace ddd::gui {
@@ -37,6 +38,25 @@ std::vector<uint16_t> Sine(size_t count, double phase = 0.0) {
         512.0 + 400.0 * std::sin((static_cast<double>(index) * 0.05) + phase)));
   }
   return codes;
+}
+
+// How many pixels of one colour a picture holds. The markers are drawn in flat
+// theme colours, so counting them is how a test asks whether one is there.
+int ColourPixels(const QImage& shot, const QColor& wanted) {
+  constexpr int kTolerance = 20;
+
+  int count = 0;
+  for (int y = 0; y < shot.height(); ++y) {
+    for (int x = 0; x < shot.width(); ++x) {
+      const QColor pixel(shot.pixel(x, y));
+      if (std::abs(pixel.red() - wanted.red()) <= kTolerance &&
+          std::abs(pixel.green() - wanted.green()) <= kTolerance &&
+          std::abs(pixel.blue() - wanted.blue()) <= kTolerance) {
+        ++count;
+      }
+    }
+  }
+  return count;
 }
 
 // Pixels that differ from the same panel with nothing to draw, by enough to be
@@ -321,6 +341,52 @@ TEST(WaveformPanelTest, TheTriggerIsOnByDefaultAndCanBeTurnedOff) {
 
   box->setChecked(false);
   EXPECT_FALSE(plot->triggered());
+}
+
+TEST(WaveformPanelTest, AFlatInputIsReportedAsFreeRunningRatherThanTriggered) {
+  // The box stays ticked — the trigger is still on and still looking — but
+  // nothing crossed the level, so what is on screen starts wherever the
+  // transfer did. The two cases produce the same flat line, which is exactly
+  // why the display has to say which one it is drawing.
+  WaveformPanel panel(nullptr);
+  panel.resize(600, 300);
+
+  auto* const plot = Named<WaveformPlot>(panel, WaveformPanel::kPlotName);
+  ASSERT_NE(plot, nullptr);
+  ASSERT_TRUE(plot->triggered());
+
+  panel.OnWaveformReady(std::vector<uint16_t>(4096, 512));
+  panel.grab();
+
+  EXPECT_TRUE(plot->free_running());
+
+  // And a signal that does cross it is not reported that way.
+  panel.OnWaveformReady(Sine(4096));
+  panel.grab();
+
+  EXPECT_FALSE(plot->free_running());
+}
+
+TEST(WaveformPanelTest, NoTriggerMarkerIsDrawnOverAFreeRunningTrace) {
+  // A marker over a free-running sweep points at a sample with no more claim
+  // to be the start of a cycle than any other one on screen.
+  WaveformPanel panel(nullptr);
+  panel.resize(600, 300);
+
+  auto* const plot = Named<WaveformPlot>(panel, WaveformPanel::kPlotName);
+  ASSERT_NE(plot, nullptr);
+
+  const bool dark = theme_tokens::IsDarkPalette(panel.palette());
+  const QColor marker = theme_tokens::PlotColor(
+      theme_tokens::PlotColorToken::kTriggerMarker, dark);
+
+  panel.OnWaveformReady(Sine(4096));
+  EXPECT_GT(ColourPixels(plot->grab().toImage(), marker), 0)
+      << "a triggered trace should say where the sweeps start";
+
+  panel.OnWaveformReady(std::vector<uint16_t>(4096, 512));
+  EXPECT_EQ(ColourPixels(plot->grab().toImage(), marker), 0)
+      << "the marker was still drawn with nothing to align to";
 }
 
 TEST(WaveformPanelTest, TheDefaultSpanShowsCyclesRatherThanAFuzzyBand) {

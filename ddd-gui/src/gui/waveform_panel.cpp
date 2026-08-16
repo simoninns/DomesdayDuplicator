@@ -215,6 +215,7 @@ void WaveformPlot::FindSweeps() {
   }
   sweeps_valid_ = true;
   sweeps_.clear();
+  armed_ = false;
 
   const size_t span = std::min(sample_span_, codes_.size());
   if (codes_.empty() || span == 0) {
@@ -256,9 +257,15 @@ void WaveformPlot::FindSweeps() {
   // far enough to arm. Free-running is what a scope does here, and it is much
   // better than freezing: an unmodulated or absent signal is exactly when
   // somebody needs to see that the trace is flat.
+  //
+  // Recorded rather than silently substituted, because the picture that comes
+  // out is a picture the trigger had no part in and the display says so.
   if (sweeps_.empty()) {
     sweeps_.push_back(0.0);
+    return;
   }
+
+  armed_ = true;
 }
 
 void WaveformPlot::PaintSweep(QPainter& painter, double origin,
@@ -411,11 +418,19 @@ void WaveformPlot::paintEvent(QPaintEvent* event) {
                      QPointF(x, static_cast<double>(mapping.height_pixels)));
   }
 
+  // What the sweeps are, before they are drawn: with a snapshot in hand this
+  // is what says whether the trigger found anything to align to.
+  FindSweeps();
+
   // Where every sweep was started from. Worth drawing because a reader
   // measuring a feature needs to know which edge the picture is anchored to,
   // and because a trace that is standing still for no visible reason is
   // unnerving.
-  if (triggered_) {
+  //
+  // Only when something actually armed it. A marker over a free-running trace
+  // would be pointing at a sample that has no more claim to be the start of a
+  // cycle than any other.
+  if (triggered_ && armed_) {
     const double x = analysis::kPreTriggerFraction *
                      static_cast<double>(mapping.width_pixels);
     painter.setPen(QPen(theme_tokens::PlotColor(
@@ -481,6 +496,19 @@ void WaveformPlot::paintEvent(QPaintEvent* event) {
                             kScaleWidthPixels - 6.0, metrics.height()),
                      Qt::AlignRight | Qt::AlignVCenter,
                      QString::fromUtf8(guide.label));
+  }
+
+  // And when the trigger found nothing, the fact that it did not.
+  //
+  // In the corner of the plot rather than in the control row, because it is a
+  // property of the picture and not a setting: the box stays ticked, since the
+  // trigger is still on and still looking. What has changed is what is on
+  // screen, and that is where it is said.
+  if (free_running() && !codes_.empty()) {
+    painter.drawText(
+        QRectF(kScaleWidthPixels + 4.0, kPlotMarginPixels + 2.0,
+               static_cast<double>(mapping.width_pixels), metrics.height()),
+        Qt::AlignLeft | Qt::AlignTop, tr("free running"));
   }
 
   // The time axis, on the gridlines already drawn. Measured from the left-hand

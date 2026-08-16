@@ -39,6 +39,13 @@ enum class PlotColorToken {
   // has to be able to tell which line is which.
   kTriggerMarker,
 
+  // Where the board's anti-aliasing filter turns over. Its own token rather
+  // than the gridline colour, because it is not a gridline: everything above
+  // it on a spectrum is the filter's skirt rather than the signal, and that is
+  // worth a line a reader can tell apart from the ones that only say where the
+  // numbers are.
+  kFilterCorner,
+
   // A pass or fail verdict. Not a plot, but here for the same reason
   // everything else is: a palette has no notion of "this capture is good", and
   // the literal green that reads well on a light window is unreadable on a dark
@@ -136,6 +143,11 @@ inline QColor PlotColor(PlotColorToken token, bool dark_theme) {
       return dark_theme ? QColor(150, 150, 150) : QColor(110, 110, 110);
     case PlotColorToken::kTriggerMarker:
       return dark_theme ? QColor(120, 190, 140) : QColor(30, 120, 60);
+    case PlotColorToken::kFilterCorner:
+      // Violet: the one hue not already spoken for on the spectrum, where the
+      // trace is green, the peak hold amber and the waterfall runs through
+      // most of the rest.
+      return dark_theme ? QColor(165, 150, 215) : QColor(105, 85, 165);
     case PlotColorToken::kVerdictPass:
       return dark_theme ? QColor(120, 220, 130) : QColor(0, 120, 40);
     case PlotColorToken::kVerdictFail:
