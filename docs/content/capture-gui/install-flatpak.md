@@ -58,7 +58,7 @@ Details, including how to check the rules took effect, are in
 
 The Flatpak is granted your home directory plus `/run/media`, `/media` and `/mnt`, which
 covers the usual places an external drive is mounted. Captures are large — an hour of
-LaserDisc RF is around 90 GB as `.ldf` — so most people write to a second drive, and those
+LaserDisc RF is around 90 to 145 GB — so most people write to a second drive, and those
 paths are why that works without further configuration.
 
 If your drive mounts somewhere else, grant it explicitly:
@@ -81,3 +81,8 @@ flatpak uninstall --user io.github.simoninns.DddGui
 
 The udev rules are separate and stay behind; remove
 `/etc/udev/rules.d/99-domesdayduplicator.rules` if you want them gone too.
+
+## Next
+
+The [Quick start](quick-start.md) takes it from here: finding the device, setting the
+front-end gain, and taking a first capture.

@@ -1,10 +1,16 @@
 # Section order, transcribed from the old Jekyll Sidebar.md.
 # awesome-nav derives navigation from the directory tree; this file fixes the order of the
 # top-level sections, which would otherwise sort alphabetically.
+#
+# capture-gui documents the application that is built, packaged and released; legacy-gui
+# documents the one it replaces, which is kept in the repository as a reference until the
+# replacement has passed the hardware capture-integrity procedure. The order says which is
+# which without either title having to carry a warning.
 nav:
   - index.md
   - General: general
-  - Capture Application: capture-application
+  - Capture Application: capture-gui
   - Development Guides: development
   - Pioneer LD-V4300D: ldv4300d
   - Support: support
+  - Legacy Capture Application: legacy-gui

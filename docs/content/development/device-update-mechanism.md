@@ -287,7 +287,7 @@ The Cypress secondary loader is deliberately *not* used, although `fx3-programme
 
 ### Windows needs the driver bound
 
-Windows binds drivers by USB identifier, and a device in recovery mode reports different identifiers from a working one. The driver bound to a working Duplicator is therefore not bound to the same unit in recovery, and until WinUSB has been bound to `04b4:00f3` the application cannot open it at all — the device will not appear. This is a once-per-machine step with Zadig, and it is documented for users on the [If an update fails](../capture-application/if-an-update-fails.md) page. Linux needs nothing: `fx3/programmer/configs/70-domesday-duplicator.rules` already covers the Cypress identifiers with a wildcard. macOS binds nothing.
+Windows binds drivers by USB identifier, and a device in recovery mode reports different identifiers from a working one. The driver bound to a working Duplicator is therefore not bound to the same unit in recovery, and until WinUSB has been bound to `04b4:00f3` the application cannot open it at all — the device will not appear. This is a once-per-machine step with Zadig, and it is documented for users on the [If an update fails](../capture-gui/if-an-update-fails.md) page. Linux needs nothing: `fx3/programmer/configs/70-domesday-duplicator.rules` already covers the Cypress identifiers with a wildcard. macOS binds nothing.
 
 ## Where the code is
 

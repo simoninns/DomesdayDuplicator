@@ -4,7 +4,7 @@ The macOS package is a disk image containing the application bundle, with Qt, li
 libusb bundled inside it.
 
 Built for Apple Silicon (arm64). Intel Macs are not covered by a released package; build
-[from source](building-from-source.md) instead.
+[from source](../development/building-locally.md) instead.
 
 ## Install
 
@@ -55,5 +55,9 @@ Drag the new version over the old one in `/Applications`.
 ## Uninstall
 
 Move `/Applications/Domesday Duplicator.app` to the Trash. Settings are stored under
-`~/Library/Preferences/com.domesday86.DomesdayDuplicator.plist` and can be removed
-separately.
+`~/Library/Preferences/com.domesday86.ddd-gui.plist` and can be removed separately.
+
+## Next
+
+The [Quick start](quick-start.md) takes it from here: finding the device, setting the
+front-end gain, and taking a first capture.

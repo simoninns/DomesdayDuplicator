@@ -411,7 +411,7 @@ and each page lands **in the phase that builds the thing it documents** — neve
 catch-up at the end. The site builds in CI (`nix build .#docs-site`), so a phase whose
 feature merges without its page is visibly incomplete. Final page set:
 
-**User section** (`docs/content/capture-application/` — written for someone who has
+**User section** (`docs/content/capture-gui/` — written for someone who has
 never opened a terminal):
 
 - *Updating your Domesday Duplicator* — checking for updates, what the version

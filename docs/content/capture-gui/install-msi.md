@@ -58,3 +58,8 @@ Run the newer MSI. It upgrades in place — there is no need to uninstall first.
 **Settings → Apps → Installed apps → Domesday Duplicator → Uninstall**, or Add/Remove
 Programs. The WinUSB driver binding is separate and stays; undo it in Device Manager if you
 want the device back on its original driver.
+
+## Next
+
+The [Quick start](quick-start.md) takes it from here: finding the device, setting the
+front-end gain, and taking a first capture.

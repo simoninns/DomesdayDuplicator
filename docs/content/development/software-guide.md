@@ -266,7 +266,7 @@ _Domesday Duplicator GUI application_
 
 ## Development environment
 The application is C++20, built with CMake against Qt 6.2 or later (Core, Gui, Widgets and SerialPort), libusb-1.0 and libFLAC. It builds for Linux, Windows and macOS; Windows uses WinUSB in place of libusb. For instructions on how to build it please see [Building Locally](building-locally.md), which covers all three components, or
-[Building from source](../capture-application/building-from-source.md) for the capture application alone.
+[Building from source](../legacy-gui/building-from-source.md) for the capture application alone.
 
 ## Source code modules
 The application is split into a Qt front-end in `gui/src/DomesdayDuplicator/` and a Qt-free core in `gui/src/common/`, so the parts that handle sample data can be unit tested without Qt, libusb or hardware.

@@ -23,7 +23,7 @@ Continuing with the example of a CD (although most issues are common to all ‘d
 
 ![](assets/Digital-Media-Preservation/LD-V4300D-PAL-EFM-output.png){ width="700" }
 
-> _EFM RF data from a disc via a digital store ossiliscope_
+> _EFM RF data from a disc via a digital storage oscilloscope
 
 The CD player takes the analogue RF from the laser and (typically) passes it through a phase-locked loop, the output from there is then measured from zero-cross (the point at which the sine wave passes through the centre point of the signal) to zero-cross.  This measurement is then divided by a known time period to convert it back to a digital representation (in the case of CDs this is known as T3 to T11 – the maximum and minimum allowed periods).  So, at this point we have a ‘perfect repeatable copy’ right?
 
@@ -41,7 +41,7 @@ This all becomes even more important for analogue content such as that stored by
 
 For analogue content the only hope for preservation is to capture the contents of the medium at a higher resolution than it was possible to master it.  Ideally you would capture it at an infinitely high-resolution, however technology, practicality and cost are always factors.
 
-If cost was not an issue, the best method to preserve optical media would be to make a picture of the disc using a very high resolution microscope (such as electron microscopes) and then decode the contents from there; however that is out of reach for the hobbyist, so some other means is required.  Clearly there is a need to capture the optical disc as an analogue source and the most practical way to do that is to scan the surface with a laser.  It’s not a coincidence that LaserDisc players and CD players do exactly that.  What’s needed is some way to capture the analogue data as the player ‘scans’ which is exactly what FM RF Archival solutions like the [Domesday Duplicator (DdD)](overview.md) & [MISRC](https://github.com/Stefan-Olt/MISRC) are designed from the ground up to do.  
+If cost was not an issue, the best method to preserve optical media would be to make a picture of the disc using a very high resolution microscope (such as electron microscopes) and then decode the contents from there; however that is out of reach for the hobbyist, so some other means is required.  Clearly there is a need to capture the optical disc as an analogue source and the most practical way to do that is to scan the surface with a laser.  It’s not a coincidence that LaserDisc players and CD players do exactly that.  What’s needed is some way to capture the analogue data as the player ‘scans’ which is exactly what FM RF Archival solutions like the [Domesday Duplicator (DdD)](overview.md) are designed from the ground up to do.  
 
 The disadvantage of this type of approach is that the captured image isn’t directly usable, requiring post-processing. 
 
@@ -49,7 +49,7 @@ The disadvantage of this type of approach is that the captured image isn’t dir
 
 > _VHS PAL FM RF --> Baseband PAL --> YUV "full 4fsc frame" Image Example_
 
-It requires fairly complex decoding in order to be turned back into a ‘usable’ visual/audio representation (which is why projects such as [LD-Decode](https://github.com/happycube/ld-decode/wiki) / [VHS-Decode](https://github.com/oyvindln/vhs-decode/) / [HiFi-Decode](https://github.com/oyvindln/vhs-decode/wiki/HiFi-Decode) / [CVBS-Decode](https://github.com/oyvindln/vhs-decode/wiki/CVBS-Composite-Decode) / [MUSE-Decode](https://bitbucket.org/staffanulfberg/ldaudio/src/master/musecpp/) and even [CD-Decode](https://github.com/happycube/cd-decode) exist today).
+It requires fairly complex decoding in order to be turned back into a ‘usable’ visual/audio representation (which is why projects such as [LD-Decode](https://github.com/happycube/ld-decode/wiki) / [VHS-Decode](https://github.com/oyvindln/vhs-decode/) exist today).
 
 Stepping away from optical media for a second, the same is true for preservation of even simple things like computer game cassettes.  A digital representation is just that, you’ll never be able to get back the analogue original recording from it.  Of course cost and practicality come back to play here too; if 99% of people think ‘who cares?’ or ‘what difference will it make?’ then it will be a difficult task to actually perform the preservation.  It’s actually easier to justify the extra preservation effort for purely analogue content as there isn’t the luxury of being able to ‘cheat’ (and high-resolution preservation provides opportunity to create extremely good representations – even better than a real ‘player’ would or could achieve with orignal hardware).  Most people are happy with an accurate digital representation of the audio on a CD as it’s the content that’s viewed as the important part (until some unexpected content pops up, usually in the form of copy protection).  For a LaserDisc game like [Dragon’s Lair](https://en.wikipedia.org/wiki/Dragon%27s_Lair) or a historically important system like the [BBC Domesday](https://www.domesday86.com/?page_id=2140), the preservation becomes far more important than the possibility to immediately emulate.
 

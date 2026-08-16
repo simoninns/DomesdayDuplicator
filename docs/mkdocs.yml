@@ -4,7 +4,7 @@
 # decode-orc's mkdocs.yml, so that diffing the two files shows real divergence rather than
 # incidental drift. Only the identity fields and docs_dir differ.
 #
-# Two deviations from decode-orc, both intentional:
+# Three deviations from decode-orc, all intentional:
 #
 #   1. This file lives in docs/, not at the repository root, so that the docs component's
 #      Nix derivation can close over ./docs alone rather than the whole repository.
@@ -12,6 +12,14 @@
 #
 #   2. docs_dir is "content", never "site" — site_dir defaults to "site" relative to this
 #      file, and MkDocs refuses to build when the two collide.
+#
+#   3. theme.features omits navigation.sections. That feature renders the top-level
+#      sections as flat, permanently expanded groups, so only the third level collapsed —
+#      which put every page of every section in the sidebar at once and left the first two
+#      levels looking alike. Without it, Material's default applies and every section is a
+#      dropdown that opens when clicked, so the sidebar shows the sections rather than the
+#      whole site. This site has more sections and more pages per section than decode-orc,
+#      which is why the same setting reads differently here.
 
 site_name: Domesday Duplicator Documentation
 site_description: Documentation for the Domesday Duplicator LaserDisc RF capture hardware
@@ -44,7 +52,6 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.sections
     - navigation.top
     - search.suggest
     - search.highlight

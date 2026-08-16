@@ -45,7 +45,7 @@ to the old repositories will not reach the project.
 **If you only want to use a Domesday Duplicator, you do not need any of this.** The capture
 application ships as a Flatpak, a macOS DMG and a Windows MSI on the
 [releases page](https://github.com/simoninns/DomesdayDuplicator/releases), and the
-[installation pages](https://simoninns.github.io/domesdayduplicator/capture-application/)
+[installation pages](https://simoninns.github.io/domesdayduplicator/capture-gui/)
 cover each one. What follows is for developing the project.
 
 Every component builds two ways, and **neither is second class**: with ordinary distribution
