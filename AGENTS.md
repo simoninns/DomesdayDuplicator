@@ -522,9 +522,9 @@ their board has never been programmed; and the second rescue state, a unit whose
 up in its factory image, named and repaired by an ordinary update),
 24 in `fx3/programmer/` (EEPROM paging arithmetic,
 secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and three
-in `fx3/firmware/` (the generated USB product descriptor, the host-testable half of the register map, and the host-testable half of the device update protocol including both media's paging arithmetic, the boot block it writes at the end of a gateware update, and the CRC-32 that block carries). `fpga/` adds eight
+in `fx3/firmware/` (the generated USB product descriptor, the host-testable half of the register map, and the host-testable half of the device update protocol including both media's paging arithmetic, the boot block it writes at the end of a gateware update, and the CRC-32 that block carries). `fpga/` adds nine
 Verilog testbenches — including the factory image's boot decision, driven against a model
-of the EPCS64 — a `-Wall` lint pass over twelve modules across both images, a
+of the EPCS64 — a `-Wall` lint pass over thirteen modules across both images, a
 timing-constraint check per image, a bitstream-digest test and a boot-block encoder test,
 none of them under CTest — there is no CMake there. `hardware/` has **no automated coverage yet**;
 `docs/` has a static check only. Across the whole tree, `licence-headers` and

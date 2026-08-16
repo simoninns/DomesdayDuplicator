@@ -86,6 +86,15 @@ class CapturePipeline {
     // and well behind what would cost anything.
     uint64_t snapshot_interval_buffers = 4;
 
+    // The span the published throughput is measured across.
+    //
+    // A second is about forty buffers at full rate, which is enough that the
+    // 2 MB granularity of a buffer does not make the figure jump about, and
+    // short enough that a capture falling behind is visible while it is
+    // happening rather than after it has been averaged away. Tests that want a
+    // reading inside a run lasting milliseconds shorten it.
+    std::chrono::milliseconds throughput_window{1000};
+
     size_t snapshot_bytes = SnapshotPublisher::kDefaultSnapshotBytes;
   };
 
@@ -172,6 +181,10 @@ class CapturePipeline {
   void PerformPendingSinkChange();
   void PublishStats();
 
+  // The rate across the most recent window, or zero while there is not yet a
+  // window's worth of history to measure across.
+  double MeasureThroughput(uint64_t buffers_processed, double elapsed_seconds);
+
   ILogger* logger_ = nullptr;
   Options options_;
 
@@ -227,6 +240,27 @@ class CapturePipeline {
   // is what tells one reading from the same reading seen again — the source
   // takes one a few times a second and this thread publishes far more often
   // than that.
+  // The throughput window. Also processing-thread state.
+  //
+  // A rate taken over the whole run reads low forever and there is nothing
+  // wrong when it does: the clock starts before the first byte can arrive, the
+  // opening slots are discarded by the source, and whatever is in flight has
+  // never been counted. Those are a fixed deficit divided by an ever-growing
+  // elapsed time, so the figure creeps up towards the true rate and reaches it
+  // only after tens of minutes — by which time it has also stopped being able
+  // to say anything about what the capture is doing now.
+  //
+  // So what is published is the rate between an anchor and the present. The
+  // anchor is rotated rather than moved: the reading always covers between one
+  // and two windows, and no reading is ever taken across a span short enough
+  // for buffer granularity to distort it.
+  bool throughput_anchored_ = false;
+  uint64_t throughput_anchor_buffers_ = 0;
+  double throughput_anchor_seconds_ = 0.0;
+  uint64_t throughput_window_buffers_ = 0;
+  double throughput_window_seconds_ = 0.0;
+  double throughput_bytes_per_second_ = 0.0;
+
   bool device_buffer_seen_ = false;
   bool device_buffer_squeezed_ = false;
   uint8_t device_buffer_latch_ = 0;

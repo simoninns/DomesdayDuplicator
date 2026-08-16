@@ -166,8 +166,9 @@ The gateware's register interface gains a role register and a flash bridge. Ever
 | `0x22` | `BRIDGE_DATA` | RW | — | One SPI byte out, the simultaneously shifted byte in |
 | `0x23` | `RECONFIG_CONTROL` | RW | `0x00` | Arm and trigger reconfiguration; watchdog tickle |
 | `0x30`–`0x37` | `RU_DIAG_0`–`7` | RO | — | The reconfiguration block's read-back of its own setup, signature `0xDD` |
+| `0x40`–`0x56` | `TELEM_*` | RO | — | The capture buffer instrument, signature `0xBD`. Application image only |
 
-`MAP_VERSION` at `0x01` reads `0x02` for gateware implementing this. The diagnostics window was added after version 2 was defined and does **not** bump it, which is the additive rule below applied to its own map: read-only registers at addresses that previously read `0x00` cannot break a host that does not know about them. It is documented on the [FPGA register interface](fpga-register-interface.md) page.
+`MAP_VERSION` at `0x01` reads `0x02` for gateware implementing this. Two windows were added after version 2 was defined and neither **bumps** it, which is the additive rule below applied to its own map: read-only registers at addresses that previously read `0x00` cannot break a host that does not know about them. Both are documented on the [FPGA register interface](fpga-register-interface.md) page, including the one read in the map that has an effect — a read at `0x40` samples the capture buffer instrument.
 
 **`IMAGE_ROLE` exists so that "which image am I running?" is a question with an answer.** Without it the only way to tell a factory image from an application image would be to infer it from what else is present, and a recovery state the application has to guess at is a recovery state it will sometimes get wrong.
 

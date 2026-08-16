@@ -58,7 +58,7 @@ The DE0-Nano User Manual, which documents the EPCS64 serial configuration device
 
 ## Source code modules
 ### DomesdayDuplicator.v
-This module is the top-level verilog module and contains the hardware mapping information for the communication between the FPGA and the ADC as well as the communication between the FPGA and the FX3. The module also includes instantiation code for the Intel IP PLL function, which generates the single 80 MHz system clock the whole design runs from. The ADC's 40 MHz sampling clock is a divide-by-two of that clock generated in the fabric, and the register that divides it also provides the sample enable, so the sampling instant and the ADC clock edge are aligned by construction. The top-level module includes the sub-modules 'dataGenerator', 'buffer' (and the 'fifo' it is built from), 'fx3StateMachine' and 'spiRegisters'.  The purpose of these modules is described below.
+This module is the top-level verilog module and contains the hardware mapping information for the communication between the FPGA and the ADC as well as the communication between the FPGA and the FX3. The module also includes instantiation code for the Intel IP PLL function, which generates the single 80 MHz system clock the whole design runs from. The ADC's 40 MHz sampling clock is a divide-by-two of that clock generated in the fabric, and the register that divides it also provides the sample enable, so the sampling instant and the ADC clock edge are aligned by construction. The top-level module includes the sub-modules 'dataGenerator', 'buffer' (and the 'fifo' it is built from, and the 'bufferMonitor' that watches it), 'fx3StateMachine' and 'spiRegisters'.  The purpose of these modules is described below.
 
 ### dataGenerator.v
 The data generator module is responsible for generating data either from the ADC or (if in test mode) internally. When in test mode the generator outputs a repeating sequence of 10-bit numbers, 0 to 1020 inclusive.
@@ -82,6 +82,15 @@ If the FX3 stops reading for long enough to fill the FIFO, the samples that do n
 
 (Before 2026 this module was two dual-clock `DCFIFO` instances in a 'ping-pong' arrangement, because a dual-clock FIFO cannot report an exact occupancy and so "is a whole packet ready" had to be answered by filling one buffer completely and swapping. With a single clock domain the occupancy is exact and one FIFO answers it directly.)
 
+### bufferMonitor.v
+The buffer monitor watches the FIFO and reports what it did, so that a host can tell a capture that was comfortable from one that nearly failed. It keeps the highest occupancy reached since it was last read and since reset, the number of overflow bursts and the samples they cost, the packets the FX3 has taken, and the time spent at or above three quarters of the depth. The host reaches all of it through registers `0x40` to `0x56` of the SPI register bank — see the [FPGA register interface](fpga-register-interface.md) page for the block and for the read that samples it.
+
+**Every port but one is an output, and the exception reaches nothing else.** The module is given the occupancy, the write enable, the overflow condition and the read strobe, and it is given a one-clock pulse when a host reads the block; that pulse touches only this module's own registers. There is no path from the instrument back into the FIFO, its pointers, `dataAvailable` or the GPIF handshake, so a defect here can misreport a capture but cannot damage one. That is why it is a module of its own rather than a handful of counters added to `buffer.v`.
+
+Reading it is a sampling operation rather than a stream: the link the figures leave by moves about a byte every 80 µs and the occupancy changes every 12.5 ns, so a read copies every counter into a shadow bank in a single clock and clears the interval counters. What comes back over the link is one coherent instant rather than nine counters caught at nine different ones.
+
+A figure worth knowing before reading any of it: on a capture that is keeping up the peak is 8194 of 16384 words on every interval, because the FIFO fills to the 8192-word packet threshold, `dataAvailable` is registered on the next clock, and the FX3 begins draining a cycle or two later while the sampler is still adding a word every second clock. The overshoot is two words, and it is the same two words every time. A peak that *stops* being constant is the FX3 having been late.
+
 ### fx3StateMachine.v
 The fx3StateMachine module implements the required mirror state-machine for the GPIF II implementation (detailed below).  The state-machine has two states:
 
@@ -91,7 +100,7 @@ The fx3StateMachine module implements the required mirror state-machine for the 
 ### spiRegisters.v
 The spiRegisters module holds the registers that the FX3 reads and writes over the private SPI link between the two boards. It replaced statusLED.v, which used to run a chasing pattern on the DE0-Nano's eight LEDs to show that the gateware was alive.
 
-The registers are a read-only identity block — a fixed signature, the register map version, build flags and the commit the gateware was built from — plus test mode and the LEDs. The LEDs are now driven by the FX3, which uses them to report capture state. The gateware lights one of them coming out of reset, so a board that is configured but has not yet been spoken to by the FX3 still looks different from one that is not configured at all.
+The registers are a read-only identity block — a fixed signature, the register map version, build flags and the commit the gateware was built from — plus test mode, the LEDs, and (in the application image only) the capture buffer instrument's window at `0x40`–`0x56`. The LEDs are now driven by the FX3, which uses them to report capture state. The gateware lights one of them coming out of reset, so a board that is configured but has not yet been spoken to by the FX3 still looks different from one that is not configured at all.
 
 The commit comes from `version.vh`, which `fpga/generate-version.sh` writes at build time. The copy committed beside the sources reports no commit, which is the honest answer for a lint or simulation run.
 

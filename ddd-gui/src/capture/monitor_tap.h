@@ -40,6 +40,11 @@ struct CaptureStats {
   TransferResult result = TransferResult::kRunning;
 
   double elapsed_seconds = 0.0;
+
+  // The rate across the last second or so, not the average since the capture
+  // started — see CapturePipeline::MeasureThroughput for why an average is the
+  // wrong thing to show. Zero means there is not yet a reading, which is the
+  // case for the first second of a run.
   double throughput_bytes_per_second = 0.0;
 
   uint64_t transfers_completed = 0;

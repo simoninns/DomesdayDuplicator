@@ -633,6 +633,107 @@ TEST_F(CapturePipelineTest, ASwapLandsBetweenBuffersRatherThanDuringOne) {
             outcome.stats.buffers_processed - swap_buffer);
 }
 
+// --- Throughput -------------------------------------------------------------
+
+// Half wire rate. Fast enough that a window holds a great many buffers, slow
+// enough that a loaded CI runner is not the thing being measured.
+constexpr uint64_t kTestPacedBytesPerSecond = kWireBytesPerSecond / 2;
+
+TEST_F(CapturePipelineTest, ThroughputIsTheRecentRateNotTheAverageSinceStart) {
+  // The figure a user reads has to say what the capture is doing now. An
+  // average since the start cannot: the run begins with time in which no buffer
+  // could have been processed — threads starting, the source's opening slots
+  // being discarded — and that dead time stays in the denominator forever,
+  // holding the figure below the true rate for as long as anyone is looking at
+  // it.
+  //
+  // Thirty-two discarded slots is a fifth of a second here, exaggerating what
+  // the real device does with four so that the two definitions give visibly
+  // different answers.
+  SyntheticSource::Options source_options = BaseSourceOptions();
+  source_options.rate_bytes_per_second = kTestPacedBytesPerSecond;
+  source_options.discard_slots = 32;
+  SyntheticSource source(source_options);
+
+  CapturePipeline::Options options = BasePipelineOptions();
+  options.throughput_window = 150ms;
+  options.stall_timeout = 2000ms;
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(), options));
+
+  CaptureStats stats;
+  ASSERT_TRUE(WaitFor([&] {
+    stats = pipeline.stats().Read();
+    return stats.throughput_bytes_per_second > 0.0;
+  }));
+
+  pipeline.Abort();
+  pipeline.Wait();
+
+  const double measured = stats.throughput_bytes_per_second;
+  const auto paced = static_cast<double>(kTestPacedBytesPerSecond);
+  EXPECT_GT(measured, paced * 0.8);
+  EXPECT_LT(measured, paced * 1.2);
+
+  // And the same snapshot's average since the start, which is what used to be
+  // published. It is still there to be worked out; it is simply not the answer
+  // to the question the panel asks.
+  const double lifetime =
+      static_cast<double>(stats.buffers_processed * kTestSlotBytes) /
+      stats.elapsed_seconds;
+  EXPECT_GT(measured, lifetime * 1.5)
+      << "the published rate is tracking the lifetime average rather than the "
+         "window";
+}
+
+TEST_F(CapturePipelineTest, NoThroughputIsPublishedUntilAWindowHasPassed) {
+  // A rate taken across two buffers says more about what the scheduler did to
+  // them than about the capture. Until there is a window to measure, the
+  // statistic is zero — which the panel shows as no reading rather than as a
+  // number.
+  SyntheticSource::Options source_options = BaseSourceOptions();
+  source_options.slot_limit = 8;
+  SyntheticSource source(source_options);
+
+  CapturePipeline::Options options = BasePipelineOptions();
+  options.throughput_window = 5000ms;
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(), options));
+
+  const RunResult outcome = RunToCompletion(pipeline);
+  ASSERT_EQ(outcome.result, TransferResult::kSuccess);
+  ASSERT_EQ(outcome.stats.buffers_processed, 8U);
+
+  EXPECT_EQ(outcome.stats.throughput_bytes_per_second, 0.0);
+}
+
+TEST_F(CapturePipelineTest, AStoppedCaptureKeepsTheLastRateItMeasured) {
+  // The clock runs on through the join and the encoder's final frame while no
+  // further buffer can arrive. Measuring across that would end every capture by
+  // reporting a fraction of the rate it actually ran at, which is the one
+  // reading a user is most likely to write down.
+  SyntheticSource::Options source_options = BaseSourceOptions();
+  source_options.rate_bytes_per_second = kTestPacedBytesPerSecond;
+  source_options.slot_limit = 80;
+  SyntheticSource source(source_options);
+
+  CapturePipeline::Options options = BasePipelineOptions();
+  options.throughput_window = 150ms;
+  options.stall_timeout = 2000ms;
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(), options));
+
+  const RunResult outcome = RunToCompletion(pipeline);
+  ASSERT_EQ(outcome.result, TransferResult::kSuccess);
+
+  const auto paced = static_cast<double>(kTestPacedBytesPerSecond);
+  EXPECT_GT(outcome.stats.throughput_bytes_per_second, paced * 0.8);
+  EXPECT_LT(outcome.stats.throughput_bytes_per_second, paced * 1.2);
+}
+
 // --- The monitor tap under a running pipeline -------------------------------
 
 TEST_F(CapturePipelineTest, SnapshotsArriveWhileTheCaptureRuns) {

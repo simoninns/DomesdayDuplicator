@@ -49,9 +49,11 @@ exists. The protocol is on the *Device update mechanism* documentation page.
 measured and displayed while nothing is written anywhere. The Capture panel finds devices
 as they are plugged in and unplugged, refuses one attached at a speed that cannot carry
 80 MB/s, and offers the gateware's test-pattern mode; the Statistics panel shows
-throughput in both MB/s and Msps, sequence-marker integrity, buffer-queue depth with its
-high-water mark, signal level, whole-run extremes, clipping counts, samples processed,
-link speed and the declared front-end gain, all read from the wait-free tap.
+throughput in both MB/s and Msps — the rate over the last second rather than the average
+since the run began, so it reads the device's 40 Msps throughout instead of creeping up
+towards it — sequence-marker integrity, buffer-queue depth with its high-water mark,
+signal level, whole-run extremes, clipping counts, samples processed, link speed and the
+declared front-end gain, all read from the wait-free tap.
 
 **The signal displays**. A time-domain scope with selectable span, persistence and a
 cursor readout; a spectrum with adjustable averaging, peak hold and a frequency cursor, in

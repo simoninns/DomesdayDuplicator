@@ -97,6 +97,8 @@ The command byte gives a 7-bit address, so registers occupy `0x00` to `0x7F`. Th
 
 SPI has no way to refuse a byte, so a bad address cannot be reported in-band and nothing tries to. A host discovers what exists by reading `MAP_VERSION`, which is a positive statement of what the gateware implements, rather than by probing addresses and interpreting silence.
 
+**One read has an effect, and it is the only one.** A read transaction commanded at `TELEM_ID` (`0x40`) samples the capture buffer instrument into its shadow registers and clears its interval counters. Nothing else in this map changes anything when it is read, and that exception is confined to the instrument's own registers — it reaches no other register, no output pin, and nothing in the capture path. The reasoning, and the alternative that was rejected, are under [Capture buffer telemetry](#capture-buffer-telemetry-0x40-to-0x56) below.
+
 ### Timing
 
 `FPGA_MISO` is driven continuously, including while `FPGA_CS_N` is deasserted, when it reads low. With one slave on a dedicated link there is nothing to release the line for, and driving it always means the FX3 never has a floating input.
@@ -137,9 +139,13 @@ Map version `0x02`, which is what both gateware images in this repository report
 | `0x23` | `RECONFIG_CONTROL` | RW | `0x00` | no |
 | `0x24` to `0x2F` | — | unmapped | | |
 | `0x30` to `0x37` | `RU_DIAG_0` to `RU_DIAG_7` | RO | — | — |
-| `0x38` to `0x7F` | — | unmapped | | |
+| `0x38` to `0x3F` | — | unmapped | | |
+| `0x40` | `TELEM_ID` | RO | — | — |
+| `0x41` to `0x50` | `TELEM_STATUS` to `TELEM_NEARFULL` | RO | — | — |
+| `0x51` to `0x56` | `TELEM_DEPTH` to `TELEM_NEARFULL_WORDS` | RO | — | — |
+| `0x57` to `0x7F` | — | unmapped | | |
 
-Version 1 changed nothing below `0x0B`, and the identity block at `0x00` to `0x0A` is frozen across all map versions, so a host that does not recognise the version can still read who it is talking to. `0x20` to `0x23` are the flash bridge and the reconfiguration control, through which the FX3 reaches the EPCS configuration flash and triggers reconfiguration; they are defined on the [device update mechanism](device-update-mechanism.md) page and summarised below. `0x30` to `0x37` are a bench instrument: the reconfiguration block's read-back of its own setup, added at map version 2 without bumping it, because read-only registers at addresses that used to read zero break nothing.
+Version 1 changed nothing below `0x0B`, and the identity block at `0x00` to `0x0A` is frozen across all map versions, so a host that does not recognise the version can still read who it is talking to. `0x20` to `0x23` are the flash bridge and the reconfiguration control, through which the FX3 reaches the EPCS configuration flash and triggers reconfiguration; they are defined on the [device update mechanism](device-update-mechanism.md) page and summarised below. `0x30` to `0x37` are a bench instrument: the reconfiguration block's read-back of its own setup, added at map version 2 without bumping it, because read-only registers at addresses that used to read zero break nothing. `0x40` to `0x56` are the capture buffer instrument, added the same way and for the same reason, and present only in the image that has a capture buffer.
 
 "Host-writable" is a firmware policy, not a gateware one. The gateware accepts a write to any read/write register from whoever is on the link; the FX3 is what declines to relay some of them.
 
@@ -245,6 +251,62 @@ It is kept rather than removed after the diagnosis, at a cost of a few microseco
 
 **`MAP_VERSION` does not bump for this.** Adding read-only registers at previously unmapped addresses is additive under the rule on the [device update mechanism](device-update-mechanism.md) page: an older host reads the addresses it knows and never asks for these, and a host that does ask a gateware without them gets zeros and the missing signature. Both images carry the window, because it lives in `remoteUpdate.v`, which both images carry.
 
+### Capture buffer telemetry, `0x40` to `0x56`
+
+Twenty-three read-only bytes describing the FIFO between the ADC and the FX3: how full it got, how often it overflowed, what that cost, and the dimensions to read those figures against.
+
+This is what lets a host say how close a capture came to failing. The buffer is what a USB stall is paid out of, and before this window the only thing that left the gateware about it was the overflow pin — which says a capture has already been damaged and says nothing at all about the ones that survived.
+
+Only the application image implements it. The factory image has no capture path, so its `spiRegisters` is compiled with the window parameterised off and `0x40` upwards reads `0x00` there, exactly as it did before the window was defined.
+
+#### Reading it samples it
+
+The link moves about a byte every 80 µs and `used_words` changes every 12.5 ns, so a host that read the counters directly would get a different counter's idea of a different instant in every byte. Instead:
+
+**A read transaction commanded at `TELEM_ID` samples every counter into a shadow bank in one gateware clock, clears the interval counters, and increments `TELEM_LATCH_COUNT`.** The host then reads the shadow, which stands still until the next such read.
+
+The rules around that are exact, and each of them is checked by `fpga/tests/tb_spiRegisters.v`:
+
+- Only a **read**, and only one **commanded at `0x40`**. A write there samples nothing, and a read that *arrives* at `0x40` by address auto-increment — one that started at `0x3F`, say — samples nothing either. A transaction that started somewhere else is reading something else and must not silently consume a measurement it never asked for.
+- Exactly **once per transaction**, however many bytes it goes on to read.
+- The geometry at `0x51` to `0x56` is static and reading it samples nothing, so a host can ask the buffer's dimensions without consuming anybody's interval.
+
+`TELEM_ID` itself is a constant, so it does not matter that its byte is loaded into the shift register before the sample is taken; the first shadow byte is loaded a whole SPI byte later, by which time the sample is eight system clocks old at the fastest link this bank accepts.
+
+**Why a read and not a write.** A write-to-sample register would have been purer — this is the only read in the map with an effect — and it was rejected for three reasons. It would need a firmware change, because `fpgaRegisterIsHostWritable()` permits `TEST_MODE` and nothing else, so the feature would need new gateware *and* new firmware and would fail against fielded firmware with a stall rather than degrading. It would take two control requests per reading instead of one. And it would open a race that latch-on-read cannot have: with sampling and reading as separate transactions, a second host on the link can sample between another reader's sample and its read, and hand it an interval that is not its own.
+
+#### The block
+
+Multi-byte fields are **least significant byte first**, the same order the `0x20` and `0x30` windows use.
+
+| Address | Name | Width | Contents |
+| --- | --- | --- | --- |
+| `0x40` | `TELEM_ID` | 8 | `0xBD` when the instrument is present. **Reading this samples it** |
+| `0x41` | `TELEM_STATUS` | 8 | Bits 3:0 layout version (`1`); bit 4 the buffer has overflowed since reset; bit 5 a counter saturated this interval; bits 7:6 reserved |
+| `0x42` | `TELEM_LATCH_COUNT` | 8 | Increments on every sample, and wraps. Two readings differing by more than one mean something else sampled in between |
+| `0x43`–`0x44` | `TELEM_USED_NOW` | 16 | Occupancy in words at the instant of the sample |
+| `0x45`–`0x46` | `TELEM_USED_PEAK` | 16 | The highest occupancy since the previous sample |
+| `0x47`–`0x48` | `TELEM_USED_PEAK_ALL` | 16 | The highest occupancy since reset. Never cleared |
+| `0x49`–`0x4A` | `TELEM_OVERFLOWS` | 16 | Overflow bursts since the previous sample, saturating |
+| `0x4B`–`0x4C` | `TELEM_DROPPED` | 16 | Samples lost since the previous sample, saturating |
+| `0x4D`–`0x4E` | `TELEM_PACKETS` | 16 | Packets the FX3 took since the previous sample, wrapping |
+| `0x4F`–`0x50` | `TELEM_NEARFULL` | 16 | Samples spent at or above the near-full threshold since the previous sample, in units of 256, saturating |
+| `0x51`–`0x52` | `TELEM_DEPTH` | 16 | FIFO depth in words (16384). Static |
+| `0x53`–`0x54` | `TELEM_PACKET_WORDS` | 16 | Packet size in words (8192). Static |
+| `0x55`–`0x56` | `TELEM_NEARFULL_WORDS` | 16 | The near-full threshold in words (12288). Static |
+
+A stall is **one** overflow event however long it lasts — the run ends at the first sample that finds room again — so `TELEM_OVERFLOWS` answers "how often" and `TELEM_DROPPED` answers "how much". Counters saturate rather than wrap, and say so in the status byte, because a wrapped counter reports a small number for a catastrophe.
+
+The geometry is reported rather than assumed so that a host never carries a copy of this design's dimensions; the capture application reads all twenty-three bytes on every poll for the same reason, since a remembered figure is one that can belong to a different device.
+
+#### Reading the numbers
+
+The shape of a healthy capture is worth stating, because it is not what a full-scale reading would suggest. A packet is offered only once a whole one is queued, and the FX3 then drains at up to one word per system clock while the sampling side writes one word every two — so occupancy sawtooths between roughly a quarter and a half of the FIFO, and the peak lands two words above the packet threshold: **8194 of 16384 words, on every interval, indefinitely.** That is the buffer working, not the buffer struggling.
+
+Everything above the packet threshold is the FX3 having been late, and the room between the threshold and the depth is the 205 µs of grace a USB stall is paid out of. A peak that stops being constant is therefore the reading worth acting on, and `TELEM_NEARFULL` says whether an excursion was a spike or a squeeze.
+
+**`MAP_VERSION` does not bump for this**, on the same rule as the `0x30` window: these are read-only registers at addresses that used to read zero, an older host never asks for them, and a host that asks a gateware without them gets zeros and no signature.
+
 ## USB interface
 
 Two vendor requests act on the register bank directly, so a register added to the map later needs no firmware change to become reachable from the host. They replaced the bit-flag configuration request `0xB6`, which is retired.
@@ -316,8 +378,11 @@ The lines are push-pull over a few centimetres through two headers, which is unr
 | `fpga/common/spiRegisters.v` | The slave and the registers, shared by both images |
 | `fpga/common/flashBridge.v` | `0x20` to `0x22`, and the lock |
 | `fpga/common/remoteUpdate.v` | `0x23`, the watchdog, the reconfiguration trigger, and the `0x30`–`0x37` read-back |
+| `fpga/application/bufferMonitor.v` | The counters behind `0x40`–`0x56`, and the shadow bank a read samples into |
 | `fpga/generate-version.sh` | The build stamp the identity block reports |
 | `fx3/firmware/src/fpga-registers.c` | The bit-banged SPI master |
 | `fx3/firmware/src/fpga-register-map.c` | The map, and every decision about it that needs no hardware |
 | `ddd-gui/src/capture/wire_protocol.h` | The host's copy of the request numbers and addresses |
 | `ddd-gui/src/capture/fpga_version.cpp` | Parsing the identity block |
+| `ddd-gui/src/capture/fpga_telemetry.cpp` | Parsing the capture buffer block |
+| `ddd-gui/src/capture/libusb_source.cpp` | Polling it during a capture, without disturbing one |

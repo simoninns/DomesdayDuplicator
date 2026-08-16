@@ -58,13 +58,14 @@ Inside `application/`:
 | `dataGenerator.v` | ADC sampling and the built-in test-data generator |
 | `buffer.v` | Sample buffering between the sampling side and the FX3 |
 | `fifo.v` | The single-clock FIFO `buffer.v` is built from |
+| `bufferMonitor.v` | What the buffer did, reported at registers `0x40`–`0x56`. An observer: every port but the sampling pulse is an output, and that pulse reaches nothing outside this module |
 | `fx3StateMachine.v` | GPIF II handshake with the FX3 |
 
 Inside `common/`:
 
 | File | Role |
 | --- | --- |
-| `spiRegisters.v` | The register bank the FX3 reads and writes over SPI, register map version 2 |
+| `spiRegisters.v` | The register bank the FX3 reads and writes over SPI, register map version 2. The capture buffer window at `0x40`–`0x56` is parameterised off in the factory image, which has no buffer to report on |
 | `flashBridge.v` | The explicitly-unlocked pass-through to the EPCS, registers `0x20`–`0x22` |
 | `asmiBlock.v` | Access to the configuration flash pins, which are not user I/O |
 | `remoteUpdate.v` | Reconfiguration and the configuration watchdog, register `0x23`, and the block's read-back of its own setup at `0x30`–`0x37` |

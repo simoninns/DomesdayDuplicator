@@ -91,6 +91,12 @@ bool CapturePipeline::Start(ISampleSource* source,
   test_pattern_verifier_ = TestPatternVerifier{};
   test_pattern_result_ = TestPatternVerifier::Result{};
   test_pattern_checked_ = false;
+  throughput_anchored_ = false;
+  throughput_anchor_buffers_ = 0;
+  throughput_anchor_seconds_ = 0.0;
+  throughput_window_buffers_ = 0;
+  throughput_window_seconds_ = 0.0;
+  throughput_bytes_per_second_ = 0.0;
   device_buffer_seen_ = false;
   device_buffer_squeezed_ = false;
   device_buffer_latch_ = 0;
@@ -268,6 +274,54 @@ void CapturePipeline::PerformPendingSinkChange() {
   }
 }
 
+double CapturePipeline::MeasureThroughput(uint64_t buffers_processed,
+                                          double elapsed_seconds) {
+  const size_t slot_bytes = (ring_ != nullptr) ? ring_->slot_size_bytes() : 0;
+  if (slot_bytes == 0) {
+    return 0.0;
+  }
+
+  // Measuring starts at the first buffer, not at the start of the run.
+  // Everything before it — the threads starting, the transfers being submitted,
+  // the device's opening slots being discarded — is time in which nothing this
+  // counts could have arrived, and charging the rate for it is exactly what
+  // made the old figure read low.
+  if (!throughput_anchored_) {
+    if (buffers_processed == 0) {
+      return 0.0;
+    }
+    throughput_anchored_ = true;
+    throughput_anchor_buffers_ = buffers_processed;
+    throughput_anchor_seconds_ = elapsed_seconds;
+    throughput_window_buffers_ = buffers_processed;
+    throughput_window_seconds_ = elapsed_seconds;
+    return 0.0;
+  }
+
+  const double window =
+      std::chrono::duration<double>(options_.throughput_window).count();
+
+  if (elapsed_seconds - throughput_anchor_seconds_ >= window) {
+    throughput_window_buffers_ = throughput_anchor_buffers_;
+    throughput_window_seconds_ = throughput_anchor_seconds_;
+    throughput_anchor_buffers_ = buffers_processed;
+    throughput_anchor_seconds_ = elapsed_seconds;
+  }
+
+  const double span = elapsed_seconds - throughput_window_seconds_;
+  if (span < window) {
+    // Nothing worth publishing yet. Zero is how the panel is told there is no
+    // reading, which is the honest thing to show for the first second of a
+    // capture — better than a figure taken across two buffers and wrong by
+    // whatever the scheduler happened to do to them.
+    return 0.0;
+  }
+
+  return static_cast<double>((buffers_processed - throughput_window_buffers_) *
+                             slot_bytes) /
+         span;
+}
+
 void CapturePipeline::PublishStats() {
   CaptureStats stats;
   stats.result = result_.load();
@@ -282,12 +336,15 @@ void CapturePipeline::PublishStats() {
   stats.samples_pending = (sink_ != nullptr) ? sink_->SamplesPending() : 0;
   stats.writing = (sink_ != nullptr) && sink_->StoresData();
 
-  if (stats.elapsed_seconds > 0.0) {
-    stats.throughput_bytes_per_second =
-        static_cast<double>(stats.buffers_processed *
-                            (ring_ != nullptr ? ring_->slot_size_bytes() : 0)) /
-        stats.elapsed_seconds;
+  // A run that has stopped keeps the last rate it measured. The clock carries
+  // on through the join and the encoder's final frame while no further buffer
+  // can arrive, so measuring across that would end every capture by reporting a
+  // fraction of the rate it actually ran at.
+  if (stats.result == TransferResult::kRunning) {
+    throughput_bytes_per_second_ =
+        MeasureThroughput(stats.buffers_processed, stats.elapsed_seconds);
   }
+  stats.throughput_bytes_per_second = throughput_bytes_per_second_;
 
   if (ring_ != nullptr) {
     stats.slots_in_use = ring_->SlotsInUse();
