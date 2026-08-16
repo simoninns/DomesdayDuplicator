@@ -14,6 +14,7 @@
 #include <QObject>
 #include <QThread>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -61,6 +62,12 @@ class SnapshotAnalyser : public QObject {
   void SetSource(capture::SnapshotPublisher* snapshots);
 
   void SetSpectrumAveraging(double averaging);
+
+  // The segment length the spectrum is estimated with, which is what sets its
+  // bin width. Rebuilding the analyser is what applies it, so this is a control
+  // a user moves and not something to call per frame.
+  void SetSpectrumTransformSize(size_t transform_size);
+
   void RequestPeakHoldReset();
 
  public slots:
@@ -85,7 +92,13 @@ class SnapshotAnalyser : public QObject {
 
   analysis::SpectrumAnalyser spectrum_;
   std::atomic<double> requested_averaging_{analysis::kDefaultAveraging};
-  std::atomic<bool> averaging_changed_{false};
+  std::atomic<size_t> requested_transform_size_{
+      analysis::kDefaultTransformSize};
+
+  // One flag for both requests above, because both are applied the same way —
+  // by building another analyser — and a poll that found two separate flags set
+  // would build two of them to no purpose.
+  std::atomic<bool> options_changed_{false};
   std::atomic<bool> peak_hold_reset_requested_{false};
 
   // Worker-thread scratch. Reused rather than reallocated per frame.
@@ -113,10 +126,11 @@ class AnalysisWorker : public QObject {
 
   bool running() const { return thread_.isRunning(); }
 
-  // All three are no-ops before Start() and after Stop(): there is no thread to
+  // All four are no-ops before Start() and after Stop(): there is no thread to
   // carry the request to, and a caller should not have to check.
   void SetSource(capture::SnapshotPublisher* snapshots);
   void SetSpectrumAveraging(double averaging);
+  void SetSpectrumTransformSize(size_t transform_size);
   void ResetPeakHold();
 
  signals:

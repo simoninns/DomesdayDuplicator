@@ -50,6 +50,7 @@ SpectrumAnalyser::SpectrumAnalyser(const Options& options) : options_(options) {
   const size_t bins = (options_.transform_size / 2) + 1;
   real_.assign(options_.transform_size, 0.0);
   imaginary_.assign(options_.transform_size, 0.0);
+  segment_power_.assign(bins, 0.0);
   average_power_.assign(bins, 0.0);
   magnitudes_db_.assign(bins, kFloorDecibels);
   peak_hold_db_.assign(bins, kFloorDecibels);
@@ -81,35 +82,56 @@ void SpectrumAnalyser::BuildWindow() {
 }
 
 bool SpectrumAnalyser::Analyse(const uint16_t* codes, size_t count) {
-  if (codes == nullptr || count < options_.transform_size ||
-      window_sum_ <= 0.0) {
-    return false;
-  }
+  const size_t size = options_.transform_size;
+  const size_t segments = SegmentsIn(count, size);
 
-  for (size_t index = 0; index < options_.transform_size; ++index) {
-    const double centred = static_cast<double>(codes[index]) - kAdcMidScaleCode;
-    real_[index] = centred * window_[index];
-    imaginary_[index] = 0.0;
-  }
-
-  if (!ForwardTransform(real_, imaginary_)) {
+  if (codes == nullptr || segments == 0 || window_sum_ <= 0.0) {
     return false;
   }
 
   const size_t bins = average_power_.size();
+  const size_t hop = size / 2;
   const double scale = window_sum_ * kFullScaleAmplitudeCodes;
 
-  for (size_t bin = 0; bin < bins; ++bin) {
-    // Every bin but DC and Nyquist has a mirror image in the half of the
-    // transform not being shown, and the signal's energy is split between the
-    // two. Doubling here is what puts it back, and skipping those two is what
-    // keeps them from being reported 6 dB high.
-    const double mirror =
-        (bin == 0 || bin == options_.transform_size / 2) ? 1.0 : 2.0;
+  std::fill(segment_power_.begin(), segment_power_.end(), 0.0);
 
-    const double magnitude =
-        std::hypot(real_[bin], imaginary_[bin]) * mirror / scale;
-    const double power = magnitude * magnitude;
+  for (size_t segment = 0; segment < segments; ++segment) {
+    const size_t offset = segment * hop;
+
+    for (size_t index = 0; index < size; ++index) {
+      const double centred =
+          static_cast<double>(codes[offset + index]) - kAdcMidScaleCode;
+      real_[index] = centred * window_[index];
+      imaginary_[index] = 0.0;
+    }
+
+    if (!ForwardTransform(real_, imaginary_)) {
+      return false;
+    }
+
+    for (size_t bin = 0; bin < bins; ++bin) {
+      // Every bin but DC and Nyquist has a mirror image in the half of the
+      // transform not being shown, and the signal's energy is split between the
+      // two. Doubling here is what puts it back, and skipping those two is what
+      // keeps them from being reported 6 dB high.
+      const double mirror = (bin == 0 || bin == size / 2) ? 1.0 : 2.0;
+
+      const double magnitude =
+          std::hypot(real_[bin], imaginary_[bin]) * mirror / scale;
+
+      // Summed as power rather than as amplitude. Two segments of noise that
+      // happened to be out of phase would partly cancel if their amplitudes
+      // were added, and the estimate would read low for no reason connected to
+      // the signal; powers add whatever the phase was, which is the whole point
+      // of averaging them.
+      segment_power_[bin] += magnitude * magnitude;
+    }
+  }
+
+  const double per_segment = 1.0 / static_cast<double>(segments);
+
+  for (size_t bin = 0; bin < bins; ++bin) {
+    const double power = segment_power_[bin] * per_segment;
 
     if (!have_average_ || options_.averaging <= 0.0) {
       average_power_[bin] = power;
@@ -122,6 +144,7 @@ bool SpectrumAnalyser::Analyse(const uint16_t* codes, size_t count) {
     peak_hold_db_[bin] = std::max(peak_hold_db_[bin], magnitudes_db_[bin]);
   }
 
+  segment_count_ = segments;
   have_average_ = true;
   return true;
 }
@@ -132,9 +155,21 @@ void SpectrumAnalyser::ResetPeakHold() {
 
 void SpectrumAnalyser::Reset() {
   have_average_ = false;
+  segment_count_ = 0;
   std::fill(average_power_.begin(), average_power_.end(), 0.0);
   std::fill(magnitudes_db_.begin(), magnitudes_db_.end(), kFloorDecibels);
   ResetPeakHold();
+}
+
+size_t SpectrumAnalyser::SegmentsIn(size_t count, size_t transform_size) {
+  // Guarded against 1 as well as 0: this is a public helper and the hop below
+  // is a half of it, which for a transform of one point is a step of nothing.
+  if (transform_size < 2 || count < transform_size) {
+    return 0;
+  }
+  // Segments start every half-transform, and the last one that fits whole is
+  // the last one taken. Integer division is what drops the trailing part.
+  return ((count - transform_size) / (transform_size / 2)) + 1;
 }
 
 double SpectrumAnalyser::BinFrequencyHz(size_t bin, size_t transform_size,
@@ -157,6 +192,16 @@ size_t SpectrumAnalyser::FrequencyToBin(double frequency_hz,
                      static_cast<double>(sample_rate_hz);
   const size_t rounded = static_cast<size_t>(std::lround(bin));
   return std::min(rounded, transform_size / 2);
+}
+
+double SpectrumAnalyser::BinSpacingHz(size_t transform_size,
+                                      uint32_t sample_rate_hz) {
+  return BinFrequencyHz(1, transform_size, sample_rate_hz);
+}
+
+double SpectrumAnalyser::NoiseBandwidthHz(size_t transform_size,
+                                          uint32_t sample_rate_hz) {
+  return kHannNoiseBandwidthBins * BinSpacingHz(transform_size, sample_rate_hz);
 }
 
 }  // namespace ddd::analysis

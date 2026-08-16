@@ -122,6 +122,8 @@ class SpectrumPanel : public QWidget {
 
   static constexpr const char* kPlotName = "spectrum_plot";
   static constexpr const char* kAveragingComboName = "spectrum_averaging_combo";
+  static constexpr const char* kResolutionComboName =
+      "spectrum_resolution_combo";
   static constexpr const char* kPeakHoldBoxName = "spectrum_peak_hold_box";
   static constexpr const char* kResetButtonName = "spectrum_reset_button";
   static constexpr const char* kCursorLabelName = "spectrum_cursor_label";
@@ -142,6 +144,7 @@ class SpectrumPanel : public QWidget {
 
  private:
   void ApplyAveraging();
+  void ApplyResolution();
   void ShowCursor(double frequency_hz, double level_db, double seconds_ago);
   void ClearCursor();
 
@@ -157,6 +160,7 @@ class SpectrumPanel : public QWidget {
   SpectrumPlot* plot_ = nullptr;
   QComboBox* view_ = nullptr;
   QComboBox* maximum_frequency_ = nullptr;
+  QComboBox* resolution_ = nullptr;
   QComboBox* averaging_ = nullptr;
   QCheckBox* peak_hold_ = nullptr;
   QPushButton* reset_ = nullptr;
@@ -176,5 +180,9 @@ QString FormatSpectrumCursor(double frequency_hz, double level_db,
 // A duration in the past, as the time axis and the cursor give it: "12.34 s"
 // at most two decimal places, and no more precision than the figure deserves.
 QString FormatSecondsAgo(double seconds);
+
+// A transform size as the resolution it buys, which is the half of the trade a
+// user can act on: "9.8 kHz bins" rather than "4096 points".
+QString FormatSpectrumResolution(size_t transform_size);
 
 }  // namespace ddd::gui

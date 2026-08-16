@@ -29,7 +29,12 @@ void SnapshotAnalyser::SetSource(capture::SnapshotPublisher* snapshots) {
 
 void SnapshotAnalyser::SetSpectrumAveraging(double averaging) {
   requested_averaging_.store(averaging);
-  averaging_changed_.store(true);
+  options_changed_.store(true);
+}
+
+void SnapshotAnalyser::SetSpectrumTransformSize(size_t transform_size) {
+  requested_transform_size_.store(transform_size);
+  options_changed_.store(true);
 }
 
 void SnapshotAnalyser::RequestPeakHoldReset() {
@@ -48,12 +53,13 @@ void SnapshotAnalyser::Begin() {
 }
 
 void SnapshotAnalyser::Poll() {
-  if (averaging_changed_.exchange(false)) {
+  if (options_changed_.exchange(false)) {
     // The analyser holds its window and its buffers sized to a transform, so
-    // changing the averaging means building another one. It happens when a user
+    // changing either option means building another one. It happens when a user
     // moves a control, not per frame.
     analysis::SpectrumAnalyser::Options options;
     options.averaging = requested_averaging_.load();
+    options.transform_size = requested_transform_size_.load();
     spectrum_ = analysis::SpectrumAnalyser(options);
   }
 
@@ -163,6 +169,12 @@ void AnalysisWorker::SetSource(capture::SnapshotPublisher* snapshots) {
 void AnalysisWorker::SetSpectrumAveraging(double averaging) {
   if (analyser_ != nullptr) {
     analyser_->SetSpectrumAveraging(averaging);
+  }
+}
+
+void AnalysisWorker::SetSpectrumTransformSize(size_t transform_size) {
+  if (analyser_ != nullptr) {
+    analyser_->SetSpectrumTransformSize(transform_size);
   }
 }
 

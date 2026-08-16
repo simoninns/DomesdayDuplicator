@@ -157,6 +157,65 @@ TEST(SpectrumPanelTest, TheAveragingChoicesIncludeNoneAndDefaultToMedium) {
                    analysis::kDefaultAveraging);
 }
 
+TEST(SpectrumFormatTest, AResolutionIsPutAsTheBinWidthItBuys) {
+  // "4096 points" is a fact about the implementation. The bin width is the same
+  // fact in the units the user is choosing between.
+  EXPECT_EQ(FormatSpectrumResolution(4096), QStringLiteral("9.8 kHz bins"));
+  EXPECT_EQ(FormatSpectrumResolution(16384), QStringLiteral("2.4 kHz bins"));
+}
+
+TEST(SpectrumPanelTest, TheResolutionChoicesDefaultToTheMostAveraged) {
+  SpectrumPanel panel(nullptr);
+
+  auto* const resolution =
+      Named<QComboBox>(panel, SpectrumPanel::kResolutionComboName);
+  ASSERT_NE(resolution, nullptr);
+
+  EXPECT_EQ(static_cast<size_t>(resolution->count()),
+            analysis::kTransformSizeChoiceCount);
+  EXPECT_EQ(static_cast<size_t>(resolution->currentData().toULongLong()),
+            analysis::kDefaultTransformSize);
+
+  // Widest bins first, because that is the order of the averaging they buy and
+  // the default is meant to read as one end of a range rather than a middle.
+  for (int index = 1; index < resolution->count(); ++index) {
+    EXPECT_GT(resolution->itemData(index).toULongLong(),
+              resolution->itemData(index - 1).toULongLong());
+  }
+}
+
+TEST(SpectrumPanelTest, ChangingTheResolutionChangesHowManyBinsArriveAndDraws) {
+  // The bin count is a property of the transform size, so this control changes
+  // the length of every vector the panel is handed afterwards. A plot that had
+  // cached anything sized to the old one would draw past the end of the new.
+  SpectrumPanel panel(nullptr);
+  panel.resize(600, 300);
+
+  auto* const resolution =
+      Named<QComboBox>(panel, SpectrumPanel::kResolutionComboName);
+  auto* const plot = Named<SpectrumPlot>(panel, SpectrumPanel::kPlotName);
+
+  const size_t wide = (analysis::kDefaultTransformSize / 2) + 1;
+  panel.OnSpectrumReady(Levels(wide, -40.0), Levels(wide, -30.0));
+  EXPECT_FALSE(panel.grab().isNull());
+
+  resolution->setCurrentIndex(resolution->count() - 1);
+
+  const size_t narrow =
+      (analysis::kTransformSizeChoices[analysis::kTransformSizeChoiceCount -
+                                       1] /
+       2) +
+      1;
+  panel.OnSpectrumReady(Levels(narrow, -40.0), Levels(narrow, -30.0));
+
+  EXPECT_FALSE(panel.grab().isNull());
+
+  // The spectrogram reduces bins to a fixed number of columns by proportion, so
+  // rows recorded at either resolution stay comparable and neither is
+  // discarded.
+  EXPECT_EQ(plot->history().size(), 2U);
+}
+
 TEST(SpectrumPanelTest, PeakHoldIsOnByDefaultAndCanBeTurnedOff) {
   SpectrumPanel panel(nullptr);
 

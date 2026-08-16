@@ -67,11 +67,17 @@ A live trace: level against frequency, 0 dB being a full-scale sine wave. That r
 the one you can act on — a carrier at −6 dB is using half the converter's range, and the
 number says so without anybody having to know how the transform was normalised.
 
-The transform is 4,096 points, which at 40 Msps is a bin about 9.8 kHz wide. There are far
-more bins than pixels, so each column of the display draws the **highest** bin it covers
-rather than the first or the average: a narrow carrier that fell between two sampled bins
-would otherwise simply not be drawn, which on a display whose job is finding carriers is the
-one failure that matters.
+Each snapshot the pipeline publishes is 32,768 samples — 819 µs of signal — and all of it is
+measured. The snapshot is cut into half-overlapping segments, each one is windowed and
+transformed, and their powers are averaged: fifteen of them at the default resolution. A
+single transform is a noisy estimate whose scatter does not shrink however long you make it,
+so this is what makes the noise floor sit still rather than boil, and a floor that sits still
+is what lets a weak carrier be seen against it.
+
+There are far more bins than pixels, so each column of the display draws the **highest** bin
+it covers rather than the first or the average: a narrow carrier that fell between two
+sampled bins would otherwise simply not be drawn, which on a display whose job is finding
+carriers is the one failure that matters.
 
 ### Spectrogram
 
@@ -99,10 +105,27 @@ I think"* is the actual question.
 Narrowing the range spreads a subset of the bins across the same width. Nothing is thrown
 away and nothing is interpolated.
 
+### Resolution
+
+How finely the spectrum is divided: **9.8 kHz bins** (the default), **4.9 kHz** or
+**2.4 kHz**, being transforms of 4,096, 8,192 and 16,384 points at 40 Msps.
+
+This is a trade, and both halves of it are real. Narrower bins separate carriers that sit
+close together — the analogue audio carriers below 3 MHz are the case that wants them. But a
+snapshot is a fixed 32,768 samples, so a longer transform means fewer segments to average
+across: fifteen at the default, seven in the middle, three at the narrowest. The default
+resolves the FM carrier and its sidebands comfortably while keeping the steadiest floor.
+
+A bin is not quite the same thing as the resolution: the Hann window collects from rather
+wider than one bin's spacing, so the default's real resolution bandwidth is about 14.6 kHz.
+
 ### Averaging
 
 How much of the previous display each new transform replaces: **None**, **Light**,
 **Medium** (the default) or **Heavy**.
+
+This is averaging *between* snapshots and is separate from the segment averaging above, which
+happens within each one.
 
 More averaging makes a weak carrier readable against the noise. Less shows a transient that
 would otherwise be averaged away. The averaging is done on power rather than on decibels, so

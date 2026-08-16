@@ -98,6 +98,17 @@ double TimeAxisStepSeconds(double window_seconds) {
 
 }  // namespace
 
+QString FormatSpectrumResolution(size_t transform_size) {
+  const double spacing = analysis::SpectrumAnalyser::BinSpacingHz(
+      transform_size, capture::kSampleRateHz);
+
+  // Bin spacing rather than the resolution bandwidth, which is half again
+  // wider. The two are easy to confuse and only one of them is a property of
+  // the choice being made here — the bandwidth follows from the window, which
+  // the user is not being offered.
+  return SpectrumPanel::tr("%1 kHz bins").arg(spacing / 1000.0, 0, 'f', 1);
+}
+
 QString FormatFrequency(double frequency_hz) {
   if (frequency_hz < 1'000'000.0) {
     return SpectrumPanel::tr("%1 kHz").arg(frequency_hz / 1000.0, 0, 'f', 0);
@@ -585,6 +596,27 @@ SpectrumPanel::SpectrumPanel(CaptureController* controller, QWidget* parent)
           });
   controls->addWidget(maximum_frequency_);
 
+  resolution_ = new QComboBox(this);
+  resolution_->setObjectName(QLatin1String(kResolutionComboName));
+  for (size_t index = 0; index < analysis::kTransformSizeChoiceCount; ++index) {
+    const size_t size = analysis::kTransformSizeChoices[index];
+    resolution_->addItem(FormatSpectrumResolution(size),
+                         static_cast<qulonglong>(size));
+    if (size == analysis::kDefaultTransformSize) {
+      resolution_->setCurrentIndex(resolution_->count() - 1);
+    }
+  }
+  resolution_->setToolTip(
+      tr("How finely the spectrum is divided. Narrower bins separate carriers "
+         "that sit close together — the audio carriers below 3 MHz — but a "
+         "snapshot holds fewer of them to average, so the noise floor is less "
+         "steady. The widest setting resolves the FM carrier comfortably and "
+         "averages the most."));
+  connect(resolution_, &QComboBox::currentIndexChanged, this,
+          [this](int) { ApplyResolution(); });
+  controls->addWidget(new QLabel(tr("Resolution"), this));
+  controls->addWidget(resolution_);
+
   averaging_ = new QComboBox(this);
   averaging_->setObjectName(QLatin1String(kAveragingComboName));
   for (const AveragingChoice& choice : kAveragingChoices) {
@@ -658,6 +690,13 @@ void SpectrumPanel::ApplyAveraging() {
   }
 }
 
+void SpectrumPanel::ApplyResolution() {
+  if (controller_ != nullptr) {
+    controller_->analysis()->SetSpectrumTransformSize(
+        static_cast<size_t>(resolution_->currentData().toULongLong()));
+  }
+}
+
 void SpectrumPanel::OnSpectrumReady(const std::vector<double>& magnitudes_db,
                                     const std::vector<double>& peak_hold_db) {
   plot_->SetSpectrum(magnitudes_db, peak_hold_db);
@@ -683,10 +722,11 @@ void SpectrumPanel::OnMonitoringChanged(bool monitoring) {
   announced_window_seconds_ = 0.0;
   ClearCursor();
 
-  // The worker is built fresh for each run, so the averaging it was told about
+  // The worker is built fresh for each run, so the settings it was told about
   // last time went with the old one. Re-applied here rather than remembered
-  // there, because this control is the thing that knows what the user chose.
+  // there, because these controls are the thing that knows what the user chose.
   ApplyAveraging();
+  ApplyResolution();
 }
 
 void SpectrumPanel::ShowCursor(double frequency_hz, double level_db,
