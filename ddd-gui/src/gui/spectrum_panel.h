@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "capture_metatypes.h"
+#include "frequency_axis.h"
 #include "spectrogram_history.h"
 #include "spectrum_analyser.h"
 
@@ -55,11 +56,21 @@ class SpectrumPlot : public QWidget {
   // higher resolution rather than discarding it.
   void SetMaximumFrequency(double frequency_hz);
 
+  // Whether frequency runs linearly or logarithmically. Applies to both views
+  // at once: they are two pictures of the same measurement and a panel whose
+  // trace and waterfall disagreed about where 1 MHz was would be worse than
+  // either on its own.
+  void SetFrequencyScale(analysis::FrequencyScale scale);
+
   void Clear();
 
   bool peak_hold_visible() const { return peak_hold_visible_; }
   SpectrumView view() const { return view_; }
   double maximum_frequency_hz() const { return maximum_frequency_hz_; }
+  analysis::FrequencyScale frequency_scale() const { return scale_; }
+
+  // The mapping the trace, the waterfall, the grid and both cursors all share.
+  analysis::FrequencyAxis Axis() const;
 
   const analysis::SpectrogramHistory& history() const { return history_; }
 
@@ -83,8 +94,17 @@ class SpectrumPlot : public QWidget {
   void PaintSpectrogram(QPainter& painter, const QRectF& area, bool dark);
   void PaintGrid(QPainter& painter, const QRectF& area);
 
-  // The proportion of the whole DC-to-Nyquist span currently displayed.
-  double DisplayedProportion() const;
+  // The level drawn in one pixel column: the highest bin that column covers.
+  //
+  // Shared by the trace and the cursor rather than written out twice, so the
+  // reading under the pointer is by construction the reading on the screen. The
+  // two used to be computed separately and agreed only because the axis was
+  // linear; on a log axis they would have drifted apart across the width, and a
+  // cursor that is wrong by a varying amount reads as a measurement rather than
+  // as a fault.
+  static double ColumnLevel(const std::vector<double>& levels,
+                            const analysis::FrequencyAxis& axis, int column,
+                            int columns);
 
   std::vector<double> magnitudes_db_;
   std::vector<double> peak_hold_db_;
@@ -92,6 +112,7 @@ class SpectrumPlot : public QWidget {
 
   SpectrumView view_ = SpectrumView::kTrace;
   double maximum_frequency_hz_ = analysis::kDefaultMaximumFrequencyHz;
+  analysis::FrequencyScale scale_ = analysis::FrequencyScale::kLogarithmic;
 
   analysis::SpectrogramHistory history_;
 
@@ -130,6 +151,8 @@ class SpectrumPanel : public QWidget {
   static constexpr const char* kViewComboName = "spectrum_view_combo";
   static constexpr const char* kMaximumFrequencyComboName =
       "spectrum_maximum_frequency_combo";
+  static constexpr const char* kLogFrequencyBoxName =
+      "spectrum_log_frequency_box";
 
  signals:
   // How much time the spectrogram is showing, once it has measured its own
@@ -145,6 +168,7 @@ class SpectrumPanel : public QWidget {
  private:
   void ApplyAveraging();
   void ApplyResolution();
+  void ApplyFrequencyScale(bool logarithmic);
   void ShowCursor(double frequency_hz, double level_db, double seconds_ago);
   void ClearCursor();
 
@@ -162,6 +186,7 @@ class SpectrumPanel : public QWidget {
   QComboBox* maximum_frequency_ = nullptr;
   QComboBox* resolution_ = nullptr;
   QComboBox* averaging_ = nullptr;
+  QCheckBox* log_frequency_ = nullptr;
   QCheckBox* peak_hold_ = nullptr;
   QPushButton* reset_ = nullptr;
   QLabel* cursor_ = nullptr;
@@ -170,6 +195,10 @@ class SpectrumPanel : public QWidget {
 // A frequency put to a user in the units the number is comfortable in: kHz
 // below a megahertz, MHz above it.
 QString FormatFrequency(double frequency_hz);
+
+// A gridline's label. Megahertz throughout and without a unit, which is how
+// this axis has always been marked: "0.5", "1", "10".
+QString FormatAxisTick(double frequency_hz);
 
 // The cursor readout: where in the spectrum, how much is there, and — in the
 // spectrogram, where a reading is of a moment rather than of now — how long

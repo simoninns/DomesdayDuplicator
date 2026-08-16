@@ -259,7 +259,31 @@ by ~√15 versus single-segment; segment boundaary correctness via a tone plus a
 **Acceptance:** the live noise floor visibly stops boiling at "None" averaging; CPU on
 the analysis thread stays under a few percent.
 
-### Phase 2 — shared frequency-axis mapping, log by default
+### Phase 2 — shared frequency-axis mapping, log by default — **done**
+
+Landed 2026-08-16, in `analysis/frequency_axis.{h,cpp}` with a "Log frequency" toggle on
+the panel, on by default.
+
+**Phase 3's item 4 was pulled forward with it.** The axis applies to the spectrogram as
+well as the trace, because the two are the same measurement in one panel: shipping a
+decade-spaced trace beside an evenly-spaced waterfall would have placed the same carrier
+in two different places with nothing to say which to believe. Phase 3 keeps its other
+three items.
+
+One thing found while doing it, for Phase 3 to weigh: on a log axis the bottom decade
+(100 kHz–1 MHz) occupies ~47% of the height but is covered by only ~46 of the history's
+1,024 columns, about 3 pixels per band. Not a correctness problem — the max-of reduction
+still cannot lose a carrier, it only widens it a pixel or two — but raising
+`SpectrogramHistory::kDefaultColumns` to 2,048 would halve it for 2.4 MB more memory.
+Deliberately not done here.
+
+Also folded in: the cursor and the trace now share one decimation function
+(`SpectrumPlot::ColumnLevel`). They previously computed their bin ranges separately and
+agreed only because the axis was linear; a widget test now points at a carrier and checks
+the reported level is the drawn one, which fails against the old arithmetic by reading
+bin 1,264 instead of bin 800.
+
+### Phase 2 — as planned
 
 **Files:** new `analysis/frequency_axis.{h,cpp}` + test, `spectrum_panel.{h,cpp}`.
 

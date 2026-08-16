@@ -16,12 +16,17 @@
 #include <QComboBox>
 #include <QImage>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QPixmap>
 #include <QPushButton>
+#include <QSignalSpy>
+#include <QTest>
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
+#include "frequency_axis.h"
+#include "sample_format.h"
 #include "spectrogram_history.h"
 #include "spectrum_analyser.h"
 #include "spectrum_panel.h"
@@ -92,6 +97,12 @@ void FeedCarrier(SpectrumPanel& panel, size_t bin, int frames) {
     panel.OnSpectrumReady(magnitudes, magnitudes);
     panel.grab();
   }
+}
+
+// The frequency of one bin of a spectrum with `bins` of them, DC to Nyquist.
+double BinFrequency(size_t bin, size_t bins) {
+  return static_cast<double>(bin) / static_cast<double>(bins - 1) *
+         (static_cast<double>(capture::kSampleRateHz) / 2.0);
 }
 
 TEST(SpectrumFormatTest, FrequenciesAreGivenInTheUnitTheyAreComfortableIn) {
@@ -214,6 +225,127 @@ TEST(SpectrumPanelTest, ChangingTheResolutionChangesHowManyBinsArriveAndDraws) {
   // rows recorded at either resolution stay comparable and neither is
   // discarded.
   EXPECT_EQ(plot->history().size(), 2U);
+}
+
+TEST(SpectrumFormatTest, AxisTicksAreLabelledInMegahertzAcrossDecades) {
+  // A log axis reaches below a megahertz, where an integer label would round
+  // every mark in the bottom decade to the same "0".
+  EXPECT_EQ(FormatAxisTick(0.0), QStringLiteral("0"));
+  EXPECT_EQ(FormatAxisTick(100'000.0), QStringLiteral("0.1"));
+  EXPECT_EQ(FormatAxisTick(500'000.0), QStringLiteral("0.5"));
+  EXPECT_EQ(FormatAxisTick(1'000'000.0), QStringLiteral("1"));
+  EXPECT_EQ(FormatAxisTick(10'000'000.0), QStringLiteral("10"));
+  EXPECT_EQ(FormatAxisTick(14'000'000.0), QStringLiteral("14"));
+}
+
+TEST(SpectrumPanelTest, TheFrequencyAxisIsLogarithmicUnlessAskedOtherwise) {
+  SpectrumPanel panel(nullptr);
+
+  auto* const box =
+      Named<QCheckBox>(panel, SpectrumPanel::kLogFrequencyBoxName);
+  auto* const plot = Named<SpectrumPlot>(panel, SpectrumPanel::kPlotName);
+  ASSERT_NE(box, nullptr);
+
+  EXPECT_TRUE(box->isChecked());
+  EXPECT_EQ(plot->frequency_scale(), analysis::FrequencyScale::kLogarithmic);
+
+  box->setChecked(false);
+  EXPECT_EQ(plot->frequency_scale(), analysis::FrequencyScale::kLinear);
+
+  box->setChecked(true);
+  EXPECT_EQ(plot->frequency_scale(), analysis::FrequencyScale::kLogarithmic);
+}
+
+TEST(SpectrumPanelTest, TheScaleReachesTheSpectrogramAndNotJustTheTrace) {
+  // Both views are pictures of the same measurement in the same panel. A trace
+  // spaced by decade beside a waterfall spaced evenly would put the same
+  // carrier in two different places, and the reader has no way to tell which
+  // one to believe.
+  SpectrumPanel panel(nullptr);
+  panel.resize(600, 300);
+  Named<QComboBox>(panel, SpectrumPanel::kViewComboName)->setCurrentIndex(1);
+
+  auto* const box =
+      Named<QCheckBox>(panel, SpectrumPanel::kLogFrequencyBoxName);
+  const bool dark = theme_tokens::IsDarkPalette(panel.palette());
+
+  // Bin 800 of 2048 is 7.8 MHz — a LaserDisc FM carrier, near enough.
+  FeedCarrier(panel, 800, 30);
+  const int logarithmic = BrightestRow(panel.grab().toImage(), dark);
+  ASSERT_GE(logarithmic, 0);
+
+  box->setChecked(false);
+  const int linear = BrightestRow(panel.grab().toImage(), dark);
+  ASSERT_GE(linear, 0);
+
+  // 7.8 MHz is 56% of the way up a linear axis to 14 MHz and 88% of the way up
+  // a logarithmic one, so the log view draws it markedly higher — a smaller row
+  // number, frequency running up the side.
+  EXPECT_LT(logarithmic, linear)
+      << "the carrier sat at row " << logarithmic << " on a log axis and "
+      << linear << " on a linear one; the scale is not reaching the picture";
+}
+
+TEST(SpectrumPanelTest, TheCursorReadsTheLevelThatWasDrawnUnderIt) {
+  // The failure this exists to catch is silent. The cursor used to work out its
+  // own bin from the pointer's position while the trace worked out its own from
+  // the column: on a linear axis the two agreed by coincidence, and on a
+  // logarithmic one they would drift apart by an amount that varies across the
+  // width — which reads as a measurement rather than as a fault.
+  SpectrumPanel panel(nullptr);
+  panel.resize(600, 300);
+  panel.show();
+
+  auto* const plot = Named<SpectrumPlot>(panel, SpectrumPanel::kPlotName);
+  ASSERT_NE(plot, nullptr);
+
+  const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
+  constexpr size_t kCarrierBin = 800;
+
+  std::vector<double> magnitudes(bins, -80.0);
+  magnitudes[kCarrierBin] = -6.0;
+  panel.OnSpectrumReady(magnitudes, magnitudes);
+
+  QSignalSpy moved(plot, &SpectrumPlot::CursorMoved);
+  ASSERT_TRUE(moved.isValid());
+
+  // Point at the column the carrier is drawn in, worked out through the axis
+  // the plot is using rather than by assuming a scale.
+  const analysis::FrequencyAxis axis = plot->Axis();
+  const double carrier_hz = BinFrequency(kCarrierBin, bins);
+
+  // The plot's own area, inside the scale it reserves on the left and the axis
+  // it reserves below.
+  const QRect area = plot->rect().adjusted(46, 6, -6, -20);
+  ASSERT_GT(area.width(), 100);
+
+  const int x = area.left() +
+                static_cast<int>(axis.ProportionOf(carrier_hz) * area.width());
+
+  // Delivered straight to the widget rather than synthesised through the
+  // platform: an offscreen plugin has no pointer to move, and a test that
+  // quietly sent nothing would pass by never checking anything.
+  const QPointF where(x, area.center().y());
+  QMouseEvent move(QEvent::MouseMove, where, plot->mapToGlobal(where),
+                   Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+  QCoreApplication::sendEvent(plot, &move);
+
+  ASSERT_FALSE(moved.isEmpty());
+  const QList<QVariant> reading = moved.takeLast();
+
+  // The frequency under the pointer is the carrier's, to within the width of
+  // one pixel column at that point on the axis.
+  const double reported_hz = reading.at(0).toDouble();
+  const double column_hz =
+      axis.FrequencyAt(static_cast<double>(x + 1 - area.left()) /
+                       area.width()) -
+      axis.FrequencyAt(static_cast<double>(x - area.left()) / area.width());
+  EXPECT_NEAR(reported_hz, carrier_hz, std::max(column_hz, 1.0) * 2.0);
+
+  // And the level is the carrier's, not the floor either side of it.
+  EXPECT_NEAR(reading.at(1).toDouble(), -6.0, 0.01)
+      << "the cursor read " << reading.at(1).toDouble()
+      << " dB where the trace drew the carrier at -6 dB";
 }
 
 TEST(SpectrumPanelTest, PeakHoldIsOnByDefaultAndCanBeTurnedOff) {

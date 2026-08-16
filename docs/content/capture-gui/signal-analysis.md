@@ -91,6 +91,30 @@ looked away and back the trace has moved on.
 The spectrogram records whichever view is showing, so switching to it shows what has already
 happened rather than starting again from the moment you asked for it.
 
+### Log frequency
+
+Spaces the frequency axis by decade rather than evenly. **On by default**, and it applies to
+the spectrum and the spectrogram together — they are two pictures of the same measurement,
+and a panel that placed the same carrier differently in each would be worse than either
+alone.
+
+The content here runs from the EFM band at 200 kHz to the filter corner at 13.2 MHz, which is
+nearly two decades. Spread evenly, everything below 2 MHz is crushed into the left-hand
+seventh of the display while the octave of very little between 10 and 20 MHz gets more room
+than the whole digital audio band. The PAL analogue audio carriers at 683.6 and 1066.4 kHz
+end up under 3% of the width apart — a few pixels, reading as one feature. Spread by decade
+they are a tenth of the display apart, and the EFM band, the audio carriers and the video
+carrier are each a legible region.
+
+Turn it off to read the **filter's roll-off** or the **symmetry of the FM sidebands**. Both
+of those are about equal spacing in hertz, which is what an even axis shows and a decade one
+does not.
+
+The axis starts at 100 kHz when logarithmic. Below that there are fewer than ten bins in
+total at the default resolution — an expanse of axis with almost no measurement behind it,
+and on a decade scale it would be the widest part of the display. An even axis starts at DC,
+where there is nothing wrong with drawing zero.
+
 ### Range
 
 The top of the displayed frequency range: **14 MHz** (the default), **16**, **18** or
@@ -103,7 +127,8 @@ out the 8 MHz carrier that matters. The wider ranges are for when *"is the filte
 I think"* is the actual question.
 
 Narrowing the range spreads a subset of the bins across the same width. Nothing is thrown
-away and nothing is interpolated.
+away and nothing is interpolated, and the same is true of switching between the two axis
+spacings: both are the same measurement re-laid-out.
 
 ### Resolution
 
@@ -145,6 +170,9 @@ summarising, so the two controls are disabled rather than left to do nothing whe
 
 Point at the plot for a frequency and level. Over the spectrogram it also gives how long ago
 that column was measured, so a feature can be located in time as well as in frequency.
+
+The level it reports is the one drawn in the column under the pointer, computed by the same
+code that drew it — so the readout and the picture cannot disagree, on either axis spacing.
 
 ## Amplitude History
 

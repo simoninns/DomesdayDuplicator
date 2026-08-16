@@ -17,6 +17,7 @@
 add_library(ddd_analysis STATIC
     amplitude_history.cpp
     fourier_transform.cpp
+    frequency_axis.cpp
     front_end_gain.cpp
     spectrogram_history.cpp
     spectrum_analyser.cpp

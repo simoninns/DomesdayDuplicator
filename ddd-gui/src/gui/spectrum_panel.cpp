@@ -52,12 +52,15 @@ constexpr double kDecibelsPerGridLine = 20.0;
 constexpr int kDecibelGridLines =
     static_cast<int>((kTopDecibels - kBottomDecibels) / kDecibelsPerGridLine);
 
-// 2 MHz gridlines put the LaserDisc FM carrier — around 8 MHz — between two of
-// them rather than on one, which is what makes a drift visible, and keep the
-// axis readable across every displayed range rather than only the widest.
-constexpr double kGridFrequencyStepHz = 2'000'000.0;
-
 constexpr double kNyquistHz = static_cast<double>(capture::kSampleRateHz) / 2.0;
+
+// Where a frequency falls in a run of `count` values spread evenly from DC to
+// Nyquist — the analyser's bins, or the history's columns. Returned unrounded,
+// because a caller covering a pixel needs the range either side of it rather
+// than the nearest one.
+double IndexAtFrequency(double frequency_hz, double count) {
+  return frequency_hz / kNyquistHz * count;
+}
 
 struct ViewChoice {
   const char* label;
@@ -107,6 +110,22 @@ QString FormatSpectrumResolution(size_t transform_size) {
   // the choice being made here — the bandwidth follows from the window, which
   // the user is not being offered.
   return SpectrumPanel::tr("%1 kHz bins").arg(spacing / 1000.0, 0, 'f', 1);
+}
+
+QString FormatAxisTick(double frequency_hz) {
+  // Megahertz throughout, and bare, as this axis has always been labelled — a
+  // scale that changed units partway up would need a suffix on every mark to
+  // stay unambiguous, and the cursor is where an exact figure with units comes
+  // from anyway.
+  if (frequency_hz <= 0.0) {
+    return QStringLiteral("0");
+  }
+
+  const double megahertz = frequency_hz / 1'000'000.0;
+  if (megahertz < 1.0) {
+    return QString::number(megahertz, 'f', 1);
+  }
+  return QString::number(megahertz, 'g', 3);
 }
 
 QString FormatFrequency(double frequency_hz) {
@@ -190,8 +209,16 @@ void SpectrumPlot::SetMaximumFrequency(double frequency_hz) {
   update();
 }
 
-double SpectrumPlot::DisplayedProportion() const {
-  return std::clamp(maximum_frequency_hz_ / kNyquistHz, 0.0, 1.0);
+void SpectrumPlot::SetFrequencyScale(analysis::FrequencyScale scale) {
+  scale_ = scale;
+  // The picture has the mapping baked into its rows, so it is built again
+  // rather than re-scaled: the rows are not a stretch of one another.
+  spectrogram_valid_ = false;
+  update();
+}
+
+analysis::FrequencyAxis SpectrumPlot::Axis() const {
+  return analysis::FrequencyAxis(scale_, maximum_frequency_hz_);
 }
 
 void SpectrumPlot::SetPeakHoldVisible(bool visible) {
@@ -216,6 +243,47 @@ QRectF SpectrumPlot::PlotArea() const {
   return QRectF(left, top, plot_width, plot_height);
 }
 
+double SpectrumPlot::ColumnLevel(const std::vector<double>& levels,
+                                 const analysis::FrequencyAxis& axis,
+                                 int column, int columns) {
+  if (levels.size() < 2 || columns <= 0) {
+    return kBottomDecibels;
+  }
+
+  // Bin levels.size() - 1 is Nyquist, so that is the count the bins are spread
+  // across rather than the number of them.
+  const double bins = static_cast<double>(levels.size() - 1);
+
+  const double from =
+      IndexAtFrequency(axis.FrequencyAt(static_cast<double>(column) /
+                                        static_cast<double>(columns)),
+                       bins);
+  const double to =
+      IndexAtFrequency(axis.FrequencyAt(static_cast<double>(column + 1) /
+                                        static_cast<double>(columns)),
+                       bins);
+
+  // Outward to whole bins, so a column covers every bin it touches rather than
+  // only those whose centres fall inside it. At the bottom of a logarithmic
+  // axis a column is narrower than a bin and this covers one; at the top it is
+  // many bins wide and this covers them all.
+  size_t first = static_cast<size_t>(std::floor(std::max(0.0, from)));
+  first = std::min(first, levels.size() - 1);
+
+  size_t last = static_cast<size_t>(std::ceil(std::max(0.0, to)));
+  last = std::clamp(last, first + 1, levels.size());
+
+  // The highest bin in the column, not the first or the mean. There are more
+  // bins than pixels, and a narrow carrier that fell between two sampled bins
+  // would simply not be drawn — which on a display whose job is finding
+  // carriers is the one failure that matters.
+  double peak = kBottomDecibels;
+  for (size_t bin = first; bin < last; ++bin) {
+    peak = std::max(peak, levels[bin]);
+  }
+  return peak;
+}
+
 void SpectrumPlot::PaintTrace(QPainter& painter, const QRectF& area,
                               const std::vector<double>& levels,
                               const QColor& colour) {
@@ -223,35 +291,17 @@ void SpectrumPlot::PaintTrace(QPainter& painter, const QRectF& area,
     return;
   }
 
-  // Only the part of the spectrum on display. The analyser always produces the
-  // whole span to Nyquist; narrowing the range spreads a subset of its bins
-  // across the same width rather than throwing any away.
-  const size_t usable = std::max<size_t>(
-      2, static_cast<size_t>(static_cast<double>(levels.size()) *
-                             DisplayedProportion()));
-
+  // The analyser always produces the whole span to Nyquist; the axis decides
+  // which part of it each column shows, so narrowing the range or switching to
+  // a logarithmic scale re-spreads the same bins rather than throwing any away.
+  const analysis::FrequencyAxis axis = Axis();
   const int columns = static_cast<int>(area.width());
+
   QPolygonF trace;
   trace.reserve(columns);
 
   for (int column = 0; column < columns; ++column) {
-    // The highest bin in the column, not the first or the mean. There are more
-    // bins than pixels, and a narrow carrier that fell between two sampled bins
-    // would simply not be drawn — which on a display whose job is finding
-    // carriers is the one failure that matters.
-    const size_t first = static_cast<size_t>(static_cast<double>(column) *
-                                             static_cast<double>(usable) /
-                                             static_cast<double>(columns));
-    const size_t last =
-        std::min(usable, static_cast<size_t>(static_cast<double>(column + 1) *
-                                             static_cast<double>(usable) /
-                                             static_cast<double>(columns)) +
-                             1);
-
-    double peak = kBottomDecibels;
-    for (size_t bin = first; bin < last; ++bin) {
-      peak = std::max(peak, levels[bin]);
-    }
+    const double peak = ColumnLevel(levels, axis, column, columns);
 
     const double proportion =
         (peak - kBottomDecibels) / (kTopDecibels - kBottomDecibels);
@@ -271,9 +321,8 @@ void SpectrumPlot::PaintSpectrogram(QPainter& painter, const QRectF& area,
   }
 
   const size_t frames = history_.size();
-  const size_t bands = std::max<size_t>(
-      1, static_cast<size_t>(static_cast<double>(history_.columns()) *
-                             DisplayedProportion()));
+  const analysis::FrequencyAxis axis = Axis();
+  const double bands = static_cast<double>(history_.columns());
 
   // Built at the height it will be drawn at, so nothing scales it vertically.
   //
@@ -299,12 +348,18 @@ void SpectrumPlot::PaintSpectrogram(QPainter& painter, const QRectF& area,
       const double upper = 1.0 - (static_cast<double>(y) / height);
       const double lower = 1.0 - (static_cast<double>(y + 1) / height);
 
-      const size_t first = static_cast<size_t>(std::max(0.0, lower) *
-                                               static_cast<double>(bands));
-      const size_t last = std::min(
-          bands,
-          std::max(first + 1, static_cast<size_t>(std::min(1.0, upper) *
-                                                  static_cast<double>(bands))));
+      // Through the axis rather than by proportion, so the picture and the
+      // trace beside it put a carrier at the same place on the same scale.
+      const double from = IndexAtFrequency(axis.FrequencyAt(lower), bands);
+      const double to = IndexAtFrequency(axis.FrequencyAt(upper), bands);
+
+      const size_t held = history_.columns();
+
+      size_t first = static_cast<size_t>(std::floor(std::max(0.0, from)));
+      first = std::min(first, held - 1);
+
+      size_t last = static_cast<size_t>(std::ceil(std::max(0.0, to)));
+      last = std::clamp(last, first + 1, held);
 
       auto* const scanline = reinterpret_cast<QRgb*>(spectrogram_.scanLine(y));
       for (size_t frame = 0; frame < frames; ++frame) {
@@ -348,15 +403,16 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
 
   const bool spectrogram = view_ == SpectrumView::kSpectrogram;
 
+  const analysis::FrequencyAxis axis = Axis();
+  const std::vector<double> ticks = axis.Ticks();
+
   painter.setPen(theme_tokens::GridLine(colours));
 
   if (spectrogram) {
     // Frequency runs up the side here, so its gridlines are horizontal.
-    for (int line = 1; line * kGridFrequencyStepHz < maximum_frequency_hz_;
-         ++line) {
-      const double frequency = line * kGridFrequencyStepHz;
+    for (const double frequency : ticks) {
       const double y =
-          area.bottom() - (frequency / maximum_frequency_hz_ * area.height());
+          area.bottom() - (axis.ProportionOf(frequency) * area.height());
       painter.drawLine(QPointF(area.left(), y), QPointF(area.right(), y));
     }
   } else {
@@ -368,11 +424,9 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
       painter.drawLine(QPointF(area.left(), y), QPointF(area.right(), y));
     }
 
-    for (int line = 1; line * kGridFrequencyStepHz < maximum_frequency_hz_;
-         ++line) {
-      const double frequency = line * kGridFrequencyStepHz;
+    for (const double frequency : ticks) {
       const double x =
-          area.left() + (frequency / maximum_frequency_hz_ * area.width());
+          area.left() + (axis.ProportionOf(frequency) * area.width());
       painter.drawLine(QPointF(x, area.top()), QPointF(x, area.bottom()));
     }
   }
@@ -380,15 +434,13 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
   painter.setPen(theme_tokens::MutedText(colours));
 
   if (spectrogram) {
-    for (int label = 0; label * kGridFrequencyStepHz <= maximum_frequency_hz_;
-         ++label) {
-      const double frequency = label * kGridFrequencyStepHz;
+    for (const double frequency : ticks) {
       const double y =
-          area.bottom() - (frequency / maximum_frequency_hz_ * area.height());
+          area.bottom() - (axis.ProportionOf(frequency) * area.height());
       painter.drawText(QRectF(0.0, y - (metrics.height() / 2.0),
                               kScaleWidthPixels - 6.0, metrics.height()),
                        Qt::AlignRight | Qt::AlignVCenter,
-                       tr("%1").arg(frequency / 1'000'000.0, 0, 'f', 0));
+                       FormatAxisTick(frequency));
     }
 
     // The time axis, in seconds into the past. The rate frames arrive at is not
@@ -434,15 +486,12 @@ void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
                      tr("%1 dB").arg(level, 0, 'f', 0));
   }
 
-  for (int label = 0; label * kGridFrequencyStepHz <= maximum_frequency_hz_;
-       ++label) {
-    const double frequency = label * kGridFrequencyStepHz;
+  for (const double frequency : ticks) {
     const double x =
-        area.left() + (frequency / maximum_frequency_hz_ * area.width());
+        area.left() + (axis.ProportionOf(frequency) * area.width());
     painter.drawText(
         QRectF(x - 30.0, area.bottom() + 2.0, 60.0, kAxisHeightPixels - 2.0),
-        Qt::AlignHCenter | Qt::AlignTop,
-        tr("%1").arg(frequency / 1'000'000.0, 0, 'f', 0));
+        Qt::AlignHCenter | Qt::AlignTop, FormatAxisTick(frequency));
   }
 }
 
@@ -493,17 +542,19 @@ void SpectrumPlot::mouseMoveEvent(QMouseEvent* event) {
     return;
   }
 
+  const analysis::FrequencyAxis axis = Axis();
+
   if (view_ == SpectrumView::kSpectrogram) {
     // Frequency up the side, time across.
     const double up = std::clamp(
         (area.bottom() - event->position().y()) / area.height(), 0.0, 1.0);
-    const double frequency = up * maximum_frequency_hz_;
+    const double frequency = axis.FrequencyAt(up);
 
-    const size_t bands = std::max<size_t>(
-        1, static_cast<size_t>(static_cast<double>(history_.columns()) *
-                               DisplayedProportion()));
+    const size_t held = history_.columns();
     const size_t band = std::min(
-        bands - 1, static_cast<size_t>(up * static_cast<double>(bands - 1)));
+        held - 1,
+        static_cast<size_t>(std::max(
+            0.0, IndexAtFrequency(frequency, static_cast<double>(held)))));
 
     // The picture is anchored to the right and only as wide as there is
     // history for, so a pointer left of where it starts is over nothing.
@@ -530,16 +581,16 @@ void SpectrumPlot::mouseMoveEvent(QMouseEvent* event) {
 
   const double across = std::clamp(
       (event->position().x() - area.left()) / area.width(), 0.0, 1.0);
-  const double frequency = across * maximum_frequency_hz_;
+  const double frequency = axis.FrequencyAt(across);
 
-  const size_t usable = std::max<size_t>(
-      2, static_cast<size_t>(static_cast<double>(magnitudes_db_.size()) *
-                             DisplayedProportion()));
-  const size_t bin =
-      std::min(usable - 1,
-               static_cast<size_t>(across * static_cast<double>(usable - 1)));
+  // The level the column under the pointer was drawn with, computed by the same
+  // function that drew it, so the readout cannot disagree with the picture.
+  const int columns = std::max(1, static_cast<int>(area.width()));
+  const int column = std::clamp(
+      static_cast<int>(event->position().x() - area.left()), 0, columns - 1);
 
-  emit CursorMoved(frequency, magnitudes_db_[bin], -1.0);
+  emit CursorMoved(frequency,
+                   ColumnLevel(magnitudes_db_, axis, column, columns), -1.0);
   QWidget::mouseMoveEvent(event);
 }
 
@@ -595,6 +646,20 @@ SpectrumPanel::SpectrumPanel(CaptureController* controller, QWidget* parent)
                 maximum_frequency_->currentData().toDouble());
           });
   controls->addWidget(maximum_frequency_);
+
+  log_frequency_ = new QCheckBox(tr("Log frequency"), this);
+  log_frequency_->setObjectName(QLatin1String(kLogFrequencyBoxName));
+  log_frequency_->setChecked(true);
+  log_frequency_->setToolTip(tr(
+      "Space the frequency axis by decade rather than evenly. The content "
+      "here runs from the digital audio band at 200 kHz to the filter "
+      "corner at 13.2 MHz — nearly two decades — and spread evenly, "
+      "everything below 2 MHz is crushed into the left-hand seventh of the "
+      "display. Turn it off to read the filter's roll-off or the symmetry "
+      "of the FM sidebands, both of which are about equal spacing in hertz."));
+  connect(log_frequency_, &QCheckBox::toggled, this,
+          [this](bool on) { ApplyFrequencyScale(on); });
+  controls->addWidget(log_frequency_);
 
   resolution_ = new QComboBox(this);
   resolution_->setObjectName(QLatin1String(kResolutionComboName));
@@ -688,6 +753,11 @@ void SpectrumPanel::ApplyAveraging() {
     controller_->analysis()->SetSpectrumAveraging(
         averaging_->currentData().toDouble());
   }
+}
+
+void SpectrumPanel::ApplyFrequencyScale(bool logarithmic) {
+  plot_->SetFrequencyScale(logarithmic ? analysis::FrequencyScale::kLogarithmic
+                                       : analysis::FrequencyScale::kLinear);
 }
 
 void SpectrumPanel::ApplyResolution() {
