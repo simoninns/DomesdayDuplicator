@@ -133,9 +133,26 @@ DiscAddress ParseAddress(std::string_view raw, AddressMode mode) {
     remaining.remove_prefix(1);
   }
 
-  const std::string_view digits = LeadingDigits(remaining);
+  std::string_view digits = LeadingDigits(remaining);
 
-  if (digits.empty() || digits.size() > AddressDigits(mode)) {
+  if (digits.empty()) {
+    return address;
+  }
+
+  // Leading zeros are padding, not width.
+  //
+  // Found on the bench: an LD-V4300D answers the address query with seven
+  // zero-padded digits — "0002103" — whatever the disc is. Counting those as
+  // significant would make every reading from that player too wide for frame
+  // mode and refuse it, which is the opposite of what the width check is for:
+  // it exists to catch a time code being read as a frame number, and a time
+  // code that means anything has significant digits above the frame range.
+  const size_t first_significant = digits.find_first_not_of('0');
+  digits = first_significant == std::string_view::npos
+               ? digits.substr(digits.size() - 1)
+               : digits.substr(first_significant);
+
+  if (digits.size() > AddressDigits(mode)) {
     return address;
   }
 

@@ -190,6 +190,8 @@ cmake/            FindFLAC.cmake, a component-local copy (AGENTS.md §2)
 tests/unit/       T1, engine. Links no Qt at all.
 tests/analysis/   T1, display mathematics. Links no Qt either.
 tests/player/     T1, the player protocol, against a scripted fake serial port.
+                  The Qt half of the player — discovery, the controller, the panel —
+                  is under tests/gui/, since it needs Qt.
 tests/golden/     T2, the capture file format checked against what it must be on disk.
 tests/functional/ T1, the whole pipeline at the device's rate. Minutes, not seconds.
 tests/gui/unit/   T1, Qt layer. Runs under a QCoreApplication; no display needed.

@@ -16,6 +16,7 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDockWidget>
+#include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -35,6 +36,10 @@
 #include "firmware_dialog.h"
 #include "log_message_model.h"
 #include "log_panel.h"
+#include "player_controller.h"
+#include "player_panel.h"
+#include "player_text.h"
+#include "serial_port_scanner.h"
 #include "settings_dialog.h"
 #include "spectrum_panel.h"
 #include "statistics_panel.h"
@@ -53,11 +58,13 @@ constexpr const char* kStateSettingsKey = "main_window/state";
 
 MainWindow::MainWindow(ThemeController* theme_controller,
                        ApplicationLogger* logger,
-                       CaptureController* capture_controller, QWidget* parent)
+                       CaptureController* capture_controller,
+                       PlayerController* player_controller, QWidget* parent)
     : QMainWindow(parent),
       theme_controller_(theme_controller),
       logger_(logger),
       capture_controller_(capture_controller),
+      player_controller_(player_controller),
       log_model_(new LogMessageModel(this)) {
   setWindowTitle(tr("Domesday Duplicator"));
 
@@ -95,6 +102,7 @@ MainWindow::MainWindow(ThemeController* theme_controller,
   setCentralWidget(central);
 
   BuildCaptureDock();
+  BuildPlayerDock();
   BuildStatisticsDock();
   BuildWaveformDock();
   BuildSpectrumDock();
@@ -104,6 +112,30 @@ MainWindow::MainWindow(ThemeController* theme_controller,
   BuildMenus();
 
   statusBar()->showMessage(tr("No capture device attached"));
+
+  // The player gets its own corner of the status bar rather than sharing the
+  // message area: a capture and a player are two pieces of equipment, and a
+  // user watching one must not lose sight of the other.
+  player_status_label_ = new QLabel(this);
+  statusBar()->addPermanentWidget(player_status_label_);
+
+  if (player_controller_ != nullptr) {
+    const auto refresh_player_status = [this] {
+      player_status_label_->setText(PlayerStatusBarText(
+          player_controller_->connection(), player_controller_->status()));
+    };
+
+    connect(player_controller_, &PlayerController::ConnectionChanged, this,
+            [refresh_player_status](const PlayerConnection&) {
+              refresh_player_status();
+            });
+    connect(player_controller_, &PlayerController::StatusUpdated, this,
+            [refresh_player_status](const player::PlayerStatus&) {
+              refresh_player_status();
+            });
+
+    refresh_player_status();
+  }
 
   if (capture_controller_ != nullptr) {
     // The status bar says the same thing the Capture panel does, because the
@@ -172,6 +204,14 @@ void MainWindow::BuildCaptureDock() {
   addDockWidget(Qt::LeftDockWidgetArea, capture_dock_);
 }
 
+void MainWindow::BuildPlayerDock() {
+  player_dock_ = new QDockWidget(tr("Player"), this);
+  player_dock_->setObjectName(QStringLiteral("player_dock"));
+  player_dock_->setWidget(new PlayerPanel(player_controller_, player_dock_));
+  addDockWidget(Qt::LeftDockWidgetArea, player_dock_);
+  splitDockWidget(capture_dock_, player_dock_, Qt::Vertical);
+}
+
 void MainWindow::BuildStatisticsDock() {
   statistics_dock_ = new QDockWidget(tr("Statistics"), this);
   statistics_dock_->setObjectName(QStringLiteral("statistics_dock"));
@@ -229,8 +269,11 @@ void MainWindow::ShowLogPanel() {
 
 void MainWindow::BuildMenus() {
   QMenu* file_menu = menuBar()->addMenu(tr("&File"));
+  // Through a lambda rather than the member directly: the member takes which
+  // tab to open on, and a default argument is not something a signal can
+  // supply.
   file_menu->addAction(tr("&Settings…"), QKeySequence::Preferences, this,
-                       &MainWindow::ShowSettingsDialog);
+                       [this] { ShowSettingsDialog(); });
   file_menu->addSeparator();
   file_menu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
 
@@ -241,6 +284,7 @@ void MainWindow::BuildMenus() {
   // without any code here.
   QMenu* panels_menu = view_menu->addMenu(tr("&Panels"));
   panels_menu->addAction(capture_dock_->toggleViewAction());
+  panels_menu->addAction(player_dock_->toggleViewAction());
   panels_menu->addAction(statistics_dock_->toggleViewAction());
   panels_menu->addAction(waveform_dock_->toggleViewAction());
   panels_menu->addAction(spectrum_dock_->toggleViewAction());
@@ -272,10 +316,73 @@ void MainWindow::BuildMenus() {
             [this, mode] { theme_controller_->SetMode(mode); });
   }
 
+  BuildPlayerMenu();
   BuildToolsMenu();
 
   QMenu* help_menu = menuBar()->addMenu(tr("&Help"));
   help_menu->addAction(tr("&About"), this, &MainWindow::ShowAboutDialog);
+}
+
+void MainWindow::BuildPlayerMenu() {
+  // A menu of its own, and reachable with the Player panel closed: somebody who
+  // has hidden every panel but the spectrum still has to be able to switch the
+  // player link on.
+  QMenu* player_menu = menuBar()->addMenu(tr("&Player"));
+
+  player_enabled_action_ = player_menu->addAction(tr("&Player control"));
+  player_enabled_action_->setCheckable(true);
+  player_enabled_action_->setStatusTip(
+      tr("Look for a LaserDisc player on the serial ports"));
+  player_enabled_action_->setToolTip(
+      tr("While this is off, no serial port on this machine is opened or "
+         "written to."));
+
+  QAction* const search_action = player_menu->addAction(tr("&Search now"));
+  search_action->setStatusTip(
+      tr("Look for the player again straight away rather than waiting"));
+
+  player_menu->addSeparator();
+  QAction* const settings_action =
+      player_menu->addAction(tr("Player s&ettings…"));
+
+  if (player_controller_ == nullptr) {
+    // Shown rather than hidden, so the menu has the same shape in every build
+    // of the window, and disabled rather than left to do nothing when pressed.
+    player_enabled_action_->setEnabled(false);
+    search_action->setEnabled(false);
+    settings_action->setEnabled(false);
+    return;
+  }
+
+  player_enabled_action_->setChecked(player_controller_->settings().enabled);
+
+  connect(player_enabled_action_, &QAction::triggered, player_controller_,
+          &PlayerController::SetEnabled);
+  connect(search_action, &QAction::triggered, player_controller_,
+          &PlayerController::SearchNow);
+  // The same dialog the File menu opens, on the tab this menu is about. A
+  // second dialog for the same settings would be a second place for them to
+  // disagree.
+  connect(settings_action, &QAction::triggered, this,
+          [this] { ShowSettingsDialog(SettingsDialog::Tab::kPlayer); });
+
+  // The settings are the single source of truth, so the panel's checkbox and
+  // the dialog are reflected here rather than leaving the tick disagreeing with
+  // what the application is doing.
+  connect(player_controller_, &PlayerController::SettingsChanged, this,
+          [this](const PlayerSettings& settings) {
+            const QSignalBlocker blocker(player_enabled_action_);
+            player_enabled_action_->setChecked(settings.enabled);
+          });
+
+  connect(player_controller_, &PlayerController::ConnectionChanged, this,
+          [search_action](const PlayerConnection& connection) {
+            search_action->setEnabled(connection.state ==
+                                      PlayerConnectionState::kDisconnected);
+          });
+
+  search_action->setEnabled(player_controller_->connection().state ==
+                            PlayerConnectionState::kDisconnected);
 }
 
 void MainWindow::BuildToolsMenu() {
@@ -465,15 +572,37 @@ void MainWindow::ShowFirmwareDialog() {
   firmware_dialog_open_ = false;
 }
 
-void MainWindow::ShowSettingsDialog() {
-  if (capture_controller_ == nullptr) {
+void MainWindow::ShowSettingsDialog(SettingsDialog::Tab tab) {
+  if (capture_controller_ == nullptr && player_controller_ == nullptr) {
     return;
   }
 
-  SettingsDialog dialog(capture_controller_->settings(),
-                        capture_controller_->devices(), this);
-  if (dialog.exec() == QDialog::Accepted) {
+  // Both halves are shown whichever entry opened the dialog, and each is
+  // applied to its own controller. The serial ports are enumerated here rather
+  // than held: the list is only wanted while somebody is looking at it, and an
+  // adapter plugged in a moment ago should be in it.
+  const CaptureSettings capture = capture_controller_ != nullptr
+                                      ? capture_controller_->settings()
+                                      : CaptureSettings{};
+  const std::vector<capture::DeviceInfo> devices =
+      capture_controller_ != nullptr ? capture_controller_->devices()
+                                     : std::vector<capture::DeviceInfo>{};
+  const PlayerSettings player = player_controller_ != nullptr
+                                    ? player_controller_->settings()
+                                    : PlayerSettings{};
+
+  SettingsDialog dialog(capture, devices, player, EnumerateSerialPorts(), tab,
+                        this);
+
+  if (dialog.exec() != QDialog::Accepted) {
+    return;
+  }
+
+  if (capture_controller_ != nullptr) {
     capture_controller_->SetSettings(dialog.Settings());
+  }
+  if (player_controller_ != nullptr) {
+    player_controller_->SetSettings(dialog.Player());
   }
 }
 

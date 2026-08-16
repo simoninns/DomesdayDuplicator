@@ -22,6 +22,7 @@
 #include "capture_controller.h"
 #include "logger.h"
 #include "main_window.h"
+#include "player_controller.h"
 #include "theme_controller.h"
 #include "usb_device.h"
 #include "version.h"
@@ -105,7 +106,13 @@ int main(int argc, char* argv[]) {
 
   ddd::gui::CaptureController capture_controller(usb_device.get(), &logger);
 
-  ddd::gui::MainWindow window(&theme_controller, &logger, &capture_controller);
+  // Nothing is opened, enumerated or written to until the settings say player
+  // control is on — see PlayerSettings::enabled, which is off until a user
+  // turns it on.
+  ddd::gui::PlayerController player_controller({}, &logger);
+
+  ddd::gui::MainWindow window(&theme_controller, &logger, &capture_controller,
+                              &player_controller);
   if (parser.isSet(debug_option)) {
     window.ShowLogPanel();
   }
@@ -125,6 +132,7 @@ int main(int argc, char* argv[]) {
   // Started after the window is up so that the first device report lands on a
   // window that already has panels to receive it.
   capture_controller.Start();
+  player_controller.Start();
 
   return QApplication::exec();
 }

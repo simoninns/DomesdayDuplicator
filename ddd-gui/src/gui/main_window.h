@@ -14,10 +14,12 @@
 #include <QMainWindow>
 #include <utility>
 
+#include "settings_dialog.h"
 #include "update_key.h"
 
 class QAction;
 class QDockWidget;
+class QLabel;
 
 namespace ddd::gui {
 
@@ -25,6 +27,7 @@ class ApplicationLogger;
 class CaptureController;
 class AmplitudePanel;
 class LogMessageModel;
+class PlayerController;
 class SpectrumPanel;
 class ThemeController;
 
@@ -53,6 +56,7 @@ class MainWindow : public QMainWindow {
   // and the persistence be tested without a USB subsystem to stand up.
   MainWindow(ThemeController* theme_controller, ApplicationLogger* logger,
              CaptureController* capture_controller = nullptr,
+             PlayerController* player_controller = nullptr,
              QWidget* parent = nullptr);
 
   // Reveals the Log dock. Used by --debug, where the point of the run is to
@@ -73,6 +77,7 @@ class MainWindow : public QMainWindow {
 
  private:
   void BuildCaptureDock();
+  void BuildPlayerDock();
   void BuildStatisticsDock();
   void BuildWaveformDock();
   void BuildSpectrumDock();
@@ -80,6 +85,7 @@ class MainWindow : public QMainWindow {
   void BuildLogDock();
   void BuildMenus();
   void BuildToolsMenu();
+  void BuildPlayerMenu();
 
   // Put the gateware into — or out of — test-pattern mode, through the settings
   // rather than directly, so that everything showing the mode agrees about it.
@@ -88,7 +94,9 @@ class MainWindow : public QMainWindow {
   void RestoreWindowLayout();
   void ShowAboutDialog();
   void ShowFirmwareDialog();
-  void ShowSettingsDialog();
+  // The one settings dialog, opened on whichever tab the entry is about.
+  void ShowSettingsDialog(
+      SettingsDialog::Tab tab = SettingsDialog::Tab::kCapture);
   void ShowAnalysisDialog();
   void ShowCaptureFinished(const QString& file_path, quint64 bytes);
   void ShowFirmwareWarning(const QString& message);
@@ -106,9 +114,11 @@ class MainWindow : public QMainWindow {
   ThemeController* theme_controller_;
   ApplicationLogger* logger_;
   CaptureController* capture_controller_;
+  PlayerController* player_controller_;
   LogMessageModel* log_model_;
 
   QDockWidget* capture_dock_ = nullptr;
+  QDockWidget* player_dock_ = nullptr;
   QDockWidget* statistics_dock_ = nullptr;
   QDockWidget* waveform_dock_ = nullptr;
   QDockWidget* spectrum_dock_ = nullptr;
@@ -118,6 +128,16 @@ class MainWindow : public QMainWindow {
   // Tools ▸ Test data mode. Held so that a change made anywhere else can be
   // reflected in the tick, and so the entry can be taken away while streaming.
   QAction* test_mode_action_ = nullptr;
+
+  // Player ▸ Player control. Held for the same reason: the panel's checkbox and
+  // the settings dialog change the same setting, and all three have to agree.
+  QAction* player_enabled_action_ = nullptr;
+
+  // The player's state in the status bar. A permanent widget rather than a
+  // message, so it does not take turns with the capture state — the two are
+  // about different pieces of equipment and a user watching one should not lose
+  // sight of the other.
+  QLabel* player_status_label_ = nullptr;
 
   // Held so the two can be related to one another after both exist: the
   // Amplitude panel can be asked to keep pace with the spectrogram, and neither

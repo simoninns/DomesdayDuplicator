@@ -434,6 +434,53 @@ silent part way through a sequence, or vanish entirely.
 The protocol meets a real port. From here on, some acceptance criteria need a player on the
 bench (T5).
 
+**Status: built, and exercised against a real LD-V4300D.** The Qt-side port, the scanner,
+the discovery planner, the worker thread, the controller, the settings and their tab of the
+settings dialog, the Player dock and the Player menu all exist, with 52 further T1 tests —
+including the first tests the settings dialog has ever had. On the project's
+own bench the application enumerates five USB serial adapters, finds the player on the
+first one it tries, identifies it as `P151502` → **Pioneer LD-V4300D, firmware 02**, and
+polls it — the whole search taking 163 ms and a two-query poll 44 ms, which settles the
+poll interval at its 250 ms floor exactly as this plan predicted.
+
+Four deviations from the sketch above, and two things the bench taught that no fake could
+have:
+
+- **"Newest-looking first" is not knowable, so it is not claimed.** `QSerialPortInfo` does
+  not report when a port appeared. The ordering is USB adapters before built-in ports —
+  which is the real signal, since a player is on an adapter on every machine this will run
+  on and a built-in port is far more likely to be something a user would rather was not
+  interrupted — and the system's own order within each group.
+- **Busy ports are found out about by failing to open.** Qt 6 removed
+  `QSerialPortInfo::isBusy()`. The field and the rule stay, because the rule is right and a
+  test can supply it; enumeration simply cannot fill it in, and a busy port is reported
+  with the same words a permission problem gets, which is true of both.
+- **One switch, not a switch and a pair of verbs.** The menu has **Player control**
+  (checkable) and **Search now** rather than Connect/Disconnect: connecting and enabling
+  are the same decision, and "enabled but deliberately disconnected" is a state nothing
+  else in the design can represent. Switching player control off releases the port
+  entirely, so "off" means the machine is exactly as it would be if the feature did not
+  exist — which is the stronger promise.
+- **No dead buttons for the next two phases.** **Remote…** and **Examine disc…** arrive
+  with the remote and the examine sequence. Adding them now, disabled, would be precisely
+  the failure this plan criticises the old application for.
+
+What the bench found:
+
+- **Zero padding is padding, not width.** The LD-V4300D answers the address query with
+  seven zero-padded digits — `0002103` — whatever the disc is. The width check that refuses
+  a time code read as a frame number was counting those, so it refused every reading from a
+  real player. It now measures significant digits. This is a defect that only hardware
+  could have surfaced: every plausible fixture had been written unpadded.
+- **The disc-status reply is five digits, not a letter and a digit.** `11011`, with the
+  type at index 1 as the old application always read it. The fixtures now use the real
+  shape.
+
+One thing left open, and it belongs to Phase 4: the Pioneer user-code query answered `E04`
+on a parked player. A text reply is deliberately not put through the error convention —
+a user code may contain an `E` — so a reply that is *exactly* `E` followed by digits wants
+treating as a refusal by the examine sequence rather than as a user code.
+
 ### Task 2.1 — `QtSerialPort` and the port scanner
 
 `QtSerialPort` implements `ISerialPort` over `QSerialPort` — the only file in the tree that
@@ -518,6 +565,14 @@ A `Player` menu carries the same two entries plus **Connect / Disconnect** and
 **Settings…**, so the feature is reachable when the panel is closed. The status bar gains
 the player's state alongside the capture state, since the status bar is the one thing that
 cannot be hidden.
+
+**The player's settings are a tab of the one settings dialog, not a dialog of their own.**
+They are a different kind of setting from the capture ones — what is on the end of a cable
+rather than how this machine moves data off the Duplicator — and a single flat form would
+put "which serial port" directly beneath "USB transfer size" under one **OK**. Two separate
+dialogs would be worse still: two places for the same settings to disagree. So `File ▸
+Settings…` opens on **Capture** and `Player ▸ Player settings…` opens the same dialog on
+**Player**, and each half is applied to its own controller.
 
 Every string comes from `player_text.cpp`, and the log gets the connection lifecycle at
 info level and the command traffic at debug level — a serial trace in the existing Log

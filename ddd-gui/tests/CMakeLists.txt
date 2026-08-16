@@ -206,6 +206,10 @@ ddd_add_test(ddd_gui_tests "unit"
     gui/unit/test_analysis_cli.cpp
     gui/unit/test_statistics_presenter.cpp
     gui/unit/test_analysis_worker.cpp
+    gui/unit/test_player_discovery.cpp
+    gui/unit/test_player_settings.cpp
+    gui/unit/test_player_text.cpp
+    gui/unit/test_player_controller.cpp
 )
 target_link_libraries(ddd_gui_tests PRIVATE
     ddd_gui_lib
@@ -225,6 +229,8 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     gui/widget/test_update_page.cpp
     gui/widget/test_analysis_dialog.cpp
     gui/widget/test_capture_panel.cpp
+    gui/widget/test_player_panel.cpp
+    gui/widget/test_settings_dialog.cpp
     gui/widget/test_statistics_panel.cpp
     gui/widget/test_waveform_panel.cpp
     gui/widget/test_spectrum_panel.cpp

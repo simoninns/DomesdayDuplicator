@@ -37,9 +37,10 @@ namespace {
 // layout.
 const QStringList& ExpectedDockNames() {
   static const QStringList names{
-      QStringLiteral("capture_dock"),   QStringLiteral("statistics_dock"),
-      QStringLiteral("waveform_dock"),  QStringLiteral("spectrum_dock"),
-      QStringLiteral("amplitude_dock"), QStringLiteral("log_dock")};
+      QStringLiteral("capture_dock"),    QStringLiteral("player_dock"),
+      QStringLiteral("statistics_dock"), QStringLiteral("waveform_dock"),
+      QStringLiteral("spectrum_dock"),   QStringLiteral("amplitude_dock"),
+      QStringLiteral("log_dock")};
   return names;
 }
 

@@ -90,6 +90,20 @@ TEST(ResponseParserTest, ATimeCodeIsReadInTimeCodeMode) {
   EXPECT_EQ(address.value, 1234500);
 }
 
+TEST(ResponseParserTest, ZeroPaddingIsPaddingRatherThanWidth) {
+  // Exactly what an LD-V4300D on the bench answers: seven zero-padded digits,
+  // whatever the disc is. Counting the padding as significant would make every
+  // reading from that player too wide for frame mode and refuse it.
+  const DiscAddress padded = ParseAddress("0002103\r", AddressMode::kFrame);
+  EXPECT_TRUE(padded.valid);
+  EXPECT_EQ(padded.value, 2103);
+
+  // And a genuinely zero address is still an address rather than nothing.
+  const DiscAddress zero = ParseAddress("0000000\r", AddressMode::kFrame);
+  EXPECT_TRUE(zero.valid);
+  EXPECT_EQ(zero.value, 0);
+}
+
 TEST(ResponseParserTest, ATimeCodeReadAsAFrameIsRefusedRatherThanTruncated) {
   // The old application took the first five digits of whatever arrived, so a
   // CLV time code read in frame mode became a plausible-looking frame number
@@ -159,17 +173,18 @@ TEST(ResponseParserTest, TheTrayFollowsFromTheState) {
 }
 
 TEST(ResponseParserTest, TheDiscTypeIsReadFromTheStatusReply) {
-  // Only the one character the decode names is interpreted; the rest of the
-  // reply carries fields this project has no manual for and does not guess at.
-  EXPECT_EQ(ParseDiscType("D0\r", Disc()), DiscType::kCav);
-  EXPECT_EQ(ParseDiscType("D1\r", Disc()), DiscType::kClv);
-  EXPECT_EQ(ParseDiscType("D0FE\r", Disc()), DiscType::kCav);
+  // "11011" is the shape an LD-V4300D really answers with — five digits, not
+  // the letter-and-digit form it would be easy to assume. Only the one
+  // character the decode names is interpreted; the rest of the reply carries
+  // fields this project has no manual for and does not guess at.
+  EXPECT_EQ(ParseDiscType("10011\r", Disc()), DiscType::kCav);
+  EXPECT_EQ(ParseDiscType("11011\r", Disc()), DiscType::kClv);
 }
 
 TEST(ResponseParserTest, AnUnreadableDiscStatusIsUnknown) {
-  EXPECT_EQ(ParseDiscType("D\r", Disc()), DiscType::kUnknown);
+  EXPECT_EQ(ParseDiscType("1\r", Disc()), DiscType::kUnknown);
   EXPECT_EQ(ParseDiscType("\r", Disc()), DiscType::kUnknown);
-  EXPECT_EQ(ParseDiscType("D9\r", Disc()), DiscType::kUnknown);
+  EXPECT_EQ(ParseDiscType("19011\r", Disc()), DiscType::kUnknown);
 }
 
 TEST(ResponseParserTest, AddressingFollowsFromTheDiscType) {

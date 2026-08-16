@@ -77,6 +77,21 @@ class ISerialPort {
   // False means the port failed, which is a disconnection rather than a
   // timeout.
   virtual bool Read(std::string& into, std::chrono::milliseconds timeout) = 0;
+
+  // Abandon a wait in progress. **The one method callable from another
+  // thread.**
+  //
+  // It exists because the waits are long: a seek is allowed thirty seconds, and
+  // an application asked to quit in the middle of one would otherwise take
+  // thirty seconds to close — which is how a user learns to force-quit it. A
+  // read that is abandoned returns as a port failure, which the session already
+  // knows how to report as a disconnection.
+  //
+  // Implementations must not touch anything the waiting thread owns; setting an
+  // atomic flag the wait looks at is the whole of what is expected. The default
+  // does nothing, which is right for any implementation whose waits are not
+  // long enough to be worth interrupting.
+  virtual void RequestAbort() {}
 };
 
 }  // namespace ddd::player
