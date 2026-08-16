@@ -197,15 +197,23 @@ The reset value is not cosmetic. From power-on until the FX3 first writes this r
 
 The gateware generates no pattern of its own. What the LEDs mean once the FX3 owns them is firmware policy:
 
-| Pattern | Meaning |
-| --- | --- |
-| `0x01` | Gateware running, FX3 has not written here yet |
-| `0x81` | Enumerated, register link up |
-| `0xFF` | The host is collecting |
-| `0x55` | The FPGA reported a buffer overflow |
-| `0x18` | The firmware is rewriting its own boot EEPROM |
+| Pattern | What you see | Meaning |
+| --- | --- | --- |
+| `0x01` | One LED at one end of the row | Gateware running, FX3 has not written here yet |
+| `0x81` | The two LEDs at the ends of the row, the six between them dark | Enumerated, register link up |
+| `0xFF` | All eight lit | The host is collecting |
+| `0x55` | Alternating, four lit | The FPGA reported a buffer overflow |
+| `0x18` | The middle pair | The firmware is rewriting its own boot EEPROM |
 
-The update pattern is the one of these a user is most likely to be looking at while wondering whether to unplug something, which is why it has a pattern of its own rather than sharing "collecting". It is the only one lit by a pair of centre LEDs, so it is distinguishable at a glance from across a room.
+The "what you see" column is worth having because the byte is the thing the firmware writes and the row of lights is the thing anyone is ever looking at, and reading one off the other at a bench needs to know which end of the row is `LED[0]`. Every description above is written so it does not matter — none of them distinguishes a pattern from its mirror image.
+
+Each pattern is chosen to be unmistakable for the others across a room rather than merely different as a number. The update pattern is the one of these a user is most likely to be looking at while wondering whether to unplug something, which is why it has a pattern of its own rather than sharing "collecting", and why it is the only one lit by a pair of centre LEDs.
+
+**The patterns are a priority order, not a set of independent flags.** The application thread picks one each pass of its loop, first match winning: updating, then buffer overflow, then collecting, then ready. It writes the register only when the answer has changed. So an overflow during a capture *replaces* the collecting pattern — `0xFF` giving way to `0x55` part-way through is the fault being reported, not the capture ending.
+
+**What `0x55` can and cannot tell you.** The firmware follows the level on the FPGA's `buffer_error` line rather than latching it: the flag is set on the line's rising edge, and cleared on its falling edge or when a capture starts or stops. The gateware holds that line for 2000 clocks — 25 µs at 80 MHz — restarting the hold on every fresh overflow. The loop that reads it runs every 10 ms.
+
+Those two figures are three orders of magnitude apart, and that decides what the pattern is good for. Overflow that is sustained or repeating retriggers the hold faster than the loop samples, so the LEDs sit at `0x55` and the board is legible from across the room, which is the case the pattern exists for. A *single* isolated overflow will usually have cleared before the next pass looks, so it may never appear on the LEDs at all. **The LEDs are therefore an indication of ongoing trouble, not a record of it.** The record is the buffer monitor's window at `0x40`–`0x56`, which counts overflow bursts and the samples they cost and holds them until read; a capture that shows nothing on the LEDs can still have a non-zero overflow count waiting there.
 
 The gateware will accept a host write to this register, but the FX3 refuses to relay one, because the LEDs are a status output and status outputs have exactly one owner. Two writers means the display shows whichever wrote last, which is worse than useless during a fault — the state the LEDs exist to report is the state where you can least afford to distrust them.
 

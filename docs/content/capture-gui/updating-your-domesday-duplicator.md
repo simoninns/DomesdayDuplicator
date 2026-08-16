@@ -85,6 +85,22 @@ Two things, and both matter more than they sound:
 
 Captures cannot run while an update is in progress, and an update cannot start while a capture is running. The two are kept apart by the device itself, not by the window asking you nicely.
 
+### The lights on the board
+
+The FPGA board has a row of eight small lights, and the Duplicator uses them to say what it is
+doing. During an update **the middle two of the row are lit**, and no other state of the device
+looks like that — it is the only pattern lit from the centre, which is what makes it readable
+from across a room.
+
+This is worth knowing because it comes from the device rather than from the window. If the
+screen has locked, the window is behind something else, or you have simply walked away and come
+back unsure whether to touch the cable, those two centre lights are the device's own answer to
+"is it still busy". While they are lit, leave it alone.
+
+The one exception is the **Restarting the device** stage, where the lights will change and may
+go dark for a few seconds. That is the device reloading itself and it is expected. If they
+settle into a pattern lit at *both ends* of the row, the device has come back up and is ready.
+
 ## If something goes wrong
 
 **Your device is not damaged.** That is worth stating first because it is true of every way this can fail.

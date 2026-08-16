@@ -67,6 +67,9 @@ For the third message specifically — *did not keep a read request outstanding*
 to change is **USB transfers** in [Settings](settings.md#usb-transfers), and the thing to
 look at is whatever else is competing for the CPU.
 
+The device reports this family of problems on its own lights as well, as an alternating
+pattern across the row — see [what the lights on the device say](#what-the-lights-on-the-device-say).
+
 ## The kernel's usbfs limit
 
 > The kernel's usbfs memory limit is lower than the buffer queue this capture asked for.
@@ -134,6 +137,34 @@ the fault, then copy the panel's contents into the report along with the version
 **Help ▸ About**.
 
 [Submitting a bug report](../support/submitting-a-bug-report.md) says what else is useful.
+
+## What the lights on the device say
+
+The FPGA board has a row of eight small lights, and the Duplicator uses them to report what it
+is doing. They are useful here because they come from the device rather than from this
+application, so they still answer when the two are not talking to each other at all.
+
+| What you see | What it means |
+| --- | --- |
+| The two at the **ends** of the row | Connected and idle. This is the normal resting state |
+| **All eight** lit | A capture is running |
+| **Alternating**, four lit | The device's own buffer is overflowing — see below |
+| The **middle two** | A firmware or gateware update is in progress. Leave the device alone |
+| **Nothing** lit | The FPGA has no gateware in it. See [Updating your Duplicator](updating-your-domesday-duplicator.md) |
+| **One** light, steady, at one end | The FPGA is running but the two boards on the device are not talking to each other |
+| **One** light, blinking every few seconds | The FPGA is failing to start and retrying. The device needs its gateware reinstalled |
+
+The alternating pattern is the one to know. It means the device filled its internal buffer
+because this machine was not taking data quickly enough — the same cause as [this machine
+cannot keep up](#this-machine-cannot-keep-up) above, and the same remedies apply. Seeing it
+while a capture runs tells you the bottleneck is between the device and this machine, and not
+something in the device itself.
+
+**The lights show trouble that is happening, not trouble that happened.** A brief overflow can
+come and go faster than the device updates the row, so a capture can lose samples without the
+pattern ever appearing. Do not read a clean row as proof that a capture was clean — the
+capture's own result and the [Statistics](statistics.md) panel are the record, and the lights
+are the thing you can see from across the room while it is still running.
 
 ## Warnings that are not failures
 
