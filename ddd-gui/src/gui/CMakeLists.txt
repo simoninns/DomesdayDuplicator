@@ -47,13 +47,17 @@ set_target_properties(ddd_gui_lib PROPERTIES AUTOMOC ON AUTORCC ON)
 
 target_include_directories(ddd_gui_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
+# ddd_player is the Qt-free player protocol; the QSerialPort backend that carries it, and
+# the worker thread that drives it, belong here because this is where Qt lives.
 target_link_libraries(ddd_gui_lib
     PUBLIC
         ddd_capture
         ddd_analysis
+        ddd_player
         Qt6::Core
         Qt6::Gui
         Qt6::Widgets
+        Qt6::SerialPort
 )
 
 target_compile_options(ddd_gui_lib PRIVATE -Wall -Wextra)

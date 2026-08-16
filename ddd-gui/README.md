@@ -125,9 +125,11 @@ out of reach — but it means a hardware session is spent on hardware questions.
 
 ## Building
 
-Requires **Qt 6.5 or later**, CMake 3.21+, and GoogleTest. Qt 6.5 is the floor because
-`QStyleHints::colorScheme()` — how the application follows the desktop's light/dark
-setting — arrived in that release.
+Requires **Qt 6.5 or later** — including the **SerialPort** module, which several
+distributions package separately from qtbase — CMake 3.21+, and GoogleTest. Qt 6.5 is the
+floor because `QStyleHints::colorScheme()` — how the application follows the desktop's
+light/dark setting — arrived in that release. SerialPort is for the LaserDisc player link,
+and only the Qt layer uses it: the player protocol itself is Qt-free.
 
 ```bash
 cmake -B build -S .
@@ -178,6 +180,8 @@ cmake -B build -S . -DDDD_ENABLE_CLANG_FORMAT=OFF -DDDD_ENABLE_CLANG_TIDY=OFF
 ```
 src/capture/      ddd::capture — the engine. Qt-free, by rule.
 src/analysis/     ddd::analysis — the display mathematics. Qt-free, for the same reason.
+src/player/       ddd::player — the LaserDisc player protocol. Qt-free, and portless.
+src/player/players/ one header per supported player model. See its README to add one.
 src/gui/          ddd::gui — the Qt layer, built as a static library, plus main().
 src/gui/resources/ the application's graphics, compiled in (a local copy, AGENTS.md §2)
 src/update-cli/   ddd-update — a main() over the engine. Links no Qt, deliberately.
@@ -185,6 +189,7 @@ src/vendor/       the only third-party sources here: SHA-256 and Ed25519. See VE
 cmake/            FindFLAC.cmake, a component-local copy (AGENTS.md §2)
 tests/unit/       T1, engine. Links no Qt at all.
 tests/analysis/   T1, display mathematics. Links no Qt either.
+tests/player/     T1, the player protocol, against a scripted fake serial port.
 tests/golden/     T2, the capture file format checked against what it must be on disk.
 tests/functional/ T1, the whole pipeline at the device's rate. Minutes, not seconds.
 tests/gui/unit/   T1, Qt layer. Runs under a QCoreApplication; no display needed.
@@ -208,6 +213,15 @@ is the same enforcement `ddd_capture_tests` provides for the capture engine.
 capture, and separate from the GUI because a QPainter cannot be unit tested while the
 arithmetic behind it can. `ddd_analysis_tests` links no Qt, which is what keeps that
 boundary enforceable rather than aspirational.
+
+`src/player/` is the same idea applied to the LaserDisc player link: it links no Qt and it
+opens no port, talking to an `ISerialPort` interface instead. So the whole protocol — the
+per-model definitions, the probe that finds a player and works out its baud rate, every
+command's bytes and every reply's meaning — is exercised on a machine with no player and
+no serial adapter attached, with the player answering late, answering wrongly, answering
+at the wrong rate or going silent mid-command. `QSerialPort` implements that interface in
+`src/gui/`, where Qt already lives. The plan this is being built to is
+[docs-tech/player-control-implementation-plan.md](../docs-tech/player-control-implementation-plan.md).
 
 The functional tier is not part of the ordinary edit-build-test loop. `ctest -L unit`
 skips it; a bare `ctest` runs it, and so does CI. Each soak runs for a minute by default —

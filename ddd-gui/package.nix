@@ -67,6 +67,11 @@ stdenv.mkDerivation (finalAttrs: {
 
   buildInputs = [
     qt6.qtbase
+
+    # The LaserDisc player link. A separate Qt module rather than part of qtbase, and only
+    # the Qt layer links it: the player protocol itself is Qt-free.
+    qt6.qtserialport
+
     flac
     libusb1
   ];

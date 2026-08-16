@@ -98,6 +98,27 @@ target_link_libraries(ddd_update_tests PRIVATE
 )
 target_include_directories(ddd_update_tests PRIVATE support)
 
+# T1 — the LaserDisc player protocol. Links no Qt, which is the check that the protocol
+# has not grown one: the whole of it — probing for a player, identifying the model,
+# encoding every command and reading every reply — runs against a scripted fake serial
+# port, on a machine with no player and no adapter attached.
+#
+# The fake carries the clock as well as the bytes, so the timeouts are exercised rather
+# than waited out: a command that gives up after five seconds does so instantly here, and
+# does so at exactly the moment it should.
+ddd_add_test(ddd_player_tests "unit"
+    player/test_player_registry.cpp
+    player/test_command_encoder.cpp
+    player/test_response_parser.cpp
+    player/test_player_session.cpp
+)
+target_link_libraries(ddd_player_tests PRIVATE
+    ddd_player
+    GTest::gtest
+    GTest::gtest_main
+)
+target_include_directories(ddd_player_tests PRIVATE support)
+
 # T1 — the display mathematics. Links no Qt either, for the same reason ddd_capture_tests
 # does not: a QPainter cannot be unit tested, and everything worth testing about a plot is
 # the arithmetic behind it rather than the pixels it produced.

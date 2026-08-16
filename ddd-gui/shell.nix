@@ -36,6 +36,10 @@ pkgs.mkShell {
     pkg-config
     qt6.qtbase
 
+    # The LaserDisc player link, used by the Qt layer only — the player protocol under
+    # src/player links no Qt at all.
+    qt6.qtserialport
+
     # The capture engine's non-Qt dependencies. libFLAC is BSD-3-Clause and libusb is
     # LGPL-2.1-or-later, so linking either into a GPLv3 application is fine
     # (AGENTS.md §10). Not needed on Windows, where the WinUSB backend uses libraries

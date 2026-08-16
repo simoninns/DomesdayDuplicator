@@ -148,7 +148,13 @@ endif()
 #
 # Test is part of qtbase everywhere the application is built, and only the test binaries
 # link it: QSignalSpy and QAbstractItemModelTester live there.
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Test)
+#
+# SerialPort is for the LaserDisc player link, and only the Qt layer links it — the player
+# protocol itself is Qt-free and talks to an interface (src/player). It is a separate Qt
+# module rather than part of qtbase, so a distribution build needs its package installed;
+# gui/ has required it since long before this application existed, so no machine that could
+# build this repository is losing anything.
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets SerialPort Test)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -180,6 +186,7 @@ endif()
 add_subdirectory(src/vendor)
 add_subdirectory(src/capture)
 add_subdirectory(src/analysis)
+add_subdirectory(src/player)
 add_subdirectory(src/gui)
 add_subdirectory(src/update-cli)
 
@@ -202,7 +209,7 @@ endif()
 #   clang-tidy — a packaging sandbox exposes the stdenv's unwrapped clang-tidy, which
 #   cannot resolve the standard library headers and fails on otherwise-valid sources.
 
-set(ddd_gated_targets ddd_capture ddd_analysis ddd_gui_lib ddd-gui ddd-update)
+set(ddd_gated_targets ddd_capture ddd_analysis ddd_player ddd_gui_lib ddd-gui ddd-update)
 
 if(BUILD_TESTING)
     get_property(ddd_test_targets GLOBAL PROPERTY DDD_TEST_TARGETS)
