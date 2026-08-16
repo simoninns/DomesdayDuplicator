@@ -14,10 +14,12 @@
 #include <QElapsedTimer>
 #include <QImage>
 #include <QWidget>
+#include <cstdint>
 #include <vector>
 
 #include "capture_metatypes.h"
 #include "frequency_axis.h"
+#include "sample_format.h"
 #include "spectrogram_history.h"
 #include "spectrum_analyser.h"
 
@@ -82,6 +84,16 @@ class SpectrumPlot : public QWidget {
   // either on its own.
   void SetFrequencyScale(analysis::FrequencyScale scale);
 
+  // The rate the samples being plotted arrived at, which is what sets the top
+  // of the frequency axis. A decimated stream is 20 Msps and its Nyquist is
+  // 10 MHz, so a plot that assumed the converter's own rate would draw every
+  // component at twice the frequency it is really at.
+  //
+  // Clears the history, because the columns already held span DC to the old
+  // Nyquist: re-labelling them under a new axis would silently move every
+  // carrier already on screen.
+  void SetSampleRate(uint32_t sample_rate_hz);
+
   void Clear();
 
   bool peak_hold_visible() const { return peak_hold_visible_; }
@@ -89,6 +101,12 @@ class SpectrumPlot : public QWidget {
   analysis::FrequencyScale frequency_scale() const { return scale_; }
   double spectrogram_reference_db() const { return reference_db_; }
   double spectrogram_range_db() const { return range_db_; }
+  uint32_t sample_rate_hz() const { return sample_rate_hz_; }
+
+  // The top of the frequency axis.
+  double NyquistHz() const {
+    return static_cast<double>(sample_rate_hz_) / 2.0;
+  }
 
   // The mapping the trace, the waterfall, the grid and both cursors all share.
   analysis::FrequencyAxis Axis() const;
@@ -208,6 +226,11 @@ class SpectrumPlot : public QWidget {
   SpectrumView view_ = SpectrumView::kTrace;
   analysis::FrequencyScale scale_ = analysis::FrequencyScale::kLogarithmic;
 
+  // The converter's own rate until told otherwise, which is what an undecimated
+  // capture runs at and therefore the right thing to draw before any settings
+  // have arrived.
+  uint32_t sample_rate_hz_ = capture::kSampleRateHz;
+
   double reference_db_ = kDefaultSpectrogramReferenceDb;
   double range_db_ = kDefaultSpectrogramRangeDb;
 
@@ -276,6 +299,14 @@ class SpectrumPanel : public QWidget {
                        size_t segments = 0);
   void OnMonitoringChanged(bool monitoring);
 
+  // Put the plot and the resolution list on the stream's real rate. The list
+  // is rebuilt rather than only re-read, because every entry in it names a bin
+  // width and every one of those halves with the rate.
+  //
+  // Public because it is how the panel is told about a setting it does not
+  // own, and it is what the controller's SettingsChanged is connected to.
+  void SetSampleRate(uint32_t sample_rate_hz);
+
  private:
   void ApplyAveraging();
   void ApplyResolution();
@@ -330,7 +361,13 @@ QString FormatSecondsAgo(double seconds);
 
 // A transform size as the resolution it buys, which is the half of the trade a
 // user can act on: "9.8 kHz bins" rather than "4096 points".
-QString FormatSpectrumResolution(size_t transform_size);
+//
+// The rate is a parameter because the bins are a fraction of it: the same
+// transform over a decimated stream has bins half as wide, and a label that
+// assumed the converter's own rate would overstate the resolution on offer by a
+// factor of two.
+QString FormatSpectrumResolution(size_t transform_size,
+                                 uint32_t sample_rate_hz);
 
 // The instrument's settings as the corner of the plot states them:
 // "RBW 14.6 kHz · 15 avg", or the bandwidth alone when the segment count is
@@ -343,7 +380,8 @@ QString FormatSpectrumResolution(size_t transform_size);
 // panel that quoted the spacing here would be understating its own bandwidth
 // by 1.8 dB. The Resolution control still names the spacing, because that is
 // what the choice being made there is about.
-QString FormatResolutionBandwidth(size_t transform_size, size_t segments);
+QString FormatResolutionBandwidth(size_t transform_size, size_t segments,
+                                  uint32_t sample_rate_hz);
 
 // A level as the scale down the side states it: "0 dBFS", "-100 dBFS".
 //

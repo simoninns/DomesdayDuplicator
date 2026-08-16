@@ -313,6 +313,29 @@ TEST_F(CapturePanelTest, TheDeviceIsLockedWhileStreaming) {
   EXPECT_TRUE(DeviceCombo()->isEnabled());
 }
 
+// The rate is written to the device's decimation register before the stream is
+// opened, so it cannot be changed under a running one. Left editable while
+// monitoring it would appear to work and do nothing — and the analysis panels
+// scale their axes by it, so they would then be drawing a rate the device is
+// not sending.
+TEST_F(CapturePanelTest, TheSampleRateIsLockedFromTheMomentMonitoringStarts) {
+  device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper, "");
+  controller_->Start();
+  ASSERT_TRUE(PumpUntil([&] { return MonitorButton()->isEnabled(); }));
+
+  ASSERT_TRUE(SampleRateCombo()->isEnabled());
+
+  MonitorButton()->click();
+  ASSERT_TRUE(controller_->monitoring());
+
+  EXPECT_FALSE(SampleRateCombo()->isEnabled());
+
+  MonitorButton()->click();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+
+  EXPECT_TRUE(SampleRateCombo()->isEnabled());
+}
+
 TEST_F(CapturePanelTest, UnpluggingMidMonitorLeavesTheButtonUsableAgain) {
   device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper, "");
   controller_->Start();
@@ -570,20 +593,20 @@ TEST_F(CapturePanelTest, CompressionIsOnlyOfferedForTheFormatThatHasIt) {
   EXPECT_TRUE(CompressionSpin()->isEnabled());
 }
 
-// The test pattern is a ramp checked sample by sample, and a decimated one
-// would read as a break on the first buffer. The control goes away rather than
-// being silently overridden, so it never shows a rate the capture is not
-// running at.
-TEST_F(CapturePanelTest, DecimationIsNotOfferedInTestMode) {
+// Offered in test mode as well, because the gateware generates its pattern
+// downstream of the decimator: a decimated test capture is an unbroken ramp at
+// the decimated rate, so the integrity check covers the decimated path rather
+// than being locked out of it.
+TEST_F(CapturePanelTest, DecimationIsOfferedInTestModeToo) {
   EXPECT_TRUE(SampleRateCombo()->isEnabled());
 
   SetTestMode(true);
-  EXPECT_FALSE(SampleRateCombo()->isEnabled());
-  EXPECT_EQ(controller_->settings().EffectiveDecimationFactor(),
-            capture::kUndecimatedFactor);
-
-  SetTestMode(false);
   EXPECT_TRUE(SampleRateCombo()->isEnabled());
+
+  SampleRateCombo()->setCurrentIndex(
+      SampleRateCombo()->findData(capture::kTapeDecimationFactor));
+  EXPECT_EQ(controller_->settings().decimation_factor,
+            capture::kTapeDecimationFactor);
 }
 
 // The readout is a time rather than a size, so the format has to reach it: an

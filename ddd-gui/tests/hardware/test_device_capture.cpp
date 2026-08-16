@@ -376,5 +376,106 @@ TEST_F(HardwareTest, TheTestPatternArrivesIntact) {
   EXPECT_GT(verdict.samples_checked, 0U) << "the verifier never ran";
 }
 
+// The decimated path, which is the half of the capture path nothing else here
+// reaches.
+//
+// Three separate claims, and the test fails on any of them:
+//
+//   the device accepts the factor and reports it back;
+//   the stream that arrives is half the rate it was;
+//   and it is still an unbroken ramp.
+//
+// The third is the one worth having. The gateware puts its test generator
+// downstream of the decimator, so a decimated test capture is every sample
+// plus one exactly as a full-rate one is — which means the sequence markers
+// and the ramp both still apply, and a decimator that dropped a sample at a
+// buffer seam, or that got its phase wrong across one, shows up here as a
+// break rather than as a subtly wrong signal nobody can see.
+//
+// What this cannot check is the anti-alias filter. A ramp is not a spectrum
+// and every sample of it is in the passband, so the filter's response is
+// pinned by fpga/tests/tb_halfBandDecimator.v in simulation and by
+// fpga/make-halfband-coefficients.py in arithmetic. Measuring it on hardware
+// needs a signal generator on the RF input — TESTING.md section 5.
+TEST_F(HardwareTest, TheDecimatedTestPatternArrivesIntactAtHalfTheRate) {
+  ASSERT_TRUE(device_->WriteRegister(attached_.path, kRegisterTestMode, 1))
+      << "the device would not accept the test-mode register write";
+  ASSERT_TRUE(device_->WriteRegister(attached_.path, kRegisterDecimation,
+                                     kDecimationHalfRate))
+      << "the device would not accept the decimation register write";
+
+  // Read it back before streaming a byte. The gateware normalises a factor it
+  // cannot do rather than storing it, so this is the device stating what the
+  // capture path is about to do rather than echoing what it was asked.
+  std::vector<uint8_t> confirmed;
+  ASSERT_TRUE(
+      device_->ReadRegisters(attached_.path, kRegisterDecimation, 1, confirmed))
+      << "the decimation register could not be read back";
+  ASSERT_FALSE(confirmed.empty());
+  EXPECT_EQ(confirmed.front(), kDecimationHalfRate)
+      << "the gateware did not accept 2:1 decimation";
+
+  TransferResult opened = TransferResult::kConnectionFailure;
+  std::unique_ptr<ISampleSource> source =
+      device_->OpenSource(attached_.path, {}, opened);
+  ASSERT_NE(source, nullptr) << "the device could not be opened: "
+                             << TransferResultDescription(opened);
+
+  CapturePipeline pipeline(logger_.get());
+  CapturePipeline::Options options;
+  options.test_mode = true;
+
+  ASSERT_TRUE(
+      pipeline.Start(source.get(), std::make_unique<NullSink>(), options))
+      << pipeline.ResultDetail();
+
+  constexpr auto kDecimatedSeconds = 3s;
+  std::this_thread::sleep_for(kDecimatedSeconds);
+
+  const CaptureStats running = pipeline.stats().Read();
+
+  pipeline.RequestStop();
+  pipeline.Wait();
+
+  // Put the device back whatever happened, so a failing test does not leave a
+  // device that captures ramps at half rate until somebody notices.
+  device_->WriteRegister(attached_.path, kRegisterTestMode, 0);
+  device_->WriteRegister(attached_.path, kRegisterDecimation,
+                         kDecimationEverySample);
+
+  const CaptureStats final_stats = pipeline.stats().Read();
+  const TestPatternVerifier::Result verdict = pipeline.test_pattern_result();
+
+  const double megabytes_per_second =
+      running.throughput_bytes_per_second / (1024.0 * 1024.0);
+  std::cout << "[          ] " << megabytes_per_second << " MB/s, checked "
+            << verdict.samples_checked << " samples against the ramp\n";
+
+  EXPECT_EQ(pipeline.Result(), TransferResult::kSuccess)
+      << TransferResultName(pipeline.Result()) << ": "
+      << pipeline.ResultDetail();
+
+  // Half the wire rate, and the bounds are wide because what is being
+  // distinguished is 40 MB/s from 80, not one figure from a neighbouring one.
+  // A decimator that was not running would land at the top of this range and
+  // outside it.
+  const double wire_rate =
+      static_cast<double>(kWireBytesPerSecond) / (1024.0 * 1024.0);
+  EXPECT_GT(megabytes_per_second, wire_rate * 0.40)
+      << "the stream was slower than half rate";
+  EXPECT_LT(megabytes_per_second, wire_rate * 0.60)
+      << "the stream did not halve — the decimator is not running";
+
+  // And it is still a capture, not merely half of one.
+  EXPECT_EQ(final_stats.sequence_state, SequenceState::kRunning)
+      << "sequence state was " << SequenceStateName(final_stats.sequence_state);
+
+  EXPECT_TRUE(verdict.passed)
+      << "the decimated ramp broke after " << verdict.samples_checked
+      << " samples: expected " << verdict.expected_value << ", got "
+      << verdict.actual_value;
+  EXPECT_GT(verdict.samples_checked, 0U) << "the verifier never ran";
+}
+
 }  // namespace
 }  // namespace ddd::capture

@@ -60,10 +60,6 @@ struct FlacWriter::Impl {
   std::atomic<size_t> samples_written{0};
   std::atomic<size_t> samples_encoded{0};
 
-  // How far into the next buffer the next sample to keep lies, when decimating.
-  // Zero for an undecimated capture and for the first buffer of any capture.
-  size_t decimation_offset = 0;
-
   void RecordEncoderError(const char* context) {
     const FLAC__StreamEncoderState state =
         FLAC__stream_encoder_get_state(encoder);
@@ -236,76 +232,49 @@ bool FlacWriter::Open(const std::filesystem::path& file_path,
   impl_->bytes_written = 0;
   impl_->samples_written = 0;
   impl_->samples_encoded = 0;
-  impl_->decimation_offset = 0;
   impl_->encoder_initialised = true;
   impl_->finished = false;
   return true;
 }
 
 bool FlacWriter::WriteRawDeviceSamples(const uint8_t* device_data,
-                                       size_t sample_count,
-                                       int decimation_factor) {
+                                       size_t sample_count) {
   if (!impl_->encoder_initialised) {
     impl_->last_error =
         "FlacWriter::WriteRawDeviceSamples(): The encoder is not open";
     return false;
   }
 
-  if (!IsSupportedDecimationFactor(decimation_factor)) {
-    impl_->last_error =
-        "FlacWriter::WriteRawDeviceSamples(): Unsupported decimation factor " +
-        std::to_string(decimation_factor);
-    return false;
-  }
+  size_t remaining = sample_count;
+  const uint8_t* read_pointer = device_data;
 
-  const size_t stride = static_cast<size_t>(decimation_factor);
+  while (remaining > 0) {
+    const size_t chunk = std::min(remaining, kEncodeChunkSamples);
 
-  // Widen the device's 16-bit words into the int32 buffer libFLAC wants,
-  // applying the bias and scale ld-decode calls the DdD 16-bit format. Reading
-  // the two bytes individually rather than casting to uint16_t* keeps this
-  // correct on a big-endian host and free of alignment assumptions about the
-  // buffer it was handed.
-  //
-  // The loop steps by the decimation stride and starts wherever the previous
-  // buffer left off, so an undecimated capture walks the buffer exactly as it
-  // did before and a decimated one never doubles or drops a sample at a seam.
-  size_t index = impl_->decimation_offset;
-  size_t filled = 0;
-
-  const auto flush = [this, &filled]() {
-    if (filled == 0) {
-      return true;
+    // Widen the device's 16-bit words into the int32 buffer libFLAC wants,
+    // applying the bias and scale ld-decode calls the DdD 16-bit format.
+    // Reading the two bytes individually rather than casting to uint16_t* keeps
+    // this correct on a big-endian host and free of alignment assumptions about
+    // the buffer it was handed.
+    for (size_t i = 0; i < chunk; ++i) {
+      const uint16_t ten_bit_value = static_cast<uint16_t>(
+          static_cast<uint16_t>(read_pointer[0]) |
+          static_cast<uint16_t>(static_cast<uint16_t>(read_pointer[1]) << 8));
+      impl_->scratch[i] = ToSigned16Bit(static_cast<int32_t>(ten_bit_value));
+      read_pointer += kBytesPerSample;
     }
+
     if (!FLAC__stream_encoder_process_interleaved(
             impl_->encoder, impl_->scratch.data(),
-            static_cast<uint32_t>(filled))) {
+            static_cast<uint32_t>(chunk))) {
       impl_->RecordEncoderError("WriteRawDeviceSamples");
       return false;
     }
-    impl_->samples_written += filled;
-    filled = 0;
-    return true;
-  };
 
-  for (; index < sample_count; index += stride) {
-    const uint8_t* const read_pointer = device_data + (index * kBytesPerSample);
-    const uint16_t ten_bit_value = static_cast<uint16_t>(
-        static_cast<uint16_t>(read_pointer[0]) |
-        static_cast<uint16_t>(static_cast<uint16_t>(read_pointer[1]) << 8));
-
-    impl_->scratch[filled] = ToSigned16Bit(static_cast<int32_t>(ten_bit_value));
-    ++filled;
-
-    if (filled == kEncodeChunkSamples && !flush()) {
-      return false;
-    }
+    impl_->samples_written += chunk;
+    remaining -= chunk;
   }
 
-  if (!flush()) {
-    return false;
-  }
-
-  impl_->decimation_offset = index - sample_count;
   return true;
 }
 

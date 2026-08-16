@@ -43,6 +43,7 @@ modules=(
     "application:dataGenerator"
     "application:fifo"
     "application:fx3StateMachine"
+    "application:halfBandDecimator"
     "common:spiRegisters"
     "common:flashBridge"
     "common:asmiBlock"

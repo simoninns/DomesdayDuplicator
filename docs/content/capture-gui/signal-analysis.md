@@ -32,6 +32,35 @@ Levels read in **converter codes** — 0 to 1023 — until a
 one is. Declaring it, or correcting it, re-scales every figure already on screen: nothing
 was ever stored in the derived units.
 
+## At 20 Msps
+
+Every figure on these three panels is a property of the stream, so all of them follow the
+[Sample rate](capture-control.md#sample-rate) setting. Choose **20 Msps** and:
+
+| Reading | At 40 Msps | At 20 Msps |
+| --- | --- | --- |
+| Top of the frequency axis | 20 MHz | **10 MHz** |
+| Default span, in time | 1 µs | **2 µs** |
+| Default resolution | 9.8 kHz bins | **4.9 kHz bins** |
+| Encoder backlog | ms of signal | the same ms, from half the samples |
+
+The numbers quoted throughout the rest of this page are the 40 Msps ones, because that is
+what a LaserDisc capture uses. Halve every frequency and double every time for the other.
+
+Two things change in kind rather than in scale. The **filter corner** marker is not drawn at
+20 Msps: it marks the board's analogue filter at 13.2 MHz, which is above the 10 MHz Nyquist
+and so has nothing on the axis to mark — the edge of the band there is the gateware's
+half-band filter, which sits at Nyquist itself and is the axis rather than a line on it. And
+the **spectrogram clears** when the rate changes, because a column of it spans DC to Nyquist:
+carried across, every carrier already on screen would move by a factor of two while still
+presenting itself as the same measurement.
+
+The rate is fixed for as long as the device is open, so none of this can change under a
+running display.
+
+What the gateware does to the signal on the way to 20 Msps — the 10 MHz filter, its response
+and its delay — is on [The decimation filter](../development/fpga-decimation-filter.md).
+
 ## Waveform
 
 The scope. The signal as it arrives, with time across and level up.
@@ -70,7 +99,9 @@ otherwise.
 ### Span
 
 How much time is on screen: **0.5 µs**, **1 µs** (the default), **2**, **5**, **10**,
-**50**, **100**, **200** or **500 µs**.
+**50**, **100**, **200** or **500 µs**. The choices are fixed counts of samples and the
+labels say what each one covers, so at 20 Msps the same ladder reads 1 µs to 1 ms — the
+counts are what must stay fixed, because the longest of them is bounded by the snapshot.
 
 An 8 MHz carrier has a period of 125 ns, so one cycle is five samples and 1 µs is about
 eight cycles — the classic few-cycles-on-screen a scope is set to, and the only range at
@@ -204,7 +235,8 @@ narrowest. It is a statement about how steady the reading is rather than about w
 
 ### The filter corner
 
-A dashed violet line at **13.2 MHz** in both views, labelled.
+A dashed violet line at **13.2 MHz** in both views, labelled. Not drawn at 20 Msps, where it
+would be above Nyquist — see [At 20 Msps](#at-20-msps).
 
 That is where the board's anti-aliasing filter turns over. Everything above it is the
 filter's skirt and the noise underneath it, not the signal — the roll-off you can see there
@@ -241,8 +273,8 @@ total at the default resolution — an expanse of axis with almost no measuremen
 and on a decade scale it would be the widest part of the display. An even axis starts at DC,
 where there is nothing wrong with drawing zero.
 
-Both scales run to **20 MHz**, everything the converter can represent, and there is no
-control to change that. There used to be one, offering tops from 14 to 20 MHz, because on an
+Both scales run to **20 MHz** — everything the stream can represent, and 10 MHz when
+decimating — and there is no control to change that. There used to be one, offering tops from 14 to 20 MHz, because on an
 even axis the stretch above the anti-aliasing filter's corner at 13.2 MHz was a third of the
 width spent on the part of the spectrum the hardware has deliberately removed. On a decade
 axis that same stretch is a fifth of a decade — under a tenth of the width — so the display
@@ -255,7 +287,9 @@ the same measurement re-laid-out.
 ### Resolution
 
 How finely the spectrum is divided: **9.8 kHz bins** (the default), **4.9 kHz** or
-**2.4 kHz**, being transforms of 4,096, 8,192 and 16,384 points at 40 Msps.
+**2.4 kHz**, being transforms of 4,096, 8,192 and 16,384 points at 40 Msps. The bins are a
+fraction of the rate, so the same three transforms buy twice the resolution at 20 Msps and
+the list says so.
 
 This is a trade, and both halves of it are real. Narrower bins separate carriers that sit
 close together — the analogue audio carriers below 3 MHz are the case that wants them. But a
@@ -328,6 +362,15 @@ sags for two seconds forty minutes into a side is invisible on a scope you are n
 at and invisible on a spectrum that has averaged it away; here it is a notch in the
 envelope, still on screen when you come back.
 
+The history belongs to a run. **Starting a run clears it**, because the strip is a record of
+one continuous stretch of signal and splicing two runs together would put a discontinuity in
+it that looked like a fault. **Stopping a run leaves it on screen** — that is the evidence of
+what just happened, at exactly the moment somebody wants to look at it.
+
+The first points appear about a tenth of a second in. On the default **All** span the strip is
+drawn across its full width from the second point onwards, so it goes from empty to a
+full-width trace almost at once rather than creeping in from one side.
+
 ### The nominal bounds
 
 The strip marks the recommended level on both sides: the signal should peak at no more than
@@ -350,6 +393,11 @@ closer to the rail.
 scroll at the same pace and a moment on one lines up with the same moment on the other. It
 is the setting to use when you are trying to work out whether a level dip and a spectral
 event are the same event.
+
+Matching means the strip fills in from the right-hand edge over the spectrogram's whole
+window — around half a minute — exactly as the waterfall beside it does. That is the point of
+the setting, and it is why a freshly started run shows very little on this span for the first
+several seconds. Switch to **All** to see a short run spread across the full width.
 
 ### The summary
 

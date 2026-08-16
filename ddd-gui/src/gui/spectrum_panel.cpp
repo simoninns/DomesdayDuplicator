@@ -61,14 +61,18 @@ constexpr double kDecibelsPerGridLine = 20.0;
 constexpr int kDecibelGridLines =
     static_cast<int>((kTopDecibels - kBottomDecibels) / kDecibelsPerGridLine);
 
-constexpr double kNyquistHz = static_cast<double>(capture::kSampleRateHz) / 2.0;
-
 // Where a frequency falls in a run of `count` values spread evenly from DC to
 // Nyquist — the analyser's bins, or the history's columns. Returned unrounded,
 // because a caller covering a pixel needs the range either side of it rather
 // than the nearest one.
-double IndexAtFrequency(double frequency_hz, double count) {
-  return frequency_hz / kNyquistHz * count;
+//
+// Nyquist is passed rather than assumed: it is half of whatever rate the stream
+// is running at, and a decimated stream runs at half the converter's.
+double IndexAtFrequency(double frequency_hz, double count, double nyquist_hz) {
+  if (nyquist_hz <= 0.0) {
+    return 0.0;
+  }
+  return frequency_hz / nyquist_hz * count;
 }
 
 struct ViewChoice {
@@ -136,9 +140,10 @@ double TimeAxisStepSeconds(double window_seconds) {
 
 }  // namespace
 
-QString FormatSpectrumResolution(size_t transform_size) {
-  const double spacing = analysis::SpectrumAnalyser::BinSpacingHz(
-      transform_size, capture::kSampleRateHz);
+QString FormatSpectrumResolution(size_t transform_size,
+                                 uint32_t sample_rate_hz) {
+  const double spacing =
+      analysis::SpectrumAnalyser::BinSpacingHz(transform_size, sample_rate_hz);
 
   // Bin spacing rather than the resolution bandwidth, which is half again
   // wider. The two are easy to confuse and only one of them is a property of
@@ -147,12 +152,14 @@ QString FormatSpectrumResolution(size_t transform_size) {
   return SpectrumPanel::tr("%1 kHz bins").arg(spacing / 1000.0, 0, 'f', 1);
 }
 
-QString FormatResolutionBandwidth(size_t transform_size, size_t segments) {
+QString FormatResolutionBandwidth(size_t transform_size, size_t segments,
+                                  uint32_t sample_rate_hz) {
   const double bandwidth = analysis::SpectrumAnalyser::NoiseBandwidthHz(
-      transform_size, capture::kSampleRateHz);
+      transform_size, sample_rate_hz);
 
-  // Kilohertz throughout. Every transform size on offer lands between 3 and
-  // 15 kHz, so a unit that switched would be a unit that never switched.
+  // Kilohertz throughout. Every transform size on offer lands between 2 and
+  // 15 kHz at either rate, so a unit that switched would be a unit that never
+  // switched.
   const QString stated =
       SpectrumPanel::tr("RBW %1 kHz").arg(bandwidth / 1000.0, 0, 'f', 1);
 
@@ -278,9 +285,22 @@ void SpectrumPlot::SetFrequencyScale(analysis::FrequencyScale scale) {
 }
 
 analysis::FrequencyAxis SpectrumPlot::Axis() const {
-  // Everything the converter can represent, always. There is no top-of-range
+  // Everything the stream can represent, always. There is no top-of-range
   // control: see kLowPassCornerHz for why one is no longer worth having.
-  return analysis::FrequencyAxis(scale_, kNyquistHz);
+  return analysis::FrequencyAxis(scale_, NyquistHz());
+}
+
+void SpectrumPlot::SetSampleRate(uint32_t sample_rate_hz) {
+  if (sample_rate_hz == 0 || sample_rate_hz == sample_rate_hz_) {
+    return;
+  }
+  sample_rate_hz_ = sample_rate_hz;
+
+  // Everything held is in terms of the old axis. A spectrogram column spans DC
+  // to the old Nyquist and a peak hold was accumulated against the old bins, so
+  // keeping either would move every carrier on screen by a factor of two while
+  // presenting it as the same measurement.
+  Clear();
 }
 
 void SpectrumPlot::SetSpectrogramReference(double reference_db) {
@@ -353,14 +373,18 @@ double SpectrumPlot::ColumnLevel(const std::vector<double>& levels,
   // across rather than the number of them.
   const double bins = static_cast<double>(levels.size() - 1);
 
+  // The axis's own top, so this needs no rate of its own: the bins run from DC
+  // to Nyquist and so does the axis, whatever the stream is running at.
+  const double nyquist = axis.maximum_hz();
+
   const double from =
       IndexAtFrequency(axis.FrequencyAt(static_cast<double>(column) /
                                         static_cast<double>(columns)),
-                       bins);
+                       bins, nyquist);
   const double to =
       IndexAtFrequency(axis.FrequencyAt(static_cast<double>(column + 1) /
                                         static_cast<double>(columns)),
-                       bins);
+                       bins, nyquist);
 
   // Outward to whole bins, so a column covers every bin it touches rather than
   // only those whose centres fall inside it. At the bottom of a logarithmic
@@ -478,8 +502,10 @@ void SpectrumPlot::MapSpectrogramRows(int height) {
 
     // Through the axis rather than by proportion, so the picture and the trace
     // beside it put a carrier at the same place on the same scale.
-    const double from = IndexAtFrequency(axis.FrequencyAt(lower), bands);
-    const double to = IndexAtFrequency(axis.FrequencyAt(upper), bands);
+    const double from =
+        IndexAtFrequency(axis.FrequencyAt(lower), bands, axis.maximum_hz());
+    const double to =
+        IndexAtFrequency(axis.FrequencyAt(upper), bands, axis.maximum_hz());
 
     BandRange& range = spectrogram_rows_[static_cast<size_t>(y)];
     range.first = std::min(static_cast<size_t>(std::floor(std::max(0.0, from))),
@@ -547,8 +573,13 @@ void SpectrumPlot::ScrollSpectrogram(int columns, bool dark) {
   // The newest frame ends up in the right-hand column and the ones before it
   // fill in leftwards from there.
   for (int step = 0; step < shift; ++step) {
-    RenderSpectrogramColumn(width - shift + step,
-                            static_cast<size_t>(frames - shift + step), dark);
+    // Named rather than cast in place: shift is at most frames, so this lands
+    // in [frames - shift, frames - 1] and is never negative — and a cast around
+    // the arithmetic rather than around the result of it is the shape that
+    // hides a genuine overflow, which is why clang-tidy asks for this one.
+    const int frame = frames - shift + step;
+    RenderSpectrogramColumn(width - shift + step, static_cast<size_t>(frame),
+                            dark);
   }
 }
 
@@ -673,7 +704,8 @@ void SpectrumPlot::PaintAnnotation(QPainter& painter, const QRectF& area) {
   // this is what arrived, and between a user moving it and the worker building
   // the new analyser those are briefly different things.
   const size_t transform_size = (magnitudes_db_.size() - 1) * 2;
-  const QString text = FormatResolutionBandwidth(transform_size, segments_);
+  const QString text =
+      FormatResolutionBandwidth(transform_size, segments_, sample_rate_hz_);
 
   const QFontMetrics metrics(painter.font());
   const QRectF box(
@@ -689,8 +721,12 @@ void SpectrumPlot::PaintFilterCorner(QPainter& painter, const QRectF& area,
   const analysis::FrequencyAxis axis = Axis();
   const double proportion = axis.ProportionOf(analysis::kLowPassCornerHz);
 
-  // Off the end of the axis is possible in principle and worth handling: a
-  // marker clamped to an edge would claim the corner was somewhere it is not.
+  // Off the end of the axis, and not only in principle: this marks the board's
+  // analogue filter at 13.2 MHz, which is above a decimated stream's 10 MHz
+  // Nyquist and so has nothing to mark. Drawing nothing is right — a marker
+  // clamped to an edge would claim the corner was somewhere it is not, and at
+  // 20 Msps the edge of the band is the gateware's half-band filter, which sits
+  // at Nyquist itself and is therefore the axis rather than a line on it.
   if (proportion <= 0.0 || proportion >= 1.0) {
     return;
   }
@@ -880,10 +916,11 @@ void SpectrumPlot::mouseMoveEvent(QMouseEvent* event) {
     const double frequency = axis.FrequencyAt(up);
 
     const size_t held = history_.columns();
-    const size_t band = std::min(
-        held - 1,
-        static_cast<size_t>(std::max(
-            0.0, IndexAtFrequency(frequency, static_cast<double>(held)))));
+    const size_t band =
+        std::min(held - 1,
+                 static_cast<size_t>(std::max(
+                     0.0, IndexAtFrequency(frequency, static_cast<double>(held),
+                                           axis.maximum_hz()))));
 
     // The picture is anchored to the right and only as wide as there is
     // history for, so a pointer left of where it starts is over nothing.
@@ -971,7 +1008,7 @@ SpectrumPanel::SpectrumPanel(CaptureController* controller, QWidget* parent)
   resolution_->setObjectName(QLatin1String(kResolutionComboName));
   for (size_t index = 0; index < analysis::kTransformSizeChoiceCount; ++index) {
     const size_t size = analysis::kTransformSizeChoices[index];
-    resolution_->addItem(FormatSpectrumResolution(size),
+    resolution_->addItem(FormatSpectrumResolution(size, capture::kSampleRateHz),
                          static_cast<qulonglong>(size));
     if (size == analysis::kDefaultTransformSize) {
       resolution_->setCurrentIndex(resolution_->count() - 1);
@@ -1073,11 +1110,45 @@ SpectrumPanel::SpectrumPanel(CaptureController* controller, QWidget* parent)
   ApplyView();
 
   if (controller_ != nullptr) {
+    SetSampleRate(controller_->settings().SampleRateHz());
+
     connect(controller_->analysis(), &AnalysisWorker::SpectrumReady, this,
             &SpectrumPanel::OnSpectrumReady);
     connect(controller_, &CaptureController::MonitoringChanged, this,
             &SpectrumPanel::OnMonitoringChanged);
+
+    // The frequency axis is a property of the stream's rate, so it follows the
+    // setting rather than being fixed at construction. The rate cannot change
+    // under a running stream, so this only ever arrives between runs.
+    connect(controller_, &CaptureController::SettingsChanged, this,
+            [this](const CaptureSettings& settings) {
+              SetSampleRate(settings.SampleRateHz());
+            });
   }
+}
+
+void SpectrumPanel::SetSampleRate(uint32_t sample_rate_hz) {
+  if (sample_rate_hz == 0 || sample_rate_hz == plot_->sample_rate_hz()) {
+    return;
+  }
+
+  plot_->SetSampleRate(sample_rate_hz);
+
+  // Every entry names a bin width, and every one of those halves with the rate.
+  // Rebuilt with the current choice kept, because the transform sizes behind
+  // the labels have not changed — only what each one buys.
+  const QSignalBlocker blocker(resolution_);
+  const int chosen = resolution_->currentIndex();
+  resolution_->clear();
+  for (size_t index = 0; index < analysis::kTransformSizeChoiceCount; ++index) {
+    const size_t size = analysis::kTransformSizeChoices[index];
+    resolution_->addItem(FormatSpectrumResolution(size, sample_rate_hz),
+                         static_cast<qulonglong>(size));
+  }
+  resolution_->setCurrentIndex(chosen);
+
+  announced_window_seconds_ = 0.0;
+  ClearCursor();
 }
 
 void SpectrumPanel::ApplyView() {

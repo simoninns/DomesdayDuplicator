@@ -43,6 +43,7 @@ must be read before anything in that directory is edited.**
 | `checks.nix` | Lint and simulation checks, which are in the per-commit tier |
 | `build-local.sh` | Out-of-tree local build of both images |
 | `make-boot-block.py` | The boot block that tells the factory image where the application image is |
+| `make-halfband-coefficients.py` | The decimation filter's coefficients, and `--response` to measure them. The table is committed into `halfBandDecimator.v`, because gateware cannot open a file; `tests/test_halfband_coefficients.py` regenerates it and fails if the two have parted company |
 | `bitstream-provenance.py` | Provenance record and digests for a built bitstream |
 | `verilator-waivers.vlt` | Lint waivers, each with the reason it is waived |
 
@@ -55,6 +56,7 @@ Inside `application/`:
 | `DomesdayDuplicator.qpf` | Quartus project file |
 | `DomesdayDuplicator.SDC` | Timing constraints. Checked by `tests/run-sdc.sh`; the I/O delay values in its header are pessimistic placeholders pending the datasheets |
 | `DomesdayDuplicator.cof` | Conversion to the raw image bytes a device update writes. Its `rpd_little_endian` setting decides the bit orientation of those bytes and is load-bearing — read the comment beside it before changing anything here |
+| `halfBandDecimator.v` | The 10 MHz anti-alias filter and 2:1 decimation, for tape capture at 20 Msps. In front of `dataGenerator.v`, so the sequence counter and the test ramp are attached to the samples that survive. The design, the measured response and the phase are on [The decimation filter](../docs/content/development/fpga-decimation-filter.md) |
 | `dataGenerator.v` | ADC sampling and the built-in test-data generator |
 | `buffer.v` | Sample buffering between the sampling side and the FX3 |
 | `fifo.v` | The single-clock FIFO `buffer.v` is built from |
@@ -65,7 +67,7 @@ Inside `common/`:
 
 | File | Role |
 | --- | --- |
-| `spiRegisters.v` | The register bank the FX3 reads and writes over SPI, register map version 2. The capture buffer window at `0x40`–`0x56` is parameterised off in the factory image, which has no buffer to report on |
+| `spiRegisters.v` | The register bank the FX3 reads and writes over SPI, register map version 2. The capture buffer window at `0x40`–`0x56` and the decimation register at `0x12` are both parameterised off in the factory image, which has neither a buffer to report on nor a sample stream to decimate |
 | `flashBridge.v` | The explicitly-unlocked pass-through to the EPCS, registers `0x20`–`0x22` |
 | `asmiBlock.v` | Access to the configuration flash pins, which are not user I/O |
 | `remoteUpdate.v` | Reconfiguration and the configuration watchdog, register `0x23`, and the block's read-back of its own setup at `0x30`–`0x37` |
@@ -114,11 +116,13 @@ break both.
 ./tests/run-sdc.sh        # T4: both images' constraints parse and cover every pin
 ./tests/run-version.sh    # T2: the commit-to-register version stamp generator
 ./tests/test_boot_block.py  # T1: the boot block encoder, offset by offset
+./tests/test_halfband_coefficients.py  # T1: the decimation filter's coefficients
 ./tests/run-format.sh     # not a check — the formatter, run it to fix run-style.sh
 ```
 
 All of them run unchanged as `nix flake check` checks (`fpga-lint`, `fpga-style`,
-`fpga-sim`, `fpga-sdc`, `fpga-version`, `fpga-provenance`, `fpga-boot-block`), and they are
+`fpga-sim`, `fpga-sdc`, `fpga-version`, `fpga-provenance`, `fpga-boot-block`,
+`fpga-halfband-coefficients`), and they are
 the automated coverage the gateware gets on every commit; the bitstream itself is compiled by
 a separate workflow ([How the bitstream is built](#how-the-bitstream-is-built)).
 

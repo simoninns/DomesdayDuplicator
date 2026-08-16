@@ -104,22 +104,51 @@ Both are read back by **Tools → Analyse test data…** and by `--analyse-test-
 
 | Choice | What you get |
 | --- | --- |
-| **40 Msps — every sample** | The device's own rate. What a LaserDisc capture needs, and the default |
-| **20 Msps — 2:1 decimated, for tape** | Every second sample, halving the rate and the file |
+| **40 Msps — every sample** | The converter's own rate. What a LaserDisc capture needs, and the default |
+| **20 Msps — 2:1 decimated, for tape** | Half the rate, half the file |
 
-The device always samples at 40 Msps; decimation happens on this side of the USB link, on
-the way into the file. Tape RF has a fraction of a LaserDisc's bandwidth, so half the rate
-is enough for it and costs half the storage.
+The converter always runs at 40 Msps. **Decimation happens in the FPGA, not on this
+machine**, and that is what makes it worth having: halving the rate correctly means
+low-passing the signal at 10 MHz first, and the gateware does that with a 63-tap half-band
+filter costing 13% of the FPGA's logic and no CPU at all. The application asks
+for the rate over the register link and receives a stream that is already half rate — so the
+USB link carries half the data too.
 
-There is no filter in front of it — this is plain selection, the same thing the old
-application does for its 4:1 CD decimation — so anything above 10 MHz will alias. That is a
-decision about the front end rather than about the software.
+Without the filter, decimation would fold everything above 10 MHz down on top of the signal:
+a 15 MHz component would reappear at 5 MHz, directly on top of a tape's luma FM carrier, and
+nothing downstream could tell the alias from the signal. The filter is flat to within
+0.0015 dB up to 8 MHz and 85 dB down at 15 MHz, so that fold lands well below the converter's
+own noise floor. It also delays every frequency by the same amount, so an FM carrier and its
+sidebands arrive together rather than being smeared apart.
+
+What no filter can do is protect the band edge itself. The response passes −6 dB at exactly
+10 MHz and is symmetric about it, so energy just above 10 MHz still folds down to just below
+it. **A signal with real content near 10 MHz should be captured at the full rate** — that is
+a property of halving a sampling rate, not a shortcoming of this implementation.
+
+Tape RF has a fraction of a LaserDisc's bandwidth, which is what makes 20 Msps enough for it.
+
+The design, the coefficients and the measured response and phase are on
+[The decimation filter](../development/fpga-decimation-filter.md).
+
+The setting is written to the device before the stream is opened, so it is **fixed from the
+moment monitoring starts** rather than only for the duration of a capture — there is no way
+to change it under a running stream, and a control that stayed live would appear to work and
+do nothing. Stop monitoring to change it.
+
+The [signal analysis](signal-analysis.md#at-20-msps) panels follow it: at 20 Msps the
+spectrum's axis tops out at 10 MHz, the scope's spans cover twice the time, and the bins are
+half as wide. A display that kept the converter's rate would put a tape's 5 MHz carrier at
+10 MHz.
 
 A decimated FLAC capture carries the rate label for 20 Msps and a `DDD_DECIMATION` tag. A
 decimated `.ddd.s16` carries nothing at all, because there is nowhere to put it: write the
 rate down.
 
-**Sample rate** is disabled in test mode, where every sample is always kept.
+It works in test mode too. The gateware generates its test pattern downstream of the
+decimator, so a decimated test capture is an unbroken ramp at 20 Msps and
+**Tools → Analyse test data…** checks the decimated path exactly as it checks the full-rate
+one.
 
 ### Compression
 

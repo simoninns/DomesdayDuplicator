@@ -123,7 +123,7 @@ void DecimateToColumns(const uint16_t* codes, size_t code_count,
     // Computed from the sample rather than the sample from the column, so a
     // span shorter than the plot is wide leaves the columns between samples
     // empty instead of repeating the nearest one.
-    const double x = mapping.SampleToX(index);
+    const double x = mapping.SampleToX(static_cast<double>(index));
     if (x < 0.0) {
       continue;
     }

@@ -46,6 +46,7 @@ benches=(
     "tb_buffer:application/buffer,application/fifo,application/bufferMonitor"
     "tb_bufferMonitor:application/bufferMonitor"
     "tb_dataGenerator:application/dataGenerator"
+    "tb_halfBandDecimator:application/halfBandDecimator"
     "tb_fifo:application/fifo"
     "tb_fx3StateMachine:application/fx3StateMachine"
     "tb_spiRegisters:common/spiRegisters"

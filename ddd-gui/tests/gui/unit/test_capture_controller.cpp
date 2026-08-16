@@ -22,10 +22,12 @@
 #include <thread>
 
 #include "capture_controller.h"
+#include "capture_format.h"
 #include "fake_usb_device.h"
 #include "firmware_version.h"
 #include "synthetic_source.h"
 #include "version.h"
+#include "wire_protocol.h"
 
 namespace ddd::gui {
 namespace {
@@ -294,9 +296,52 @@ TEST_F(CaptureControllerTest, TestModeIsSentToTheDeviceBeforeItIsOpened) {
   controller_->StartMonitoring();
   ASSERT_TRUE(controller_->monitoring());
 
-  EXPECT_EQ(device_->configuration_count(), 1U);
   EXPECT_TRUE(device_->configured_test_mode());
   EXPECT_EQ(device_->configured_path(), "bus-1");
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
+// The sample rate goes the same way and at the same moment, because it is the
+// same kind of thing: the gateware applies it immediately and without
+// acknowledgement, so it has to be settled before any data is flowing.
+//
+// Decimating is the device's job. Halving the rate means low-passing the signal
+// at 10 MHz first, or everything above that folds down on top of it — and that
+// filter is sixteen multipliers in the FPGA rather than several cores here. All
+// this application does is ask.
+TEST_F(CaptureControllerTest, TheSampleRateIsSentToTheDeviceBeforeItIsOpened) {
+  UseSmallQueue();
+
+  CaptureSettings settings = controller_->settings();
+  settings.decimation_factor = capture::kTapeDecimationFactor;
+  controller_->SetSettings(settings);
+
+  controller_->StartMonitoring();
+  ASSERT_TRUE(controller_->monitoring());
+
+  EXPECT_EQ(device_->written_to(capture::kRegisterDecimation),
+            std::optional<uint8_t>(capture::kDecimationHalfRate));
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
+// And an undecimated capture says so rather than saying nothing. The register
+// is left at whatever the last run set it to otherwise, so a full-rate capture
+// taken after a decimated one would come back at half rate.
+TEST_F(CaptureControllerTest, TheFullRateIsAskedForExplicitly) {
+  UseSmallQueue();
+
+  ASSERT_EQ(controller_->settings().decimation_factor,
+            capture::kUndecimatedFactor);
+
+  controller_->StartMonitoring();
+  ASSERT_TRUE(controller_->monitoring());
+
+  EXPECT_EQ(device_->written_to(capture::kRegisterDecimation),
+            std::optional<uint8_t>(capture::kDecimationEverySample));
 
   controller_->StopMonitoring();
   ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));

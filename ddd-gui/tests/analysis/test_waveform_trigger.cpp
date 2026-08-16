@@ -116,6 +116,12 @@ TEST(WaveformTriggerTest, NoiseOnTheLevelDoesNotFireATriggerPerSample) {
   // Without hysteresis a signal sitting on the trigger level triggers on every
   // upward wobble, and the sweeps end up aligned to the noise rather than to
   // the waveform.
+  // A fixed seed, so a hysteresis test cannot fail one run in fifty.
+  // Predictability is the property under test rather than a fault. Both the
+  // cert- and bugprone- names are listed because which one exists depends on
+  // the clang-tidy release.
+  //
+  // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp,bugprone-random-generator-seed)
   std::mt19937 generator(7);
   std::uniform_int_distribution<int> wobble(-6, 6);
 

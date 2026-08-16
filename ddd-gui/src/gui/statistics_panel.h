@@ -85,6 +85,11 @@ class StatisticsPanel : public QWidget {
   // back to the FLAC estimate when there is no controller to ask.
   double EstimatedBytesPerSecond() const;
 
+  // The rate the stream is running at, which is what turns the encoder's
+  // backlog of samples into the length of signal it represents. Falls back to
+  // the converter's own rate when there is no controller to ask.
+  uint32_t SampleRateHz() const;
+
   QLabel* throughput_ = nullptr;
   QLabel* sequence_ = nullptr;
   QProgressBar* buffer_fill_ = nullptr;

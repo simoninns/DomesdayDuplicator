@@ -188,6 +188,14 @@ module DomesdayDuplicatorFactory (
     // address rather than an instrument reporting a capture that cannot happen.
     wire        telemetry_latch_unused;
 
+    // And for the same reason again it has a decimation register. There is no
+    // sample stream here to decimate. DecimationPresent is left off, which
+    // holds the register at its reset value and folds it away with the read
+    // arm: 0x12 reads zero here, which is what an unmapped address reads and
+    // is how a host tells this image's register bank from the application
+    // image's without either of them having to bump the map version.
+    wire [ 7:0] decimation_unused;
+
     spiRegisters #(
         .CommitText(`GATEWARE_COMMIT_TEXT),
         .BuildFlags(`GATEWARE_BUILD_FLAGS),
@@ -196,7 +204,8 @@ module DomesdayDuplicatorFactory (
         // unit's state
         .ImageRole(8'h00),
 
-        .TelemetryPresent(1'b0)
+        .TelemetryPresent (1'b0),
+        .DecimationPresent(1'b0)
     ) spi_registers_0 (
         // Inputs
         .reset_n           (register_reset_n),
@@ -212,6 +221,7 @@ module DomesdayDuplicatorFactory (
         // Outputs
         .spi_miso           (fx3_spi_miso),
         .test_mode          (test_mode_unused),
+        .decimation         (decimation_unused),
         .leds               (leds),
         .window_write       (window_write_registers),
         .window_address     (window_address_registers),

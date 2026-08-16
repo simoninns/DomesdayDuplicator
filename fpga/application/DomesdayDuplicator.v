@@ -160,15 +160,16 @@ module DomesdayDuplicator (
     // contract is the "FPGA register interface" page of the documentation site.
 
     // Wire definitions for FX3 GPIO mapping
-    wire fx3_reset_n;
-    wire fx3_data_available;
-    wire fx3_read_data;
-    wire fx3_buffer_error;
-    wire fx3_spi_clock;
-    wire fx3_spi_mosi;
-    wire fx3_spi_miso;
-    wire fx3_spi_chip_select_n;
-    wire fx3_test_mode;
+    wire       fx3_reset_n;
+    wire       fx3_data_available;
+    wire       fx3_read_data;
+    wire       fx3_buffer_error;
+    wire       fx3_spi_clock;
+    wire       fx3_spi_mosi;
+    wire       fx3_spi_miso;
+    wire       fx3_spi_chip_select_n;
+    wire       fx3_test_mode;
+    wire [7:0] fx3_decimation;
 
     // Signal outputs to FX3
     assign fx3_control[00]       = fx3_data_available;
@@ -295,14 +296,52 @@ module DomesdayDuplicator (
     wire        fx3_is_reading;
     wire [15:0] data_generator_out;
 
+    // Sample rate
+    //
+    // The register holds the decimation factor rather than a flag, so that a
+    // host reading it back gets a positive statement of what the capture path
+    // is doing rather than an echo of what it asked for. Two is the only
+    // factor this gateware implements; the bank normalises anything else to
+    // one, so this comparison is the whole of the decode.
+    wire        fx3_decimate = (fx3_decimation == 8'h02);
+
+    wire [ 9:0] capture_sample;
+    wire        capture_enable;
+
+    // Anti-aliased 2:1 decimation, for tape capture
+    //
+    // In front of the data generator rather than behind it, which is the
+    // arrangement that keeps the sequence counter honest: the counter is
+    // attached to the samples that survive, so a decimated capture carries an
+    // unbroken count and the host's integrity check works on it unchanged. A
+    // decimator placed after the generator would drop every second sequence
+    // number and every capture would read as damaged.
+    //
+    // It filters the ADC and nothing else. The test pattern is generated
+    // downstream at the rate the decimator sets, so a test capture is an
+    // unbroken ramp at whichever rate is selected and the integrity oracle
+    // covers the decimated path as well as the full-rate one.
+    halfBandDecimator half_band_decimator_0 (
+        // Inputs
+        .reset_n      (reset_n),        // Not reset
+        .clock        (system_clock),   // 80 MHz system clock
+        .sample_enable(sample_enable),  // 1 = a sample arrives on this edge
+        .data_in      (adc_databus),    // 10-bit ADC databus
+        .decimate     (fx3_decimate),   // 1 = filter and halve the rate
+
+        // Outputs
+        .data_out     (capture_sample),  // 10-bit filtered sample
+        .output_enable(capture_enable)   // 1 = a sample worth keeping
+    );
+
     // Generate 16-bit data either from the ADC or the test data generator
     dataGenerator data_generator_0 (
         // Inputs
-        .reset_n       (reset_n),        // Not reset
-        .clock         (system_clock),   // 80 MHz system clock
-        .sample_enable (sample_enable),  // 1 = take a sample on this edge
-        .adc_databus   (adc_databus),    // 10-bit ADC databus
-        .test_mode_flag(fx3_test_mode),  // 1 = Test mode on
+        .reset_n       (reset_n),         // Not reset
+        .clock         (system_clock),    // 80 MHz system clock
+        .sample_enable (capture_enable),  // 1 = take a sample on this edge
+        .adc_databus   (capture_sample),  // 10-bit sample from the decimator
+        .test_mode_flag(fx3_test_mode),   // 1 = Test mode on
 
         // Outputs
         .data_out(data_generator_out)  // 16-bit data out
@@ -320,7 +359,7 @@ module DomesdayDuplicator (
         // Inputs
         .reset_n        (reset_n),                // Not reset
         .clock          (system_clock),           // 80 MHz system clock
-        .write_enable   (sample_enable),          // 1 = a sample is written this edge
+        .write_enable   (capture_enable),         // 1 = a sample is written this edge
         .data_in        (data_generator_out),     // 16-bit ADC data bus input
         .is_reading     (fx3_is_reading),         // 1 = FX3 is reading data
         .telemetry_latch(buffer_telemetry_latch), // 1 = sample the instrument
@@ -365,7 +404,10 @@ module DomesdayDuplicator (
         .ImageRole(8'h01),
 
         // and the image that has a capture buffer to report on
-        .TelemetryPresent(1'b1)
+        .TelemetryPresent(1'b1),
+
+        // and the only image with a sample stream to decimate
+        .DecimationPresent(1'b1)
     ) spi_registers_0 (
         // Inputs
         .reset_n           (reset_n),
@@ -381,6 +423,7 @@ module DomesdayDuplicator (
         // Outputs
         .spi_miso           (fx3_spi_miso),
         .test_mode          (fx3_test_mode),          // 1 = test data generator selected
+        .decimation         (fx3_decimation),         // Samples kept out of every n
         .leds               (LED),                    // Driven by the FX3, for status
         .window_write       (window_write),
         .window_address     (window_address),

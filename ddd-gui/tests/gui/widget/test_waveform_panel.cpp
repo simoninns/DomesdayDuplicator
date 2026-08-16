@@ -23,6 +23,7 @@
 #include <numbers>
 #include <vector>
 
+#include "capture_format.h"
 #include "front_end_gain.h"
 #include "sample_format.h"
 #include "theme_color_tokens.h"
@@ -148,6 +149,56 @@ TEST(WaveformFormatTest, SpansAreLabelledInTheTimeTheyCover) {
   // Not a span the panel offers, and formatted correctly anyway: this formats a
   // span rather than a menu entry.
   EXPECT_EQ(FormatWaveformSpan(40'000), QStringLiteral("1 ms"));
+}
+
+TEST(WaveformFormatTest, ADecimatedStreamCoversTwiceTheTimeInTheSameSamples) {
+  // A span is a count of samples; the time it covers is not. At 20 Msps the
+  // same 20,000 samples are a millisecond, and a label fixed at the converter's
+  // rate would call that 500 µs — a scope whose time base reads half of what it
+  // is showing.
+  const uint32_t decimated =
+      capture::SampleRateHzFor(capture::kTapeDecimationFactor);
+
+  EXPECT_EQ(FormatWaveformSpan(40, decimated), QStringLiteral("2 µs"));
+  EXPECT_EQ(FormatWaveformSpan(20'000, decimated), QStringLiteral("1 ms"));
+}
+
+TEST(WaveformFormatTest, TheCursorReadsTheTimeTheStreamIsActuallyAt) {
+  // Same sample index, half the rate, twice the offset into the sweep.
+  const QString text = FormatWaveformCursor(
+      4000, 700.0, analysis::FrontEndGain(),
+      capture::SampleRateHzFor(capture::kTapeDecimationFactor));
+
+  EXPECT_TRUE(text.contains(QStringLiteral("200.00 µs"))) << text.toStdString();
+}
+
+TEST(WaveformPanelTest, TheSpanListIsRelabelledForADecimatedStream) {
+  // The panel offers the same counts of samples — the span is bounded by the
+  // snapshot, so the counts are what must stay fixed — and says what each one
+  // now covers.
+  WaveformPanel panel(nullptr);
+
+  auto* const plot = Named<WaveformPlot>(panel, WaveformPanel::kPlotName);
+  auto* const span = Named<QComboBox>(panel, WaveformPanel::kSpanComboName);
+  ASSERT_NE(plot, nullptr);
+  ASSERT_NE(span, nullptr);
+
+  const int chosen = span->currentIndex();
+  const int count = span->count();
+  ASSERT_EQ(span->itemText(chosen), QStringLiteral("1 µs"));
+  ASSERT_EQ(plot->sample_rate_hz(), capture::kSampleRateHz);
+
+  panel.SetSampleRate(capture::SampleRateHzFor(capture::kTapeDecimationFactor));
+
+  EXPECT_EQ(span->count(), count);
+  EXPECT_EQ(span->currentIndex(), chosen);
+  EXPECT_EQ(span->itemText(chosen), QStringLiteral("2 µs"));
+
+  // The data behind each entry is still a count of samples, so the plot is
+  // asked for the same window it was before.
+  EXPECT_EQ(span->currentData().toULongLong(), 40U);
+  EXPECT_EQ(plot->sample_rate_hz(),
+            capture::SampleRateHzFor(capture::kTapeDecimationFactor));
 }
 
 TEST(WaveformFormatTest, TheCursorReadsInCodesWhenNoGainIsDeclared) {

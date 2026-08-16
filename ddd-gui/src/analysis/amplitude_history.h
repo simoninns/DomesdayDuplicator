@@ -130,6 +130,12 @@ class AmplitudeSampler {
   bool started_ = false;
   double interval_end_seconds_ = 0.0;
 
+  // The last elapsed figure seen, so that the clock restarting can be
+  // recognised. See Observe: a run's clock begins again at zero, and a deadline
+  // carried across that boundary suppresses every point until the new run has
+  // been going as long as the old one lasted.
+  double last_elapsed_seconds_ = 0.0;
+
   // Accumulated across the current interval
   double rms_total_ = 0.0;
   size_t observation_count_ = 0;

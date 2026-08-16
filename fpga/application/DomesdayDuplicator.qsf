@@ -272,6 +272,7 @@ set_global_assignment -name VERILOG_FILE DomesdayDuplicator.v
 set_global_assignment -name SDC_FILE DomesdayDuplicator.SDC
 set_global_assignment -name QIP_FILE ../common/IPpllGenerator.qip
 set_global_assignment -name VERILOG_FILE dataGenerator.v
+set_global_assignment -name VERILOG_FILE halfBandDecimator.v
 set_global_assignment -name VERILOG_FILE fx3StateMachine.v
 set_global_assignment -name VERILOG_FILE buffer.v
 set_global_assignment -name VERILOG_FILE bufferMonitor.v

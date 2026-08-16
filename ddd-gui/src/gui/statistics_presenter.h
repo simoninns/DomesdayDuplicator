@@ -17,6 +17,7 @@
 #include "free_space.h"
 #include "front_end_gain.h"
 #include "monitor_tap.h"
+#include "sample_format.h"
 #include "usb_device_info.h"
 
 namespace ddd::gui {
@@ -90,10 +91,14 @@ struct StatisticsView {
 // was opened on, and one is a property of a volume the engine has no opinion
 // about. A default-constructed FreeSpace means "not known", which is what the
 // view then says.
+// The sample rate joins them for the same reason: it is a setting the run was
+// started with rather than something the pipeline reports, and the encoder
+// backlog is stated as a length of signal.
 StatisticsView PresentStatistics(
     const capture::CaptureStats& stats, const analysis::FrontEndGain& gain,
     capture::DeviceSpeed speed, const capture::FreeSpace& space = {},
-    double bytes_per_second = capture::kEstimatedCaptureBytesPerSecond);
+    double bytes_per_second = capture::kEstimatedCaptureBytesPerSecond,
+    uint32_t sample_rate_hz = capture::kSampleRateHz);
 
 // The view before anything has run — every measured figure blank, and the facts
 // that are known regardless still shown.
@@ -154,7 +159,13 @@ QString FormatCount(uint64_t value);
 // compares with the ring: a backlog of a fraction of a second is the encoder
 // working normally, and one approaching the queue's own depth is the encoder
 // about to lose the capture.
-QString FormatEncoderBacklog(uint64_t samples_pending);
+//
+// The rate is a parameter for that comparison to hold: the samples are the
+// stream's, and a decimated stream puts half as many of them into a second of
+// signal, so a figure computed at the converter's rate would report half the
+// backlog there really is.
+QString FormatEncoderBacklog(uint64_t samples_pending,
+                             uint32_t sample_rate_hz = capture::kSampleRateHz);
 
 // How much capture a volume will hold, as a time and a size.
 //

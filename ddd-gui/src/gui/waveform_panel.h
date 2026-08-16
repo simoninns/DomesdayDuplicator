@@ -19,6 +19,7 @@
 
 #include "capture_metatypes.h"
 #include "front_end_gain.h"
+#include "sample_format.h"
 #include "sinc_interpolation.h"
 #include "waveform_mapping.h"
 #include "waveform_trigger.h"
@@ -78,9 +79,16 @@ class WaveformPlot : public QWidget {
   // spans is a different part of a cycle every frame.
   void SetTriggered(bool enabled);
 
+  // The rate the samples being drawn arrived at, which is what turns the span
+  // into the time axis under it. A decimated stream is 20 Msps, so the same
+  // number of samples covers twice the time — an axis fixed at the converter's
+  // rate would label a 1 ms sweep 500 µs.
+  void SetSampleRate(uint32_t sample_rate_hz);
+
   void Clear();
 
   size_t sample_span() const { return sample_span_; }
+  uint32_t sample_rate_hz() const { return sample_rate_hz_; }
   double persistence_seconds() const { return persistence_seconds_; }
   bool persistence() const { return persistence_seconds_ > 0.0; }
   bool triggered() const { return triggered_; }
@@ -166,6 +174,11 @@ class WaveformPlot : public QWidget {
   double persistence_seconds_ = 0.0;
   bool triggered_ = true;
 
+  // The converter's own rate until told otherwise, which is what an undecimated
+  // capture runs at and therefore the right axis to draw before any settings
+  // have arrived.
+  uint32_t sample_rate_hz_ = capture::kSampleRateHz;
+
   // Built once. The table is 32 KB and its construction is a few thousand
   // transcendental calls, neither of which belongs in a paint.
   analysis::ReconstructionKernel kernel_;
@@ -219,6 +232,15 @@ class WaveformPanel : public QWidget {
   void OnMonitoringChanged(bool monitoring);
   void SetFrontEndGain(analysis::FrontEndGain gain);
 
+  // Put the plot and the span list on the stream's real rate. The list is
+  // rebuilt rather than only re-read: every entry names a time and every one of
+  // those doubles when the rate halves.
+  //
+  // Public for the same reason SetFrontEndGain is: it is how the panel is told
+  // about a setting it does not own, and it is what the controller's
+  // SettingsChanged is connected to.
+  void SetSampleRate(uint32_t sample_rate_hz);
+
  private:
   void ApplyPersistence();
   void ShowCursor(qint64 sample_index, double code);
@@ -235,7 +257,12 @@ class WaveformPanel : public QWidget {
 };
 
 // A span in samples, put to a user as the time it covers.
-QString FormatWaveformSpan(size_t samples);
+//
+// The rate is a parameter because a span is a count of samples and the time it
+// covers is not: the same 20,000 samples are 500 µs off an undecimated stream
+// and 1 ms off a decimated one.
+QString FormatWaveformSpan(size_t samples,
+                           uint32_t sample_rate_hz = capture::kSampleRateHz);
 
 // The persistence setting as the slider's label reads it: "off" at zero, and
 // the tail length in seconds above that.
@@ -245,6 +272,7 @@ QString FormatPersistence(double seconds);
 // converter codes always, and in millivolts as well when the gain has been
 // declared.
 QString FormatWaveformCursor(qint64 sample_index, double code,
-                             const analysis::FrontEndGain& gain);
+                             const analysis::FrontEndGain& gain,
+                             uint32_t sample_rate_hz = capture::kSampleRateHz);
 
 }  // namespace ddd::gui

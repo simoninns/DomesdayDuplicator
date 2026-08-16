@@ -57,7 +57,7 @@ TEST(WaveformMappingTest, TheCursorReadsBackTheSampleUnderIt) {
   // hold is that the sample reported for a position is one of the samples drawn
   // at it.
   for (size_t sample = 0; sample < 1200; sample += 7) {
-    const double x = mapping.SampleToX(sample);
+    const double x = mapping.SampleToX(static_cast<double>(sample));
     const size_t recovered = mapping.XToSample(x);
     EXPECT_LE(recovered, sample);
     EXPECT_LT(sample - recovered, 2u) << "sample " << sample;
@@ -294,7 +294,15 @@ TEST(WaveformMappingTest, APixelMapsToAFractionalSamplePosition) {
 
   // And it is the exact inverse of SampleToX, which is the property the trace
   // and the cursor both depend on.
-  for (double position = 0.25; position < 40.0; position += 0.7) {
+  //
+  // Stepped by an integer and multiplied out rather than by accumulating the
+  // step into a double: repeated addition drifts, so the last position tested
+  // would not be the one this reads as, and how many get tested at all would
+  // depend on the rounding. That is also what cert-flp30-c is for.
+  constexpr double kFirstPosition = 0.25;
+  constexpr double kPositionStep = 0.7;
+  for (int step = 0; kFirstPosition + (step * kPositionStep) < 40.0; ++step) {
+    const double position = kFirstPosition + (step * kPositionStep);
     EXPECT_NEAR(mapping.XToSamplePosition(mapping.SampleToX(position)),
                 position, 1e-9);
   }

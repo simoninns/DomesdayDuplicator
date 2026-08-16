@@ -33,6 +33,10 @@ namespace ddd::capture {
 // because somebody wrote it down. That is the format's nature rather than an
 // omission here, and it is the reason FLAC remains the default.
 //
+// Nothing here decimates. A decimated capture arrives already decimated:
+// halving the rate means low-passing the signal at 10 MHz first, and that
+// filter is in the gateware, where it costs no CPU at all.
+//
 // Opening happens in Open() rather than in the constructor, for the reason
 // FlacSink's does: a file that cannot be created is an ordinary condition a
 // user causes by choosing a full disk, and reporting it needs a message rather
@@ -42,18 +46,11 @@ namespace ddd::capture {
 // progress counters are safe to read from elsewhere.
 class RawSink : public ISampleSink {
  public:
-  struct Options {
-    // Keep every nth sample. See capture_format.h: 1 or 2, and anything else is
-    // refused rather than rounded to something that would produce a file at a
-    // rate nobody asked for.
-    int decimation_factor = 1;
-  };
-
   RawSink();
   ~RawSink() override;
 
   // Create the file. Returns false with the reason in LastError().
-  bool Open(const std::filesystem::path& file_path, const Options& options);
+  bool Open(const std::filesystem::path& file_path);
 
   const char* Name() const override { return "s16"; }
 
@@ -75,13 +72,6 @@ class RawSink : public ISampleSink {
   // The converted samples on their way to the file. Sized once at Open() and
   // reused, never grown on the capture path.
   std::vector<uint8_t> scratch_;
-
-  int decimation_factor_ = 1;
-
-  // How far into the next buffer the next sample to keep lies. See
-  // FlacWriter::WriteRawDeviceSamples: without it a buffer holding an odd
-  // number of samples would shift the decimation phase at the seam.
-  size_t decimation_offset_ = 0;
 
   bool finished_ = false;
 

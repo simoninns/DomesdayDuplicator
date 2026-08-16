@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <cctype>
 
+#include "sample_format.h"
+
 namespace ddd::capture {
 
 bool IsSupportedDecimationFactor(int factor) {
@@ -25,6 +27,18 @@ uint32_t FlacSampleRateLabelFor(int decimation_factor) {
     return kFlacSampleRateLabel;
   }
   return kFlacSampleRateLabel / static_cast<uint32_t>(decimation_factor);
+}
+
+uint32_t SampleRateHzFor(int decimation_factor) {
+  // An unsupported factor falls back to the converter's own rate rather than
+  // dividing by it. A display is better off stating the undecimated rate — the
+  // one the device runs at unless it has been told otherwise — than scaling
+  // every frequency on the screen by a number nothing will ever ask the
+  // gateware for.
+  if (!IsSupportedDecimationFactor(decimation_factor)) {
+    return kSampleRateHz;
+  }
+  return kSampleRateHz / static_cast<uint32_t>(decimation_factor);
 }
 
 const char* CaptureFileSuffix(CaptureOutputFormat format) {

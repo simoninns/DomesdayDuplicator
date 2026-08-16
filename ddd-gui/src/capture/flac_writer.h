@@ -106,17 +106,11 @@ class FlacWriter {
   // buffer, and copying it into an intermediate form first would be a memcpy of
   // 80 MB/s for nothing.
   //
-  // decimation_factor selects every nth sample: 1 encodes all of them, 2 halves
-  // the rate. The phase carries across calls, so a run split into buffers is
-  // encoded exactly as the same samples in one buffer would be — without that,
-  // a buffer holding an odd number of samples would shift the phase and the
-  // seam would be a sample the file kept twice or lost.
-  //
-  // A factor the file's header cannot describe is refused rather than silently
-  // treated as 1: a file whose rate label disagrees with its contents is a
-  // capture that decodes at the wrong speed with nothing to reveal it.
-  bool WriteRawDeviceSamples(const uint8_t* device_data, size_t sample_count,
-                             int decimation_factor = 1);
+  // Every sample given is encoded. Nothing here decimates: a decimated capture
+  // arrives already decimated, because halving the rate means low-passing the
+  // signal first and that filter is in the gateware. A writer that dropped
+  // samples would be dropping them from a stream that had not been filtered.
+  bool WriteRawDeviceSamples(const uint8_t* device_data, size_t sample_count);
 
   // Flush the encoder and close the file. Safe to call twice; the destructor
   // calls it.

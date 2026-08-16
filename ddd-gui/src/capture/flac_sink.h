@@ -41,13 +41,8 @@ class FlacSink : public ISampleSink {
 
   // Create the file and configure the encoder. Returns false with the reason in
   // LastError().
-  //
-  // decimation_factor is what the writer is asked for on every buffer. It is
-  // held here rather than in FlacWriter::Options because it is a property of
-  // this capture rather than of the encoder, and because the writer's other
-  // users pass it per call.
   bool Open(const std::filesystem::path& file_path,
-            const FlacWriter::Options& options, int decimation_factor = 1);
+            const FlacWriter::Options& options);
 
   const char* Name() const override { return "flac"; }
 
@@ -66,7 +61,6 @@ class FlacSink : public ISampleSink {
   std::unique_ptr<FlacWriter> writer_;
   std::filesystem::path file_path_;
   std::string last_error_;
-  int decimation_factor_ = 1;
 };
 
 }  // namespace ddd::capture

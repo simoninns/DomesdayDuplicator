@@ -229,6 +229,52 @@ TEST(AmplitudeSamplerTest, ResettingForgetsTheRunningTotals) {
   EXPECT_EQ(Recorded(point).clipped_count, 0u);
 }
 
+TEST(AmplitudeSamplerTest, ARunClockThatRestartsDoesNotBlankTheDisplay) {
+  // The interval is tracked as a position on the run's clock, and that clock
+  // starts again at zero for every run. If a run ends without the sampler being
+  // told, the next one is compared against a deadline from the last — so a
+  // twenty-second run is followed by twenty seconds in which every point is
+  // suppressed and the panel reads "Nothing recorded yet" over a healthy
+  // stream. Time going backwards is the unambiguous signal that this is a new
+  // run, and it is the sampler's job to notice rather than to trust that
+  // somebody remembered to call Reset.
+  AmplitudeSampler sampler(0.1);
+
+  // A twenty-second run, so the deadline ends up out at twenty seconds. Stepped
+  // by an integer rather than by accumulating into a double, so the run really
+  // is the length this says it is.
+  for (int step = 0; step < 200; ++step) {
+    sampler.Observe(step * 0.1, MakeMetrics(100.0, 400, 600));
+  }
+
+  // The next run, with no Reset between them.
+  EXPECT_FALSE(sampler.Observe(0.0, MakeMetrics(100.0, 400, 600)).has_value());
+
+  const auto point = sampler.Observe(0.1, MakeMetrics(100.0, 400, 600));
+  ASSERT_TRUE(point.has_value())
+      << "the new run was measured against the old run's deadline";
+
+  // Measured on the new clock, not carrying the old run's position with it.
+  EXPECT_DOUBLE_EQ(Recorded(point).seconds, 0.1);
+}
+
+TEST(AmplitudeSamplerTest, ARestartedRunDoesNotInheritTheOldRunsExtremes) {
+  // The partial interval in progress when the clock restarted belongs to the
+  // run that has ended. Carried over it would put a level the previous disc
+  // reached into the first point of the next one.
+  AmplitudeSampler sampler(0.1);
+
+  sampler.Observe(0.0, MakeMetrics(100.0, 0, 1023));
+  sampler.Observe(0.05, MakeMetrics(100.0, 0, 1023));
+
+  sampler.Observe(0.0, MakeMetrics(100.0, 500, 520));
+  const auto point = sampler.Observe(0.1, MakeMetrics(100.0, 500, 520));
+  ASSERT_TRUE(point.has_value());
+
+  EXPECT_EQ(Recorded(point).minimum_code, 500);
+  EXPECT_EQ(Recorded(point).maximum_code, 520);
+}
+
 TEST(AmplitudeSamplerTest, TheDefaultIntervalFillsTheDefaultRingWithMinutes) {
   // The two defaults are chosen together, and a change to either without the
   // other would quietly shorten or lengthen how much history the panel holds.

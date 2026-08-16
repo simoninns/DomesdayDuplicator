@@ -104,6 +104,33 @@ std::optional<AmplitudePoint> AmplitudeSampler::Observe(
     return std::nullopt;
   }
 
+  // Time going backwards means a new run: the elapsed figure is measured from
+  // the moment the pipeline started, and that clock begins again at zero every
+  // time. Treated as one continuous stream instead, the next run is measured
+  // against a deadline left over from the last — so a twenty-second run is
+  // followed by twenty seconds in which every point is suppressed and the panel
+  // reads "Nothing recorded yet" over a perfectly healthy stream, then fills in
+  // at once when the clock finally catches up.
+  //
+  // Noticed here rather than relied upon from outside. Reset() is called when a
+  // run starts and remains the right thing to do, but a sampler that keys off
+  // an absolute clock has to cope with that clock restarting: this is the one
+  // signal that cannot be missed, and it costs a comparison per update.
+  const bool restarted = started_ && elapsed_seconds < last_elapsed_seconds_;
+  last_elapsed_seconds_ = elapsed_seconds;
+
+  if (restarted) {
+    // The interval in progress belongs to the run that has ended. Carrying it
+    // over would put the previous disc's extremes into the first point of the
+    // next one, and its clip total would make the first count a negative jump.
+    rms_total_ = 0.0;
+    observation_count_ = 0;
+    have_extremes_ = false;
+    last_clipped_total_ = 0;
+    have_clipped_total_ = false;
+    started_ = false;
+  }
+
   if (!started_) {
     started_ = true;
     interval_end_seconds_ = elapsed_seconds + interval_seconds_;
@@ -162,6 +189,7 @@ std::optional<AmplitudePoint> AmplitudeSampler::Observe(
 void AmplitudeSampler::Reset() {
   started_ = false;
   interval_end_seconds_ = 0.0;
+  last_elapsed_seconds_ = 0.0;
   rms_total_ = 0.0;
   observation_count_ = 0;
   minimum_code_ = 0;

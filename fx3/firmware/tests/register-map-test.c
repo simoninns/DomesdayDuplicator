@@ -137,9 +137,12 @@ static void testCommitText(void)
 
 static void testHostWritable(void)
 {
-    // Test mode is the only register the host has any business writing
+    // What the capture path does with the samples is the host's to choose,
+    // and these two are the whole of that choice.
     check(fpgaRegisterIsHostWritable(FPGA_REGISTER_TEST_MODE),
           "the host may write test mode");
+    check(fpgaRegisterIsHostWritable(FPGA_REGISTER_DECIMATION),
+          "the host may write the decimation factor");
 
     // The gateware would accept this write. The firmware refuses to relay it,
     // because the LEDs are a status output with exactly one owner.
@@ -150,6 +153,13 @@ static void testHostWritable(void)
           "the host may not write a read-only register");
     check(!fpgaRegisterIsHostWritable(0x20u),
           "the host may not write an unmapped register");
+
+    // The addresses either side of the two that are permitted, so that a
+    // whitelist which had become a range would fail here.
+    check(!fpgaRegisterIsHostWritable(0x0Fu),
+          "the host may not write the address below test mode");
+    check(!fpgaRegisterIsHostWritable(0x13u),
+          "the host may not write the address above decimation");
 }
 
 static void testReadRequests(void)

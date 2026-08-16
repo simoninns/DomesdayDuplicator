@@ -77,6 +77,12 @@ std::vector<uint16_t> MakeLateTone(size_t bin, double amplitude_codes,
 // Reproducible noise. A fixed seed rather than a clock, because a variance test
 // that failed one run in fifty would be worse than no test at all.
 std::vector<uint16_t> MakeNoise(size_t count, double amplitude_codes) {
+  // Predictability is a security fault where it is not wanted and the whole
+  // point here. Both the cert- and bugprone- names are listed because which one
+  // exists depends on the clang-tidy release, and a suppression naming only one
+  // is a suppression that lapses.
+  //
+  // NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp,bugprone-random-generator-seed)
   std::mt19937 generator(20260816);
   std::uniform_real_distribution<double> spread(-amplitude_codes,
                                                 amplitude_codes);

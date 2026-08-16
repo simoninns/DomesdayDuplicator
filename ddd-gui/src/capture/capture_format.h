@@ -60,16 +60,16 @@ inline constexpr uint32_t kFlacSampleRateLabel = 40'000;
 
 // The decimation factors a capture may be written at.
 //
-// The device always samples at 40 Msps; decimation happens on this side of the
-// USB link, on the way into the file. One is every sample, which is what a
-// LaserDisc capture needs. Two keeps every second sample and halves both the
-// rate and the file — enough for tape RF, whose bandwidth is a fraction of a
-// LaserDisc's, and the reason this exists at all.
+// The converter always runs at 40 Msps; decimation happens in the FPGA, before
+// the samples reach the USB link. One is every sample, which is what a
+// LaserDisc capture needs. Two halves both the rate and the file — enough for
+// tape RF, whose bandwidth is a fraction of a LaserDisc's, and the reason this
+// exists at all.
 //
-// Plain selection, with no filter in front of it. That is what gui/ does for
-// its 4:1 CD decimation, and it keeps the arithmetic off a real-time path; a
-// signal with energy above half the new rate will alias, which is a decision
-// about the front end rather than about this code.
+// Not plain selection: the gateware low-passes at 10 MHz with a 63-tap
+// half-band filter first, because dropping alternate samples without that folds
+// everything above 10 MHz down on top of the signal. See
+// fpga/application/halfBandDecimator.v.
 inline constexpr int kUndecimatedFactor = 1;
 inline constexpr int kTapeDecimationFactor = 2;
 
@@ -80,6 +80,15 @@ bool IsSupportedDecimationFactor(int factor);
 // real 20 Msps stream and says so, on the same convention as the undecimated
 // label above.
 uint32_t FlacSampleRateLabelFor(int decimation_factor);
+
+// The rate the samples actually arrive at, in hertz.
+//
+// A real measurement, unlike the FLAC label above, and the figure every display
+// that turns samples into time or frequency has to use: a decimated stream is
+// 20 Msps, so its Nyquist is 10 MHz and a sample is 50 ns. Anything that
+// assumes the converter's own rate here draws a tape's 5 MHz carrier at 10 MHz
+// and calls a 1 ms sweep 500 µs.
+uint32_t SampleRateHzFor(int decimation_factor);
 
 // Channels and bit depth in the written file. Mono is definitional: a stereo
 // file is not a Domesday Duplicator capture, and the reader says so rather than

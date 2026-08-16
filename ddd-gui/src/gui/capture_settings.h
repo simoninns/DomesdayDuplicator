@@ -13,6 +13,7 @@
 
 #include <QString>
 #include <cstddef>
+#include <cstdint>
 
 #include "capture_format.h"
 #include "disk_buffer_ring.h"
@@ -81,12 +82,20 @@ struct CaptureSettings {
   capture::CaptureOutputFormat output_format =
       capture::CaptureOutputFormat::kFlac;
 
-  // Keep every nth sample on the way into the file. 1 is the device's own rate
-  // and is what a LaserDisc capture uses; 2 halves it to 20 Msps, which is
-  // enough for tape RF and half the file.
+  // Keep every nth sample. 1 is the device's own rate and is what a LaserDisc
+  // capture uses; 2 halves it to 20 Msps, which is enough for tape RF and half
+  // the file.
   //
-  // Persisted for the same reason as the format, and ignored in test mode:
-  // EffectiveDecimationFactor is what the capture actually runs at.
+  // Done by the gateware, not here. Halving the rate means low-passing the
+  // signal at 10 MHz first — without that everything above 10 MHz folds down
+  // on top of it — and the filter that does it costs 13% of the FPGA's logic
+  // rather than a core or two of this machine. All this setting does is
+  // reach the device's decimation register.
+  //
+  // Persisted for the same reason as the format. It applies in test mode too:
+  // the gateware generates its test pattern downstream of the decimator, so a
+  // decimated test capture is an unbroken ramp at the decimated rate and the
+  // integrity check covers that path as well.
   int decimation_factor = capture::kUndecimatedFactor;
 
   // 0-8, as flac's -0 .. -8. See FlacWriter::Options — the default is 8, which
@@ -144,17 +153,6 @@ struct CaptureSettings {
   // The engine-side options these settings imply.
   capture::UsbSourceOptions UsbOptions() const;
 
-  // The decimation a capture started now would actually run at.
-  //
-  // Always 1 in test mode. The test pattern is a ramp checked sample by sample,
-  // and a decimated one is a ramp with every other step missing — which the
-  // verifier would report as a break on the first buffer. Rather than let the
-  // integrity oracle fail for a reason that is not a fault, test mode captures
-  // every sample and the interface disables the control while it is on.
-  int EffectiveDecimationFactor() const {
-    return test_mode ? capture::kUndecimatedFactor : decimation_factor;
-  }
-
   // What a capture started now is expected to cost on disk, per second.
   //
   // The free-space readouts are a time rather than a size, so they need this:
@@ -163,6 +161,19 @@ struct CaptureSettings {
   // of four at the extremes — in the direction that lets a volume fill up
   // before the warning ever fires.
   double EstimatedBytesPerSecond() const;
+
+  // The rate the samples actually arrive at.
+  //
+  // What every display that turns samples into time or frequency needs, and the
+  // reason it is here rather than being read off the converter's rate: the
+  // spectrum's Nyquist, the scope's time axis and the encoder backlog are all
+  // properties of the stream, and a decimated stream is half the rate. It is
+  // safe to read this while a stream is running because the rate cannot be
+  // changed under one — see CapturePanel's sample-rate control, which is locked
+  // from the moment monitoring starts.
+  uint32_t SampleRateHz() const {
+    return capture::SampleRateHzFor(decimation_factor);
+  }
 
   // The declared front-end gain, or the undeclared state. Named DeclaredGain
   // rather than FrontEndGain so the accessor cannot shadow the type it returns.

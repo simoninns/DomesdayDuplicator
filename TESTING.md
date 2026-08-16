@@ -511,6 +511,25 @@ dropped samples are the failure mode that matters and the one that is invisible 
       compression level on a loaded machine — is the only way to check this half, and it is
       worth doing once per gateware change rather than once per release.
 
+### The decimated path
+
+The gateware can halve the sampling rate (`DECIMATION`, register `0x12`), and the decimator
+sits in front of the test-data generator — so a test capture at 20 Msps is an unbroken ramp
+exactly as one at 40 Msps is, and **step 4 must be run at both rates**. It is the same
+procedure with **Sample rate** set to *20 Msps* for the second pass, and the same pass
+condition.
+
+That covers the plumbing: that the decimated stream is contiguous, that the sequence counter
+is attached to the samples that survive, and that the buffer and the FX3 handle the halved
+rate. It does **not** cover the filter, which the ramp cannot exercise — a ramp is not a
+spectrum, and every sample of it is in the passband. The filter's response is checked by
+`fpga/tests/tb_halfBandDecimator.v` in simulation and by
+`fpga/make-halfband-coefficients.py --response` in arithmetic; measuring it on hardware means
+a signal generator and a spectrum analyser on the RF input, which is a bench measurement
+under §5's *What it does not cover* rather than part of this procedure. What those two checks
+between them pin down — the response, the ripple, the stopband and the group delay — is set
+out on [The decimation filter](docs/content/development/fpga-decimation-filter.md).
+
 ### When to run it
 
 - Before any release.

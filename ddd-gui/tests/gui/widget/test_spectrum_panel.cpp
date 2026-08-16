@@ -25,6 +25,7 @@
 #include <cmath>
 #include <vector>
 
+#include "capture_format.h"
 #include "frequency_axis.h"
 #include "sample_format.h"
 #include "spectrogram_history.h"
@@ -223,7 +224,8 @@ TEST(SpectrumFormatTest, TheReadoutQuotesTheBandwidthAndNotTheBinSpacing) {
   // follows. A panel that quoted 9.8 kHz here while collecting from 14.6 would
   // be understating its own bandwidth by 1.8 dB — the kind of wrong that reads
   // as a measurement.
-  const QString text = FormatResolutionBandwidth(4096, 15);
+  const QString text =
+      FormatResolutionBandwidth(4096, 15, capture::kSampleRateHz);
 
   EXPECT_TRUE(text.contains(QStringLiteral("14.6 kHz"))) << text.toStdString();
   EXPECT_FALSE(text.contains(QStringLiteral("9.8"))) << text.toStdString();
@@ -233,7 +235,8 @@ TEST(SpectrumFormatTest, TheReadoutQuotesTheBandwidthAndNotTheBinSpacing) {
 TEST(SpectrumFormatTest, TheReadoutLeavesOutASegmentCountNobodyStated) {
   // Zero segments is "nobody said", not "averaged none of them". Printing
   // "0 avg" would be the display inventing a figure about its own confidence.
-  const QString text = FormatResolutionBandwidth(4096, 0);
+  const QString text =
+      FormatResolutionBandwidth(4096, 0, capture::kSampleRateHz);
 
   EXPECT_TRUE(text.contains(QStringLiteral("14.6 kHz"))) << text.toStdString();
   EXPECT_FALSE(text.contains(QStringLiteral("avg"))) << text.toStdString();
@@ -243,9 +246,10 @@ TEST(SpectrumFormatTest, TheReadoutLeavesOutASegmentCountNobodyStated) {
 TEST(SpectrumFormatTest, TheReadoutFollowsTheResolutionItWasGiven) {
   // 16,384 points is four times the segment length and a quarter of the
   // bandwidth, which is the whole of what the Resolution control buys.
-  EXPECT_TRUE(
-      FormatResolutionBandwidth(16384, 3).contains(QStringLiteral("3.7 kHz")))
-      << FormatResolutionBandwidth(16384, 3).toStdString();
+  EXPECT_TRUE(FormatResolutionBandwidth(16384, 3, capture::kSampleRateHz)
+                  .contains(QStringLiteral("3.7 kHz")))
+      << FormatResolutionBandwidth(16384, 3, capture::kSampleRateHz)
+             .toStdString();
 }
 
 TEST(SpectrumFormatTest, EveryLevelSaysWhatItIsRelativeTo) {
@@ -289,8 +293,10 @@ TEST(SpectrumPanelTest, TheAveragingChoicesIncludeNoneAndDefaultToMedium) {
 TEST(SpectrumFormatTest, AResolutionIsPutAsTheBinWidthItBuys) {
   // "4096 points" is a fact about the implementation. The bin width is the same
   // fact in the units the user is choosing between.
-  EXPECT_EQ(FormatSpectrumResolution(4096), QStringLiteral("9.8 kHz bins"));
-  EXPECT_EQ(FormatSpectrumResolution(16384), QStringLiteral("2.4 kHz bins"));
+  EXPECT_EQ(FormatSpectrumResolution(4096, capture::kSampleRateHz),
+            QStringLiteral("9.8 kHz bins"));
+  EXPECT_EQ(FormatSpectrumResolution(16384, capture::kSampleRateHz),
+            QStringLiteral("2.4 kHz bins"));
 }
 
 TEST(SpectrumPanelTest, TheResolutionChoicesDefaultToTheMostAveraged) {
@@ -731,6 +737,80 @@ TEST(SpectrumPanelTest, TheDisplayShowsEverythingTheConverterCanRepresent) {
   Named<QCheckBox>(panel, SpectrumPanel::kLogFrequencyBoxName)
       ->setChecked(false);
   EXPECT_DOUBLE_EQ(plot->Axis().maximum_hz(), nyquist);
+}
+
+TEST(SpectrumPlotTest, ADecimatedStreamPutsItsNyquistWhereItReallyIs) {
+  // The axis is a property of the stream, not of the converter. At 20 Msps the
+  // top of it is 10 MHz, and a plot that kept the converter's own rate would
+  // draw a tape's 5 MHz carrier at 10 MHz — a reading twice what is there,
+  // presented as a measurement.
+  SpectrumPlot plot;
+  ASSERT_DOUBLE_EQ(plot.Axis().maximum_hz(),
+                   static_cast<double>(capture::kSampleRateHz) / 2.0);
+
+  plot.SetSampleRate(capture::SampleRateHzFor(capture::kTapeDecimationFactor));
+
+  EXPECT_DOUBLE_EQ(plot.Axis().maximum_hz(), 10'000'000.0);
+
+  // And the mapping follows it, which is the part a reader actually sees: the
+  // top bin of the transform is Nyquist wherever Nyquist is.
+  EXPECT_DOUBLE_EQ(plot.Axis().FrequencyAt(1.0), 10'000'000.0);
+}
+
+TEST(SpectrumPlotTest, ChangingTheRateDiscardsHistoryDrawnAgainstTheOldAxis) {
+  // A spectrogram column spans DC to Nyquist. Kept across a rate change it
+  // would be redrawn under the new axis, moving every carrier already on screen
+  // by a factor of two while still presenting itself as the same measurement.
+  SpectrumPlot plot;
+  plot.resize(600, 300);
+
+  const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
+  for (int frame = 0; frame < 5; ++frame) {
+    plot.SetSpectrum(Levels(bins, -40.0), Levels(bins, -30.0),
+                     Levels(bins, -40.0));
+  }
+  ASSERT_EQ(plot.history().size(), 5U);
+
+  plot.SetSampleRate(capture::SampleRateHzFor(capture::kTapeDecimationFactor));
+
+  EXPECT_EQ(plot.history().size(), 0U);
+}
+
+TEST(SpectrumPlotTest, ARateThatHasNotChangedKeepsTheHistory) {
+  // Settings arrive whenever anything in them changes, and most of those
+  // changes have nothing to do with the rate. Clearing the waterfall because
+  // somebody edited the capture folder would be a display that wiped itself for
+  // no reason a user could see.
+  SpectrumPlot plot;
+  plot.resize(600, 300);
+
+  const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
+  for (int frame = 0; frame < 5; ++frame) {
+    plot.SetSpectrum(Levels(bins, -40.0), Levels(bins, -30.0),
+                     Levels(bins, -40.0));
+  }
+
+  plot.SetSampleRate(capture::kSampleRateHz);
+
+  EXPECT_EQ(plot.history().size(), 5U);
+}
+
+TEST(SpectrumFormatTest, ADecimatedStreamHasBinsHalfAsWide) {
+  // The bins are a fraction of the rate, so the same transform buys twice the
+  // resolution over a decimated stream. A label fixed at the converter's rate
+  // would overstate the width of every one of them.
+  EXPECT_EQ(FormatSpectrumResolution(4096, capture::kSampleRateHz),
+            QStringLiteral("9.8 kHz bins"));
+  EXPECT_EQ(FormatSpectrumResolution(
+                4096, capture::SampleRateHzFor(capture::kTapeDecimationFactor)),
+            QStringLiteral("4.9 kHz bins"));
+
+  // And the same of the bandwidth the corner of the plot states, which is the
+  // figure every level on the screen is relative to.
+  EXPECT_TRUE(
+      FormatResolutionBandwidth(
+          4096, 15, capture::SampleRateHzFor(capture::kTapeDecimationFactor))
+          .contains(QStringLiteral("7.3 kHz")));
 }
 
 TEST(SpectrumPanelTest, TheSpectrogramRecordsWhicheverViewIsShowing) {

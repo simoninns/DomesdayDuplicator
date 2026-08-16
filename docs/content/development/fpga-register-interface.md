@@ -132,7 +132,8 @@ Map version `0x02`, which is what both gateware images in this repository report
 | `0x0C` to `0x0F` | — | unmapped | | |
 | `0x10` | `TEST_MODE` | RW | `0x00` | yes |
 | `0x11` | `LED` | RW | `0x01` | no |
-| `0x12` to `0x1F` | — | unmapped | | |
+| `0x12` | `DECIMATION` | RW | `0x01` | yes |
+| `0x13` to `0x1F` | — | unmapped | | |
 | `0x20` | `BRIDGE_UNLOCK` | RW | `0x00` | no |
 | `0x21` | `BRIDGE_CONTROL` | RW | `0x00` | no |
 | `0x22` | `BRIDGE_DATA` | RW | — | no |
@@ -149,7 +150,7 @@ Version 1 changed nothing below `0x0B`, and the identity block at `0x00` to `0x0
 
 "Host-writable" is a firmware policy, not a gateware one. The gateware accepts a write to any read/write register from whoever is on the link; the FX3 is what declines to relay some of them.
 
-**Only `TEST_MODE` is host-writable, and the flash bridge is the reason that matters.** `0x20` to `0x23` are refused as firmly as the LED register and for a stronger reason: the firmware owns the bridge during an update, and a host writing to `BRIDGE_DATA` between two of the firmware's own writes would shift an unaccounted byte into a flash command in progress. The bridge's four-byte unlock is what stands between a *stray* write and an unbootable board; refusing to relay the write at all is what stands between a deliberate one and the same result. Everything a host legitimately wants from the bridge — write this gateware, reload the FPGA — it asks for through `0xD1`–`0xD3` and `0xD5`, where the firmware is the one holding the sequence.
+**`TEST_MODE` and `DECIMATION` are the only host-writable registers, and the flash bridge is the reason that matters.** Both of them select what the capture path does with the samples before they reach the buffer, both are meaningless to the firmware, and the host is the only thing that knows which the user asked for. A new one of these is a firmware change as well as a gateware change: `fpgaRegisterIsHostWritable()` is a list of addresses, and a write to an address it does not name is refused with a stall however willing the gateware would have been. `0x20` to `0x23` are refused as firmly as the LED register and for a stronger reason: the firmware owns the bridge during an update, and a host writing to `BRIDGE_DATA` between two of the firmware's own writes would shift an unaccounted byte into a flash command in progress. The bridge's four-byte unlock is what stands between a *stray* write and an unbootable board; refusing to relay the write at all is what stands between a deliberate one and the same result. Everything a host legitimately wants from the bridge — write this gateware, reload the FPGA — it asks for through `0xD1`–`0xD3` and `0xD5`, where the firmware is the one holding the sequence.
 
 ### Identity block, `0x00` to `0x0A`
 
@@ -188,6 +189,22 @@ Non-zero selects the test data generator in place of the ADC; zero selects the A
 Any non-zero value means on. The register is a byte rather than a bit so that a future mode can be a value rather than a flag, and so that a host writing 1 and a host writing `0xFF` agree about what they asked for.
 
 Changing this mid-capture is permitted and takes effect at the next sample, but the sample stream will contain the discontinuity. The application sets it before starting a capture.
+
+### `DECIMATION`, `0x12`
+
+How many device samples each sample the host receives stands for. `0x01` is every sample — 40 Msps, the reset value and what a LaserDisc capture uses. `0x02` halves it to 20 Msps, which is enough for tape RF and half the file.
+
+**This is not "send every second sample".** Halving the rate without filtering first folds everything above 10 MHz down on top of the signal: a 15 MHz component would reappear at 5 MHz, directly on top of a tape's luma FM carrier, and nothing downstream could tell the alias from the signal. So the gateware low-passes the stream at 10 MHz before it decimates, with a 63-tap half-band FIR — ±0.0015 dB of passband ripple to 8 MHz, 75 dB or better of rejection from 11.4 MHz upwards, and exactly constant group delay. [The decimation filter](fpga-decimation-filter.md) covers the design, the coefficients, the measured response and the phase.
+
+What no half-band can do is protect the band edge. The response is antisymmetric about 10 MHz and passes exactly −6 dB there, so energy just above 10 MHz still aliases to just below it at a comparable level. That is a property of 2:1 decimation rather than of this filter, and the remedy is to capture a signal with content up there at the full rate.
+
+**The register holds the factor, not a flag**, so reading it back is a statement of what the capture path is doing rather than an echo of what was asked for — and so that a third factor can be a value rather than a second bit. A factor this gateware does not implement is normalised to `0x01` rather than stored, and so is `0x00`, which is not a factor at all.
+
+Only the application image implements it. The factory image has no sample stream to decimate, so its `spiRegisters` is compiled with the register parameterised off and `0x12` reads `0x00` there, exactly as an unmapped address does.
+
+The decimator sits **in front of** the test-data generator and the sequence counter, which is what keeps a decimated capture checkable: the counter is attached to the samples that survive, so the stream carries an unbroken count, and a test-mode capture is an unbroken ramp at whichever rate is selected. Decimating after the generator would drop every second sequence number and every capture would read as damaged.
+
+Changing this mid-capture is permitted and takes effect at the next sample, but the sample stream will contain the discontinuity. The application sets it before starting a capture, alongside `TEST_MODE`.
 
 ### `LED`, `0x11`
 
@@ -281,7 +298,7 @@ The rules around that are exact, and each of them is checked by `fpga/tests/tb_s
 
 `TELEM_ID` itself is a constant, so it does not matter that its byte is loaded into the shift register before the sample is taken; the first shadow byte is loaded a whole SPI byte later, by which time the sample is eight system clocks old at the fastest link this bank accepts.
 
-**Why a read and not a write.** A write-to-sample register would have been purer — this is the only read in the map with an effect — and it was rejected for three reasons. It would need a firmware change, because `fpgaRegisterIsHostWritable()` permits `TEST_MODE` and nothing else, so the feature would need new gateware *and* new firmware and would fail against fielded firmware with a stall rather than degrading. It would take two control requests per reading instead of one. And it would open a race that latch-on-read cannot have: with sampling and reading as separate transactions, a second host on the link can sample between another reader's sample and its read, and hand it an interval that is not its own.
+**Why a read and not a write.** A write-to-sample register would have been purer — this is the only read in the map with an effect — and it was rejected for three reasons. It would need a firmware change, because `fpgaRegisterIsHostWritable()` is a list of addresses and a register not on it is refused with a stall, so the feature would need new gateware *and* new firmware where a read-only window needs neither. It would take two control requests per reading instead of one. And it would open a race that latch-on-read cannot have: with sampling and reading as separate transactions, a second host on the link can sample between another reader's sample and its read, and hand it an interval that is not its own.
 
 #### The block
 
@@ -343,7 +360,7 @@ The identity block is `wValue` = 0, `wLength` = 12 — eleven bytes of identity 
 | `wLength` | 0 — no data stage |
 | Data stage | none |
 
-Carrying both operands in `wValue` keeps the request to a setup packet with no data stage, which removes the only case where a control transfer here could be partially completed. Turning test mode on is `wValue` = `0x1001`; off is `0x1000`.
+Carrying both operands in `wValue` keeps the request to a setup packet with no data stage, which removes the only case where a control transfer here could be partially completed. Turning test mode on is `wValue` = `0x1001`; off is `0x1000`. Selecting 2:1 decimation is `0x1202`, and the full rate is `0x1201`.
 
 ### Request validation
 

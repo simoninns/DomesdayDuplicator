@@ -157,12 +157,12 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
   sample_rate_combo_->addItem(tr("20 Msps — 2:1 decimated, for tape"),
                               capture::kTapeDecimationFactor);
   sample_rate_combo_->setToolTip(
-      tr("The device always samples at 40 Msps. Decimating keeps every second "
-         "sample on the way into the file, which halves it — enough for tape "
-         "RF, whose bandwidth is a fraction of a LaserDisc's. There is no "
-         "filter in front of it, so anything above 10 MHz will alias. Not "
-         "available in test mode, where the pattern is checked sample by "
-         "sample."));
+      tr("The converter always runs at 40 Msps. Decimating halves that in the "
+         "FPGA, which low-passes the signal at 10 MHz first and then keeps "
+         "every second sample — enough for tape RF, whose bandwidth is a "
+         "fraction of a LaserDisc's, and half the file. Energy close to "
+         "10 MHz still folds down around it, so a signal with content up "
+         "there should be captured at the full rate."));
   form->addRow(tr("Sample rate"), sample_rate_combo_);
 
   compression_spin_ = new QSpinBox(contents);
@@ -606,11 +606,17 @@ void CapturePanel::UpdateEnabledState() {
   format_combo_->setEnabled(!capturing_);
   name_edit_->setEnabled(!capturing_ && !test_mode_);
 
-  // Off in test mode, where the pattern is a ramp checked sample by sample and
-  // a decimated one would read as a break on the first buffer. Disabled rather
-  // than silently overridden, so the control never shows a rate the capture is
-  // not running at.
-  sample_rate_combo_->setEnabled(!capturing_ && !test_mode_);
+  // Locked from the moment monitoring starts, on the same terms as test mode
+  // and for the same reason: it is written to the device's decimation register
+  // before the stream is opened and there is no way to change it under a
+  // running stream. Left editable while monitoring it would appear to work and
+  // do nothing — and the analysis panels, which scale their axes by this, would
+  // then be drawing a rate the device is not sending.
+  //
+  // It works in test mode as well: the gateware generates its pattern
+  // downstream of the decimator, so a decimated test capture is an unbroken
+  // ramp at the decimated rate.
+  sample_rate_combo_->setEnabled(!monitoring_);
 
   // Nothing to compress in the uncompressed format, so the level stops being a
   // setting rather than becoming one that is quietly ignored.

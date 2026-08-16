@@ -184,6 +184,7 @@
           fpga-provenance = fpgaChecks.provenance;
           fpga-version = fpgaChecks.version;
           fpga-boot-block = fpgaChecks.boot-block;
+          fpga-halfband-coefficients = fpgaChecks.halfband-coefficients;
           licence-headers = repoChecks.licence-headers;
           update-bundle = repoChecks.update-bundle;
         }

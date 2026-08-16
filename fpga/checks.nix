@@ -40,6 +40,7 @@ let
       ./bitstream-provenance.py
       ./generate-version.sh
       ./make-boot-block.py
+      ./make-halfband-coefficients.py
     ];
   };
 in
@@ -103,4 +104,16 @@ in
     python3 ${src}/tests/test_boot_block.py
     touch $out
   '';
+
+  # T1 — the decimation filter's coefficients. The table is committed into
+  # halfBandDecimator.v because gateware cannot open a file, so this
+  # regenerates it and fails if the two have parted company — and checks the
+  # two properties the fabric is built around: a DC gain of exactly one, and a
+  # centre tap of exactly half full scale, which is what lets that tap be a
+  # shift rather than a seventeenth multiplier.
+  halfband-coefficients =
+    runCommand "ddd-fpga-halfband-coefficients" { nativeBuildInputs = [ python3 ]; } ''
+      python3 ${src}/tests/test_halfband_coefficients.py
+      touch $out
+    '';
 }

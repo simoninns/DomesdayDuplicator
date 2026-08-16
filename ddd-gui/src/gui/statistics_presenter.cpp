@@ -241,9 +241,13 @@ QString FormatCount(uint64_t value) {
   return QString::number(value);
 }
 
-QString FormatEncoderBacklog(uint64_t samples_pending) {
+QString FormatEncoderBacklog(uint64_t samples_pending,
+                             uint32_t sample_rate_hz) {
+  if (sample_rate_hz == 0) {
+    sample_rate_hz = capture::kSampleRateHz;
+  }
   const double seconds = static_cast<double>(samples_pending) /
-                         static_cast<double>(capture::kSampleRateHz);
+                         static_cast<double>(sample_rate_hz);
 
   return Translate("%1 ms  (%L2 samples)")
       .arg(seconds * 1000.0, 0, 'f', 1)
@@ -292,7 +296,8 @@ StatisticsView PresentStatistics(const capture::CaptureStats& stats,
                                  const analysis::FrontEndGain& gain,
                                  capture::DeviceSpeed speed,
                                  const capture::FreeSpace& space,
-                                 double bytes_per_second) {
+                                 double bytes_per_second,
+                                 uint32_t sample_rate_hz) {
   StatisticsView view =
       PresentIdleStatistics(gain, speed, space, bytes_per_second);
 
@@ -367,7 +372,8 @@ StatisticsView PresentStatistics(const capture::CaptureStats& stats,
   // encoder — so the row stays blank rather than reporting a healthy-looking
   // nothing.
   if (stats.writing) {
-    view.encoder_backlog = FormatEncoderBacklog(stats.samples_pending);
+    view.encoder_backlog =
+        FormatEncoderBacklog(stats.samples_pending, sample_rate_hz);
   }
 
   return view;

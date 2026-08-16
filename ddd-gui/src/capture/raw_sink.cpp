@@ -35,15 +35,8 @@ RawSink::RawSink() = default;
 
 RawSink::~RawSink() { Finish(); }
 
-bool RawSink::Open(const std::filesystem::path& file_path,
-                   const Options& options) {
+bool RawSink::Open(const std::filesystem::path& file_path) {
   file_path_ = file_path;
-
-  if (!IsSupportedDecimationFactor(options.decimation_factor)) {
-    last_error_ = "RawSink::Open(): Unsupported decimation factor " +
-                  std::to_string(options.decimation_factor);
-    return false;
-  }
 
   file_.open(file_path, std::ios::out | std::ios::binary | std::ios::trunc);
   if (!file_.is_open()) {
@@ -51,8 +44,6 @@ bool RawSink::Open(const std::filesystem::path& file_path,
     return false;
   }
 
-  decimation_factor_ = options.decimation_factor;
-  decimation_offset_ = 0;
   bytes_written_ = 0;
   samples_written_ = 0;
   finished_ = false;
@@ -66,16 +57,10 @@ bool RawSink::Write(const uint8_t* wire_data, size_t sample_count) {
     return false;
   }
 
-  const size_t stride = static_cast<size_t>(decimation_factor_);
-
   // Byte by byte in and byte by byte out, so this is correct on a big-endian
   // host and makes no alignment assumption about the buffer it was handed —
   // the file is little-endian wherever it was written.
-  //
-  // The loop steps by the decimation stride and starts wherever the previous
-  // buffer left off, so a decimated capture never doubles or drops a sample at
-  // a buffer seam.
-  size_t index = decimation_offset_;
+  size_t index = 0;
   size_t filled = 0;
 
   const auto flush = [this, &filled]() {
@@ -97,7 +82,7 @@ bool RawSink::Write(const uint8_t* wire_data, size_t sample_count) {
     return true;
   };
 
-  for (; index < sample_count; index += stride) {
+  for (; index < sample_count; ++index) {
     const uint8_t* const read_pointer = wire_data + (index * kBytesPerSample);
     const uint16_t ten_bit_value = static_cast<uint16_t>(
         static_cast<uint16_t>(read_pointer[0]) |
@@ -115,12 +100,7 @@ bool RawSink::Write(const uint8_t* wire_data, size_t sample_count) {
     }
   }
 
-  if (!flush()) {
-    return false;
-  }
-
-  decimation_offset_ = index - sample_count;
-  return true;
+  return flush();
 }
 
 bool RawSink::Finish() {

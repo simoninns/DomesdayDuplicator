@@ -273,20 +273,16 @@ TEST_F(CaptureSettingsTest, AnUnknownFormatNameReadsAsTheDefault) {
             capture::CaptureOutputFormat::kFlac);
 }
 
-// The test pattern is a ramp checked sample by sample, and a decimated one
-// would read as a break on the first buffer. Test mode captures every sample
-// whatever the setting says, and the interface disables the control to match.
-TEST_F(CaptureSettingsTest, TestModeCapturesEverySampleWhateverWasChosen) {
+// Test mode is not an exception. The gateware generates its pattern downstream
+// of the decimator, so a decimated test capture is an unbroken ramp at the
+// decimated rate and the integrity check covers that path too — which is the
+// half of it a host-side decimator could never have offered, because dropping
+// every second step of a ramp reads as a break.
+TEST_F(CaptureSettingsTest, TestModeDecimatesLikeAnyOtherCapture) {
   CaptureSettings settings;
   settings.decimation_factor = capture::kTapeDecimationFactor;
-  EXPECT_EQ(settings.EffectiveDecimationFactor(),
-            capture::kTapeDecimationFactor);
-
   settings.test_mode = true;
-  EXPECT_EQ(settings.EffectiveDecimationFactor(), capture::kUndecimatedFactor);
 
-  // And the stored choice is still there, so leaving test mode restores it
-  // rather than quietly resetting what the user set.
   EXPECT_EQ(settings.decimation_factor, capture::kTapeDecimationFactor);
 }
 
@@ -306,6 +302,24 @@ TEST_F(CaptureSettingsTest, TheDiskRateFollowsTheFormatAndTheRate) {
 
   settings.decimation_factor = capture::kTapeDecimationFactor;
   EXPECT_DOUBLE_EQ(settings.EstimatedBytesPerSecond(), raw / 2.0);
+}
+
+// Every display that turns samples into time or frequency reads this, so it is
+// worth stating on its own: the spectrum's Nyquist, the scope's time base and
+// the encoder backlog are all properties of the stream and not of the
+// converter.
+TEST_F(CaptureSettingsTest, TheSampleRateFollowsTheDecimation) {
+  CaptureSettings settings;
+  EXPECT_EQ(settings.SampleRateHz(), capture::kSampleRateHz);
+
+  settings.decimation_factor = capture::kTapeDecimationFactor;
+  EXPECT_EQ(settings.SampleRateHz(), 20'000'000U);
+
+  // A factor nothing will ever ask the gateware for falls back to the rate the
+  // device runs at unless it has been told otherwise, rather than dividing the
+  // whole display by it.
+  settings.decimation_factor = 7;
+  EXPECT_EQ(settings.SampleRateHz(), capture::kSampleRateHz);
 }
 
 TEST_F(CaptureSettingsTest, TheGainIsNotPassedToTheEngine) {

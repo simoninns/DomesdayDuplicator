@@ -312,7 +312,7 @@ TEST(RawSinkTest, WhatItWritesIsWhatTheReaderReadsBack) {
 
   {
     RawSink sink;
-    ASSERT_TRUE(sink.Open(file.path(), RawSink::Options{})) << sink.LastError();
+    ASSERT_TRUE(sink.Open(file.path())) << sink.LastError();
     ASSERT_TRUE(sink.Write(wire.data(), values.size())) << sink.LastError();
     ASSERT_TRUE(sink.Finish()) << sink.LastError();
 
@@ -332,119 +332,23 @@ TEST(RawSinkTest, WhatItWritesIsWhatTheReaderReadsBack) {
 // A factor the file cannot describe is refused rather than silently treated as
 // one: a file whose rate disagrees with its contents decodes at the wrong speed
 // with nothing to reveal it.
-TEST(RawSinkTest, AnUnsupportedDecimationFactorIsRefused) {
-  TemporaryFile file(".ddd.s16");
-
-  RawSink sink;
-  RawSink::Options options;
-  options.decimation_factor = 3;
-
-  EXPECT_FALSE(sink.Open(file.path(), options));
-  EXPECT_FALSE(sink.LastError().empty());
-}
-
-// --- Decimation -----------------------------------------------------------
-
-// Every second sample, starting with the first. Plain selection with no filter,
-// which is what gui/ does for its 4:1 CD decimation.
-TEST(DecimationTest, TwoToOneKeepsEverySecondSample) {
-  TemporaryFile file(".ddd.s16");
-
-  const std::vector<uint16_t> values = SampleValues(4096);
-  const std::vector<uint8_t> wire = ToWireBytes(values);
-
-  std::vector<uint16_t> expected;
-  for (size_t i = 0; i < values.size(); i += kTapeDecimationFactor) {
-    expected.push_back(values[i]);
-  }
-
-  {
-    RawSink sink;
-    RawSink::Options options;
-    options.decimation_factor = kTapeDecimationFactor;
-    ASSERT_TRUE(sink.Open(file.path(), options)) << sink.LastError();
-    ASSERT_TRUE(sink.Write(wire.data(), values.size())) << sink.LastError();
-    ASSERT_TRUE(sink.Finish()) << sink.LastError();
-    EXPECT_EQ(sink.SamplesWritten(), expected.size());
-  }
-
-  CaptureReader reader;
-  std::string error;
-  ASSERT_TRUE(
-      reader.Open(file.path(), CaptureReader::Format::kSigned16Bit, error))
-      << error;
-
-  EXPECT_EQ(ReadEverything(reader), expected);
-}
-
-// The seam. A capture arrives as a run of buffers, and a buffer holding an odd
-// number of samples shifts the phase — so a writer that reset it on every call
-// would keep a sample twice, or lose one, at every boundary. Written as three
-// odd-length buffers, which is the shape that catches it.
-TEST(DecimationTest, ThePhaseCarriesAcrossBufferBoundaries) {
-  TemporaryFile flac_file(".ddd.flac");
-  TemporaryFile raw_file(".ddd.s16");
-
-  const std::vector<uint16_t> values = SampleValues(3 * 1001);
-  const std::vector<uint8_t> wire = ToWireBytes(values);
-
-  std::vector<uint16_t> expected;
-  for (size_t i = 0; i < values.size(); i += kTapeDecimationFactor) {
-    expected.push_back(values[i]);
-  }
-
-  constexpr size_t kBuffer = 1001;
-
-  {
-    FlacWriter writer;
-    FlacWriter::Options options;
-    options.compression_level = 0;
-    options.sample_rate_label = FlacSampleRateLabelFor(kTapeDecimationFactor);
-    std::string error;
-    ASSERT_TRUE(writer.Open(flac_file.path(), options, error)) << error;
-
-    for (size_t offset = 0; offset < values.size(); offset += kBuffer) {
-      ASSERT_TRUE(
-          writer.WriteRawDeviceSamples(wire.data() + (offset * kBytesPerSample),
-                                       kBuffer, kTapeDecimationFactor))
-          << writer.LastError();
-    }
-    ASSERT_TRUE(writer.Finish());
-  }
-
-  {
-    RawSink sink;
-    RawSink::Options options;
-    options.decimation_factor = kTapeDecimationFactor;
-    ASSERT_TRUE(sink.Open(raw_file.path(), options)) << sink.LastError();
-    for (size_t offset = 0; offset < values.size(); offset += kBuffer) {
-      ASSERT_TRUE(sink.Write(wire.data() + (offset * kBytesPerSample), kBuffer))
-          << sink.LastError();
-    }
-    ASSERT_TRUE(sink.Finish()) << sink.LastError();
-  }
-
-  CaptureReader flac_reader;
-  std::string error;
-  ASSERT_TRUE(
-      flac_reader.Open(flac_file.path(), CaptureReader::Format::kFlac, error))
-      << error;
-  EXPECT_EQ(ReadEverything(flac_reader), expected);
-
-  CaptureReader raw_reader;
-  ASSERT_TRUE(raw_reader.Open(raw_file.path(),
-                              CaptureReader::Format::kSigned16Bit, error))
-      << error;
-  EXPECT_EQ(ReadEverything(raw_reader), expected);
-}
-
-// A 2:1 capture is a real 20 Msps stream and its header says so, on the same
-// convention as the undecimated label: a reader that took the file at 40 would
-// have it an octave out.
+// The rate label a decimated capture carries. The decimation itself is the
+// gateware's - see fpga/application/halfBandDecimator.v and its testbench -
+// and what is left on this side is stamping the file with the rate the samples
+// arrived at. A reader that took a 2:1 capture at 40 Msps would have it an
+// octave out.
 TEST(DecimationTest, TheRateLabelHalvesWithTheRate) {
   EXPECT_EQ(FlacSampleRateLabelFor(kUndecimatedFactor), kFlacSampleRateLabel);
   EXPECT_EQ(FlacSampleRateLabelFor(kTapeDecimationFactor),
             kFlacSampleRateLabel / 2);
+
+  // And the real rate beside it, which is what the display panels scale by. The
+  // label is a convention FLAC's 20-bit field can hold; this is a measurement,
+  // and the two have to agree about the factor or the file and the screen would
+  // describe different streams.
+  EXPECT_EQ(SampleRateHzFor(kUndecimatedFactor), kSampleRateHz);
+  EXPECT_EQ(SampleRateHzFor(kTapeDecimationFactor), kSampleRateHz / 2);
+  EXPECT_EQ(SampleRateHzFor(3), kSampleRateHz);
 
   TemporaryFile file(".ddd.flac");
   const std::vector<uint16_t> values = SampleValues(4096);
@@ -455,12 +359,16 @@ TEST(DecimationTest, TheRateLabelHalvesWithTheRate) {
   options.sample_rate_label = FlacSampleRateLabelFor(kTapeDecimationFactor);
   std::string error;
   ASSERT_TRUE(writer.Open(file.path(), options, error)) << error;
-  ASSERT_TRUE(writer.WriteRawDeviceSamples(wire.data(), values.size(),
-                                           kTapeDecimationFactor));
+  ASSERT_TRUE(writer.WriteRawDeviceSamples(wire.data(), values.size()));
   ASSERT_TRUE(writer.Finish());
 
+  // Every sample given is encoded. Nothing on this side decimates, so the file
+  // holds exactly what it was handed and the label is the only thing that
+  // changed.
+  EXPECT_EQ(writer.SamplesWritten(), values.size());
+
   // STREAMINFO's sample rate lives in the 20 bits starting 18 bytes past the
-  // "fLaC" marker and the metadata block header — read here rather than through
+  // "fLaC" marker and the metadata block header - read here rather than through
   // the decoder, because the point is what is in the file.
   std::ifstream input(file.path(), std::ios::binary);
   ASSERT_TRUE(input.is_open());
@@ -473,20 +381,6 @@ TEST(DecimationTest, TheRateLabelHalvesWithTheRate) {
   const uint32_t rate = (byte(18) << 12) | (byte(19) << 4) | (byte(20) >> 4);
 
   EXPECT_EQ(rate, kFlacSampleRateLabel / 2);
-}
-
-TEST(DecimationTest, AnUnsupportedFactorIsRefusedByTheWriter) {
-  TemporaryFile file(".ddd.flac");
-
-  const std::vector<uint16_t> values = SampleValues(64);
-  const std::vector<uint8_t> wire = ToWireBytes(values);
-
-  FlacWriter writer;
-  std::string error;
-  ASSERT_TRUE(writer.Open(file.path(), FlacWriter::Options{}, error)) << error;
-
-  EXPECT_FALSE(writer.WriteRawDeviceSamples(wire.data(), values.size(), 3));
-  EXPECT_FALSE(writer.LastError().empty());
 }
 
 TEST(CaptureReaderTest, AnUnsupportedExtensionIsDeclinedRatherThanGuessedAt) {

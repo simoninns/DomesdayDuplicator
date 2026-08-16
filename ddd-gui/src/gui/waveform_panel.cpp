@@ -61,9 +61,12 @@ constexpr double kNominalSnapshotSeconds = 1.0 / 9.0;
 
 }  // namespace
 
-QString FormatWaveformSpan(size_t samples) {
-  const double seconds = static_cast<double>(samples) /
-                         static_cast<double>(capture::kSampleRateHz);
+QString FormatWaveformSpan(size_t samples, uint32_t sample_rate_hz) {
+  if (sample_rate_hz == 0) {
+    sample_rate_hz = capture::kSampleRateHz;
+  }
+  const double seconds =
+      static_cast<double>(samples) / static_cast<double>(sample_rate_hz);
 
   // Significant figures rather than decimal places, so the round spans on offer
   // read as "500 µs" rather than "500.0 µs" without a span that is not round
@@ -86,9 +89,13 @@ QString FormatPersistence(double seconds) {
 }
 
 QString FormatWaveformCursor(qint64 sample_index, double code,
-                             const analysis::FrontEndGain& gain) {
+                             const analysis::FrontEndGain& gain,
+                             uint32_t sample_rate_hz) {
+  if (sample_rate_hz == 0) {
+    sample_rate_hz = capture::kSampleRateHz;
+  }
   const double microseconds = static_cast<double>(sample_index) /
-                              static_cast<double>(capture::kSampleRateHz) * 1e6;
+                              static_cast<double>(sample_rate_hz) * 1e6;
 
   const QString position =
       WaveformPanel::tr("%1 µs").arg(microseconds, 0, 'f', 2);
@@ -169,6 +176,18 @@ void WaveformPlot::SetTriggered(bool enabled) {
   // The accumulated picture was built from sweeps aligned one way and would be
   // meaningless under the other.
   persistence_image_ = QImage();
+  update();
+}
+
+void WaveformPlot::SetSampleRate(uint32_t sample_rate_hz) {
+  if (sample_rate_hz == 0 || sample_rate_hz == sample_rate_hz_) {
+    return;
+  }
+  sample_rate_hz_ = sample_rate_hz;
+
+  // The trace itself is unaffected — it is drawn against sample index, and the
+  // samples are the samples. Only the axis beneath it changes, so this repaints
+  // rather than discarding the sweeps or the accumulated picture.
   update();
 }
 
@@ -522,9 +541,9 @@ void WaveformPlot::paintEvent(QPaintEvent* event) {
     const double fraction = static_cast<double>(step) / kAxisMarks;
     const double x = kScaleWidthPixels +
                      (fraction * static_cast<double>(mapping.width_pixels));
-    const double microseconds =
-        fraction * static_cast<double>(mapping.sample_span) /
-        static_cast<double>(capture::kSampleRateHz) * 1e6;
+    const double microseconds = fraction *
+                                static_cast<double>(mapping.sample_span) /
+                                static_cast<double>(sample_rate_hz_) * 1e6;
 
     // The end labels are pulled inside the plot rather than centred on its
     // edges, where half of each would be off the widget: a time axis whose last
@@ -542,7 +561,8 @@ void WaveformPlot::paintEvent(QPaintEvent* event) {
       alignment = Qt::AlignRight | Qt::AlignTop;
     }
 
-    painter.drawText(box, alignment, tr("%1 µs").arg(microseconds, 0, 'g', 3));
+    painter.drawText(box, static_cast<int>(alignment),
+                     tr("%1 µs").arg(microseconds, 0, 'g', 3));
   }
 }
 
@@ -686,6 +706,7 @@ WaveformPanel::WaveformPanel(CaptureController* controller, QWidget* parent)
 
   if (controller != nullptr) {
     gain_ = controller->settings().DeclaredGain();
+    SetSampleRate(controller->settings().SampleRateHz());
 
     connect(controller->analysis(), &AnalysisWorker::WaveformReady, this,
             &WaveformPanel::OnWaveformReady);
@@ -694,8 +715,34 @@ WaveformPanel::WaveformPanel(CaptureController* controller, QWidget* parent)
     connect(controller, &CaptureController::SettingsChanged, this,
             [this](const CaptureSettings& settings) {
               SetFrontEndGain(settings.DeclaredGain());
+              SetSampleRate(settings.SampleRateHz());
             });
   }
+}
+
+void WaveformPanel::SetSampleRate(uint32_t sample_rate_hz) {
+  if (sample_rate_hz == 0 || sample_rate_hz == plot_->sample_rate_hz()) {
+    return;
+  }
+
+  plot_->SetSampleRate(sample_rate_hz);
+
+  // The choices stay the same counts of samples and are relabelled with the
+  // time each one now covers. Counts rather than times, because the span is
+  // bounded by the snapshot: 20,000 samples is the longest span that still
+  // shows all of what it claims, and holding the times fixed instead would
+  // either exceed that or stop short of it.
+  const QSignalBlocker blocker(span_);
+  const int chosen = span_->currentIndex();
+  span_->clear();
+  for (size_t index = 0; index < analysis::kWaveformSpanChoiceCount; ++index) {
+    const size_t samples = analysis::kWaveformSpanChoices[index];
+    span_->addItem(FormatWaveformSpan(samples, sample_rate_hz),
+                   static_cast<qulonglong>(samples));
+  }
+  span_->setCurrentIndex(chosen);
+
+  ClearCursor();
 }
 
 void WaveformPanel::OnWaveformReady(const std::vector<uint16_t>& codes) {
@@ -727,7 +774,8 @@ void WaveformPanel::ApplyPersistence() {
 }
 
 void WaveformPanel::ShowCursor(qint64 sample_index, double code) {
-  cursor_->setText(FormatWaveformCursor(sample_index, code, gain_));
+  cursor_->setText(
+      FormatWaveformCursor(sample_index, code, gain_, plot_->sample_rate_hz()));
 }
 
 void WaveformPanel::ClearCursor() {

@@ -51,6 +51,7 @@ module tb_spiRegisters;
     wire           spi_miso;
 
     wire           test_mode;
+    wire    [ 7:0] decimation;
     wire    [ 7:0] leds;
 
     // The 0x20 to 0x23 window, which in a real image reaches the flash
@@ -99,6 +100,7 @@ module tb_spiRegisters;
     wire            spi_miso_absent;
     wire            telemetry_latch_absent;
     wire            test_mode_absent;
+    wire    [  7:0] decimation_absent;
     wire    [  7:0] leds_absent;
     wire            window_write_absent;
     wire    [  1:0] window_address_absent;
@@ -106,10 +108,11 @@ module tb_spiRegisters;
     wire            transaction_decoded_absent;
 
     spiRegisters #(
-        .CommitText      (COMMIT_TEXT),
-        .BuildFlags      (BUILD_FLAGS),
-        .ImageRole       (IMAGE_ROLE),
-        .TelemetryPresent(1'b1)
+        .CommitText       (COMMIT_TEXT),
+        .BuildFlags       (BUILD_FLAGS),
+        .ImageRole        (IMAGE_ROLE),
+        .TelemetryPresent (1'b1),
+        .DecimationPresent(1'b1)
     ) dut (
         .reset_n            (reset_n),
         .clock              (clock),
@@ -122,6 +125,7 @@ module tb_spiRegisters;
         .telemetry_geometry (telemetry_geometry),
         .spi_miso           (spi_miso),
         .test_mode          (test_mode),
+        .decimation         (decimation),
         .leds               (leds),
         .window_write       (window_write),
         .window_address     (window_address),
@@ -131,10 +135,11 @@ module tb_spiRegisters;
     );
 
     spiRegisters #(
-        .CommitText      (COMMIT_TEXT),
-        .BuildFlags      (BUILD_FLAGS),
-        .ImageRole       (IMAGE_ROLE),
-        .TelemetryPresent(1'b0)
+        .CommitText       (COMMIT_TEXT),
+        .BuildFlags       (BUILD_FLAGS),
+        .ImageRole        (IMAGE_ROLE),
+        .TelemetryPresent (1'b0),
+        .DecimationPresent(1'b0)
     ) dut_absent (
         .reset_n            (reset_n),
         .clock              (clock),
@@ -147,6 +152,7 @@ module tb_spiRegisters;
         .telemetry_geometry (telemetry_geometry),
         .spi_miso           (spi_miso_absent),
         .test_mode          (test_mode_absent),
+        .decimation         (decimation_absent),
         .leds               (leds_absent),
         .window_write       (window_write_absent),
         .window_address     (window_address_absent),
@@ -343,6 +349,48 @@ module tb_spiRegisters;
         spi_write_one(7'h10, 8'h00);
         check(test_mode, 1'b0, "test mode off after writing 0");
 
+        // --- Decimation ---
+        //
+        // The register holds the factor and reads back what the capture path
+        // is actually doing, which is the whole of how a host finds out
+        // whether this gateware can decimate. Three answers have to be
+        // distinguishable at 0x12: the factor asked for, "every sample"
+        // meaning this gateware cannot do that factor, and zero meaning the
+        // register does not exist. A register that echoed the request would
+        // collapse the first two into each other.
+        check(decimation, 8'h01, "decimation resets to every sample");
+        spi_read(7'h12, 8'd1);
+        check(read_data[0], 8'h01, "decimation reads back its reset value");
+
+        spi_write_one(7'h12, 8'h02);
+        check(decimation, 8'h02, "2:1 decimation selected");
+        spi_read(7'h12, 8'd1);
+        check(read_data[0], 8'h02, "2:1 decimation reads back");
+
+        // A factor this gateware does not implement is normalised to every
+        // sample rather than stored. The host reads back 1, learns that its
+        // request was not honoured, and can say so - where a stored 4 would
+        // have it believe the capture was quarter rate when it was not.
+        spi_write_one(7'h12, 8'h04);
+        check(decimation, 8'h01, "an unsupported factor falls back to every sample");
+        spi_read(7'h12, 8'd1);
+        check(read_data[0], 8'h01, "and reads back as every sample");
+
+        // Zero is not a factor at all. It has to mean the same as one rather
+        // than stopping the capture path, because dividing by it is what the
+        // fabric would otherwise be asked to do.
+        spi_write_one(7'h12, 8'h00);
+        check(decimation, 8'h01, "zero is not a factor and means every sample");
+
+        spi_write_one(7'h12, 8'h02);
+        check(decimation, 8'h02, "and it can be selected again afterwards");
+        spi_write_one(7'h12, 8'h01);
+        check(decimation, 8'h01, "back to every sample");
+
+        // The image without a capture path holds it at every sample whatever
+        // is written, which is what makes the whole register fold away there.
+        check(decimation_absent, 8'h01, "no capture path means no decimation");
+
         // --- LEDs ---
         spi_write_one(7'h11, 8'hA5);
         check(leds, 8'hA5, "LED register drives the LEDs");
@@ -447,6 +495,12 @@ module tb_spiRegisters;
         spi_read(7'h00, 8'd2);
         check(read_data_absent[0], 8'h44, "the ID register without the instrument");
         check(read_data_absent[1], 8'h02, "the map version is unchanged by the window");
+
+        // And the decimation register reads as an unmapped address there, so a
+        // host can tell the two images' banks apart without either of them
+        // bumping the map version.
+        spi_read(7'h12, 8'd1);
+        check(read_data_absent[0], 8'h00, "no decimation register without a capture path");
 
         // --- The 0x20 to 0x23 window ---
         //

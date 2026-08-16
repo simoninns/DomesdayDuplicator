@@ -17,6 +17,7 @@
 #include <memory>
 #include <thread>
 
+#include "capture_format.h"
 #include "capture_pipeline.h"
 #include "front_end_gain.h"
 #include "logger.h"
@@ -404,6 +405,24 @@ TEST(StatisticsPresenterTest, TheEncoderBacklogIsShownAsTimeWhileCapturing) {
   // Time rather than a bare sample count, because the number that matters is
   // how it compares with the ring's own depth.
   EXPECT_TRUE(view.encoder_backlog.contains(QStringLiteral("100.0 ms")))
+      << view.encoder_backlog.toStdString();
+}
+
+TEST(StatisticsPresenterTest, TheBacklogIsMeasuredAtTheRateTheStreamIsRunning) {
+  // The comparison this figure exists for is against the ring's own depth, in
+  // time. A decimated stream puts half as many samples into a second of signal,
+  // so the same count of pending samples is twice the backlog — and a figure
+  // fixed at the converter's rate would report a stalling encoder as coping.
+  capture::CaptureStats stats = RunningStats();
+  stats.writing = true;
+  stats.samples_pending = capture::kSampleRateHz / 10;
+
+  const StatisticsView view = PresentStatistics(
+      stats, Undeclared(), capture::DeviceSpeed::kSuper, {},
+      capture::kEstimatedCaptureBytesPerSecond,
+      capture::SampleRateHzFor(capture::kTapeDecimationFactor));
+
+  EXPECT_TRUE(view.encoder_backlog.contains(QStringLiteral("200.0 ms")))
       << view.encoder_backlog.toStdString();
 }
 

@@ -18,15 +18,13 @@ FlacSink::FlacSink() : writer_(std::make_unique<FlacWriter>()) {}
 FlacSink::~FlacSink() = default;
 
 bool FlacSink::Open(const std::filesystem::path& file_path,
-                    const FlacWriter::Options& options, int decimation_factor) {
+                    const FlacWriter::Options& options) {
   file_path_ = file_path;
-  decimation_factor_ = decimation_factor;
   return writer_->Open(file_path, options, last_error_);
 }
 
 bool FlacSink::Write(const uint8_t* wire_data, size_t sample_count) {
-  if (!writer_->WriteRawDeviceSamples(wire_data, sample_count,
-                                      decimation_factor_)) {
+  if (!writer_->WriteRawDeviceSamples(wire_data, sample_count)) {
     last_error_ = writer_->LastError();
     return false;
   }

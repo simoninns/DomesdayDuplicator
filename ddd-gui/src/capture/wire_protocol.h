@@ -95,6 +95,15 @@ inline constexpr uint8_t kRegisterBuildFlags = 0x02;
 inline constexpr uint8_t kRegisterCommit = 0x03;
 inline constexpr uint8_t kRegisterImageRole = 0x0B;
 inline constexpr uint8_t kRegisterTestMode = 0x10;
+inline constexpr uint8_t kRegisterDecimation = 0x12;
+
+// What the decimation register holds: the factor, not a flag, so that reading
+// it back is a statement of what the capture path is doing rather than an echo
+// of what was asked for. The gateware normalises anything it cannot do to
+// kDecimationEverySample, which is the only value that cannot produce a wrong
+// file.
+inline constexpr uint8_t kDecimationEverySample = 0x01;
+inline constexpr uint8_t kDecimationHalfRate = 0x02;
 
 // The identity block: signature, map version, build flags, eight commit
 // characters and the image role, contiguous so that one request fetches all of
@@ -192,6 +201,11 @@ inline constexpr uint16_t MakeRegisterWrite(uint8_t address, uint8_t value) {
 // Build the wValue that turns the gateware's test pattern on or off.
 inline constexpr uint16_t MakeTestModeWrite(bool test_mode) {
   return MakeRegisterWrite(kRegisterTestMode, test_mode ? 1 : 0);
+}
+
+// Build the wValue that selects the sample rate.
+inline constexpr uint16_t MakeDecimationWrite(uint8_t factor) {
+  return MakeRegisterWrite(kRegisterDecimation, factor);
 }
 
 // The device update agent.

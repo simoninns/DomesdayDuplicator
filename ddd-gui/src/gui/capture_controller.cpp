@@ -193,6 +193,24 @@ void CaptureController::StartMonitoring() {
     return;
   }
 
+  // The sample rate, on the same terms and for the same reason: the gateware
+  // applies it immediately and without acknowledgement, so it is settled
+  // before any data is flowing rather than somewhere unpredictable in it.
+  //
+  // Decimation is the device's to do, not this application's. Halving the rate
+  // means low-passing the signal at 10 MHz first, or everything above that
+  // folds down on top of the signal — and that filter is in the FPGA, where it
+  // costs 13% of the logic and no CPU at all.
+  if (!device_->WriteRegister(
+          path, capture::kRegisterDecimation,
+          static_cast<uint8_t>(settings_.decimation_factor))) {
+    emit Failed(tr("The sample rate could not be set"),
+                tr("The device did not accept the sample-rate request. It may "
+                   "have been unplugged, or another application may be using "
+                   "it."));
+    return;
+  }
+
   capture::TransferResult opened = capture::TransferResult::kConnectionFailure;
   source_ = device_->OpenSource(path, settings_.UsbOptions(), opened);
   if (source_ == nullptr) {
@@ -263,7 +281,7 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
   // something the application can simply do.
   QDir().mkpath(directory);
 
-  const int decimation = settings_.EffectiveDecimationFactor();
+  const int decimation = settings_.decimation_factor;
 
   const std::filesystem::path wanted = capture::BuildCapturePath(
       std::filesystem::path(directory.toStdString()),
@@ -276,11 +294,8 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
   std::string open_error;
 
   if (settings_.output_format == capture::CaptureOutputFormat::kSigned16Bit) {
-    capture::RawSink::Options options;
-    options.decimation_factor = decimation;
-
     auto raw = std::make_unique<capture::RawSink>();
-    if (raw->Open(path, options)) {
+    if (raw->Open(path)) {
       sink = std::move(raw);
     } else {
       open_error = raw->LastError();
@@ -309,7 +324,7 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
     options.tags = capture::BuildProvenanceTags(provenance);
 
     auto flac = std::make_unique<capture::FlacSink>();
-    if (flac->Open(path, options, decimation)) {
+    if (flac->Open(path, options)) {
       sink = std::move(flac);
     } else {
       open_error = flac->LastError();
@@ -421,7 +436,7 @@ void CaptureController::CheckDurationLimit(const capture::CaptureStats& stats) {
   const uint64_t limit_samples =
       static_cast<uint64_t>(settings_.duration_limit_seconds) *
       capture::kSampleRateHz /
-      static_cast<uint64_t>(settings_.EffectiveDecimationFactor());
+      static_cast<uint64_t>(settings_.decimation_factor);
 
   if (stats.samples_written < limit_samples) {
     return;

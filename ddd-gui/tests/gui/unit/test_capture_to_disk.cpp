@@ -541,7 +541,7 @@ TEST_F(CaptureToDiskTest, ADecimatedCaptureHalvesTheFileAndSaysSo) {
   const std::optional<uint64_t> total = reader.TotalSamples();
   ASSERT_TRUE(total.has_value());
   const uint64_t samples_per_buffer = kTestSlotBytes / capture::kBytesPerSample;
-  EXPECT_EQ(*total % (samples_per_buffer / 2), 0U)
+  EXPECT_EQ(total.value_or(0) % (samples_per_buffer / 2), 0U)
       << "a decimated capture did not land on a buffer boundary";
 }
 

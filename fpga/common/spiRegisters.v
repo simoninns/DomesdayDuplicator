@@ -48,6 +48,7 @@ module spiRegisters (
 
     // Register outputs
     output       test_mode,
+    output [7:0] decimation,
     output [7:0] leds,
 
     // The 0x20 to 0x23 window. A write pulses window_write for one clock
@@ -115,6 +116,19 @@ module spiRegisters (
     // away, so the image without it is the image it was before.
     parameter [0:0] TelemetryPresent = 1'b0;
 
+    // Whether this image can decimate the sample stream. Off by default, and
+    // for the same reason and by the same mechanism as TelemetryPresent: the
+    // factory image has no capture path to decimate, so with this off the
+    // register constant-folds away and 0x12 reads zero there, which is what an
+    // unmapped address reads.
+    //
+    // Keeping it out of the factory image is not merely tidy. This file is in
+    // common/, so a change here rebuilds both images, and the factory image
+    // reaches a unit by JTAG and never by an update (fpga/factory/README.md).
+    // A register the recovery image cannot act on has no business being
+    // synthesised into it.
+    parameter [0:0] DecimationPresent = 1'b0;
+
     // The register map this bank implements, reported at 0x01. Version 2
     // adds IMAGE_ROLE and the 0x20 to 0x23 window; everything version 1
     // defined is unchanged, and the identity block is frozen across all
@@ -134,6 +148,17 @@ module spiRegisters (
     // 0x30 window uses, and the reason neither needed a map version.
     localparam [6:0] TelemetryIdAddress = 7'h40;
     localparam [7:0] TelemetryIdValue = 8'hBD;
+
+    // The decimation factors this gateware implements. The register holds the
+    // factor rather than a flag, so that reading it back is a statement of
+    // what the capture path is doing rather than an echo of what was asked
+    // for, and so that a third factor can be a value rather than a second bit.
+    //
+    // Anything else is normalised to EverySample rather than stored. Zero
+    // especially: it is not a factor at all, and the alternative to normalising
+    // it is a capture path asked to divide by it.
+    localparam [7:0] EverySample = 8'h01;
+    localparam [7:0] EverySecondSample = 8'h02;
 
     // Input synchronisers ---------------------------------------------------
 
@@ -192,6 +217,7 @@ module spiRegisters (
     // Register bank ---------------------------------------------------------
 
     reg [7:0] test_mode_register;
+    reg [7:0] decimation_register;
     reg [7:0] led_register;
 
     // Unmapped addresses read as zero. That is what lets the map grow without
@@ -215,6 +241,7 @@ module spiRegisters (
                 7'h0B:   read_register = ImageRole;
                 7'h10:   read_register = test_mode_register;
                 7'h11:   read_register = led_register;
+                7'h12:   read_register = DecimationPresent ? decimation_register : 8'h00;
                 7'h20:   read_register = window_read_data[7:0];
                 7'h21:   read_register = window_read_data[15:8];
                 7'h22:   read_register = window_read_data[23:16];
@@ -292,6 +319,7 @@ module spiRegisters (
     // Any non-zero value means on, so that a host writing 1 and a host writing
     // 0xFF agree about what they asked for
     assign test_mode           = (test_mode_register != 8'h00);
+    assign decimation          = decimation_register;
     assign leds                = led_register;
 
     assign window_write        = window_write_pulse;
@@ -317,6 +345,10 @@ module spiRegisters (
             telemetry_latch_pulse <= 1'b0;
 
             test_mode_register    <= 8'h00;
+
+            // Every sample, which is the only reset value that cannot produce
+            // a file at a rate nobody asked for.
+            decimation_register   <= EverySample;
 
             // One LED lit, which says "configured and running, but the FX3 has
             // not written here yet". An unconfigured FPGA shows none, because
@@ -393,6 +425,17 @@ module spiRegisters (
                             case (address)
                                 7'h10: test_mode_register <= shift_in_next;
                                 7'h11: led_register <= shift_in_next;
+                                7'h12: begin
+                                    // Gated on the parameter so that the image
+                                    // without a capture path holds this at its
+                                    // reset value, which lets the whole
+                                    // register fold away there.
+                                    if (DecimationPresent) begin
+                                        decimation_register <=
+                                            (shift_in_next == EverySecondSample) ?
+                                            EverySecondSample : EverySample;
+                                    end
+                                end
                                 default: begin
                                     if (address_in_window) begin
                                         window_write_pulse   <= 1'b1;

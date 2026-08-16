@@ -84,7 +84,7 @@ double CaptureSettings::EstimatedBytesPerSecond() const {
           ? static_cast<double>(capture::kWireBytesPerSecond)
           : capture::kEstimatedCaptureBytesPerSecond;
 
-  return undecimated / static_cast<double>(EffectiveDecimationFactor());
+  return undecimated / static_cast<double>(decimation_factor);
 }
 
 QString DefaultCaptureDirectory() {

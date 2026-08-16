@@ -22,9 +22,10 @@ the **Name** field is disabled while test mode is ticked: a file called "Blade R
 that turns out to be ramps is a trap that costs somebody an afternoon. The capture's tags
 record `DDD_TEST_MODE` as well, so the file says what it is even after it has been renamed.
 
-**Sample rate** is disabled in test mode, and a test capture always keeps every sample. The
-ramp is checked sample by sample, so a decimated one would read as a break on the first
-buffer — the integrity oracle would fail for a reason that is not a fault.
+**Sample rate** applies here as well, and a decimated test capture is a real test. The
+gateware generates the ramp downstream of the decimator, so at 20 Msps it is still every
+sample plus one — which means the integrity check covers the decimated capture path rather
+than being locked out of it.
 
 Run it for as long as you would run a real capture. A short test proves the first minute of
 a session, which is not the part that fails.

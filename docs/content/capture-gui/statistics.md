@@ -142,6 +142,11 @@ meaningless measurement rather than a good one.
 A steady figure is the encoder keeping pace. One that climbs is the encoder falling behind,
 and the answer to that is a **lower compression level**, not a faster drive.
 
+The time is measured at the rate the stream is running, so it stays comparable with the
+buffer queue's own depth at either
+[sample rate](capture-control.md#sample-rate): a decimated stream puts half as many samples
+into a second of signal, and the same count of them is twice the backlog.
+
 Read together with Buffer queue, the two localise a machine that is struggling:
 
 | Buffer queue | Encoder backlog | The bottleneck is |

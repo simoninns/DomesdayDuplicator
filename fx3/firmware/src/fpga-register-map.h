@@ -33,6 +33,13 @@
 #define FPGA_REGISTER_IMAGE_ROLE        (0x0Bu)
 #define FPGA_REGISTER_TEST_MODE         (0x10u)
 #define FPGA_REGISTER_LED               (0x11u)
+#define FPGA_REGISTER_DECIMATION        (0x12u)
+
+// Decimation factors. The register holds the factor rather than a flag, so
+// reading it back says what the capture path is doing rather than echoing what
+// was asked for.
+#define FPGA_DECIMATION_EVERY_SAMPLE    (0x01u)
+#define FPGA_DECIMATION_HALF_RATE       (0x02u)
 
 // Map version 2's flash bridge and reconfiguration control. These are the
 // only registers whose writes have an effect outside the register bank:

@@ -162,9 +162,14 @@ double StatisticsPanel::EstimatedBytesPerSecond() const {
              : capture::kEstimatedCaptureBytesPerSecond;
 }
 
+uint32_t StatisticsPanel::SampleRateHz() const {
+  return controller_ != nullptr ? controller_->settings().SampleRateHz()
+                                : capture::kSampleRateHz;
+}
+
 void StatisticsPanel::OnStatsUpdated(const ddd::capture::CaptureStats& stats) {
   Apply(PresentStatistics(stats, declared_gain_, link_, destination_space_,
-                          EstimatedBytesPerSecond()));
+                          EstimatedBytesPerSecond(), SampleRateHz()));
 }
 
 void StatisticsPanel::OnMonitoringChanged(bool monitoring) {

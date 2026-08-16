@@ -11,8 +11,10 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -69,6 +71,11 @@ class FakeUsbDevice : public IUsbDevice {
     configured_path_ = path;
     written_register_ = address;
     written_value_ = value;
+
+    // Kept per address as well as as a "most recent", because opening the
+    // device now writes more than one register and a test asking what test
+    // mode was set to must not be answered with whatever was written after it.
+    written_registers_[address] = value;
     return !configuration_fails_;
   }
 
@@ -236,7 +243,17 @@ class FakeUsbDevice : public IUsbDevice {
   }
   bool configured_test_mode() const {
     const std::lock_guard<std::mutex> guard(mutex_);
-    return written_register_ == kRegisterTestMode && written_value_ != 0;
+    const auto found = written_registers_.find(kRegisterTestMode);
+    return found != written_registers_.end() && found->second != 0;
+  }
+
+  // What was last written to a register, or nothing if it was never written.
+  std::optional<uint8_t> written_to(uint8_t address) const {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    const auto found = written_registers_.find(address);
+    return found == written_registers_.end()
+               ? std::nullopt
+               : std::optional<uint8_t>(found->second);
   }
   uint64_t register_read_count() const {
     const std::lock_guard<std::mutex> guard(mutex_);
@@ -276,6 +293,7 @@ class FakeUsbDevice : public IUsbDevice {
   std::string read_path_;
   uint8_t written_register_ = 0;
   uint8_t written_value_ = 0;
+  std::map<uint8_t, uint8_t> written_registers_;
   UsbSourceOptions opened_options_;
 };
 
