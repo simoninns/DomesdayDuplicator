@@ -30,6 +30,17 @@ namespace ddd::gui {
 
 class CaptureController;
 
+// The waterfall's colour scale, as the two figures a user sets.
+//
+// A full-scale reference and a hundred decibels of range is the whole of what
+// the converter can represent, and it is the right default because it makes no
+// assumption about the signal. It is often not what you want to look at: the
+// texture that distinguishes a healthy capture from a marginal one lives in a
+// thirty-decibel slice somewhere in the middle, and spread over a hundred that
+// slice is three shades of one colour.
+inline constexpr double kDefaultSpectrogramReferenceDb = 0.0;
+inline constexpr double kDefaultSpectrogramRangeDb = 100.0;
+
 // How the frequency content is drawn.
 enum class SpectrumView {
   // Log magnitude against frequency: what is there now.
@@ -46,10 +57,20 @@ class SpectrumPlot : public QWidget {
  public:
   explicit SpectrumPlot(QWidget* parent = nullptr);
 
+  // The trace draws the averaged levels and their peak hold; the spectrogram
+  // records snapshot_db, which is this transform alone. Passing one vector for
+  // both would put the trace's averaging into the waterfall's time axis.
   void SetSpectrum(const std::vector<double>& magnitudes_db,
-                   const std::vector<double>& peak_hold_db);
+                   const std::vector<double>& peak_hold_db,
+                   const std::vector<double>& snapshot_db);
   void SetPeakHoldVisible(bool visible);
   void SetView(SpectrumView view);
+
+  // The top of the spectrogram's colour scale, and how far below it the scale
+  // reaches. History is held as levels, so moving either re-colours every row
+  // already on screen rather than only the rows drawn after the change.
+  void SetSpectrogramReference(double reference_db);
+  void SetSpectrogramRange(double range_db);
 
   // The top of the displayed range. History is kept across the whole span the
   // converter reaches, so narrowing this re-draws what is already held at
@@ -68,6 +89,8 @@ class SpectrumPlot : public QWidget {
   SpectrumView view() const { return view_; }
   double maximum_frequency_hz() const { return maximum_frequency_hz_; }
   analysis::FrequencyScale frequency_scale() const { return scale_; }
+  double spectrogram_reference_db() const { return reference_db_; }
+  double spectrogram_range_db() const { return range_db_; }
 
   // The mapping the trace, the waterfall, the grid and both cursors all share.
   analysis::FrequencyAxis Axis() const;
@@ -84,6 +107,11 @@ class SpectrumPlot : public QWidget {
   void paintEvent(QPaintEvent* event) override;
   void mouseMoveEvent(QMouseEvent* event) override;
   void leaveEvent(QEvent* event) override;
+
+  // A theme change re-colours every row already held. Without this the
+  // waterfall keeps the old palette until the next frame arrives, which during
+  // a run is a tenth of a second and after one is for ever.
+  void changeEvent(QEvent* event) override;
 
  private:
   // The plot area, excluding the axis labels this widget draws itself.
@@ -106,6 +134,31 @@ class SpectrumPlot : public QWidget {
                             const analysis::FrequencyAxis& axis, int column,
                             int columns);
 
+  // Where a level sits on the waterfall's colour scale, 0 at the bottom of the
+  // displayed range and 1 at the reference.
+  double SpectrogramProportion(double level_db) const;
+
+  // The band range each pixel row of the waterfall covers. Worked out once per
+  // rebuild rather than per column, because it depends only on the height and
+  // the axis and both are fixed for the life of the picture.
+  struct BandRange {
+    size_t first = 0;
+    size_t last = 0;
+  };
+
+  void MapSpectrogramRows(int height);
+
+  // Colour one held frame into one pixel column.
+  void RenderSpectrogramColumn(int column, size_t frame, bool dark);
+
+  // Re-colour every frame the history holds, into the right-hand end of the
+  // picture. For a resize, a scale change, a contrast change or a theme change.
+  void RebuildSpectrogram(int height, bool dark);
+
+  // Shift the picture left and colour the newest frames in at the right. What
+  // an ordinary frame costs: one column rather than all three hundred.
+  void ScrollSpectrogram(int columns, bool dark);
+
   std::vector<double> magnitudes_db_;
   std::vector<double> peak_hold_db_;
   bool peak_hold_visible_ = true;
@@ -113,6 +166,9 @@ class SpectrumPlot : public QWidget {
   SpectrumView view_ = SpectrumView::kTrace;
   double maximum_frequency_hz_ = analysis::kDefaultMaximumFrequencyHz;
   analysis::FrequencyScale scale_ = analysis::FrequencyScale::kLogarithmic;
+
+  double reference_db_ = kDefaultSpectrogramReferenceDb;
+  double range_db_ = kDefaultSpectrogramRangeDb;
 
   analysis::SpectrogramHistory history_;
 
@@ -123,13 +179,22 @@ class SpectrumPlot : public QWidget {
   // the run was started with.
   QElapsedTimer clock_;
 
-  // The history rendered at one pixel per cell, scaled to the plot when drawn.
-  // Rebuilt rather than scrolled, because a theme change and a change of
-  // frequency range both re-colour every row that is already held — and at
-  // 1,024 by 300 cells nine times a second that is a rounding error against the
-  // transform that produced them.
+  // The waterfall, one pixel column per frame and one pixel row per row of the
+  // plot, held at the history's full capacity and drawn from its right-hand
+  // end. Frames arrive one at a time and the picture is scrolled to match, so
+  // the ordinary case costs one column of colour; the whole thing is re-made
+  // only when something changes what a level looks like or where a frequency
+  // sits, and the history is kept as levels precisely so that it can be.
   QImage spectrogram_;
+  std::vector<BandRange> spectrogram_rows_;
   bool spectrogram_valid_ = false;
+
+  // Frames appended since the picture was last brought up to date. Counted
+  // rather than applied on arrival because the colour scheme and the plot's
+  // height are painting concerns and are only known to be current at paint
+  // time — and because a widget nobody is looking at should not be colouring
+  // pixels at nine frames a second.
+  int pending_frames_ = 0;
 };
 
 // The spectrum panel: the plot, the averaging control, peak hold and a
@@ -153,6 +218,8 @@ class SpectrumPanel : public QWidget {
       "spectrum_maximum_frequency_combo";
   static constexpr const char* kLogFrequencyBoxName =
       "spectrum_log_frequency_box";
+  static constexpr const char* kReferenceComboName = "spectrum_reference_combo";
+  static constexpr const char* kRangeComboName = "spectrum_range_combo";
 
  signals:
   // How much time the spectrogram is showing, once it has measured its own
@@ -162,13 +229,15 @@ class SpectrumPanel : public QWidget {
 
  public slots:
   void OnSpectrumReady(const std::vector<double>& magnitudes_db,
-                       const std::vector<double>& peak_hold_db);
+                       const std::vector<double>& peak_hold_db,
+                       const std::vector<double>& snapshot_db);
   void OnMonitoringChanged(bool monitoring);
 
  private:
   void ApplyAveraging();
   void ApplyResolution();
   void ApplyFrequencyScale(bool logarithmic);
+  void ApplyContrast();
   void ShowCursor(double frequency_hz, double level_db, double seconds_ago);
   void ClearCursor();
 
@@ -187,8 +256,15 @@ class SpectrumPanel : public QWidget {
   QComboBox* resolution_ = nullptr;
   QComboBox* averaging_ = nullptr;
   QCheckBox* log_frequency_ = nullptr;
+  QComboBox* reference_ = nullptr;
+  QComboBox* range_ = nullptr;
   QCheckBox* peak_hold_ = nullptr;
   QPushButton* reset_ = nullptr;
+
+  // The labels beside the two contrast combos, kept so that they can be shown
+  // and hidden with the controls they name.
+  QLabel* reference_label_ = nullptr;
+  QLabel* range_label_ = nullptr;
   QLabel* cursor_ = nullptr;
 };
 

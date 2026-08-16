@@ -445,6 +445,46 @@ TEST(SpectrumAnalyserTest, AveragingMovesTowardsTheNewLevelRatherThanJumping) {
   EXPECT_GT(second, quiet_level);
 }
 
+TEST(SpectrumAnalyserTest, TheSnapshotLevelsAreNotAveragedAcrossSnapshots) {
+  // The trace wants a steady reading and the spectrogram wants a truthful one.
+  // These are the same transform reported both ways: the averaged levels the
+  // trace draws, and this snapshot on its own for the row a waterfall records.
+  SpectrumAnalyser::Options options = InstantOptions();
+  options.averaging = 0.8;
+  SpectrumAnalyser analyser(options);
+
+  const std::vector<uint16_t> loud = MakeTone(200, kAdcMidScaleCode / 2.0);
+  const std::vector<uint16_t> quiet = MakeTone(200, kAdcMidScaleCode / 16.0);
+
+  ASSERT_TRUE(analyser.Analyse(loud.data(), loud.size()));
+  ASSERT_TRUE(analyser.Analyse(quiet.data(), quiet.size()));
+
+  const double quiet_level = 20.0 * std::log10(1.0 / 16.0);
+
+  // The trace is still most of the way back at the loud reading, which is what
+  // averaging is for.
+  EXPECT_GT(analyser.magnitudes_db()[200], quiet_level + 10.0);
+
+  // The snapshot is where the signal actually is, with nothing of the previous
+  // one left in it.
+  EXPECT_NEAR(analyser.snapshot_db()[200], quiet_level, 0.05);
+}
+
+TEST(SpectrumAnalyserTest, WithNoAveragingBothReadingsAgree) {
+  // There is nothing to tell apart when the filter is off, and a difference
+  // here would mean the two had drifted into measuring different things.
+  SpectrumAnalyser analyser(InstantOptions());
+
+  const std::vector<uint16_t> tone = MakeTone(200, kAdcMidScaleCode / 2.0);
+  ASSERT_TRUE(analyser.Analyse(tone.data(), tone.size()));
+
+  ASSERT_EQ(analyser.snapshot_db().size(), analyser.magnitudes_db().size());
+  for (size_t bin = 0; bin < analyser.bin_count(); ++bin) {
+    EXPECT_DOUBLE_EQ(analyser.snapshot_db()[bin], analyser.magnitudes_db()[bin])
+        << "bin " << bin;
+  }
+}
+
 TEST(SpectrumAnalyserTest, ResettingForgetsBothTheAverageAndThePeak) {
   SpectrumAnalyser analyser(InstantOptions());
 

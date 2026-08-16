@@ -99,7 +99,8 @@ void SnapshotAnalyser::Poll() {
   emit WaveformReady(codes_);
 
   if (spectrum_.Analyse(codes_.data(), codes_.size())) {
-    emit SpectrumReady(spectrum_.magnitudes_db(), spectrum_.peak_hold_db());
+    emit SpectrumReady(spectrum_.magnitudes_db(), spectrum_.peak_hold_db(),
+                       spectrum_.snapshot_db());
   }
 }
 

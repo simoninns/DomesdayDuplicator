@@ -54,6 +54,7 @@ SpectrumAnalyser::SpectrumAnalyser(const Options& options) : options_(options) {
   average_power_.assign(bins, 0.0);
   magnitudes_db_.assign(bins, kFloorDecibels);
   peak_hold_db_.assign(bins, kFloorDecibels);
+  snapshot_db_.assign(bins, kFloorDecibels);
 }
 
 void SpectrumAnalyser::BuildWindow() {
@@ -133,6 +134,11 @@ bool SpectrumAnalyser::Analyse(const uint16_t* codes, size_t count) {
   for (size_t bin = 0; bin < bins; ++bin) {
     const double power = segment_power_[bin] * per_segment;
 
+    // Kept before the filter below touches it, because once a level has been
+    // averaged against the snapshots before it there is no recovering what this
+    // one measured.
+    snapshot_db_[bin] = PowerToDecibels(power);
+
     if (!have_average_ || options_.averaging <= 0.0) {
       average_power_[bin] = power;
     } else {
@@ -158,6 +164,7 @@ void SpectrumAnalyser::Reset() {
   segment_count_ = 0;
   std::fill(average_power_.begin(), average_power_.end(), 0.0);
   std::fill(magnitudes_db_.begin(), magnitudes_db_.end(), kFloorDecibels);
+  std::fill(snapshot_db_.begin(), snapshot_db_.end(), kFloorDecibels);
   ResetPeakHold();
 }
 

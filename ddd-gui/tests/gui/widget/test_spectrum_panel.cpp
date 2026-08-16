@@ -94,7 +94,7 @@ void FeedCarrier(SpectrumPanel& panel, size_t bin, int frames) {
   for (int frame = 0; frame < frames; ++frame) {
     std::vector<double> magnitudes(bins, -80.0);
     magnitudes[bin] = -6.0;
-    panel.OnSpectrumReady(magnitudes, magnitudes);
+    panel.OnSpectrumReady(magnitudes, magnitudes, magnitudes);
     panel.grab();
   }
 }
@@ -207,7 +207,8 @@ TEST(SpectrumPanelTest, ChangingTheResolutionChangesHowManyBinsArriveAndDraws) {
   auto* const plot = Named<SpectrumPlot>(panel, SpectrumPanel::kPlotName);
 
   const size_t wide = (analysis::kDefaultTransformSize / 2) + 1;
-  panel.OnSpectrumReady(Levels(wide, -40.0), Levels(wide, -30.0));
+  panel.OnSpectrumReady(Levels(wide, -40.0), Levels(wide, -30.0),
+                        Levels(wide, -40.0));
   EXPECT_FALSE(panel.grab().isNull());
 
   resolution->setCurrentIndex(resolution->count() - 1);
@@ -217,7 +218,8 @@ TEST(SpectrumPanelTest, ChangingTheResolutionChangesHowManyBinsArriveAndDraws) {
                                        1] /
        2) +
       1;
-  panel.OnSpectrumReady(Levels(narrow, -40.0), Levels(narrow, -30.0));
+  panel.OnSpectrumReady(Levels(narrow, -40.0), Levels(narrow, -30.0),
+                        Levels(narrow, -40.0));
 
   EXPECT_FALSE(panel.grab().isNull());
 
@@ -304,7 +306,7 @@ TEST(SpectrumPanelTest, TheCursorReadsTheLevelThatWasDrawnUnderIt) {
 
   std::vector<double> magnitudes(bins, -80.0);
   magnitudes[kCarrierBin] = -6.0;
-  panel.OnSpectrumReady(magnitudes, magnitudes);
+  panel.OnSpectrumReady(magnitudes, magnitudes, magnitudes);
 
   QSignalSpy moved(plot, &SpectrumPlot::CursorMoved);
   ASSERT_TRUE(moved.isValid());
@@ -346,6 +348,180 @@ TEST(SpectrumPanelTest, TheCursorReadsTheLevelThatWasDrawnUnderIt) {
   EXPECT_NEAR(reading.at(1).toDouble(), -6.0, 0.01)
       << "the cursor read " << reading.at(1).toDouble()
       << " dB where the trace drew the carrier at -6 dB";
+}
+
+TEST(SpectrumPanelTest, TheSpectrogramRecordsTheSnapshotNotTheAveragedTrace) {
+  // The defect this is here for: rows used to be appended from the same vector
+  // the trace draws, which is averaged across snapshots. At the heavy setting
+  // that filter's time constant is most of a second — a third of a minute-wide
+  // waterfall — so a transient was smeared across several rows of a display
+  // whose whole purpose is saying when things happened.
+  SpectrumPanel panel(nullptr);
+  panel.resize(600, 300);
+
+  auto* const plot = Named<SpectrumPlot>(panel, SpectrumPanel::kPlotName);
+  const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
+
+  // What an averaged trace and an unaveraged snapshot look like when a
+  // transient has just arrived: the trace has barely moved, the snapshot is all
+  // the way up.
+  const std::vector<double> smoothed = Levels(bins, -70.0);
+  const std::vector<double> measured = Levels(bins, -10.0);
+
+  panel.OnSpectrumReady(smoothed, smoothed, measured);
+
+  ASSERT_EQ(plot->history().size(), 1U);
+  EXPECT_NEAR(plot->history().At(0, 100), -10.0, 0.001)
+      << "the row recorded the trace's averaged level, not the snapshot's";
+}
+
+TEST(SpectrumPanelTest, TheContrastControlsBelongToTheSpectrogramAlone) {
+  SpectrumPanel panel(nullptr);
+
+  auto* const view = Named<QComboBox>(panel, SpectrumPanel::kViewComboName);
+  auto* const reference =
+      Named<QComboBox>(panel, SpectrumPanel::kReferenceComboName);
+  auto* const range = Named<QComboBox>(panel, SpectrumPanel::kRangeComboName);
+  auto* const plot = Named<SpectrumPlot>(panel, SpectrumPanel::kPlotName);
+  ASSERT_NE(reference, nullptr);
+  ASSERT_NE(range, nullptr);
+
+  // The full span of what the converter can represent, which assumes nothing
+  // about the signal.
+  EXPECT_DOUBLE_EQ(plot->spectrogram_reference_db(),
+                   kDefaultSpectrogramReferenceDb);
+  EXPECT_DOUBLE_EQ(plot->spectrogram_range_db(), kDefaultSpectrogramRangeDb);
+
+  // Offered in the view they colour, and not in the one drawn as a line.
+  EXPECT_FALSE(reference->isEnabled());
+  view->setCurrentIndex(1);
+  EXPECT_TRUE(reference->isEnabled());
+  EXPECT_TRUE(range->isEnabled());
+
+  reference->setCurrentIndex(2);
+  range->setCurrentIndex(2);
+  EXPECT_DOUBLE_EQ(plot->spectrogram_reference_db(), -20.0);
+  EXPECT_DOUBLE_EQ(plot->spectrogram_range_db(), 40.0);
+}
+
+TEST(SpectrumPanelTest, NarrowingTheRangeBringsOutWhatWasAWashOfOneColour) {
+  // History is kept as levels rather than as a picture precisely so that this
+  // works: moving the scale re-colours every row already on screen, including
+  // the ones recorded before the control was touched.
+  SpectrumPanel panel(nullptr);
+  panel.resize(600, 300);
+  Named<QComboBox>(panel, SpectrumPanel::kViewComboName)->setCurrentIndex(1);
+
+  const bool dark = theme_tokens::IsDarkPalette(panel.palette());
+
+  // A carrier well down the scale. Across a hundred decibels from full scale it
+  // sits two thirds of the way up the ramp — coloured, but nowhere near what a
+  // strong signal gets, which is the whole complaint about a fixed range.
+  const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
+  for (int frame = 0; frame < 30; ++frame) {
+    std::vector<double> magnitudes(bins, -95.0);
+    magnitudes[800] = -32.0;
+    panel.OnSpectrumReady(magnitudes, magnitudes, magnitudes);
+    panel.grab();
+  }
+
+  EXPECT_EQ(BrightestRow(panel.grab().toImage(), dark), -1)
+      << "a -32 dB carrier already reads as full scale across a 100 dB range";
+
+  // Reference -30 and a 20 dB range puts the scale at -50 to -30, where the
+  // same carrier is near the top of it.
+  Named<QComboBox>(panel, SpectrumPanel::kReferenceComboName)
+      ->setCurrentIndex(3);
+  Named<QComboBox>(panel, SpectrumPanel::kRangeComboName)->setCurrentIndex(3);
+
+  EXPECT_GE(BrightestRow(panel.grab().toImage(), dark), 0)
+      << "narrowing the scale did not re-colour the rows already held";
+}
+
+TEST(SpectrumPanelTest, ScrollingTheWaterfallDrawsWhatRebuildingItWould) {
+  // Frames arrive one at a time and the picture is scrolled to match, which is
+  // what keeps an ordinary frame down to one column of colouring. The whole
+  // optimisation is only sound if it cannot drift from the picture a full
+  // rebuild would produce, so this draws both and compares them pixel for
+  // pixel.
+  SpectrumPanel panel(nullptr);
+  panel.resize(600, 300);
+  Named<QComboBox>(panel, SpectrumPanel::kViewComboName)->setCurrentIndex(1);
+
+  const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
+  const auto feed = [&](int frame) {
+    std::vector<double> magnitudes(bins, -80.0);
+    magnitudes[600 + (frame * 4)] = -12.0;
+    panel.OnSpectrumReady(magnitudes, magnitudes, magnitudes);
+  };
+
+  // Painted between every frame, so the picture scrolls one column at a time.
+  for (int frame = 0; frame < 20; ++frame) {
+    feed(frame);
+    panel.grab();
+  }
+
+  // And then in batches, which is what a widget nobody is looking at does: the
+  // frames still arrive, the painting does not, and the scroll has to catch up
+  // several columns at once. A one-column-at-a-time test never reaches that
+  // path, and an off-by-one in it would look identical.
+  for (int batch = 0; batch < 4; ++batch) {
+    for (int step = 0; step < 5; ++step) {
+      feed(20 + (batch * 5) + step);
+    }
+    panel.grab();
+  }
+
+  const QImage scrolled = panel.grab().toImage();
+
+  // Not a blank picture compared against another blank one.
+  ASSERT_GE(
+      BrightestRow(scrolled, theme_tokens::IsDarkPalette(panel.palette())), 0);
+
+  // Force the picture to be made again from the history, by moving the axis
+  // away and back. Nothing about the data changes.
+  auto* const log =
+      Named<QCheckBox>(panel, SpectrumPanel::kLogFrequencyBoxName);
+  log->setChecked(false);
+  panel.grab();
+  log->setChecked(true);
+
+  const QImage rebuilt = panel.grab().toImage();
+
+  EXPECT_EQ(scrolled, rebuilt)
+      << "the scrolled picture and the rebuilt one differ: the incremental "
+         "path has drifted from what the history says";
+}
+
+TEST(SpectrumPanelTest, AThemeChangeRecoloursTheRowsAlreadyHeld) {
+  // A run that has finished leaves its spectrogram on screen to be looked at.
+  // Without this the picture keeps the palette it was coloured in, for ever —
+  // there is no next frame coming to invalidate it.
+  SpectrumPanel panel(nullptr);
+  panel.resize(600, 300);
+  Named<QComboBox>(panel, SpectrumPanel::kViewComboName)->setCurrentIndex(1);
+
+  const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
+  for (int frame = 0; frame < 30; ++frame) {
+    std::vector<double> magnitudes(bins, -80.0);
+    magnitudes[800] = -6.0;
+    panel.OnSpectrumReady(magnitudes, magnitudes, magnitudes);
+    panel.grab();
+  }
+
+  const QImage before = panel.grab().toImage();
+
+  // The other theme, and no new frames at all.
+  QPalette swapped = panel.palette();
+  const bool dark = theme_tokens::IsDarkPalette(panel.palette());
+  swapped.setColor(QPalette::Window,
+                   dark ? QColor(245, 245, 245) : QColor(30, 30, 30));
+  swapped.setColor(QPalette::Base,
+                   dark ? QColor(255, 255, 255) : QColor(20, 20, 20));
+  panel.setPalette(swapped);
+
+  EXPECT_NE(before, panel.grab().toImage())
+      << "the spectrogram kept the old theme's colours";
 }
 
 TEST(SpectrumPanelTest, PeakHoldIsOnByDefaultAndCanBeTurnedOff) {
@@ -445,7 +621,8 @@ TEST(SpectrumPanelTest, TheSpectrogramRecordsWhicheverViewIsShowing) {
 
   const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
   for (int frame = 0; frame < 5; ++frame) {
-    panel.OnSpectrumReady(Levels(bins, -40.0), Levels(bins, -30.0));
+    panel.OnSpectrumReady(Levels(bins, -40.0), Levels(bins, -30.0),
+                          Levels(bins, -40.0));
   }
 
   EXPECT_EQ(plot->history().size(), 5U);
@@ -456,7 +633,8 @@ TEST(SpectrumPanelTest, StartingARunClearsTheSpectrogramToo) {
   panel.resize(600, 300);
 
   const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
-  panel.OnSpectrumReady(Levels(bins, -40.0), Levels(bins, -30.0));
+  panel.OnSpectrumReady(Levels(bins, -40.0), Levels(bins, -30.0),
+                        Levels(bins, -40.0));
   ASSERT_FALSE(
       Named<SpectrumPlot>(panel, SpectrumPanel::kPlotName)->history().empty());
 
@@ -477,7 +655,7 @@ TEST(SpectrumPanelTest, TheSpectrogramPaintsEmptyAndFull) {
   for (int frame = 0; frame < 20; ++frame) {
     std::vector<double> magnitudes = Levels(bins, -80.0);
     magnitudes[800 + frame] = -6.0;
-    panel.OnSpectrumReady(magnitudes, Levels(bins, -70.0));
+    panel.OnSpectrumReady(magnitudes, Levels(bins, -70.0), magnitudes);
     panel.grab();
   }
 
@@ -568,7 +746,7 @@ TEST(SpectrumPanelTest, ThePanelPaintsASpectrum) {
   std::vector<double> magnitudes = Levels(bins, -80.0);
   magnitudes[800] = -6.0;
 
-  panel.OnSpectrumReady(magnitudes, Levels(bins, -70.0));
+  panel.OnSpectrumReady(magnitudes, Levels(bins, -70.0), magnitudes);
 
   EXPECT_FALSE(panel.grab().isNull());
 }
@@ -578,7 +756,8 @@ TEST(SpectrumPanelTest, StartingARunClearsTheOldSpectrum) {
   panel.resize(600, 300);
 
   const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
-  panel.OnSpectrumReady(Levels(bins, -20.0), Levels(bins, -10.0));
+  panel.OnSpectrumReady(Levels(bins, -20.0), Levels(bins, -10.0),
+                        Levels(bins, -20.0));
   panel.OnMonitoringChanged(true);
 
   EXPECT_FALSE(panel.grab().isNull());

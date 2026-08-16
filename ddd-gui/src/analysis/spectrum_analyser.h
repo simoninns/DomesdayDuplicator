@@ -135,10 +135,24 @@ class SpectrumAnalyser {
   bool Analyse(const uint16_t* codes, size_t count);
 
   // Levels in dB relative to a full-scale sine, one per bin from DC upwards.
+  //
+  // Averaged across snapshots as well as across segments, by the exponential
+  // filter in Options::averaging. This is the trace's reading: held still
+  // enough to read a weak carrier off.
   const std::vector<double>& magnitudes_db() const { return magnitudes_db_; }
 
   // The highest level each bin has reached since the peak hold was last reset.
   const std::vector<double>& peak_hold_db() const { return peak_hold_db_; }
+
+  // This snapshot's own estimate, with no averaging across snapshots at all —
+  // the segments of one 819 µs window and nothing else.
+  //
+  // What a spectrogram records. Its rows are moments, and a row that had been
+  // smoothed against the rows before it would smear a transient across several
+  // of them: at heavy averaging the filter's time constant is most of a second,
+  // which is a third of a minute-wide waterfall. An interferer that appeared
+  // once has to be one sharp row, whatever the trace beside it is set to.
+  const std::vector<double>& snapshot_db() const { return snapshot_db_; }
 
   // transform_size / 2 + 1 — the bins a real input produces, DC to Nyquist.
   size_t bin_count() const { return magnitudes_db_.size(); }
@@ -208,6 +222,7 @@ class SpectrumAnalyser {
 
   std::vector<double> magnitudes_db_;
   std::vector<double> peak_hold_db_;
+  std::vector<double> snapshot_db_;
 };
 
 }  // namespace ddd::analysis

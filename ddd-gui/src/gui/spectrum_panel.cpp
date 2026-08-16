@@ -21,6 +21,7 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 #include "capture_controller.h"
 #include "sample_format.h"
@@ -82,6 +83,32 @@ constexpr AveragingChoice kAveragingChoices[] = {
     {"Light", 0.3},
     {"Medium (default)", 0.6},
     {"Heavy — slow and steady", 0.85},
+};
+
+struct ContrastChoice {
+  const char* label;
+  double decibels;
+};
+
+// The top of the waterfall's colour scale. Below full scale is the useful part
+// of this list: a LaserDisc carrier rarely reaches -10 dBFS, so a reference set
+// there spends none of the ramp on levels the signal never gets to.
+constexpr ContrastChoice kReferenceChoices[] = {
+    {"0 dBFS", 0.0},
+    {"-10 dBFS", -10.0},
+    {"-20 dBFS", -20.0},
+    {"-30 dBFS", -30.0},
+};
+
+// And how far below the reference the scale reaches. The narrow settings are
+// what turn a wash of one colour into visible texture — the difference between
+// a healthy noise floor and a marginal one is a few decibels, and across a
+// hundred that is two shades of the same blue.
+constexpr ContrastChoice kRangeChoices[] = {
+    {"100 dB", 100.0},
+    {"60 dB", 60.0},
+    {"40 dB", 40.0},
+    {"20 dB", 20.0},
 };
 
 // A gridline interval that divides the window into a readable number of steps
@@ -179,7 +206,8 @@ SpectrumPlot::SpectrumPlot(QWidget* parent) : QWidget(parent) {
 }
 
 void SpectrumPlot::SetSpectrum(const std::vector<double>& magnitudes_db,
-                               const std::vector<double>& peak_hold_db) {
+                               const std::vector<double>& peak_hold_db,
+                               const std::vector<double>& snapshot_db) {
   magnitudes_db_ = magnitudes_db;
   peak_hold_db_ = peak_hold_db;
 
@@ -187,13 +215,20 @@ void SpectrumPlot::SetSpectrum(const std::vector<double>& magnitudes_db,
     clock_.start();
   }
 
+  // This snapshot's own levels, not the averaged ones the trace draws. A row of
+  // a spectrogram is a moment, and averaging belongs to the trace alone.
+  //
   // Recorded whichever view is showing. The spectrogram is a record of the run
   // rather than of the time the user spent looking at it, so switching to it
   // shows what has happened rather than starting again from the moment it was
   // asked for.
-  history_.Append(magnitudes_db_,
-                  static_cast<double>(clock_.elapsed()) / 1000.0);
-  spectrogram_valid_ = false;
+  history_.Append(snapshot_db, static_cast<double>(clock_.elapsed()) / 1000.0);
+
+  // Counted, not drawn. What the new row looks like depends on the theme and on
+  // how tall the plot is, and paint time is where both are known to be current.
+  if (pending_frames_ < static_cast<int>(history_.rows())) {
+    ++pending_frames_;
+  }
 
   update();
 }
@@ -221,6 +256,32 @@ analysis::FrequencyAxis SpectrumPlot::Axis() const {
   return analysis::FrequencyAxis(scale_, maximum_frequency_hz_);
 }
 
+void SpectrumPlot::SetSpectrogramReference(double reference_db) {
+  reference_db_ = std::clamp(reference_db, kBottomDecibels, kTopDecibels);
+  spectrogram_valid_ = false;
+  update();
+}
+
+void SpectrumPlot::SetSpectrogramRange(double range_db) {
+  // A range of nothing would put every level at one end of the scale and
+  // divide by zero getting there.
+  range_db_ = std::max(1.0, range_db);
+  spectrogram_valid_ = false;
+  update();
+}
+
+double SpectrumPlot::SpectrogramProportion(double level_db) const {
+  return std::clamp((level_db - (reference_db_ - range_db_)) / range_db_, 0.0,
+                    1.0);
+}
+
+void SpectrumPlot::changeEvent(QEvent* event) {
+  if (event->type() == QEvent::PaletteChange) {
+    spectrogram_valid_ = false;
+  }
+  QWidget::changeEvent(event);
+}
+
 void SpectrumPlot::SetPeakHoldVisible(bool visible) {
   peak_hold_visible_ = visible;
   update();
@@ -232,6 +293,7 @@ void SpectrumPlot::Clear() {
   history_.Clear();
   clock_.invalidate();
   spectrogram_valid_ = false;
+  pending_frames_ = 0;
   update();
 }
 
@@ -321,8 +383,6 @@ void SpectrumPlot::PaintSpectrogram(QPainter& painter, const QRectF& area,
   }
 
   const size_t frames = history_.size();
-  const analysis::FrequencyAxis axis = Axis();
-  const double bands = static_cast<double>(history_.columns());
 
   // Built at the height it will be drawn at, so nothing scales it vertically.
   //
@@ -333,50 +393,14 @@ void SpectrumPlot::PaintSpectrogram(QPainter& painter, const QRectF& area,
   // highest band in each pixel row keeps it, the same rule and the same reason
   // as the spectrum trace's own decimation.
   const int height = std::max(1, static_cast<int>(area.height()));
+  const int capacity = static_cast<int>(history_.rows());
 
-  if (!spectrogram_valid_ ||
-      spectrogram_.size() != QSize(static_cast<int>(frames), height)) {
-    // Time across and frequency up, which is the way round the amplitude panel
-    // already runs and the way round a spectrogram is read: a carrier is a
-    // horizontal line at its own frequency, and a drift is that line sloping.
-    spectrogram_ =
-        QImage(static_cast<int>(frames), height, QImage::Format_RGB32);
-
-    for (int y = 0; y < height; ++y) {
-      // Row zero is the top of the picture and the top of the frequency range,
-      // as on every frequency axis.
-      const double upper = 1.0 - (static_cast<double>(y) / height);
-      const double lower = 1.0 - (static_cast<double>(y + 1) / height);
-
-      // Through the axis rather than by proportion, so the picture and the
-      // trace beside it put a carrier at the same place on the same scale.
-      const double from = IndexAtFrequency(axis.FrequencyAt(lower), bands);
-      const double to = IndexAtFrequency(axis.FrequencyAt(upper), bands);
-
-      const size_t held = history_.columns();
-
-      size_t first = static_cast<size_t>(std::floor(std::max(0.0, from)));
-      first = std::min(first, held - 1);
-
-      size_t last = static_cast<size_t>(std::ceil(std::max(0.0, to)));
-      last = std::clamp(last, first + 1, held);
-
-      auto* const scanline = reinterpret_cast<QRgb*>(spectrogram_.scanLine(y));
-      for (size_t frame = 0; frame < frames; ++frame) {
-        double peak = kBottomDecibels;
-        for (size_t band = first; band < last; ++band) {
-          peak = std::max(peak, history_.At(frame, band));
-        }
-
-        const double proportion =
-            (peak - kBottomDecibels) / (kTopDecibels - kBottomDecibels);
-        scanline[frame] =
-            theme_tokens::SpectrogramColor(proportion, dark).rgb();
-      }
-    }
-
-    spectrogram_valid_ = true;
+  if (!spectrogram_valid_ || spectrogram_.size() != QSize(capacity, height)) {
+    RebuildSpectrogram(height, dark);
+  } else if (pending_frames_ > 0) {
+    ScrollSpectrogram(pending_frames_, dark);
   }
+  pending_frames_ = 0;
 
   // Anchored to the right and only as wide as there is history for, so a run
   // starts as a sliver at the right-hand edge and grows leftwards until it
@@ -384,17 +408,111 @@ void SpectrumPlot::PaintSpectrogram(QPainter& painter, const QRectF& area,
   // amplitude panel, which stretches what it holds across its whole width until
   // it is full: stretching would mean the time scale silently changed under the
   // reader for the first half-minute of every run.
+  //
+  // The newest frame is always the right-hand column of the picture, so the
+  // part worth drawing is the right-hand end of it.
   const double used = area.width() * static_cast<double>(frames) /
-                      static_cast<double>(history_.rows());
+                      static_cast<double>(capacity);
   const QRectF target(area.right() - used, area.top(), used,
                       static_cast<double>(height));
+  const QRect source(capacity - static_cast<int>(frames), 0,
+                     static_cast<int>(frames), height);
 
   // Smoothing now only ever stretches time, where averaging between adjacent
   // frames is what is wanted: it turns a drifting carrier into a line rather
   // than a staircase.
   painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
-  painter.drawImage(target, spectrogram_);
+  painter.drawImage(target, spectrogram_, source);
   painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
+}
+
+void SpectrumPlot::MapSpectrogramRows(int height) {
+  const analysis::FrequencyAxis axis = Axis();
+  const size_t held = history_.columns();
+  const double bands = static_cast<double>(held);
+
+  spectrogram_rows_.assign(static_cast<size_t>(height), BandRange{});
+
+  for (int y = 0; y < height; ++y) {
+    // Row zero is the top of the picture and the top of the frequency range, as
+    // on every frequency axis.
+    const double upper = 1.0 - (static_cast<double>(y) / height);
+    const double lower = 1.0 - (static_cast<double>(y + 1) / height);
+
+    // Through the axis rather than by proportion, so the picture and the trace
+    // beside it put a carrier at the same place on the same scale.
+    const double from = IndexAtFrequency(axis.FrequencyAt(lower), bands);
+    const double to = IndexAtFrequency(axis.FrequencyAt(upper), bands);
+
+    BandRange& range = spectrogram_rows_[static_cast<size_t>(y)];
+    range.first = std::min(static_cast<size_t>(std::floor(std::max(0.0, from))),
+                           held - 1);
+    range.last = std::clamp(static_cast<size_t>(std::ceil(std::max(0.0, to))),
+                            range.first + 1, held);
+  }
+}
+
+void SpectrumPlot::RenderSpectrogramColumn(int column, size_t frame,
+                                           bool dark) {
+  for (size_t y = 0; y < spectrogram_rows_.size(); ++y) {
+    const BandRange& range = spectrogram_rows_[y];
+
+    double peak = analysis::SpectrumAnalyser::kFloorDecibels;
+    for (size_t band = range.first; band < range.last; ++band) {
+      peak = std::max(peak, history_.At(frame, band));
+    }
+
+    auto* const scanline =
+        reinterpret_cast<QRgb*>(spectrogram_.scanLine(static_cast<int>(y)));
+    scanline[column] =
+        theme_tokens::SpectrogramColor(SpectrogramProportion(peak), dark).rgb();
+  }
+}
+
+void SpectrumPlot::RebuildSpectrogram(int height, bool dark) {
+  const int capacity = static_cast<int>(history_.rows());
+
+  // Time across and frequency up, which is the way round the amplitude panel
+  // already runs and the way round a spectrogram is read: a carrier is a
+  // horizontal line at its own frequency, and a drift is that line sloping.
+  spectrogram_ = QImage(capacity, height, QImage::Format_RGB32);
+  spectrogram_.fill(palette().color(QPalette::Base));
+
+  MapSpectrogramRows(height);
+
+  const int frames = static_cast<int>(history_.size());
+  for (int frame = 0; frame < frames; ++frame) {
+    RenderSpectrogramColumn(capacity - frames + frame,
+                            static_cast<size_t>(frame), dark);
+  }
+
+  spectrogram_valid_ = true;
+}
+
+void SpectrumPlot::ScrollSpectrogram(int columns, bool dark) {
+  const int width = spectrogram_.width();
+  const int frames = static_cast<int>(history_.size());
+  const int shift = std::min({columns, width, frames});
+  if (shift <= 0) {
+    return;
+  }
+
+  if (shift < width) {
+    for (int y = 0; y < spectrogram_.height(); ++y) {
+      auto* const scanline = reinterpret_cast<QRgb*>(spectrogram_.scanLine(y));
+      // Overlapping by definition — every column moves onto one still being
+      // read — so a move rather than a copy.
+      std::memmove(scanline, scanline + shift,
+                   static_cast<size_t>(width - shift) * sizeof(QRgb));
+    }
+  }
+
+  // The newest frame ends up in the right-hand column and the ones before it
+  // fill in leftwards from there.
+  for (int step = 0; step < shift; ++step) {
+    RenderSpectrogramColumn(width - shift + step,
+                            static_cast<size_t>(frames - shift + step), dark);
+  }
 }
 
 void SpectrumPlot::PaintGrid(QPainter& painter, const QRectF& area) {
@@ -697,6 +815,44 @@ SpectrumPanel::SpectrumPanel(CaptureController* controller, QWidget* parent)
   controls->addWidget(new QLabel(tr("Averaging"), this));
   controls->addWidget(averaging_);
 
+  reference_ = new QComboBox(this);
+  reference_->setObjectName(QLatin1String(kReferenceComboName));
+  for (const ContrastChoice& choice : kReferenceChoices) {
+    reference_->addItem(tr(choice.label), choice.decibels);
+    if (choice.decibels == kDefaultSpectrogramReferenceDb) {
+      reference_->setCurrentIndex(reference_->count() - 1);
+    }
+  }
+  reference_->setToolTip(
+      tr("The level the top of the colour scale stands for. Anything above it "
+         "is drawn the same, so setting it near the strongest thing present "
+         "spends the whole ramp on levels the signal actually reaches."));
+  connect(reference_, &QComboBox::currentIndexChanged, this,
+          [this](int) { ApplyContrast(); });
+  reference_label_ = new QLabel(tr("Reference"), this);
+  controls->addWidget(reference_label_);
+  controls->addWidget(reference_);
+
+  range_ = new QComboBox(this);
+  range_->setObjectName(QLatin1String(kRangeComboName));
+  for (const ContrastChoice& choice : kRangeChoices) {
+    range_->addItem(tr(choice.label), choice.decibels);
+    if (choice.decibels == kDefaultSpectrogramRangeDb) {
+      range_->setCurrentIndex(range_->count() - 1);
+    }
+  }
+  range_->setToolTip(
+      tr("How far below the reference the colour scale reaches. Narrowing it "
+         "spreads the ramp over fewer decibels, which is what makes the "
+         "texture of a noise floor visible instead of a wash of one colour. "
+         "Everything already on screen is re-coloured — the history is kept as "
+         "levels, not as a picture."));
+  connect(range_, &QComboBox::currentIndexChanged, this,
+          [this](int) { ApplyContrast(); });
+  range_label_ = new QLabel(tr("Range"), this);
+  controls->addWidget(range_label_);
+  controls->addWidget(range_);
+
   peak_hold_ = new QCheckBox(tr("Peak hold"), this);
   peak_hold_->setObjectName(QLatin1String(kPeakHoldBoxName));
   peak_hold_->setChecked(true);
@@ -740,12 +896,27 @@ void SpectrumPanel::ApplyView() {
   const auto chosen = static_cast<SpectrumView>(view_->currentData().toInt());
   plot_->SetView(chosen);
 
-  // Peak hold is a property of the trace: the spectrogram already shows every
-  // frame it would be summarising, so the controls are disabled rather than
-  // left to do nothing when pressed.
+  // Each view keeps the controls that do something in it. Peak hold belongs to
+  // the trace — the spectrogram already shows every frame it would be
+  // summarising — and the colour scale belongs to the spectrogram, which is the
+  // only thing drawn in colour.
+  //
+  // Disabled as well as hidden, rather than only hidden, because "can this be
+  // pressed" is what the tests and the accessibility layer both ask, and a
+  // hidden control that still answers yes is lying to both.
   const bool trace = chosen == SpectrumView::kTrace;
+
   peak_hold_->setEnabled(trace);
+  peak_hold_->setVisible(trace);
   reset_->setEnabled(trace);
+  reset_->setVisible(trace);
+
+  reference_->setEnabled(!trace);
+  reference_->setVisible(!trace);
+  reference_label_->setVisible(!trace);
+  range_->setEnabled(!trace);
+  range_->setVisible(!trace);
+  range_label_->setVisible(!trace);
 }
 
 void SpectrumPanel::ApplyAveraging() {
@@ -760,6 +931,11 @@ void SpectrumPanel::ApplyFrequencyScale(bool logarithmic) {
                                        : analysis::FrequencyScale::kLinear);
 }
 
+void SpectrumPanel::ApplyContrast() {
+  plot_->SetSpectrogramReference(reference_->currentData().toDouble());
+  plot_->SetSpectrogramRange(range_->currentData().toDouble());
+}
+
 void SpectrumPanel::ApplyResolution() {
   if (controller_ != nullptr) {
     controller_->analysis()->SetSpectrumTransformSize(
@@ -768,8 +944,9 @@ void SpectrumPanel::ApplyResolution() {
 }
 
 void SpectrumPanel::OnSpectrumReady(const std::vector<double>& magnitudes_db,
-                                    const std::vector<double>& peak_hold_db) {
-  plot_->SetSpectrum(magnitudes_db, peak_hold_db);
+                                    const std::vector<double>& peak_hold_db,
+                                    const std::vector<double>& snapshot_db) {
+  plot_->SetSpectrum(magnitudes_db, peak_hold_db, snapshot_db);
 
   // The measured window settles quickly and then drifts by fractions of a
   // percent. Announced only when it has moved enough to matter, because

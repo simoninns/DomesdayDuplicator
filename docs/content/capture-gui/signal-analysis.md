@@ -91,6 +91,12 @@ looked away and back the trace has moved on.
 The spectrogram records whichever view is showing, so switching to it shows what has already
 happened rather than starting again from the moment you asked for it.
 
+Its rows are **not** affected by the Averaging control. A row is a moment — one snapshot's
+own measurement — and averaging belongs to the trace alone. At the heavy setting the trace's
+filter reaches back most of a second, which is a third of the width of a minute-long
+waterfall; a transient smoothed by that would be smeared across several rows of the one
+display whose entire purpose is saying *when* something happened.
+
 ### Log frequency
 
 Spaces the frequency axis by decade rather than evenly. **On by default**, and it applies to
@@ -157,14 +163,31 @@ would otherwise be averaged away. The averaging is done on power rather than on 
 a peak that appears in one frame out of ten reads as a tenth of its power and not as a tenth
 of its level.
 
+### Reference and Range
+
+The spectrogram's colour scale, offered in the spectrogram view only. **Reference** is the
+level the top of the scale stands for — 0, −10, −20 or −30 dBFS — and **Range** is how far
+below it the scale reaches: 100, 60, 40 or 20 dB.
+
+The defaults, 0 dBFS over 100 dB, are the whole of what the converter can represent and
+assume nothing about the signal. They are often not what you want to look at. The difference
+between a healthy noise floor and a marginal one is a few decibels, and spread across a
+hundred that is two shades of the same colour; narrowing the range spreads the same colour
+ramp over fewer decibels and the texture appears.
+
+Everything already on screen is re-coloured when you move either control, including rows
+recorded before you touched it. The history is kept as levels rather than as a picture
+precisely so that this works.
+
 ### Peak hold
 
 Draws the highest level each frequency has reached since the last reset, underneath the live
 trace. The way to catch an interferer that appears for a moment while you are looking
 somewhere else. **Reset peaks** starts it again.
 
-Both apply to the live trace only — the spectrogram already shows every frame they would be
-summarising, so the two controls are disabled rather than left to do nothing when pressed.
+Both belong to the live trace, and each view shows only the controls that do something in
+it: peak hold and its reset in the spectrum, the two colour-scale controls in the
+spectrogram.
 
 ### The cursor
 

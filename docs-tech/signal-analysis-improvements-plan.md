@@ -309,7 +309,41 @@ bin drawn at that pixel, in log mode, at the edges.
 carrier are each separately legible; switching scale never moves a carrier's labeled
 frequency.
 
-### Phase 3 — spectrogram correctness and controls
+### Phase 3 — spectrogram correctness and controls — **done**
+
+Landed 2026-08-16. Item 4 (the log axis) had already gone in with Phase 2; the other
+three are here.
+
+- **Unaveraged rows.** `SpectrumAnalyser` now reports `snapshot_db()` beside
+  `magnitudes_db()`, and `SpectrumReady` carries all three vectors. The trace keeps its
+  averaging; the history records the snapshot. A widget test feeds a smoothed trace and a
+  loud snapshot together and checks which one the row holds.
+- **Reference and range**, offered in the spectrogram view only. Each view now shows just
+  the controls that act on it — peak hold and reset in the trace, the two colour-scale
+  combos in the waterfall — which keeps the control row from growing. Both stay
+  `setEnabled(false)` as well as hidden, so "can this be pressed" still answers honestly.
+- **Incremental rendering.** The picture is held at the history's full capacity and
+  scrolled; a full rebuild happens only on resize, scale, contrast or theme change.
+  Measured at **474 µs per frame against 5,375 µs for a rebuild — 11× —** and that 474 µs
+  is the whole panel repaint, not just the waterfall.
+
+Two things worth recording:
+
+- **A theme change never re-coloured the picture.** There was no `changeEvent` handler, so
+  the waterfall kept its old palette until the next frame invalidated the cache — a tenth
+  of a second during a run, and for ever after one had stopped, which is exactly when
+  somebody is looking at it. Fixed here, with a test that swaps the palette and asserts the
+  picture changed.
+- The scroll/rebuild equivalence test was initially weaker than it looked: painting after
+  every frame means the scroll is always one column, so an off-by-one in the multi-column
+  path would have gone unseen. It now also feeds in batches of five without painting.
+  Verified by deliberately breaking the column order and confirming it fails.
+
+Still not done, and still a Phase 3-shaped question: `SpectrogramHistory::kDefaultColumns`
+remains 1,024, so the bottom decade of a log axis gets ~3 pixels per band. See the note
+under Phase 2.
+
+### Phase 3 — as planned
 
 **Files:** `spectrum_panel.{h,cpp}`, `analysis_worker.{h,cpp}`,
 `spectrogram_history.{h,cpp}` (minor), widget tests.

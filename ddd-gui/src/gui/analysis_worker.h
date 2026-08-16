@@ -79,8 +79,13 @@ class SnapshotAnalyser : public QObject {
 
  signals:
   void WaveformReady(const std::vector<uint16_t>& codes);
+
+  // Three readings of the same transform, because the two displays want
+  // different ones: the trace wants the averaged levels and its peak hold,
+  // the spectrogram wants this snapshot alone.
   void SpectrumReady(const std::vector<double>& magnitudes_db,
-                     const std::vector<double>& peak_hold_db);
+                     const std::vector<double>& peak_hold_db,
+                     const std::vector<double>& snapshot_db);
 
  private:
   // Guards the source pointer and the read through it, and nothing else. Held
@@ -135,8 +140,13 @@ class AnalysisWorker : public QObject {
 
  signals:
   void WaveformReady(const std::vector<uint16_t>& codes);
+
+  // Three readings of the same transform, because the two displays want
+  // different ones: the trace wants the averaged levels and its peak hold,
+  // the spectrogram wants this snapshot alone.
   void SpectrumReady(const std::vector<double>& magnitudes_db,
-                     const std::vector<double>& peak_hold_db);
+                     const std::vector<double>& peak_hold_db,
+                     const std::vector<double>& snapshot_db);
 
  private:
   QThread thread_;
