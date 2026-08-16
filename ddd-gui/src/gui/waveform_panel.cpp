@@ -17,8 +17,10 @@
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QSlider>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <cmath>
 
 #include "capture_controller.h"
 #include "sample_format.h"
@@ -33,19 +35,29 @@ namespace {
 constexpr int kScaleWidthPixels = 46;
 constexpr int kPlotMarginPixels = 6;
 
-// How much of the accumulated picture survives each frame, as an alpha the old
-// picture is multiplied by. Named for what it keeps rather than what it
-// removes, because the first version of this was named for the fade and set to
-// 40 — which keeps 16% of the picture per frame, not 16% less. Everything older
-// than the current sweep was then drawn at around 2% opacity: present in the
-// buffer, invisible on the screen, and indistinguishable from the option doing
-// nothing.
+// Room for the time axis below the trace. A scope without one is a picture of a
+// waveform rather than a measurement of it.
+constexpr int kAxisHeightPixels = 18;
+
+// How many sweeps are taken from one snapshot.
 //
-// Frames arrive at the pipeline's snapshot rate, about nine a second, so 78% a
-// frame leaves a tail of roughly a second — long enough to build an envelope
-// out of a repeating waveform and short enough that the display still looks
-// live.
-constexpr int kPersistenceRetainedAlpha = 200;
+// A snapshot is 819 µs and holds several thousand crossings of the trigger
+// level, so this is a choice about the picture rather than about what is
+// available. Thirty-two sweeps nine times a second is an effective sweep rate
+// near three hundred a second — enough, accumulated under the persistence fade,
+// to draw the envelope of an FM carrier's deviation rather than one instant of
+// it. That is the whole difference between this and the same trace drawn nine
+// times a second, and it costs nothing extra to acquire: the samples were
+// already there.
+constexpr size_t kMaximumSweeps = 32;
+
+// The radius of a sample marker, in pixels.
+constexpr double kSampleMarkerRadius = 1.5;
+
+// The interval to assume for the very first fade, before two snapshots have
+// arrived and the real one is known. The pipeline publishes about nine a
+// second.
+constexpr double kNominalSnapshotSeconds = 1.0 / 9.0;
 
 }  // namespace
 
@@ -62,6 +74,15 @@ QString FormatWaveformSpan(size_t samples) {
     return WaveformPanel::tr("%1 µs").arg(seconds * 1e6, 0, 'g', 3);
   }
   return WaveformPanel::tr("%1 ms").arg(seconds * 1e3, 0, 'g', 3);
+}
+
+QString FormatPersistence(double seconds) {
+  if (seconds <= 0.0) {
+    return WaveformPanel::tr("off");
+  }
+  // Two significant figures: the settings are quarters of a second, so "0.25"
+  // and "1.5" both need to read exactly rather than round to each other.
+  return WaveformPanel::tr("%1 s").arg(seconds, 0, 'g', 2);
 }
 
 QString FormatWaveformCursor(qint64 sample_index, double code,
@@ -100,24 +121,64 @@ WaveformPlot::WaveformPlot(QWidget* parent) : QWidget(parent) {
 
 void WaveformPlot::SetCodes(const std::vector<uint16_t>& codes) {
   codes_ = codes;
+  sweeps_valid_ = false;
+
+  // A new snapshot is what the fade is measured in. See the alpha above.
+  persistence_pending_ = true;
+
   update();
 }
 
 void WaveformPlot::SetSampleSpan(size_t span) {
   sample_span_ = std::max<size_t>(span, 1);
+  sweeps_valid_ = false;
   persistence_image_ = QImage();
   update();
 }
 
-void WaveformPlot::SetPersistence(bool enabled) {
-  persistence_ = enabled;
+int WaveformPlot::RetainedAlpha(double seconds, double elapsed_seconds) {
+  if (seconds <= 0.0 || elapsed_seconds < 0.0) {
+    return 0;
+  }
+
+  // Clamped below one so that a run of frames arriving in the same millisecond
+  // cannot leave the picture never fading at all.
+  const double retained =
+      std::clamp(std::exp(-elapsed_seconds / seconds), 0.0, 0.996);
+  return static_cast<int>(std::lround(retained * 255.0));
+}
+
+void WaveformPlot::SetPersistenceSeconds(double seconds) {
+  const double wanted = std::max(0.0, seconds);
+
+  // Turning the mode on or off starts the picture again; moving the tail
+  // between two non-zero lengths keeps what is already accumulated, because
+  // there is nothing wrong with it — only the rate it will fade at changes.
+  if ((wanted > 0.0) != (persistence_seconds_ > 0.0)) {
+    persistence_image_ = QImage();
+    fade_clock_.invalidate();
+  }
+
+  persistence_seconds_ = wanted;
+  update();
+}
+
+void WaveformPlot::SetTriggered(bool enabled) {
+  triggered_ = enabled;
+  sweeps_valid_ = false;
+  // The accumulated picture was built from sweeps aligned one way and would be
+  // meaningless under the other.
   persistence_image_ = QImage();
   update();
 }
 
 void WaveformPlot::Clear() {
   codes_.clear();
+  sweeps_.clear();
+  sweeps_valid_ = false;
+  persistence_pending_ = false;
   persistence_image_ = QImage();
+  fade_clock_.invalidate();
   update();
 }
 
@@ -132,33 +193,172 @@ analysis::WaveformMapping WaveformPlot::Mapping() const {
   analysis::WaveformMapping mapping;
   mapping.width_pixels =
       std::max(0, width() - kScaleWidthPixels - kPlotMarginPixels);
-  mapping.height_pixels = std::max(0, height() - (2 * kPlotMarginPixels));
+  mapping.height_pixels =
+      std::max(0, height() - kPlotMarginPixels - kAxisHeightPixels);
   mapping.first_sample = 0;
   mapping.sample_span = std::min(sample_span_, codes_.size());
   return mapping;
 }
 
-void WaveformPlot::PaintTrace(QPainter& painter,
-                              const analysis::WaveformMapping& mapping,
-                              const QColor& colour) {
-  analysis::DecimateToColumns(codes_.data(), codes_.size(), mapping, columns_);
+analysis::WaveformMapping WaveformPlot::MappingAt(double origin) const {
+  analysis::WaveformMapping mapping = Mapping();
+
+  const double whole = std::floor(std::max(0.0, origin));
+  mapping.first_sample = static_cast<size_t>(whole);
+  mapping.sub_sample_offset = std::max(0.0, origin) - whole;
+  return mapping;
+}
+
+void WaveformPlot::FindSweeps() {
+  if (sweeps_valid_) {
+    return;
+  }
+  sweeps_valid_ = true;
+  sweeps_.clear();
+
+  const size_t span = std::min(sample_span_, codes_.size());
+  if (codes_.empty() || span == 0) {
+    return;
+  }
+
+  if (!triggered_) {
+    sweeps_.push_back(0.0);
+    return;
+  }
+
+  analysis::TriggerOptions options;
+
+  // Spread across the snapshot rather than taken from the first few
+  // microseconds of it: a carrier crosses the level every sixty nanoseconds, so
+  // without this every sweep would come from the same instant and the
+  // accumulated picture would say nothing the single sweep did not.
+  options.minimum_separation =
+      std::max<size_t>(span, codes_.size() / kMaximumSweeps);
+
+  analysis::FindTriggers(codes_.data(), codes_.size(), options, kMaximumSweeps,
+                         triggers_);
+
+  const double pre = analysis::kPreTriggerFraction * static_cast<double>(span);
+
+  for (const double trigger : triggers_) {
+    const double origin = trigger - pre;
+    if (origin < 0.0) {
+      continue;
+    }
+    if (origin + static_cast<double>(span) >
+        static_cast<double>(codes_.size())) {
+      break;
+    }
+    sweeps_.push_back(origin);
+  }
+
+  // Nothing crossed the level — a flat input, or one that never came back down
+  // far enough to arm. Free-running is what a scope does here, and it is much
+  // better than freezing: an unmodulated or absent signal is exactly when
+  // somebody needs to see that the trace is flat.
+  if (sweeps_.empty()) {
+    sweeps_.push_back(0.0);
+  }
+}
+
+void WaveformPlot::PaintSweep(QPainter& painter, double origin,
+                              const QColor& colour, bool mark_samples) {
+  const analysis::WaveformMapping mapping = MappingAt(origin);
+  if (!mapping.Valid()) {
+    return;
+  }
 
   painter.setPen(QPen(colour, 1.0));
 
-  for (size_t column = 0; column < columns_.size(); ++column) {
-    const analysis::WaveformColumn& values = columns_[column];
-    if (!values.populated) {
-      continue;
+  const analysis::WaveformDrawStyle style = mapping.DrawStyle();
+
+  // Straight edges for the envelope's vertical bars, smooth ones for a curve.
+  // A reconstructed carrier drawn without antialiasing is a staircase, which is
+  // exactly the artefact the reconstruction is there to remove.
+  painter.setRenderHint(QPainter::Antialiasing,
+                        style != analysis::WaveformDrawStyle::kEnvelope);
+
+  if (style == analysis::WaveformDrawStyle::kEnvelope) {
+    analysis::DecimateToColumns(codes_.data(), codes_.size(), mapping,
+                                columns_);
+
+    for (size_t column = 0; column < columns_.size(); ++column) {
+      const analysis::WaveformColumn& values = columns_[column];
+      if (!values.populated) {
+        continue;
+      }
+
+      const double x = static_cast<double>(column) + 0.5;
+      const double top = mapping.CodeToY(values.maximum);
+      const double bottom = mapping.CodeToY(values.minimum);
+
+      // A column whose samples were all equal still has to draw something, so
+      // the line is given a minimum length of one pixel rather than collapsing
+      // to a zero-height line that some painters drop entirely.
+      painter.drawLine(QPointF(x, top),
+                       QPointF(x, std::max(bottom, top + 1.0)));
     }
 
-    const double x = static_cast<double>(column) + 0.5;
-    const double top = mapping.CodeToY(values.maximum);
-    const double bottom = mapping.CodeToY(values.minimum);
+    painter.setRenderHint(QPainter::Antialiasing, false);
+    return;
+  }
 
-    // A column whose samples were all equal still has to draw something, so the
-    // line is given a minimum length of one pixel rather than collapsing to a
-    // zero-height line that some painters drop entirely.
-    painter.drawLine(QPointF(x, top), QPointF(x, std::max(bottom, top + 1.0)));
+  points_.clear();
+
+  if (style == analysis::WaveformDrawStyle::kPolyline) {
+    const size_t last =
+        std::min(mapping.first_sample + mapping.sample_span, codes_.size());
+    for (size_t index = mapping.first_sample; index < last; ++index) {
+      points_.append(QPointF(mapping.SampleToX(static_cast<double>(index)),
+                             mapping.CodeToY(codes_[index])));
+    }
+  } else {
+    // One point per pixel of the band-limited waveform the samples determine.
+    // Joining the samples themselves here would cut the corners off every
+    // crest — at five samples to a cycle, by as much as a fifth of the
+    // amplitude.
+    for (int x = 0; x <= mapping.width_pixels; ++x) {
+      const double position = mapping.XToSamplePosition(x);
+      points_.append(QPointF(x, mapping.CodeToY(kernel_.Evaluate(
+                                    codes_.data(), codes_.size(), position))));
+    }
+  }
+
+  painter.drawPolyline(points_);
+
+  // The measured points, so that what was sampled stays distinguishable from
+  // what was reconstructed between the samples.
+  if (mark_samples && mapping.ShouldMarkSamples()) {
+    painter.setBrush(colour);
+    const size_t last =
+        std::min(mapping.first_sample + mapping.sample_span + 1, codes_.size());
+    for (size_t index = mapping.first_sample; index < last; ++index) {
+      painter.drawEllipse(QPointF(mapping.SampleToX(static_cast<double>(index)),
+                                  mapping.CodeToY(codes_[index])),
+                          kSampleMarkerRadius, kSampleMarkerRadius);
+    }
+    painter.setBrush(Qt::NoBrush);
+  }
+
+  painter.setRenderHint(QPainter::Antialiasing, false);
+}
+
+void WaveformPlot::PaintTrace(QPainter& painter, const QColor& colour) {
+  FindSweeps();
+  if (sweeps_.empty()) {
+    return;
+  }
+
+  if (persistence_seconds_ <= 0.0) {
+    // One sweep. Thirty drawn over each other at full strength with no fade
+    // between them would be a filled band rather than a waveform — the fade is
+    // what separates them, and without persistence there is none.
+    PaintSweep(painter, sweeps_.front(), colour, true);
+    return;
+  }
+
+  for (const double origin : sweeps_) {
+    PaintSweep(painter, origin, colour, false);
   }
 }
 
@@ -211,31 +411,61 @@ void WaveformPlot::paintEvent(QPaintEvent* event) {
                      QPointF(x, static_cast<double>(mapping.height_pixels)));
   }
 
+  // Where every sweep was started from. Worth drawing because a reader
+  // measuring a feature needs to know which edge the picture is anchored to,
+  // and because a trace that is standing still for no visible reason is
+  // unnerving.
+  if (triggered_) {
+    const double x = analysis::kPreTriggerFraction *
+                     static_cast<double>(mapping.width_pixels);
+    painter.setPen(QPen(theme_tokens::PlotColor(
+                            theme_tokens::PlotColorToken::kTriggerMarker, dark),
+                        1.0, Qt::DashLine));
+    painter.drawLine(QPointF(x, 0.0),
+                     QPointF(x, static_cast<double>(mapping.height_pixels)));
+  }
+
   if (!codes_.empty()) {
     const QColor trace = theme_tokens::PlotColor(
         theme_tokens::PlotColorToken::kSignalTrace, dark);
 
-    if (!persistence_) {
-      PaintTrace(painter, mapping, trace);
+    if (persistence_seconds_ <= 0.0) {
+      PaintTrace(painter, trace);
     } else {
       if (persistence_image_.size() !=
           QSize(mapping.width_pixels, mapping.height_pixels)) {
         persistence_image_ = QImage(mapping.width_pixels, mapping.height_pixels,
                                     QImage::Format_ARGB32_Premultiplied);
         persistence_image_.fill(Qt::transparent);
+        persistence_pending_ = true;
       }
 
-      QPainter accumulator(&persistence_image_);
-      accumulator.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-      accumulator.fillRect(persistence_image_.rect(),
-                           QColor(0, 0, 0, kPersistenceRetainedAlpha));
-      accumulator.setCompositionMode(QPainter::CompositionMode_SourceOver);
+      // Only when a snapshot has arrived. A paint on its own adds nothing to
+      // accumulate and must not age what is already there.
+      if (persistence_pending_) {
+        const double elapsed =
+            fade_clock_.isValid()
+                ? static_cast<double>(fade_clock_.restart()) / 1000.0
+                : kNominalSnapshotSeconds;
+        if (!fade_clock_.isValid()) {
+          fade_clock_.start();
+        }
 
-      // The newest sweep at full strength, exactly as it would be drawn without
-      // persistence. Dimming it here made the whole display look washed out
-      // while adding nothing: the fade above is what separates old from new.
-      PaintTrace(accumulator, mapping, trace);
-      accumulator.end();
+        QPainter accumulator(&persistence_image_);
+        accumulator.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+        accumulator.fillRect(
+            persistence_image_.rect(),
+            QColor(0, 0, 0, RetainedAlpha(persistence_seconds_, elapsed)));
+        accumulator.setCompositionMode(QPainter::CompositionMode_SourceOver);
+
+        // Every sweep at full strength, exactly as one would be drawn without
+        // persistence. Dimming them here made the whole display look washed out
+        // while adding nothing: the fade above is what separates old from new.
+        PaintTrace(accumulator, trace);
+        accumulator.end();
+
+        persistence_pending_ = false;
+      }
 
       painter.drawImage(0, 0, persistence_image_);
     }
@@ -252,10 +482,52 @@ void WaveformPlot::paintEvent(QPaintEvent* event) {
                      Qt::AlignRight | Qt::AlignVCenter,
                      QString::fromUtf8(guide.label));
   }
+
+  // The time axis, on the gridlines already drawn. Measured from the left-hand
+  // edge of the sweep rather than from the trigger, so the figures mean the
+  // same thing whether the trigger is on or off; the marker above says where
+  // the trigger itself is.
+  const double axis_top = kPlotMarginPixels + mapping.height_pixels + 2.0;
+  constexpr int kAxisMarks = 4;
+
+  for (int step = 0; step <= kAxisMarks; ++step) {
+    const double fraction = static_cast<double>(step) / kAxisMarks;
+    const double x = kScaleWidthPixels +
+                     (fraction * static_cast<double>(mapping.width_pixels));
+    const double microseconds =
+        fraction * static_cast<double>(mapping.sample_span) /
+        static_cast<double>(capture::kSampleRateHz) * 1e6;
+
+    // The end labels are pulled inside the plot rather than centred on its
+    // edges, where half of each would be off the widget: a time axis whose last
+    // mark reads "1 µ" is worse than one that does not quite reach the end.
+    constexpr double kLabelWidth = 60.0;
+    QRectF box(x - (kLabelWidth / 2.0), axis_top, kLabelWidth,
+               kAxisHeightPixels - 2.0);
+    Qt::Alignment alignment = Qt::AlignHCenter | Qt::AlignTop;
+
+    if (step == 0) {
+      box.moveLeft(x);
+      alignment = Qt::AlignLeft | Qt::AlignTop;
+    } else if (step == kAxisMarks) {
+      box.moveLeft(x - kLabelWidth);
+      alignment = Qt::AlignRight | Qt::AlignTop;
+    }
+
+    painter.drawText(box, alignment, tr("%1 µs").arg(microseconds, 0, 'g', 3));
+  }
 }
 
 void WaveformPlot::mouseMoveEvent(QMouseEvent* event) {
-  const analysis::WaveformMapping mapping = Mapping();
+  FindSweeps();
+
+  // The sweep the pointer is over is the one drawn without persistence — the
+  // first. With persistence there are thirty on screen and no way to say which
+  // one the pointer is on, so the readout stays with the one that is definitely
+  // there.
+  const analysis::WaveformMapping mapping =
+      sweeps_.empty() ? Mapping() : MappingAt(sweeps_.front());
+
   if (!mapping.Valid()) {
     QWidget::mouseMoveEvent(event);
     return;
@@ -280,7 +552,13 @@ void WaveformPlot::mouseMoveEvent(QMouseEvent* event) {
                           ? static_cast<double>(codes_[sample])
                           : mapping.YToCode(y);
 
-  emit CursorMoved(static_cast<qint64>(sample), code);
+  // Reported as an offset into the sweep rather than into the snapshot. The
+  // snapshot's own index is an accident of where the transfer started and means
+  // nothing to a reader; time into the sweep is what the axis below is marked
+  // in and what a measurement is taken against.
+  const size_t into = sample - std::min(sample, mapping.first_sample);
+
+  emit CursorMoved(static_cast<qint64>(into), code);
   QWidget::mouseMoveEvent(event);
 }
 
@@ -307,7 +585,7 @@ WaveformPanel::WaveformPanel(CaptureController* controller, QWidget* parent)
     span_->addItem(FormatWaveformSpan(samples),
                    static_cast<qulonglong>(samples));
   }
-  span_->setCurrentIndex(2);
+  span_->setCurrentIndex(static_cast<int>(analysis::kDefaultWaveformSpanIndex));
   connect(span_, &QComboBox::currentIndexChanged, this, [this](int) {
     plot_->SetSampleSpan(
         static_cast<size_t>(span_->currentData().toULongLong()));
@@ -315,15 +593,52 @@ WaveformPanel::WaveformPanel(CaptureController* controller, QWidget* parent)
   controls->addWidget(new QLabel(tr("Span"), this));
   controls->addWidget(span_);
 
-  persistence_ = new QCheckBox(tr("Persistence"), this);
-  persistence_->setObjectName(QLatin1String(kPersistenceBoxName));
+  trigger_ = new QCheckBox(tr("Trigger"), this);
+  trigger_->setObjectName(QLatin1String(kTriggerBoxName));
+  trigger_->setChecked(true);
+  trigger_->setToolTip(
+      tr("Start every sweep at the same point on the waveform — a rising "
+         "crossing of mid-scale. Snapshots arrive from the device at whatever "
+         "point in the signal the transfer happened to begin, so without this "
+         "a carrier is a different slice of a cycle every frame and reads as a "
+         "band of fuzz. Turn it off to see the snapshot exactly as it "
+         "arrived."));
+  connect(trigger_, &QCheckBox::toggled, this,
+          [this](bool on) { plot_->SetTriggered(on); });
+  controls->addWidget(trigger_);
+
+  controls->addWidget(new QLabel(tr("Persistence"), this));
+
+  persistence_ = new QSlider(Qt::Horizontal, this);
+  persistence_->setObjectName(QLatin1String(kPersistenceSliderName));
+  persistence_->setRange(0, kPersistenceSliderSteps);
+  persistence_->setValue(0);
+  persistence_->setTickPosition(QSlider::TicksBelow);
+  persistence_->setTickInterval(2);
+
+  // Wide enough to aim at and no wider: this shares a row with four other
+  // controls and a readout, and a slider given its head takes all the space
+  // going.
+  persistence_->setFixedWidth(110);
+
   persistence_->setToolTip(
-      tr("Let each trace fade rather than replacing it, so a repeating "
-         "waveform builds up its envelope. The way to see the shape of an FM "
-         "carrier rather than one arbitrary slice of it."));
-  connect(persistence_, &QCheckBox::toggled, this,
-          [this](bool on) { plot_->SetPersistence(on); });
+      tr("How long each sweep lingers before fading, from off to two seconds. "
+         "A fading trace is how a repeating waveform builds up its envelope — "
+         "with the trigger on, every snapshot contributes up to thirty-two "
+         "sweeps rather than one, so the deviation of an FM carrier shows as a "
+         "widening of the trace rather than as one arbitrary slice of it. Off "
+         "replaces the trace each time, which is the plain scope."));
+  connect(persistence_, &QSlider::valueChanged, this,
+          [this](int) { ApplyPersistence(); });
   controls->addWidget(persistence_);
+
+  persistence_label_ = new QLabel(this);
+  persistence_label_->setObjectName(QLatin1String(kPersistenceLabelName));
+
+  // Fixed width so that the row does not shuffle sideways as the figure grows
+  // and shrinks under the slider the user is dragging.
+  persistence_label_->setFixedWidth(34);
+  controls->addWidget(persistence_label_);
 
   controls->addStretch();
 
@@ -337,6 +652,8 @@ WaveformPanel::WaveformPanel(CaptureController* controller, QWidget* parent)
   connect(plot_, &WaveformPlot::CursorMoved, this, &WaveformPanel::ShowCursor);
   connect(plot_, &WaveformPlot::CursorLeft, this, &WaveformPanel::ClearCursor);
 
+  // Puts the label in step with the slider before either has been touched.
+  ApplyPersistence();
   ClearCursor();
 
   if (controller != nullptr) {
@@ -372,6 +689,13 @@ void WaveformPanel::SetFrontEndGain(analysis::FrontEndGain gain) {
   // the readout's units change, which is the whole point of keeping the
   // declaration out of the data.
   ClearCursor();
+}
+
+void WaveformPanel::ApplyPersistence() {
+  const double seconds = persistence_->value() * kPersistenceSecondsPerStep;
+
+  plot_->SetPersistenceSeconds(seconds);
+  persistence_label_->setText(FormatPersistence(seconds));
 }
 
 void WaveformPanel::ShowCursor(qint64 sample_index, double code) {

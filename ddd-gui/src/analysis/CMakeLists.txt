@@ -19,9 +19,11 @@ add_library(ddd_analysis STATIC
     fourier_transform.cpp
     frequency_axis.cpp
     front_end_gain.cpp
+    sinc_interpolation.cpp
     spectrogram_history.cpp
     spectrum_analyser.cpp
     waveform_mapping.cpp
+    waveform_trigger.cpp
 )
 
 target_include_directories(ddd_analysis PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

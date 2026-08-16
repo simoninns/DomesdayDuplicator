@@ -203,20 +203,100 @@ TEST(WaveformMappingTest, NoDataProducesNoColumns) {
 // than its own label claimed, which is the quietest kind of wrong a display can
 // be.
 TEST(WaveformMappingTest, TheOfferedSpansAreMicrosecondsAndAllFitInASnapshot) {
-  const size_t expected_microseconds[] = {10, 50, 100, 200, 500};
+  // In nanoseconds, because the short end of the ladder is where the point of
+  // it is and those spans are fractions of a microsecond.
+  const size_t expected_nanoseconds[] = {
+      500, 1'000, 2'000, 5'000, 10'000, 50'000, 100'000, 200'000, 500'000};
 
   ASSERT_EQ(kWaveformSpanChoiceCount,
-            sizeof(expected_microseconds) / sizeof(expected_microseconds[0]));
+            sizeof(expected_nanoseconds) / sizeof(expected_nanoseconds[0]));
 
   for (size_t index = 0; index < kWaveformSpanChoiceCount; ++index) {
     const size_t samples = kWaveformSpanChoices[index];
 
-    EXPECT_EQ(samples * 1'000'000 / capture::kSampleRateHz,
-              expected_microseconds[index]);
+    EXPECT_EQ(samples * 1'000'000'000 / capture::kSampleRateHz,
+              expected_nanoseconds[index]);
 
     EXPECT_LE(samples, capture::SnapshotPublisher::kDefaultSnapshotBytes /
                            capture::kBytesPerSample)
         << "span " << samples << " is longer than a snapshot";
+  }
+}
+
+TEST(WaveformMappingTest, TheDefaultSpanShowsAFewCyclesOfTheCarrier) {
+  // The whole reason the ladder was extended downwards. An 8 MHz carrier is
+  // five samples a cycle at 40 Msps; the display has to open on a span where
+  // those cycles are individually visible rather than on one showing eighty of
+  // them, which is a band of fuzz whatever else is right about the drawing.
+  ASSERT_LT(kDefaultWaveformSpanIndex, kWaveformSpanChoiceCount);
+
+  const double samples =
+      static_cast<double>(kWaveformSpanChoices[kDefaultWaveformSpanIndex]);
+  const double cycles = samples / 5.0;
+
+  EXPECT_GE(cycles, 4.0);
+  EXPECT_LE(cycles, 16.0) << "the default span shows " << cycles << " cycles";
+}
+
+TEST(WaveformMappingTest, TheDrawingStyleFollowsHowCrowdedThePixelsAre) {
+  // One rule cannot serve a ladder that runs from thirty-three samples in a
+  // pixel to fifteen pixels between samples.
+  WaveformMapping mapping = MakeMapping(600, 400, 0, 20'000);
+  EXPECT_EQ(mapping.DrawStyle(), WaveformDrawStyle::kEnvelope);
+  EXPECT_NEAR(mapping.SamplesPerPixel(), 33.33, 0.01);
+  EXPECT_FALSE(mapping.ShouldMarkSamples());
+
+  // Right at the changeover, and just under it.
+  mapping.sample_span = 1200;
+  EXPECT_EQ(mapping.DrawStyle(), WaveformDrawStyle::kEnvelope);
+  mapping.sample_span = 900;
+  EXPECT_EQ(mapping.DrawStyle(), WaveformDrawStyle::kPolyline);
+  mapping.sample_span = 600;
+  EXPECT_EQ(mapping.DrawStyle(), WaveformDrawStyle::kPolyline);
+  mapping.sample_span = 500;
+  EXPECT_EQ(mapping.DrawStyle(), WaveformDrawStyle::kReconstructed);
+
+  // The default span: fifteen pixels a sample, so the samples are worth
+  // marking and the waveform between them has to be reconstructed.
+  mapping.sample_span = kWaveformSpanChoices[kDefaultWaveformSpanIndex];
+  EXPECT_EQ(mapping.DrawStyle(), WaveformDrawStyle::kReconstructed);
+  EXPECT_TRUE(mapping.ShouldMarkSamples());
+}
+
+TEST(WaveformMappingTest, ATriggerBetweenSamplesShiftsTheWholeWindow) {
+  // A trigger lands between two samples and the window has to start there, not
+  // at the nearest one: at five samples a cycle, rounding is a fifth of a cycle
+  // of jitter and most of the shimmer the trigger exists to remove.
+  WaveformMapping mapping = MakeMapping(600, 400, 100, 600);
+
+  const double before = mapping.SampleToX(400);
+  mapping.sub_sample_offset = 0.5;
+  const double after = mapping.SampleToX(400);
+
+  // Half a sample is half a pixel here, and the trace moves left as the window
+  // moves right.
+  EXPECT_NEAR(before - after, 0.5, 1e-9);
+
+  // The window's own start is still the left-hand edge.
+  EXPECT_NEAR(mapping.SampleToX(100.5), 0.0, 1e-9);
+}
+
+TEST(WaveformMappingTest, APixelMapsToAFractionalSamplePosition) {
+  // What a reconstructed trace asks for: at a span narrower than the plot is
+  // wide every pixel falls between samples, and rounding to one of them is the
+  // aliasing the reconstruction exists to avoid.
+  WaveformMapping mapping = MakeMapping(600, 400, 0, 40);
+  mapping.sub_sample_offset = 0.25;
+
+  EXPECT_NEAR(mapping.XToSamplePosition(0.0), 0.25, 1e-9);
+  EXPECT_NEAR(mapping.XToSamplePosition(600.0), 40.25, 1e-9);
+  EXPECT_NEAR(mapping.XToSamplePosition(15.0), 1.25, 1e-9);
+
+  // And it is the exact inverse of SampleToX, which is the property the trace
+  // and the cursor both depend on.
+  for (double position = 0.25; position < 40.0; position += 0.7) {
+    EXPECT_NEAR(mapping.XToSamplePosition(mapping.SampleToX(position)),
+                position, 1e-9);
   }
 }
 

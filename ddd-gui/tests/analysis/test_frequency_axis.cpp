@@ -137,9 +137,13 @@ TEST(FrequencyAxisTest, TheLinearTicksAreTheGridTheDisplayAlwaysHad) {
 }
 
 TEST(FrequencyAxisTest, EveryTickIsInsideTheAxisItLabels) {
-  // A tick drawn outside the plot is a label pointing at nothing, and the
-  // wider ranges are where a ladder is most likely to run past its end.
-  for (const double top : kMaximumFrequencyChoicesHz) {
+  // A tick drawn outside the plot is a label pointing at nothing, and a ladder
+  // is most likely to run past its end just above a decade. The panel fixes its
+  // own top at Nyquist; these are here because the axis is a general mapper and
+  // the awkward cases are the ones worth pinning.
+  const double tops[] = {1'000'000.0, 9'999'999.0, 13'200'000.0, 20'000'000.0};
+
+  for (const double top : tops) {
     for (const FrequencyAxis& axis : {LogAxis(top), LinearAxis(top)}) {
       const std::vector<double> ticks = axis.Ticks();
       ASSERT_FALSE(ticks.empty());

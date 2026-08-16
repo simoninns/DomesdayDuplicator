@@ -238,12 +238,6 @@ void SpectrumPlot::SetView(SpectrumView view) {
   update();
 }
 
-void SpectrumPlot::SetMaximumFrequency(double frequency_hz) {
-  maximum_frequency_hz_ = std::clamp(frequency_hz, 1.0, kNyquistHz);
-  spectrogram_valid_ = false;
-  update();
-}
-
 void SpectrumPlot::SetFrequencyScale(analysis::FrequencyScale scale) {
   scale_ = scale;
   // The picture has the mapping baked into its rows, so it is built again
@@ -253,7 +247,9 @@ void SpectrumPlot::SetFrequencyScale(analysis::FrequencyScale scale) {
 }
 
 analysis::FrequencyAxis SpectrumPlot::Axis() const {
-  return analysis::FrequencyAxis(scale_, maximum_frequency_hz_);
+  // Everything the converter can represent, always. There is no top-of-range
+  // control: see kLowPassCornerHz for why one is no longer worth having.
+  return analysis::FrequencyAxis(scale_, kNyquistHz);
 }
 
 void SpectrumPlot::SetSpectrogramReference(double reference_db) {
@@ -741,29 +737,6 @@ SpectrumPanel::SpectrumPanel(CaptureController* controller, QWidget* parent)
   connect(view_, &QComboBox::currentIndexChanged, this,
           [this](int) { ApplyView(); });
   controls->addWidget(view_);
-
-  maximum_frequency_ = new QComboBox(this);
-  maximum_frequency_->setObjectName(QLatin1String(kMaximumFrequencyComboName));
-  for (size_t index = 0; index < analysis::kMaximumFrequencyChoiceCount;
-       ++index) {
-    const double hertz = analysis::kMaximumFrequencyChoicesHz[index];
-    maximum_frequency_->addItem(
-        tr("to %1 MHz").arg(hertz / 1'000'000.0, 0, 'f', 0), hertz);
-    if (hertz == analysis::kDefaultMaximumFrequencyHz) {
-      maximum_frequency_->setCurrentIndex(maximum_frequency_->count() - 1);
-    }
-  }
-  maximum_frequency_->setToolTip(
-      tr("The top of the displayed range. The board's anti-aliasing filter "
-         "rolls off at 13.2 MHz, so 14 MHz puts its corner just inside the "
-         "edge of the display; the wider ranges are for looking at what the "
-         "filter is doing above it."));
-  connect(maximum_frequency_, &QComboBox::currentIndexChanged, this,
-          [this](int) {
-            plot_->SetMaximumFrequency(
-                maximum_frequency_->currentData().toDouble());
-          });
-  controls->addWidget(maximum_frequency_);
 
   log_frequency_ = new QCheckBox(tr("Log frequency"), this);
   log_frequency_->setObjectName(QLatin1String(kLogFrequencyBoxName));

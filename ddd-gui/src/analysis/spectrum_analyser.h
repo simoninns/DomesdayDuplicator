@@ -74,26 +74,16 @@ inline constexpr size_t kTransformSizeChoiceCount =
 // the 14.6 kHz the instrument is actually resolving at.
 inline constexpr double kHannNoiseBandwidthBins = 1.5;
 
-// The top of the displayed frequency range, as offered to the user.
+// Where the board's anti-aliasing filter rolls off. Everything above this is
+// the filter's skirt and the noise under it.
 //
-// The converter reaches 20 MHz and the board's anti-aliasing filter rolls off
-// at 13.2 MHz, so everything above that is the filter's skirt and the noise
-// under it. Showing all 20 MHz by default would spend a third of the display on
-// it; 14 MHz puts the filter's corner just inside the right-hand edge, where it
-// can be seen to be working without crowding out the 8 MHz carrier that
-// matters. The wider ranges are kept because "is the filter doing what I think"
-// is a real question, and a display that cannot show past the corner cannot
-// answer it.
+// There was once a control here offering tops of 14 to 20 MHz, because on a
+// linear axis the stretch above this corner was dead space — a third of the
+// display spent on the part of the spectrum the hardware has deliberately
+// removed. A logarithmic axis makes the question go away: 13.2 to 20 MHz is a
+// fifth of a decade, under a tenth of the width, so the display simply shows
+// everything the converter can represent and there is nothing left to choose.
 inline constexpr double kLowPassCornerHz = 13'200'000.0;
-
-inline constexpr double kMaximumFrequencyChoicesHz[] = {
-    14'000'000.0, 16'000'000.0, 18'000'000.0, 20'000'000.0};
-
-inline constexpr size_t kMaximumFrequencyChoiceCount =
-    sizeof(kMaximumFrequencyChoicesHz) / sizeof(kMaximumFrequencyChoicesHz[0]);
-
-inline constexpr double kDefaultMaximumFrequencyHz =
-    kMaximumFrequencyChoicesHz[0];
 
 class SpectrumAnalyser {
  public:

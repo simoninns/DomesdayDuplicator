@@ -589,24 +589,28 @@ TEST(SpectrumPanelTest, PeakHoldIsDisabledWhereItWouldMeanNothing) {
   EXPECT_TRUE(peak_hold->isEnabled());
 }
 
-TEST(SpectrumPanelTest, TheRangeStartsAtTheFilterCornerAndCanBeWidened) {
+TEST(SpectrumPanelTest, TheDisplayShowsEverythingTheConverterCanRepresent) {
+  // There used to be a control here offering tops of 14 to 20 MHz, because on a
+  // linear axis the stretch above the filter's corner was a third of the width
+  // spent on the part of the spectrum the hardware has deliberately removed. On
+  // a decade axis that stretch is under a tenth of the width, so the display
+  // shows all of it and the control is gone.
   SpectrumPanel panel(nullptr);
 
-  auto* const range =
-      Named<QComboBox>(panel, SpectrumPanel::kMaximumFrequencyComboName);
   auto* const plot = Named<SpectrumPlot>(panel, SpectrumPanel::kPlotName);
-  ASSERT_NE(range, nullptr);
+  ASSERT_NE(plot, nullptr);
 
-  EXPECT_EQ(static_cast<size_t>(range->count()),
-            analysis::kMaximumFrequencyChoiceCount);
-  EXPECT_DOUBLE_EQ(plot->maximum_frequency_hz(),
-                   analysis::kDefaultMaximumFrequencyHz);
+  const double nyquist = static_cast<double>(capture::kSampleRateHz) / 2.0;
+  EXPECT_DOUBLE_EQ(plot->Axis().maximum_hz(), nyquist);
 
-  // The default has to show the filter's corner rather than stop before it.
-  EXPECT_GT(plot->maximum_frequency_hz(), analysis::kLowPassCornerHz);
+  // And the filter's corner is inside it, which is what the range control was
+  // originally there to guarantee.
+  EXPECT_GT(plot->Axis().maximum_hz(), analysis::kLowPassCornerHz);
 
-  range->setCurrentIndex(range->count() - 1);
-  EXPECT_DOUBLE_EQ(plot->maximum_frequency_hz(), 20'000'000.0);
+  // Fixed on either scale, so switching does not quietly change what is shown.
+  Named<QCheckBox>(panel, SpectrumPanel::kLogFrequencyBoxName)
+      ->setChecked(false);
+  EXPECT_DOUBLE_EQ(plot->Axis().maximum_hz(), nyquist);
 }
 
 TEST(SpectrumPanelTest, TheSpectrogramRecordsWhicheverViewIsShowing) {
@@ -704,31 +708,38 @@ TEST(SpectrumPanelTest, TheSpectrogramGrowsFromTheRightRatherThanStretching) {
       << "nothing at the right-hand edge, where now is";
 }
 
-// The frequency range has to reach the drawing, not just the axis labels. The
-// same carrier occupies a different fraction of a wider display, so widening
-// the range must move its stripe towards the left.
-TEST(SpectrumPanelTest, WideningTheRangeMovesTheCarrierDownTheSpectrogram) {
+// The axis has to reach the drawing, not just the labels beside it. With the
+// top fixed there is no range to vary, so this checks the stronger property
+// directly: the carrier is drawn where the axis says its frequency belongs.
+TEST(SpectrumPanelTest, TheCarrierIsDrawnWhereTheAxisPutsItsFrequency) {
   SpectrumPanel panel(nullptr);
   panel.resize(600, 300);
   Named<QComboBox>(panel, SpectrumPanel::kViewComboName)->setCurrentIndex(1);
 
-  auto* const range =
-      Named<QComboBox>(panel, SpectrumPanel::kMaximumFrequencyComboName);
+  auto* const plot = Named<SpectrumPlot>(panel, SpectrumPanel::kPlotName);
   const bool dark = theme_tokens::IsDarkPalette(panel.palette());
 
-  FeedCarrier(panel, 800, 30);
-  const int at_default = BrightestRow(panel.grab().toImage(), dark);
-  ASSERT_GE(at_default, 0);
+  constexpr size_t kCarrierBin = 800;
+  FeedCarrier(panel, kCarrierBin, 30);
 
-  range->setCurrentIndex(range->count() - 1);  // 20 MHz
-  const int at_widest = BrightestRow(panel.grab().toImage(), dark);
-  ASSERT_GE(at_widest, 0);
+  // The plot itself rather than the whole panel, so that the row found and the
+  // row computed are in the same coordinates: the panel lays the plot out
+  // inside its own margins, and that offset would otherwise read as a mapping
+  // error of a handful of pixels.
+  const int row = BrightestRow(plot->grab().toImage(), dark);
+  ASSERT_GE(row, 0);
 
-  // Frequency runs up the side, so a carrier occupying a smaller fraction of a
-  // wider range sits lower — further down the image, which is a larger row.
-  EXPECT_GT(at_widest, at_default)
-      << "the carrier sat at row " << at_default << " over 14 MHz and "
-      << at_widest << " over 20 MHz; the range is not reaching the drawing";
+  // Where the axis says that frequency sits, in the plot's own coordinates.
+  const size_t bins = (analysis::kDefaultTransformSize / 2) + 1;
+  const double carrier_hz = BinFrequency(kCarrierBin, bins);
+
+  const QRect area = plot->rect().adjusted(46, 6, -6, -20);
+  const double expected =
+      area.bottom() - (plot->Axis().ProportionOf(carrier_hz) * area.height());
+
+  EXPECT_NEAR(row, expected, 6.0)
+      << "the carrier was drawn at row " << row << " and the axis puts "
+      << carrier_hz << " Hz at " << expected;
 }
 
 TEST(SpectrumPanelTest, ThePanelPaintsWithNothingToDraw) {

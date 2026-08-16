@@ -33,6 +33,12 @@ enum class PlotColorToken {
   kNominalLimit,
   kZeroReference,
 
+  // Where the sweep was started from. Distinct from the mid-scale reference it
+  // usually sits on top of, because "this is the centre of the range" and "this
+  // is the edge every sweep is aligned to" are different claims and a reader
+  // has to be able to tell which line is which.
+  kTriggerMarker,
+
   // A pass or fail verdict. Not a plot, but here for the same reason
   // everything else is: a palette has no notion of "this capture is good", and
   // the literal green that reads well on a light window is unreadable on a dark
@@ -128,6 +134,8 @@ inline QColor PlotColor(PlotColorToken token, bool dark_theme) {
       return dark_theme ? QColor(230, 180, 90) : QColor(170, 110, 0);
     case PlotColorToken::kZeroReference:
       return dark_theme ? QColor(150, 150, 150) : QColor(110, 110, 110);
+    case PlotColorToken::kTriggerMarker:
+      return dark_theme ? QColor(120, 190, 140) : QColor(30, 120, 60);
     case PlotColorToken::kVerdictPass:
       return dark_theme ? QColor(120, 220, 130) : QColor(0, 120, 40);
     case PlotColorToken::kVerdictFail:

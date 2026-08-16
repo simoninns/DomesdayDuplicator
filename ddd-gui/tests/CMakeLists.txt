@@ -104,7 +104,9 @@ target_include_directories(ddd_update_tests PRIVATE support)
 ddd_add_test(ddd_analysis_tests "unit"
     analysis/test_front_end_gain.cpp
     analysis/test_frequency_axis.cpp
+    analysis/test_sinc_interpolation.cpp
     analysis/test_waveform_mapping.cpp
+    analysis/test_waveform_trigger.cpp
     analysis/test_amplitude_history.cpp
     analysis/test_signal_levels.cpp
     analysis/test_fourier_transform.cpp

@@ -36,26 +36,92 @@ was ever stored in the derived units.
 
 The scope. The signal as it arrives, with time across and level up.
 
+### Trigger
+
+Starts every sweep at the same point on the waveform — a rising crossing of mid-scale.
+**On by default.**
+
+Snapshots arrive from the device at whatever point in the signal the USB transfer happened
+to begin, which bears no relation to the signal itself. Drawn from its first sample, an
+8 MHz carrier is a different slice of a cycle every frame: the trace shimmers nine times a
+second and reads as a band of fuzz rather than as a waveform. Triggering is what every
+oscilloscope since the 1940s has done about this, and it is the difference between a trace
+you can read and one you cannot.
+
+The crossing is located *between* samples, not at the nearest one. At five samples to a
+cycle, rounding to a sample would leave a fifth of a cycle of jitter — most of the shimmer
+the trigger is there to remove.
+
+A dashed vertical line marks the trigger point, a tenth of the way across, so that what
+happened just before the edge is on screen too.
+
+If nothing crosses the level — a flat input, or one that never comes back down far enough
+to re-arm — the display free-runs rather than freezing. A trace that has gone flat is
+exactly when you need to see it.
+
 ### Span
 
-How much time is on screen: **10 µs**, **50 µs**, **100 µs** (the default), **200 µs** or
-**500 µs**.
+How much time is on screen: **0.5 µs**, **1 µs** (the default), **2**, **5**, **10**,
+**50**, **100**, **200** or **500 µs**.
 
-10 µs is about two cycles of a LaserDisc FM carrier — the shortest span with anything to
-see in it. 500 µs is 20,000 samples, which is the longest span that still shows all of the
-time it claims to.
+An 8 MHz carrier has a period of 125 ns, so one cycle is five samples and 1 µs is about
+eight cycles — the classic few-cycles-on-screen a scope is set to, and the only range at
+which the shape of the carrier can be seen at all. The ladder used to start at 10 µs, which
+is eighty cycles.
+
+500 µs is 20,000 samples, the longest span that still shows all of the time it claims to.
+A span longer than the snapshot is silently clamped, and the time axis then labels what is
+actually on screen rather than what was asked for.
+
+How the trace is drawn follows from the span, because one rule cannot serve a range that
+runs from thirty-three samples in a pixel to fifteen pixels between samples:
+
+| Samples per pixel | Drawn as |
+| --- | --- |
+| 2 or more | the highest and lowest sample in each column, as a vertical bar |
+| 1 to 2 | the sample points, joined |
+| under 1 | the band-limited waveform the samples determine, with the samples marked |
+
+That last row matters more than it sounds. At five samples a cycle, joining the sample
+points with straight lines draws a jagged pentagon whose peaks are up to 20% low — the
+samples mostly miss the crest. The signal is band-limited by the board's filter at
+13.2 MHz, well under the 20 MHz Nyquist limit, so exactly one waveform passes through the
+samples; the display reconstructs it, as every digital oscilloscope does at these
+densities. The dots are the measured samples, so what was measured stays distinguishable
+from what was filled in between.
 
 ### Persistence
 
-Lets each trace fade rather than replacing it, so a repeating waveform builds up its
-envelope over about a second. This is the way to see the *shape* of an FM carrier rather
-than one arbitrary slice of it — and the way to notice a modulation that a single sweep
-would show as a slightly different trace each time.
+How long each sweep lingers before fading, from **off** (the default) up to **2 seconds**,
+in quarter-second steps. Off replaces the trace each time, which is the plain scope.
+
+With the trigger on, **every snapshot contributes up to thirty-two sweeps rather than
+one**, taken from across the whole 819 µs the snapshot covers rather than clustered at its
+start. That is an effective sweep rate of around three hundred a second from a device that
+delivers nine snapshots a second — the samples were always there, they were simply being
+thrown away. The result is that the deviation of an FM carrier shows as a widening of the
+trace, tight at the trigger point and fanning out across the sweep, which is what an
+analogue scope's phosphor did and what a single sweep cannot show.
+
+How long a tail is useful depends on what you are looking for, which is why this is a
+slider and not a switch. A short one — a quarter to half a second — keeps the display
+responsive and is already enough to see the deviation. A longer one builds a denser
+picture and is the setting for catching something that happens rarely, at the cost of the
+display being slower to show that the signal has changed. Two seconds is the top because
+past it that cost buys nothing: with the trigger on, a two-second tail has already
+accumulated something like five hundred sweeps.
+
+The setting is a **duration, not a per-frame fade**: the figure is the time constant, so
+after it the picture is at 37% and after three times it there is nothing left to see. The
+fade is worked out from the time that has actually passed, so a tail is the length it says
+whatever rate the device happens to be delivering snapshots at — and a run that stalls for
+two seconds comes back having genuinely lost two seconds of picture.
 
 ### The cursor
 
 Point at the trace and the readout gives the position in microseconds and the level, in
-codes or in millivolts.
+codes or in millivolts. The position is measured from the start of the sweep, matching the
+time axis below the plot.
 
 ## Spectrum
 
@@ -121,20 +187,16 @@ total at the default resolution — an expanse of axis with almost no measuremen
 and on a decade scale it would be the widest part of the display. An even axis starts at DC,
 where there is nothing wrong with drawing zero.
 
-### Range
+Both scales run to **20 MHz**, everything the converter can represent, and there is no
+control to change that. There used to be one, offering tops from 14 to 20 MHz, because on an
+even axis the stretch above the anti-aliasing filter's corner at 13.2 MHz was a third of the
+width spent on the part of the spectrum the hardware has deliberately removed. On a decade
+axis that same stretch is a fifth of a decade — under a tenth of the width — so the display
+just shows all of it, the filter's roll-off is always there to look at, and there is one
+fewer thing to set.
 
-The top of the displayed frequency range: **14 MHz** (the default), **16**, **18** or
-**20 MHz**.
-
-The converter reaches 20 MHz and the board's anti-aliasing filter rolls off at 13.2 MHz, so
-everything above that is the filter's skirt and the noise under it. 14 MHz puts the filter's
-corner just inside the right-hand edge, where it can be seen to be working without crowding
-out the 8 MHz carrier that matters. The wider ranges are for when *"is the filter doing what
-I think"* is the actual question.
-
-Narrowing the range spreads a subset of the bins across the same width. Nothing is thrown
-away and nothing is interpolated, and the same is true of switching between the two axis
-spacings: both are the same measurement re-laid-out.
+Switching between the two spacings throws nothing away and interpolates nothing: both are
+the same measurement re-laid-out.
 
 ### Resolution
 

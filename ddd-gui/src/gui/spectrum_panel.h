@@ -72,11 +72,6 @@ class SpectrumPlot : public QWidget {
   void SetSpectrogramReference(double reference_db);
   void SetSpectrogramRange(double range_db);
 
-  // The top of the displayed range. History is kept across the whole span the
-  // converter reaches, so narrowing this re-draws what is already held at
-  // higher resolution rather than discarding it.
-  void SetMaximumFrequency(double frequency_hz);
-
   // Whether frequency runs linearly or logarithmically. Applies to both views
   // at once: they are two pictures of the same measurement and a panel whose
   // trace and waterfall disagreed about where 1 MHz was would be worse than
@@ -87,7 +82,6 @@ class SpectrumPlot : public QWidget {
 
   bool peak_hold_visible() const { return peak_hold_visible_; }
   SpectrumView view() const { return view_; }
-  double maximum_frequency_hz() const { return maximum_frequency_hz_; }
   analysis::FrequencyScale frequency_scale() const { return scale_; }
   double spectrogram_reference_db() const { return reference_db_; }
   double spectrogram_range_db() const { return range_db_; }
@@ -164,7 +158,6 @@ class SpectrumPlot : public QWidget {
   bool peak_hold_visible_ = true;
 
   SpectrumView view_ = SpectrumView::kTrace;
-  double maximum_frequency_hz_ = analysis::kDefaultMaximumFrequencyHz;
   analysis::FrequencyScale scale_ = analysis::FrequencyScale::kLogarithmic;
 
   double reference_db_ = kDefaultSpectrogramReferenceDb;
@@ -214,8 +207,6 @@ class SpectrumPanel : public QWidget {
   static constexpr const char* kResetButtonName = "spectrum_reset_button";
   static constexpr const char* kCursorLabelName = "spectrum_cursor_label";
   static constexpr const char* kViewComboName = "spectrum_view_combo";
-  static constexpr const char* kMaximumFrequencyComboName =
-      "spectrum_maximum_frequency_combo";
   static constexpr const char* kLogFrequencyBoxName =
       "spectrum_log_frequency_box";
   static constexpr const char* kReferenceComboName = "spectrum_reference_combo";
@@ -252,7 +243,6 @@ class SpectrumPanel : public QWidget {
 
   SpectrumPlot* plot_ = nullptr;
   QComboBox* view_ = nullptr;
-  QComboBox* maximum_frequency_ = nullptr;
   QComboBox* resolution_ = nullptr;
   QComboBox* averaging_ = nullptr;
   QCheckBox* log_frequency_ = nullptr;

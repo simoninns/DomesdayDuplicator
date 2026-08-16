@@ -15,15 +15,25 @@
 
 namespace ddd::analysis {
 
-double WaveformMapping::SampleToX(size_t sample_index) const {
+double WaveformMapping::SampleToX(double sample_index) const {
   if (!Valid()) {
     return 0.0;
   }
 
   const double offset =
-      static_cast<double>(sample_index) - static_cast<double>(first_sample);
+      sample_index - static_cast<double>(first_sample) - sub_sample_offset;
   return offset * static_cast<double>(width_pixels) /
          static_cast<double>(sample_span);
+}
+
+double WaveformMapping::XToSamplePosition(double x) const {
+  if (!Valid()) {
+    return static_cast<double>(first_sample);
+  }
+
+  return static_cast<double>(first_sample) + sub_sample_offset +
+         (x * static_cast<double>(sample_span) /
+          static_cast<double>(width_pixels));
 }
 
 size_t WaveformMapping::XToSample(double x) const {
@@ -31,14 +41,40 @@ size_t WaveformMapping::XToSample(double x) const {
     return first_sample;
   }
 
-  const double offset =
-      x * static_cast<double>(sample_span) / static_cast<double>(width_pixels);
-  if (offset <= 0.0) {
+  const double position = XToSamplePosition(x);
+  if (position <= static_cast<double>(first_sample)) {
     return first_sample;
   }
 
-  const size_t index = first_sample + static_cast<size_t>(offset);
+  const size_t index = static_cast<size_t>(position);
   return std::min(index, first_sample + sample_span - 1);
+}
+
+double WaveformMapping::SamplesPerPixel() const {
+  if (!Valid()) {
+    return 0.0;
+  }
+  return static_cast<double>(sample_span) / static_cast<double>(width_pixels);
+}
+
+WaveformDrawStyle WaveformMapping::DrawStyle() const {
+  const double density = SamplesPerPixel();
+
+  if (density >= kEnvelopeSamplesPerPixel) {
+    return WaveformDrawStyle::kEnvelope;
+  }
+  if (density >= kPolylineSamplesPerPixel) {
+    return WaveformDrawStyle::kPolyline;
+  }
+  return WaveformDrawStyle::kReconstructed;
+}
+
+bool WaveformMapping::ShouldMarkSamples() const {
+  const double density = SamplesPerPixel();
+  if (density <= 0.0) {
+    return false;
+  }
+  return 1.0 / density >= kSampleMarkerPixelSpacing;
 }
 
 double WaveformMapping::CodeToY(double code) const {

@@ -301,6 +301,16 @@ bin 1,264 instead of bin 800.
 3. The maximum-frequency selector keeps its meaning in both modes (top of axis);
    `kLowPassCornerHz` annotation (a marker at 13.2 MHz) is drawn by Phase 5.
 
+**Superseded 2026-08-16: the selector was removed and the top fixed at Nyquist.** The
+control existed because on a linear axis the stretch above the filter's corner was a
+third of the width spent on a band the hardware has deliberately removed. On a decade
+axis that stretch is a fifth of a decade — under a tenth of the width — so showing
+everything the converter can represent costs almost nothing and there is no longer a
+trade to offer. `kMaximumFrequencyChoicesHz` and `SpectrumPlot::SetMaximumFrequency` are
+gone; `kLowPassCornerHz` stays for Phase 5's marker. The widget test that varied the
+range is replaced by a stronger one: the carrier must be drawn within six pixels of where
+the axis puts its frequency.
+
 **Tests:** round-trip proportion↔Hz in both modes; tick ladders at several ranges; the
 regression the mapper exists to prevent — cursor frequency equals the frequency of the
 bin drawn at that pixel, in log mode, at the edges.
@@ -367,7 +377,58 @@ setting (fails today); ref/range mapping; cursor frequency agreement in log mode
 **Acceptance:** a brief interferer is a sharp horizontal-axis event; a drifting carrier
 remains a clean sloped line; contrast controls make a −60 dB feature inspectable.
 
-### Phase 4 — a triggered, carrier-scale waveform display
+### Phase 4 — a triggered, carrier-scale waveform display — **done**
+
+Landed 2026-08-16, in `analysis/waveform_trigger.{h,cpp}`,
+`analysis/sinc_interpolation.{h,cpp}` and the panel. All five items are in: trigger,
+span ladder, multi-sweep rendering, reconstruction, time axis.
+
+- **Trigger**, on by default, with the crossing located between samples. Sub-sample
+  interpolation was not in the original sketch and turned out to be the difference
+  between working and nearly working: at five samples a cycle, rounding the crossing to a
+  sample leaves a fifth of a cycle of jitter, which is most of the shimmer the trigger
+  exists to remove. `WaveformMapping` gained a `sub_sample_offset` to carry it.
+- **Span ladder** now starts at 0.5 µs and defaults to 1 µs. The old comment claiming
+  10 µs was "about two cycles" is corrected in place — it was eighty.
+- **Reconstruction** via a precomputed windowed-sinc kernel (16 taps, 256 phases). The
+  table is not premature: evaluating the window and sinc per point would be three
+  transcendental calls per tap, and at 32 sweeps × 600 columns × 16 taps × 9 snapshots a
+  second that is millions of them on the GUI thread. Measured cost of the full 32-sweep
+  reconstructed persistence view: **2.9 ms per frame, about 2.6% of one core**.
+- **Multi-sweep**: up to 32 sweeps per snapshot, spread across the whole 819 µs rather
+  than clustered at its start, giving ~300 sweeps/s from a 9 Hz device.
+
+Two things learned from the tests rather than from the plan:
+
+- **Two existing tests encoded the old behaviour and had to change**, and both were
+  right to fail. `PersistenceLeavesEarlierSweepsOnScreen` fed phase-shifted sines and
+  expected them to spread across the screen; the trigger now aligns them, which is the
+  feature working. It feeds varying amplitudes instead. `SpansAreLabelledInTheTimeTheyCover`
+  repeated the wrong two-cycles claim.
+- **Image comparison is the wrong tool for "did the trace move".** The reconstructed
+  trace is a one-pixel antialiased curve, so shifting it by a hundredth of a pixel
+  changes the coverage of every pixel along it: a diff of two visually identical frames
+  lit up the whole curve. The test measures mean vertical displacement of the trace per
+  column instead — under 1.5 px triggered against tens of pixels untriggered.
+
+Also fixed while there: the time-axis end labels were clipped at the plot edges (a last
+mark reading "1 µ"), now pulled inside.
+
+**Revised 2026-08-16: persistence became a slider, off by default.** It was a checkbox
+with one fixed fade. The control is calibrated in seconds of tail (0 to 2, quarter-second
+steps, ticked every half second) rather than in the per-frame alpha, because the relation between them is
+exponential — the alphas worth having are 0.85 to 0.99, so a slider over them would spend
+four fifths of its travel doing nothing. The fade is derived from the time actually
+elapsed since the last one, measured the same way the spectrogram measures its own frame
+rate, so a tail is the length it claims whatever rate the pipeline is publishing at.
+
+That surfaced a test that was passing for the wrong reason: paints in a widget test arrive
+microseconds apart, so nothing decays and every setting draws the same picture. The
+picture-level test now compares persistence against *off* — genuinely different code paths
+— and `WaveformPlot::RetainedAlpha` is public so the exponential itself can be pinned
+directly (37% after one time constant, 5% after three).
+
+### Phase 4 — as planned
 
 The waveform panel becomes a real single-channel DSO view. This is the phase that
 answers "specialise for 1–13.2 MHz".

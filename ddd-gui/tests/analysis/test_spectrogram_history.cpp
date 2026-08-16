@@ -13,6 +13,7 @@
 
 #include <vector>
 
+#include "sample_format.h"
 #include "spectrogram_history.h"
 #include "spectrum_analyser.h"
 
@@ -183,20 +184,13 @@ TEST(SpectrogramHistoryTest, ClearingForgetsTheClockAsWellAsTheLevels) {
   EXPECT_DOUBLE_EQ(history.WindowSeconds(), 0.0);
 }
 
-TEST(SpectrogramHistoryTest, TheOfferedRangesStartAtTheFilterCorner) {
-  // The board's anti-aliasing filter rolls off at 13.2 MHz, so the default
-  // range has to put that corner inside the display rather than at or beyond
-  // its edge — a display that stops before the corner cannot show it working.
-  EXPECT_GT(kDefaultMaximumFrequencyHz, kLowPassCornerHz);
-  EXPECT_EQ(kDefaultMaximumFrequencyHz, kMaximumFrequencyChoicesHz[0]);
-
-  // Ascending, and none past what the converter can represent.
-  for (size_t index = 1; index < kMaximumFrequencyChoiceCount; ++index) {
-    EXPECT_GT(kMaximumFrequencyChoicesHz[index],
-              kMaximumFrequencyChoicesHz[index - 1]);
-  }
-  EXPECT_LE(kMaximumFrequencyChoicesHz[kMaximumFrequencyChoiceCount - 1],
-            20'000'000.0);
+TEST(SpectrogramHistoryTest, TheFilterCornerIsInsideWhatTheDisplayShows) {
+  // The display shows everything the converter can represent, so the only thing
+  // left to check about the board's anti-aliasing filter is that its corner
+  // falls inside that — a display that stopped before the corner could not show
+  // the filter working, which is a real question somebody asks of a new board.
+  EXPECT_LT(kLowPassCornerHz,
+            static_cast<double>(capture::kSampleRateHz) / 2.0);
 }
 
 }  // namespace
