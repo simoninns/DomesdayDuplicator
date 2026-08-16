@@ -62,6 +62,49 @@ TEST(ResponseParserTest, ATextReplyIsNotPutThroughTheErrorConvention) {
   EXPECT_EQ(reply.text, "ENCODED123");
 }
 
+TEST(ResponseParserTest, ATextReplyKeepsEveryByteButTheTerminator) {
+  // The Pioneer user code is a fixed-width record whose fields are space-padded
+  // to their width, so the whitespace trimming that is right for a reply about
+  // to be read as a number would be deleting payload here. Everything that does
+  // parse a reply strips for itself, so nothing downstream needs this to.
+  EXPECT_EQ(ParseText("#59-014    *MCA  \r").text, "#59-014    *MCA  ");
+  EXPECT_EQ(ParseText("  leading kept\r").text, "  leading kept");
+
+  // The terminator does come off, in either spelling.
+  EXPECT_EQ(ParseText("P04\r\n").text, "P04");
+
+  // And a reply that is nothing but a terminator is still no answer.
+  EXPECT_EQ(ParseText("\r").status, ReplyStatus::kNoAnswer);
+}
+
+TEST(ResponseParserTest, TheUnreadableCharacterIsTheOneThePlayerDocuments) {
+  // Named rather than spelled out at each use, because it is the difference
+  // between "this application cannot decode the reply" and "the player could
+  // not read the disc" — and on the bench an LD-V4300D sent sixty of them in
+  // the middle of one 200-byte user code.
+  EXPECT_EQ(kUnreadableCharacter, '`');
+  EXPECT_EQ(static_cast<int>(kUnreadableCharacter), 0x60);
+}
+
+TEST(ResponseParserTest, AnErrorCodeIsTellableFromAUserCodeThatContainsAnE) {
+  // The reading that made this necessary: an LD-V4300D on the bench answers the
+  // Pioneer user-code query with "E04" while parked. Taken as text — which is
+  // right for a user code — that would be shown to somebody as their disc's
+  // user code, so the whole reply being 'E' and digits is worth recognising.
+  EXPECT_TRUE(IsErrorCode("E04"));
+  EXPECT_TRUE(IsErrorCode("E1"));
+
+  // Deliberately much stricter than the acknowledgement convention, because the
+  // reason text replies avoid that convention is exactly that a user code may
+  // legitimately contain an 'E'.
+  EXPECT_FALSE(IsErrorCode("ENCODED123"));
+  EXPECT_FALSE(IsErrorCode("E"));
+  EXPECT_FALSE(IsErrorCode(""));
+  EXPECT_FALSE(IsErrorCode("04"));
+  EXPECT_FALSE(IsErrorCode("E04X"));
+  EXPECT_FALSE(IsErrorCode("XE04"));
+}
+
 TEST(ResponseParserTest, AFrameAddressIsRead) {
   const DiscAddress address = ParseAddress("12345\r", AddressMode::kFrame);
   EXPECT_TRUE(address.valid);

@@ -12,6 +12,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QPointer>
 #include <utility>
 
 #include "settings_dialog.h"
@@ -22,6 +23,8 @@ class QDockWidget;
 class QLabel;
 
 namespace ddd::gui {
+
+class PlayerRemoteDialog;
 
 class ApplicationLogger;
 class CaptureController;
@@ -98,6 +101,10 @@ class MainWindow : public QMainWindow {
   void ShowSettingsDialog(
       SettingsDialog::Tab tab = SettingsDialog::Tab::kCapture);
   void ShowAnalysisDialog();
+
+  // Bring up the remote, or bring the one that is already up to the front.
+  void ShowRemoteDialog();
+
   void ShowCaptureFinished(const QString& file_path, quint64 bytes);
   void ShowFirmwareWarning(const QString& message);
   void ShowFailure(const QString& title, const QString& detail);
@@ -138,6 +145,11 @@ class MainWindow : public QMainWindow {
   // about different pieces of equipment and a user watching one should not lose
   // sight of the other.
   QLabel* player_status_label_ = nullptr;
+
+  // The remote, if it is open. One window however many ways there are of
+  // reaching it — two remotes would be two things sending commands down one
+  // cable — and a QPointer because it deletes itself when it is closed.
+  QPointer<PlayerRemoteDialog> remote_dialog_;
 
   // Held so the two can be related to one another after both exist: the
   // Amplitude panel can be asked to keep pace with the spectrogram, and neither

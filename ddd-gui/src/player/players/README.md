@@ -72,7 +72,27 @@ full version and this is its summary.
   settings each time and then letting auto-detection find it.
 - Every control in the remote, one at a time, watching the player rather than the
   application. A control that is enabled and does nothing is a wrong capability flag; a
-  control that does something other than its label is a wrong command sequence.
+  control that does something other than its label is a wrong command sequence. In order,
+  because each one leaves the player somewhere the next needs it: tray open and close, play,
+  pause, still, step both ways, scan both ways, multi-speed both ways at each rate the
+  selector offers, a frame search and a time search, a chapter search, the on-screen display
+  on and off, each audio mode, key lock on and off, and reject.
+- Any control the remote leaves greyed out, checked against the model's manual. A control
+  that is disabled and the player does have is a capability flag that is wrong in the other
+  direction, and it is the one this checklist would otherwise never reach.
+- Both user-code reads, with a disc **spinning**. `E04` from either is an error code and not
+  a code to record: the LD-V4400 manual documents it as no user code being encoded, and on
+  this project's bench a disc that reads perfectly while spinning gives `E04` parked. The
+  remote says "the player refused" rather than showing it as the disc's user code.
+- **Do the Pioneer read last, or expect to lose your place.** `?U` is not a query: the player
+  searches to the lead-in to answer it. On an LD-V4300D that took 11.1 seconds from the
+  middle of a side and left the player parked at frame 1. If a model takes materially longer
+  than the thirty seconds the long timeout allows, its definition needs its own.
+  In the dump, a run of `` ` `` is the *player* reporting characters it could not read off
+  the disc and a run of NULs is data that was never encoded — both are facts about that disc
+  rather than faults in the definition, and they are not the same fact.
+- The manual command field, with `?X`. Its answer is the model code that belongs in this
+  header, so it is also the check that the definition is claiming the right ID.
 - Examine a CAV disc and a CLV disc. The reported type, length and addressing must match
   the disc.
 - Power-cycle the player mid-session and confirm it reconnects on its own.

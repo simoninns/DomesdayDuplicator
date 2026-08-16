@@ -14,6 +14,7 @@
 #include <QMetaType>
 
 #include "player_connection.h"
+#include "player_request.h"
 #include "player_settings.h"
 #include "player_status.h"
 
@@ -28,5 +29,7 @@
 // a type this one already declares is a build error naming a generated file
 // rather than either header.
 Q_DECLARE_METATYPE(ddd::gui::PlayerConnection)
+Q_DECLARE_METATYPE(ddd::gui::PlayerRequest)
+Q_DECLARE_METATYPE(ddd::gui::PlayerReply)
 Q_DECLARE_METATYPE(ddd::gui::PlayerSettings)
 Q_DECLARE_METATYPE(ddd::player::PlayerStatus)

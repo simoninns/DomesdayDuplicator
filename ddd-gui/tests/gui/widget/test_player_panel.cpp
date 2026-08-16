@@ -118,6 +118,34 @@ TEST_F(PlayerPanelTest, ItBuildsAndSaysWhatItIsDoingWithNoControllerAtAll) {
       QLatin1String(PlayerPanel::kSearchButtonName));
   ASSERT_NE(search, nullptr);
   EXPECT_FALSE(search->isEnabled());
+
+  auto* remote = panel.findChild<QPushButton*>(
+      QLatin1String(PlayerPanel::kRemoteButtonName));
+  ASSERT_NE(remote, nullptr);
+  EXPECT_FALSE(remote->isEnabled());
+}
+
+TEST_F(PlayerPanelTest, TheRemoteIsOfferedOnlyOnceThereIsSomethingToDrive) {
+  // The panel asks for the remote rather than opening one, so that there is one
+  // remote however many ways there are of reaching it.
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  BuildWithController();
+  controller_->Start();
+
+  auto* remote = Find<QPushButton>(PlayerPanel::kRemoteButtonName);
+  ASSERT_NE(remote, nullptr);
+  EXPECT_FALSE(remote->isEnabled());
+
+  int asked = 0;
+  QObject::connect(panel_.get(), &PlayerPanel::RemoteRequested, panel_.get(),
+                   [&asked] { ++asked; });
+
+  controller_->SetEnabled(true);
+  ASSERT_TRUE(PumpUntil([this] { return controller_->connected(); }));
+  ASSERT_TRUE(remote->isEnabled());
+
+  remote->click();
+  EXPECT_EQ(asked, 1);
 }
 
 TEST_F(PlayerPanelTest, EveryReadingIsBlankUntilThereIsAPlayer) {

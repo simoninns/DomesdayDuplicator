@@ -100,6 +100,13 @@ PlayerPanel::PlayerPanel(PlayerController* controller, QWidget* parent)
          "next automatic attempt."));
   button_layout->addWidget(search_);
 
+  remote_ = new QPushButton(tr("Remote…"), buttons);
+  remote_->setObjectName(QLatin1String(kRemoteButtonName));
+  remote_->setToolTip(
+      tr("Drive the player by hand. The remote stays open while you work, so "
+         "the spectrum and waveform can be watched at the same time."));
+  button_layout->addWidget(remote_);
+
   use_model_ = new QPushButton(tr("Use this model"), buttons);
   use_model_->setObjectName(QLatin1String(kUseModelButtonName));
   use_model_->setToolTip(
@@ -147,6 +154,7 @@ PlayerPanel::PlayerPanel(PlayerController* controller, QWidget* parent)
     OnConnectionChanged(disabled);
     enabled_check_->setEnabled(false);
     search_->setEnabled(false);
+    remote_->setEnabled(false);
     return;
   }
 
@@ -154,6 +162,7 @@ PlayerPanel::PlayerPanel(PlayerController* controller, QWidget* parent)
           &PlayerController::SetEnabled);
   connect(search_, &QPushButton::clicked, controller_,
           &PlayerController::SearchNow);
+  connect(remote_, &QPushButton::clicked, this, &PlayerPanel::RemoteRequested);
   connect(use_model_, &QPushButton::clicked, controller_,
           &PlayerController::UseConnectedModel);
 
@@ -198,6 +207,10 @@ void PlayerPanel::OnConnectionChanged(const PlayerConnection& connection) {
   // anything: there is nothing to search for while connected, and nothing to
   // search with while switched off.
   search_->setEnabled(connection.state == PlayerConnectionState::kDisconnected);
+
+  // There is nothing to drive without a player, and a remote full of greyed-out
+  // buttons is a worse answer than a button that says "not yet".
+  remote_->setEnabled(connection.live());
 
   if (!connection.live()) {
     ClearStatus();

@@ -25,6 +25,7 @@
 #include "logger.h"
 #include "player_connection.h"
 #include "player_metatypes.h"
+#include "player_request.h"
 #include "player_session.h"
 #include "player_settings.h"
 #include "player_status.h"
@@ -112,9 +113,17 @@ class PlayerWorker : public QObject {
   // reply gets attributed to the wrong command.
   void SetPaused(bool paused);
 
+  // Do one thing the interface asked for, and say what came back.
+  //
+  // Arrives as a queued invocation, so it runs between polls rather than during
+  // one: the session is only ever touched by this thread, and that — not a lock
+  // — is what stops a reply being attributed to the wrong command.
+  void Send(const ddd::gui::PlayerRequest& request);
+
  signals:
   void ConnectionChanged(const ddd::gui::PlayerConnection& connection);
   void StatusUpdated(const ddd::player::PlayerStatus& status);
+  void RequestCompleted(const ddd::gui::PlayerReply& reply);
 
   // A player was found here. The controller writes it into the settings, so
   // the next run costs one probe rather than a scan of every port.

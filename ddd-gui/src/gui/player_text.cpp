@@ -13,6 +13,14 @@
 
 #include <QCoreApplication>
 #include <QObject>
+#include <QStringList>
+#include <algorithm>
+#include <string_view>
+
+#include "player_controls.h"
+#include "player_registry.h"
+#include "response_parser.h"
+#include "user_code.h"
 
 namespace ddd::gui {
 namespace {
@@ -226,6 +234,471 @@ QString FormatTimeCode(int32_t time_code) {
       .arg(hours)
       .arg(minutes, 2, 10, QLatin1Char('0'))
       .arg(seconds, 2, 10, QLatin1Char('0'));
+}
+
+std::optional<int32_t> ParseTimeCodeEntry(const QString& text) {
+  const QString trimmed = text.trimmed();
+  if (trimmed.isEmpty()) {
+    return std::nullopt;
+  }
+
+  // The bare form: the player's own seven digits, for somebody reading them off
+  // its display. Taken as written, since that is already what the wire wants.
+  if (!trimmed.contains(QLatin1Char(':'))) {
+    bool numeric = false;
+    const int32_t value = trimmed.toInt(&numeric);
+    if (!numeric || value < 0 || trimmed.size() > 7) {
+      return std::nullopt;
+    }
+    return value;
+  }
+
+  const QStringList parts = trimmed.split(QLatin1Char(':'));
+  if (parts.size() > 3) {
+    return std::nullopt;
+  }
+
+  // Right-aligned, the way a clock is read: "23:45" is minutes and seconds on a
+  // disc under an hour, not hours and minutes.
+  int32_t fields[3] = {0, 0, 0};
+  const qsizetype offset = 3 - parts.size();
+  for (qsizetype index = 0; index < parts.size(); ++index) {
+    bool numeric = false;
+    fields[offset + index] = parts.at(index).toInt(&numeric);
+    if (!numeric || parts.at(index).isEmpty()) {
+      return std::nullopt;
+    }
+  }
+
+  const int32_t hours = fields[0];
+  const int32_t minutes = fields[1];
+  const int32_t seconds = fields[2];
+
+  // One digit for the hours, because that is all the seven-digit format has.
+  if (hours < 0 || hours > 9 || minutes < 0 || minutes > 59 || seconds < 0 ||
+      seconds > 59) {
+    return std::nullopt;
+  }
+
+  // The trailing frame count is left at zero. A user typing a time means the
+  // second, and the player seeks to the first frame of it.
+  return (hours * 1000000) + (minutes * 10000) + (seconds * 100);
+}
+
+QString PlayerCommandName(player::PlayerCommand command) {
+  switch (command) {
+    case player::PlayerCommand::kTrayOpen:
+      return QObject::tr("Open the tray");
+    case player::PlayerCommand::kTrayClose:
+      return QObject::tr("Close the tray");
+    case player::PlayerCommand::kPlay:
+      return QObject::tr("Play");
+    case player::PlayerCommand::kPlayWithoutStopCodes:
+      return QObject::tr("Play, ignoring stop codes");
+    case player::PlayerCommand::kPause:
+      return QObject::tr("Pause");
+    case player::PlayerCommand::kStillFrame:
+      return QObject::tr("Still frame");
+    case player::PlayerCommand::kStop:
+      return QObject::tr("Reject");
+    case player::PlayerCommand::kStepForward:
+      return QObject::tr("Step forward");
+    case player::PlayerCommand::kStepReverse:
+      return QObject::tr("Step back");
+    case player::PlayerCommand::kScanForward:
+      return QObject::tr("Scan forward");
+    case player::PlayerCommand::kScanReverse:
+      return QObject::tr("Scan back");
+    case player::PlayerCommand::kMultiSpeedForward:
+      return QObject::tr("Multi-speed forward");
+    case player::PlayerCommand::kMultiSpeedReverse:
+      return QObject::tr("Multi-speed back");
+    case player::PlayerCommand::kSetSpeed:
+      return QObject::tr("Set the multi-speed rate");
+    case player::PlayerCommand::kSeekFrame:
+      return QObject::tr("Go to a frame");
+    case player::PlayerCommand::kSeekTimeCode:
+      return QObject::tr("Go to a time");
+    case player::PlayerCommand::kSeekChapter:
+      return QObject::tr("Go to a chapter");
+    case player::PlayerCommand::kDisplayOn:
+      return QObject::tr("Turn the on-screen display on");
+    case player::PlayerCommand::kDisplayOff:
+      return QObject::tr("Turn the on-screen display off");
+    case player::PlayerCommand::kSetAudio:
+      return QObject::tr("Choose the audio");
+    case player::PlayerCommand::kKeyLockOn:
+      return QObject::tr("Lock the player's own controls");
+    case player::PlayerCommand::kKeyLockOff:
+      return QObject::tr("Unlock the player's own controls");
+    case player::PlayerCommand::kQueryActiveMode:
+      return QObject::tr("Ask what the player is doing");
+    case player::PlayerCommand::kQueryAddress:
+      return QObject::tr("Ask where the player is");
+    case player::PlayerCommand::kQueryDiscStatus:
+      return QObject::tr("Ask about the disc");
+    case player::PlayerCommand::kQueryStandardUserCode:
+      return QObject::tr("Read the standard user code");
+    case player::PlayerCommand::kQueryPioneerUserCode:
+      return QObject::tr("Read the Pioneer user code");
+    case player::PlayerCommand::kQueryPhysicalPosition:
+      return QObject::tr("Read the optical assembly's position");
+    case player::PlayerCommand::kCount:
+      break;
+  }
+  return QObject::tr("Unknown command");
+}
+
+QString AudioModeName(player::AudioMode mode) {
+  switch (mode) {
+    case player::AudioMode::kOff:
+      return QObject::tr("Muted");
+    case player::AudioMode::kAnalogChannel1:
+      return QObject::tr("Analogue left");
+    case player::AudioMode::kAnalogChannel2:
+      return QObject::tr("Analogue right");
+    case player::AudioMode::kAnalogStereo:
+      return QObject::tr("Analogue stereo");
+    case player::AudioMode::kDigitalChannel1:
+      return QObject::tr("Digital left");
+    case player::AudioMode::kDigitalChannel2:
+      return QObject::tr("Digital right");
+    case player::AudioMode::kDigitalStereo:
+      return QObject::tr("Digital stereo");
+    case player::AudioMode::kCount:
+      break;
+  }
+  return QObject::tr("Unknown");
+}
+
+QString PlaybackSpeedName(player::PlaybackSpeed speed) {
+  switch (speed) {
+    case player::PlaybackSpeed::kSixth:
+      return QObject::tr("1/6×");
+    case player::PlaybackSpeed::kQuarter:
+      return QObject::tr("1/4×");
+    case player::PlaybackSpeed::kThird:
+      return QObject::tr("1/3×");
+    case player::PlaybackSpeed::kHalf:
+      return QObject::tr("1/2×");
+    case player::PlaybackSpeed::kNormal:
+      return QObject::tr("1×");
+    case player::PlaybackSpeed::kDouble:
+      return QObject::tr("2×");
+    case player::PlaybackSpeed::kTriple:
+      return QObject::tr("3×");
+    case player::PlaybackSpeed::kQuadruple:
+      return QObject::tr("4×");
+    case player::PlaybackSpeed::kCount:
+      break;
+  }
+  return QObject::tr("Unknown");
+}
+
+QString UnsupportedControlNote(const PlayerConnection& connection,
+                               player::PlayerCommand command) {
+  const QString model =
+      connection.recognised_model && !connection.model_name.isEmpty()
+          ? connection.model_name
+          : QObject::tr("This player");
+
+  QStringList capable;
+  for (const player::PlayerDefinition* definition :
+       player::RegisteredPlayers()) {
+    // Asked with the firmware the model's own gate names, so the answer is
+    // "this model can, given the firmware for it" rather than "this model
+    // cannot, on the firmware that happens to be in the room".
+    const player::PlayerControls controls = player::ControlsFor(
+        *definition, definition->physical_position_firmware);
+
+    if (controls.Has(command)) {
+      capable.append(
+          QString::fromUtf8(definition->name.data(),
+                            static_cast<qsizetype>(definition->name.size())));
+    }
+  }
+
+  if (capable.isEmpty()) {
+    return QObject::tr(
+               "%1 does not offer this control, and nor does any other player "
+               "this build knows about.")
+        .arg(model);
+  }
+
+  // Enough names to be useful without a tooltip that has to be scrolled. With
+  // ten models sharing one command set this only ever triggers for a control
+  // almost every player has — in which case naming three of them makes the
+  // point as well as naming all ten.
+  constexpr qsizetype kNamesShown = 3;
+  QString names;
+  if (capable.size() > kNamesShown) {
+    names = QObject::tr("%1 and others")
+                .arg(capable.mid(0, kNamesShown).join(QStringLiteral(", ")));
+  } else {
+    names = capable.join(QStringLiteral(", "));
+  }
+
+  return QObject::tr("%1 does not offer this control. Available on: %2.")
+      .arg(model, names);
+}
+
+QString PlayerReplyText(const PlayerReply& reply) {
+  const QString sent =
+      reply.sent.isEmpty() ? QObject::tr("(nothing sent)") : reply.sent;
+
+  switch (reply.status) {
+    case player::ReplyStatus::kOk:
+      // Verbatim, and marked when it is the player's error code rather than an
+      // answer: a text reply is deliberately not put through the error
+      // convention, because a user code may contain an 'E' — but a reply that
+      // is exactly 'E' and digits is not a user code. An LD-V4300D answers the
+      // Pioneer user-code query that way on a parked player.
+      if (player::IsErrorCode(reply.text.toStdString())) {
+        return QObject::tr("%1 → %2 (the player refused)")
+            .arg(sent, reply.text);
+      }
+      return reply.text.isEmpty()
+                 ? QObject::tr("%1 → done").arg(sent)
+                 : QObject::tr("%1 → %2").arg(sent, reply.text);
+
+    case player::ReplyStatus::kRefused:
+      return reply.error_code.isEmpty()
+                 ? QObject::tr("%1 → the player refused").arg(sent)
+                 : QObject::tr("%1 → the player refused (%2)")
+                       .arg(sent, reply.error_code);
+
+    case player::ReplyStatus::kNoAnswer:
+      return QObject::tr("%1 → no answer").arg(sent);
+
+    case player::ReplyStatus::kUnparseable:
+      return QObject::tr("%1 → %2, which cannot be read").arg(sent, reply.text);
+
+    case player::ReplyStatus::kLinkFailed:
+      return QObject::tr("%1 → the link failed").arg(sent);
+
+    case player::ReplyStatus::kNotConnected:
+      return QObject::tr("Not sent: there is no player connected.");
+
+    case player::ReplyStatus::kUnsupported:
+      return QObject::tr("Not sent: this player has no command for that.");
+
+    case player::ReplyStatus::kInvalidArgument:
+      return QObject::tr(
+          "Not sent: that is not something this command can be "
+          "given.");
+  }
+
+  return QObject::tr("%1 → unknown").arg(sent);
+}
+
+QString FormatByteDump(const QByteArray& bytes, qsizetype first_offset) {
+  if (bytes.isEmpty()) {
+    return {};
+  }
+
+  static constexpr char kHexDigits[] = "0123456789ABCDEF";
+  constexpr qsizetype kPerLine = 16;
+
+  QString dump;
+  dump.reserve(bytes.size() * 5);
+
+  for (qsizetype offset = 0; offset < bytes.size(); offset += kPerLine) {
+    if (offset > 0) {
+      dump += QLatin1Char('\n');
+    }
+
+    dump += QStringLiteral("%1  ").arg(first_offset + offset, 4, 10,
+                                       QLatin1Char('0'));
+
+    for (qsizetype index = 0; index < kPerLine; ++index) {
+      // A gap at the halfway mark, so a byte can be counted off by eye without
+      // counting sixteen columns.
+      if (index == kPerLine / 2) {
+        dump += QLatin1Char(' ');
+      }
+
+      if (offset + index < bytes.size()) {
+        const auto value = static_cast<unsigned char>(bytes[offset + index]);
+        dump += QLatin1Char(kHexDigits[value >> 4]);
+        dump += QLatin1Char(kHexDigits[value & 0x0F]);
+        dump += QLatin1Char(' ');
+      } else {
+        dump += QStringLiteral("   ");
+      }
+    }
+
+    dump += QLatin1Char('|');
+    for (qsizetype index = 0; index < kPerLine && offset + index < bytes.size();
+         ++index) {
+      const auto value = static_cast<unsigned char>(bytes[offset + index]);
+      dump += (value >= 0x20 && value < 0x7F)
+                  ? QLatin1Char(static_cast<char>(value))
+                  : QLatin1Char('.');
+    }
+    dump += QLatin1Char('|');
+  }
+
+  return dump;
+}
+
+QString PioneerUserCodeReport(const PlayerReply& reply) {
+  QStringList lines;
+  lines.append(PlayerReplyText(reply));
+
+  const QByteArray bytes = reply.text.toLatin1();
+
+  // An error code is not a short user code, and splitting one into three
+  // regions would be inventing a reading of it.
+  if (player::IsErrorCode(reply.text.toStdString())) {
+    lines.append(QString());
+
+    // Both readings are worth giving, because both have been seen on this
+    // project's bench with the same command: a CAV disc spinning at frame one
+    // that simply has no user code, and a disc that reads perfectly when
+    // spinning but answers this way when parked.
+    lines.append(QObject::tr(
+        "Pioneer documents this as meaning the disc carries no Pioneer User's "
+        "Code. A player that cannot reach the lead-in from where it is — one "
+        "that is stopped rather than spinning — answers the same way, so it is "
+        "worth trying again with the disc playing before concluding the disc "
+        "has none."));
+    return lines.join(QLatin1Char('\n'));
+  }
+
+  if (!reply.ok() || bytes.isEmpty()) {
+    return lines.join(QLatin1Char('\n'));
+  }
+
+  lines.append(QString());
+  lines.append(
+      QObject::tr("%1 characters. The Pioneer User's Code is recorded in the "
+                  "last 100 frames of the lead-in, one character per field, in "
+                  "three regions.")
+          .arg(bytes.size()));
+
+  // The whole-reply count, because the per-region headings alone leave somebody
+  // adding up three numbers to notice that most of a disc's user code did not
+  // read. A PAL CLV disc on this bench returns 180 unreadable characters out of
+  // 200 — everything but the Control Data — and that is the first thing to
+  // know about it.
+  const qsizetype unreadable = bytes.count(player::kUnreadableCharacter);
+  if (unreadable > 0) {
+    lines.append(QObject::tr("%1 of the %2 could not be read by the player.")
+                     .arg(unreadable)
+                     .arg(bytes.size()));
+  }
+
+  if (bytes.size() != static_cast<qsizetype>(player::kPioneerUserCodeLength)) {
+    // Said rather than papered over. A reply of the wrong length means the
+    // region boundaries below are the format's and not necessarily this
+    // player's, and somebody reading a dump needs to know which.
+    lines.append(
+        QObject::tr("The format says %1. The regions below are shown at the "
+                    "offsets the format defines.")
+            .arg(player::kPioneerUserCodeLength));
+  }
+
+  for (const player::UserCodeRegionReading& reading :
+       player::ReadPioneerUserCode(std::string_view(
+           bytes.constData(), static_cast<size_t>(bytes.size())))) {
+    const QString name =
+        QString::fromUtf8(reading.region.name.data(),
+                          static_cast<qsizetype>(reading.region.name.size()));
+
+    lines.append(QString());
+
+    QString heading =
+        QObject::tr("%1 — %2 characters, %3 to %4")
+            .arg(name)
+            .arg(reading.region.length)
+            .arg(reading.region.offset)
+            .arg(reading.region.offset + reading.region.length - 1);
+
+    if (reading.characters.empty()) {
+      lines.append(heading);
+      lines.append(QObject::tr("  Not in the reply."));
+      continue;
+    }
+
+    // "Could not be read" and "was never encoded" are different facts about a
+    // disc, and Pioneer's own example has an empty Key Data where this bench's
+    // Casper disc has an unreadable one. Reported the same way, those two discs
+    // would look identical and neither reading would be true.
+    if (reading.wholly_unreadable()) {
+      heading += QObject::tr("; none of it could be read");
+    } else if (reading.wholly_unencoded()) {
+      heading += QObject::tr("; nothing is encoded here");
+    } else {
+      if (reading.unreadable > 0) {
+        heading += QObject::tr("; %1 characters could not be read")
+                       .arg(reading.unreadable);
+      }
+      if (reading.unencoded > 0) {
+        heading +=
+            QObject::tr("; %1 characters unencoded").arg(reading.unencoded);
+      }
+    }
+
+    if (!reading.complete) {
+      heading += QObject::tr("; the reply stopped part way through");
+    }
+
+    lines.append(heading);
+    lines.append(FormatByteDump(
+        QByteArray(reading.characters.data(),
+                   static_cast<qsizetype>(reading.characters.size())),
+        static_cast<qsizetype>(reading.region.offset)));
+  }
+
+  return lines.join(QLatin1Char('\n'));
+}
+
+QString PlayerReplyReport(const PlayerReply& reply) {
+  // The one reply whose structure is known rather than guessed at.
+  if (reply.request.kind == PlayerRequest::Kind::kCommand &&
+      reply.request.command == player::PlayerCommand::kQueryPioneerUserCode) {
+    return PioneerUserCodeReport(reply);
+  }
+
+  QStringList lines;
+  lines.append(PlayerReplyText(reply));
+
+  // Latin-1 throughout: this is what the worker decoded the payload with, and
+  // it round-trips every byte the player sent.
+  const QByteArray bytes = reply.text.toLatin1();
+  if (bytes.isEmpty()) {
+    return lines.join(QLatin1Char('\n'));
+  }
+
+  const bool printable =
+      std::all_of(bytes.begin(), bytes.end(), [](char character) {
+        const auto value = static_cast<unsigned char>(character);
+        return value >= 0x20 && value < 0x7F;
+      });
+
+  if (printable && bytes.size() <= 16) {
+    return lines.join(QLatin1Char('\n'));
+  }
+
+  lines.append(QString());
+  lines.append(QObject::tr("%1 bytes.").arg(bytes.size()));
+
+  const qsizetype unreadable = bytes.count(player::kUnreadableCharacter);
+  if (unreadable > 0) {
+    // The distinction that matters when somebody is looking at a wall of
+    // backticks and wondering what this application failed to decode: nothing
+    // did. The player is reporting, one character at a time, that it could not
+    // read them off the disc.
+    lines.append(
+        QObject::tr("%1 of them are characters the player could not read off "
+                    "the disc — it sends ` (0x60) in place of each one.")
+            .arg(unreadable));
+  }
+
+  lines.append(QString());
+  lines.append(FormatByteDump(bytes));
+
+  return lines.join(QLatin1Char('\n'));
 }
 
 QString PlayerAddressText(const player::PlayerStatus& status) {

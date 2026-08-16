@@ -155,7 +155,27 @@ constexpr PlayerDefinition LevelIII() {
   commands[Index(PlayerCommand::kQueryAddress)] = Query("?F");
   commands[Index(PlayerCommand::kQueryDiscStatus)] = Query("?D");
   commands[Index(PlayerCommand::kQueryStandardUserCode)] = Query("$Y");
-  commands[Index(PlayerCommand::kQueryPioneerUserCode)] = Query("?U");
+
+  // The one query that needs the long timeout — and the only query in this set
+  // that is not really a query at all.
+  //
+  // Pioneer's manual: "When the disc is spinning and the player receives the ?U
+  // command it automatically searches to lead-in", and "it takes approximately
+  // 10 seconds for the player to read this data from the disc". Both are borne
+  // out on this bench, and the seek is the expensive half: from the middle of a
+  // side an LD-V4300D took **11.1 seconds** and came back parked at frame 1,
+  // where the same read starting from the lead-in took 4.6.
+  //
+  // So the five-second normal class was not marginal, it was wrong — the only
+  // reason it ever appeared to work here was a player that happened to be
+  // sitting on the lead-in already, having been left there by the previous ?U.
+  //
+  // Two consequences beyond the timeout, both for the sequences above this:
+  // anything that has positioned the disc must not issue this afterwards — it
+  // will lose that position — and the manual accordingly recommends reading the
+  // user code immediately after spin-up and before any other control command.
+  commands[Index(PlayerCommand::kQueryPioneerUserCode)] =
+      Query("?U", TimeoutClass::kLong);
 
   return definition;
 }

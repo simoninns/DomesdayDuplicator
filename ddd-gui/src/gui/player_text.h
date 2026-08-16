@@ -13,8 +13,11 @@
 
 #include <QString>
 #include <cstdint>
+#include <optional>
 
+#include "player_command.h"
 #include "player_connection.h"
+#include "player_request.h"
 #include "player_state.h"
 #include "player_status.h"
 
@@ -54,6 +57,74 @@ QString DiscTypeName(player::DiscType type);
 // The player reports it as seven digits — hours, minutes, seconds, frames —
 // and shows it to a user the way the disc sleeve does.
 QString FormatTimeCode(int32_t time_code);
+
+// The inverse: a time code a user typed, as the player's seven digits.
+//
+// Accepts the clock form the sleeve uses — "1:23:45", or "23:45" for a disc
+// under an hour — and also the bare seven digits, for somebody working from the
+// player's own display. Returns nothing for anything else, so the remote can
+// refuse to send rather than seek to a number it invented: "1:99" is not a time
+// and guessing what it meant would be worse than saying so.
+std::optional<int32_t> ParseTimeCodeEntry(const QString& text);
+
+// A control's name, for a log line and for the sentence explaining why a
+// control is unavailable.
+QString PlayerCommandName(player::PlayerCommand command);
+
+QString AudioModeName(player::AudioMode mode);
+
+QString PlaybackSpeedName(player::PlaybackSpeed speed);
+
+// Why a control is greyed out, for its tooltip.
+//
+// Names the models that do offer it, where any registered model does. That is a
+// sweep of the registry rather than a table here, so a player family added
+// later is named by this without the wording being touched — and where nothing
+// in the build offers it, it says that instead of leaving the user hunting for
+// a model that does not exist.
+QString UnsupportedControlNote(const PlayerConnection& connection,
+                               player::PlayerCommand command);
+
+// One line describing an exchange: what was sent and what came back.
+//
+// The same wording in the log and in the remote's manual command field, which
+// is the point of it being here. The reply is shown verbatim — a manual command
+// exists precisely to find out what a player really answers, and a wording that
+// tidied that up would defeat it.
+QString PlayerReplyText(const PlayerReply& reply);
+
+// Bytes as a hex dump with an ASCII gutter, sixteen to a line.
+//
+// Offsets are decimal rather than the conventional hex, because what is being
+// counted here is position within a fixed-length record — the Pioneer user
+// code's Key Data starts at character 120, and that is the question somebody
+// reading this actually has. `first_offset` is what the first byte is numbered
+// as, so a region dumped on its own still carries its place in the whole.
+QString FormatByteDump(const QByteArray& bytes, qsizetype first_offset = 0);
+
+// Everything worth saying about a reply: the exchange on one line, then — where
+// the reply is data rather than a word — how long it is, how much of it the
+// player could not read, and the dump.
+//
+// One rule for the user-code box and the manual command field alike, because
+// both exist for the same reason: finding out what the player really said. A
+// short and wholly printable reply like "P04" is already legible and gets no
+// dump; anything longer than a dump line, or carrying a byte that is not
+// printable, gets one.
+//
+// A reply to the Pioneer user-code query gets the regional treatment below
+// instead, since for that one the structure is known.
+QString PlayerReplyReport(const PlayerReply& reply);
+
+// A Pioneer user code, split into the three regions the format defines.
+//
+// The difference this makes is not cosmetic. Dumped as 200 undifferentiated
+// characters, the Casper disc on the project's bench reads as "sixty of these
+// failed" and invites a guess about which sixty; split at the documented
+// boundaries it reads as "the Disc Control Data is intact and the whole of the
+// Key Data — the customer's own disc-identifying information — could not be
+// read", which is a fact about that disc worth recording.
+QString PioneerUserCodeReport(const PlayerReply& reply);
 
 // Where the player is, in whichever way this disc is addressed. "Lead-in" and
 // "Lead-out" are positions in their own right and are said rather than shown as

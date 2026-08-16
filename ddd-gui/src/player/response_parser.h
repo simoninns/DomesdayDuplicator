@@ -65,6 +65,15 @@ struct Reply {
   // and carried a legible one.
   std::string error_code;
 
+  // What went on the wire, terminator included. Empty where nothing did: a
+  // command the model does not have, or one that could not be encoded.
+  //
+  // Carried on the reply because this is the only place the bytes exist, and a
+  // serial trace showing what was sent beside what came back is what makes a
+  // misbehaving player diagnosable by somebody who does not have it in front of
+  // them. It is also what the remote's manual command field echoes.
+  std::string sent;
+
   bool ok() const { return status == ReplyStatus::kOk; }
 };
 
@@ -89,7 +98,39 @@ Reply ParseAcknowledgement(std::string_view raw);
 // Read a reply whose content is the answer, rather than an acknowledgement of a
 // command. Not put through the error convention above: a user code is arbitrary
 // bytes and may perfectly well contain an 'E'.
+//
+// Only the terminator comes off, and that is deliberate. The Pioneer user code
+// is a fixed-width record whose fields are space-padded, so the whitespace
+// trimming StripTerminator does — right for a reply that is about to be parsed
+// as a number or a state code — would quietly eat payload here. Everything that
+// does parse a reply strips for itself, so nothing downstream depends on this
+// having done it.
 Reply ParseText(std::string_view raw);
+
+// The character a Pioneer player sends in place of one it could not read off
+// the disc.
+//
+// Documented in the LD-V4400 Level I & III manual: "If the player experiences
+// an error in reading the data an '`' (60 HEX) character is returned." It is
+// per-character, so a user-code reply can come back as a long run of these —
+// on the project's own bench, sixty of them in the middle of a 200-byte reply.
+// Worth naming, because it is the difference between "this application cannot
+// decode the reply" and "the player could not read the disc".
+inline constexpr char kUnreadableCharacter = '`';
+
+// Is this text reply the player's error code rather than an answer?
+//
+// The counterpart to the leniency above, and it exists because of a real
+// reading: an LD-V4300D on the bench answered the Pioneer user-code query with
+// "E04" while parked. Put through the acknowledgement convention that would
+// have been a refusal; taken as text it would have been shown to the user as
+// their disc's user code, which is worse.
+//
+// Deliberately much stricter than the acknowledgement convention — the whole
+// reply must be 'E' followed by digits and nothing else — because the reason
+// text replies avoid that convention in the first place is that a user code may
+// legitimately contain an 'E'.
+bool IsErrorCode(std::string_view text);
 
 // Where the player says it is.
 struct DiscAddress {

@@ -230,21 +230,30 @@ Reply PlayerSession::SendRaw(std::string_view command, ResponseKind response,
 
 Reply PlayerSession::Send(std::string_view bytes, ResponseKind response,
                           TimeoutClass timeout, int expected_replies) {
+  // Every reply from here carries the bytes that provoked it, including the
+  // failures: "the link died sending FR100SE" is a more useful thing to have
+  // been told than "the link died".
+  const auto with_bytes = [bytes](Reply reply) {
+    reply.sent = std::string(bytes);
+    return reply;
+  };
+
   port_->DiscardBuffers();
 
   if (!port_->Write(bytes)) {
     Disconnect();
-    return Failure(ReplyStatus::kLinkFailed);
+    return with_bytes(Failure(ReplyStatus::kLinkFailed));
   }
 
   std::string raw;
   if (!ReadReply(raw, CommandTimeout(timeout), expected_replies)) {
     Disconnect();
-    return Failure(ReplyStatus::kLinkFailed);
+    return with_bytes(Failure(ReplyStatus::kLinkFailed));
   }
 
-  return response == ResponseKind::kAcknowledgement ? ParseAcknowledgement(raw)
-                                                    : ParseText(raw);
+  return with_bytes(response == ResponseKind::kAcknowledgement
+                        ? ParseAcknowledgement(raw)
+                        : ParseText(raw));
 }
 
 bool PlayerSession::ReadReply(std::string& into,

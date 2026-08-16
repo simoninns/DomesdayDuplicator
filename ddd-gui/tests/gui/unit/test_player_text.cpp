@@ -11,10 +11,15 @@
 
 #include <gtest/gtest.h>
 
+#include <QByteArray>
 #include <QSet>
 #include <QString>
+#include <QStringList>
+#include <cstddef>
 
+#include "player_command.h"
 #include "player_connection.h"
+#include "player_request.h"
 #include "player_state.h"
 #include "player_status.h"
 #include "player_text.h"
@@ -234,6 +239,320 @@ TEST(PlayerTextTest, EveryPlayerStateHasItsOwnName) {
     EXPECT_FALSE(name.isEmpty());
     EXPECT_FALSE(names.contains(name)) << name.toStdString();
     names.insert(name);
+  }
+}
+
+TEST(PlayerTextTest, ATimeCodeTypedAsAClockIsReadAsOne) {
+  // The inverse of FormatTimeCode, and the form the disc sleeve uses.
+  EXPECT_EQ(ParseTimeCodeEntry(QStringLiteral("1:23:45")), 1234500);
+
+  // Right-aligned, the way a clock is read: two fields are minutes and seconds
+  // on a disc under an hour, not hours and minutes.
+  EXPECT_EQ(ParseTimeCodeEntry(QStringLiteral("23:45")), 234500);
+  EXPECT_EQ(ParseTimeCodeEntry(QStringLiteral("45")), 45);
+
+  // And the bare form, for somebody reading the player's own display.
+  EXPECT_EQ(ParseTimeCodeEntry(QStringLiteral("1234500")), 1234500);
+
+  // Round trips against the formatter, which is the property that matters.
+  // value_or rather than a dereference: a refusal here would otherwise fail as
+  // a crash rather than as a message saying what was refused.
+  EXPECT_EQ(FormatTimeCode(
+                ParseTimeCodeEntry(QStringLiteral("2:03:04")).value_or(-1)),
+            QStringLiteral("2:03:04"));
+}
+
+TEST(PlayerTextTest, SomethingThatIsNotATimeIsRefusedRatherThanGuessedAt) {
+  // A seek to a number invented out of "1:99" would move the disc somewhere
+  // nobody asked for, which is worse than being told the entry is wrong.
+  EXPECT_FALSE(ParseTimeCodeEntry(QStringLiteral("1:99")).has_value());
+  EXPECT_FALSE(ParseTimeCodeEntry(QStringLiteral("1:23:60")).has_value());
+  EXPECT_FALSE(ParseTimeCodeEntry(QStringLiteral("10:00:00")).has_value());
+  EXPECT_FALSE(ParseTimeCodeEntry(QStringLiteral("1:2:3:4")).has_value());
+  EXPECT_FALSE(ParseTimeCodeEntry(QStringLiteral("1::3")).has_value());
+  EXPECT_FALSE(ParseTimeCodeEntry(QStringLiteral("abc")).has_value());
+  EXPECT_FALSE(ParseTimeCodeEntry(QString()).has_value());
+  EXPECT_FALSE(ParseTimeCodeEntry(QStringLiteral("12345678")).has_value());
+}
+
+TEST(PlayerTextTest, EveryControlHasItsOwnName) {
+  // Named for the log and for the sentence explaining why a control is
+  // unavailable, so two controls reading the same would make both illegible.
+  QSet<QString> names;
+  for (size_t index = 0; index < player::kPlayerCommandCount; ++index) {
+    const QString name =
+        PlayerCommandName(static_cast<player::PlayerCommand>(index));
+    EXPECT_FALSE(name.isEmpty());
+    EXPECT_FALSE(names.contains(name)) << name.toStdString();
+    names.insert(name);
+  }
+
+  for (size_t index = 0; index < player::kAudioModeCount; ++index) {
+    const QString name = AudioModeName(static_cast<player::AudioMode>(index));
+    EXPECT_FALSE(name.isEmpty());
+  }
+
+  for (size_t index = 0; index < player::kPlaybackSpeedCount; ++index) {
+    const QString name =
+        PlaybackSpeedName(static_cast<player::PlaybackSpeed>(index));
+    EXPECT_FALSE(name.isEmpty());
+  }
+}
+
+TEST(PlayerTextTest, AnUnavailableControlSaysWhichPlayersDoHaveIt) {
+  PlayerConnection connection = Connected();
+
+  const QString note = UnsupportedControlNote(
+      connection, player::PlayerCommand::kQueryPhysicalPosition);
+
+  // The LD-V4300D cannot report the optical assembly's position and the
+  // LD-V8000 can, so the note names both sides of that. The old application
+  // said nothing at all, which made a capability the player lacked look like a
+  // fault in the cable.
+  EXPECT_TRUE(note.contains(QStringLiteral("Pioneer LD-V4300D")));
+  EXPECT_TRUE(note.contains(QStringLiteral("Pioneer LD-V8000")));
+}
+
+TEST(PlayerTextTest, AControlNothingOffersSaysThatRatherThanNamingNobody) {
+  PlayerConnection connection = Connected();
+
+  // The branch that fires when a control is added to the generic set before any
+  // definition has a sequence for it. kCount stands in for that here because it
+  // is the one value of the enumeration guaranteed to have no sequence — every
+  // real control today is offered by every registered model, so there is no
+  // other way to reach this wording, and leaving it unreached would mean
+  // shipping a sentence nobody has read.
+  const QString note =
+      UnsupportedControlNote(connection, player::PlayerCommand::kCount);
+
+  EXPECT_TRUE(note.contains(QStringLiteral("Pioneer LD-V4300D")));
+  EXPECT_TRUE(note.contains(QStringLiteral("nor does any other")));
+}
+
+TEST(PlayerTextTest, AnExchangeIsDescribedAsWhatWentAndWhatCameBack) {
+  PlayerReply reply;
+  reply.request = CommandRequest(player::PlayerCommand::kQueryActiveMode);
+  reply.sent = QStringLiteral("?P");
+  reply.text = QStringLiteral("P04");
+  reply.status = player::ReplyStatus::kOk;
+
+  const QString line = PlayerReplyText(reply);
+  EXPECT_TRUE(line.contains(QStringLiteral("?P")));
+  EXPECT_TRUE(line.contains(QStringLiteral("P04")));
+}
+
+TEST(PlayerTextTest, AManualReplyIsShownVerbatimIncludingARefusal) {
+  // The whole reason the manual command field exists: what the player actually
+  // answered, not this library's opinion of it.
+  PlayerReply reply;
+  reply.request = RawRequest(QStringLiteral("?U"));
+  reply.sent = QStringLiteral("?U");
+  reply.text = QStringLiteral("E04");
+  reply.status = player::ReplyStatus::kOk;
+
+  const QString line = PlayerReplyText(reply);
+  EXPECT_TRUE(line.contains(QStringLiteral("E04")));
+
+  // And marked as a refusal, because a reply that is exactly 'E' and digits is
+  // not a user code — an LD-V4300D answers the Pioneer user-code query that way
+  // on a parked player.
+  EXPECT_TRUE(line.contains(QStringLiteral("refused")));
+
+  // A user code that merely contains an 'E' is not.
+  reply.text = QStringLiteral("ENCODED123");
+  EXPECT_FALSE(PlayerReplyText(reply).contains(QStringLiteral("refused")));
+}
+
+TEST(PlayerTextTest, BytesAreDumpedInTheShapeSomebodyCanCountColumnsIn) {
+  // A full line, pinned exactly: the offset, sixteen bytes of hex with a gap at
+  // the halfway mark so a column can be counted off by eye, then the ASCII
+  // gutter. Decimal offsets rather than the conventional hex, because what is
+  // being counted here is fields in a fixed-width record.
+  //
+  // These are the first sixteen bytes of a real Pioneer user code, taken off
+  // the project's own bench.
+  const QString full = FormatByteDump(QByteArray("#59-014    *MCA ", 16));
+  EXPECT_EQ(full, QStringLiteral("0000  23 35 39 2D 30 31 34 20  "
+                                 "20 20 20 2A 4D 43 41 20 |#59-014    *MCA |"));
+
+  // A short line pads its hex out so the gutter still starts in the same
+  // column, which is the whole point of a fixed-width dump.
+  const QString partial = FormatByteDump(QByteArray("#59-014", 7));
+  EXPECT_TRUE(
+      partial.startsWith(QStringLiteral("0000  23 35 39 2D 30 31 34 ")));
+  EXPECT_TRUE(partial.endsWith(QStringLiteral("|#59-014|")));
+  EXPECT_EQ(partial.indexOf(QLatin1Char('|')), full.indexOf(QLatin1Char('|')));
+
+  EXPECT_TRUE(FormatByteDump(QByteArray()).isEmpty());
+}
+
+TEST(PlayerTextTest, ADumpBreaksEverySixteenBytesAndMarksTheUnprintable) {
+  QByteArray bytes;
+  for (int value = 0; value < 20; ++value) {
+    bytes.append(static_cast<char>(value));
+  }
+
+  const QStringList lines = FormatByteDump(bytes).split(QLatin1Char('\n'));
+  ASSERT_EQ(lines.size(), 2);
+  EXPECT_TRUE(lines.at(0).startsWith(QStringLiteral("0000  00 01 02")));
+  EXPECT_TRUE(lines.at(1).startsWith(QStringLiteral("0016  10 11 12 13")));
+
+  // A control byte is a dot in the gutter and its own value in the hex, which
+  // is the whole reason for having both columns.
+  EXPECT_TRUE(lines.at(0).endsWith(QStringLiteral("|................|")));
+}
+
+TEST(PlayerTextTest, AUserCodeIsReportedRegionByRegion) {
+  // The reply the whole exercise is about, off the project's own bench: an MCA
+  // *Casper* disc whose Disc Control Data reads perfectly and whose Key Data —
+  // the customer's own disc-identifying information — is entirely unreadable.
+  const QString record = QStringLiteral(
+      "#59-014    *MCA / CASPER THX LTBX         !2 %0510803@@@@@@@");
+  ASSERT_EQ(record.size(), 60);
+
+  PlayerReply reply;
+  reply.request = CommandRequest(player::PlayerCommand::kQueryPioneerUserCode);
+  reply.sent = QStringLiteral("?U");
+  reply.status = player::ReplyStatus::kOk;
+  reply.text = record + record + QString(60, QLatin1Char('`')) +
+               QString(20, QLatin1Char('0'));
+  ASSERT_EQ(reply.text.size(), 200);
+
+  const QString report = PlayerReplyReport(reply);
+
+  EXPECT_TRUE(report.contains(QStringLiteral("200 characters")));
+  EXPECT_TRUE(report.contains(QStringLiteral("Disc Control Data — 120")));
+  EXPECT_TRUE(report.contains(QStringLiteral("Key Data — 60")));
+  EXPECT_TRUE(report.contains(QStringLiteral("Control Data — 20")));
+
+  // Each region dumped at its own place in the whole, so an offset read off the
+  // screen is an offset into the user code.
+  EXPECT_TRUE(report.contains(QStringLiteral("0120  60 60 60")));
+  EXPECT_TRUE(report.contains(QStringLiteral("0180  30 30 30")));
+
+  // The finding, said as a finding rather than left to be counted.
+  EXPECT_TRUE(report.contains(QStringLiteral("none of it could be read")));
+
+  // And the whole-reply count up front, so nobody has to add three headings
+  // together to see how much of a disc did not read. A PAL CLV disc on this
+  // bench returns 180 unreadable out of 200.
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("60 of the 200 could not be read")));
+
+  // And the region that read cleanly does not claim otherwise.
+  const qsizetype disc_control = report.indexOf(QStringLiteral("Disc Control"));
+  const qsizetype key_data = report.indexOf(QStringLiteral("Key Data"));
+  ASSERT_GT(key_data, disc_control);
+  EXPECT_FALSE(report.mid(disc_control, key_data - disc_control)
+                   .contains(QStringLiteral("could not be read")));
+}
+
+TEST(PlayerTextTest, AUserCodeOfTheWrongLengthSaysSoRatherThanPretending) {
+  PlayerReply reply;
+  reply.request = CommandRequest(player::PlayerCommand::kQueryPioneerUserCode);
+  reply.sent = QStringLiteral("?U");
+  reply.status = player::ReplyStatus::kOk;
+  reply.text = QString(130, QLatin1Char('A'));
+
+  const QString report = PlayerReplyReport(reply);
+
+  // The region boundaries shown are the format's, and somebody reading a dump
+  // of a short reply needs to know that rather than assume they are the
+  // player's.
+  EXPECT_TRUE(report.contains(QStringLiteral("130 characters")));
+  EXPECT_TRUE(report.contains(QStringLiteral("The format says 200")));
+  EXPECT_TRUE(report.contains(QStringLiteral("stopped part way through")));
+  EXPECT_TRUE(report.contains(QStringLiteral("Not in the reply")));
+}
+
+TEST(PlayerTextTest, ARefusedUserCodeIsNotDressedUpAsAReading) {
+  // E04 is not a very short user code, so there are no regions to report on and
+  // reporting three empty ones would be inventing a reading of it.
+  PlayerReply reply;
+  reply.request = CommandRequest(player::PlayerCommand::kQueryPioneerUserCode);
+  reply.sent = QStringLiteral("?U");
+  reply.status = player::ReplyStatus::kOk;
+  reply.text = QStringLiteral("E04");
+
+  const QString report = PlayerReplyReport(reply);
+  EXPECT_TRUE(report.contains(QStringLiteral("refused")));
+  EXPECT_FALSE(report.contains(QStringLiteral("Key Data")));
+
+  // And it says what it means, in both the readings that have been seen on the
+  // bench: a disc that has no user code, and a player that cannot reach the
+  // lead-in from where it is. Told only "refused", somebody would have no way
+  // to tell those apart or to know that trying again might work.
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("carries no Pioneer User's Code")));
+  EXPECT_TRUE(report.contains(QStringLiteral("with the disc playing")));
+}
+
+TEST(PlayerTextTest, TheUnreadableCharacterIsSaidToBeThePlayersAndNotOurs) {
+  // The distinction that sent somebody looking at this in the first place: a
+  // wall of backticks is not a decode this application got wrong. Per the
+  // LD-V4400 manual, the player sends 0x60 for each character it could not read
+  // off the disc — so it is a fact about the disc, and it is said in words.
+  // The standard user code rather than the Pioneer one, so this exercises the
+  // generic wording every other reply gets; the Pioneer code has a structure of
+  // its own and is covered above.
+  PlayerReply reply;
+  reply.request = CommandRequest(player::PlayerCommand::kQueryStandardUserCode);
+  reply.sent = QStringLiteral("$Y");
+  reply.status = player::ReplyStatus::kOk;
+  reply.text = QString(60, QLatin1Char('`')) + QString(20, QLatin1Char('0'));
+
+  const QString report = PlayerReplyReport(reply);
+  EXPECT_TRUE(report.contains(QStringLiteral("80 bytes")));
+  EXPECT_TRUE(report.contains(QStringLiteral("60 of them")));
+  EXPECT_TRUE(report.contains(QStringLiteral("could not read off the disc")));
+  EXPECT_TRUE(report.contains(QStringLiteral("0000  60 60 60")));
+}
+
+TEST(PlayerTextTest, OnlyARelpyWorthDumpingIsDumped) {
+  // One rule, and it has to leave the common case alone: an active-mode reply
+  // is three legible characters and burying it under a hex dump would make
+  // every ordinary command worse to serve a rare one.
+  PlayerReply legible;
+  legible.request = CommandRequest(player::PlayerCommand::kQueryActiveMode);
+  legible.sent = QStringLiteral("?P");
+  legible.status = player::ReplyStatus::kOk;
+  legible.text = QStringLiteral("P04");
+
+  const QString short_report = PlayerReplyReport(legible);
+  EXPECT_TRUE(short_report.contains(QStringLiteral("P04")));
+  EXPECT_FALSE(short_report.contains(QStringLiteral("bytes.")));
+
+  // Longer than a dump line gets one.
+  PlayerReply long_reply = legible;
+  long_reply.text = QString(17, QLatin1Char('A'));
+  EXPECT_TRUE(PlayerReplyReport(long_reply).contains(QStringLiteral("0000  ")));
+
+  // And so does a short reply carrying a byte that is not printable, which is
+  // the case a length rule alone would miss.
+  PlayerReply binary = legible;
+  binary.text = QStringLiteral("AB") + QChar(QLatin1Char('\x01'));
+  EXPECT_TRUE(PlayerReplyReport(binary).contains(QStringLiteral("0000  ")));
+}
+
+TEST(PlayerTextTest, EveryWayAnExchangeCanFailReadsDifferently) {
+  const player::ReplyStatus failures[] = {
+      player::ReplyStatus::kRefused,         player::ReplyStatus::kNoAnswer,
+      player::ReplyStatus::kUnparseable,     player::ReplyStatus::kLinkFailed,
+      player::ReplyStatus::kNotConnected,    player::ReplyStatus::kUnsupported,
+      player::ReplyStatus::kInvalidArgument,
+  };
+
+  QSet<QString> lines;
+  for (const player::ReplyStatus status : failures) {
+    PlayerReply reply;
+    reply.request = CommandRequest(player::PlayerCommand::kPlay);
+    reply.sent = QStringLiteral("PL");
+    reply.status = status;
+
+    const QString line = PlayerReplyText(reply);
+    EXPECT_FALSE(line.isEmpty());
+    EXPECT_FALSE(lines.contains(line)) << line.toStdString();
+    lines.insert(line);
   }
 }
 

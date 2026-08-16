@@ -220,6 +220,25 @@ TEST_F(PlayerSessionTest, ACommandIsSentAndItsAcknowledgementRead) {
   EXPECT_EQ(port_.writes().back(), "PL\r");
 }
 
+TEST_F(PlayerSessionTest, EveryReplyCarriesTheBytesThatProvokedIt) {
+  // What makes the log a serial trace rather than a summary of one, and what
+  // the remote's manual command field echoes back. This is the only place the
+  // bytes exist, so anything above rebuilding them for display would be a
+  // second encoder that could disagree with the first.
+  ConnectAt(9600);
+  port_.AddResponse(9600, "FR100SE\r", "R\r");
+
+  EXPECT_EQ(session_.Execute(PlayerCommand::kSeekFrame, 100).sent, "FR100SE\r");
+
+  // Including the failures: "the link died sending FR100SE" is more use than
+  // "the link died".
+  port_.set_failing_read(2);
+  EXPECT_EQ(session_.Execute(PlayerCommand::kPlay).sent, "PL\r");
+
+  // And nothing where nothing was sent.
+  EXPECT_TRUE(session_.Execute(PlayerCommand::kPlay).sent.empty());
+}
+
 TEST_F(PlayerSessionTest, ARefusalIsReportedWithItsCode) {
   ConnectAt(9600);
   port_.AddResponse(9600, "RJ\r", "E04\r");

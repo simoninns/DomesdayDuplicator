@@ -14,6 +14,8 @@
 #include <QString>
 #include <cstdint>
 
+#include "player_controls.h"
+
 namespace ddd::gui {
 
 enum class PlayerConnectionState : uint8_t {
@@ -91,6 +93,14 @@ struct PlayerConnection {
   // hardware it describes. The panel says so — see players/README.md.
   bool bench_verified = false;
 
+  // What this player, running the firmware it reported, can be asked to do.
+  //
+  // Resolved from the definition at connection rather than carried as a pointer
+  // to it — see player_controls.h. Default-constructed, and therefore all
+  // false, whenever there is nothing connected, so a remote gating its buttons
+  // on this needs no separate "is there a player" test.
+  player::PlayerControls controls;
+
   // The model the user selected, when it is not the one that answered. Only
   // set in kModelMismatch, and only so the message can name both.
   QString selected_model_name;
@@ -114,6 +124,7 @@ struct PlayerConnection {
            model_code == other.model_code &&
            recognised_model == other.recognised_model &&
            bench_verified == other.bench_verified &&
+           controls == other.controls &&
            selected_model_name == other.selected_model_name &&
            detail == other.detail;
   }

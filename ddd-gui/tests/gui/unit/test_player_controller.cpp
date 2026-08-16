@@ -14,8 +14,10 @@
 #include <QCoreApplication>
 #include <QSettings>
 #include <QString>
+#include <algorithm>
 #include <chrono>
 #include <memory>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -335,6 +337,100 @@ TEST_F(PlayerControllerTest, ChangingTheFixedPortDropsTheLinkToTheOldOne) {
   ASSERT_TRUE(WaitForState(PlayerConnectionState::kDisconnected));
 }
 
+TEST_F(PlayerControllerTest, ACommandGoesOutAndItsAnswerComesBack) {
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  port_.AddResponse(9600, "FR100SE\r", "R\r");
+  BuildController();
+  Enable();
+
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kConnected));
+
+  std::vector<PlayerReply> replies;
+  QObject::connect(
+      controller_.get(), &PlayerController::RequestCompleted, controller_.get(),
+      [&replies](const PlayerReply& reply) { replies.push_back(reply); });
+
+  const uint64_t id =
+      controller_->Send(CommandRequest(player::PlayerCommand::kSeekFrame, 100));
+  EXPECT_NE(id, 0U);
+
+  ASSERT_TRUE(PumpUntil([&replies] { return !replies.empty(); }));
+
+  // The request comes back with its answer, which is what lets a caller with
+  // more than one thing outstanding tell the answers apart.
+  EXPECT_EQ(replies.front().request.id, id);
+  EXPECT_EQ(replies.front().status, player::ReplyStatus::kOk);
+  EXPECT_EQ(replies.front().sent, QStringLiteral("FR100SE"));
+
+  const std::vector<std::string> writes = port_.writes();
+  EXPECT_NE(std::find(writes.begin(), writes.end(), "FR100SE\r"), writes.end());
+}
+
+TEST_F(PlayerControllerTest, ARawCommandIsSentExactlyAsTypedAndAnsweredAsText) {
+  // The manual command field. Read as text rather than as an acknowledgement,
+  // so a refusal arrives as the bytes the player sent rather than as this
+  // library's opinion of them — which is the entire point of the field.
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  port_.AddResponse(9600, "?U\r", "E04\r");
+  BuildController();
+  Enable();
+
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kConnected));
+
+  std::vector<PlayerReply> answers;
+  QObject::connect(controller_.get(), &PlayerController::RequestCompleted,
+                   controller_.get(), [&answers](const PlayerReply& reply) {
+                     if (reply.request.kind == PlayerRequest::Kind::kRaw) {
+                       answers.push_back(reply);
+                     }
+                   });
+
+  controller_->Send(RawRequest(QStringLiteral("?U")));
+
+  ASSERT_TRUE(PumpUntil([&answers] { return !answers.empty(); }));
+  EXPECT_EQ(answers.front().status, player::ReplyStatus::kOk);
+  EXPECT_EQ(answers.front().text, QStringLiteral("E04"));
+}
+
+TEST_F(PlayerControllerTest, ACommandWithNoPlayerIsAnsweredRatherThanDropped) {
+  // A reply for every request, in every state. A control that pressed and got
+  // nothing back at all could not tell "waiting" from "ignored".
+  BuildController();
+  controller_->Start();
+
+  std::vector<PlayerReply> answers;
+  QObject::connect(
+      controller_.get(), &PlayerController::RequestCompleted, controller_.get(),
+      [&answers](const PlayerReply& reply) { answers.push_back(reply); });
+
+  controller_->Send(CommandRequest(player::PlayerCommand::kPlay));
+
+  ASSERT_TRUE(PumpUntil([&answers] { return !answers.empty(); }));
+  EXPECT_EQ(answers.front().status, player::ReplyStatus::kNotConnected);
+  EXPECT_EQ(port_.open_count(), 0);
+}
+
+TEST_F(PlayerControllerTest, WhatAPlayerCanDoArrivesWithTheConnection) {
+  // The remote gates its buttons on this, and it is resolved on the worker's
+  // thread from the definition and the firmware the player reported — so that
+  // the interface never has to reach into the protocol to ask.
+  port_.AddPioneerPlayer(9600, kLdV8000Reply);  // firmware A9
+  BuildController();
+  Enable();
+
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kConnected));
+
+  EXPECT_TRUE(controller_->controls().Has(player::PlayerCommand::kPlay));
+  EXPECT_TRUE(controller_->controls().Has(
+      player::PlayerCommand::kQueryPhysicalPosition));
+
+  // And goes away with it, so nothing stays clickable for a player that is no
+  // longer there.
+  controller_->SetEnabled(false);
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kDisabled));
+  EXPECT_FALSE(controller_->controls().any());
+}
+
 TEST_F(PlayerControllerTest, EverythingReturnsImmediatelyInEveryState) {
   // The property the whole design rests on: no method here may wait for a
   // player. A search of every port at every rate takes seconds, and a window
@@ -350,6 +446,7 @@ TEST_F(PlayerControllerTest, EverythingReturnsImmediatelyInEveryState) {
   controller_->SetPaused(true);
   controller_->SetPaused(false);
   controller_->UseConnectedModel();
+  controller_->Send(CommandRequest(player::PlayerCommand::kSeekFrame, 40000));
   controller_->SetEnabled(false);
 
   const auto elapsed = std::chrono::steady_clock::now() - start;

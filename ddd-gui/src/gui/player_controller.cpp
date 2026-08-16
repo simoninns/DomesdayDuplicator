@@ -20,6 +20,8 @@ PlayerController::PlayerController(PlayerBackend backend,
                                    capture::ILogger* logger, QObject* parent)
     : QObject(parent), settings_(LoadPlayerSettings()) {
   qRegisterMetaType<PlayerConnection>();
+  qRegisterMetaType<PlayerRequest>();
+  qRegisterMetaType<PlayerReply>();
   qRegisterMetaType<PlayerSettings>();
   qRegisterMetaType<player::PlayerStatus>();
 
@@ -39,6 +41,12 @@ PlayerController::PlayerController(PlayerBackend backend,
             status_ = status;
             emit StatusUpdated(status_);
           });
+
+  // Passed straight through. The controller has nothing to add to an answer —
+  // it is the asker's, and the asker is the only thing that knows what it was
+  // for.
+  connect(worker_, &PlayerWorker::RequestCompleted, this,
+          [this](const PlayerReply& reply) { emit RequestCompleted(reply); });
 
   connect(worker_, &PlayerWorker::PortRemembered, this,
           [this](const QString& port_path, uint32_t baud_rate) {
@@ -85,6 +93,19 @@ void PlayerController::SetSettings(const PlayerSettings& settings) {
   SavePlayerSettings(settings_);
   emit SettingsChanged(settings_);
   ApplySettings();
+}
+
+uint64_t PlayerController::Send(PlayerRequest request) {
+  request.id = ++last_request_id_;
+
+  // Copied into the invocation rather than referenced, for the same reason the
+  // settings are: by the time the worker runs this, the caller's own copy may
+  // be long gone.
+  QMetaObject::invokeMethod(
+      worker_, [worker = worker_, request] { worker->Send(request); },
+      Qt::QueuedConnection);
+
+  return request.id;
 }
 
 void PlayerController::SetEnabled(bool enabled) {

@@ -38,6 +38,7 @@
 #include "log_panel.h"
 #include "player_controller.h"
 #include "player_panel.h"
+#include "player_remote_dialog.h"
 #include "player_text.h"
 #include "serial_port_scanner.h"
 #include "settings_dialog.h"
@@ -207,7 +208,12 @@ void MainWindow::BuildCaptureDock() {
 void MainWindow::BuildPlayerDock() {
   player_dock_ = new QDockWidget(tr("Player"), this);
   player_dock_->setObjectName(QStringLiteral("player_dock"));
-  player_dock_->setWidget(new PlayerPanel(player_controller_, player_dock_));
+
+  auto* panel = new PlayerPanel(player_controller_, player_dock_);
+  connect(panel, &PlayerPanel::RemoteRequested, this,
+          &MainWindow::ShowRemoteDialog);
+
+  player_dock_->setWidget(panel);
   addDockWidget(Qt::LeftDockWidgetArea, player_dock_);
   splitDockWidget(capture_dock_, player_dock_, Qt::Vertical);
 }
@@ -342,6 +348,10 @@ void MainWindow::BuildPlayerMenu() {
       tr("Look for the player again straight away rather than waiting"));
 
   player_menu->addSeparator();
+  QAction* const remote_action = player_menu->addAction(tr("&Remote control…"));
+  remote_action->setStatusTip(tr("Drive the player by hand"));
+
+  player_menu->addSeparator();
   QAction* const settings_action =
       player_menu->addAction(tr("Player s&ettings…"));
 
@@ -350,6 +360,7 @@ void MainWindow::BuildPlayerMenu() {
     // of the window, and disabled rather than left to do nothing when pressed.
     player_enabled_action_->setEnabled(false);
     search_action->setEnabled(false);
+    remote_action->setEnabled(false);
     settings_action->setEnabled(false);
     return;
   }
@@ -360,6 +371,8 @@ void MainWindow::BuildPlayerMenu() {
           &PlayerController::SetEnabled);
   connect(search_action, &QAction::triggered, player_controller_,
           &PlayerController::SearchNow);
+  connect(remote_action, &QAction::triggered, this,
+          &MainWindow::ShowRemoteDialog);
   // The same dialog the File menu opens, on the tab this menu is about. A
   // second dialog for the same settings would be a second place for them to
   // disagree.
@@ -376,13 +389,20 @@ void MainWindow::BuildPlayerMenu() {
           });
 
   connect(player_controller_, &PlayerController::ConnectionChanged, this,
-          [search_action](const PlayerConnection& connection) {
+          [search_action, remote_action](const PlayerConnection& connection) {
             search_action->setEnabled(connection.state ==
                                       PlayerConnectionState::kDisconnected);
+
+            // There is nothing to drive without a player. An open remote is
+            // left open and greys itself out instead, because a window that
+            // vanished when a cable was jogged would be worse than one that
+            // says what happened.
+            remote_action->setEnabled(connection.live());
           });
 
   search_action->setEnabled(player_controller_->connection().state ==
                             PlayerConnectionState::kDisconnected);
+  remote_action->setEnabled(player_controller_->connection().live());
 }
 
 void MainWindow::BuildToolsMenu() {
@@ -616,6 +636,27 @@ void MainWindow::ShowAnalysisDialog() {
 
   AnalysisDialog dialog(this);
   dialog.ChooseFileAndAnalyse(starting_directory);
+}
+
+void MainWindow::ShowRemoteDialog() {
+  if (player_controller_ == nullptr) {
+    return;
+  }
+
+  // One remote, however it was reached. Two of them would be two things sending
+  // commands down one cable, and the second would be showing the first one's
+  // replies.
+  if (remote_dialog_.isNull()) {
+    remote_dialog_ = new PlayerRemoteDialog(player_controller_, this);
+
+    // Deleted when it is closed rather than kept about, so a remote that is not
+    // open is not receiving status updates four times a second.
+    remote_dialog_->setAttribute(Qt::WA_DeleteOnClose);
+  }
+
+  remote_dialog_->show();
+  remote_dialog_->raise();
+  remote_dialog_->activateWindow();
 }
 
 void MainWindow::ShowCaptureFinished(const QString& file_path, quint64 bytes) {

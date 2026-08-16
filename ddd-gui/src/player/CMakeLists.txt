@@ -15,9 +15,11 @@
 
 add_library(ddd_player STATIC
     command_encoder.cpp
+    player_controls.cpp
     player_registry.cpp
     player_session.cpp
     response_parser.cpp
+    user_code.cpp
 )
 
 target_include_directories(ddd_player PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

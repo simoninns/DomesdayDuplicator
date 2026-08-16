@@ -13,9 +13,12 @@
 
 #include <QObject>
 #include <QThread>
+#include <cstdint>
 
 #include "player_connection.h"
+#include "player_controls.h"
 #include "player_metatypes.h"
+#include "player_request.h"
 #include "player_settings.h"
 #include "player_status.h"
 #include "player_worker.h"
@@ -65,8 +68,23 @@ class PlayerController : public QObject {
   bool enabled() const { return settings_.enabled; }
   bool connected() const { return connection_.live(); }
 
+  // What the connected player can be asked to do. All false when there is
+  // nothing connected, so a caller gating a control on this needs no separate
+  // test for whether there is a player.
+  const player::PlayerControls& controls() const {
+    return connection_.controls;
+  }
+
   // Replace the settings whole, save them, and tell the worker.
   void SetSettings(const PlayerSettings& settings);
+
+  // Ask the player to do something.
+  //
+  // Returns at once, having queued the request for the worker's thread;
+  // whatever the player says arrives later on RequestCompleted, carrying the
+  // request back with it. The returned id is that request's, so a caller with
+  // more than one thing outstanding can tell the answers apart.
+  uint64_t Send(PlayerRequest request);
 
  public slots:
   // Turn player control on or off. Off releases the port and stops every
@@ -90,6 +108,7 @@ class PlayerController : public QObject {
   void ConnectionChanged(const ddd::gui::PlayerConnection& connection);
   void StatusUpdated(const ddd::player::PlayerStatus& status);
   void SettingsChanged(const ddd::gui::PlayerSettings& settings);
+  void RequestCompleted(const ddd::gui::PlayerReply& reply);
 
  private:
   void ApplySettings();
@@ -103,6 +122,10 @@ class PlayerController : public QObject {
   PlayerSettings settings_;
   PlayerConnection connection_;
   player::PlayerStatus status_;
+
+  // Handed out by Send(). Starts at one so that zero keeps its meaning of
+  // "nobody cared which answer was which".
+  uint64_t last_request_id_ = 0;
 };
 
 }  // namespace ddd::gui

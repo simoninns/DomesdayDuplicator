@@ -18,9 +18,11 @@
 
 #include "logger.h"
 #include "player_command.h"
+#include "player_controls.h"
 #include "player_definition.h"
 #include "player_discovery.h"
 #include "player_registry.h"
+#include "player_text.h"
 #include "qt_serial_port.h"
 #include "response_parser.h"
 
@@ -29,6 +31,28 @@ namespace {
 
 QString ToQString(std::string_view text) {
   return QString::fromUtf8(text.data(), static_cast<qsizetype>(text.size()));
+}
+
+// A reply's payload, byte for byte.
+//
+// Latin-1 rather than UTF-8, and it matters: a reply is arbitrary bytes, not
+// text. The Pioneer user code is a 200-byte record that may carry anything, and
+// fromUtf8 would replace every byte above 0x7F that did not happen to form a
+// valid sequence — so the hex dump the remote shows would be a dump of what
+// this decode had already destroyed. Latin-1 maps all 256 values one-to-one and
+// back again, which is the property wanted here.
+QString ToPayload(std::string_view bytes) {
+  return QString::fromLatin1(bytes.data(),
+                             static_cast<qsizetype>(bytes.size()));
+}
+
+// Bytes as they should appear in a log line or a label: the trailing terminator
+// taken off, since a carriage return in either helps nobody.
+QString ToDisplayBytes(std::string_view bytes) {
+  if (!bytes.empty() && bytes.back() == player::kCommandTerminator) {
+    bytes.remove_suffix(1);
+  }
+  return ToPayload(bytes);
 }
 
 // The probe outcome that says most about what is wrong.
@@ -180,6 +204,59 @@ void PlayerWorker::SetPaused(bool paused) {
   paused_ = paused;
 
   if (!paused_ && running_ && session_ != nullptr && session_->connected()) {
+    SchedulePoll(std::chrono::milliseconds{0});
+  }
+}
+
+void PlayerWorker::Send(const ddd::gui::PlayerRequest& request) {
+  PlayerReply reply;
+  reply.request = request;
+
+  if (!running_ || session_ == nullptr || !session_->connected()) {
+    reply.status = player::ReplyStatus::kNotConnected;
+    emit RequestCompleted(reply);
+    return;
+  }
+
+  const player::Reply answer = [&]() -> player::Reply {
+    switch (request.kind) {
+      case PlayerRequest::Kind::kCommand:
+        return session_->Execute(request.command, request.argument);
+      case PlayerRequest::Kind::kAudio:
+        return session_->SetAudio(request.audio);
+      case PlayerRequest::Kind::kSpeed:
+        return session_->SetSpeed(request.speed);
+      case PlayerRequest::Kind::kRaw:
+        return session_->SendRaw(request.raw.toStdString(), request.response,
+                                 request.timeout);
+    }
+    return {};
+  }();
+
+  reply.status = answer.status;
+  reply.text = ToPayload(answer.text);
+  reply.error_code = ToQString(answer.error_code);
+  reply.sent = ToDisplayBytes(answer.sent);
+
+  // The serial trace. At debug level because it is one line per command and
+  // there may be several a second — and it is the thing that makes a
+  // misbehaving player diagnosable by somebody who does not have it in front of
+  // them, which is why the old application's qDebug() output was the first
+  // thing anyone was ever asked for.
+  Log(capture::LogLevel::kDebug,
+      QStringLiteral("Player: %1").arg(PlayerReplyText(reply)));
+
+  emit RequestCompleted(reply);
+
+  if (answer.status == player::ReplyStatus::kLinkFailed) {
+    ReportLinkLost();
+    return;
+  }
+
+  // The player has just been told to do something, so what it is doing is about
+  // to change. Read it now rather than at the end of an interval that was
+  // scheduled when nothing was happening.
+  if (!paused_) {
     SchedulePoll(std::chrono::milliseconds{0});
   }
 }
@@ -418,6 +495,12 @@ PlayerConnection PlayerWorker::DescribeConnection() const {
   connection.model_code = ToQString(identity.model_code);
   connection.recognised_model = identity.recognised;
   connection.bench_verified = definition.bench_verified;
+
+  // Resolved here, once, from the definition and the firmware the player
+  // reported — so the remote gates its buttons on a value rather than on a
+  // pointer into something this thread owns.
+  connection.controls =
+      player::ControlsFor(definition, identity.firmware_version);
 
   // A model the user selected and did not get. The connection is live either
   // way — it is a real player and every control works — but saying so is the

@@ -113,10 +113,28 @@ Reply ParseAcknowledgement(std::string_view raw) {
 }
 
 Reply ParseText(std::string_view raw) {
+  // The terminator and nothing else — see the header. A user code is a
+  // fixed-width record with space-padded fields, and trimming it would be
+  // deleting data the caller asked for.
+  size_t end = raw.size();
+  while (end > 0 &&
+         (raw[end - 1] == kCommandTerminator || raw[end - 1] == '\n')) {
+    --end;
+  }
+
   Reply reply;
-  reply.text = StripTerminator(raw);
+  reply.text = std::string(raw.substr(0, end));
   reply.status = reply.text.empty() ? ReplyStatus::kNoAnswer : ReplyStatus::kOk;
   return reply;
+}
+
+bool IsErrorCode(std::string_view text) {
+  // 'E' and at least one digit, and nothing else at all.
+  if (text.size() < 2 || text.front() != 'E') {
+    return false;
+  }
+
+  return std::all_of(text.begin() + 1, text.end(), IsDigit);
 }
 
 DiscAddress ParseAddress(std::string_view raw, AddressMode mode) {
