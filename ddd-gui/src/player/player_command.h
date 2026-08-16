@@ -76,6 +76,11 @@ enum class PlayerCommand : uint8_t {
   kQueryDiscStatus,
   kQueryStandardUserCode,
   kQueryPioneerUserCode,
+
+  // Which television standard the disc carries. The only command that answers
+  // it — it is not in the disc status, and the model does not imply it.
+  kQueryTvSystem,
+
   kQueryPhysicalPosition,
 
   kCount,

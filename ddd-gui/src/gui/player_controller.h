@@ -86,6 +86,21 @@ class PlayerController : public QObject {
   // more than one thing outstanding can tell the answers apart.
   uint64_t Send(PlayerRequest request);
 
+  // Work out what is in the player.
+  //
+  // Returns at once. Progress arrives on ExamineProgress and the result on
+  // ExamineFinished, which is emitted exactly once per accepted examination —
+  // including when it fails, so a dialog waiting for it never waits forever.
+  void Examine();
+
+  // Stop the examination in progress.
+  //
+  // Called directly rather than queued, because the worker's event loop is not
+  // running while an examination is: a queued call would be delivered after the
+  // thing it was meant to stop had finished. See
+  // PlayerWorker::RequestExamineCancel.
+  void CancelExamine();
+
  public slots:
   // Turn player control on or off. Off releases the port and stops every
   // enumeration — a machine with this switched off is exactly as it would be if
@@ -109,6 +124,11 @@ class PlayerController : public QObject {
   void StatusUpdated(const ddd::player::PlayerStatus& status);
   void SettingsChanged(const ddd::gui::PlayerSettings& settings);
   void RequestCompleted(const ddd::gui::PlayerReply& reply);
+
+  void ExamineProgress(ddd::player::ExamineStage stage, int completed,
+                       int total);
+  void ExamineFinished(const ddd::player::DiscProfile& disc,
+                       ddd::player::ExamineOutcome outcome);
 
  private:
   void ApplySettings();

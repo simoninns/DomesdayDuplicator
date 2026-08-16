@@ -16,7 +16,10 @@
 #include <QString>
 #include <QStringList>
 #include <cstddef>
+#include <string>
 
+#include "disc_examiner.h"
+#include "disc_profile.h"
 #include "player_command.h"
 #include "player_connection.h"
 #include "player_request.h"
@@ -554,6 +557,301 @@ TEST(PlayerTextTest, EveryWayAnExchangeCanFailReadsDifferently) {
     EXPECT_FALSE(lines.contains(line)) << line.toStdString();
     lines.insert(line);
   }
+}
+
+// --- Examining the disc ----------------------------------------------------
+
+player::DiscProfile ExaminedCavDisc() {
+  player::DiscProfile disc;
+  disc.disc_present.Record(true, player::Provenance::kMeasured);
+  disc.tray.Record(player::TrayState::kClosed, player::Provenance::kReported);
+  disc.disc_type.Record(player::DiscType::kCav, player::Provenance::kReported);
+  disc.addressing.Record(player::AddressMode::kFrame,
+                         player::Provenance::kInferred);
+  disc.programme_start.Record(1, player::Provenance::kMeasured);
+  disc.programme_end.Record(54000, player::Provenance::kMeasured);
+  disc.lead_in_reachable.Record(true, player::Provenance::kMeasured);
+  disc.chapters.Record(true, player::Provenance::kMeasured);
+  disc.disc_status_reply = "10001";
+  return disc;
+}
+
+TEST(PlayerTextTest, EveryExamineStageSaysSomethingDifferentAndInPlainWords) {
+  const player::ExamineStage stages[] = {
+      player::ExamineStage::kIdle,
+      player::ExamineStage::kCheckingPlayer,
+      player::ExamineStage::kSpinningUp,
+      player::ExamineStage::kReadingDiscStatus,
+      player::ExamineStage::kReadingPioneerUserCode,
+      player::ExamineStage::kReadingStandardUserCode,
+      player::ExamineStage::kCheckingChapters,
+      player::ExamineStage::kFindingEnd,
+      player::ExamineStage::kReadingEnd,
+      player::ExamineStage::kFindingStart,
+      player::ExamineStage::kReadingStart,
+      player::ExamineStage::kSettling,
+      player::ExamineStage::kFinished,
+  };
+
+  QSet<QString> seen;
+  for (const player::ExamineStage stage : stages) {
+    const QString name = ExamineStageName(stage);
+    EXPECT_FALSE(name.isEmpty());
+    EXPECT_FALSE(seen.contains(name)) << name.toStdString();
+    seen.insert(name);
+  }
+
+  // The slow one explains itself, because a progress line that has not moved
+  // for eleven seconds is the one a user is staring at.
+  EXPECT_TRUE(ExamineStageName(player::ExamineStage::kReadingPioneerUserCode)
+                  .contains(QStringLiteral("lead-in")));
+}
+
+TEST(PlayerTextTest, EveryProvenanceReadsDifferently) {
+  const player::Provenance sources[] = {
+      player::Provenance::kUnknown,  player::Provenance::kReported,
+      player::Provenance::kMeasured, player::Provenance::kInferred,
+      player::Provenance::kDeclared,
+  };
+
+  QSet<QString> seen;
+  for (const player::Provenance source : sources) {
+    const QString note = ProvenanceNote(source);
+    EXPECT_FALSE(note.isEmpty());
+    EXPECT_FALSE(seen.contains(note)) << note.toStdString();
+    seen.insert(note);
+  }
+}
+
+TEST(PlayerTextTest, AnAddressIsWrittenTheWayItsDiscIsAddressed) {
+  EXPECT_EQ(FormatDiscAddress(54000, player::AddressMode::kFrame),
+            QStringLiteral("Frame 54000"));
+
+  // The same number read as a time code is a completely different thing, which
+  // is why the mode is passed in rather than guessed.
+  EXPECT_EQ(FormatDiscAddress(504500, player::AddressMode::kTimeCode),
+            QStringLiteral("0:50:45"));
+}
+
+TEST(PlayerTextTest, TheHeadlineSaysWhatTheDiscIsAndHowLongItRuns) {
+  const QString summary =
+      ExamineSummary(ExaminedCavDisc(), player::ExamineOutcome::kCompleted);
+
+  EXPECT_TRUE(summary.contains(QStringLiteral("CAV")));
+  EXPECT_TRUE(summary.contains(QStringLiteral("Frame 54000")));
+}
+
+TEST(PlayerTextTest, EachWayAnExaminationCanEndReadsDifferently) {
+  const player::ExamineOutcome outcomes[] = {
+      player::ExamineOutcome::kInProgress, player::ExamineOutcome::kCompleted,
+      player::ExamineOutcome::kTrayOpen,   player::ExamineOutcome::kNoDisc,
+      player::ExamineOutcome::kLinkFailed, player::ExamineOutcome::kCancelled,
+  };
+
+  QSet<QString> outcome_text;
+  QSet<QString> summaries;
+  for (const player::ExamineOutcome outcome : outcomes) {
+    const QString text = ExamineOutcomeText(outcome);
+    EXPECT_FALSE(text.isEmpty());
+    EXPECT_FALSE(outcome_text.contains(text)) << text.toStdString();
+    outcome_text.insert(text);
+
+    const QString summary = ExamineSummary(ExaminedCavDisc(), outcome);
+    EXPECT_FALSE(summary.isEmpty());
+    EXPECT_FALSE(summaries.contains(summary)) << summary.toStdString();
+    summaries.insert(summary);
+  }
+}
+
+TEST(PlayerTextTest, TheReportLabelsEveryFactWithHowItWasArrivedAt) {
+  const QString report = DiscProfileReport(
+      ExaminedCavDisc(), player::ExamineOutcome::kCompleted, 0.0);
+
+  // The measurement and the inference are not presented alike, which is the
+  // whole reason provenance is carried at all.
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("Last address: Frame 54000  "
+                                     "(measured)")));
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("Addressing: frame number  (inferred)")));
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("Type: CAV  (reported by the "
+                                     "player)")));
+}
+
+TEST(PlayerTextTest, AFieldNobodyEstablishedIsSaidToBeUnknownRatherThanBlank) {
+  player::DiscProfile disc = ExaminedCavDisc();
+  disc.chapters = player::Fact<bool>{};
+
+  const QString report =
+      DiscProfileReport(disc, player::ExamineOutcome::kCompleted, 0.0);
+
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("Chapters: not known  (not "
+                                     "established)")));
+  EXPECT_FALSE(report.contains(QStringLiteral("Chapters: none")));
+}
+
+TEST(PlayerTextTest, ACavDiscWithNoStandardHasNoPlayingTimeAndSaysWhy) {
+  const QString report = DiscProfileReport(
+      ExaminedCavDisc(), player::ExamineOutcome::kCompleted, 1.0e6);
+
+  // The same "not known" every unestablished field gets, with the sentence
+  // underneath naming the one command that would have answered it.
+  EXPECT_TRUE(report.contains(
+      QStringLiteral("Video standard: not known  (not established)")));
+  EXPECT_TRUE(report.contains(QStringLiteral("TV system request")));
+  EXPECT_TRUE(report.contains(QStringLiteral("video standard is known")));
+
+  // And nothing was estimated from a length that is only a frame count.
+  EXPECT_FALSE(report.contains(QStringLiteral("Capture size")));
+}
+
+TEST(PlayerTextTest, AClvDiscsPlayingTimeAndCaptureSizeAreBothStated) {
+  player::DiscProfile disc;
+  disc.disc_type.Record(player::DiscType::kClv, player::Provenance::kReported);
+  disc.addressing.Record(player::AddressMode::kTimeCode,
+                         player::Provenance::kInferred);
+  disc.programme_start.Record(0, player::Provenance::kMeasured);
+  disc.programme_end.Record(504500, player::Provenance::kMeasured);
+  disc.video_standard.Record(player::VideoStandard::kPal,
+                             player::Provenance::kDeclared);
+
+  const QString report =
+      DiscProfileReport(disc, player::ExamineOutcome::kCompleted, 1.0e6);
+
+  // Labelled with where it came from, so a standard the player reported and a
+  // standard the user typed do not read alike.
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("Video standard: PAL  (declared)")));
+  EXPECT_TRUE(report.contains(QStringLiteral("Playing time: 0:50:45")));
+  EXPECT_TRUE(report.contains(QStringLiteral("Capture size")));
+}
+
+TEST(PlayerTextTest, TheFourUserCodeOutcomesAreFourDifferentSentences) {
+  QSet<QString> lines;
+
+  const player::UserCodeReading::Outcome outcomes[] = {
+      player::UserCodeReading::Outcome::kNotRead,
+      player::UserCodeReading::Outcome::kNotEncoded,
+      player::UserCodeReading::Outcome::kRefused,
+      player::UserCodeReading::Outcome::kRead,
+  };
+
+  for (const player::UserCodeReading::Outcome outcome : outcomes) {
+    player::DiscProfile disc = ExaminedCavDisc();
+    disc.pioneer_user_code.outcome = outcome;
+    disc.pioneer_user_code.text =
+        outcome == player::UserCodeReading::Outcome::kNotEncoded ? "E04"
+                                                                 : "#59-014";
+
+    const QString report =
+        DiscProfileReport(disc, player::ExamineOutcome::kCompleted, 0.0);
+
+    const QStringList found =
+        report.split(QLatin1Char('\n')).filter(QStringLiteral("Pioneer:"));
+    ASSERT_EQ(found.size(), 1);
+    EXPECT_FALSE(lines.contains(found.front())) << found.front().toStdString();
+    lines.insert(found.front());
+  }
+}
+
+TEST(PlayerTextTest, AUserCodeTheDiscHasIsNotConfusedWithOneItLacks) {
+  player::DiscProfile disc = ExaminedCavDisc();
+  disc.pioneer_user_code.outcome = player::UserCodeReading::Outcome::kRead;
+  disc.pioneer_user_code.text = std::string("#59-014") + std::string(60, '`');
+
+  const QString report =
+      DiscProfileReport(disc, player::ExamineOutcome::kCompleted, 0.0);
+
+  // The player could not read sixty of them off the disc, which is a fact
+  // about the disc and not about this application.
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("60 of 67 characters could not be "
+                                     "read off the disc")));
+}
+
+TEST(PlayerTextTest, TheReportSaysTheUserCodesAreInformationalOnly) {
+  // A hard constraint of the design, stated where a user reading the report
+  // will see it — because the Disc Control Data looks very much like it
+  // carries the disc's length, and it is not to be used that way.
+  const QString report = DiscProfileReport(
+      ExaminedCavDisc(), player::ExamineOutcome::kCompleted, 0.0);
+
+  EXPECT_TRUE(report.contains(QStringLiteral("informational only")));
+}
+
+TEST(PlayerTextTest, TheDiscStatusReplyIsShownBesideWhatWasDecodedFromIt) {
+  // The working, not just the answer. A report that says "side 2" and shows
+  // the reply it read that from is one somebody can check.
+  const QString report = DiscProfileReport(
+      ExaminedCavDisc(), player::ExamineOutcome::kCompleted, 0.0);
+
+  EXPECT_TRUE(report.contains(QStringLiteral("Disc status reply: \"10001\"")));
+  EXPECT_TRUE(report.contains(QStringLiteral("loaded, CAV/CLV, size, side")));
+}
+
+TEST(PlayerTextTest, TheSizeAndTheSideAreReportedAsADiscIsDescribed) {
+  player::DiscProfile disc = ExaminedCavDisc();
+  disc.disc_size.Record(player::DiscSize::k30cm, player::Provenance::kReported);
+  disc.disc_side.Record(2, player::Provenance::kReported);
+
+  const QString report =
+      DiscProfileReport(disc, player::ExamineOutcome::kCompleted, 0.0);
+
+  // Inches, because that is what a disc is sold as, however the format is
+  // specified.
+  EXPECT_TRUE(report.contains(
+      QStringLiteral("Size: 12 inch  (reported by the player)")));
+  EXPECT_TRUE(report.contains(
+      QStringLiteral("Side: side 2  (reported by the player)")));
+}
+
+TEST(PlayerTextTest, ASideThePlayerCouldNotDetermineIsNotReportedAsSideOne) {
+  const QString report = DiscProfileReport(
+      ExaminedCavDisc(), player::ExamineOutcome::kCompleted, 0.0);
+
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("Side: not known  (not established)")));
+  EXPECT_FALSE(report.contains(QStringLiteral("Side: side 1")));
+}
+
+TEST(PlayerTextTest, BothDiscDiametersAreNamed) {
+  EXPECT_EQ(DiscSizeName(player::DiscSize::k30cm), QStringLiteral("12 inch"));
+  EXPECT_EQ(DiscSizeName(player::DiscSize::k20cm), QStringLiteral("8 inch"));
+  EXPECT_NE(DiscSizeName(player::DiscSize::kUnknown),
+            DiscSizeName(player::DiscSize::k30cm));
+}
+
+TEST(PlayerTextTest, AProfileWithNothingInItStillProducesAReadableReport) {
+  const player::DiscProfile nothing;
+
+  for (const player::ExamineOutcome outcome :
+       {player::ExamineOutcome::kTrayOpen, player::ExamineOutcome::kNoDisc,
+        player::ExamineOutcome::kLinkFailed,
+        player::ExamineOutcome::kCancelled}) {
+    const QString report = DiscProfileReport(nothing, outcome, 1.0e6);
+    EXPECT_FALSE(report.isEmpty());
+    EXPECT_FALSE(report.contains(QStringLiteral(": \n")))
+        << "a blank field would read as a bug in the report";
+  }
+}
+
+TEST(PlayerTextTest, AnExamineTraceLineNamesTheStepAsWellAsTheBytes) {
+  // Two address queries in one trace, and without the step name they would be
+  // indistinguishable.
+  const QString line =
+      ExamineStepText(player::ExamineStage::kReadingEnd, QStringLiteral("?F"),
+                      QStringLiteral("054000"));
+
+  EXPECT_TRUE(line.contains(QStringLiteral("?F")));
+  EXPECT_TRUE(line.contains(QStringLiteral("054000")));
+  EXPECT_TRUE(
+      line.contains(ExamineStageName(player::ExamineStage::kReadingEnd)));
+
+  const QString silent = ExamineStepText(player::ExamineStage::kReadingEnd,
+                                         QStringLiteral("?F"), QString());
+  EXPECT_TRUE(silent.contains(QStringLiteral("no answer")));
 }
 
 }  // namespace

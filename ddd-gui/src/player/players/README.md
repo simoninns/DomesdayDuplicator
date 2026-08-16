@@ -93,8 +93,27 @@ full version and this is its summary.
   rather than faults in the definition, and they are not the same fact.
 - The manual command field, with `?X`. Its answer is the model code that belongs in this
   header, so it is also the check that the definition is claiming the right ID.
-- Examine a CAV disc and a CLV disc. The reported type, length and addressing must match
-  the disc.
+- **Examine disc**, on a CAV disc and on a CLV disc. The reported type, addressing and last
+  address must match what the disc really is — the last address is measured by seeking past
+  the end of the side, so check it against the player's own display rather than against the
+  sleeve. Watch what the sequence skips: a step the model has no command for is not in the
+  plan at all, and a step whose field comes back *not known* is either a wrong capability
+  flag or a reply this definition cannot decode. The examination should finish in about a
+  minute and leave the disc held still at the start of the side.
+- **Check the disc status against the disc in your hand.** The report shows the reply it
+  decoded — five characters: loaded, CAV/CLV, size, side, chapters. Turn the disc over and
+  examine it again: the side must change and nothing else about it should. A model whose
+  reply is laid out differently shows up here as a size or a side that is confidently wrong,
+  and the fix is `DiscStatusDecode` in that model's header rather than anything above it.
+- **Check the video standard, on a disc of each standard if you have both.** It comes from
+  the TV system request (`?S`) and is reported, not guessed — so a model that answers it
+  wrongly is the one failure this checklist cannot catch any other way, and a model that
+  does not answer it at all should have `tv_system = false` in its header rather than a
+  report that says the standard could not be established on every disc. Send `?S` from the
+  manual command field to see the raw three characters: output, disc, external sync.
+- **Examine with the tray open, and with the tray shut and empty.** Two different findings —
+  "the tray is open" and "the player would not start a disc" — and a model that reports its
+  states differently is the one that gets them the wrong way round.
 - Power-cycle the player mid-session and confirm it reconnects on its own.
 - Unplug the serial adapter mid-session and confirm the application reports it once and
   does not spin.

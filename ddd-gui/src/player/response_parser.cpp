@@ -204,23 +204,120 @@ PlayerState ParsePlayerState(std::string_view raw, const StateDecode& decode) {
   return PlayerState::kUnknown;
 }
 
-DiscType ParseDiscType(std::string_view raw, const DiscStatusDecode& decode) {
+namespace {
+
+// One field of the disc-status reply as a yes or a no.
+//
+// Nothing for a field this model does not report, for a reply too short to
+// hold it, and — the case that matters — for the 'X' the player sends when it
+// could not determine the field. Both manuals document that third value, and
+// reading it as a '0' would turn "I could not tell which side this is" into
+// "side 1".
+std::optional<bool> StatusFlag(std::string_view text, const ReplyField& field) {
+  if (!field.present() || text.size() <= field.index) {
+    return std::nullopt;
+  }
+
+  switch (text[field.index]) {
+    case '0':
+      return false;
+    case '1':
+      return true;
+    default:
+      return std::nullopt;
+  }
+}
+
+}  // namespace
+
+DiscStatus ParseDiscStatus(std::string_view raw,
+                           const DiscStatusDecode& decode) {
   const std::string text = StripTerminator(raw);
 
-  if (text.size() <= decode.disc_type_index) {
-    return DiscType::kUnknown;
+  DiscStatus status;
+
+  // Long enough to hold every field this model claims to report. A shorter
+  // reply is not a disc status, and reading the fields that happen to fit would
+  // be answering a question the player did not.
+  size_t needed = 0;
+  for (const ReplyField& field :
+       {decode.disc_loaded, decode.disc_type, decode.disc_size,
+        decode.disc_side, decode.chapters}) {
+    if (field.present()) {
+      needed = std::max(needed, field.index + 1);
+    }
   }
 
-  const char digit = text[decode.disc_type_index];
-
-  if (digit == decode.cav_digit) {
-    return DiscType::kCav;
-  }
-  if (digit == decode.clv_digit) {
-    return DiscType::kClv;
+  if (text.size() < needed) {
+    return status;
   }
 
-  return DiscType::kUnknown;
+  status.valid = true;
+  status.loaded = StatusFlag(text, decode.disc_loaded);
+  status.chapters = StatusFlag(text, decode.chapters);
+
+  if (const std::optional<bool> clv = StatusFlag(text, decode.disc_type)) {
+    status.type = *clv ? DiscType::kClv : DiscType::kCav;
+  }
+
+  if (const std::optional<bool> small = StatusFlag(text, decode.disc_size)) {
+    status.size = *small ? DiscSize::k20cm : DiscSize::k30cm;
+  }
+
+  if (const std::optional<bool> second = StatusFlag(text, decode.disc_side)) {
+    status.side = *second ? 2 : 1;
+  }
+
+  return status;
+}
+
+DiscType ParseDiscType(std::string_view raw, const DiscStatusDecode& decode) {
+  return ParseDiscStatus(raw, decode).type;
+}
+
+namespace {
+
+// One character of the TV system reply. 0 is "unknown, or nothing connected",
+// which is the same answer for the purposes above: nothing was established.
+VideoStandard StandardAt(std::string_view text, const ReplyField& field) {
+  if (!field.present() || text.size() <= field.index) {
+    return VideoStandard::kUnknown;
+  }
+
+  switch (text[field.index]) {
+    case '1':
+      return VideoStandard::kNtsc;
+    case '2':
+      return VideoStandard::kPal;
+    default:
+      return VideoStandard::kUnknown;
+  }
+}
+
+}  // namespace
+
+TvSystem ParseTvSystem(std::string_view raw, const TvSystemDecode& decode) {
+  const std::string text = StripTerminator(raw);
+
+  TvSystem system;
+
+  size_t needed = 0;
+  for (const ReplyField& field :
+       {decode.output, decode.disc, decode.external_sync}) {
+    if (field.present()) {
+      needed = std::max(needed, field.index + 1);
+    }
+  }
+
+  if (text.size() < needed) {
+    return system;
+  }
+
+  system.valid = true;
+  system.output = StandardAt(text, decode.output);
+  system.disc = StandardAt(text, decode.disc);
+  system.external_sync = StandardAt(text, decode.external_sync);
+  return system;
 }
 
 std::optional<float> ParsePhysicalPositionMillimetres(std::string_view raw) {

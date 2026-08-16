@@ -82,6 +82,19 @@ class PlayerWorker : public QObject {
   // and the reason the application can quit during a thirty-second seek.
   void RequestStop();
 
+  // Give up on the examination in progress. **Callable from any thread**, and
+  // it has to be: while Examine() is running, this thread's event loop is not,
+  // so a queued slot would not be delivered until the sequence it is meant to
+  // cancel had already finished.
+  //
+  // Takes effect between steps rather than during one, so a cancel pressed
+  // during a seek is honoured when that seek answers — up to the long timeout
+  // away in the worst case. The alternative is ISerialPort::RequestAbort, and
+  // that is deliberately not used here: an abandoned read is reported as a port
+  // failure, so cancelling an examination would drop the link and cost a
+  // rediscovery. Waiting out one command is much the smaller price.
+  void RequestExamineCancel();
+
   // The floor and ceiling on how often the player is asked what it is doing.
   //
   // The interval is the time the last poll took, bounded by these — so the link
@@ -120,10 +133,31 @@ class PlayerWorker : public QObject {
   // — is what stops a reply being attributed to the wrong command.
   void Send(const ddd::gui::PlayerRequest& request);
 
+  // Work out what is in the player, and say so.
+  //
+  // Runs the whole examine sequence here rather than handing its steps back
+  // across the thread boundary one at a time, and that is the right side of the
+  // line for it: every step is a blocking exchange the session already knows
+  // how to make, and driving it from the interface would be a round trip per
+  // step for no gain. What crosses the boundary is progress and a profile.
+  //
+  // Polling is suspended for the duration. Interleaving a status query into the
+  // middle of a seek is how a reply gets attributed to the wrong command, and
+  // an examination is nothing but seeks.
+  void Examine();
+
  signals:
   void ConnectionChanged(const ddd::gui::PlayerConnection& connection);
   void StatusUpdated(const ddd::player::PlayerStatus& status);
   void RequestCompleted(const ddd::gui::PlayerReply& reply);
+
+  // One per step, before it is sent. `completed` and `total` are the step
+  // counts, so a progress bar has both without having to know the sequence.
+  void ExamineProgress(ddd::player::ExamineStage stage, int completed,
+                       int total);
+
+  void ExamineFinished(const ddd::player::DiscProfile& disc,
+                       ddd::player::ExamineOutcome outcome);
 
   // A player was found here. The controller writes it into the settings, so
   // the next run costs one probe rather than a scan of every port.
@@ -175,6 +209,14 @@ class PlayerWorker : public QObject {
   // that a stop during a scan of every port on the machine takes milliseconds
   // rather than the rest of the scan.
   std::atomic<bool> stopping_{false};
+
+  // Set from the interface thread, read between examine steps. See
+  // RequestExamineCancel().
+  std::atomic<bool> examine_cancelled_{false};
+
+  // True while Examine() is on the stack, so a second one cannot start on top
+  // of the first. Only this thread touches it.
+  bool examining_ = false;
 };
 
 }  // namespace ddd::gui

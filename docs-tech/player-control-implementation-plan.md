@@ -752,21 +752,28 @@ says so in its tooltip and in the box while it waits.
 Recorded because it is the evidence behind the hard constraint above, and because no
 plausible amount of reading would have predicted it:
 
-| Disc | `?D` | User code |
-| --- | --- | --- |
-| *Casper*, NTSC CLV, side 1 and side 2 | `11011` | Record readable twice; **Key Data wholly unreadable** |
-| *The Hudsucker Proxy*, NTSC CLV | — | Same shape |
-| NTSC CAV | `10001` | **`E04`** — none encoded |
-| PAL CLV | `11001` | 200 characters of which **180 unreadable** — everything but the Control Data |
-| PAL CAV | `10001` | **`E04`** — none encoded |
+| Disc | `?D` | Which now reads as | User code |
+| --- | --- | --- | --- |
+| *Casper*, NTSC CLV, side 1 and side 2 | `11011` | loaded, CLV, 12-inch, **side 2**, chapters | Record readable twice; **Key Data wholly unreadable** |
+| *The Hudsucker Proxy*, NTSC CLV | — | — | Same shape |
+| NTSC CAV | `10001` | loaded, CAV, 12-inch, side 1, chapters | **`E04`** — none encoded |
+| PAL CLV | `11001` | loaded, CLV, 12-inch, side 1, chapters | 200 characters of which **180 unreadable** — everything but the Control Data |
+| PAL CAV | `10001` | loaded, CAV, 12-inch, side 1, chapters | **`E04`** — none encoded |
 
-Two of five yielded anything usable, and no two failed alike. A flow that took its figures
-from here would work on half a shelf.
+Two of five yielded a usable user code, and no two failed alike. A flow that took its
+figures from there would work on half a shelf.
 
-One negative finding worth having, because it is the sort of thing that gets assumed: **the
-disc-status reply does not carry the video standard.** The PAL CAV disc and the NTSC CAV
-disc answer `?D` identically (`10001`), so on this model there is nothing in it to tell them
-apart. See *Open decisions*.
+The third column is retrospective: when these readings were taken this plan decoded one
+digit of the reply and had the other four down as an open question. They are all documented,
+in two manuals — see *Open decisions*, where that is now settled. The one reading singled
+out here as unexplained turns out to say Casper was on its second side, which the `!2` in
+that side's own user code had already said.
+
+One negative finding survives it, because it is the sort of thing that gets assumed: **the
+disc-status reply does not carry the video standard.** No field for it in either manual, and
+the PAL CAV disc and the NTSC CAV disc answer `?D` identically (`10001`). That is a fact
+about `?D` and not about the players — `?S` answers it in twenty milliseconds. See *Open
+decisions*.
 
 The standard user code differs between them too — `Y1000` on both NTSC discs, `Y0000` on the
 PAL CLV — and nothing here explains why. One sample per standard is not a finding.
@@ -831,6 +838,70 @@ therefore the tool that lets a new definition header be written.
 The first half of the new automatic-capture flow, and the part with no equivalent in the
 old application.
 
+**Status: built.** `DiscProfile` and `DiscExaminer` are in `ddd_player` and link no Qt;
+`ExamineDialog` is the window, reachable from **Player ▸ Examine disc…** and from an
+**Examine…** button on the Player dock, both offered only once there is a player. The worker
+gained an `Examine()` slot that runs the whole sequence on the thread that already owns the
+session, pausing the status poll for its duration. 79 further tests, of which 34 are the
+step machine's and 12 the dialog's.
+
+Six things worth recording, four of which are departures from what was planned above:
+
+- **The sequence hands out steps; it does not send them.** `DiscExaminer::Next()` returns
+  the next command and `Apply()` takes what the player said. Every branch of it — an open
+  tray, a disc that will not spin, a refused disc-status query, a link that dies halfway
+  through, a cancel between any two steps — is therefore a test that runs in microseconds
+  with nothing plugged in. That was the point of the shape, and it paid: the cascade where
+  an unknown disc type means no seek can be sent is pinned by a test rather than discovered
+  by a user with an unusual player.
+- **It runs on the worker thread, not the interface's.** Handing steps back across the
+  thread boundary one at a time would have been a round trip per step for no gain — every
+  step is a blocking exchange the session already knows how to make. What crosses the
+  boundary is progress and a profile.
+- **Cancelling waits out the step in flight**, rather than aborting the read. `ISerialPort`
+  has `RequestAbort` and it is deliberately not used here: an abandoned read is reported as
+  a port failure, so cancelling an examination would drop the link and cost a rediscovery.
+  Waiting out one command — five seconds usually, thirty at the very worst — is much the
+  smaller price. The window says "stopping" as soon as the button is pressed, because a
+  request that is made and not yet granted otherwise looks like a button that was ignored.
+- **The profile gained a first address, and the sequence gained the step that measures it.**
+  The plan listed only the length. Seeking back to the start is needed anyway — to answer
+  whether the lead-in is reachable, and to leave the player somewhere useful — so the start
+  address falls out of a step that was already there. Phase 5's "whole side" is
+  start-to-end, and now both ends are measured.
+- **The video standard is asked for, not declared.** `?S`, the TV system request — twenty
+  milliseconds, moves nothing, and answers the question this plan had spent two rounds of
+  bench work concluding could not be answered. The field taken is the disc's, not the
+  output's, because a converting player makes those different answers. A CAV disc
+  consequently gets a playing time and a capture-size estimate for the first time.
+- **The disc-status reply is decoded in full, and the chapter probe went away with it.**
+  This plan had the reply down as one usable digit and an open question; it is five
+  documented fields — loaded, CAV/CLV, size, side, chapters — in both manuals this project
+  can reach. See *Open decisions*, where that question is now closed. The examination reads
+  the disc's own programme status instead of driving the transport to rediscover part of it.
+- **Both user codes are always read.** No option, no checkbox. The Pioneer read is placed
+  where the seek it costs was going to happen anyway, which is what makes it affordable
+  unconditionally; and a disc's own identifying records are not something a user should have
+  to know to ask for.
+- **It does not put the player back where it found it.** It leaves the disc held still at
+  the start of the side. That is a deliberate departure: the examination is a precursor to a
+  capture, and the start of the side is where a capture wants to begin. Restoring the
+  original position would mean a third seek to undo the second.
+- **The seek past the end and the seek back to the start are not treated alike.** A refusal
+  from the first is the technique working — the player runs to the end of the side and then
+  says no. A refusal from the second means the player did not move, so the address read that
+  would follow it is skipped rather than recorded as the start of the programme.
+
+The raw `?D` reply is kept and reported all the same, as the working beside the answer
+rather than as evidence for a decode that has since been written. Every field of the profile
+except one is now established by an examination; the exception is the video standard on a
+model with no `?S`, which the guided setup will ask for.
+
+Deferred, as Phase 3's remote was: the T5 walk against real CAV and CLV discs belongs to
+Task 6.1's document. **Set up capture…** is not on the window either — it arrives with
+Phase 5 rather than appearing here disabled, which is the same rule the remote's capability
+gating exists to enforce.
+
 ### Task 4.1 — `DiscProfile` and the examine sequence
 
 `DiscProfile` is a value type holding what an examination found, every field carrying its
@@ -838,15 +909,15 @@ provenance — *measured*, *reported by the player*, *inferred*, or *unknown*:
 
 | Field | How it is obtained |
 | --- | --- |
-| Disc present, tray state | Active-mode query |
-| Disc type (CAV / CLV) | Disc status query, decoded per the model's `DiscStatusDecode` |
+| Disc present, tray state | Active-mode query, then confirmed by C1 of the disc status |
+| Disc type (CAV / CLV) | Disc status query, C2 |
 | Addressing (frame / time code) | Follows from disc type |
-| Disc size, side, CX where reported | Disc status decode — model-dependent, `unknown` where the model does not report it |
+| Disc size, disc side | Disc status query, C3 and C4 — the disc's own programme status, so it costs nothing and moves nothing |
 | Length: lead-out frame or time code | Seek to an impossible address, then read the current address — the technique the old application already used to find the disc end. `FR60000SE` for CAV and `FR1595900SE` for CLV, exactly as [playercommunication.cpp](../gui/src/DomesdayDuplicator/playercommunication.cpp)'s `getMaximumFrameNumber()` and `getMaximumTimeCode()` send them |
 | Lead-in reachable | Whether the lead-in flag is seen when seeking to the start |
-| Chapters present | Chapter search response |
-| Standard and Pioneer user codes | Their queries — **informational only**, see below |
-| Video standard | See *Open decisions* — from the player where the model reports it, otherwise inferred or declared, and always labelled with which |
+| Chapters present | Disc status query, C5. A chapter search only where the model does not report the field |
+| Standard and Pioneer user codes | Their queries, always both — **informational only**, see below |
+| Video standard | TV system request (`?S`), C2 — the disc's own standard rather than the one being output. Declared by the user only on a model that cannot be asked |
 | Estimated capture size and duration | Length × the current capture settings' `EstimatedBytesPerSecond()` |
 
 `DiscExaminer` is a step machine over that list: each step names the command to send, what a
@@ -859,10 +930,16 @@ The sequence is cancellable between every step, and it puts the player back roug
 it found it: examination spins the disc up and seeks, which is unavoidable, but it does not
 leave a disc playing.
 
-**The user code is informational and nothing acts on it.** This is a hard constraint, and
-Phase 3's bench work is why. It is tempting to use: the Disc Control Data carries what looks
-very much like the side number and the side's playing time, so a disc's length appears to be
-readable straight out of the lead-in. It is not to be used that way.
+**Both user codes are always read.** They are the disc's own identifying records, and the
+examination is the one moment in a session when reading the Pioneer one costs nothing extra:
+the player is about to be sent to the lead-in anyway, and everything that depends on
+position happens afterwards. An examination that left them for the user to fetch by hand
+would be one followed by two more trips to the remote, the second of which moves the disc.
+
+**But the user code is informational and nothing acts on it.** This is a hard constraint,
+and Phase 3's bench work is why. It is tempting to use: the Disc Control Data carries what
+looks very much like the side number and the side's playing time, so a disc's length appears
+to be readable straight out of the lead-in. It is not to be used that way.
 
 - **It is not reliably there.** Three discs on this bench, three different outcomes: two
   with a readable record whose Key Data would not read at all, and one — a CAV disc,
@@ -870,8 +947,9 @@ readable straight out of the lead-in. It is not to be used that way.
   some discs and not others is worse than one that always costs a seek, because the flow
   around it has to handle both anyway.
 - **The field meanings are inferred, not documented.** The `!` and `%` reading is supported
-  by four samples and an accidental corroboration, and it is still a guess. The seek-to-the-
-  end technique measures the thing itself.
+  by four samples and an accidental corroboration, and it is still a guess — even now that
+  the disc status has independently confirmed the side number the `!` field carried. The
+  seek-to-the-end technique measures the thing itself; the user code describes it.
 - **Reading it is expensive and destructive of position.** Eleven seconds, and the player
   ends up at the lead-in — which is exactly the wrong place to be if the next thing to
   happen is a capture from a chosen start point.
@@ -880,10 +958,10 @@ So the profile's *length* is always measured, by the old application's technique
 user code that was read sits beside it as something to show and to record. Where the two
 disagree, the measurement wins and neither is quietly dropped.
 
-Reading it at all is therefore optional in the examine sequence, and if it is read it must
-be read **first** — Pioneer's own manual recommends issuing `?U` immediately after spin-up
-and before any other control command, and the position it destroys has not been established
-yet at that point.
+It is read **first** in the sequence, and that placement is what makes reading it
+unconditionally affordable — Pioneer's own manual recommends issuing `?U` immediately after
+spin-up and before any other control command, and at that point the position it destroys has
+not been established yet.
 
 **Acceptance criteria**
 - T1: a complete examination against a scripted fake player yields the expected profile for
@@ -1098,14 +1176,47 @@ non-volatile memory on any device. AGENTS.md §4's programming prohibition is no
 
 ## Open decisions
 
-Two things this plan cannot settle from the source available, recorded so they are decided
-deliberately rather than by whoever writes the code first:
+Recorded so they are decided deliberately rather than by whoever writes the code first. One
+of the two has since been settled — by reading the manual that had the answer in it all
+along, which is the more useful half of the lesson.
 
-**How the video standard is determined.** The old application never established it. Three
-sources were proposed here, in descending order of trustworthiness: the model's disc-status
-reply where that model documents the field; the model itself where it is region-locked to
-one standard; and the user, asked once and remembered. **Phase 3's bench work has since
-knocked out the first two**, and the third is now the plan of record:
+**~~How the video standard is determined.~~ Settled — there is a command for it.** The old
+application never established it, and this plan proposed three sources in descending order
+of trustworthiness: the disc-status reply, the model itself, and the user. Bench work
+knocked out the first two, and the third — asking the user — became the plan of record. It
+was the wrong answer, arrived at honestly: **the player will simply say.**
+
+`?S`, the *TV System Request*, is documented in the LD-V4400 Level I & III manual (§38,
+p. 95) as "returns information describing the TV System and connection to an external sync
+generator". Three characters, printed as C3 C2 C1 and arriving in that order: the standard
+being **output**, the standard **of the disc**, and the standard of the external sync (0
+where none is connected). Each takes the same values — 0 unknown, 1 NTSC, 2 PAL.
+
+That manual is for an NTSC-only player, so its table has no PAL row and its worked examples
+are `110` and `111`. The PAL value is this project's own bench reading, taken with a PAL CAV
+disc playing on the LD-V4300D:
+
+```
+/dev/ttyUSB4 at 9600 baud — ?X -> 'P151502'
+  ?D   -> '10001'    (20 ms)   loaded, CAV, 12-inch, side 1, chapters
+  ?S   -> '220'      (20 ms)   PAL out, PAL disc, no external sync
+```
+
+**Twenty milliseconds, and it moves nothing** — so it sits beside the disc-status query in
+the examine sequence, and the standard is *reported* rather than *declared*. C2 is the field
+taken, not C3: on a player that converts they disagree, and a capture is of what is on the
+disc rather than of what is on the cable.
+
+Two consequences beyond the label:
+
+- **A CAV disc now has a playing time and a size estimate.** A frame count is only a
+  duration once the frame rate is known, and the frame rate needs the standard. Until this,
+  every CAV examination reported "not known" for both.
+- **The user is not asked.** The guided setup keeps `kDeclared` for a model that cannot
+  answer `?S`, which is the honest fallback rather than the plan of record.
+
+What the three original sources were wrong about is still worth keeping, because it is why
+this one is trusted:
 
 - **The disc-status reply does not carry it.** Measured, on this project's LD-V4300D: a PAL
   CAV disc and an NTSC CAV disc both answer `?D` with `10001`. There is nothing in that
@@ -1119,26 +1230,67 @@ knocked out the first two**, and the third is now the plan of record:
   per-model evidence before it can be relied on, and where it is wrong it is wrong silently
   — the worst way for a guess to fail.
 
-So the standard is asked for and remembered, labelled as declared rather than detected. The
-fourth possibility — measuring the line rate from the RF, which this application uniquely
-could do since it already computes a live spectrum — is now the only route to detecting it
-rather than an attractive extra. It is still a separate piece of work and still not planned
-here.
+Both of those remain true, and both are now beside the point: neither source has to carry
+the standard when a command answers it directly. The fourth possibility — measuring the
+line rate from the RF, which this application uniquely could do since it already computes a
+live spectrum — goes back to being an attractive extra rather than the only route, and is
+still a separate piece of work not planned here. It would be worth having as a cross-check
+against a player that answers `?S` wrongly, which is a thing no amount of reading can rule
+out.
 
-**Whether the disc-status decode is worth doing per model.** Disc size, side and CX come
-from fields whose layout varies by model and whose documentation is uneven. The schema
-supports it and the profile reports `unknown` where the decode is absent, so a definition
-can start with type-only decoding and gain the rest when somebody with the manual and the
-player fills it in. Nothing downstream requires those fields.
+**The lesson, twice over.** Both open decisions in this section were closed by reading the
+manual rather than by measuring, designing round the gap, or asking the user. The
+disc-status fields were documented; the TV system request was documented. In both cases this
+plan had recorded a careful, well-evidenced argument for why the information could not be
+had — and in both cases the argument was sound and the premise was false.
 
-Four `?D` readings so far, for whoever picks this up: `10001` from both a PAL CAV and an
-NTSC CAV disc, `11011` from an NTSC CLV disc, `11001` from a PAL CLV one. Index 1 is the
-disc type, as the decode already assumes. Index 3 is set on exactly one of the four and
-nothing yet explains which property that is — CX, digital audio, chapters and disc size are
-all still candidates. Correlating it needs discs whose properties are known independently,
-which is a bench session rather than a code change.
+**~~Whether the disc-status decode is worth doing per model.~~ Settled — it was documented
+all along.** This plan recorded the disc-status reply as carrying "disc size, side and CX on
+at least some models, but the layout varies and this project does not have a manual for
+every one of them", decoded one digit of it, and left the rest as an open question with four
+bench readings attached. That was wrong, and it was wrong in the most avoidable way: the
+reply is documented identically in the LD-V4400 manual (§34, p. 92) and the LD-V8000 manual
+(p. 107), it is the same five fields on both, and nobody had looked.
 
-Neither blocks Phase 1, which is why they are recorded rather than resolved.
+| | Field | 0 | 1 | X |
+| --- | --- | --- | --- | --- |
+| C1 | Disc loading | not loaded | loaded | — |
+| C2 | CAV/CLV | CAV | CLV | — |
+| C3 | Disc size | 12 inch | 8 inch | unknown |
+| C4 | Disc side | side 1 | side 2 | unknown |
+| C5 | Chapter code | no chapters | chapters | unknown |
+
+with `0XXXX` given as the reply from a player with nothing loaded and `10001` as the worked
+example of "12-inch CAV disc loaded with chapter code".
+
+That decodes every reading this project has taken, and the one that had been singled out as
+unexplained explains itself: `11011` is Casper's **second side**. The Pioneer user code on
+that same side carries `!2`, which this plan had already guessed was a side number from four
+samples. Two independent readings off the same disc agreeing is what turns that guess into
+a fact — and it is the only corroboration of the `!` field that did not come from the user
+code itself.
+
+Three consequences, all now built:
+
+- **The chapter probe is gone.** C5 answers it, so the examination no longer sends a search
+  command to find out something the disc had already said. One fewer step, and one less
+  movement of the disc. The probe survives only as a fallback for a model whose decode has
+  no chapter field.
+- **The side is in the profile.** Two sides of one disc are two files, and until now the
+  application had no way of knowing which it was making.
+- **`X` is a third value, not a zero.** Both manuals document it, and reading it as a digit
+  would turn "I could not tell which side this is" into "side 1".
+
+The raw reply is still kept and still printed in the report — no longer because it is
+undecoded, but as the working beside the answer. A report that says "side 2" and shows the
+`11011` it read that from is one somebody can check.
+
+**What is still not in it: the video standard.** Neither manual lists a field for it, which
+settles the matter from the documentation as well as from the bench, where a PAL CAV disc
+and an NTSC CAV disc both answer `10001`. See the decision above.
+
+The one remaining open item is therefore the first: how the video standard is determined.
+It does not block Phase 1, which is why it is recorded rather than resolved.
 
 ## Feature ledger — the Future rows this plan discharges
 
@@ -1149,6 +1301,7 @@ From [ddd-gui-implementation-plan.md](ddd-gui-implementation-plan.md)'s *Future*
 | LaserDisc player serial control (Pioneer protocol, model detection, auto-reconnect) | Phases 1–2 |
 | Player information display (model, status, position, physical mm) | Task 2.4 |
 | Player remote dialog (full transport, manual serial commands, user-code reads) | Phase 3 |
+| Disc examination (type, addressing, measured length, chapters, user codes) | Phase 4 — no equivalent in the old application |
 | Automatic capture state machine (whole disc / partial / lead-in, CAV+CLV, key-lock) | Phase 5, re-shaped around the examine flow |
 | "Stop player when capture stops" / "Stop capture when player stops" | Task 5.3 |
 | Metadata sidecar — player-derived fields | Partially: disc facts reach the existing capture provenance (Task 5.3). The sidecar itself stays Future with advanced naming |
@@ -1161,7 +1314,8 @@ packaging work already tracked elsewhere.
 
 Non-Pioneer players (the schema is built to accept them; no definition is written for one
 here), LD-ROM or CD-V specific handling, disc-side automation across a disc flip, any
-attempt to decode video from the RF in order to identify the disc, and the RF-based video
-standard detection noted above. Advanced naming and the metadata sidecar are a separate
+attempt to decode video from the RF in order to identify the disc, and RF-based video
+standard detection — which, now that the player answers `?S`, would be a cross-check rather
+than the primary source. Advanced naming and the metadata sidecar are a separate
 plan. This plan is complete when Phase 6's checklist has been walked on real hardware with
 at least two distinct player models and the ledger above contains no unaccounted row.

@@ -15,11 +15,15 @@
 #include <QObject>
 #include <QStringList>
 #include <algorithm>
+#include <chrono>
+#include <optional>
+#include <string>
 #include <string_view>
 
 #include "player_controls.h"
 #include "player_registry.h"
 #include "response_parser.h"
+#include "statistics_presenter.h"
 #include "user_code.h"
 
 namespace ddd::gui {
@@ -39,6 +43,72 @@ QString ModelDescription(const PlayerConnection& connection) {
 
   return QObject::tr("%1 (firmware %2)")
       .arg(connection.model_name, connection.firmware_version);
+}
+
+// What a field that was never established reads as.
+//
+// A word rather than a blank, because a blank in a report a user is about to
+// paste into an issue is indistinguishable from a bug in the report.
+QString UnknownField() { return QObject::tr("not known"); }
+
+// How this disc is addressed, defaulting to frames while that is not known —
+// which is what the address parser is strictest about, and so the safest thing
+// to be wrong about.
+player::AddressMode Addressing(const player::DiscProfile& disc) {
+  return disc.addressing.known() ? disc.addressing.value
+                                 : player::AddressMode::kFrame;
+}
+
+// A reply's bytes, exactly.
+//
+// Latin-1 rather than UTF-8 for the reason set out in player_worker.cpp: a user
+// code is arbitrary bytes and this maps all 256 of them one-to-one.
+QString Payload(const std::string& bytes) {
+  return QString::fromLatin1(bytes.data(),
+                             static_cast<qsizetype>(bytes.size()));
+}
+
+// One user-code line of the report.
+//
+// Four outcomes and four different sentences, because they are four different
+// findings and the whole point of separating them is not to have them read
+// alike.
+QString UserCodeLine(const QString& label,
+                     const player::UserCodeReading& code) {
+  switch (code.outcome) {
+    case player::UserCodeReading::Outcome::kNotRead:
+      return QObject::tr("    %1: not read").arg(label);
+
+    case player::UserCodeReading::Outcome::kNotEncoded:
+      return QObject::tr(
+                 "    %1: none encoded on this disc (the player answered "
+                 "\"%2\")")
+          .arg(label, Payload(code.text));
+
+    case player::UserCodeReading::Outcome::kRefused:
+      return QObject::tr("    %1: asked for, and the player did not answer")
+          .arg(label);
+
+    case player::UserCodeReading::Outcome::kRead:
+      break;
+  }
+
+  const size_t unreadable = static_cast<size_t>(std::count(
+      code.text.begin(), code.text.end(), player::kUnreadableCharacter));
+
+  if (unreadable == 0) {
+    return QObject::tr("    %1: %2").arg(label, Payload(code.text));
+  }
+
+  // The distinction that took a bench session to establish: a run of these is
+  // the player saying it could not read those characters off the disc, not the
+  // disc saying it carries none there.
+  return QObject::tr(
+             "    %1: %2\n        %3 of %4 characters could not be read off "
+             "the disc")
+      .arg(label, Payload(code.text))
+      .arg(unreadable)
+      .arg(code.text.size());
 }
 
 }  // namespace
@@ -765,6 +835,287 @@ QString PlayerVerificationNote(const PlayerConnection& connection) {
       "hardware. It is inherited from the shared Pioneer command set and is "
       "expected to work; if a control does the wrong thing, that is worth "
       "reporting.");
+}
+
+// --- Examining the disc ----------------------------------------------------
+
+QString ExamineStageName(player::ExamineStage stage) {
+  switch (stage) {
+    case player::ExamineStage::kIdle:
+      return QObject::tr("Ready");
+    case player::ExamineStage::kCheckingPlayer:
+      return QObject::tr("Asking the player what it is doing");
+    case player::ExamineStage::kSpinningUp:
+      return QObject::tr("Spinning the disc up");
+    case player::ExamineStage::kReadingDiscStatus:
+      return QObject::tr("Reading the disc status");
+    case player::ExamineStage::kReadingTvSystem:
+      return QObject::tr("Asking which television standard the disc carries");
+    case player::ExamineStage::kReadingPioneerUserCode:
+      // Said in full because it is the slow one, and a progress line that has
+      // not moved for eleven seconds should explain itself.
+      return QObject::tr(
+          "Reading the Pioneer user code (the player searches to the lead-in "
+          "for this, which takes about ten seconds)");
+    case player::ExamineStage::kReadingStandardUserCode:
+      return QObject::tr("Reading the standard user code");
+    case player::ExamineStage::kCheckingChapters:
+      return QObject::tr("Looking for chapters");
+    case player::ExamineStage::kFindingEnd:
+      return QObject::tr("Finding the end of the side");
+    case player::ExamineStage::kReadingEnd:
+      return QObject::tr("Reading the last address");
+    case player::ExamineStage::kFindingStart:
+      return QObject::tr("Going back to the start of the side");
+    case player::ExamineStage::kReadingStart:
+      return QObject::tr("Reading the first address");
+    case player::ExamineStage::kSettling:
+      return QObject::tr("Holding the disc still");
+    case player::ExamineStage::kFinished:
+      return QObject::tr("Finished");
+  }
+  return QObject::tr("Working");
+}
+
+QString ExamineOutcomeText(player::ExamineOutcome outcome) {
+  switch (outcome) {
+    case player::ExamineOutcome::kInProgress:
+      return QObject::tr("in progress");
+    case player::ExamineOutcome::kCompleted:
+      return QObject::tr("completed");
+    case player::ExamineOutcome::kTrayOpen:
+      return QObject::tr("stopped: the tray is open");
+    case player::ExamineOutcome::kNoDisc:
+      return QObject::tr("stopped: there is no disc the player can read");
+    case player::ExamineOutcome::kLinkFailed:
+      return QObject::tr("stopped: the link to the player failed");
+    case player::ExamineOutcome::kCancelled:
+      return QObject::tr("cancelled");
+  }
+  return QObject::tr("finished");
+}
+
+QString ExamineStepText(player::ExamineStage stage, const QString& sent,
+                        const QString& reply) {
+  if (sent.isEmpty()) {
+    return QObject::tr("%1 — nothing sent").arg(ExamineStageName(stage));
+  }
+
+  if (reply.isEmpty()) {
+    return QObject::tr("%1 — \"%2\" → no answer")
+        .arg(ExamineStageName(stage), sent);
+  }
+
+  return QObject::tr("%1 — \"%2\" → \"%3\"")
+      .arg(ExamineStageName(stage), sent, reply);
+}
+
+QString ProvenanceNote(player::Provenance provenance) {
+  switch (provenance) {
+    case player::Provenance::kUnknown:
+      return QObject::tr("not established");
+    case player::Provenance::kReported:
+      return QObject::tr("reported by the player");
+    case player::Provenance::kMeasured:
+      return QObject::tr("measured");
+    case player::Provenance::kInferred:
+      return QObject::tr("inferred");
+    case player::Provenance::kDeclared:
+      return QObject::tr("declared");
+  }
+  return QObject::tr("not established");
+}
+
+QString VideoStandardName(player::VideoStandard standard) {
+  switch (standard) {
+    case player::VideoStandard::kNtsc:
+      return QObject::tr("NTSC");
+    case player::VideoStandard::kPal:
+      return QObject::tr("PAL");
+    case player::VideoStandard::kUnknown:
+      break;
+  }
+  return QObject::tr("Unknown");
+}
+
+QString DiscSizeName(player::DiscSize size) {
+  switch (size) {
+    case player::DiscSize::k30cm:
+      return QObject::tr("12 inch");
+    case player::DiscSize::k20cm:
+      return QObject::tr("8 inch");
+    case player::DiscSize::kUnknown:
+      break;
+  }
+  return UnknownField();
+}
+
+QString FormatDiscAddress(int32_t address, player::AddressMode mode) {
+  if (address < 0) {
+    return UnknownField();
+  }
+
+  return mode == player::AddressMode::kTimeCode
+             ? FormatTimeCode(address)
+             : QObject::tr("Frame %1").arg(address);
+}
+
+QString ExamineSummary(const player::DiscProfile& disc,
+                       player::ExamineOutcome outcome) {
+  switch (outcome) {
+    case player::ExamineOutcome::kInProgress:
+      return QObject::tr("Examining the disc…");
+    case player::ExamineOutcome::kTrayOpen:
+      return QObject::tr("The tray is open — there is nothing to examine.");
+    case player::ExamineOutcome::kNoDisc:
+      return QObject::tr(
+          "The player would not start a disc. Check that there is one in the "
+          "tray and that it is the right way up.");
+    case player::ExamineOutcome::kLinkFailed:
+      return QObject::tr(
+          "The link to the player failed part way through. What had been found "
+          "by then is below.");
+    case player::ExamineOutcome::kCancelled:
+    case player::ExamineOutcome::kCompleted:
+      break;
+  }
+
+  const QString prefix = outcome == player::ExamineOutcome::kCancelled
+                             ? QObject::tr("Stopped early. ")
+                             : QString();
+
+  if (!disc.disc_type.known()) {
+    return prefix + QObject::tr("The disc did not say what kind it is.");
+  }
+
+  const QString type = DiscTypeName(disc.disc_type.value);
+
+  if (!disc.programme_end.known()) {
+    return prefix +
+           QObject::tr("A %1 disc, whose length could not be measured.")
+               .arg(type);
+  }
+
+  return prefix + QObject::tr("A %1 disc, running to %2.")
+                      .arg(type, FormatDiscAddress(disc.programme_end.value,
+                                                   Addressing(disc)));
+}
+
+QString DiscProfileReport(const player::DiscProfile& disc,
+                          player::ExamineOutcome outcome,
+                          double bytes_per_second) {
+  const player::AddressMode mode = Addressing(disc);
+
+  QStringList lines;
+  lines << ExamineSummary(disc, outcome);
+  lines << QString();
+
+  const auto row = [&lines](const QString& label, const QString& value,
+                            player::Provenance provenance) {
+    lines << QObject::tr("%1: %2  (%3)")
+                 .arg(label, value, ProvenanceNote(provenance));
+  };
+
+  const auto fact = [&row](const QString& label, const QString& value,
+                           player::Provenance provenance) {
+    row(label,
+        provenance == player::Provenance::kUnknown ? UnknownField() : value,
+        provenance);
+  };
+
+  fact(QObject::tr("Disc"),
+       disc.disc_present.value ? QObject::tr("present")
+                               : QObject::tr("none the player could read"),
+       disc.disc_present.provenance);
+
+  fact(QObject::tr("Tray"), TrayStateName(disc.tray.value),
+       disc.tray.provenance);
+
+  fact(QObject::tr("Type"), DiscTypeName(disc.disc_type.value),
+       disc.disc_type.provenance);
+
+  fact(QObject::tr("Size"), DiscSizeName(disc.disc_size.value),
+       disc.disc_size.provenance);
+
+  // The one the capture actually needs and the old application never had: two
+  // sides of one disc are two files, and nothing before this could tell them
+  // apart without being told.
+  fact(QObject::tr("Side"), QObject::tr("side %1").arg(disc.disc_side.value),
+       disc.disc_side.provenance);
+
+  fact(QObject::tr("Addressing"),
+       mode == player::AddressMode::kTimeCode ? QObject::tr("time code")
+                                              : QObject::tr("frame number"),
+       disc.addressing.provenance);
+
+  fact(QObject::tr("First address"),
+       FormatDiscAddress(disc.programme_start.value, mode),
+       disc.programme_start.provenance);
+
+  fact(QObject::tr("Last address"),
+       FormatDiscAddress(disc.programme_end.value, mode),
+       disc.programme_end.provenance);
+
+  fact(QObject::tr("Lead-in"),
+       disc.lead_in_reachable.value
+           ? QObject::tr("reached by seeking to the start")
+           : QObject::tr("not reached by seeking to the start"),
+       disc.lead_in_reachable.provenance);
+
+  fact(QObject::tr("Chapters"),
+       disc.chapters.value ? QObject::tr("present") : QObject::tr("none"),
+       disc.chapters.provenance);
+
+  fact(QObject::tr("Video standard"),
+       VideoStandardName(disc.video_standard.value),
+       disc.video_standard.provenance);
+  if (!disc.video_standard.known()) {
+    // The row is always there, and when it is empty it says why rather than
+    // leaving a blank nobody can account for.
+    lines << QObject::tr(
+        "    This player did not answer the TV system request. It is the only "
+        "command that carries the standard — the disc status reads the same "
+        "for a PAL and an NTSC disc, and the model does not imply it either.");
+  }
+
+  const std::optional<std::chrono::seconds> duration = ProgrammeDuration(disc);
+  if (duration.has_value()) {
+    lines << QObject::tr("Playing time: %1")
+                 .arg(FormatElapsed(static_cast<double>(duration->count())));
+
+    if (bytes_per_second > 0.0) {
+      const auto bytes = static_cast<uint64_t>(
+          static_cast<double>(duration->count()) * bytes_per_second);
+      lines << QObject::tr("Capture size at the current settings: about %1")
+                   .arg(FormatByteSize(bytes));
+    }
+  } else if (disc.programme_end.known() &&
+             disc.disc_type.value == player::DiscType::kCav &&
+             !disc.video_standard.known()) {
+    lines << QObject::tr(
+        "Playing time: not known — a frame count is only a duration once the "
+        "video standard is known.");
+  }
+
+  lines << QString();
+  lines << QObject::tr(
+      "User codes — informational only. Nothing in a capture "
+      "is derived from them.");
+  lines << UserCodeLine(QObject::tr("Standard"), disc.standard_user_code);
+  lines << UserCodeLine(QObject::tr("Pioneer"), disc.pioneer_user_code);
+
+  if (!disc.disc_status_reply.empty()) {
+    lines << QString();
+    // The working, beside the answer. Every character of it is decoded into the
+    // rows above; showing it too is what lets somebody check the decode rather
+    // than take it on trust.
+    lines << QObject::tr(
+                 "Disc status reply: \"%1\" — loaded, CAV/CLV, size, side, "
+                 "chapters, in that order.")
+                 .arg(Payload(disc.disc_status_reply));
+  }
+
+  return lines.join(QLatin1Char('\n'));
 }
 
 }  // namespace ddd::gui

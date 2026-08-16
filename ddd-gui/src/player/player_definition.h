@@ -85,21 +85,78 @@ struct StateDecode {
   std::span<const StateMapping> mappings;
 };
 
+// One character of a fixed-layout status reply.
+//
+// The two Pioneer status replies are both a run of single characters with
+// documented meanings, so a field is nothing more than where to look. A model
+// that used a different layout would be a change here rather than a special
+// case at the call site, which is the same bargain the rest of the schema
+// makes.
+inline constexpr size_t kReplyFieldAbsent = static_cast<size_t>(-1);
+
+struct ReplyField {
+  size_t index = kReplyFieldAbsent;
+
+  constexpr bool present() const { return index != kReplyFieldAbsent; }
+};
+
 // How to read this model's answer to the disc-status query.
 //
-// Type only, for now, and that is a statement about the documentation rather
-// than about the schema. The disc-status reply also carries disc size, side and
-// CX on at least some models, but the layout varies and this project does not
-// have a manual for every one of them; a decode written from guesswork would
-// produce a confident wrong answer in the examine report, which is worse than
-// the honest "unknown" the profile reports without it. The fields belong here
-// when somebody with the manual and the player can fill them in.
+// The Pioneer *Disc Status Request* reply is five characters, and the manuals
+// for the LD-V4400 (§34) and the LD-V8000 both document them identically:
+//
+//   C1  disc loading   0 = not loaded, 1 = loaded
+//   C2  CAV/CLV        0 = CAV, 1 = CLV
+//   C3  disc size      0 = 12 inch, 1 = 8 inch, X = unknown
+//   C4  disc side      0 = side 1, 1 = side 2, X = unknown
+//   C5  chapter code   0 = no chapters, 1 = chapters, X = unknown
+//
+// with `0XXXX` for a player with nothing loaded and `10001` given as the worked
+// example of "12-inch CAV disc loaded with chapter code".
+//
+// This is the programme status the disc itself carries, read out of the lead-in
+// by the player and handed over in one exchange. It costs nothing and moves
+// nothing, which makes it strictly better than establishing the same facts by
+// driving the transport — the chapter probe this replaced was a search command
+// that moved the disc to find out something the disc had already said.
+//
+// **Not in it: the video standard.** Neither manual lists a field for it, and
+// the bench agrees — a PAL CAV disc and an NTSC CAV disc both answer `10001`.
+// That is what the TV system request below is for.
 struct DiscStatusDecode {
-  // Where in the reply the disc type appears.
-  size_t disc_type_index = 1;
+  ReplyField disc_loaded{.index = 0};
+  ReplyField disc_type{.index = 1};
+  ReplyField disc_size{.index = 2};
+  ReplyField disc_side{.index = 3};
+  ReplyField chapters{.index = 4};
+};
 
-  char cav_digit = '0';
-  char clv_digit = '1';
+// How to read this model's answer to the TV system request.
+//
+// The *TV System Request* — "Returns information describing the TV System and
+// connection to an external sync generator" — answers with three characters,
+// printed in the manual as C3 C2 C1 and therefore arriving in that order:
+//
+//   C3  the TV system being output
+//   C2  **the TV system of the disc**
+//   C1  the TV system of the external sync, 0 where none is connected
+//
+// Each character takes the same values: 0 unknown or not connected, 1 NTSC,
+// 2 PAL.
+//
+// The LD-V4400 manual (§38, p. 95) documents the command, the layout and the
+// NTSC value, and gives "110" and "111" as its worked examples — it is an
+// NTSC-only player, so its table has no PAL row. The PAL value is this
+// project's own bench reading: an LD-V4300D with a PAL CAV disc playing
+// answers **"220"** — PAL out, PAL disc, no external sync — in about 20 ms.
+//
+// C2 is the one that matters, and the distinction from C3 is not academic: on a
+// player that converts, the standard being output is not the standard on the
+// disc, and it is the disc's that a capture is of.
+struct TvSystemDecode {
+  ReplyField output{.index = 0};
+  ReplyField disc{.index = 1};
+  ReplyField external_sync{.index = 2};
 };
 
 // One player model, entirely as data.
@@ -160,6 +217,7 @@ struct PlayerDefinition {
 
   StateDecode state_decode;
   DiscStatusDecode disc_status;
+  TvSystemDecode tv_system;
 };
 
 // The command table entry for one command. Not present() when the model does
@@ -250,6 +308,8 @@ constexpr bool IsConsistent(const PlayerDefinition& definition) {
           Spec(definition, PlayerCommand::kQueryStandardUserCode).present(),
       !able.pioneer_user_code ||
           Spec(definition, PlayerCommand::kQueryPioneerUserCode).present(),
+      !able.tv_system ||
+          Spec(definition, PlayerCommand::kQueryTvSystem).present(),
       able.physical_position == PhysicalPositionSupport::kUnsupported ||
           Spec(definition, PlayerCommand::kQueryPhysicalPosition).present(),
   };

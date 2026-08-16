@@ -15,6 +15,8 @@
 
 add_library(ddd_player STATIC
     command_encoder.cpp
+    disc_examiner.cpp
+    disc_profile.cpp
     player_controls.cpp
     player_registry.cpp
     player_session.cpp

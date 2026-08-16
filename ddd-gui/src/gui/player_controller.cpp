@@ -24,6 +24,9 @@ PlayerController::PlayerController(PlayerBackend backend,
   qRegisterMetaType<PlayerReply>();
   qRegisterMetaType<PlayerSettings>();
   qRegisterMetaType<player::PlayerStatus>();
+  qRegisterMetaType<player::DiscProfile>();
+  qRegisterMetaType<player::ExamineStage>();
+  qRegisterMetaType<player::ExamineOutcome>();
 
   worker_ = new PlayerWorker(std::move(backend), logger);
   worker_->moveToThread(&thread_);
@@ -47,6 +50,17 @@ PlayerController::PlayerController(PlayerBackend backend,
   // for.
   connect(worker_, &PlayerWorker::RequestCompleted, this,
           [this](const PlayerReply& reply) { emit RequestCompleted(reply); });
+
+  connect(worker_, &PlayerWorker::ExamineProgress, this,
+          [this](player::ExamineStage stage, int completed, int total) {
+            emit ExamineProgress(stage, completed, total);
+          });
+
+  connect(
+      worker_, &PlayerWorker::ExamineFinished, this,
+      [this](const player::DiscProfile& disc, player::ExamineOutcome outcome) {
+        emit ExamineFinished(disc, outcome);
+      });
 
   connect(worker_, &PlayerWorker::PortRemembered, this,
           [this](const QString& port_path, uint32_t baud_rate) {
@@ -107,6 +121,13 @@ uint64_t PlayerController::Send(PlayerRequest request) {
 
   return request.id;
 }
+
+void PlayerController::Examine() {
+  QMetaObject::invokeMethod(worker_, &PlayerWorker::Examine,
+                            Qt::QueuedConnection);
+}
+
+void PlayerController::CancelExamine() { worker_->RequestExamineCancel(); }
 
 void PlayerController::SetEnabled(bool enabled) {
   if (settings_.enabled == enabled) {

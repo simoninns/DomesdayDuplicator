@@ -431,6 +431,225 @@ TEST_F(PlayerControllerTest, WhatAPlayerCanDoArrivesWithTheConnection) {
   EXPECT_FALSE(controller_->controls().any());
 }
 
+// --- Examining the disc ----------------------------------------------------
+
+// A CAV disc of 54,000 frames, scripted end to end. The two "?F" answers are
+// the two halves of the length measurement: where the player stopped when it
+// was sent past the end, and where it stopped when it was sent back to the
+// start.
+void ScriptCavDisc(player::FakeSerialPort& port) {
+  port.AddResponse(9600, "?P\r", "P01\r");
+  port.AddResponse(9600, "?D\r", "10001\r");
+  port.AddResponse(9600, "PL\r", "R\r");
+  port.AddResponse(9600, "$Y\r", "Y1000\r");
+  port.AddResponse(9600, "?U\r", "E04\r");
+  port.AddResponse(9600, "?S\r", "220\r");
+  port.AddResponse(9600, "FR60000SE\r", "E04\r");
+  port.AddResponse(9600, "FR1SE\r", "R\r");
+  port.AddResponse(9600, "PA\r", "R\r");
+  port.AddResponseSequence(9600, "?F\r", {"054000\r", "<00001\r"});
+}
+
+TEST_F(PlayerControllerTest, AnExaminationDrivesTheWholeSequenceAndReportsIt) {
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  ScriptCavDisc(port_);
+  BuildController();
+  Enable();
+
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kConnected));
+
+  std::vector<player::ExamineStage> stages;
+  std::vector<player::DiscProfile> results;
+  std::vector<player::ExamineOutcome> outcomes;
+
+  QObject::connect(controller_.get(), &PlayerController::ExamineProgress,
+                   controller_.get(),
+                   [&stages](player::ExamineStage stage, int, int) {
+                     stages.push_back(stage);
+                   });
+  QObject::connect(controller_.get(), &PlayerController::ExamineFinished,
+                   controller_.get(),
+                   [&results, &outcomes](const player::DiscProfile& disc,
+                                         player::ExamineOutcome outcome) {
+                     results.push_back(disc);
+                     outcomes.push_back(outcome);
+                   });
+
+  controller_->Examine();
+
+  ASSERT_TRUE(PumpUntil([&results] { return !results.empty(); }));
+
+  EXPECT_EQ(outcomes.front(), player::ExamineOutcome::kCompleted);
+
+  const player::DiscProfile& disc = results.front();
+  EXPECT_EQ(disc.disc_type.value, player::DiscType::kCav);
+  EXPECT_EQ(disc.programme_end.value, 54000);
+  EXPECT_EQ(disc.programme_end.provenance, player::Provenance::kMeasured);
+  EXPECT_TRUE(disc.lead_in_reachable.value);
+  EXPECT_EQ(disc.disc_status_reply, "10001");
+
+  // Read off the disc rather than asked of the user, which is the whole of
+  // what "220" bought.
+  EXPECT_EQ(disc.video_standard.value, player::VideoStandard::kPal);
+  EXPECT_EQ(disc.video_standard.provenance, player::Provenance::kReported);
+
+  // Every step said what it was for, so the progress line had something to
+  // show throughout.
+  EXPECT_EQ(stages.size(), size_t{11});
+  EXPECT_EQ(stages.front(), player::ExamineStage::kCheckingPlayer);
+
+  // And the bytes really went out, in the old application's own form.
+  const std::vector<std::string> writes = port_.writes();
+  EXPECT_NE(std::find(writes.begin(), writes.end(), "FR60000SE\r"),
+            writes.end());
+  EXPECT_NE(std::find(writes.begin(), writes.end(), "PA\r"), writes.end());
+}
+
+TEST_F(PlayerControllerTest, BothUserCodesAreReadEveryTime) {
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  ScriptCavDisc(port_);
+  BuildController();
+  Enable();
+
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kConnected));
+
+  std::vector<player::DiscProfile> results;
+  QObject::connect(
+      controller_.get(), &PlayerController::ExamineFinished, controller_.get(),
+      [&results](const player::DiscProfile& disc, player::ExamineOutcome) {
+        results.push_back(disc);
+      });
+
+  controller_->Examine();
+  ASSERT_TRUE(PumpUntil([&results] { return !results.empty(); }));
+
+  const std::vector<std::string> writes = port_.writes();
+  EXPECT_NE(std::find(writes.begin(), writes.end(), "?U\r"), writes.end());
+  EXPECT_NE(std::find(writes.begin(), writes.end(), "$Y\r"), writes.end());
+
+  // This disc carries no Pioneer code, which is a finding about the disc and
+  // not a failure of the examination.
+  EXPECT_EQ(results.front().pioneer_user_code.outcome,
+            player::UserCodeReading::Outcome::kNotEncoded);
+  EXPECT_TRUE(results.front().standard_user_code.read());
+}
+
+TEST_F(PlayerControllerTest, TheDiscsOwnProgrammeStatusReachesTheProfile) {
+  // Size, side and chapters, from one reply that costs nothing and moves
+  // nothing. The side is the field a capture most needs and the one the old
+  // application had no way of knowing at all.
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  ScriptCavDisc(port_);
+  port_.AddResponse(9600, "?D\r", "11011\r");
+  port_.AddResponseSequence(9600, "?F\r", {"0504500\r", "<0000000\r"});
+  BuildController();
+  Enable();
+
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kConnected));
+
+  std::vector<player::DiscProfile> results;
+  QObject::connect(
+      controller_.get(), &PlayerController::ExamineFinished, controller_.get(),
+      [&results](const player::DiscProfile& disc, player::ExamineOutcome) {
+        results.push_back(disc);
+      });
+
+  controller_->Examine();
+  ASSERT_TRUE(PumpUntil([&results] { return !results.empty(); }));
+
+  const player::DiscProfile& disc = results.front();
+  EXPECT_EQ(disc.disc_type.value, player::DiscType::kClv);
+  EXPECT_EQ(disc.disc_size.value, player::DiscSize::k30cm);
+  EXPECT_EQ(disc.disc_side.value, 2);
+  EXPECT_TRUE(disc.chapters.value);
+  EXPECT_EQ(disc.chapters.provenance, player::Provenance::kReported);
+
+  // And nothing was sent to find out about chapters, because the disc had
+  // already said.
+  const std::vector<std::string> writes = port_.writes();
+  EXPECT_EQ(std::find(writes.begin(), writes.end(), "CH1SE\r"), writes.end());
+}
+
+TEST_F(PlayerControllerTest,
+       AnExaminationWithNoPlayerIsAnsweredRatherThanLost) {
+  // A result for every examination, in every state. A dialog waiting on this
+  // signal has to be told even when there was nothing to examine.
+  BuildController();
+  controller_->Start();
+
+  std::vector<player::ExamineOutcome> outcomes;
+  QObject::connect(
+      controller_.get(), &PlayerController::ExamineFinished, controller_.get(),
+      [&outcomes](const player::DiscProfile&, player::ExamineOutcome outcome) {
+        outcomes.push_back(outcome);
+      });
+
+  controller_->Examine();
+
+  ASSERT_TRUE(PumpUntil([&outcomes] { return !outcomes.empty(); }));
+  EXPECT_EQ(outcomes.front(), player::ExamineOutcome::kLinkFailed);
+}
+
+TEST_F(PlayerControllerTest, AnOpenTrayEndsTheExaminationAfterOneQuestion) {
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  port_.AddResponse(9600, "?P\r", "P00\r");
+  BuildController();
+  Enable();
+
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kConnected));
+
+  std::vector<player::ExamineOutcome> outcomes;
+  QObject::connect(
+      controller_.get(), &PlayerController::ExamineFinished, controller_.get(),
+      [&outcomes](const player::DiscProfile&, player::ExamineOutcome outcome) {
+        outcomes.push_back(outcome);
+      });
+
+  controller_->Examine();
+
+  ASSERT_TRUE(PumpUntil([&outcomes] { return !outcomes.empty(); }));
+  EXPECT_EQ(outcomes.front(), player::ExamineOutcome::kTrayOpen);
+
+  // No play command, so nothing spun up a tray that is open.
+  const std::vector<std::string> writes = port_.writes();
+  EXPECT_EQ(std::find(writes.begin(), writes.end(), "PL\r"), writes.end());
+}
+
+TEST_F(PlayerControllerTest, TheStatusPollDoesNotInterleaveWithAnExamination) {
+  // The reason the sequence pauses polling: a status query landing between a
+  // seek and its answer is how a reply gets attributed to the wrong command.
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  ScriptCavDisc(port_);
+  BuildController();
+  Enable();
+
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kConnected));
+
+  std::vector<player::ExamineStage> stages;
+  QObject::connect(controller_.get(), &PlayerController::ExamineProgress,
+                   controller_.get(),
+                   [&stages](player::ExamineStage stage, int, int) {
+                     stages.push_back(stage);
+                   });
+
+  bool finished = false;
+  QObject::connect(controller_.get(), &PlayerController::ExamineFinished,
+                   controller_.get(),
+                   [&finished](const player::DiscProfile&,
+                               player::ExamineOutcome) { finished = true; });
+
+  const size_t before = port_.writes().size();
+  controller_->Examine();
+  ASSERT_TRUE(PumpUntil([&finished] { return finished; }));
+
+  const std::vector<std::string> writes = port_.writes();
+  const std::vector<std::string> during(writes.begin() + before, writes.end());
+
+  // Exactly the ten commands the sequence sends, and nothing else. A poll that
+  // had slipped in would show up here as an extra "?P" or "?D".
+  EXPECT_EQ(during.size(), stages.size());
+}
+
 TEST_F(PlayerControllerTest, EverythingReturnsImmediatelyInEveryState) {
   // The property the whole design rests on: no method here may wait for a
   // player. A search of every port at every rate takes seconds, and a window
@@ -447,6 +666,8 @@ TEST_F(PlayerControllerTest, EverythingReturnsImmediatelyInEveryState) {
   controller_->SetPaused(false);
   controller_->UseConnectedModel();
   controller_->Send(CommandRequest(player::PlayerCommand::kSeekFrame, 40000));
+  controller_->Examine();
+  controller_->CancelExamine();
   controller_->SetEnabled(false);
 
   const auto elapsed = std::chrono::steady_clock::now() - start;

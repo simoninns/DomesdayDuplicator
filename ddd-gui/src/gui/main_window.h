@@ -24,6 +24,7 @@ class QLabel;
 
 namespace ddd::gui {
 
+class ExamineDialog;
 class PlayerRemoteDialog;
 
 class ApplicationLogger;
@@ -105,6 +106,9 @@ class MainWindow : public QMainWindow {
   // Bring up the remote, or bring the one that is already up to the front.
   void ShowRemoteDialog();
 
+  // The same, for the examine window.
+  void ShowExamineDialog();
+
   void ShowCaptureFinished(const QString& file_path, quint64 bytes);
   void ShowFirmwareWarning(const QString& message);
   void ShowFailure(const QString& title, const QString& detail);
@@ -150,6 +154,10 @@ class MainWindow : public QMainWindow {
   // reaching it — two remotes would be two things sending commands down one
   // cable — and a QPointer because it deletes itself when it is closed.
   QPointer<PlayerRemoteDialog> remote_dialog_;
+
+  // And the examine window, on the same terms and for the same reason: two
+  // examinations would be two sequences seeking one player.
+  QPointer<ExamineDialog> examine_dialog_;
 
   // Held so the two can be related to one another after both exist: the
   // Amplitude panel can be asked to keep pace with the spectrogram, and neither

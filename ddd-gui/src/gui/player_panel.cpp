@@ -107,6 +107,14 @@ PlayerPanel::PlayerPanel(PlayerController* controller, QWidget* parent)
          "the spectrum and waveform can be watched at the same time."));
   button_layout->addWidget(remote_);
 
+  examine_ = new QPushButton(tr("Examine…"), buttons);
+  examine_->setObjectName(QLatin1String(kExamineButtonName));
+  examine_->setToolTip(
+      tr("Work out what is on the disc: its type, how it is addressed, and how "
+         "long the side runs. The length is measured by seeking to the end of "
+         "the side rather than taken from anything the disc claims."));
+  button_layout->addWidget(examine_);
+
   use_model_ = new QPushButton(tr("Use this model"), buttons);
   use_model_->setObjectName(QLatin1String(kUseModelButtonName));
   use_model_->setToolTip(
@@ -155,6 +163,7 @@ PlayerPanel::PlayerPanel(PlayerController* controller, QWidget* parent)
     enabled_check_->setEnabled(false);
     search_->setEnabled(false);
     remote_->setEnabled(false);
+    examine_->setEnabled(false);
     return;
   }
 
@@ -163,6 +172,8 @@ PlayerPanel::PlayerPanel(PlayerController* controller, QWidget* parent)
   connect(search_, &QPushButton::clicked, controller_,
           &PlayerController::SearchNow);
   connect(remote_, &QPushButton::clicked, this, &PlayerPanel::RemoteRequested);
+  connect(examine_, &QPushButton::clicked, this,
+          &PlayerPanel::ExamineRequested);
   connect(use_model_, &QPushButton::clicked, controller_,
           &PlayerController::UseConnectedModel);
 
@@ -211,6 +222,7 @@ void PlayerPanel::OnConnectionChanged(const PlayerConnection& connection) {
   // There is nothing to drive without a player, and a remote full of greyed-out
   // buttons is a worse answer than a button that says "not yet".
   remote_->setEnabled(connection.live());
+  examine_->setEnabled(connection.live());
 
   if (!connection.live()) {
     ClearStatus();

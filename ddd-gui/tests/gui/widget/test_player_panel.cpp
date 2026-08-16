@@ -123,6 +123,34 @@ TEST_F(PlayerPanelTest, ItBuildsAndSaysWhatItIsDoingWithNoControllerAtAll) {
       QLatin1String(PlayerPanel::kRemoteButtonName));
   ASSERT_NE(remote, nullptr);
   EXPECT_FALSE(remote->isEnabled());
+
+  auto* examine = panel.findChild<QPushButton*>(
+      QLatin1String(PlayerPanel::kExamineButtonName));
+  ASSERT_NE(examine, nullptr);
+  EXPECT_FALSE(examine->isEnabled());
+}
+
+TEST_F(PlayerPanelTest, ExamineIsOfferedOnlyOnceThereIsADiscToExamine) {
+  // Asked for rather than opened here, on the same terms as the remote: two
+  // examine windows would be two sequences seeking one disc.
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  BuildWithController();
+  controller_->Start();
+
+  auto* examine = Find<QPushButton>(PlayerPanel::kExamineButtonName);
+  ASSERT_NE(examine, nullptr);
+  EXPECT_FALSE(examine->isEnabled());
+
+  int asked = 0;
+  QObject::connect(panel_.get(), &PlayerPanel::ExamineRequested, panel_.get(),
+                   [&asked] { ++asked; });
+
+  controller_->SetEnabled(true);
+  ASSERT_TRUE(PumpUntil([this] { return controller_->connected(); }));
+  ASSERT_TRUE(examine->isEnabled());
+
+  examine->click();
+  EXPECT_EQ(asked, 1);
 }
 
 TEST_F(PlayerPanelTest, TheRemoteIsOfferedOnlyOnceThereIsSomethingToDrive) {

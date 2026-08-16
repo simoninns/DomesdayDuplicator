@@ -84,11 +84,10 @@ constexpr PlayerDefinition LevelIII() {
       .mappings = kLevelIIIStates,
   };
 
-  definition.disc_status = DiscStatusDecode{
-      .disc_type_index = 1,
-      .cav_digit = '0',
-      .clv_digit = '1',
-  };
+  // The five characters of the Disc Status Request reply, in the order both
+  // manuals document them. The default is this layout, so a model sharing it
+  // says nothing; the assignment is here to be read beside the command.
+  definition.disc_status = DiscStatusDecode{};
 
   // "<n>AD". 4 is absent from the sequence deliberately: the old application
   // never sent it and this port is not the place to find out what it does.
@@ -155,6 +154,11 @@ constexpr PlayerDefinition LevelIII() {
   commands[Index(PlayerCommand::kQueryAddress)] = Query("?F");
   commands[Index(PlayerCommand::kQueryDiscStatus)] = Query("?D");
   commands[Index(PlayerCommand::kQueryStandardUserCode)] = Query("$Y");
+
+  // The TV system request. Cheap and read-only: 20 ms on this project's bench,
+  // and it moves nothing — which is what makes the video standard something the
+  // examination can simply ask for rather than something the user is asked.
+  commands[Index(PlayerCommand::kQueryTvSystem)] = Query("?S");
 
   // The one query that needs the long timeout — and the only query in this set
   // that is not really a query at all.

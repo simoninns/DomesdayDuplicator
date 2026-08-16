@@ -163,8 +163,64 @@ DiscAddress ParseAddress(std::string_view raw, AddressMode mode);
 // Read an active-mode reply through a model's state table.
 PlayerState ParsePlayerState(std::string_view raw, const StateDecode& decode);
 
+// What the disc itself says it is.
+//
+// The programme status, read out of the lead-in by the player and handed over
+// in one exchange. Every field is optional and independently so, because the
+// player answers 'X' for a field it could not determine — which is a third
+// answer, and folding it into "no" would turn "I could not tell which side
+// this is" into "side 1".
+struct DiscStatus {
+  // The reply was long enough to read the fields this model's decode names.
+  // False for a reply of the wrong shape, which is worth showing rather than
+  // reading whatever characters happened to be there.
+  bool valid = false;
+
+  // Is there a disc the player has managed to read? Absent where the model does
+  // not report it.
+  std::optional<bool> loaded;
+
+  DiscType type = DiscType::kUnknown;
+  DiscSize size = DiscSize::kUnknown;
+
+  // 1 or 2. Absent where the player could not tell, which it says explicitly.
+  std::optional<int> side;
+
+  std::optional<bool> chapters;
+};
+
 // Read a disc-status reply through a model's decode.
+DiscStatus ParseDiscStatus(std::string_view raw,
+                           const DiscStatusDecode& decode);
+
+// Just the type, for the status poll — which asks this several times a minute
+// and has no use for the rest.
 DiscType ParseDiscType(std::string_view raw, const DiscStatusDecode& decode);
+
+// Which television standard is on the disc, and which is coming out.
+//
+// The two are separate fields because on a player that converts they are
+// different answers, and it is the disc's that a capture is of. See
+// TvSystemDecode for the reply's layout and where each value came from.
+struct TvSystem {
+  bool valid = false;
+
+  // What the disc carries. The answer this exists for.
+  VideoStandard disc = VideoStandard::kUnknown;
+
+  // What the player is putting out.
+  VideoStandard output = VideoStandard::kUnknown;
+
+  // The external sync generator's standard, or kUnknown where none is
+  // connected — which is what the reply says rather than a separate flag.
+  VideoStandard external_sync = VideoStandard::kUnknown;
+
+  bool sync_connected() const {
+    return external_sync != VideoStandard::kUnknown;
+  }
+};
+
+TvSystem ParseTvSystem(std::string_view raw, const TvSystemDecode& decode);
 
 // Read a physical-position reply, in millimetres.
 //

@@ -48,7 +48,21 @@ class FakeSerialPort : public ISerialPort {
   // `reply`.
   void AddResponse(uint32_t baud_rate, std::string request, std::string reply) {
     const std::lock_guard<std::mutex> guard(mutex_);
-    responses_[{baud_rate, std::move(request)}] = std::move(reply);
+    responses_[{baud_rate, std::move(request)}] = {std::move(reply)};
+  }
+
+  // A player that answers the same request differently each time it is asked,
+  // in this order, repeating the last answer thereafter.
+  //
+  // What a sequence needs and a single reply cannot express: the examine
+  // sequence asks "?F" twice, once having seeked past the end of the side and
+  // once having come back to the start, and the whole point of asking twice is
+  // that the two answers differ. A fake that could only give one of them would
+  // let a test that had the two the wrong way round pass.
+  void AddResponseSequence(uint32_t baud_rate, std::string request,
+                           std::vector<std::string> replies) {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    responses_[{baud_rate, std::move(request)}] = std::move(replies);
   }
 
   // The Pioneer model request, answered with `model_reply` (without its
@@ -199,8 +213,14 @@ class FakeSerialPort : public ISerialPort {
 
     const auto found =
         responses_.find({settings_.baud_rate, std::string(bytes)});
-    if (found != responses_.end()) {
-      pending_ += found->second;
+    if (found != responses_.end() && !found->second.empty()) {
+      pending_ += found->second.front();
+
+      // The last answer repeats, so a status poll asking the same question
+      // four times a second does not run the scripted player out of answers.
+      if (found->second.size() > 1) {
+        found->second.erase(found->second.begin());
+      }
     }
 
     return true;
@@ -239,7 +259,8 @@ class FakeSerialPort : public ISerialPort {
  private:
   mutable std::mutex mutex_;
 
-  std::map<std::pair<uint32_t, std::string>, std::string> responses_;
+  std::map<std::pair<uint32_t, std::string>, std::vector<std::string>>
+      responses_;
 
   std::string path_;
   std::string only_path_;

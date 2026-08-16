@@ -21,6 +21,7 @@ add_library(ddd_gui_lib STATIC
     capture_panel.cpp
     capture_failure_presenter.cpp
     capture_settings.cpp
+    examine_dialog.cpp
     firmware_dialog.cpp
     firmware_text.cpp
     gain_choices.cpp

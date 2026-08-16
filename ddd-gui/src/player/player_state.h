@@ -121,6 +121,31 @@ enum class DiscType : uint8_t {
   kClv,
 };
 
+// Which of the two disc diameters this is.
+//
+// Named in centimetres because that is what the format is specified in, and
+// said in inches to a user because that is what a disc is sold as.
+enum class DiscSize : uint8_t {
+  kUnknown,
+
+  // 30 cm — a 12-inch disc, which is nearly all of them.
+  k30cm,
+
+  // 20 cm — an 8-inch disc.
+  k20cm,
+};
+
+// Which television standard the disc carries.
+//
+// Established by the TV system request — see TvSystemDecode. It is not in the
+// disc-status reply, and the model does not imply it either: this project's own
+// LD-V4300D is dual-format, and plays both.
+enum class VideoStandard : uint8_t {
+  kUnknown,
+  kNtsc,
+  kPal,
+};
+
 // How an address on this disc is written and read.
 enum class AddressMode : uint8_t {
   kFrame,

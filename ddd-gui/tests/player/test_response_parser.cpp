@@ -217,9 +217,7 @@ TEST(ResponseParserTest, TheTrayFollowsFromTheState) {
 
 TEST(ResponseParserTest, TheDiscTypeIsReadFromTheStatusReply) {
   // "11011" is the shape an LD-V4300D really answers with — five digits, not
-  // the letter-and-digit form it would be easy to assume. Only the one
-  // character the decode names is interpreted; the rest of the reply carries
-  // fields this project has no manual for and does not guess at.
+  // the letter-and-digit form it would be easy to assume.
   EXPECT_EQ(ParseDiscType("10011\r", Disc()), DiscType::kCav);
   EXPECT_EQ(ParseDiscType("11011\r", Disc()), DiscType::kClv);
 }
@@ -228,6 +226,126 @@ TEST(ResponseParserTest, AnUnreadableDiscStatusIsUnknown) {
   EXPECT_EQ(ParseDiscType("1\r", Disc()), DiscType::kUnknown);
   EXPECT_EQ(ParseDiscType("\r", Disc()), DiscType::kUnknown);
   EXPECT_EQ(ParseDiscType("19011\r", Disc()), DiscType::kUnknown);
+}
+
+TEST(ResponseParserTest, TheWholeProgrammeStatusIsReadAndNotJustTheType) {
+  // The manual's own worked example: "1 0 0 0 1" is a loaded 12-inch CAV disc,
+  // side 1, with chapters. Every character is documented, so every character is
+  // decoded — this reply is the disc's own programme status, and reading only
+  // one digit of it was throwing away the side, the size and the chapters.
+  const DiscStatus status = ParseDiscStatus("10001\r", Disc());
+
+  ASSERT_TRUE(status.valid);
+  EXPECT_EQ(status.loaded, std::optional<bool>(true));
+  EXPECT_EQ(status.type, DiscType::kCav);
+  EXPECT_EQ(status.size, DiscSize::k30cm);
+  EXPECT_EQ(status.side, std::optional<int>(1));
+  EXPECT_EQ(status.chapters, std::optional<bool>(true));
+}
+
+TEST(ResponseParserTest, TheSecondSideOfAnEightInchDiscReadsAsBoth) {
+  const DiscStatus status = ParseDiscStatus("11110\r", Disc());
+
+  ASSERT_TRUE(status.valid);
+  EXPECT_EQ(status.type, DiscType::kClv);
+  EXPECT_EQ(status.size, DiscSize::k20cm);
+  EXPECT_EQ(status.side, std::optional<int>(2));
+  EXPECT_EQ(status.chapters, std::optional<bool>(false));
+}
+
+TEST(ResponseParserTest, ThisProjectsOwnCasperReadingDecodesAsItsSecondSide) {
+  // "11011", taken off the bench from an MCA Casper disc. The Pioneer user code
+  // on that same side carries "!2", which this project had already guessed was
+  // a side number — two independent readings agreeing is what turned that guess
+  // into a fact.
+  const DiscStatus status = ParseDiscStatus("11011\r", Disc());
+
+  ASSERT_TRUE(status.valid);
+  EXPECT_EQ(status.type, DiscType::kClv);
+  EXPECT_EQ(status.size, DiscSize::k30cm);
+  EXPECT_EQ(status.side, std::optional<int>(2));
+  EXPECT_EQ(status.chapters, std::optional<bool>(true));
+}
+
+TEST(ResponseParserTest, AFieldThePlayerCouldNotDetermineIsAbsentAndNotFalse) {
+  // Both manuals document 'X' for the last three fields, and the LD-V8000's
+  // gives "0XXXX" as the reply from a player with nothing loaded. Read as
+  // digits those X's would say "12-inch, side 1, no chapters" about a disc
+  // that is not there.
+  const DiscStatus status = ParseDiscStatus("0XXXX\r", Disc());
+
+  ASSERT_TRUE(status.valid);
+  EXPECT_EQ(status.loaded, std::optional<bool>(false));
+  EXPECT_EQ(status.size, DiscSize::kUnknown);
+  EXPECT_FALSE(status.side.has_value());
+  EXPECT_FALSE(status.chapters.has_value());
+}
+
+TEST(ResponseParserTest, ADiscStatusOfTheWrongShapeIsNotReadAtAll) {
+  // Short of the fields the decode names, so nothing in it is trustworthy —
+  // including the characters that do happen to be there.
+  EXPECT_FALSE(ParseDiscStatus("100\r", Disc()).valid);
+  EXPECT_FALSE(ParseDiscStatus("\r", Disc()).valid);
+}
+
+TEST(ResponseParserTest, AModelThatReportsNoSuchFieldIsNotAskedToInventOne) {
+  DiscStatusDecode decode;
+  decode.disc_side = ReplyField{};
+
+  const DiscStatus status = ParseDiscStatus("11011\r", decode);
+
+  ASSERT_TRUE(status.valid);
+  EXPECT_FALSE(status.side.has_value());
+  EXPECT_EQ(status.type, DiscType::kClv);
+}
+
+TEST(ResponseParserTest, TheTvSystemReplyIsTheOneThingThatCarriesTheStandard) {
+  // "220", read off this project's own LD-V4300D with a PAL CAV disc playing:
+  // PAL out, PAL disc, no external sync. The NTSC value and the layout are the
+  // LD-V4400 manual's (§38); the PAL value is the bench's, because that manual
+  // describes an NTSC-only player and has no row for it.
+  const TvSystem pal = ParseTvSystem("220\r", pioneer::kLdV4300D.tv_system);
+
+  ASSERT_TRUE(pal.valid);
+  EXPECT_EQ(pal.disc, VideoStandard::kPal);
+  EXPECT_EQ(pal.output, VideoStandard::kPal);
+  EXPECT_FALSE(pal.sync_connected());
+}
+
+TEST(ResponseParserTest, TheManualsOwnTwoExamplesReadAsItSaysTheyDo) {
+  // "110" and "111" — the LD-V4400 manual's worked examples, both NTSC discs,
+  // differing only in whether an external sync generator is connected.
+  const TvSystem loose = ParseTvSystem("110\r", pioneer::kLdV4300D.tv_system);
+  ASSERT_TRUE(loose.valid);
+  EXPECT_EQ(loose.disc, VideoStandard::kNtsc);
+  EXPECT_FALSE(loose.sync_connected());
+
+  const TvSystem synced = ParseTvSystem("111\r", pioneer::kLdV4300D.tv_system);
+  ASSERT_TRUE(synced.valid);
+  EXPECT_EQ(synced.disc, VideoStandard::kNtsc);
+  EXPECT_TRUE(synced.sync_connected());
+  EXPECT_EQ(synced.external_sync, VideoStandard::kNtsc);
+}
+
+TEST(ResponseParserTest, TheDiscsStandardIsReadSeparatelyFromTheOutputs) {
+  // A player converting a PAL disc to an NTSC output. The two fields exist
+  // because they can disagree, and it is the disc's that a capture is of.
+  const TvSystem converting =
+      ParseTvSystem("120\r", pioneer::kLdV4300D.tv_system);
+
+  ASSERT_TRUE(converting.valid);
+  EXPECT_EQ(converting.output, VideoStandard::kNtsc);
+  EXPECT_EQ(converting.disc, VideoStandard::kPal);
+}
+
+TEST(ResponseParserTest, AnUnknownTvSystemDigitIsNotGuessedAt) {
+  const TvSystem nothing = ParseTvSystem("000\r", pioneer::kLdV4300D.tv_system);
+  ASSERT_TRUE(nothing.valid);
+  EXPECT_EQ(nothing.disc, VideoStandard::kUnknown);
+
+  // Short of the three characters the layout names, so nothing in it is read.
+  EXPECT_FALSE(ParseTvSystem("22\r", pioneer::kLdV4300D.tv_system).valid);
+  EXPECT_FALSE(ParseTvSystem("\r", pioneer::kLdV4300D.tv_system).valid);
 }
 
 TEST(ResponseParserTest, AddressingFollowsFromTheDiscType) {

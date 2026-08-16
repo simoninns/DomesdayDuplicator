@@ -15,6 +15,8 @@
 #include <cstdint>
 #include <optional>
 
+#include "disc_examiner.h"
+#include "disc_profile.h"
 #include "player_command.h"
 #include "player_connection.h"
 #include "player_request.h"
@@ -144,5 +146,61 @@ QString PlayerStatusBarText(const PlayerConnection& connection,
 // describes. Empty for a definition that has. See players/README.md — this is
 // the interface's half of that promise.
 QString PlayerVerificationNote(const PlayerConnection& connection);
+
+// --- Examining the disc ----------------------------------------------------
+
+// What the examination is doing now, in plain language.
+//
+// A sentence rather than a command name, because the thing it explains is a
+// player that has gone quiet and started seeking: "finding the end of the side"
+// is why the disc is spinning backwards, and "?F" is not.
+QString ExamineStageName(player::ExamineStage stage);
+
+// How the examination ended, as the clause that follows "Examination ".
+QString ExamineOutcomeText(player::ExamineOutcome outcome);
+
+// One line of the serial trace, naming the step as well as the bytes. The
+// stage is what makes a trace of two identical address queries readable.
+QString ExamineStepText(player::ExamineStage stage, const QString& sent,
+                        const QString& reply);
+
+// How a fact was arrived at, for the report's second column.
+//
+// Shown for every field and not just the surprising ones. A report where only
+// the guesses are labelled is a report where an unlabelled line means "trust
+// me", and the whole reason for carrying provenance is that some of these
+// really are measurements and some really are not.
+QString ProvenanceNote(player::Provenance provenance);
+
+QString VideoStandardName(player::VideoStandard standard);
+
+// A disc diameter as a disc is sold: 12-inch and 8-inch, not 30 cm and 20 cm.
+QString DiscSizeName(player::DiscSize size);
+
+// An address in whichever way this disc is addressed: a frame number as a
+// number, a time code as a clock.
+QString FormatDiscAddress(int32_t address, player::AddressMode mode);
+
+// The headline: one line saying whether there is a disc and what it is.
+QString ExamineSummary(const player::DiscProfile& disc,
+                       player::ExamineOutcome outcome);
+
+// The whole report, as text.
+//
+// Text rather than a model behind a table, and deliberately: this is what a
+// user pastes into an issue when a disc behaves strangely, so the thing on
+// screen and the thing in the clipboard have to be the same thing. It is also
+// why the raw disc-status reply is in it — undecoded, labelled as undecoded,
+// and therefore accumulating in exactly the reports a decode would have to be
+// written from.
+//
+// `bytes_per_second` is the current capture settings' estimate, so the size a
+// capture of this disc would take is figured at the settings the user is
+// actually going to capture with. Nothing is estimated where the length is not
+// known, and nothing is estimated for a CAV disc whose video standard nobody
+// has declared — see ProgrammeDuration.
+QString DiscProfileReport(const player::DiscProfile& disc,
+                          player::ExamineOutcome outcome,
+                          double bytes_per_second);
 
 }  // namespace ddd::gui

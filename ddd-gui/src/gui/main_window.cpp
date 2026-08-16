@@ -33,6 +33,7 @@
 #include "capture_panel.h"
 #include "device_programmer.h"
 #include "device_updater.h"
+#include "examine_dialog.h"
 #include "firmware_dialog.h"
 #include "log_message_model.h"
 #include "log_panel.h"
@@ -212,6 +213,8 @@ void MainWindow::BuildPlayerDock() {
   auto* panel = new PlayerPanel(player_controller_, player_dock_);
   connect(panel, &PlayerPanel::RemoteRequested, this,
           &MainWindow::ShowRemoteDialog);
+  connect(panel, &PlayerPanel::ExamineRequested, this,
+          &MainWindow::ShowExamineDialog);
 
   player_dock_->setWidget(panel);
   addDockWidget(Qt::LeftDockWidgetArea, player_dock_);
@@ -351,6 +354,10 @@ void MainWindow::BuildPlayerMenu() {
   QAction* const remote_action = player_menu->addAction(tr("&Remote control…"));
   remote_action->setStatusTip(tr("Drive the player by hand"));
 
+  QAction* const examine_action = player_menu->addAction(tr("&Examine disc…"));
+  examine_action->setStatusTip(
+      tr("Work out the disc's type, addressing and length"));
+
   player_menu->addSeparator();
   QAction* const settings_action =
       player_menu->addAction(tr("Player s&ettings…"));
@@ -361,6 +368,7 @@ void MainWindow::BuildPlayerMenu() {
     player_enabled_action_->setEnabled(false);
     search_action->setEnabled(false);
     remote_action->setEnabled(false);
+    examine_action->setEnabled(false);
     settings_action->setEnabled(false);
     return;
   }
@@ -373,6 +381,8 @@ void MainWindow::BuildPlayerMenu() {
           &PlayerController::SearchNow);
   connect(remote_action, &QAction::triggered, this,
           &MainWindow::ShowRemoteDialog);
+  connect(examine_action, &QAction::triggered, this,
+          &MainWindow::ShowExamineDialog);
   // The same dialog the File menu opens, on the tab this menu is about. A
   // second dialog for the same settings would be a second place for them to
   // disagree.
@@ -389,7 +399,8 @@ void MainWindow::BuildPlayerMenu() {
           });
 
   connect(player_controller_, &PlayerController::ConnectionChanged, this,
-          [search_action, remote_action](const PlayerConnection& connection) {
+          [search_action, remote_action,
+           examine_action](const PlayerConnection& connection) {
             search_action->setEnabled(connection.state ==
                                       PlayerConnectionState::kDisconnected);
 
@@ -398,6 +409,7 @@ void MainWindow::BuildPlayerMenu() {
             // vanished when a cable was jogged would be worse than one that
             // says what happened.
             remote_action->setEnabled(connection.live());
+            examine_action->setEnabled(connection.live());
           });
 
   search_action->setEnabled(player_controller_->connection().state ==
@@ -657,6 +669,24 @@ void MainWindow::ShowRemoteDialog() {
   remote_dialog_->show();
   remote_dialog_->raise();
   remote_dialog_->activateWindow();
+}
+
+void MainWindow::ShowExamineDialog() {
+  if (player_controller_ == nullptr) {
+    return;
+  }
+
+  // One examine window, however it was reached. Two of them would be two
+  // sequences seeking one disc, and the second would be reporting the first
+  // one's answers.
+  if (examine_dialog_.isNull()) {
+    examine_dialog_ = new ExamineDialog(player_controller_, this);
+    examine_dialog_->setAttribute(Qt::WA_DeleteOnClose);
+  }
+
+  examine_dialog_->show();
+  examine_dialog_->raise();
+  examine_dialog_->activateWindow();
 }
 
 void MainWindow::ShowCaptureFinished(const QString& file_path, quint64 bytes) {

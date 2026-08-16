@@ -261,6 +261,87 @@ void PlayerWorker::Send(const ddd::gui::PlayerRequest& request) {
   }
 }
 
+void PlayerWorker::RequestExamineCancel() { examine_cancelled_.store(true); }
+
+void PlayerWorker::Examine() {
+  if (examining_) {
+    // Two examinations would be two sequences seeking one player. The second is
+    // dropped rather than queued: by the time the first finished, whatever the
+    // second was asked about would be stale anyway.
+    //
+    // Dropped silently, and that is safe only because it is unreachable from
+    // the interface — there is one examine window, and it will not start a
+    // second while one is running. Answering it instead would be worse: the
+    // result signal is a broadcast, so a spurious one would tell the window
+    // that the examination it *is* waiting for had ended.
+    return;
+  }
+
+  if (!running_ || session_ == nullptr || !session_->connected()) {
+    emit ExamineFinished(player::DiscProfile{},
+                         player::ExamineOutcome::kLinkFailed);
+    return;
+  }
+
+  examining_ = true;
+  examine_cancelled_.store(false);
+
+  // The sequence owns the session for its duration. Without this the status
+  // poll would interleave a query into the middle of a seek, and a reply
+  // attributed to the wrong command is how a seek comes to report the tray
+  // state.
+  const bool was_paused = paused_;
+  paused_ = true;
+
+  player::DiscExaminer examiner(*session_->identity().definition,
+                                session_->identity().firmware_version);
+
+  Log(capture::LogLevel::kInfo, QStringLiteral("Examining the disc"));
+
+  while (const std::optional<player::ExamineStep> step = examiner.Next()) {
+    if (examine_cancelled_.load() || stopping_.load()) {
+      examiner.Cancel();
+      break;
+    }
+
+    emit ExamineProgress(step->stage,
+                         static_cast<int>(examiner.steps_completed()),
+                         static_cast<int>(examiner.steps_planned()));
+
+    const player::Reply reply =
+        session_->Execute(step->command, step->argument);
+
+    Log(capture::LogLevel::kDebug,
+        QStringLiteral("Examine: %1")
+            .arg(ExamineStepText(step->stage, ToDisplayBytes(reply.sent),
+                                 ToPayload(reply.text))));
+
+    examiner.Apply(reply);
+  }
+
+  const player::ExamineOutcome outcome = examiner.outcome();
+
+  Log(capture::LogLevel::kInfo,
+      QStringLiteral("Examination %1").arg(ExamineOutcomeText(outcome)));
+
+  examining_ = false;
+  paused_ = was_paused;
+
+  emit ExamineFinished(examiner.profile(), outcome);
+
+  if (outcome == player::ExamineOutcome::kLinkFailed) {
+    ReportLinkLost();
+    return;
+  }
+
+  // The disc has been spun up and moved about, so nothing the panel is showing
+  // is still true. Read it now rather than at the end of an interval scheduled
+  // before any of this happened.
+  if (!paused_) {
+    SchedulePoll(std::chrono::milliseconds{0});
+  }
+}
+
 void PlayerWorker::Tick() {
   if (!running_ || stopping_.load() || session_ == nullptr) {
     return;

@@ -221,7 +221,11 @@ opens no port, talking to an `ISerialPort` interface instead. So the whole proto
 per-model definitions, the probe that finds a player and works out its baud rate, every
 command's bytes and every reply's meaning — is exercised on a machine with no player and
 no serial adapter attached, with the player answering late, answering wrongly, answering
-at the wrong rate or going silent mid-command. `QSerialPort` implements that interface in
+at the wrong rate or going silent mid-command. The multi-step sequences are values rather
+than control flow for the same reason: the examine sequence hands out the next command and
+takes back what the player said, so an open tray, a refused query, a link that dies halfway
+through and a cancel between any two steps are all things a test can simply state.
+`QSerialPort` implements that interface in
 `src/gui/`, where Qt already lives. The plan this is being built to is
 [docs-tech/player-control-implementation-plan.md](../docs-tech/player-control-implementation-plan.md).
 

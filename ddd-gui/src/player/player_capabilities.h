@@ -64,6 +64,15 @@ struct PlayerCapabilities {
   bool standard_user_code = true;
   bool pioneer_user_code = true;
 
+  // Can this model be asked which television standard the disc carries?
+  //
+  // On by default because it is documented in the shared Level III manual and
+  // confirmed on this project's own player. A model that turns out not to have
+  // it turns this off, and the examination reports the standard as not
+  // established rather than getting it wrong — which is the only outcome that
+  // would actually harm a capture.
+  bool tv_system = true;
+
   PhysicalPositionSupport physical_position =
       PhysicalPositionSupport::kUnsupported;
 };

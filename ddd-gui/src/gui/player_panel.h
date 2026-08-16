@@ -62,12 +62,18 @@ class PlayerPanel : public QWidget {
   static constexpr const char* kSearchButtonName = "player_search_button";
   static constexpr const char* kUseModelButtonName = "player_use_model_button";
   static constexpr const char* kRemoteButtonName = "player_remote_button";
+  static constexpr const char* kExamineButtonName = "player_examine_button";
 
  signals:
   // The remote is a window, and windows belong to the main window: the panel
   // asks rather than opening one itself, so there is one remote however many
   // ways there are of reaching it.
   void RemoteRequested();
+
+  // Likewise a window, and likewise the main window's to own — the examination
+  // drives the same one player, so there is one of these however many ways
+  // there are of reaching it.
+  void ExamineRequested();
 
  private:
   void OnConnectionChanged(const PlayerConnection& connection);
@@ -99,6 +105,7 @@ class PlayerPanel : public QWidget {
   QPushButton* search_ = nullptr;
   QPushButton* use_model_ = nullptr;
   QPushButton* remote_ = nullptr;
+  QPushButton* examine_ = nullptr;
 };
 
 }  // namespace ddd::gui

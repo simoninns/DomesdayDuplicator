@@ -13,6 +13,8 @@
 
 #include <QMetaType>
 
+#include "disc_examiner.h"
+#include "disc_profile.h"
 #include "player_connection.h"
 #include "player_request.h"
 #include "player_settings.h"
@@ -33,3 +35,6 @@ Q_DECLARE_METATYPE(ddd::gui::PlayerRequest)
 Q_DECLARE_METATYPE(ddd::gui::PlayerReply)
 Q_DECLARE_METATYPE(ddd::gui::PlayerSettings)
 Q_DECLARE_METATYPE(ddd::player::PlayerStatus)
+Q_DECLARE_METATYPE(ddd::player::DiscProfile)
+Q_DECLARE_METATYPE(ddd::player::ExamineStage)
+Q_DECLARE_METATYPE(ddd::player::ExamineOutcome)

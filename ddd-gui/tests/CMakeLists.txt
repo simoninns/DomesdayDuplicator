@@ -110,6 +110,8 @@ ddd_add_test(ddd_player_tests "unit"
     player/test_player_registry.cpp
     player/test_player_controls.cpp
     player/test_command_encoder.cpp
+    player/test_disc_profile.cpp
+    player/test_disc_examiner.cpp
     player/test_response_parser.cpp
     player/test_user_code.cpp
     player/test_player_session.cpp
@@ -231,6 +233,7 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     gui/widget/test_update_page.cpp
     gui/widget/test_analysis_dialog.cpp
     gui/widget/test_capture_panel.cpp
+    gui/widget/test_examine_dialog.cpp
     gui/widget/test_player_panel.cpp
     gui/widget/test_player_remote_dialog.cpp
     gui/widget/test_settings_dialog.cpp
