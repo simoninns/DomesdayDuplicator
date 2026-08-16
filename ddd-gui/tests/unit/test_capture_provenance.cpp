@@ -71,6 +71,29 @@ TEST_F(CaptureProvenanceTest, TheRealSampleRateIsRecordedNotTheFlacLabel) {
             std::to_string(kFlacSampleRateLabel));
 }
 
+// The rate of the *file*, so a decimated capture says what it holds rather than
+// what the device ran at. Without this the only evidence a file is half-rate is
+// that it decodes an octave out, which is the sort of thing that gets blamed on
+// the player.
+TEST_F(CaptureProvenanceTest, ADecimatedCaptureRecordsTheRateItWasWrittenAt) {
+  CaptureProvenance facts = Facts();
+  facts.decimation_factor = kTapeDecimationFactor;
+
+  const std::vector<FlacWriter::Tag> tags = BuildProvenanceTags(facts);
+
+  EXPECT_EQ(Value(tags, kTagSampleRate).value_or(""),
+            std::to_string(kSampleRateHz / 2));
+  EXPECT_EQ(Value(tags, kTagDecimation).value_or(""), "2");
+}
+
+// And an ordinary capture says so explicitly rather than by the tag's absence,
+// so a reader never has to decide what a missing one meant.
+TEST_F(CaptureProvenanceTest,
+       AnUndecimatedCaptureSaysSoRatherThanStayingSilent) {
+  EXPECT_EQ(Value(BuildProvenanceTags(Facts()), kTagDecimation).value_or(""),
+            "1");
+}
+
 // A test capture and a real one are indistinguishable by inspection until
 // somebody decodes one, so the file has to say which it is.
 TEST_F(CaptureProvenanceTest, TestModeIsRecordedEitherWay) {

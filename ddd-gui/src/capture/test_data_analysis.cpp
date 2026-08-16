@@ -88,7 +88,7 @@ TestDataAnalysis AnalyseTestData(const std::filesystem::path& file_path,
   if (!format.has_value()) {
     return Unreadable(name +
                       " is not a capture file this application can read. "
-                      "Expected .flac or .raw.");
+                      "Expected .flac, .s16 or .raw.");
   }
 
   CaptureReader reader;

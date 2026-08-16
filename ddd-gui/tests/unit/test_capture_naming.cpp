@@ -133,6 +133,27 @@ TEST_F(CaptureNamingTest, ANameThatAlreadyHasTheSuffixDoesNotGetASecond) {
   EXPECT_EQ(path.filename().string(), "side one.ddd.flac");
 }
 
+// The uncompressed format gets a suffix on the same pattern: ".ddd" says where
+// the samples came from and ".s16" says what layout they are in, which is the
+// only thing that can be read out of a headerless file.
+TEST_F(CaptureNamingTest, TheUncompressedFormatHasASuffixOfItsOwn) {
+  const std::filesystem::path path =
+      BuildCapturePath("/captures", "side one", false, kFixedTime,
+                       CaptureOutputFormat::kSigned16Bit);
+  EXPECT_EQ(path, std::filesystem::path("/captures/side one.ddd.s16"));
+
+  EXPECT_EQ(AddCaptureFileSuffix("side one", CaptureOutputFormat::kSigned16Bit)
+                .string(),
+            "side one.ddd.s16");
+
+  // Idempotent for this one too, or a name typed with its suffix already on it
+  // becomes "side one.ddd.s16.ddd.s16".
+  EXPECT_EQ(AddCaptureFileSuffix("side one.ddd.s16",
+                                 CaptureOutputFormat::kSigned16Bit)
+                .string(),
+            "side one.ddd.s16");
+}
+
 // Task 5.3, and the reason it is worth a test of its own: a test capture is a
 // ramp from the pattern generator with no signal in it at all. A file called
 // "Blade Runner side 1" that turns out to be ramps is a trap, so the name is
@@ -186,6 +207,18 @@ TEST_F(UniqueNameTest, AnExistingCaptureIsNeverOverwritten) {
   Touch(second);
   EXPECT_EQ(MakeUniqueCapturePath(wanted).filename().string(),
             "capture_3.ddd.flac");
+}
+
+// The number goes in front of whichever compound suffix the path carries. The
+// format is read off the path rather than passed in, so this has to recognise
+// both — an uncompressed capture named "capture.ddd_2.s16" would be as
+// unrecognisable as "capture.ddd_2.flac" is.
+TEST_F(UniqueNameTest, TheUncompressedSuffixIsKeptWholeToo) {
+  const std::filesystem::path wanted = directory_ / "capture.ddd.s16";
+  Touch(wanted);
+
+  EXPECT_EQ(MakeUniqueCapturePath(wanted).filename().string(),
+            "capture_2.ddd.s16");
 }
 
 }  // namespace

@@ -102,7 +102,7 @@ so what was written is readable and reports its own length.
 the previous one plus one, and any break is a sample the capture path lost. Test captures
 are always named `TestData_` — forced, not defaulted, because a file called "Blade Runner
 side 1" that turns out to be ramps is a trap. The ramp is checked live as it arrives and
-again offline off the disk: *File → Analyse test data…* with progress and a cancel, or
+again offline off the disk: *Tools → Analyse test data…* with progress and a cancel, or
 `ddd-gui --analyse-test-data <file>` from a shell, exiting 0 for an intact ramp, 1 for a
 break and 2 for a file it could not read — so the integrity gate of
 [TESTING.md](../TESTING.md) §5 can be scripted. It agrees with the old application's verdict

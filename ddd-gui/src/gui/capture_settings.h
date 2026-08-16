@@ -14,8 +14,10 @@
 #include <QString>
 #include <cstddef>
 
+#include "capture_format.h"
 #include "disk_buffer_ring.h"
 #include "flac_writer.h"
+#include "free_space.h"
 #include "front_end_gain.h"
 #include "usb_device.h"
 
@@ -70,13 +72,31 @@ struct CaptureSettings {
   // RF-Sample_<timestamp>, which is what almost every capture uses.
   QString capture_name;
 
+  // What the capture is written as. FLAC by default: it halves the file and
+  // carries its own provenance, and the encode is affordable.
+  //
+  // Persisted, because it is a decision about a workflow rather than about one
+  // capture — somebody feeding a tool that wants bare samples wants them every
+  // time, and being asked again each session is how a setting ends up ignored.
+  capture::CaptureOutputFormat output_format =
+      capture::CaptureOutputFormat::kFlac;
+
+  // Keep every nth sample on the way into the file. 1 is the device's own rate
+  // and is what a LaserDisc capture uses; 2 halves it to 20 Msps, which is
+  // enough for tape RF and half the file.
+  //
+  // Persisted for the same reason as the format, and ignored in test mode:
+  // EffectiveDecimationFactor is what the capture actually runs at.
+  int decimation_factor = capture::kUndecimatedFactor;
+
   // 0-8, as flac's -0 .. -8. See FlacWriter::Options — the default is 8, which
   // multithreaded libFLAC sustains at the device's full rate.
   //
   // Lowering it is the first remedy for a machine that cannot keep up, which is
   // what the buffer-queue and encoder-backlog figures in the Statistics panel
   // are there to show: a backlog that climbs is the encoder, a queue that
-  // climbs with no backlog is the disk.
+  // climbs with no backlog is the disk. Ignored entirely by the uncompressed
+  // format, which has no encoder to ask.
   int compression_level = capture::FlacWriter::Options{}.compression_level;
 
   // Stop the capture automatically after this long. 0 means run until stopped,
@@ -111,6 +131,8 @@ struct CaptureSettings {
            test_mode == other.test_mode &&
            capture_directory == other.capture_directory &&
            capture_name == other.capture_name &&
+           output_format == other.output_format &&
+           decimation_factor == other.decimation_factor &&
            compression_level == other.compression_level &&
            duration_limit_seconds == other.duration_limit_seconds &&
            low_space_warning_minutes == other.low_space_warning_minutes;
@@ -121,6 +143,26 @@ struct CaptureSettings {
 
   // The engine-side options these settings imply.
   capture::UsbSourceOptions UsbOptions() const;
+
+  // The decimation a capture started now would actually run at.
+  //
+  // Always 1 in test mode. The test pattern is a ramp checked sample by sample,
+  // and a decimated one is a ramp with every other step missing — which the
+  // verifier would report as a break on the first buffer. Rather than let the
+  // integrity oracle fail for a reason that is not a fault, test mode captures
+  // every sample and the interface disables the control while it is on.
+  int EffectiveDecimationFactor() const {
+    return test_mode ? capture::kUndecimatedFactor : decimation_factor;
+  }
+
+  // What a capture started now is expected to cost on disk, per second.
+  //
+  // The free-space readouts are a time rather than a size, so they need this:
+  // uncompressed is twice what FLAC costs and decimating halves it, and a
+  // figure that assumed a compressed 40 Msps capture would be out by a factor
+  // of four at the extremes — in the direction that lets a volume fill up
+  // before the warning ever fires.
+  double EstimatedBytesPerSecond() const;
 
   // The declared front-end gain, or the undeclared state. Named DeclaredGain
   // rather than FrontEndGain so the accessor cannot shadow the type it returns.

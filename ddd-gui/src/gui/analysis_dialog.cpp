@@ -106,7 +106,7 @@ AnalysisDialog::~AnalysisDialog() {
 void AnalysisDialog::ChooseFileAndAnalyse(const QString& starting_directory) {
   const QString file_path = QFileDialog::getOpenFileName(
       this, tr("Select a test-mode capture"), starting_directory,
-      tr("Captures (*.flac *.raw);;All files (*)"));
+      tr("Captures (*.flac *.s16 *.raw);;All files (*)"));
 
   if (file_path.isEmpty()) {
     return;

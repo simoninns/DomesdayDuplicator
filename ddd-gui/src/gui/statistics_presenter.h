@@ -57,6 +57,8 @@ struct StatisticsView {
   QString extremes;
   QString clipping;
 
+  // Both scaled — see FormatCount. Ninety thousand million samples written out
+  // in full is a figure nobody reads.
   QString transfers;
   QString samples;
   QString elapsed;
@@ -88,16 +90,17 @@ struct StatisticsView {
 // was opened on, and one is a property of a volume the engine has no opinion
 // about. A default-constructed FreeSpace means "not known", which is what the
 // view then says.
-StatisticsView PresentStatistics(const capture::CaptureStats& stats,
-                                 const analysis::FrontEndGain& gain,
-                                 capture::DeviceSpeed speed,
-                                 const capture::FreeSpace& space = {});
+StatisticsView PresentStatistics(
+    const capture::CaptureStats& stats, const analysis::FrontEndGain& gain,
+    capture::DeviceSpeed speed, const capture::FreeSpace& space = {},
+    double bytes_per_second = capture::kEstimatedCaptureBytesPerSecond);
 
 // The view before anything has run — every measured figure blank, and the facts
 // that are known regardless still shown.
-StatisticsView PresentIdleStatistics(const analysis::FrontEndGain& gain,
-                                     capture::DeviceSpeed speed,
-                                     const capture::FreeSpace& space = {});
+StatisticsView PresentIdleStatistics(
+    const analysis::FrontEndGain& gain, capture::DeviceSpeed speed,
+    const capture::FreeSpace& space = {},
+    double bytes_per_second = capture::kEstimatedCaptureBytesPerSecond);
 
 // The back-pressure bar's fall-off.
 //
@@ -133,6 +136,18 @@ class BackPressureHold {
 // wants the two to agree.
 QString FormatByteSize(uint64_t bytes);
 
+// A plain count, scaled to a unit a person can take in at a glance.
+//
+// A capture running for a side of a disc reaches ninety thousand million
+// samples, and "90,113,472,000" is a figure nobody reads — they count the digit
+// groups, get it wrong, and look away. Three significant figures and a k, M, G
+// or T is what the number is actually used for: noticing that it is climbing,
+// and roughly where it has got to.
+//
+// Below a thousand the count is given exactly, because down there every digit
+// is information: "3 transfers" is a fact about the run and "3.00" is not.
+QString FormatCount(uint64_t value);
+
 // Samples waiting inside the encoder, as the length of signal they represent.
 //
 // Time rather than a sample count, because the number that matters is how it
@@ -142,7 +157,14 @@ QString FormatByteSize(uint64_t bytes);
 QString FormatEncoderBacklog(uint64_t samples_pending);
 
 // How much capture a volume will hold, as a time and a size.
-QString FormatSpaceRemaining(const capture::FreeSpace& space);
+//
+// The rate is passed in because it is not a constant: an uncompressed capture
+// costs twice what a FLAC one does and decimation halves it, so the same volume
+// holds four times as much of one as of the other. See
+// CaptureSettings::EstimatedBytesPerSecond.
+QString FormatSpaceRemaining(
+    const capture::FreeSpace& space,
+    double bytes_per_second = capture::kEstimatedCaptureBytesPerSecond);
 
 // How a throughput figure is put to a user: megabytes per second alongside the
 // sample rate it corresponds to.

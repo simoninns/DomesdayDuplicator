@@ -61,9 +61,10 @@ the way of somebody taking both sides of a disc.
 
 | Menu | Entry | What it does |
 | --- | --- | --- |
-| **File** | Analyse test data… | Check a test-mode capture off the disk — see [Test mode](test-mode.md) |
-| | Settings… | [Settings](settings.md) |
+| **File** | Settings… | [Settings](settings.md) |
 | | Exit | Closes the window, saving the layout |
+| **Tools** | Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
+| | Analyse test data… | Check a test-mode capture off the disk |
 | **View** | Panels | Show and hide the six panels |
 | | Theme | Auto, Light, Dark |
 | **Help** | Firmware… | Which build each part of the device is running, and the Update page — see [Updating your Duplicator](updating-your-domesday-duplicator.md) |

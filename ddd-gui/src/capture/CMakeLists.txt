@@ -47,6 +47,7 @@ add_library(ddd_capture STATIC
     memory_lock.cpp
     minisign_verify.cpp
     monitor_tap.cpp
+    raw_sink.cpp
     sample_metrics.cpp
     sample_sink.cpp
     sequence_validator.cpp

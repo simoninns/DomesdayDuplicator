@@ -27,6 +27,7 @@ inline constexpr const char* kTagEncoder = "ENCODER";
 inline constexpr const char* kTagDate = "DATE";
 inline constexpr const char* kTagVersion = "DDD_VERSION";
 inline constexpr const char* kTagSampleRate = "DDD_SAMPLE_RATE_HZ";
+inline constexpr const char* kTagDecimation = "DDD_DECIMATION";
 inline constexpr const char* kTagTestMode = "DDD_TEST_MODE";
 inline constexpr const char* kTagFrontEndGain = "DDD_FRONT_END_GAIN";
 
@@ -39,6 +40,16 @@ struct CaptureProvenance {
   std::string application_version;
 
   bool test_mode = false;
+
+  // How many device samples each sample in the file stands for: 1 for a capture
+  // written at the device's own rate, 2 for a 2:1 decimated one.
+  //
+  // This is the fact that makes a decimated capture usable years later. The
+  // FLAC header's rate field carries a label rather than a rate, so without
+  // this the only evidence a file is half-rate is that it decodes to a signal
+  // an octave out — which is exactly the sort of thing that gets blamed on the
+  // player.
+  int decimation_factor = 1;
 
   // The front-end gain the user declared, as a sentence — or empty for a gain
   // that was never declared.

@@ -18,7 +18,6 @@
 #include "capture_metatypes.h"
 #include "usb_device_info.h"
 
-class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
@@ -44,6 +43,16 @@ class CaptureController;
 // monitoring is what a user sits in while setting up a player, and capture is
 // what they press when the disc is spinning. Pressing Capture from idle starts
 // both, so the common case is still one press.
+//
+// The monitor button goes dead while a capture is running. A capture is the
+// monitored stream with a file on the end of it, so stopping the stream ends
+// the capture with it — which made this a second, unlabelled stop button for
+// the recording, sitting directly above the real one. Stopping the capture
+// leaves the stream running, so nothing is taken away by closing that route.
+//
+// Test mode is not here. It lives in the Tools menu, because it is a diagnostic
+// rather than part of setting up a capture; this panel reflects it in the name
+// it offers and in what it lets be changed.
 class CapturePanel : public QWidget {
   Q_OBJECT
 
@@ -55,14 +64,18 @@ class CapturePanel : public QWidget {
   static constexpr const char* kDeviceComboName = "capture_device_combo";
   static constexpr const char* kMonitorButtonName = "capture_monitor_button";
   static constexpr const char* kCaptureButtonName = "capture_capture_button";
-  static constexpr const char* kTestModeBoxName = "capture_test_mode_box";
   static constexpr const char* kStatusLabelName = "capture_status_label";
   static constexpr const char* kDirectoryEditName = "capture_directory_edit";
   static constexpr const char* kBrowseButtonName = "capture_browse_button";
   static constexpr const char* kNameEditName = "capture_name_edit";
+  static constexpr const char* kFormatComboName = "capture_format_combo";
+  static constexpr const char* kSampleRateComboName =
+      "capture_sample_rate_combo";
   static constexpr const char* kCompressionSpinName =
       "capture_compression_spin";
   static constexpr const char* kDurationSpinName = "capture_duration_spin";
+  static constexpr const char* kDurationResetButtonName =
+      "capture_duration_reset_button";
   static constexpr const char* kLowSpaceSpinName = "capture_low_space_spin";
   static constexpr const char* kFreeSpaceLabelName = "capture_free_space_label";
 
@@ -83,8 +96,8 @@ class CapturePanel : public QWidget {
   void OnMonitorButtonPressed();
   void OnCaptureButtonPressed();
   void OnDeviceSelected(int index);
-  void OnTestModeToggled(bool enabled);
   void OnBrowsePressed();
+  void OnDurationResetPressed();
   void RefreshFreeSpace();
 
  private:
@@ -108,7 +121,6 @@ class CapturePanel : public QWidget {
   CaptureController* controller_ = nullptr;
 
   QComboBox* device_combo_ = nullptr;
-  QCheckBox* test_mode_box_ = nullptr;
   QPushButton* monitor_button_ = nullptr;
   QPushButton* capture_button_ = nullptr;
   QLabel* status_label_ = nullptr;
@@ -116,8 +128,11 @@ class CapturePanel : public QWidget {
   QLineEdit* directory_edit_ = nullptr;
   QPushButton* browse_button_ = nullptr;
   QLineEdit* name_edit_ = nullptr;
+  QComboBox* format_combo_ = nullptr;
+  QComboBox* sample_rate_combo_ = nullptr;
   QSpinBox* compression_spin_ = nullptr;
   QSpinBox* duration_spin_ = nullptr;
+  QPushButton* duration_reset_button_ = nullptr;
   QSpinBox* low_space_spin_ = nullptr;
   QLabel* free_space_label_ = nullptr;
 
@@ -130,6 +145,12 @@ class CapturePanel : public QWidget {
   std::vector<ddd::capture::DeviceInfo> devices_;
   bool monitoring_ = false;
   bool capturing_ = false;
+
+  // Whether the gateware is being asked for its test pattern. Held rather than
+  // read from a control, because the control is in the Tools menu now — this
+  // panel only reflects it, in the name it offers and in what it lets be
+  // changed.
+  bool test_mode_ = false;
 
   // True while the widgets are being filled from the settings, so that the
   // change signals they emit do not write those same settings back — which

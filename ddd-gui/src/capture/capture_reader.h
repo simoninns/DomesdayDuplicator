@@ -28,9 +28,15 @@ namespace ddd::capture {
 // test pattern counts in, so the ramp check in test_pattern_verifier.h is only
 // meaningful there.
 //
-// Two formats, and the asymmetry with the writer is deliberate — see
-// capture_format.h. Neither the packed 10-bit .lds nor the Ogg-encapsulated
-// .ldf is read here; gui/ remains the tool for those.
+// The two formats this application writes, plus the old application's ".raw"
+// spelling of the uncompressed one — see capture_format.h. Neither the packed
+// 10-bit .lds nor the Ogg-encapsulated .ldf is read here; gui/ remains the tool
+// for those.
+//
+// A decimated capture reads back as the samples it holds and nothing else. The
+// rate a file was written at is in a FLAC header's label and in no part of an
+// uncompressed file at all, and neither is something this reader reports:
+// everything downstream of it counts samples.
 //
 // Thread-safety: none. One thread owns an instance for its lifetime.
 class CaptureReader {

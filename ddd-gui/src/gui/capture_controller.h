@@ -179,9 +179,9 @@ class CaptureController : public QObject {
   void Tick();
   void FinishRun();
 
-  // Build and open the file for a new capture. Returns null with the reason
-  // already reported through Failed().
-  std::unique_ptr<capture::FlacSink> OpenCaptureFile();
+  // Build and open the file for a new capture, in whichever format the settings
+  // ask for. Returns null with the reason already reported through Failed().
+  std::unique_ptr<capture::ISampleSink> OpenCaptureFile();
 
   // Notice that the writer has been detached and the file closed, and report
   // it. Called from Tick() rather than from StopCapture(), because finalising a

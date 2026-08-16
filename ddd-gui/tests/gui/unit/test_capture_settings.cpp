@@ -15,8 +15,11 @@
 #include <QSettings>
 #include <QString>
 
+#include "capture_format.h"
 #include "capture_settings.h"
 #include "disk_buffer_ring.h"
+#include "free_space.h"
+#include "sample_format.h"
 
 namespace ddd::gui {
 namespace {
@@ -222,6 +225,87 @@ TEST_F(CaptureSettingsTest, ANonsensicalDurationLimitIsClamped) {
 // than no limit at all.
 TEST_F(CaptureSettingsTest, ThereIsNoDurationLimitUntilOneIsSet) {
   EXPECT_EQ(LoadCaptureSettings().duration_limit_seconds, 0);
+}
+
+// --- Format and sample rate ----------------------------------------------
+
+// FLAC and every sample, which is what a LaserDisc capture wants and what the
+// application has always done.
+TEST_F(CaptureSettingsTest, TheDefaultsAreCompressedAndUndecimated) {
+  const CaptureSettings settings = LoadCaptureSettings();
+  EXPECT_EQ(settings.output_format, capture::CaptureOutputFormat::kFlac);
+  EXPECT_EQ(settings.decimation_factor, capture::kUndecimatedFactor);
+}
+
+// Both persisted, unlike test mode: somebody capturing tape wants half rate
+// every session, and being asked again each time is how a setting ends up
+// ignored.
+TEST_F(CaptureSettingsTest, TheFormatAndTheRateSurviveARestart) {
+  CaptureSettings saved;
+  saved.output_format = capture::CaptureOutputFormat::kSigned16Bit;
+  saved.decimation_factor = capture::kTapeDecimationFactor;
+  SaveCaptureSettings(saved);
+
+  const CaptureSettings loaded = LoadCaptureSettings();
+  EXPECT_EQ(loaded.output_format, capture::CaptureOutputFormat::kSigned16Bit);
+  EXPECT_EQ(loaded.decimation_factor, capture::kTapeDecimationFactor);
+}
+
+// Not clamped to the nearest value, because there is no nearest sensible one: a
+// 3 would be a rate nothing downstream expects. Every sample is the reading
+// that cannot produce a wrong file.
+TEST_F(CaptureSettingsTest, AnUnwritableDecimationFactorReadsAsEverySample) {
+  QSettings store;
+  store.setValue(QStringLiteral("capture/decimation_factor"), 3);
+  EXPECT_EQ(LoadCaptureSettings().decimation_factor,
+            capture::kUndecimatedFactor);
+
+  store.setValue(QStringLiteral("capture/decimation_factor"), 0);
+  EXPECT_EQ(LoadCaptureSettings().decimation_factor,
+            capture::kUndecimatedFactor);
+}
+
+TEST_F(CaptureSettingsTest, AnUnknownFormatNameReadsAsTheDefault) {
+  QSettings store;
+  store.setValue(QStringLiteral("capture/output_format"),
+                 QStringLiteral("lds"));
+  EXPECT_EQ(LoadCaptureSettings().output_format,
+            capture::CaptureOutputFormat::kFlac);
+}
+
+// The test pattern is a ramp checked sample by sample, and a decimated one
+// would read as a break on the first buffer. Test mode captures every sample
+// whatever the setting says, and the interface disables the control to match.
+TEST_F(CaptureSettingsTest, TestModeCapturesEverySampleWhateverWasChosen) {
+  CaptureSettings settings;
+  settings.decimation_factor = capture::kTapeDecimationFactor;
+  EXPECT_EQ(settings.EffectiveDecimationFactor(),
+            capture::kTapeDecimationFactor);
+
+  settings.test_mode = true;
+  EXPECT_EQ(settings.EffectiveDecimationFactor(), capture::kUndecimatedFactor);
+
+  // And the stored choice is still there, so leaving test mode restores it
+  // rather than quietly resetting what the user set.
+  EXPECT_EQ(settings.decimation_factor, capture::kTapeDecimationFactor);
+}
+
+// The free-space readouts are a time rather than a size, so they need this.
+// Uncompressed is twice what FLAC costs and decimating halves it — a figure
+// that assumed a compressed 40 Msps capture would be out by four at the
+// extremes, in the direction that lets a volume fill before the warning fires.
+TEST_F(CaptureSettingsTest, TheDiskRateFollowsTheFormatAndTheRate) {
+  CaptureSettings settings;
+  const double flac = settings.EstimatedBytesPerSecond();
+  EXPECT_DOUBLE_EQ(flac, capture::kEstimatedCaptureBytesPerSecond);
+
+  settings.output_format = capture::CaptureOutputFormat::kSigned16Bit;
+  const double raw = settings.EstimatedBytesPerSecond();
+  EXPECT_DOUBLE_EQ(raw, static_cast<double>(capture::kWireBytesPerSecond));
+  EXPECT_GT(raw, flac);
+
+  settings.decimation_factor = capture::kTapeDecimationFactor;
+  EXPECT_DOUBLE_EQ(settings.EstimatedBytesPerSecond(), raw / 2.0);
 }
 
 TEST_F(CaptureSettingsTest, TheGainIsNotPassedToTheEngine) {

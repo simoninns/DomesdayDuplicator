@@ -14,13 +14,17 @@ in the disc.
 ## Taking a test capture
 
 1. Stop any running stream — the mode cannot be changed mid-stream.
-2. Tick **Test mode** in the [Capture panel](capture-control.md).
+2. Tick **Tools → Test data mode**.
 3. Press **Start capture**.
 
 The file is named `TestData_<timestamp>.ddd.flac`. That is forced rather than defaulted, and
 the **Name** field is disabled while test mode is ticked: a file called "Blade Runner side 1"
 that turns out to be ramps is a trap that costs somebody an afternoon. The capture's tags
 record `DDD_TEST_MODE` as well, so the file says what it is even after it has been renamed.
+
+**Sample rate** is disabled in test mode, and a test capture always keeps every sample. The
+ramp is checked sample by sample, so a decimated one would read as a break on the first
+buffer — the integrity oracle would fail for a reason that is not a fault.
 
 Run it for as long as you would run a real capture. A short test proves the first minute of
 a session, which is not the part that fails.
@@ -46,11 +50,12 @@ to the point where the samples reach the processing thread.
 Reading the finished file back also covers the FLAC encoder, the filesystem and the drive —
 everything between the processing thread and the bytes that will still be there tomorrow.
 
-**File → Analyse test data…** opens on the capture folder, because the file somebody wants
+**Tools → Analyse test data…** opens on the capture folder, because the file somebody wants
 to check is almost always the one they have just taken. It shows progress and can be
 cancelled; the verdict is coloured so it reads across a bench.
 
-The dialog reads `.ddd.flac` and `.flac`, and also uncompressed 16-bit `.raw`.
+The dialog reads `.ddd.flac` and `.flac`, and uncompressed 16-bit `.ddd.s16` and `.s16` —
+and `.raw`, which is what the old application calls the same layout.
 
 ## The verdicts
 

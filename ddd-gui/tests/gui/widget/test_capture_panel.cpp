@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "capture_controller.h"
+#include "capture_format.h"
 #include "capture_panel.h"
 #include "fake_usb_device.h"
 #include "theme_color_tokens.h"
@@ -105,10 +106,6 @@ class CapturePanelTest : public ::testing::Test {
     return panel_->findChild<QPushButton*>(
         QLatin1String(CapturePanel::kMonitorButtonName));
   }
-  QCheckBox* TestModeBox() const {
-    return panel_->findChild<QCheckBox*>(
-        QLatin1String(CapturePanel::kTestModeBoxName));
-  }
   QLabel* StatusLabel() const {
     return panel_->findChild<QLabel*>(
         QLatin1String(CapturePanel::kStatusLabelName));
@@ -125,6 +122,14 @@ class CapturePanelTest : public ::testing::Test {
     return panel_->findChild<QLineEdit*>(
         QLatin1String(CapturePanel::kNameEditName));
   }
+  QComboBox* FormatCombo() const {
+    return panel_->findChild<QComboBox*>(
+        QLatin1String(CapturePanel::kFormatComboName));
+  }
+  QComboBox* SampleRateCombo() const {
+    return panel_->findChild<QComboBox*>(
+        QLatin1String(CapturePanel::kSampleRateComboName));
+  }
   QSpinBox* CompressionSpin() const {
     return panel_->findChild<QSpinBox*>(
         QLatin1String(CapturePanel::kCompressionSpinName));
@@ -132,6 +137,10 @@ class CapturePanelTest : public ::testing::Test {
   QSpinBox* DurationSpin() const {
     return panel_->findChild<QSpinBox*>(
         QLatin1String(CapturePanel::kDurationSpinName));
+  }
+  QPushButton* DurationResetButton() const {
+    return panel_->findChild<QPushButton*>(
+        QLatin1String(CapturePanel::kDurationResetButtonName));
   }
   QSpinBox* LowSpaceSpin() const {
     return panel_->findChild<QSpinBox*>(
@@ -151,6 +160,16 @@ class CapturePanelTest : public ::testing::Test {
         QStringLiteral("background-color:\\s*(#[0-9a-fA-F]{6})"));
     const QRegularExpressionMatch match = pattern.match(widget->styleSheet());
     return match.hasMatch() ? QColor(match.captured(1)) : QColor();
+  }
+
+  // Test mode has moved to the Tools menu, so the panel has no control for it.
+  // A test that wants the panel's behaviour in test mode sets it where the menu
+  // does — through the settings — which is also the route that proves the panel
+  // follows a change made somewhere else.
+  void SetTestMode(bool enabled) {
+    CaptureSettings settings = controller_->settings();
+    settings.test_mode = enabled;
+    controller_->SetSettings(settings);
   }
 
   // Point the capture destination somewhere writable that this test owns, so
@@ -180,14 +199,23 @@ TEST_F(CapturePanelTest, EveryControlIsPresentAndFindable) {
   EXPECT_NE(DeviceCombo(), nullptr);
   EXPECT_NE(MonitorButton(), nullptr);
   EXPECT_NE(CaptureButton(), nullptr);
-  EXPECT_NE(TestModeBox(), nullptr);
   EXPECT_NE(StatusLabel(), nullptr);
   EXPECT_NE(DirectoryEdit(), nullptr);
   EXPECT_NE(NameEdit(), nullptr);
+  EXPECT_NE(FormatCombo(), nullptr);
+  EXPECT_NE(SampleRateCombo(), nullptr);
   EXPECT_NE(CompressionSpin(), nullptr);
   EXPECT_NE(DurationSpin(), nullptr);
+  EXPECT_NE(DurationResetButton(), nullptr);
   EXPECT_NE(LowSpaceSpin(), nullptr);
   EXPECT_NE(FreeSpaceLabel(), nullptr);
+}
+
+// Test mode belongs to the Tools menu now. A checkbox left behind here would be
+// a second control for one setting, and the two would eventually disagree.
+TEST_F(CapturePanelTest, TestModeIsNotOneOfThisPanelsControls) {
+  EXPECT_EQ(panel_->findChild<QCheckBox*>(), nullptr)
+      << "the panel still carries a checkbox";
 }
 
 TEST_F(CapturePanelTest, WithNoDeviceThereIsNothingToPress) {
@@ -266,10 +294,10 @@ TEST_F(CapturePanelTest, TheButtonSaysWhatWillHappenNext) {
   EXPECT_TRUE(MonitorButton()->text().contains(QStringLiteral("Start")));
 }
 
-// Neither can be changed without stopping: the device is open, and a mode
-// change would land at an unpredictable point in the stream. Disabling them
-// says so rather than letting a user set something that quietly does nothing.
-TEST_F(CapturePanelTest, DeviceAndTestModeAreLockedWhileStreaming) {
+// The device cannot be changed without stopping, because it is open. Disabling
+// the list says so rather than letting a user set something that quietly does
+// nothing.
+TEST_F(CapturePanelTest, TheDeviceIsLockedWhileStreaming) {
   device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper, "");
   controller_->Start();
   ASSERT_TRUE(PumpUntil([&] { return MonitorButton()->isEnabled(); }));
@@ -278,21 +306,11 @@ TEST_F(CapturePanelTest, DeviceAndTestModeAreLockedWhileStreaming) {
   ASSERT_TRUE(controller_->monitoring());
 
   EXPECT_FALSE(DeviceCombo()->isEnabled());
-  EXPECT_FALSE(TestModeBox()->isEnabled());
 
   MonitorButton()->click();
   ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
 
   EXPECT_TRUE(DeviceCombo()->isEnabled());
-  EXPECT_TRUE(TestModeBox()->isEnabled());
-}
-
-TEST_F(CapturePanelTest, TickingTestModeReachesTheSettings) {
-  TestModeBox()->setChecked(true);
-  EXPECT_TRUE(controller_->settings().test_mode);
-
-  TestModeBox()->setChecked(false);
-  EXPECT_FALSE(controller_->settings().test_mode);
 }
 
 TEST_F(CapturePanelTest, UnpluggingMidMonitorLeavesTheButtonUsableAgain) {
@@ -354,6 +372,65 @@ TEST_F(CapturePanelTest, PressingCaptureFromIdleStartsTheStreamToo) {
   ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
 }
 
+// A capture is the monitored stream with a file on the end of it, so stopping
+// the stream ends the capture with it — the pipeline finalises the sink on its
+// way out. That made this a second, unlabelled stop button for the recording,
+// sitting directly above the real one, and pressing it lost the rest of the
+// side.
+//
+// Asserted on the button rather than on the controller, because the controller
+// still has to be able to stop the stream: that is how the application shuts
+// down, and how the capture panel's own tests tidy up after themselves.
+TEST_F(CapturePanelTest, MonitoringCannotBeStoppedOutFromUnderACapture) {
+  UseTemporaryDirectory();
+  device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper, "");
+  controller_->Start();
+  ASSERT_TRUE(PumpUntil([&] { return MonitorButton()->isEnabled(); }));
+
+  MonitorButton()->click();
+  ASSERT_TRUE(controller_->monitoring());
+  ASSERT_TRUE(MonitorButton()->isEnabled());
+
+  CaptureButton()->click();
+  ASSERT_TRUE(controller_->capturing());
+
+  EXPECT_FALSE(MonitorButton()->isEnabled())
+      << "the monitor button can still end the capture";
+  EXPECT_FALSE(MonitorButton()->toolTip().isEmpty())
+      << "nothing says why it is disabled";
+
+  // And it comes back the moment the capture ends, into the monitoring session
+  // the capture returned to.
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+
+  EXPECT_TRUE(controller_->monitoring());
+  EXPECT_TRUE(MonitorButton()->isEnabled());
+
+  MonitorButton()->click();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
+// The same rule for the one-press start, which is where it matters most: a user
+// who pressed Capture from idle never chose to be monitoring, and the button
+// they did not press must not be able to throw the recording away.
+TEST_F(CapturePanelTest, CaptureFromIdleAlsoLocksTheMonitorButton) {
+  UseTemporaryDirectory();
+  device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper, "");
+  controller_->Start();
+  ASSERT_TRUE(PumpUntil([&] { return CaptureButton()->isEnabled(); }));
+
+  CaptureButton()->click();
+  ASSERT_TRUE(controller_->capturing());
+
+  EXPECT_FALSE(MonitorButton()->isEnabled());
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
 TEST_F(CapturePanelTest, TheDestinationIsFixedOnceTheFileIsOpen) {
   UseTemporaryDirectory();
   device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper, "");
@@ -395,14 +472,14 @@ TEST_F(CapturePanelTest, TestModeTakesTheNameFieldAway) {
       NameEdit()->placeholderText().startsWith(QStringLiteral("RF-Sample_")))
       << NameEdit()->placeholderText().toStdString();
 
-  TestModeBox()->setChecked(true);
+  SetTestMode(true);
 
   EXPECT_FALSE(NameEdit()->isEnabled());
   EXPECT_TRUE(
       NameEdit()->placeholderText().startsWith(QStringLiteral("TestData_")))
       << NameEdit()->placeholderText().toStdString();
 
-  TestModeBox()->setChecked(false);
+  SetTestMode(false);
   EXPECT_TRUE(NameEdit()->isEnabled());
 }
 
@@ -423,6 +500,108 @@ TEST_F(CapturePanelTest, AZeroDurationReadsAsNoLimitRatherThanAsZero) {
   EXPECT_EQ(controller_->settings().duration_limit_seconds, 0);
   EXPECT_TRUE(DurationSpin()->text().contains(QStringLiteral("No limit")))
       << DurationSpin()->text().toStdString();
+}
+
+// One press rather than forty. The limit is the one setting here that is set
+// for a single capture and then wants to be gone again, and holding the down
+// arrow from forty minutes to "No limit" is forty presses.
+TEST_F(CapturePanelTest, TheResetButtonClearsTheDurationLimit) {
+  DurationSpin()->setValue(40);
+  ASSERT_EQ(controller_->settings().duration_limit_seconds, 40 * 60);
+
+  DurationResetButton()->click();
+
+  EXPECT_EQ(DurationSpin()->value(), 0);
+  EXPECT_EQ(controller_->settings().duration_limit_seconds, 0)
+      << "the reset did not reach the settings";
+  EXPECT_TRUE(DurationSpin()->text().contains(QStringLiteral("No limit")))
+      << DurationSpin()->text().toStdString();
+}
+
+// The limit is read on every statistics tick rather than latched at the start,
+// so both it and the button that clears it stay live: deciding halfway through
+// a side that the limit should go is a reasonable thing to want.
+TEST_F(CapturePanelTest, TheDurationLimitCanBeClearedMidCapture) {
+  UseTemporaryDirectory();
+  DurationSpin()->setValue(40);
+
+  device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper, "");
+  controller_->Start();
+  ASSERT_TRUE(PumpUntil([&] { return CaptureButton()->isEnabled(); }));
+
+  CaptureButton()->click();
+  ASSERT_TRUE(controller_->capturing());
+
+  ASSERT_TRUE(DurationResetButton()->isEnabled());
+  DurationResetButton()->click();
+  EXPECT_EQ(controller_->settings().duration_limit_seconds, 0);
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
+// --- Format and sample rate ----------------------------------------------
+
+TEST_F(CapturePanelTest, TheFormatAndRateReachTheController) {
+  FormatCombo()->setCurrentIndex(FormatCombo()->findData(
+      static_cast<int>(capture::CaptureOutputFormat::kSigned16Bit)));
+  EXPECT_EQ(controller_->settings().output_format,
+            capture::CaptureOutputFormat::kSigned16Bit);
+
+  SampleRateCombo()->setCurrentIndex(
+      SampleRateCombo()->findData(capture::kTapeDecimationFactor));
+  EXPECT_EQ(controller_->settings().decimation_factor,
+            capture::kTapeDecimationFactor);
+}
+
+// Nothing to compress in the uncompressed format, so the level stops being a
+// setting rather than becoming one that is quietly ignored.
+TEST_F(CapturePanelTest, CompressionIsOnlyOfferedForTheFormatThatHasIt) {
+  EXPECT_TRUE(CompressionSpin()->isEnabled());
+
+  FormatCombo()->setCurrentIndex(FormatCombo()->findData(
+      static_cast<int>(capture::CaptureOutputFormat::kSigned16Bit)));
+  EXPECT_FALSE(CompressionSpin()->isEnabled());
+
+  FormatCombo()->setCurrentIndex(FormatCombo()->findData(
+      static_cast<int>(capture::CaptureOutputFormat::kFlac)));
+  EXPECT_TRUE(CompressionSpin()->isEnabled());
+}
+
+// The test pattern is a ramp checked sample by sample, and a decimated one
+// would read as a break on the first buffer. The control goes away rather than
+// being silently overridden, so it never shows a rate the capture is not
+// running at.
+TEST_F(CapturePanelTest, DecimationIsNotOfferedInTestMode) {
+  EXPECT_TRUE(SampleRateCombo()->isEnabled());
+
+  SetTestMode(true);
+  EXPECT_FALSE(SampleRateCombo()->isEnabled());
+  EXPECT_EQ(controller_->settings().EffectiveDecimationFactor(),
+            capture::kUndecimatedFactor);
+
+  SetTestMode(false);
+  EXPECT_TRUE(SampleRateCombo()->isEnabled());
+}
+
+// The readout is a time rather than a size, so the format has to reach it: an
+// uncompressed capture costs twice what a FLAC one does, and a figure that
+// assumed FLAC would promise twice the recording a volume can actually hold.
+TEST_F(CapturePanelTest, TheFreeSpaceReadoutFollowsTheFormat) {
+  UseTemporaryDirectory();
+  ASSERT_TRUE(PumpUntil([&] {
+    return FreeSpaceLabel()->text().contains(QStringLiteral("of capture"));
+  }));
+  const QString compressed = FreeSpaceLabel()->text();
+
+  FormatCombo()->setCurrentIndex(FormatCombo()->findData(
+      static_cast<int>(capture::CaptureOutputFormat::kSigned16Bit)));
+
+  EXPECT_NE(FreeSpaceLabel()->text(), compressed)
+      << "the readout did not notice the format change: "
+      << compressed.toStdString();
 }
 
 // A time, not a size. "412 GB free" does not answer the question a user has,

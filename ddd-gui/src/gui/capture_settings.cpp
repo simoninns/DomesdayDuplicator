@@ -16,6 +16,8 @@
 #include <QStandardPaths>
 #include <algorithm>
 
+#include "sample_format.h"
+
 namespace ddd::gui {
 namespace {
 
@@ -26,6 +28,8 @@ constexpr const char* kTransferQueueKey = "capture/transfer_queue_bytes";
 constexpr const char* kFrontEndGainKey = "hardware/front_end_gain_switches";
 constexpr const char* kCaptureDirectoryKey = "capture/directory";
 constexpr const char* kCaptureNameKey = "capture/name";
+constexpr const char* kOutputFormatKey = "capture/output_format";
+constexpr const char* kDecimationFactorKey = "capture/decimation_factor";
 constexpr const char* kCompressionLevelKey = "capture/compression_level";
 constexpr const char* kDurationLimitKey = "capture/duration_limit_seconds";
 constexpr const char* kLowSpaceKey = "capture/low_space_warning_minutes";
@@ -35,6 +39,27 @@ constexpr const char* kLowSpaceKey = "capture/low_space_warning_minutes";
 // the usbfs default there is nothing to gain and a submission failure to lose.
 constexpr size_t kMinimumTransferQueueBytes = size_t{2} << 20;
 constexpr size_t kMaximumTransferQueueBytes = size_t{12} << 20;
+
+// The output format is stored as a word rather than as the enumerator's number,
+// so that a settings file stays readable and adding a format later cannot
+// renumber what an existing one meant.
+constexpr const char* kFlacFormatName = "flac";
+constexpr const char* kSigned16BitFormatName = "s16";
+
+QString OutputFormatName(capture::CaptureOutputFormat format) {
+  return format == capture::CaptureOutputFormat::kSigned16Bit
+             ? QLatin1String(kSigned16BitFormatName)
+             : QLatin1String(kFlacFormatName);
+}
+
+// Anything that is not the uncompressed format's name reads as FLAC — a
+// settings file naming a format this build does not have should produce a
+// working capture in the default format rather than a refusal.
+capture::CaptureOutputFormat OutputFormatFromName(const QString& name) {
+  return name == QLatin1String(kSigned16BitFormatName)
+             ? capture::CaptureOutputFormat::kSigned16Bit
+             : capture::CaptureOutputFormat::kFlac;
+}
 
 }  // namespace
 
@@ -47,6 +72,19 @@ capture::UsbSourceOptions CaptureSettings::UsbOptions() const {
 
 analysis::FrontEndGain CaptureSettings::DeclaredGain() const {
   return analysis::FrontEndGain::FromSwitchPattern(front_end_gain_switches);
+}
+
+double CaptureSettings::EstimatedBytesPerSecond() const {
+  // Uncompressed is not an estimate at all: it is exactly the wire rate, and
+  // decimation divides it exactly. FLAC is the estimate — see free_space.h,
+  // where the working figure of half the wire rate is deliberately conservative
+  // because real RF compresses better than that.
+  const double undecimated =
+      output_format == capture::CaptureOutputFormat::kSigned16Bit
+          ? static_cast<double>(capture::kWireBytesPerSecond)
+          : capture::kEstimatedCaptureBytesPerSecond;
+
+  return undecimated / static_cast<double>(EffectiveDecimationFactor());
 }
 
 QString DefaultCaptureDirectory() {
@@ -113,6 +151,24 @@ CaptureSettings LoadCaptureSettings() {
   loaded.capture_name =
       settings.value(QLatin1String(kCaptureNameKey)).toString();
 
+  loaded.output_format =
+      OutputFormatFromName(settings
+                               .value(QLatin1String(kOutputFormatKey),
+                                      OutputFormatName(loaded.output_format))
+                               .toString());
+
+  // Read as "all of them" unless it is a factor this build writes. There is no
+  // nearest sensible value to clamp to — a 3 would be a rate nothing downstream
+  // expects — and every sample is the reading that cannot produce a wrong file.
+  const int stored_decimation =
+      settings
+          .value(QLatin1String(kDecimationFactorKey), loaded.decimation_factor)
+          .toInt();
+  loaded.decimation_factor =
+      capture::IsSupportedDecimationFactor(stored_decimation)
+          ? stored_decimation
+          : capture::kUndecimatedFactor;
+
   loaded.compression_level = std::clamp(
       settings
           .value(QLatin1String(kCompressionLevelKey), loaded.compression_level)
@@ -146,6 +202,10 @@ void SaveCaptureSettings(const CaptureSettings& settings) {
   store.setValue(QLatin1String(kCaptureDirectoryKey),
                  settings.capture_directory);
   store.setValue(QLatin1String(kCaptureNameKey), settings.capture_name);
+  store.setValue(QLatin1String(kOutputFormatKey),
+                 OutputFormatName(settings.output_format));
+  store.setValue(QLatin1String(kDecimationFactorKey),
+                 settings.decimation_factor);
   store.setValue(QLatin1String(kCompressionLevelKey),
                  settings.compression_level);
   store.setValue(QLatin1String(kDurationLimitKey),

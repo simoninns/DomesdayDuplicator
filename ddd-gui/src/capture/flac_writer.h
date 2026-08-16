@@ -76,7 +76,9 @@ class FlacWriter {
     // is conservative.
     unsigned int threads = 0;
 
-    // Written into the STREAMINFO sample-rate field. Not a measurement.
+    // Written into the STREAMINFO sample-rate field. Not a measurement. A
+    // decimated capture carries the label for the rate it was written at, which
+    // is what FlacSampleRateLabelFor exists to work out.
     uint32_t sample_rate_label = 40'000;
 
     // Vorbis comments, so a capture separated from its metadata sidecar can
@@ -103,7 +105,18 @@ class FlacWriter {
   // holding a 10-bit unsigned sample — because that is what sits in the disk
   // buffer, and copying it into an intermediate form first would be a memcpy of
   // 80 MB/s for nothing.
-  bool WriteRawDeviceSamples(const uint8_t* device_data, size_t sample_count);
+  //
+  // decimation_factor selects every nth sample: 1 encodes all of them, 2 halves
+  // the rate. The phase carries across calls, so a run split into buffers is
+  // encoded exactly as the same samples in one buffer would be — without that,
+  // a buffer holding an odd number of samples would shift the phase and the
+  // seam would be a sample the file kept twice or lost.
+  //
+  // A factor the file's header cannot describe is refused rather than silently
+  // treated as 1: a file whose rate label disagrees with its contents is a
+  // capture that decodes at the wrong speed with nothing to reveal it.
+  bool WriteRawDeviceSamples(const uint8_t* device_data, size_t sample_count,
+                             int decimation_factor = 1);
 
   // Flush the encoder and close the file. Safe to call twice; the destructor
   // calls it.

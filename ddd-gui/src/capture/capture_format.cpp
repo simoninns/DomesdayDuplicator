@@ -16,9 +16,31 @@
 
 namespace ddd::capture {
 
-std::filesystem::path AddCaptureFileSuffix(const std::filesystem::path& stem) {
+bool IsSupportedDecimationFactor(int factor) {
+  return factor == kUndecimatedFactor || factor == kTapeDecimationFactor;
+}
+
+uint32_t FlacSampleRateLabelFor(int decimation_factor) {
+  if (!IsSupportedDecimationFactor(decimation_factor)) {
+    return kFlacSampleRateLabel;
+  }
+  return kFlacSampleRateLabel / static_cast<uint32_t>(decimation_factor);
+}
+
+const char* CaptureFileSuffix(CaptureOutputFormat format) {
+  switch (format) {
+    case CaptureOutputFormat::kFlac:
+      return kCaptureFileSuffix;
+    case CaptureOutputFormat::kSigned16Bit:
+      return kSigned16BitCaptureFileSuffix;
+  }
+  return kCaptureFileSuffix;
+}
+
+std::filesystem::path AddCaptureFileSuffix(const std::filesystem::path& stem,
+                                           CaptureOutputFormat format) {
   const std::string text = stem.string();
-  const std::string suffix = kCaptureFileSuffix;
+  const std::string suffix = CaptureFileSuffix(format);
 
   if (text.size() >= suffix.size() &&
       text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0) {

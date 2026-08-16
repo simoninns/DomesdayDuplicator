@@ -23,6 +23,7 @@
 #include "free_space.h"
 #include "gain_choices.h"
 #include "logger.h"
+#include "raw_sink.h"
 #include "sample_format.h"
 #include "sample_sink.h"
 #include "statistics_presenter.h"
@@ -252,7 +253,7 @@ void CaptureController::StopMonitoring() {
   pipeline_->RequestStop();
 }
 
-std::unique_ptr<capture::FlacSink> CaptureController::OpenCaptureFile() {
+std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
   const std::time_t now = std::time(nullptr);
 
   const QString directory = settings_.ResolvedCaptureDirectory();
@@ -262,45 +263,74 @@ std::unique_ptr<capture::FlacSink> CaptureController::OpenCaptureFile() {
   // something the application can simply do.
   QDir().mkpath(directory);
 
+  const int decimation = settings_.EffectiveDecimationFactor();
+
   const std::filesystem::path wanted = capture::BuildCapturePath(
       std::filesystem::path(directory.toStdString()),
-      settings_.capture_name.toStdString(), settings_.test_mode, now);
+      settings_.capture_name.toStdString(), settings_.test_mode, now,
+      settings_.output_format);
 
   const std::filesystem::path path = capture::MakeUniqueCapturePath(wanted);
 
-  capture::FlacWriter::Options options;
-  options.compression_level = settings_.compression_level;
-  options.sample_rate_label = capture::kFlacSampleRateLabel;
+  std::unique_ptr<capture::ISampleSink> sink;
+  std::string open_error;
 
-  capture::CaptureProvenance provenance;
-  provenance.title = path.filename().string();
-  provenance.application_version = std::string(capture::Version());
-  provenance.test_mode = settings_.test_mode;
-  provenance.started = now;
+  if (settings_.output_format == capture::CaptureOutputFormat::kSigned16Bit) {
+    capture::RawSink::Options options;
+    options.decimation_factor = decimation;
 
-  // Written only when a declaration was actually made. DescribeFrontEndGain
-  // returns a sentence saying nothing has been declared for the undeclared
-  // pattern, and putting that in a metadata field would be worse than leaving
-  // the field out: it would read as calibration data.
-  if (settings_.DeclaredGain().declared()) {
-    provenance.front_end_gain =
-        DescribeFrontEndGain(settings_.front_end_gain_switches).toStdString();
+    auto raw = std::make_unique<capture::RawSink>();
+    if (raw->Open(path, options)) {
+      sink = std::move(raw);
+    } else {
+      open_error = raw->LastError();
+    }
+  } else {
+    capture::FlacWriter::Options options;
+    options.compression_level = settings_.compression_level;
+    options.sample_rate_label = capture::FlacSampleRateLabelFor(decimation);
+
+    capture::CaptureProvenance provenance;
+    provenance.title = path.filename().string();
+    provenance.application_version = std::string(capture::Version());
+    provenance.test_mode = settings_.test_mode;
+    provenance.decimation_factor = decimation;
+    provenance.started = now;
+
+    // Written only when a declaration was actually made. DescribeFrontEndGain
+    // returns a sentence saying nothing has been declared for the undeclared
+    // pattern, and putting that in a metadata field would be worse than leaving
+    // the field out: it would read as calibration data.
+    if (settings_.DeclaredGain().declared()) {
+      provenance.front_end_gain =
+          DescribeFrontEndGain(settings_.front_end_gain_switches).toStdString();
+    }
+
+    options.tags = capture::BuildProvenanceTags(provenance);
+
+    auto flac = std::make_unique<capture::FlacSink>();
+    if (flac->Open(path, options, decimation)) {
+      sink = std::move(flac);
+    } else {
+      open_error = flac->LastError();
+    }
   }
 
-  options.tags = capture::BuildProvenanceTags(provenance);
-
-  auto sink = std::make_unique<capture::FlacSink>();
-  if (!sink->Open(path, options)) {
-    const CaptureFailureView view = PresentCaptureFailure(
-        capture::TransferResult::kFileCreationError,
-        QString::fromStdString(sink->LastError()), QString());
+  if (sink == nullptr) {
+    const CaptureFailureView view =
+        PresentCaptureFailure(capture::TransferResult::kFileCreationError,
+                              QString::fromStdString(open_error), QString());
     emit Failed(view.title, view.ToMessage());
     return nullptr;
   }
 
   capture_path_ = QString::fromStdString(path.string());
   if (logger_ != nullptr) {
-    logger_->Info("Capturing to " + path.string());
+    logger_->Info("Capturing to " + path.string() + " (" + sink->Name() +
+                  (decimation == capture::kUndecimatedFactor
+                       ? ""
+                       : ", " + std::to_string(decimation) + ":1 decimated") +
+                  ")");
   }
   return sink;
 }
@@ -321,7 +351,7 @@ void CaptureController::StartCapture() {
     }
   }
 
-  std::unique_ptr<capture::FlacSink> sink = OpenCaptureFile();
+  std::unique_ptr<capture::ISampleSink> sink = OpenCaptureFile();
   if (sink == nullptr) {
     return;
   }
@@ -383,9 +413,15 @@ void CaptureController::CheckDurationLimit(const capture::CaptureStats& stats) {
   // is nothing here that cannot be changed under a running stream: this is a
   // number compared against a counter, not a ring that would have to be
   // reallocated.
+  //
+  // Divided by the decimation, because samples_written counts what reached the
+  // file rather than what came off the device: a 2:1 capture puts half as many
+  // samples in a file per second of signal, and a limit that ignored that would
+  // run for twice as long as it was asked to.
   const uint64_t limit_samples =
       static_cast<uint64_t>(settings_.duration_limit_seconds) *
-      capture::kSampleRateHz;
+      capture::kSampleRateHz /
+      static_cast<uint64_t>(settings_.EffectiveDecimationFactor());
 
   if (stats.samples_written < limit_samples) {
     return;
@@ -426,8 +462,8 @@ void CaptureController::CheckFreeSpace() {
     return;
   }
 
-  const double seconds_left =
-      capture::CaptureSecondsRemaining(space.bytes_available);
+  const double seconds_left = capture::CaptureSecondsRemaining(
+      space.bytes_available, settings_.EstimatedBytesPerSecond());
   const double threshold =
       static_cast<double>(settings_.low_space_warning_minutes) * 60.0;
   if (seconds_left >= threshold) {

@@ -80,6 +80,11 @@ class StatisticsPanel : public QWidget {
   void ShowIdle();
   void RefreshFreeSpace();
 
+  // What a capture in the current settings is expected to cost on disk, which
+  // is what turns free bytes into the time this panel actually shows. Falls
+  // back to the FLAC estimate when there is no controller to ask.
+  double EstimatedBytesPerSecond() const;
+
   QLabel* throughput_ = nullptr;
   QLabel* sequence_ = nullptr;
   QProgressBar* buffer_fill_ = nullptr;

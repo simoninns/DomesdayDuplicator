@@ -120,7 +120,8 @@ std::string SanitiseCaptureStem(const std::string& text) {
 
 std::filesystem::path BuildCapturePath(const std::filesystem::path& directory,
                                        const std::string& stem, bool test_mode,
-                                       std::time_t when) {
+                                       std::time_t when,
+                                       CaptureOutputFormat format) {
   // Test mode ignores the given name entirely rather than sanitising it — see
   // the header. Everything else falls back to the default only when nothing
   // usable survived.
@@ -130,7 +131,7 @@ std::filesystem::path BuildCapturePath(const std::filesystem::path& directory,
     name = DefaultCaptureStem(test_mode, when);
   }
 
-  return directory / AddCaptureFileSuffix(name);
+  return directory / AddCaptureFileSuffix(name, format);
 }
 
 std::filesystem::path MakeUniqueCapturePath(
@@ -144,17 +145,26 @@ std::filesystem::path MakeUniqueCapturePath(
   // and produce "name.ddd_2.flac". Taking the whole suffix off the string is
   // the only way to insert the number where a reader expects it.
   const std::string full = preferred.string();
-  const std::string suffix = kCaptureFileSuffix;
+
+  std::string suffix;
+  for (const CaptureOutputFormat format :
+       {CaptureOutputFormat::kFlac, CaptureOutputFormat::kSigned16Bit}) {
+    const std::string candidate_suffix = CaptureFileSuffix(format);
+    if (full.size() >= candidate_suffix.size() &&
+        full.compare(full.size() - candidate_suffix.size(),
+                     candidate_suffix.size(), candidate_suffix) == 0) {
+      suffix = candidate_suffix;
+      break;
+    }
+  }
+
   const std::string base =
-      (full.size() >= suffix.size() &&
-       full.compare(full.size() - suffix.size(), suffix.size(), suffix) == 0)
-          ? full.substr(0, full.size() - suffix.size())
-          : full;
+      suffix.empty() ? full : full.substr(0, full.size() - suffix.size());
 
   std::filesystem::path candidate = preferred;
   for (int attempt = 2; attempt <= kMaximumNameAttempts; ++attempt) {
-    candidate = std::filesystem::path(base + "_" + std::to_string(attempt) +
-                                      std::string(kCaptureFileSuffix));
+    candidate =
+        std::filesystem::path(base + "_" + std::to_string(attempt) + suffix);
     if (!std::filesystem::exists(candidate, error)) {
       return candidate;
     }

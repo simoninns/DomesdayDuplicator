@@ -156,8 +156,15 @@ StatisticsPanel::StatisticsPanel(CaptureController* controller, QWidget* parent)
   ShowIdle();
 }
 
+double StatisticsPanel::EstimatedBytesPerSecond() const {
+  return controller_ != nullptr
+             ? controller_->settings().EstimatedBytesPerSecond()
+             : capture::kEstimatedCaptureBytesPerSecond;
+}
+
 void StatisticsPanel::OnStatsUpdated(const ddd::capture::CaptureStats& stats) {
-  Apply(PresentStatistics(stats, declared_gain_, link_, destination_space_));
+  Apply(PresentStatistics(stats, declared_gain_, link_, destination_space_,
+                          EstimatedBytesPerSecond()));
 }
 
 void StatisticsPanel::OnMonitoringChanged(bool monitoring) {
@@ -177,8 +184,8 @@ void StatisticsPanel::OnDevicesChanged(
 
   link_ =
       selected != nullptr ? selected->speed : capture::DeviceSpeed::kUnknown;
-  const StatisticsView idle =
-      PresentIdleStatistics(declared_gain_, link_, destination_space_);
+  const StatisticsView idle = PresentIdleStatistics(
+      declared_gain_, link_, destination_space_, EstimatedBytesPerSecond());
   gain_->setText(idle.front_end_gain);
   link_speed_->setText(idle.link_speed);
 }
@@ -188,7 +195,8 @@ void StatisticsPanel::ShowIdle() {
   // sits full and any figure would be a lie. The hold is cleared with it, or
   // the last run's worst moment would linger over the next one.
   back_pressure_hold_.Reset();
-  Apply(PresentIdleStatistics(declared_gain_, link_, destination_space_));
+  Apply(PresentIdleStatistics(declared_gain_, link_, destination_space_,
+                              EstimatedBytesPerSecond()));
 }
 
 void StatisticsPanel::RefreshFreeSpace() {
@@ -202,7 +210,8 @@ void StatisticsPanel::RefreshFreeSpace() {
   // Only the one row, and only when nothing is running. During a run the next
   // statistics tick redraws everything within fifty milliseconds anyway, and
   // rebuilding the whole view here as well would be the same work twice.
-  space_->setText(FormatSpaceRemaining(destination_space_));
+  space_->setText(
+      FormatSpaceRemaining(destination_space_, EstimatedBytesPerSecond()));
 }
 
 void StatisticsPanel::Apply(const StatisticsView& view) {

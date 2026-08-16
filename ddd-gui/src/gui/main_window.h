@@ -16,6 +16,7 @@
 
 #include "update_key.h"
 
+class QAction;
 class QDockWidget;
 
 namespace ddd::gui {
@@ -78,6 +79,12 @@ class MainWindow : public QMainWindow {
   void BuildAmplitudeDock();
   void BuildLogDock();
   void BuildMenus();
+  void BuildToolsMenu();
+
+  // Put the gateware into — or out of — test-pattern mode, through the settings
+  // rather than directly, so that everything showing the mode agrees about it.
+  void SetTestMode(bool enabled);
+
   void RestoreWindowLayout();
   void ShowAboutDialog();
   void ShowFirmwareDialog();
@@ -107,6 +114,10 @@ class MainWindow : public QMainWindow {
   QDockWidget* spectrum_dock_ = nullptr;
   QDockWidget* amplitude_dock_ = nullptr;
   QDockWidget* log_dock_ = nullptr;
+
+  // Tools ▸ Test data mode. Held so that a change made anywhere else can be
+  // reflected in the tick, and so the entry can be taken away while streaming.
+  QAction* test_mode_action_ = nullptr;
 
   // Held so the two can be related to one another after both exist: the
   // Amplitude panel can be asked to keep pace with the spectrogram, and neither

@@ -487,7 +487,7 @@ dropped samples are the failure mode that matters and the one that is invisible 
    `DomesdayDuplicator --analyse-test-data <file>` — which exits 0 for an intact ramp, 1 for
    a break and 2 for a file it could not read, so the gate can be scripted.
 
-   `ddd-gui` offers the same check under **File → Analyse test data...** and as
+   `ddd-gui` offers the same check under **Tools → Analyse test data...** and as
    `ddd-gui --analyse-test-data <file>`, with the same three exit codes and the same
    wording. The two applications have been checked side by side on the same files for all
    three verdicts — pass, break, and too short for the ramp to have wrapped — and agree on

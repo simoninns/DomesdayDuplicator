@@ -15,6 +15,8 @@
 #include <filesystem>
 #include <string>
 
+#include "capture_format.h"
+
 namespace ddd::capture {
 
 // Naming is here, in the engine, rather than in the panel that shows it. It has
@@ -61,10 +63,12 @@ std::string DefaultCaptureStem(bool test_mode, std::time_t when);
 std::string SanitiseCaptureStem(const std::string& text);
 
 // The path a capture is written to: the directory, the name (sanitised, or the
-// default when nothing usable was given) and the capture suffix.
-std::filesystem::path BuildCapturePath(const std::filesystem::path& directory,
-                                       const std::string& stem, bool test_mode,
-                                       std::time_t when);
+// default when nothing usable was given) and the suffix its format is written
+// with.
+std::filesystem::path BuildCapturePath(
+    const std::filesystem::path& directory, const std::string& stem,
+    bool test_mode, std::time_t when,
+    CaptureOutputFormat format = CaptureOutputFormat::kFlac);
 
 // The same path, with a number appended if something is already there.
 //
@@ -73,6 +77,9 @@ std::filesystem::path BuildCapturePath(const std::filesystem::path& directory,
 // Gives up after kMaximumNameAttempts and returns the last path it tried, at
 // which point creating the file fails and the user is told why — better than
 // looping forever against a directory that is doing something unexpected.
+//
+// The format is read off the path rather than passed in, so that this stays
+// usable on any capture path a caller has in hand.
 std::filesystem::path MakeUniqueCapturePath(
     const std::filesystem::path& preferred);
 

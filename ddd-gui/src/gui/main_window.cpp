@@ -11,6 +11,7 @@
 
 #include "main_window.h"
 
+#include <QAction>
 #include <QActionGroup>
 #include <QApplication>
 #include <QCloseEvent>
@@ -228,13 +229,12 @@ void MainWindow::ShowLogPanel() {
 
 void MainWindow::BuildMenus() {
   QMenu* file_menu = menuBar()->addMenu(tr("&File"));
-  file_menu->addAction(tr("&Analyse test data…"), this,
-                       &MainWindow::ShowAnalysisDialog);
-  file_menu->addSeparator();
   file_menu->addAction(tr("&Settings…"), QKeySequence::Preferences, this,
                        &MainWindow::ShowSettingsDialog);
   file_menu->addSeparator();
   file_menu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
+
+  BuildToolsMenu();
 
   QMenu* view_menu = menuBar()->addMenu(tr("&View"));
 
@@ -279,6 +279,73 @@ void MainWindow::BuildMenus() {
                        &MainWindow::ShowFirmwareDialog);
   help_menu->addSeparator();
   help_menu->addAction(tr("&About"), this, &MainWindow::ShowAboutDialog);
+}
+
+void MainWindow::BuildToolsMenu() {
+  // A menu of its own, because both entries are about checking the instrument
+  // rather than about taking a recording. Test mode in particular was on the
+  // Capture panel, where it sat among the settings of an ordinary capture and
+  // read as one of them — it is the opposite: it replaces the signal with a
+  // ramp and produces a file with no recording in it at all.
+  QMenu* tools_menu = menuBar()->addMenu(tr("&Tools"));
+
+  test_mode_action_ = tools_menu->addAction(tr("&Test data mode"));
+  test_mode_action_->setCheckable(true);
+  test_mode_action_->setStatusTip(
+      tr("Capture the gateware's test pattern instead of the RF input"));
+  test_mode_action_->setToolTip(
+      tr("Ask the gateware for its internal test pattern instead of the RF "
+         "input, so that the whole capture path can be checked against a known "
+         "signal. Test captures are always named TestData_ so they cannot be "
+         "mistaken for a recording."));
+
+  tools_menu->addSeparator();
+  tools_menu->addAction(tr("&Analyse test data…"), this,
+                        &MainWindow::ShowAnalysisDialog);
+
+  if (capture_controller_ == nullptr) {
+    // Nothing to put the device into test mode with. Shown rather than hidden
+    // so the menu has the same shape in every build of the window, and disabled
+    // rather than left to do nothing when pressed.
+    test_mode_action_->setEnabled(false);
+    return;
+  }
+
+  test_mode_action_->setChecked(capture_controller_->settings().test_mode);
+
+  connect(test_mode_action_, &QAction::triggered, this,
+          [this](bool checked) { SetTestMode(checked); });
+
+  // The settings are the single source of truth, so anything else that changes
+  // them is reflected here rather than leaving the tick and the device
+  // disagreeing.
+  connect(capture_controller_, &CaptureController::SettingsChanged, this,
+          [this](const CaptureSettings& settings) {
+            const QSignalBlocker blocker(test_mode_action_);
+            test_mode_action_->setChecked(settings.test_mode);
+          });
+
+  // The mode reaches the gateware when the stream is opened and there is no
+  // acknowledgement, so changing it under a running stream would put the change
+  // somewhere unpredictable in the data. Off while streaming, as the checkbox
+  // it replaces was.
+  connect(
+      capture_controller_, &CaptureController::MonitoringChanged, this,
+      [this](bool monitoring) { test_mode_action_->setEnabled(!monitoring); });
+}
+
+void MainWindow::SetTestMode(bool enabled) {
+  if (capture_controller_ == nullptr) {
+    return;
+  }
+
+  CaptureSettings settings = capture_controller_->settings();
+  if (settings.test_mode == enabled) {
+    return;
+  }
+
+  settings.test_mode = enabled;
+  capture_controller_->SetSettings(settings);
 }
 
 void MainWindow::ShowAboutDialog() {

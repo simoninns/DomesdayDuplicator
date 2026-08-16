@@ -21,8 +21,11 @@ knows a capture began.
 what makes both sides of a disc possible without reopening the device: stop, turn the disc
 over, start again.
 
-**Stop monitoring** ends the stream. If a capture is running it ends with it, and the file
-is finalised properly on the way out.
+**Stop monitoring** ends the stream. It is disabled while a capture is running, because a
+capture *is* this stream with a file on the end of it — stopping the stream would end the
+recording too, which made this a second, unlabelled stop button sitting directly above the
+real one. Stop the capture first; that leaves the stream running, so nothing is lost by
+taking the shortcut away.
 
 Both buttons take on a colour while they are doing something, so the state reads from across
 a bench rather than only by reading the label: green while monitoring, red while capturing.
@@ -48,19 +51,12 @@ next.
 The choice is remembered. If you always use the same port, [Settings](settings.md) has a
 **Preferred device** that survives restarts.
 
-The list and the **Test mode** box are locked while the stream is running: neither can be
-changed without stopping, and a mode change would land at an unpredictable point in the
-stream.
+The list is locked while the stream is running: the device is open, and it cannot be changed
+without stopping.
 
-## Test mode
-
-Asks the gateware for its internal test pattern instead of the RF input, so the whole
-capture path can be checked against a signal that is known exactly. Test captures are
-**always** named `TestData_` — forced, not defaulted, and the Name field is disabled while
-it is ticked.
-
-The full procedure, and how to check a test capture afterwards, is on
-[Test mode and integrity checking](test-mode.md).
+Test mode lives on the **Tools** menu rather than here — it is a diagnostic rather than part
+of setting up a capture. The full procedure, and how to check a test capture afterwards, is
+on [Test mode and integrity checking](test-mode.md).
 
 ## Where it goes
 
@@ -90,10 +86,46 @@ fails on a colleague's machine is prevented here rather than discovered later.
 In test mode the field is disabled, not merely ignored. A field that accepted text and then
 did not use it would be a lie about what the application was going to do.
 
+### Format
+
+| Choice | What you get |
+| --- | --- |
+| **FLAC — `.ddd.flac`** | Mono 16-bit native FLAC, roughly half the size, carrying the capture's provenance in its tags. The default |
+| **Uncompressed — `.ddd.s16`** | The same samples with nothing wrapped round them: signed 16-bit little-endian, no header |
+
+Uncompressed is twice the disk for none of the encoder, which is the trade worth having on a
+machine that cannot sustain the encode or when the output is going straight into another
+tool. Nothing in the file says what it is, what rate it was written at or which build
+produced it — that is the format's nature, and the reason FLAC stays the default.
+
+Both are read back by **Tools → Analyse test data…** and by `--analyse-test-data`.
+
+### Sample rate
+
+| Choice | What you get |
+| --- | --- |
+| **40 Msps — every sample** | The device's own rate. What a LaserDisc capture needs, and the default |
+| **20 Msps — 2:1 decimated, for tape** | Every second sample, halving the rate and the file |
+
+The device always samples at 40 Msps; decimation happens on this side of the USB link, on
+the way into the file. Tape RF has a fraction of a LaserDisc's bandwidth, so half the rate
+is enough for it and costs half the storage.
+
+There is no filter in front of it — this is plain selection, the same thing the old
+application does for its 4:1 CD decimation — so anything above 10 MHz will alias. That is a
+decision about the front end rather than about the software.
+
+A decimated FLAC capture carries the rate label for 20 Msps and a `DDD_DECIMATION` tag. A
+decimated `.ddd.s16` carries nothing at all, because there is nowhere to put it: write the
+rate down.
+
+**Sample rate** is disabled in test mode, where every sample is always kept.
+
 ### Compression
 
 FLAC compression, 0 to 8. The default of 8 gives the smallest file and is what a
-multithreaded libFLAC sustains at the device's full rate.
+multithreaded libFLAC sustains at the device's full rate. It is disabled for the
+uncompressed format, which has no encoder to ask.
 
 Lowering it is the first remedy for a machine that cannot keep up. The **Encoder backlog**
 and **Buffer queue** figures in [Statistics](statistics.md) are what say whether that is the
@@ -103,7 +135,14 @@ disk.
 ### Duration limit
 
 Stop automatically after this many minutes, or **No limit**, which is the default. The stop
-lands on a buffer boundary, so nothing is half-written.
+lands on a buffer boundary, so nothing is half-written. **Reset** puts it straight back to
+No limit — a limit tends to be set for one capture, and holding the down arrow back from
+forty minutes is forty presses.
+
+The limit is read on every statistics tick rather than latched when the capture starts, so
+both it and **Reset** stay live during a capture: deciding halfway through a side that the
+limit should go is a reasonable thing to want. It is a length of *time*, so a decimated
+capture still runs for as long as it says.
 
 The default is no limit deliberately: a limit that fired in the middle of a side would be
 worse than no limit at all.
@@ -123,9 +162,14 @@ How much longer this volume will hold a capture, with the byte figure after it.
 
 The time comes first because it is the question people actually have. "412 GB free" does not
 tell you whether this will last the side you are about to play; "2:51:40 of capture" does.
-The estimate uses 40 MB/s, which is what a FLAC capture writes on average. An unknown figure
-means the folder does not exist yet, which is an ordinary thing to have typed on the way to
-creating it — it is not reported as a full disk.
+
+The estimate follows the **Format** and **Sample rate** you have chosen: 40 MB/s for FLAC,
+which is what one writes on average, 80 MB/s uncompressed, and half of either when
+decimating. The same volume therefore holds four times as much 20 Msps FLAC as 40 Msps
+uncompressed, and the readout says so.
+
+An unknown figure means the folder does not exist yet, which is an ordinary thing to have
+typed on the way to creating it — it is not reported as a full disk.
 
 ## Status
 

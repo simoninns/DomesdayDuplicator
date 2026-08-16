@@ -20,6 +20,7 @@
 #include "monitor_tap.h"
 #include "sample_format.h"
 #include "statistics_panel.h"
+#include "statistics_presenter.h"
 
 // The formatting these labels display is tested in
 // tests/gui/unit/test_statistics_presenter.cpp, against a pipeline running on
@@ -68,9 +69,12 @@ TEST(StatisticsPanelTest, PublishedStatisticsReachEveryField) {
   EXPECT_TRUE(LabelNamed(panel, StatisticsPanel::kThroughputLabelName)
                   ->text()
                   .contains(QStringLiteral("MB/s")));
+  // Scaled for reading — see FormatCount. Compared through the formatter rather
+  // than against the raw digits, so this asserts that the panel showed the
+  // published figure rather than what a particular scaling happened to be.
   EXPECT_TRUE(LabelNamed(panel, StatisticsPanel::kTransfersLabelName)
                   ->text()
-                  .contains(QStringLiteral("1234")));
+                  .contains(FormatCount(stats.transfers_completed)));
   EXPECT_TRUE(LabelNamed(panel, StatisticsPanel::kClippingLabelName)
                   ->text()
                   .contains(QStringLiteral("3")));
@@ -240,7 +244,7 @@ TEST(StatisticsPanelTest, StoppingLeavesTheFinalFiguresOnScreen) {
 
   EXPECT_TRUE(LabelNamed(panel, StatisticsPanel::kTransfersLabelName)
                   ->text()
-                  .contains(QStringLiteral("4321")));
+                  .contains(FormatCount(stats.transfers_completed)));
 }
 
 }  // namespace

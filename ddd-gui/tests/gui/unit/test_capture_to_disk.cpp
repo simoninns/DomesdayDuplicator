@@ -449,6 +449,161 @@ TEST_F(CaptureToDiskTest, ATestModeCaptureAnalysesClean) {
   EXPECT_EQ(analysis.ExitCode(), 0) << analysis.message;
 }
 
+// --- Format and sample rate -----------------------------------------------
+
+// The uncompressed format end to end: the suffix it is named with, and a file
+// the same reader takes back.
+TEST_F(CaptureToDiskTest, AnUncompressedCaptureIsWrittenAndReadsBack) {
+  Settings([](CaptureSettings& settings) {
+    settings.output_format = capture::CaptureOutputFormat::kSigned16Bit;
+  });
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  EXPECT_TRUE(controller_->capture_path().endsWith(
+      QLatin1String(capture::kSigned16BitCaptureFileSuffix)))
+      << controller_->capture_path().toStdString();
+
+  ASSERT_TRUE(PumpUntil([&] {
+    return !WrittenFiles().empty() &&
+           std::filesystem::file_size(WrittenFiles().front()) > 4096;
+  }));
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+
+  ASSERT_EQ(WrittenFiles().size(), 1U);
+  const std::filesystem::path path = WrittenFiles().front();
+
+  // A headerless file is exactly two bytes per sample, which is what makes the
+  // reader's total-sample figure come from the size.
+  EXPECT_EQ(std::filesystem::file_size(path) % capture::kBytesPerSample, 0U);
+
+  capture::CaptureReader reader;
+  std::string error;
+  ASSERT_TRUE(
+      reader.Open(path, capture::CaptureReader::Format::kSigned16Bit, error))
+      << error;
+
+  std::vector<uint16_t> samples;
+  bool end_of_file = false;
+  ASSERT_TRUE(reader.Read(samples, 4096, end_of_file));
+  EXPECT_FALSE(samples.empty());
+}
+
+// A 2:1 capture holds half as many samples as the stream carried, and the file
+// says which rate it was written at — the only evidence that survives being
+// copied off the machine that made it.
+TEST_F(CaptureToDiskTest, ADecimatedCaptureHalvesTheFileAndSaysSo) {
+  Settings([](CaptureSettings& settings) {
+    settings.decimation_factor = capture::kTapeDecimationFactor;
+  });
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  ASSERT_TRUE(PumpUntil([&] {
+    return !WrittenFiles().empty() &&
+           std::filesystem::file_size(WrittenFiles().front()) > 4096;
+  }));
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+
+  ASSERT_EQ(WrittenFiles().size(), 1U);
+
+  capture::CaptureReader reader;
+  std::string error;
+  ASSERT_TRUE(reader.Open(WrittenFiles().front(),
+                          capture::CaptureReader::Format::kFlac, error))
+      << error;
+
+  const auto tag = [&reader](const std::string& name) -> std::string {
+    for (const auto& [key, value] : reader.Tags()) {
+      if (key == name) {
+        return value;
+      }
+    }
+    return {};
+  };
+
+  EXPECT_EQ(tag(capture::kTagDecimation), "2");
+  EXPECT_EQ(tag(capture::kTagSampleRate),
+            std::to_string(capture::kSampleRateHz / 2));
+
+  // Half a buffer's worth of samples per buffer, so the count is a multiple of
+  // that rather than of the whole buffer.
+  const std::optional<uint64_t> total = reader.TotalSamples();
+  ASSERT_TRUE(total.has_value());
+  const uint64_t samples_per_buffer = kTestSlotBytes / capture::kBytesPerSample;
+  EXPECT_EQ(*total % (samples_per_buffer / 2), 0U)
+      << "a decimated capture did not land on a buffer boundary";
+}
+
+// Test mode captures every sample whatever the setting says: the pattern is a
+// ramp checked sample by sample, and a decimated one would read as a break on
+// the first buffer. Asserted where it matters — on the analysis of a real file,
+// which is the integrity oracle the whole project rests on.
+TEST_F(CaptureToDiskTest, ADecimationSettingCannotBreakATestModeCapture) {
+  Settings([](CaptureSettings& settings) {
+    settings.test_mode = true;
+    settings.decimation_factor = capture::kTapeDecimationFactor;
+  });
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  ASSERT_TRUE(PumpUntil([&] {
+    return !WrittenFiles().empty() &&
+           std::filesystem::file_size(WrittenFiles().front()) > 65536;
+  }));
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+
+  const capture::TestDataAnalysis analysis =
+      capture::AnalyseTestData(WrittenFiles().front());
+
+  EXPECT_EQ(analysis.outcome, capture::TestDataAnalysis::Outcome::kPassed)
+      << analysis.message;
+}
+
+// The same analysis over an uncompressed test capture, which is the other half
+// of the integrity gate now being reachable in both formats.
+TEST_F(CaptureToDiskTest, AnUncompressedTestCaptureAnalysesClean) {
+  Settings([](CaptureSettings& settings) {
+    settings.test_mode = true;
+    settings.output_format = capture::CaptureOutputFormat::kSigned16Bit;
+  });
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  ASSERT_TRUE(PumpUntil([&] {
+    return !WrittenFiles().empty() &&
+           std::filesystem::file_size(WrittenFiles().front()) > 65536;
+  }));
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+
+  const capture::TestDataAnalysis analysis =
+      capture::AnalyseTestData(WrittenFiles().front());
+
+  EXPECT_EQ(analysis.outcome, capture::TestDataAnalysis::Outcome::kPassed)
+      << analysis.message;
+  EXPECT_EQ(analysis.ExitCode(), 0) << analysis.message;
+}
+
 // --- The duration limit ---------------------------------------------------
 
 // The limit is held in seconds although the panel offers minutes, and this is
@@ -526,6 +681,56 @@ TEST_F(CaptureToDiskTest, ADurationLimitStopsTheCaptureButNotTheStream) {
   // length is not a multiple of one was cut somewhere it should not have been.
   EXPECT_EQ(total.value_or(0) % samples_per_buffer, 0U)
       << "the stop did not land on a buffer boundary";
+}
+
+// The limit is a length of time, and the counter it is checked against is
+// samples that reached the file — so a decimated capture puts half as many in
+// per second. A limit that ignored that would run for twice as long as it was
+// asked to, which on an unattended capture is the difference between one side
+// and two.
+TEST_F(CaptureToDiskTest, ADurationLimitIsATimeEvenWhenDecimating) {
+  capture::SyntheticSource::Options options = TestSourceOptions();
+  options.rate_bytes_per_second = capture::kWireBytesPerSecond;
+  device_->SetSourceOptions(options);
+
+  Settings([](CaptureSettings& settings) {
+    settings.duration_limit_seconds = 1;
+    settings.decimation_factor = capture::kTapeDecimationFactor;
+  });
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }, 30000ms));
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+
+  ASSERT_EQ(WrittenFiles().size(), 1U);
+
+  capture::CaptureReader reader;
+  std::string error;
+  ASSERT_TRUE(reader.Open(WrittenFiles().front(),
+                          capture::CaptureReader::Format::kFlac, error))
+      << error;
+
+  const std::optional<uint64_t> total = reader.TotalSamples();
+  ASSERT_TRUE(total.has_value());
+
+  // One second of signal at half the rate: twenty million samples in the file,
+  // not forty.
+  constexpr uint64_t kOneSecondDecimated = capture::kSampleRateHz / 2;
+  const uint64_t samples_per_buffer =
+      kTestSlotBytes / capture::kBytesPerSample / 2;
+
+  EXPECT_GE(total.value_or(0), kOneSecondDecimated);
+
+  const uint64_t tick_samples =
+      (static_cast<uint64_t>(CaptureController::kStatsIntervalMilliseconds) *
+       kOneSecondDecimated) /
+      1000;
+  EXPECT_LT(total.value_or(0),
+            kOneSecondDecimated + (10 * tick_samples) + samples_per_buffer);
 }
 
 TEST_F(CaptureToDiskTest, NoDurationLimitMeansTheCaptureRunsUntilStopped) {

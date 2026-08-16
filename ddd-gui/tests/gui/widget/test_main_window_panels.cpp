@@ -23,6 +23,8 @@
 #include <QTest>
 
 #include "application_logger.h"
+#include "capture_controller.h"
+#include "fake_usb_device.h"
 #include "main_window.h"
 #include "theme_controller.h"
 
@@ -59,6 +61,32 @@ QMenu* PanelsMenu(const MainWindow& window) {
           entry->text().contains(QStringLiteral("Panels"))) {
         return entry->menu();
       }
+    }
+  }
+  return nullptr;
+}
+
+// A top-level menu by the name on its title. The ampersand Qt uses for the
+// mnemonic is in the text, so this matches on the rest of it.
+QMenu* MenuNamed(const MainWindow& window, const QString& title) {
+  const QList<QAction*> menu_actions = window.menuBar()->actions();
+  for (QAction* menu_action : menu_actions) {
+    if (menu_action->text().contains(title)) {
+      return menu_action->menu();
+    }
+  }
+  return nullptr;
+}
+
+// An entry in a menu by the words in its label.
+QAction* EntryNamed(QMenu* menu, const QString& text) {
+  if (menu == nullptr) {
+    return nullptr;
+  }
+  const QList<QAction*> entries = menu->actions();
+  for (QAction* entry : entries) {
+    if (entry->text().contains(text)) {
+      return entry;
     }
   }
   return nullptr;
@@ -228,6 +256,84 @@ TEST_F(MainWindowTest, OffersAnAboutEntryUnderHelp) {
         found_about || entry->text().contains(QStringLiteral("About"));
   }
   EXPECT_TRUE(found_about) << "no About entry under Help";
+}
+
+// --- Tools ----------------------------------------------------------------
+
+// Both entries are about checking the instrument rather than about taking a
+// recording, which is why they are not on File. Test mode in particular was on
+// the Capture panel, among the settings of an ordinary capture, where it read
+// as one of them — it is the opposite: it replaces the signal with a ramp and
+// produces a file with no recording in it at all.
+TEST_F(MainWindowTest, TheToolsMenuHoldsBothTestDataEntries) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  QMenu* const tools = MenuNamed(*window, QStringLiteral("Tools"));
+  ASSERT_NE(tools, nullptr) << "no Tools menu";
+
+  QAction* const mode = EntryNamed(tools, QStringLiteral("Test data mode"));
+  ASSERT_NE(mode, nullptr) << "no Test data mode entry under Tools";
+  EXPECT_TRUE(mode->isCheckable())
+      << "test mode is a state, so its entry has to show whether it is on";
+
+  EXPECT_NE(EntryNamed(tools, QStringLiteral("Analyse test data")), nullptr)
+      << "no Analyse test data entry under Tools";
+}
+
+TEST_F(MainWindowTest, NeitherTestDataEntryIsLeftBehindOnTheFileMenu) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  QMenu* const file = MenuNamed(*window, QStringLiteral("File"));
+  ASSERT_NE(file, nullptr) << "no File menu";
+
+  EXPECT_EQ(EntryNamed(file, QStringLiteral("Analyse test data")), nullptr);
+  EXPECT_EQ(EntryNamed(file, QStringLiteral("Test data mode")), nullptr);
+
+  // And what File is for is still there.
+  EXPECT_NE(EntryNamed(file, QStringLiteral("Settings")), nullptr);
+  EXPECT_NE(EntryNamed(file, QStringLiteral("xit")), nullptr);
+}
+
+// The widget tests build a window with no controller, and there is then nothing
+// to put into test mode. Shown rather than hidden so the menu has the same
+// shape in every build of the window, and disabled rather than left to do
+// nothing when pressed.
+TEST_F(MainWindowTest, TestModeIsOfferedButDeadWithNoDeviceLayer) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  QAction* const mode = EntryNamed(MenuNamed(*window, QStringLiteral("Tools")),
+                                   QStringLiteral("Test data mode"));
+  ASSERT_NE(mode, nullptr);
+  EXPECT_FALSE(mode->isEnabled());
+  EXPECT_FALSE(mode->isChecked());
+}
+
+// With a controller behind it, the entry is the control it looks like: it
+// reaches the settings, and it follows them back when something else changes
+// them. The tick and the device must never be able to disagree.
+TEST_F(MainWindowTest, TheToolsEntryIsTheTestModeSetting) {
+  capture::FakeUsbDevice device;
+  CaptureController controller(&device, nullptr);
+  MainWindow window(&theme_controller_, &logger_, &controller);
+
+  QAction* const mode = EntryNamed(MenuNamed(window, QStringLiteral("Tools")),
+                                   QStringLiteral("Test data mode"));
+  ASSERT_NE(mode, nullptr);
+  ASSERT_TRUE(mode->isEnabled());
+  ASSERT_FALSE(mode->isChecked());
+
+  mode->trigger();
+  EXPECT_TRUE(mode->isChecked());
+  EXPECT_TRUE(controller.settings().test_mode);
+
+  mode->trigger();
+  EXPECT_FALSE(controller.settings().test_mode);
+
+  // Changed from elsewhere — the settings are the single source of truth.
+  CaptureSettings settings = controller.settings();
+  settings.test_mode = true;
+  controller.SetSettings(settings);
+  EXPECT_TRUE(mode->isChecked());
 }
 
 TEST_F(MainWindowTest, AFirstRunWithNoSavedLayoutShowsTheDefaultArrangement) {

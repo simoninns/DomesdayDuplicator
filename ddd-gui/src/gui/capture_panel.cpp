@@ -11,7 +11,6 @@
 
 #include "capture_panel.h"
 
-#include <QCheckBox>
 #include <QComboBox>
 #include <QEvent>
 #include <QFileDialog>
@@ -29,6 +28,7 @@
 #include <ctime>
 
 #include "capture_controller.h"
+#include "capture_format.h"
 #include "capture_naming.h"
 #include "free_space.h"
 #include "statistics_presenter.h"
@@ -111,15 +111,6 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
   device_combo_->setObjectName(QLatin1String(kDeviceComboName));
   form->addRow(tr("Device"), device_combo_);
 
-  test_mode_box_ = new QCheckBox(tr("Test mode"), contents);
-  test_mode_box_->setObjectName(QLatin1String(kTestModeBoxName));
-  test_mode_box_->setToolTip(
-      tr("Ask the gateware for its internal test pattern instead of the RF "
-         "input, so that the whole capture path can be checked against a "
-         "known signal. Test captures are always named TestData_ so they "
-         "cannot be mistaken for a recording."));
-  form->addRow(QString(), test_mode_box_);
-
   // --- Where it goes -------------------------------------------------------
 
   auto* directory_row = new QWidget(contents);
@@ -143,6 +134,37 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
          "is what keeps a folder of captures in order."));
   form->addRow(tr("Name"), name_edit_);
 
+  format_combo_ = new QComboBox(contents);
+  format_combo_->setObjectName(QLatin1String(kFormatComboName));
+  format_combo_->addItem(
+      tr("FLAC — %1").arg(QLatin1String(capture::kCaptureFileSuffix)),
+      static_cast<int>(capture::CaptureOutputFormat::kFlac));
+  format_combo_->addItem(
+      tr("Uncompressed — %1")
+          .arg(QLatin1String(capture::kSigned16BitCaptureFileSuffix)),
+      static_cast<int>(capture::CaptureOutputFormat::kSigned16Bit));
+  format_combo_->setToolTip(
+      tr("FLAC roughly halves the file and carries the capture's provenance in "
+         "its tags. Uncompressed is the same samples with no header and no "
+         "encoder — twice the disk, nothing to keep up with, and nothing in "
+         "the file to say what it is or what rate it was written at."));
+  form->addRow(tr("Format"), format_combo_);
+
+  sample_rate_combo_ = new QComboBox(contents);
+  sample_rate_combo_->setObjectName(QLatin1String(kSampleRateComboName));
+  sample_rate_combo_->addItem(tr("40 Msps — every sample"),
+                              capture::kUndecimatedFactor);
+  sample_rate_combo_->addItem(tr("20 Msps — 2:1 decimated, for tape"),
+                              capture::kTapeDecimationFactor);
+  sample_rate_combo_->setToolTip(
+      tr("The device always samples at 40 Msps. Decimating keeps every second "
+         "sample on the way into the file, which halves it — enough for tape "
+         "RF, whose bandwidth is a fraction of a LaserDisc's. There is no "
+         "filter in front of it, so anything above 10 MHz will alias. Not "
+         "available in test mode, where the pattern is checked sample by "
+         "sample."));
+  form->addRow(tr("Sample rate"), sample_rate_combo_);
+
   compression_spin_ = new QSpinBox(contents);
   compression_spin_->setObjectName(QLatin1String(kCompressionSpinName));
   compression_spin_->setRange(0, 8);
@@ -153,7 +175,15 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
          "encoder-backlog figures in the Statistics panel are what say so."));
   form->addRow(tr("Compression"), compression_spin_);
 
-  duration_spin_ = new QSpinBox(contents);
+  // The limit and the button that clears it, side by side. A limit is the one
+  // setting here that is set for a single capture and then wants to be gone
+  // again, and holding the down arrow from 40 minutes to "No limit" is forty
+  // presses.
+  auto* duration_row = new QWidget(contents);
+  auto* duration_layout = new QHBoxLayout(duration_row);
+  duration_layout->setContentsMargins(0, 0, 0, 0);
+
+  duration_spin_ = new QSpinBox(duration_row);
   duration_spin_->setObjectName(QLatin1String(kDurationSpinName));
   duration_spin_->setRange(0, CaptureSettings::kMaximumDurationLimitMinutes);
   duration_spin_->setSpecialValueText(tr("No limit"));
@@ -161,7 +191,16 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
   duration_spin_->setToolTip(
       tr("Stop the capture automatically after this long. The stop lands on a "
          "buffer boundary, so nothing is half-written."));
-  form->addRow(tr("Duration limit"), duration_spin_);
+  duration_layout->addWidget(duration_spin_, 1);
+
+  duration_reset_button_ = new QPushButton(tr("Reset"), duration_row);
+  duration_reset_button_->setObjectName(
+      QLatin1String(kDurationResetButtonName));
+  duration_reset_button_->setToolTip(
+      tr("Clear the limit, so the capture runs until it is stopped."));
+  duration_layout->addWidget(duration_reset_button_);
+
+  form->addRow(tr("Duration limit"), duration_row);
 
   low_space_spin_ = new QSpinBox(contents);
   low_space_spin_->setObjectName(QLatin1String(kLowSpaceSpinName));
@@ -201,15 +240,19 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
           &CapturePanel::OnCaptureButtonPressed);
   connect(device_combo_, &QComboBox::currentIndexChanged, this,
           &CapturePanel::OnDeviceSelected);
-  connect(test_mode_box_, &QCheckBox::toggled, this,
-          &CapturePanel::OnTestModeToggled);
   connect(browse_button_, &QPushButton::clicked, this,
           &CapturePanel::OnBrowsePressed);
+  connect(duration_reset_button_, &QPushButton::clicked, this,
+          &CapturePanel::OnDurationResetPressed);
 
   connect(directory_edit_, &QLineEdit::editingFinished, this,
           &CapturePanel::ApplySettingsFromWidgets);
   connect(name_edit_, &QLineEdit::editingFinished, this,
           &CapturePanel::ApplySettingsFromWidgets);
+  connect(format_combo_, &QComboBox::currentIndexChanged, this,
+          [this](int) { ApplySettingsFromWidgets(); });
+  connect(sample_rate_combo_, &QComboBox::currentIndexChanged, this,
+          [this](int) { ApplySettingsFromWidgets(); });
   connect(compression_spin_, &QSpinBox::valueChanged, this,
           [this](int) { ApplySettingsFromWidgets(); });
   connect(duration_spin_, &QSpinBox::valueChanged, this,
@@ -252,9 +295,13 @@ void CapturePanel::ShowSettings() {
   loading_ = true;
   const CaptureSettings& settings = controller_->settings();
 
-  test_mode_box_->setChecked(settings.test_mode);
+  test_mode_ = settings.test_mode;
   directory_edit_->setText(settings.ResolvedCaptureDirectory());
   name_edit_->setText(settings.capture_name);
+  format_combo_->setCurrentIndex(
+      format_combo_->findData(static_cast<int>(settings.output_format)));
+  sample_rate_combo_->setCurrentIndex(
+      sample_rate_combo_->findData(settings.decimation_factor));
   compression_spin_->setValue(settings.compression_level);
   // Rounded to the nearest whole minute for display. The stored value is in
   // seconds and is honoured as written; only what this box shows is coarser.
@@ -263,18 +310,19 @@ void CapturePanel::ShowSettings() {
   loading_ = false;
 
   UpdateNamePlaceholder();
+  UpdateEnabledState();
+  RefreshFreeSpace();
 }
 
 void CapturePanel::UpdateNamePlaceholder() {
-  const bool test_mode = test_mode_box_->isChecked();
   name_edit_->setPlaceholderText(QString::fromStdString(
-      capture::DefaultCaptureStem(test_mode, std::time(nullptr))));
+      capture::DefaultCaptureStem(test_mode_, std::time(nullptr))));
 
   // In test mode the name is not a suggestion, so the field stops accepting
   // one. Disabled rather than silently ignored: a field that took text and
   // then did not use it would be a lie about what the application was going
   // to do.
-  name_edit_->setEnabled(!test_mode && !capturing_);
+  name_edit_->setEnabled(!test_mode_ && !capturing_);
 }
 
 void CapturePanel::ApplySettingsFromWidgets() {
@@ -285,6 +333,9 @@ void CapturePanel::ApplySettingsFromWidgets() {
   CaptureSettings settings = controller_->settings();
   settings.capture_directory = directory_edit_->text();
   settings.capture_name = name_edit_->text();
+  settings.output_format = static_cast<capture::CaptureOutputFormat>(
+      format_combo_->currentData().toInt());
+  settings.decimation_factor = sample_rate_combo_->currentData().toInt();
   settings.compression_level = compression_spin_->value();
   settings.duration_limit_seconds = duration_spin_->value() * 60;
   settings.low_space_warning_minutes = low_space_spin_->value();
@@ -293,7 +344,18 @@ void CapturePanel::ApplySettingsFromWidgets() {
     controller_->SetSettings(settings);
   }
 
+  // The format and the rate both change what a capture costs on disk, and the
+  // free-space readout is a time rather than a size — so it has to be worked
+  // out again here rather than waiting for the next two-second tick.
+  UpdateEnabledState();
   RefreshFreeSpace();
+}
+
+void CapturePanel::OnDurationResetPressed() {
+  // Straight to the special value, which the box shows as "No limit". Setting
+  // it is enough: the valueChanged signal carries it into the settings by the
+  // same route typing a number does.
+  duration_spin_->setValue(0);
 }
 
 void CapturePanel::OnBrowsePressed() {
@@ -323,8 +385,12 @@ void CapturePanel::RefreshFreeSpace() {
 
   // Through the statistics presenter's formatter rather than one of its own, so
   // this panel and the Statistics panel cannot end up saying different things
-  // about the same volume.
-  free_space_label_->setText(FormatSpaceRemaining(space));
+  // about the same volume. The rate goes with it for the same reason: an
+  // uncompressed capture costs twice what a FLAC one does.
+  free_space_label_->setText(FormatSpaceRemaining(
+      space, controller_ != nullptr
+                 ? controller_->settings().EstimatedBytesPerSecond()
+                 : capture::kEstimatedCaptureBytesPerSecond));
 }
 
 void CapturePanel::OnDevicesChanged(
@@ -495,17 +561,6 @@ void CapturePanel::OnDeviceSelected(int index) {
   controller_->SetSettings(settings);
 }
 
-void CapturePanel::OnTestModeToggled(bool enabled) {
-  UpdateNamePlaceholder();
-
-  if (controller_ == nullptr || loading_) {
-    return;
-  }
-  CaptureSettings settings = controller_->settings();
-  settings.test_mode = enabled;
-  controller_->SetSettings(settings);
-}
-
 void CapturePanel::UpdateEnabledState() {
   const bool have_usable_device =
       !devices_.empty() &&
@@ -514,32 +569,61 @@ void CapturePanel::UpdateEnabledState() {
       devices_[static_cast<size_t>(std::max(0, device_combo_->currentIndex()))]
           .CanCarryCapture();
 
-  monitor_button_->setEnabled(monitoring_ || have_usable_device);
+  // Not while a capture is running, and this is the whole of the fix for a
+  // button that used to throw away the recording.
+  //
+  // A capture is this stream with a file on the end of it, so stopping the
+  // stream necessarily ends the capture — the pipeline finalises the sink on
+  // its way out. That made "Stop monitoring" a second, unlabelled stop button
+  // for the capture, sitting directly above the real one. Nothing about it said
+  // so, and pressing it lost the rest of the side.
+  //
+  // Disabled rather than made to ask "are you sure": the capture already has a
+  // stop of its own, and stopping it leaves the stream running, so there is
+  // never anything a user wanted that this route was the only way to.
+  monitor_button_->setEnabled(!capturing_ &&
+                              (monitoring_ || have_usable_device));
+  monitor_button_->setToolTip(
+      capturing_
+          ? tr("Stop the capture first. Monitoring is the stream the capture "
+               "is being written from, so stopping it would end the capture "
+               "too — and stopping the capture leaves the stream running.")
+          : QString());
 
   // Capture can be started from idle — it starts the stream itself — so the
-  // same condition governs it. What it cannot do is stop monitoring, so a
-  // capture in progress keeps the monitor button live and stopping the stream
-  // ends the capture with it.
+  // same condition governs it.
   capture_button_->setEnabled(capturing_ || have_usable_device);
 
-  // Locked down while streaming, because neither can be changed without
-  // stopping: the device is open and the mode change would land at an
-  // unpredictable point in the stream.
+  // Locked down while streaming, because it cannot be changed without stopping:
+  // the device is open.
   device_combo_->setEnabled(!monitoring_);
-  test_mode_box_->setEnabled(!monitoring_);
 
   // The destination is fixed for the duration of a capture — the file is
   // already open — but stays editable while merely monitoring, which is when
   // somebody is setting up for the capture they are about to take.
   directory_edit_->setEnabled(!capturing_);
   browse_button_->setEnabled(!capturing_);
-  compression_spin_->setEnabled(!capturing_);
-  name_edit_->setEnabled(!capturing_ && !test_mode_box_->isChecked());
+  format_combo_->setEnabled(!capturing_);
+  name_edit_->setEnabled(!capturing_ && !test_mode_);
 
-  // These two are read as the capture runs rather than when it starts, so both
+  // Off in test mode, where the pattern is a ramp checked sample by sample and
+  // a decimated one would read as a break on the first buffer. Disabled rather
+  // than silently overridden, so the control never shows a rate the capture is
+  // not running at.
+  sample_rate_combo_->setEnabled(!capturing_ && !test_mode_);
+
+  // Nothing to compress in the uncompressed format, so the level stops being a
+  // setting rather than becoming one that is quietly ignored.
+  compression_spin_->setEnabled(
+      !capturing_ && format_combo_->currentData().toInt() ==
+                         static_cast<int>(capture::CaptureOutputFormat::kFlac));
+
+  // These three are read as the capture runs rather than when it starts, so all
   // stay live: noticing halfway through that the disk is filling and wanting a
-  // warning sooner is a reasonable thing to want.
+  // warning sooner is a reasonable thing to want, and so is deciding mid-side
+  // that the limit should go.
   duration_spin_->setEnabled(true);
+  duration_reset_button_->setEnabled(true);
   low_space_spin_->setEnabled(true);
 }
 

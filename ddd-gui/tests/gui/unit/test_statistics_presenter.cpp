@@ -454,6 +454,79 @@ TEST(StatisticsPresenterTest, ByteSizesUseTheUnitsADriveIsSoldIn) {
   EXPECT_EQ(FormatByteSize(512'000'000), QStringLiteral("512 MB"));
 }
 
+// The rate is not a constant: an uncompressed capture costs twice what a FLAC
+// one does, so the same volume holds half as much of it. A readout that assumed
+// FLAC would promise a recording the disk cannot hold.
+TEST(StatisticsPresenterTest, TheSpaceReadoutIsRelativeToWhatWillBeWritten) {
+  capture::FreeSpace space;
+  space.known = true;
+  space.bytes_available = 40'000'000'000;
+
+  const QString compressed = FormatSpaceRemaining(space);
+  const QString uncompressed = FormatSpaceRemaining(
+      space, static_cast<double>(capture::kWireBytesPerSecond));
+
+  EXPECT_NE(compressed, uncompressed);
+
+  // Half the time, exactly: 1000 seconds against 500. Both are shown as h:mm:ss
+  // past a minute, which is what makes them comparable at a glance.
+  EXPECT_TRUE(compressed.contains(QStringLiteral("0:16:40")))
+      << compressed.toStdString();
+  EXPECT_TRUE(uncompressed.contains(QStringLiteral("0:08:20")))
+      << uncompressed.toStdString();
+}
+
+// --- Counts a person can read --------------------------------------------
+
+// A capture running for a side of a disc reaches ninety thousand million
+// samples, and "90,113,472,000" is a figure nobody reads — they count the digit
+// groups, get it wrong, and look away.
+TEST(StatisticsPresenterTest, LargeCountsAreScaledToAUnit) {
+  EXPECT_EQ(FormatCount(1'500), QStringLiteral("1.50 k"));
+  EXPECT_EQ(FormatCount(12'340), QStringLiteral("12.3 k"));
+  EXPECT_EQ(FormatCount(123'400), QStringLiteral("123 k"));
+  EXPECT_EQ(FormatCount(40'000'000), QStringLiteral("40.0 M"));
+  EXPECT_EQ(FormatCount(90'113'472'000), QStringLiteral("90.1 G"));
+  EXPECT_EQ(FormatCount(2'500'000'000'000), QStringLiteral("2.50 T"));
+}
+
+// Below a thousand every digit is information: "3 transfers" is a fact about
+// the run and "3.00" is not.
+TEST(StatisticsPresenterTest, SmallCountsAreGivenExactly) {
+  EXPECT_EQ(FormatCount(0), QStringLiteral("0"));
+  EXPECT_EQ(FormatCount(7), QStringLiteral("7"));
+  EXPECT_EQ(FormatCount(999), QStringLiteral("999"));
+
+  // And the first scaled figure is the one immediately above it, rather than
+  // there being a gap where neither rule applies.
+  EXPECT_EQ(FormatCount(1'000), QStringLiteral("1.00 k"));
+}
+
+// Powers of a thousand, not of 1024. These are counts of events and samples
+// rather than quantities of memory, and a user reading a sample count against a
+// device specified at 40 million a second expects the two to line up.
+TEST(StatisticsPresenterTest, CountsScaleByThousandsAndNotByKibibytes) {
+  EXPECT_EQ(FormatCount(1'024), QStringLiteral("1.02 k"));
+}
+
+// Both rows go through it, which is the whole point: they are the two figures
+// that grow without bound during a capture.
+TEST(StatisticsPresenterTest, TheSampleAndTransferRowsAreScaled) {
+  capture::CaptureStats stats = RunningStats();
+  stats.transfers_completed = 1'234'000;
+  stats.buffers_processed = 56'000;
+  stats.metrics.sample_count = 40'000'000'000;
+
+  const StatisticsView view =
+      PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
+
+  EXPECT_EQ(view.samples, QStringLiteral("40.0 G"));
+  EXPECT_TRUE(view.transfers.contains(QStringLiteral("1.23 M")))
+      << view.transfers.toStdString();
+  EXPECT_TRUE(view.transfers.contains(QStringLiteral("56.0 k")))
+      << view.transfers.toStdString();
+}
+
 // --- Against a running pipeline ------------------------------------------
 
 // The acceptance criterion for this panel: every figure comes from the stats
@@ -486,19 +559,17 @@ TEST(StatisticsPresenterTest, TheFiguresAreTheOnesASyntheticRunProduced) {
   const StatisticsView view =
       PresentStatistics(stats, Undeclared(), capture::DeviceSpeed::kSuper);
 
-  EXPECT_TRUE(view.transfers.contains(QString::number(stats.buffers_processed)))
+  // Both counts are scaled for reading, so they are compared against the
+  // formatter rather than against the raw number: what matters is that the
+  // figure shown is the pipeline's and not a recomputed one.
+  EXPECT_TRUE(view.transfers.contains(FormatCount(stats.buffers_processed)))
       << view.transfers.toStdString();
   EXPECT_TRUE(view.buffer.contains(QString::number(stats.slot_count)))
       << view.buffer.toStdString();
   EXPECT_TRUE(view.buffer.contains(QString::number(stats.peak_slots_in_use)))
       << view.buffer.toStdString();
 
-  // The sample count is grouped for reading, so it is compared by digits rather
-  // than by string: what matters is that it is the pipeline's number and not a
-  // recomputed one.
-  QString digits = view.samples;
-  digits.remove(QRegularExpression(QStringLiteral("[^0-9]")));
-  EXPECT_EQ(digits, QString::number(stats.metrics.sample_count));
+  EXPECT_EQ(view.samples, FormatCount(stats.metrics.sample_count));
 
   EXPECT_TRUE(view.signal_level.contains(
       QString::number(stats.metrics.recent_maximum_value)))

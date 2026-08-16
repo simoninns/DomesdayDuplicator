@@ -123,6 +123,12 @@ Samples processed, how long the run has been going, and how many megabytes have 
 disk. **Written** is not derivable from the sample count once a compressor is in the path,
 which is why it is measured rather than calculated.
 
+**Samples** and **Transfers** are scaled to three significant figures and a unit — `40.0 M`,
+`90.1 G` — because a side of a disc reaches ninety thousand million samples, and nobody reads
+`90,113,472,000`: they count the digit groups, get it wrong, and look away. Counts below a
+thousand are given exactly, where every digit is still information. The units are powers of a
+thousand, so a sample count lines up with a device specified at 40 million a second.
+
 ## Encoder backlog
 
 ```

@@ -209,6 +209,38 @@ QString FormatByteSize(uint64_t bytes) {
                                 0);
 }
 
+QString FormatCount(uint64_t value) {
+  // Powers of a thousand, not of 1024. These are counts of events and samples
+  // rather than quantities of memory, and a user reading "40 M samples" against
+  // a device specified at 40 million a second expects the two to line up.
+  struct Unit {
+    double scale;
+    const char* suffix;
+  };
+  static constexpr Unit kUnits[] = {
+      {1.0e12, "T"}, {1.0e9, "G"}, {1.0e6, "M"}, {1.0e3, "k"}};
+
+  const auto exact = static_cast<double>(value);
+
+  for (const Unit& unit : kUnits) {
+    if (exact < unit.scale) {
+      continue;
+    }
+
+    const double scaled = exact / unit.scale;
+
+    // Three significant figures throughout, so the width of the figure barely
+    // changes as it climbs and the eye is not dragged sideways every time it
+    // crosses a power of ten.
+    const int decimals = scaled < 10.0 ? 2 : (scaled < 100.0 ? 1 : 0);
+    return Translate("%1 %2")
+        .arg(scaled, 0, 'f', decimals)
+        .arg(QLatin1String(unit.suffix));
+  }
+
+  return QString::number(value);
+}
+
 QString FormatEncoderBacklog(uint64_t samples_pending) {
   const double seconds = static_cast<double>(samples_pending) /
                          static_cast<double>(capture::kSampleRateHz);
@@ -218,7 +250,8 @@ QString FormatEncoderBacklog(uint64_t samples_pending) {
       .arg(samples_pending);
 }
 
-QString FormatSpaceRemaining(const capture::FreeSpace& space) {
+QString FormatSpaceRemaining(const capture::FreeSpace& space,
+                             double bytes_per_second) {
   if (!space.known) {
     return None();
   }
@@ -227,14 +260,15 @@ QString FormatSpaceRemaining(const capture::FreeSpace& space) {
   // actually has, which is whether this will last the side they are about to
   // play.
   return Translate("%1 of capture  (%2 free)")
-      .arg(FormatElapsed(
-          capture::CaptureSecondsRemaining(space.bytes_available)))
+      .arg(FormatElapsed(capture::CaptureSecondsRemaining(space.bytes_available,
+                                                          bytes_per_second)))
       .arg(FormatByteSize(space.bytes_available));
 }
 
 StatisticsView PresentIdleStatistics(const analysis::FrontEndGain& gain,
                                      capture::DeviceSpeed speed,
-                                     const capture::FreeSpace& space) {
+                                     const capture::FreeSpace& space,
+                                     double bytes_per_second) {
   StatisticsView view;
   view.throughput = None();
   view.integrity = None();
@@ -248,7 +282,7 @@ StatisticsView PresentIdleStatistics(const analysis::FrontEndGain& gain,
   view.elapsed = None();
   view.bytes_written = None();
   view.encoder_backlog = None();
-  view.space_remaining = FormatSpaceRemaining(space);
+  view.space_remaining = FormatSpaceRemaining(space, bytes_per_second);
   view.link_speed = DescribeLinkSpeed(speed);
   view.front_end_gain = DescribeFrontEndGain(gain.switch_pattern());
   return view;
@@ -257,8 +291,10 @@ StatisticsView PresentIdleStatistics(const analysis::FrontEndGain& gain,
 StatisticsView PresentStatistics(const capture::CaptureStats& stats,
                                  const analysis::FrontEndGain& gain,
                                  capture::DeviceSpeed speed,
-                                 const capture::FreeSpace& space) {
-  StatisticsView view = PresentIdleStatistics(gain, speed, space);
+                                 const capture::FreeSpace& space,
+                                 double bytes_per_second) {
+  StatisticsView view =
+      PresentIdleStatistics(gain, speed, space, bytes_per_second);
 
   view.throughput = FormatThroughput(stats.throughput_bytes_per_second);
   view.integrity = DescribeSequenceState(stats.sequence_state);
@@ -311,12 +347,12 @@ StatisticsView PresentStatistics(const capture::CaptureStats& stats,
                         .arg(stats.metrics.recent_clipped_low_count)
                         .arg(stats.metrics.recent_clipped_high_count);
 
-    view.samples = Translate("%L1").arg(stats.metrics.sample_count);
+    view.samples = FormatCount(stats.metrics.sample_count);
   }
 
   view.transfers = Translate("%1 transfers, %2 buffers")
-                       .arg(stats.transfers_completed)
-                       .arg(stats.buffers_processed);
+                       .arg(FormatCount(stats.transfers_completed))
+                       .arg(FormatCount(stats.buffers_processed));
 
   view.elapsed = FormatElapsed(stats.elapsed_seconds);
 
