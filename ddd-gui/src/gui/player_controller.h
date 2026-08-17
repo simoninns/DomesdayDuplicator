@@ -91,7 +91,12 @@ class PlayerController : public QObject {
   // Returns at once. Progress arrives on ExamineProgress and the result on
   // ExamineFinished, which is emitted exactly once per accepted examination —
   // including when it fails, so a dialog waiting for it never waits forever.
-  void Examine();
+  //
+  // The scope decides how much is asked, and defaults to everything so that no
+  // existing caller changes. See ExamineScope: an identifying pass reads what
+  // the disc says about itself in a few seconds and leaves it where it was,
+  // where a full one measures the side and takes about a minute.
+  void Examine(player::ExamineScope scope = player::ExamineScope::kFull);
 
   // Stop the examination in progress.
   //

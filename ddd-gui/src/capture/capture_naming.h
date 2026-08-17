@@ -185,6 +185,23 @@ struct CaptureNamingFields {
   bool per_side_notes = false;
   bool per_side_mint_marks = false;
 
+  // Has anything at all been said about this disc?
+  //
+  // Here rather than in the panel that asks the question, because it is the
+  // same question the sidecar answers: a capture for which this is false
+  // carries no description of what was recorded, only a timestamp. The
+  // interface uses it to say so before the capture rather than after.
+  //
+  // The two `_in_name` style preferences are not fields about a disc and do not
+  // count — somebody who ticked "include the details in the file name" and then
+  // filled nothing in has still described nothing. The metadata notes do count:
+  // they reach the sidecar, which is the whole point of them.
+  bool DescribesDisc() const {
+    return title_used || disc_type_used || video_standard_used || audio_used ||
+           side_used || notes_used || mint_marks_used ||
+           !metadata_notes.empty();
+  }
+
   bool operator==(const CaptureNamingFields&) const = default;
 };
 

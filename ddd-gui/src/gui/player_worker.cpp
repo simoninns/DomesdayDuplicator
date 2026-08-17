@@ -273,7 +273,7 @@ void PlayerWorker::Send(const ddd::gui::PlayerRequest& request) {
 
 void PlayerWorker::RequestExamineCancel() { examine_cancelled_.store(true); }
 
-void PlayerWorker::Examine() {
+void PlayerWorker::Examine(player::ExamineScope scope) {
   if (examining_) {
     // Two examinations would be two sequences seeking one player. The second is
     // dropped rather than queued: by the time the first finished, whatever the
@@ -304,7 +304,7 @@ void PlayerWorker::Examine() {
   paused_ = true;
 
   player::DiscExaminer examiner(*session_->identity().definition,
-                                session_->identity().firmware_version);
+                                session_->identity().firmware_version, scope);
 
   Log(capture::LogLevel::kInfo, QStringLiteral("Examining the disc"));
 

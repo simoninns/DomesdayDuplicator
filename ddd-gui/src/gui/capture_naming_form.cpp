@@ -15,9 +15,11 @@
 #include <QComboBox>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
 #include <QSpinBox>
@@ -28,6 +30,8 @@
 #include "capture_format.h"
 #include "capture_metadata.h"
 #include "capture_naming.h"
+#include "player_controller.h"
+#include "player_text.h"
 
 namespace ddd::gui {
 namespace {
@@ -72,13 +76,87 @@ void SelectChoice(QComboBox* combo, int value) {
   }
 }
 
+// What to say once the player has been asked.
+//
+// The fields that were filled are named rather than merely counted, because
+// this is a button that reaches in and changes what somebody typed: saying
+// exactly what it touched is what makes it safe to press. An examination that
+// established one thing has ticked one box, and that is worth being told
+// plainly rather than left to be spotted.
+QString AskOutcomeNote(const player::DiscProfile& disc,
+                       player::ExamineOutcome outcome) {
+  if (outcome != player::ExamineOutcome::kCompleted) {
+    return QObject::tr("The player was asked and the examination %1.")
+        .arg(ExamineOutcomeText(outcome));
+  }
+
+  QStringList filled;
+  if (disc.disc_type.known()) {
+    filled.append(QObject::tr("the disc type"));
+  }
+  if (disc.video_standard.known()) {
+    filled.append(QObject::tr("the video standard"));
+  }
+  if (disc.disc_side.known()) {
+    filled.append(QObject::tr("the side"));
+  }
+
+  if (filled.isEmpty()) {
+    // A real answer rather than a failure. Some models report none of these,
+    // and saying so is better than a blank line that reads as a button which
+    // did nothing.
+    return QObject::tr(
+        "The player answered, but said nothing about this disc that these "
+        "fields cover. Everything here is still yours to fill in.");
+  }
+
+  return QObject::tr(
+             "Filled in %1 from the disc. Everything else is untouched.")
+      .arg(filled.join(QObject::tr(", ")));
+}
+
 }  // namespace
 
 CaptureNamingForm::CaptureNamingForm(CaptureController* controller,
-                                     QWidget* parent)
-    : QWidget(parent), controller_(controller) {
+                                     PlayerController* player, QWidget* parent)
+    : QWidget(parent), controller_(controller), player_(player) {
   BuildWidgets();
   ShowSettings();
+
+  if (player_ != nullptr) {
+    connect(player_, &PlayerController::ExamineProgress, this,
+            [this](player::ExamineStage stage, int, int) {
+              if (asking_) {
+                ask_status_->setText(ExamineStageName(stage));
+              }
+            });
+
+    connect(player_, &PlayerController::ExamineFinished, this,
+            [this](const player::DiscProfile& disc,
+                   player::ExamineOutcome outcome) {
+              if (!asking_) {
+                return;
+              }
+              asking_ = false;
+
+              if (outcome == player::ExamineOutcome::kCompleted) {
+                FillFromProfile(disc);
+              }
+
+              // Said whatever happened, including when it worked: an
+              // examination that found a CLV disc and nothing else has ticked
+              // one box, and somebody who pressed a button deserves to be told
+              // that is all there was rather than left to spot it.
+              ask_status_->setText(AskOutcomeNote(disc, outcome));
+              UpdateAskState();
+            });
+
+    // A player unplugged mid-question, or plugged in while the dialog is open.
+    connect(player_, &PlayerController::ConnectionChanged, this,
+            [this](const PlayerConnection&) { UpdateAskState(); });
+  }
+
+  UpdateAskState();
 }
 
 void CaptureNamingForm::BuildWidgets() {
@@ -95,6 +173,36 @@ void CaptureNamingForm::BuildWidgets() {
       this);
   intro->setWordWrap(true);
   layout->addWidget(intro);
+
+  // --- Asking the player instead of typing ---------------------------------
+
+  // Built only where there is a player layer at all. Three of the fields below
+  // are things the disc itself can be asked, and asking takes a few seconds
+  // where typing takes a minute and can be got wrong.
+  if (player_ != nullptr) {
+    auto* ask_row = new QWidget(this);
+    auto* ask_layout = new QHBoxLayout(ask_row);
+    ask_layout->setContentsMargins(0, 0, 0, 0);
+
+    ask_button_ = new QPushButton(tr("Ask the player"), ask_row);
+    ask_button_->setObjectName(QLatin1String(kAskButtonName));
+    ask_button_->setToolTip(
+        tr("Spin the disc up and read what it says about itself: its type, its "
+           "video standard and which side is loaded. It takes a few seconds, "
+           "leaves the disc where it started, and fills in only what the "
+           "player actually reports — nothing you have typed is touched."));
+    ask_layout->addWidget(ask_button_);
+
+    ask_status_ = new QLabel(ask_row);
+    ask_status_->setObjectName(QLatin1String(kAskStatusLabelName));
+    ask_status_->setWordWrap(true);
+    ask_layout->addWidget(ask_status_, 1);
+
+    layout->addWidget(ask_row);
+
+    connect(ask_button_, &QPushButton::clicked, this,
+            &CaptureNamingForm::AskThePlayer);
+  }
 
   // --- The disc ------------------------------------------------------------
 
@@ -386,6 +494,82 @@ void CaptureNamingForm::Apply() {
   }
 
   UpdatePreview();
+}
+
+void CaptureNamingForm::AskThePlayer() {
+  if (player_ == nullptr || asking_ || !player_->connection().live()) {
+    return;
+  }
+
+  asking_ = true;
+  ask_status_->setText(ExamineStageName(player::ExamineStage::kCheckingPlayer));
+  UpdateAskState();
+
+  // The identifying scope, not the full one. What these fields want is what the
+  // disc says about itself; measuring the length would take a minute, move the
+  // disc, and answer nothing that is asked for here.
+  player_->Examine(player::ExamineScope::kIdentify);
+}
+
+void CaptureNamingForm::UpdateAskState() {
+  if (ask_button_ == nullptr) {
+    return;
+  }
+
+  const bool live = player_ != nullptr && player_->connection().live();
+  ask_button_->setEnabled(live && !asking_);
+
+  if (!live && !asking_) {
+    // Said rather than left to the greyed-out button to imply, because "no
+    // player is connected" and "this build cannot ask" are different problems
+    // with different remedies.
+    ask_status_->setText(tr("No player is connected."));
+  }
+}
+
+void CaptureNamingForm::FillFromProfile(const player::DiscProfile& disc) {
+  // Straight through the widgets, and every one of them guarded by whether the
+  // examination actually established it. A field the player could not report is
+  // left exactly as it was — including left unticked, which is the honest state
+  // for a fact nobody has established.
+  //
+  // Nothing here touches the title, the notes, the mint marks or the metadata
+  // notes. Those are things only a person knows, and a button that overwrote
+  // them because a disc was spun up would be unusable.
+  loading_ = true;
+
+  if (disc.disc_type.known()) {
+    disc_type_check_->setChecked(true);
+    SelectChoice(disc_type_combo_,
+                 static_cast<int>(disc.disc_type.value == player::DiscType::kClv
+                                      ? capture::DiscTypeChoice::kClv
+                                      : capture::DiscTypeChoice::kCav));
+  }
+
+  if (disc.video_standard.known()) {
+    standard_check_->setChecked(true);
+    SelectChoice(standard_combo_,
+                 static_cast<int>(disc.video_standard.value ==
+                                          player::VideoStandard::kPal
+                                      ? capture::VideoStandardChoice::kPal
+                                      : capture::VideoStandardChoice::kNtsc));
+  }
+
+  // Bounded, because the spin box is: a player reporting a side number outside
+  // what a boxed set could have is one this application should not follow into
+  // a field it cannot represent.
+  if (disc.disc_side.known() && disc.disc_side.value >= 1 &&
+      disc.disc_side.value <= kMaximumDiscSide) {
+    side_check_->setChecked(true);
+    side_spin_->setValue(disc.disc_side.value);
+    current_side_ = disc.disc_side.value;
+  }
+
+  loading_ = false;
+
+  // Once, at the end, rather than per field: the settings are written whole and
+  // a preview redrawn three times would be two redraws wasted.
+  Apply();
 }
 
 void CaptureNamingForm::ClearAllFields() {

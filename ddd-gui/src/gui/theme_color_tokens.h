@@ -64,6 +64,17 @@ enum class PlotColorToken {
   // alarm — the red says "recording", which is a normal state, not a fault.
   kMonitoringActive,
   kCapturingActive,
+
+  // A control worth noticing before pressing something else — the Naming button
+  // when a capture is about to be written with nothing but a timestamp for a
+  // name.
+  //
+  // Muted for the same reason as the two above, and amber rather than red for
+  // the reason kNominalLimit is: an unnamed capture is a perfectly legitimate
+  // thing to take, and nothing here is wrong. This says "you may have meant to
+  // fill this in", and a colour that said "fault" would be a lie about a
+  // recording that is going to be fine.
+  kAttention,
 };
 
 // Linear RGBA blend between two colours; ratio is clamped to [0, 1].
@@ -156,6 +167,8 @@ inline QColor PlotColor(PlotColorToken token, bool dark_theme) {
       return dark_theme ? QColor(72, 110, 80) : QColor(94, 140, 100);
     case PlotColorToken::kCapturingActive:
       return dark_theme ? QColor(128, 66, 64) : QColor(160, 86, 82);
+    case PlotColorToken::kAttention:
+      return dark_theme ? QColor(124, 98, 52) : QColor(168, 134, 70);
   }
 
   return dark_theme ? QColor(255, 255, 255) : QColor(0, 0, 0);

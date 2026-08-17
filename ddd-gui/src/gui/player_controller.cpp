@@ -122,9 +122,13 @@ uint64_t PlayerController::Send(PlayerRequest request) {
   return request.id;
 }
 
-void PlayerController::Examine() {
-  QMetaObject::invokeMethod(worker_, &PlayerWorker::Examine,
-                            Qt::QueuedConnection);
+void PlayerController::Examine(player::ExamineScope scope) {
+  // Through a lambda rather than the member pointer, so the scope travels with
+  // the invocation. It is a plain enum captured by value, so nothing has to be
+  // registered as a metatype for it to cross the thread.
+  QMetaObject::invokeMethod(
+      worker_, [worker = worker_, scope] { worker->Examine(scope); },
+      Qt::QueuedConnection);
 }
 
 void PlayerController::CancelExamine() { worker_->RequestExamineCancel(); }

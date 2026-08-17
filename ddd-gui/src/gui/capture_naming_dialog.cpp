@@ -18,6 +18,7 @@
 namespace ddd::gui {
 
 CaptureNamingDialog::CaptureNamingDialog(CaptureController* controller,
+                                         PlayerController* player,
                                          QWidget* parent)
     : QDialog(parent) {
   setWindowTitle(tr("Capture naming"));
@@ -25,7 +26,7 @@ CaptureNamingDialog::CaptureNamingDialog(CaptureController* controller,
 
   auto* layout = new QVBoxLayout(this);
 
-  form_ = new CaptureNamingForm(controller, this);
+  form_ = new CaptureNamingForm(controller, player, this);
   layout->addWidget(form_);
 
   auto* buttons = new QDialogButtonBox(this);

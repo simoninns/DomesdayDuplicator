@@ -105,6 +105,11 @@ class MainWindow : public QMainWindow {
   void SetTestMode(bool enabled);
 
   void RestoreWindowLayout();
+
+  // What the disc is, for the file name and the sidecar. Opened from the
+  // Capture panel's button, and built here because it needs both controllers.
+  void ShowNamingDialog();
+
   void ShowAboutDialog();
   void ShowFirmwareDialog();
   // The one settings dialog, opened on whichever tab the entry is about.

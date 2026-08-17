@@ -801,5 +801,111 @@ TEST(DiscExaminerTest, AModelThatCannotSeekIsStillExaminedForWhatItCanSay) {
   EXPECT_EQ(examiner.outcome(), ExamineOutcome::kCompleted);
 }
 
+// --- The identifying scope -------------------------------------------------
+//
+// What the naming fields want is what the disc says about itself, which the
+// player answers off the lead-in it has already read. Measuring the side means
+// seeking to both ends of it, which takes about a minute and leaves the disc
+// somewhere else — a cost nobody filling in a file name should be made to pay.
+
+TEST(DiscExaminerTest, AnIdentifyingPassNeverMovesTheDisc) {
+  DiscExaminer examiner(LevelIIIModel(), "A1", ExamineScope::kIdentify);
+  const std::vector<ExamineStep> sent = Drive(examiner, CavScript());
+
+  // Every step that would move the optical assembly, absent. The Pioneer user
+  // code is in this list and is the easy one to forget: it is a query, but the
+  // player searches to the lead-in to answer it.
+  for (const ExamineStage stage :
+       {ExamineStage::kFindingEnd, ExamineStage::kReadingEnd,
+        ExamineStage::kFindingStart, ExamineStage::kReadingStart,
+        ExamineStage::kCheckingChapters, ExamineStage::kReadingPioneerUserCode,
+        ExamineStage::kReadingStandardUserCode}) {
+    EXPECT_FALSE(Sent(sent, stage))
+        << "an identifying pass sent stage " << static_cast<int>(stage);
+  }
+
+  EXPECT_EQ(examiner.outcome(), ExamineOutcome::kCompleted);
+}
+
+TEST(DiscExaminerTest, AnIdentifyingPassAsksWhatTheNamingFieldsWant) {
+  DiscExaminer examiner(LevelIIIModel(), "A1", ExamineScope::kIdentify);
+  const std::vector<ExamineStep> sent = Drive(examiner, CavScript());
+
+  EXPECT_EQ(Stages(sent),
+            (std::vector<ExamineStage>{
+                ExamineStage::kCheckingPlayer, ExamineStage::kSpinningUp,
+                ExamineStage::kReadingDiscStatus,
+                ExamineStage::kReadingTvSystem, ExamineStage::kSettling}));
+
+  // And the three facts those steps establish are the three the naming fields
+  // are filled from.
+  const DiscProfile& disc = examiner.profile();
+  EXPECT_EQ(disc.disc_type.value, DiscType::kCav);
+  EXPECT_EQ(disc.video_standard.value, VideoStandard::kNtsc);
+  EXPECT_TRUE(disc.disc_side.known());
+}
+
+TEST(DiscExaminerTest, AnIdentifyingPassLeavesTheDiscStillRatherThanPlaying) {
+  // The disc has to be turning for anything below the first query to be
+  // answered, so the pass spins it up — and an examination that left it
+  // spinning would be one the user has to go and stop.
+  DiscExaminer examiner(LevelIIIModel(), "A1", ExamineScope::kIdentify);
+  const std::vector<ExamineStep> sent = Drive(examiner, CavScript());
+
+  ASSERT_FALSE(sent.empty());
+  EXPECT_EQ(sent.back().stage, ExamineStage::kSettling);
+  EXPECT_EQ(sent.back().command, PlayerCommand::kPause);
+}
+
+TEST(DiscExaminerTest, AnIdentifyingPassCountsOnlyTheStepsItWillTake) {
+  // The progress line is built from these, so a plan carrying steps it has no
+  // intention of running would be a bar that jumped rather than moved.
+  DiscExaminer full(LevelIIIModel(), "A1", ExamineScope::kFull);
+  DiscExaminer identify(LevelIIIModel(), "A1", ExamineScope::kIdentify);
+
+  EXPECT_LT(identify.steps_planned(), full.steps_planned());
+  EXPECT_EQ(identify.steps_planned(), 5u);
+}
+
+TEST(DiscExaminerTest, AnIdentifyingPassStillReportsWhatItDidLearn) {
+  // The same partial-failure rule as a full examination: a refused query leaves
+  // its field unknown and the pass carries on, because a naming dialog that got
+  // the side but not the standard is still better off than one that got
+  // nothing.
+  Script script = CavScript();
+  script[ExamineStage::kReadingTvSystem] = Refused();
+
+  DiscExaminer examiner(LevelIIIModel(), "A1", ExamineScope::kIdentify);
+  Drive(examiner, script);
+
+  EXPECT_EQ(examiner.outcome(), ExamineOutcome::kCompleted);
+  EXPECT_FALSE(examiner.profile().video_standard.known());
+  EXPECT_EQ(examiner.profile().disc_type.value, DiscType::kCav);
+  EXPECT_TRUE(examiner.profile().disc_side.known());
+}
+
+TEST(DiscExaminerTest, AnIdentifyingPassStopsForAnOpenTrayLikeAnyOther) {
+  Script script = CavScript();
+  script[ExamineStage::kCheckingPlayer] = Answered("P00");
+
+  DiscExaminer examiner(LevelIIIModel(), "A1", ExamineScope::kIdentify);
+  const std::vector<ExamineStep> sent = Drive(examiner, script);
+
+  EXPECT_EQ(examiner.outcome(), ExamineOutcome::kTrayOpen);
+  EXPECT_EQ(examiner.profile().tray.value, TrayState::kOpen);
+  EXPECT_EQ(sent.size(), 1u);
+}
+
+TEST(DiscExaminerTest, TheDefaultScopeIsStillEverything) {
+  // Every existing caller passes no scope and must get the full examination,
+  // including both length measurements.
+  DiscExaminer examiner(LevelIIIModel(), "A1");
+  EXPECT_EQ(examiner.scope(), ExamineScope::kFull);
+
+  const std::vector<ExamineStep> sent = Drive(examiner, CavScript());
+  EXPECT_TRUE(Sent(sent, ExamineStage::kFindingEnd));
+  EXPECT_TRUE(Sent(sent, ExamineStage::kReadingStart));
+}
+
 }  // namespace
 }  // namespace ddd::player

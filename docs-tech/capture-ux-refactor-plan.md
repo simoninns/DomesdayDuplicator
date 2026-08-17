@@ -283,19 +283,51 @@ remaining docks come back and a hidden one stays hidden — that the saved arran
 carried over rather than discarded. Removing a dock is the one change here that could
 otherwise reach a user as a fault.
 
-### Phase 3 — The manual path
+### Phase 3 — The manual path — **done**
 
-- The examiner scope (`kFull`/`kIdentify`) in `DiscExaminer` and through
-  `PlayerController::Examine()`.
-- `NamingRequested` signal from `CapturePanel`; `MainWindow` builds the naming dialog
-  with both controllers; the **Ask the player** button and profile→fields fill.
-- The Naming… button's attention state on the Capture panel.
+- `ExamineScope` (`kFull`/`kIdentify`) on `DiscExaminer`, defaulted to `kFull` so no
+  existing caller changes, and carried through `PlayerWorker::Examine()` and
+  `PlayerController::Examine()`. The identify plan is cut at the line where steps stop
+  reading and start moving the disc — the Pioneer user code is on the moving side of that
+  line, which is the easy one to get wrong, since it is a query that seeks to the lead-in
+  to answer.
+- `CapturePanel::NamingRequested` replaces the panel opening the dialog itself, and
+  `MainWindow::ShowNamingDialog` builds it with both controllers. The panel has no
+  business knowing a player exists; only the main window holds both.
+- `CaptureNamingForm` takes an optional `PlayerController` and grows an **Ask the player**
+  button — absent, not disabled, where there is no player layer at all — plus a public
+  `FillFromProfile()` that Phase 4's wizard page 1 will call with its own examination's
+  result.
+- `CaptureNamingFields::DescribesDisc()` in the engine answers "has anything been said
+  about this disc", and the Capture panel's Naming… button colours itself through
+  `ActiveButtonStyle` with a new muted-amber `kAttention` token when the answer is no.
 
-*Tests*: unit tests for the identify plan (no seek steps in the plan, settling present,
-partial refusal still yields a profile) beside the existing examiner tests in
-`tests/player/`; widget tests for the fill rules (known facts fill and tick, unknown facts
-leave fields alone, typed text is never overwritten) and for the attention state's
-condition.
+Three decisions worth recording:
+
+**The fill rule has two halves, not one.** Nothing typed is ever overwritten — title,
+notes, mint marks and metadata notes are things only a person knows, and a button that
+cleared them because a disc was spun up would be unusable. But the three fields the player
+*can* answer are overwritten even when they were set by hand: somebody who ticked CAV and
+then asked the disc, which said CLV, asked because they wanted the disc's answer. Both
+halves are asserted.
+
+**A side number the form cannot hold is not followed.** The spin box tops out at
+`kMaximumDiscSide`, and setting it beyond that would silently clamp — recording a wrong
+side as an established fact. Out-of-range readings leave the field untouched instead.
+
+**The nudge never blocks.** An unnamed capture is a legitimate way to work, so the Start
+button is untouched by it and test mode suppresses it entirely (the name is forced to
+`TestData_` there, so the button has nothing to offer). It clears on the keystroke rather
+than when the field loses focus, since a button that stayed coloured while somebody typed
+into the very field it was pointing at would be arguing with them.
+
+*Tests*: seven examiner unit tests for the identify plan — no moving steps, the exact step
+sequence, the disc left still, a shorter honest step count, partial refusal, an open tray,
+and the default scope still being everything. Widget tests for each fill rule, for the
+attention state's four conditions, and for the button emitting rather than opening. Plus
+`CaptureNamingAskTest`, which drives the whole path against a scripted player and asserts
+on the wire that no seek and no `?U` went out for a naming field — the property the scope
+exists for, checked where it can actually be observed.
 
 ### Phase 4 — The wizard
 

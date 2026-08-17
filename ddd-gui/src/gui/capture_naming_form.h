@@ -15,16 +15,23 @@
 #include <QString>
 #include <QWidget>
 
+// Included rather than forward declared, and it has to be: moc generates code
+// for the slot below, and a queued-connection type whose Q_DECLARE_METATYPE is
+// not yet visible gets the primary template instantiated instead.
+#include "player_metatypes.h"
+
 class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
+class QPushButton;
 class QSpinBox;
 
 namespace ddd::gui {
 
 class CaptureController;
+class PlayerController;
 
 // Everything the user knows about the disc, collected in one place.
 //
@@ -53,10 +60,17 @@ class CaptureNamingForm : public QWidget {
   Q_OBJECT
 
  public:
-  // The controller may be null, and the widget tests pass null deliberately:
-  // every field then builds and lays out as it does in the application and
-  // writes nowhere.
+  // Either controller may be null, and the widget tests pass null
+  // deliberately: every field then builds and lays out as it does in the
+  // application and writes nowhere.
+  //
+  // With no player there is no "Ask the player" button — absent rather than
+  // disabled, because a build with no player support has nothing to ask and a
+  // greyed-out button would invite somebody to look for the setting that turns
+  // it on. Whether a player is *connected* is a different question, and that
+  // one does grey the button out.
   explicit CaptureNamingForm(CaptureController* controller,
+                             PlayerController* player = nullptr,
                              QWidget* parent = nullptr);
 
   // Named so the widget tests can find them without depending on layout order.
@@ -85,6 +99,8 @@ class CaptureNamingForm : public QWidget {
   static constexpr const char* kPerSideMintCheckName =
       "naming_per_side_mint_check";
   static constexpr const char* kPreviewLabelName = "naming_preview_label";
+  static constexpr const char* kAskButtonName = "naming_ask_button";
+  static constexpr const char* kAskStatusLabelName = "naming_ask_status_label";
 
   // The largest side number the spin box offers. A disc has two sides and a
   // boxed set has a few dozen; a hundred is generous without being absurd, and
@@ -99,6 +115,20 @@ class CaptureNamingForm : public QWidget {
   // navigation — while what it clears belongs here.
   void ClearAllFields();
 
+  // Fill in what an examination established, and tick those fields.
+  //
+  // **Only the fields the profile actually knows, and nothing else.** A fact
+  // the player could not report leaves its field exactly as it was, and no
+  // amount of examining ever touches the title, the notes or the mint marks:
+  // those are things only a person can know, and overwriting what somebody has
+  // typed because a disc was spun up would be the worst thing this button could
+  // do.
+  //
+  // Public because two places have a profile to fill from — this form's own
+  // "Ask the player" button, and the automatic capture, which has examined the
+  // disc in full before it ever shows these fields.
+  void FillFromProfile(const ddd::player::DiscProfile& disc);
+
  private slots:
   // Read every widget into the settings, and redraw the preview. Called on any
   // change: there is no apply button, so this is the apply.
@@ -112,6 +142,22 @@ class CaptureNamingForm : public QWidget {
   void BuildWidgets();
   void ShowSettings();
 
+  // Start an identifying examination, and say that it is running.
+  void AskThePlayer();
+
+  // Whether the button can be pressed: a player has to be connected, and one
+  // question at a time.
+  void UpdateAskState();
+
+  CaptureController* controller_ = nullptr;
+  PlayerController* player_ = nullptr;
+
+  // True between pressing Ask and the answer arriving. The controller's examine
+  // signals are a broadcast — the examine window may be listening to the same
+  // ones — so without this the form would fill itself in from an examination
+  // somebody else started.
+  bool asking_ = false;
+
   // Grey out the value beside a box that is not ticked, so an unticked field
   // reads as absent rather than as empty.
   void UpdateEnabledState();
@@ -119,7 +165,8 @@ class CaptureNamingForm : public QWidget {
   // What the next capture will be called, given everything in this form.
   void UpdatePreview();
 
-  CaptureController* controller_ = nullptr;
+  QPushButton* ask_button_ = nullptr;
+  QLabel* ask_status_ = nullptr;
 
   QCheckBox* title_check_ = nullptr;
   QLineEdit* title_edit_ = nullptr;

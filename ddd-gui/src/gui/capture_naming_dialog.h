@@ -18,6 +18,7 @@
 namespace ddd::gui {
 
 class CaptureController;
+class PlayerController;
 
 // The manual path's way in to the naming fields.
 //
@@ -37,7 +38,12 @@ class CaptureNamingDialog : public QDialog {
   Q_OBJECT
 
  public:
+  // The player is optional and is only what puts an "Ask the player" button on
+  // the form. It is passed in from the main window rather than reached through
+  // the Capture panel, because the panel has no business knowing there is a
+  // player at all — see CapturePanel::NamingRequested.
   explicit CaptureNamingDialog(CaptureController* controller,
+                               PlayerController* player = nullptr,
                                QWidget* parent = nullptr);
 
   // The form's own names, carried here so that anything holding this dialog —
@@ -81,12 +87,21 @@ class CaptureNamingDialog : public QDialog {
       CaptureNamingForm::kPerSideMintCheckName;
   static constexpr const char* kPreviewLabelName =
       CaptureNamingForm::kPreviewLabelName;
+  static constexpr const char* kAskButtonName =
+      CaptureNamingForm::kAskButtonName;
+  static constexpr const char* kAskStatusLabelName =
+      CaptureNamingForm::kAskStatusLabelName;
 
   // This dialog's own, since the button is in its button box rather than in the
   // form: what it clears belongs to the form, where to put it does not.
   static constexpr const char* kClearButtonName = "naming_clear_button";
 
   static constexpr int kMaximumDiscSide = CaptureNamingForm::kMaximumDiscSide;
+
+  // The fields themselves. Everything interesting is on the form rather than on
+  // this shell, and filling them in from an examined disc is a call rather than
+  // a widget to find.
+  CaptureNamingForm* form() const { return form_; }
 
  private:
   CaptureNamingForm* form_ = nullptr;

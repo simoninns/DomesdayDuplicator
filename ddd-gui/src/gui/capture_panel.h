@@ -88,6 +88,16 @@ class CapturePanel : public QWidget {
   // is 80 MB, which is a figure that has visibly changed.
   static constexpr int kFreeSpaceIntervalMilliseconds = 2000;
 
+ signals:
+  // The naming dialog is a window, and windows belong to the main window: the
+  // panel asks rather than opening one itself.
+  //
+  // Not merely for tidiness. The dialog can offer to ask the player what the
+  // disc is, which needs a PlayerController — and this panel has no business
+  // knowing a player exists. The main window holds both controllers, so it is
+  // the one place that can build the dialog whole.
+  void NamingRequested();
+
  protected:
   void changeEvent(QEvent* event) override;
 
@@ -100,9 +110,9 @@ class CapturePanel : public QWidget {
   void OnDeviceSelected(int index);
   void OnBrowsePressed();
 
-  // Open the naming dialog, where what the disc is gets typed. A button rather
-  // than more rows here: those are eight fields set once per disc, and this
-  // panel shares a dock column with the signal displays.
+  // Ask for the naming dialog, where what the disc is gets typed. A button
+  // rather than more rows here: those are eight fields set once per disc, and
+  // this panel shares a dock column with the signal displays.
   void OnNamingPressed();
 
   // Say, as the name is typed, what the file will really be called. Cheap
@@ -120,6 +130,20 @@ class CapturePanel : public QWidget {
   // otherwise. Redundant with the labels on purpose — a state worth a label is
   // worth being able to see without reading.
   void ApplyButtonColours();
+
+  // Whether the next capture would go out with nothing but a timestamp for a
+  // name: no name typed, and nothing said about the disc.
+  //
+  // A perfectly legitimate way to work, so this is a nudge and never a block —
+  // the Start button is not touched by it. What it prevents is the other
+  // ordinary way this goes: somebody sets up carefully, captures both sides of
+  // a disc, and finds two files called RF-Sample_ afterwards with no way left
+  // to tell which was which.
+  bool NamingWantsAttention() const;
+
+  // Colour the Naming button when it does, through the same pinned-height
+  // stylesheet the two capture buttons use.
+  void ApplyNamingAttention();
 
   void ApplySettingsFromWidgets();
   void ShowSettings();

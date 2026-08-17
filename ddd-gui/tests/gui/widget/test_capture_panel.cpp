@@ -127,6 +127,10 @@ class CapturePanelTest : public ::testing::Test {
     return panel_->findChild<QLabel*>(
         QLatin1String(CapturePanel::kNameTakenLabelName));
   }
+  QPushButton* NamingButton() const {
+    return panel_->findChild<QPushButton*>(
+        QLatin1String(CapturePanel::kNamingButtonName));
+  }
   QComboBox* FormatCombo() const {
     return panel_->findChild<QComboBox*>(
         QLatin1String(CapturePanel::kFormatComboName));
@@ -828,6 +832,82 @@ TEST_F(CapturePanelTest, ANameAlreadyTakenIsSaidSoAsItIsTyped) {
 
   NameEdit()->setText(QString());
   EXPECT_TRUE(NameTakenLabel()->isHidden());
+}
+
+// --- The Naming button asking to be noticed --------------------------------
+//
+// A capture with nothing said about it is a perfectly legitimate thing to take,
+// so this is a nudge and never a block. What it prevents is the ordinary way
+// this goes wrong: somebody captures both sides of a disc and finds two files
+// called RF-Sample_ afterwards, with nothing left to tell them apart.
+
+TEST_F(CapturePanelTest, TheNamingButtonAsksToBeNoticedWhenNothingIsNamed) {
+  // The state every capture starts in.
+  EXPECT_FALSE(NamingButton()->styleSheet().isEmpty())
+      << "an unnamed capture is about to be taken and nothing says so";
+
+  // And it says why, rather than leaving a coloured control to be guessed at.
+  EXPECT_TRUE(NamingButton()->toolTip().contains(
+      QStringLiteral("named after the time it was taken")))
+      << NamingButton()->toolTip().toStdString();
+}
+
+TEST_F(CapturePanelTest, ATypedNameAnswersItAsItIsTyped) {
+  ASSERT_FALSE(NamingButton()->styleSheet().isEmpty());
+
+  // On the keystroke, not when the field loses focus: a button that stayed
+  // coloured while somebody typed into the very field it was pointing at would
+  // be arguing with them.
+  NameEdit()->setText(QStringLiteral("Casper side 1"));
+  EXPECT_TRUE(NamingButton()->styleSheet().isEmpty());
+
+  NameEdit()->setText(QString());
+  EXPECT_FALSE(NamingButton()->styleSheet().isEmpty());
+}
+
+TEST_F(CapturePanelTest, SayingWhatTheDiscIsAnswersItToo) {
+  ASSERT_FALSE(NamingButton()->styleSheet().isEmpty());
+
+  // The other way of naming a capture: leave the field empty and describe the
+  // disc, which is what the button leads to.
+  CaptureSettings settings = controller_->settings();
+  settings.naming.title_used = true;
+  settings.naming.title = "Casper";
+  controller_->SetSettings(settings);
+
+  EXPECT_TRUE(NamingButton()->styleSheet().isEmpty());
+}
+
+TEST_F(CapturePanelTest, TestModeHasNothingToNameSoNothingIsAskedFor) {
+  // The name is forced to TestData_ there and these fields cannot change it, so
+  // pointing at the button would point at a control with nothing to offer.
+  CaptureSettings settings = controller_->settings();
+  settings.test_mode = true;
+  controller_->SetSettings(settings);
+
+  EXPECT_TRUE(NamingButton()->styleSheet().isEmpty());
+}
+
+TEST_F(CapturePanelTest, TheNudgeNeverBlocksTheCapture) {
+  // It is a nudge about a filing habit, not a fault. A capture that could be
+  // started must still be startable with nothing named.
+  device_->SetDevices({DeviceAt("bus-1", capture::DeviceSpeed::kSuper)});
+  controller_->Start();
+  ASSERT_TRUE(PumpUntil([&] { return DeviceCombo()->count() == 1; }));
+
+  ASSERT_FALSE(NamingButton()->styleSheet().isEmpty());
+  EXPECT_TRUE(CaptureButton()->isEnabled());
+}
+
+TEST_F(CapturePanelTest, TheNamingButtonAsksForItsDialogRatherThanOpeningOne) {
+  // The dialog can offer to ask the player what the disc is, which needs a
+  // PlayerController — and this panel has no business knowing a player exists.
+  // The main window holds both controllers, so it builds the dialog.
+  QSignalSpy asked(panel_.get(), &CapturePanel::NamingRequested);
+  ASSERT_TRUE(asked.isValid());
+
+  NamingButton()->click();
+  EXPECT_EQ(asked.count(), 1);
 }
 
 }  // namespace

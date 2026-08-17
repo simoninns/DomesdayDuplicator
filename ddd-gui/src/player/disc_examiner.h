@@ -75,6 +75,35 @@ enum class ExamineStage : uint8_t {
   kFinished,
 };
 
+// How much of the disc to establish.
+//
+// Two scopes because there are two questions worth asking, and they cost
+// wildly different amounts. Everything the player can simply be *told* — the
+// type, the standard, which side — is three read-only queries and a spin-up,
+// over in a few seconds with the disc left where it started. Everything that
+// has to be *measured* — where the programme starts and ends — means seeking to
+// both ends of the side, which is the better part of a minute and leaves the
+// disc somewhere else.
+//
+// Only a capture needs the measurement. Somebody filling in what the disc is,
+// so the file is named after it, needs the first group and should not be made
+// to wait for the second.
+enum class ExamineScope : uint8_t {
+  // Every step the model supports: identity, both user codes, and the two
+  // length measurements. What the automatic capture is planned from.
+  kFull,
+
+  // What the player can be asked without moving the disc: is there one, what
+  // type is it, which side, and which standard. Cheap enough to sit behind a
+  // button in a naming dialog.
+  //
+  // The spin-up and the settle are still in it. Almost nothing below the first
+  // query can be answered by a stopped player, so the disc has to be turning —
+  // and an examination that left it turning would be one the user has to go and
+  // stop.
+  kIdentify,
+};
+
 // How the examination ended.
 enum class ExamineOutcome : uint8_t {
   kInProgress,
@@ -131,7 +160,14 @@ class DiscExaminer {
   // The definition and the firmware are what the step plan is built from: a
   // model with no chapter search is not asked about chapters, and the plan is
   // shorter by exactly that step rather than carrying one that will be refused.
-  DiscExaminer(const PlayerDefinition& definition, std::string_view firmware);
+  //
+  // The scope trims it further, and in the same way: an identifying pass has no
+  // seek steps in its plan at all rather than steps it declines to run, so
+  // steps_planned() is the truth about how long it will take.
+  DiscExaminer(const PlayerDefinition& definition, std::string_view firmware,
+               ExamineScope scope = ExamineScope::kFull);
+
+  ExamineScope scope() const { return scope_; }
 
   // The step to send now, or nothing when the examination is over.
   //
@@ -201,6 +237,7 @@ class DiscExaminer {
 
   const PlayerDefinition* definition_ = nullptr;
   PlayerControls controls_;
+  ExamineScope scope_ = ExamineScope::kFull;
 
   std::vector<ExamineStage> plan_;
   size_t index_ = 0;

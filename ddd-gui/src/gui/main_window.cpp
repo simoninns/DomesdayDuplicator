@@ -31,6 +31,7 @@
 #include "application_logger.h"
 #include "auto_capture_controller.h"
 #include "capture_controller.h"
+#include "capture_naming_dialog.h"
 #include "capture_panel.h"
 #include "device_programmer.h"
 #include "device_updater.h"
@@ -231,9 +232,25 @@ void MainWindow::BuildCaptureDock() {
   // Object names are what saveState()/restoreState() match docks by. Without
   // one, a dock is silently dropped from the restored layout.
   capture_dock_->setObjectName(QStringLiteral("capture_dock"));
-  capture_dock_->setWidget(
-      new CapturePanel(capture_controller_, capture_dock_));
+
+  auto* panel = new CapturePanel(capture_controller_, capture_dock_);
+  connect(panel, &CapturePanel::NamingRequested, this,
+          &MainWindow::ShowNamingDialog);
+
+  capture_dock_->setWidget(panel);
   addDockWidget(Qt::LeftDockWidgetArea, capture_dock_);
+}
+
+void MainWindow::ShowNamingDialog() {
+  // Built afresh each time rather than kept, so the fields it shows are the
+  // settings as they are now — the automatic capture writes a name into them,
+  // and a dialog held from before that would show the previous one.
+  //
+  // Both controllers, which is the whole reason this is here rather than in the
+  // panel: the naming fields can be filled in by asking the player what the
+  // disc is, and the panel knows nothing about a player.
+  CaptureNamingDialog dialog(capture_controller_, player_controller_, this);
+  dialog.exec();
 }
 
 void MainWindow::BuildStatisticsDock() {

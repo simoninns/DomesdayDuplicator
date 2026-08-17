@@ -144,7 +144,13 @@ class PlayerWorker : public QObject {
   // Polling is suspended for the duration. Interleaving a status query into the
   // middle of a seek is how a reply gets attributed to the wrong command, and
   // an examination is nothing but seeks.
-  void Examine();
+  //
+  // The scope decides how much is asked; see ExamineScope. An identifying pass
+  // has no seeks in it at all, but the poll is suspended just the same — the
+  // reason is about one reply reaching the wrong reader, not about how long the
+  // sequence takes.
+  void Examine(
+      ddd::player::ExamineScope scope = ddd::player::ExamineScope::kFull);
 
  signals:
   void ConnectionChanged(const ddd::gui::PlayerConnection& connection);

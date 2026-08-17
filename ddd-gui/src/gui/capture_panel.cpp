@@ -32,7 +32,6 @@
 #include "capture_failure_presenter.h"
 #include "capture_format.h"
 #include "capture_naming.h"
-#include "capture_naming_dialog.h"
 #include "free_space.h"
 #include "statistics_presenter.h"
 #include "theme_color_tokens.h"
@@ -148,10 +147,9 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
 
   naming_button_ = new QPushButton(tr("Naming…"), name_row);
   naming_button_->setObjectName(QLatin1String(kNamingButtonName));
-  naming_button_->setToolTip(
-      tr("What the disc is: title, type, standard, side, notes. All of it is "
-         "recorded in the capture's metadata file, and some of it can be "
-         "folded into the file name."));
+  // Its tooltip belongs to ApplyNamingAttention, which has two of them: one for
+  // the ordinary state and one for the state where the button is asking to be
+  // noticed.
   name_layout->addWidget(naming_button_);
 
   form->addRow(tr("Name"), name_row);
@@ -410,6 +408,11 @@ void CapturePanel::OnDurationResetPressed() {
 }
 
 void CapturePanel::RefreshNameNote() {
+  // Here as well as in UpdateEnabledState, because this is what runs on every
+  // keystroke: without it the button stays coloured until the field loses
+  // focus, which is long after the user has answered it.
+  ApplyNamingAttention();
+
   const QString typed = name_edit_->text().trimmed();
 
   // Nothing to say about the generated name. It carries a timestamp, so it is
@@ -452,17 +455,14 @@ void CapturePanel::OnBrowsePressed() {
 }
 
 void CapturePanel::OnNamingPressed() {
-  // Built afresh each time rather than kept, so the fields it shows are the
-  // settings as they are now — the guided setup writes a name into them, and a
-  // dialog held from before that would show the previous one.
-  CaptureNamingDialog dialog(controller_, this);
-  dialog.exec();
-
-  // Everything the dialog changed was applied as it was typed, so there is
-  // nothing to collect. What is left is this panel's own view of it: the
-  // placeholder is the name those fields now produce.
-  UpdateNamePlaceholder();
-  RefreshNameNote();
+  // Asked for rather than opened here: the dialog may offer to ask the player
+  // what the disc is, and only the main window holds both controllers.
+  //
+  // Nothing is collected on the way back. Every field applies as it is typed,
+  // so by the time the dialog closes the settings already say what it said —
+  // and the settings signal has already brought this panel's own view of them
+  // up to date.
+  emit NamingRequested();
 }
 
 void CapturePanel::RefreshFreeSpace() {
@@ -557,6 +557,58 @@ void CapturePanel::OnDevicesChanged(
   UpdateEnabledState();
 }
 
+bool CapturePanel::NamingWantsAttention() const {
+  if (controller_ == nullptr) {
+    return false;
+  }
+
+  // Not in test mode: the name is forced to TestData_ there and the naming
+  // fields cannot change it, so pointing at the button would be pointing at a
+  // control that has nothing to offer.
+  if (test_mode_) {
+    return false;
+  }
+
+  // Not once the capture is running. The file is open under whatever name it
+  // got, and a control saying "you may have meant to name this" after the fact
+  // is only a reproach.
+  if (capturing_) {
+    return false;
+  }
+
+  // The field rather than the setting behind it, so the colour goes as the name
+  // is typed rather than when the field loses focus. The disc details come from
+  // the settings because that is where the naming dialog puts them, and it
+  // writes them as they are typed.
+  return name_edit_->text().trimmed().isEmpty() &&
+         !controller_->settings().naming.DescribesDisc();
+}
+
+void CapturePanel::ApplyNamingAttention() {
+  const bool dark = theme_tokens::IsDarkPalette(palette());
+  const bool wanted = NamingWantsAttention();
+
+  naming_button_->setStyleSheet(
+      wanted ? ActiveButtonStyle(
+                   theme_tokens::PlotColor(
+                       theme_tokens::PlotColorToken::kAttention, dark),
+                   natural_button_height_)
+             : QString());
+
+  // The colour says "look here"; the tooltip says why, and what will happen if
+  // it is ignored. A coloured control with no explanation is a control somebody
+  // has to guess about.
+  naming_button_->setToolTip(
+      wanted ? tr("Nothing has been said about this disc, so the capture will "
+                  "be named after the time it was taken — “%1”. That is a "
+                  "perfectly good way to work; this is only here in case you "
+                  "meant to fill it in.")
+                   .arg(name_edit_->placeholderText())
+             : tr("What the disc is: title, type, standard, side, notes. All "
+                  "of it is recorded in the capture's metadata file, and some "
+                  "of it can be folded into the file name."));
+}
+
 void CapturePanel::ApplyButtonColours() {
   // Read from this widget's own palette rather than from the theme controller,
   // so the buttons follow a theme change through the palette-change event they
@@ -588,6 +640,7 @@ void CapturePanel::changeEvent(QEvent* event) {
   // a dark one.
   if (event != nullptr && event->type() == QEvent::PaletteChange) {
     ApplyButtonColours();
+    ApplyNamingAttention();
   }
 }
 
@@ -727,6 +780,11 @@ void CapturePanel::UpdateEnabledState() {
   duration_spin_->setEnabled(true);
   duration_reset_button_->setEnabled(true);
   low_space_spin_->setEnabled(true);
+
+  // Everything that changes whether the nudge applies — the settings arriving,
+  // test mode going on or off, a capture starting or stopping — comes through
+  // here.
+  ApplyNamingAttention();
 }
 
 }  // namespace ddd::gui

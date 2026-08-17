@@ -16,8 +16,10 @@
 namespace ddd::player {
 
 DiscExaminer::DiscExaminer(const PlayerDefinition& definition,
-                           std::string_view firmware)
-    : definition_(&definition), controls_(ControlsFor(definition, firmware)) {
+                           std::string_view firmware, ExamineScope scope)
+    : definition_(&definition),
+      controls_(ControlsFor(definition, firmware)),
+      scope_(scope) {
   BuildPlan();
 }
 
@@ -37,6 +39,18 @@ void DiscExaminer::BuildPlan() {
   // twenty milliseconds each and are worth asking before anything expensive.
   if (controls_.Has(PlayerCommand::kQueryTvSystem)) {
     plan_.push_back(ExamineStage::kReadingTvSystem);
+  }
+
+  // Everything above this line is a question the player answers off the disc it
+  // has already read. Everything below moves the disc — the Pioneer user code
+  // searches to the lead-in, the chapter probe is a search, and the length is
+  // measured by seeking to both ends of the side. That is the whole difference
+  // between the two scopes, and it is why the line is here.
+  if (scope_ == ExamineScope::kIdentify) {
+    if (controls_.Has(PlayerCommand::kPause)) {
+      plan_.push_back(ExamineStage::kSettling);
+    }
+    return;
   }
 
   // Here, or not at all.
