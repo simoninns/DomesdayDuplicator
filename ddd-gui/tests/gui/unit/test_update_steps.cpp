@@ -33,11 +33,11 @@ capture::UpdateManifest BothHalves() {
   manifest.version = "1.5.0";
 
   capture::UpdateComponent firmware;
-  firmware.length = 64 * 1024;
+  firmware.length = uint64_t{64} * 1024;
   manifest.firmware = firmware;
 
   capture::UpdateComponent gateware;
-  gateware.length = 368 * 1024;
+  gateware.length = uint64_t{368} * 1024;
   manifest.gateware = gateware;
 
   return manifest;

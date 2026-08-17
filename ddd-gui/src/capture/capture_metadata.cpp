@@ -67,8 +67,8 @@ std::string FormatTimestamp(std::time_t when) {
 // offset is what the old application wrote everywhere, so this is no worse on
 // the one platform it applies to and better on the other two.
 #ifndef _WIN32
-  const long offset = parts.tm_gmtoff;
-  const long absolute = offset < 0 ? -offset : offset;
+  const int64_t offset = parts.tm_gmtoff;
+  const int64_t absolute = offset < 0 ? -offset : offset;
   text += offset < 0 ? "-" : "+";
   text += two(static_cast<int>(absolute / 3600));
   text += ":";

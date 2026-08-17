@@ -326,13 +326,14 @@ void DiscExaminer::Apply(const Reply& reply) {
       break;
     case ExamineStage::kSettling:
     case ExamineStage::kSpinningDown:
-      // Nothing to read from either, and a refusal is not a failure: the
-      // examination's findings are already in hand, and a player that will not
-      // be tidied up after is a fact about the player rather than about the
-      // disc.
-      break;
     case ExamineStage::kIdle:
     case ExamineStage::kFinished:
+      // Nothing to read from any of these, and for the two tidy-up steps a
+      // refusal is not a failure: the examination's findings are already in
+      // hand by then, and a player that will not be tidied up after is a fact
+      // about the player rather than about the disc. The last two are named
+      // only to keep the switch exhaustive — no step is ever built for them, so
+      // no reply can arrive carrying one.
       break;
   }
 

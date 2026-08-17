@@ -949,8 +949,9 @@ TEST_F(CaptureToDiskTest, TheFiguresCountOnlyWhatReachedTheFile) {
   ASSERT_TRUE(in_the_file.has_value());
 
   const std::string document = ReadWholeFile(MetadataFiles().front());
-  EXPECT_NE(document.find("\"samples\": " + std::to_string(*in_the_file)),
-            std::string::npos)
+  EXPECT_NE(
+      document.find("\"samples\": " + std::to_string(in_the_file.value_or(0))),
+      std::string::npos)
       << document;
 
   // And the signal section is there, measured over that same span.
