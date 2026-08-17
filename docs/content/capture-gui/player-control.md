@@ -7,10 +7,23 @@ watching the address go by, and stopping both the capture and the player at the 
 It is off until you turn it on, and while it is off **no serial port on your machine is
 opened, written to, or even listed**.
 
+Everything to do with the player is on the **Tools** menu, in the section above the
+instrument entries. One player, set up once, is a tool: it does not need a panel of its own
+on screen, and the status bar says whether it is connected.
+
+| **Tools ▸** | What it is |
+| --- | --- |
+| **Player control** | The on/off switch. Nothing touches a serial port while it is off |
+| **Search now** | Look again straight away rather than waiting |
+| **Remote control…** | The player window: transport, connection, disc codes, manual commands |
+| **Examine disc…** | Find out what is in the player, and report it |
+| **Automatic capture…** | The four-page workflow that takes a side by itself |
+| **Player settings…** | Model, port, speed, and the ports never to open |
+
 ## Turning it on
 
-**Player → Player control**, or the *Look for a LaserDisc player* box in
-**Player → Player settings…**.
+**Tools ▸ Player control**, or the *Look for a LaserDisc player* box in
+**Tools ▸ Player settings…**.
 
 The rest of that settings page is optional and every field defaults to "work it out":
 
@@ -48,7 +61,12 @@ can add it to the exclusion list rather than having it probed every time.
 
 ## When the player is not found
 
-The message under the player panel says which of these it is. In rough order of likelihood:
+The status bar says that nothing is connected; the **Connection** tab of
+**Tools ▸ Remote control…** says which of these it is. That window opens whether or not a
+player is connected, and opens straight onto Connection when one is not — it is the place to
+find out *why*, so it would be a poor one to lock behind having succeeded already.
+
+In rough order of likelihood:
 
 **You are not allowed to open the port.** The commonest first run there is, and it looks
 like a fault in the cable if you do not know to expect it.
@@ -76,18 +94,31 @@ answers at any speed on any port, doubt the cable before anything else.
 the port to the exclusion list.
 
 **An unrecognised player.** It connects anyway, using the standard Pioneer command set, and
-the panel shows the model code it reported. Most controls will work and some may not — and
-that model code is exactly what is needed to write a definition for it, so it is worth
-reporting.
+the Connection tab shows the model code it reported. Most controls will work and some may
+not — and that model code is exactly what is needed to write a definition for it, so it is
+worth reporting.
 
-## The remote
+## The player window
 
-**Player → Remote control…** opens a window with the transport controls, the search
-controls, the audio and speed selectors, and a field for sending a command by hand.
+**Tools ▸ Remote control…**. The status line across the top — what the player is, what it is
+doing, where it is — stays in view whatever else you are looking at, because it is the one
+thing every part of this window wants. Below it, four tabs, in the order they are wanted:
+
+| Tab | What is on it |
+| --- | --- |
+| **Control** | Transport, go to, display and audio, and the front-panel key lock. The remote you actually use |
+| **Connection** | The on/off box, what was found and on which port, whether the model matches what you asked for, and the live state, tray, disc and position readouts |
+| **Disc codes** | The two user-code reads and the raw bytes they returned |
+| **Manual command** | Send a command by hand and see the reply |
 
 It is not modal — you can drive the player while watching the spectrum, which is the whole
 point of it. A control your model does not have is greyed out and its tooltip names the
-models that do have it. Losing the player greys the window out rather than closing it.
+models that do have it. Losing the player greys the Control tab rather than closing the
+window, which leaves Connection there to say what happened.
+
+Control and Connection are what a normal session uses. The other two are for adding support
+for a player this build does not know, and they are behind tabs because between them they
+were most of the height of the window they used to share.
 
 The manual command field shows what went out beside what came back, refusals included. It is
 the fastest way to find out what a player does with a command this application does not
@@ -100,9 +131,44 @@ offer, and its answers are what a new model definition gets written from.
     the Pioneer code is not a query. The player searches to the lead-in to answer it, which
     on an LD-V4300D takes about eleven seconds and leaves the disc parked at the start.
 
+## Two ways to take a capture
+
+A connected player does not change how a capture is taken; it adds a second way of taking
+one. Both write the same file, with the same metadata beside it.
+
+**By hand.** Press **Start capture**, press **Stop capture**. The player is yours to drive —
+from its own front panel, or from the [player window](#the-player-window) — and this
+application sends it nothing you did not ask it to. Naming is optional, and the
+**[Naming…](capture-naming.md)** dialog can fill three of its fields from the disc rather
+than from you: see [Ask the player](#ask-the-player).
+
+**Automatically.** **Tools ▸ Automatic capture…** walks four pages: what is in the player,
+what to take off it and where to put it, the run, and what happened. It examines the disc,
+names the capture from what it found, drives the player through the side, and stops both at
+the end. See [Capturing a side by itself](#capturing-a-side-by-itself).
+
+The manual path is the one to use when you are setting up, checking a disc, or capturing
+something that is not a whole side of a LaserDisc. The automatic path is the one for working
+through a stack of discs.
+
+## Ask the player
+
+In the **Naming…** dialog, with a player connected, **Ask the player** fills in the disc
+type, the video standard and the side from the disc itself. It takes a couple of seconds and
+**does not move the disc**: it asks the player what it has, reads the disc's own programme
+status and its TV system, and stops there. It is not the examination below — nothing is
+sought and nothing is measured.
+
+What it fills in, it ticks. What the player could not answer is left exactly as it was, and
+so is everything only you can know — the title, the notes and the mint marks are never
+touched. [Ask the player](capture-naming.md#ask-the-player) has the rest of the rules.
+
+It is a shortcut for the manual path. An automatic capture does not need it: its first page
+has already examined the disc, and the same fields arrive filled in.
+
 ## Examining a disc
 
-**Player → Examine disc…**, then **Examine**. It takes about a minute, and it spins the
+**Tools ▸ Examine disc…**, then **Examine**. It takes about a minute, and it spins the
 disc.
 
 What it establishes, and how:
@@ -124,11 +190,40 @@ the other half in it.
 The report is copyable — it is meant to be pasted into an issue — and the examination leaves
 the disc held still at the start of the side rather than playing.
 
+This window is the diagnostic rather than the way to a capture. If all you want is the
+capture, go straight to **Automatic capture…**, which examines the disc as its first step.
+If you are already looking at a report, **Automatic capture…** on it takes you into the same
+workflow with the disc it just measured, on the settings page — the disc is not examined a
+second time.
+
 ## Capturing a side by itself
 
-From the examine report, **Set up capture…**. The plan is built from the disc that was just
-examined, so the addresses are in the units that disc actually uses and the bounds are the
-ones that were just measured.
+**Tools ▸ Automatic capture…**, or the **Automatic capture…** button on the Capture panel,
+or the button of that name on an examine report. All three open the same window, and only
+one of it exists at a time.
+
+Four pages, **Previous** and **Next**:
+
+### 1. What is in the player
+
+The examination starts by itself when you arrive here, because choosing an automatic capture
+has already said what should happen first. It reports what it found, and **Examine again** is
+there for when you have changed the disc.
+
+Below the report, the same naming fields the **Naming…** dialog has, prefilled from what the
+disc turned out to be, and the capture name — also prefilled, and resolved against the folder
+you are writing to, so the suggestion is never a name the file will not get.
+
+**Next** is available once the disc's type and the measured end of the side are both known.
+Those are what a plan is built from, and a page that let you past without them would offer
+everything on the next page and then refuse all of it.
+
+### 2. What to capture, and where to put it
+
+The plan, and the destination — folder, format and sample rate — together, so that setting up
+a capture does not mean a detour to the Capture panel and back. Those three are the same
+settings that panel shows: change one here and it changes there, because there is one
+settings file and not two.
 
 Three shapes, and they are the three a player can actually be asked for:
 
@@ -147,20 +242,55 @@ much of the side as you ask for.
 There is no "capture the lead-in" option, because no command puts a player on the lead-in.
 The two shapes that hold it get it by starting the capture before the disc.
 
-While it runs you get the stage it is in, the current address, and how long is left. The
-estimate is not a guess from the rate so far — a disc plays in real time, so the time
+The addresses offered are in the units the examined disc actually uses — frames for a CAV
+disc, time codes for a CLV one, never both — and they are bounded by the length that was
+just measured, so a range that cannot exist cannot be typed. Where the examination could not
+establish the video standard, this page asks for it; where it could, it does not.
+
+Two options here rather than in the settings dialog, because they are decisions about this
+capture:
+
+- **Lock the player's front panel**, which stops a hand on the player pausing a capture
+  halfway through a side. It is released afterwards.
+- **Stop the capture when the player stops** — the one coupling between the two, described
+  [below](#the-coupling-and-the-direction-it-does-not-run-in). It is the same setting as the
+  one in **Player settings…**; changing it in either place changes it in both.
+
+Under them, the estimate: how long the capture will take and how much it will write, against
+the free space where it is going. **Next** is available while the plan is one that can be
+run, and says why when it is not.
+
+### 3. The capture
+
+**Start capture**, and then the stage it is in, the current address, and how long is left.
+The estimate is not a guess from the rate so far — a disc plays in real time, so the time
 remaining *is* the programme time remaining, and it is right from the first reading.
+
+**Previous** and **Next** are shut while a run is going, and so is the window: this is the
+only thing reporting that run, and closing it would leave a disc spinning with no way back to
+**Stop**. Stop finishes the capture properly rather than abandoning it — the file is
+finalised, the player is stopped, and the front panel is released.
+
+The spectrum, waveform and statistics panels are all still live behind it. That is why this
+window is not modal.
+
+### 4. What happened
+
+Reached on its own when the run ends, because somebody who has left a forty-minute side
+running wants the answer on screen rather than a button to press for it. It says how the run
+ended, what was written, and how big it is.
+
+**Capture another side** is the other half of the ordinary job: turn the disc over, press it,
+and it moves the side number on, goes back to page 1 and examines again. Both sides of a disc
+is two clicks rather than a second walk through everything.
 
 Other things worth knowing:
 
-- **Lock the player's front panel** is offered, and stops a hand on the player pausing a
-  capture halfway through a side. It is released afterwards.
 - **The capture name** is prefilled from what the disc turned out to be. If that name is
   already taken you are told before anything is written — and nothing is ever overwritten.
 - The disc's facts — model, type, size, side, standard, programme bounds — are written into
-  the capture's own metadata, so the file says which side of which disc it is.
-- **Stop** finishes the capture properly rather than abandoning it: the file is finalised,
-  the player is stopped, and the front panel is released.
+  the capture's own metadata, so the file says which side of which disc it is. Each one
+  carries how it was established; see [Naming and metadata](capture-naming.md#disc).
 - If the **serial cable fails mid-capture, the capture keeps running.** The automation stops
   and says so, and you stop the capture by hand. The player carries on to the end of the
   side regardless, and truncating a good capture because an adapter came loose would be the
@@ -168,7 +298,8 @@ Other things worth knowing:
 
 ## The coupling, and the direction it does not run in
 
-There is one setting, in player settings and also on the capture setup:
+There is one setting, in **Player settings…** and also on the automatic capture's second
+page:
 
 **Stop the capture when the player stops** — **off** by default, deliberately. A player that
 briefly reports a stopped transport mid-side would otherwise truncate a good capture. It is
@@ -190,14 +321,14 @@ application is the thing operating the player; a manual capture is you operating
     On a Pioneer player the stop command is **Reject** (`RJ`), and a Reject arriving while
     the disc is already spinning down opens the tray. An automatic capture therefore sends at
     most one stop per run, and only to a transport it started itself. The tray commands
-    (`OP`, `CO`) exist only on the [remote](#the-remote), where a person
+    (`OP`, `CO`) exist only on the [player window](#the-player-window), where a person
     presses them — a machine ejecting a disc unasked, with nobody necessarily in the room, is
     not something this application does.
 
 ## Which players have actually been tested
 
-An important distinction, and the application makes it too: the panel says when the
-connected model's command set has not been confirmed on real hardware.
+An important distinction, and the application makes it too: the **Connection** tab says when
+the connected model's command set has not been confirmed on real hardware.
 
 | Model | Definition | Confirmed on hardware |
 | --- | --- | --- |

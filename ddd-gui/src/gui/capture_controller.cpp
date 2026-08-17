@@ -311,7 +311,7 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
 
   const int decimation = settings_.decimation_factor;
 
-  // The same call the panel and the guided setup ask, so that the name on
+  // The same call the panel and the automatic capture ask, so that the name on
   // screen and the name on disk cannot disagree. The stem carries whatever the
   // naming fields say as well as whatever was typed — see
   // CaptureSettings::CaptureStem, which is the one place those are combined.

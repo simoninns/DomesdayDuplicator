@@ -525,7 +525,7 @@ void AutoCaptureWizard::SetExamineResult(const player::DiscProfile& disc,
 }
 
 bool AutoCaptureWizard::DiscIsUsable() const {
-  // The same gate the Examine window applies to its own "Set up capture"
+  // The same gate the Examine window applies to its own "Automatic capture…"
   // button: a capture needs the disc type and the measured end of the side.
   // Without them the next page would offer everything and refuse everything,
   // which is a worse way to learn that the examination did not finish.

@@ -164,7 +164,7 @@ MainWindow::MainWindow(ThemeController* theme_controller,
                 statusBar()->showMessage(tr("No capture device attached"));
               } else if (capturable == 0) {
                 statusBar()->showMessage(
-                    tr("Device attached with no firmware — Help ▸ Firmware… "
+                    tr("Device attached with no firmware — Tools ▸ Firmware… "
                        "can program it"));
               } else {
                 statusBar()->showMessage(

@@ -2,7 +2,7 @@
 
     test_auto_capture_plan.cpp
 
-    T1 tests for what makes a guided capture setup impossible
+    T1 tests for what makes an automatic capture plan impossible
     Domesday Duplicator - LaserDisc RF sampler
     SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later

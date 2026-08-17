@@ -36,6 +36,38 @@ squeeze them into a strip.
 The same set of fields the [legacy application](../legacy-gui/index.md) collected, so notes
 already written against those field names still mean what they meant.
 
+The same fields appear as the first page of an
+[automatic capture](player-control.md#capturing-a-side-by-itself), where they arrive
+prefilled from the examination. It is the same form in both places rather than two that agree
+by inspection, so everything on this page is true of both.
+
+### Ask the player
+
+With a [player connected](player-control.md), **Ask the player** fills in the **disc type**,
+the **video standard** and the **side** from the disc itself, and ticks them.
+
+It takes a couple of seconds and **does not move the disc**. It asks the player what it has,
+reads the disc's own programme status and its TV system, and stops there — no seeking, no
+measuring, and none of the eleven seconds the Pioneer user code costs. It is not the
+[examination](player-control.md#examining-a-disc), which does all of that and takes about a
+minute.
+
+Two rules about what it touches, and they pull in opposite directions on purpose:
+
+- **Nothing you typed is ever overwritten.** The title, the notes, the mint marks and the
+  metadata notes are things only a person knows, and a button that cleared them because a
+  disc had been spun up would be unusable.
+- **The three fields it can answer are overwritten even if you set them by hand.** Somebody
+  who ticked CAV and then asked the disc, which said CLV, asked because they wanted the
+  disc's answer.
+
+A field the player could not answer is left exactly as it was, and a side number the form
+cannot hold is not followed — a reading outside the range the spin box covers leaves the
+field alone rather than clamping it and recording a wrong side as an established fact.
+
+The button is absent when the application has no player layer at all, and disabled when
+nothing is connected, with the reason beside it.
+
 ### Ticked or not is part of the answer
 
 Each field has a check box carrying its name, and **a field is only recorded when its box is
@@ -202,8 +234,9 @@ asked for when a definition needs writing for a player this build does not recog
 
 ### `disc`
 
-Present when an **[automatic capture](player-control.md)** ran, because that is the flow
-that examines the disc first. A capture taken by hand carries `disc: {}` rather than the
+Present when an
+**[automatic capture](player-control.md#capturing-a-side-by-itself)** ran, because that is the
+flow that examines the disc first. A capture taken by hand carries `disc: {}` rather than the
 previous disc's answers — the disc in the player is not necessarily the disc that was
 examined, and a file asserting otherwise would be worse than one that says nothing.
 

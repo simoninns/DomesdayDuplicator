@@ -41,7 +41,7 @@ class PlayerController;
 //
 // **The shape of this is the point of it.** Everything here existed before and
 // was spread across four windows reached from three places: the Player dock or
-// menu opened Examine, Examine's report offered "Set up capture", the
+// menu opened Examine, Examine's report offered a setup window, the
 // destination and format lived on the Capture panel, and the naming fields
 // lived in a dialog none of those opened. A user doing the ordinary thing —
 // capturing both sides of one disc — walked all of it twice and had to know the
@@ -93,7 +93,7 @@ class AutoCaptureWizard : public QDialog {
 
   // Begin from a disc that has already been examined, on the settings page.
   //
-  // What the Examine window's "Set up capture…" hands over. Examining again
+  // What the Examine window's "Automatic capture…" hands over. Examining again
   // would spend a minute rediscovering what is already known and leave the disc
   // somewhere else while it did.
   void StartFromProfile(const ddd::player::DiscProfile& disc);
@@ -129,8 +129,8 @@ class AutoCaptureWizard : public QDialog {
   bool running() const { return running_; }
 
   // The plan the settings page currently describes, or a default one before
-  // there is a form to ask. Exposed for the same reason the guided window
-  // exposed it: what the controls mean is worth asserting directly.
+  // there is a form to ask. Exposed because what the controls mean is worth
+  // asserting directly rather than through the run they would start.
   player::AutoCapturePlan Plan() const;
   player::PlanProblem problem() const;
 

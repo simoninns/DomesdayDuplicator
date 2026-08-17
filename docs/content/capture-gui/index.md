@@ -37,7 +37,7 @@ what each one is for.
 | [Capture files](capture-files.md) | What gets written, what it is called, and what reads it |
 | [Naming and metadata](capture-naming.md) | Saying what the disc is, and the metadata file written beside every capture |
 | [Settings](settings.md) | Buffer queue, USB transfer mode, preferred device and the front-end gain declaration |
-| [Player control](player-control.md) | Driving a LaserDisc player over its serial port: examining a disc, and capturing a side by itself |
+| [Player control](player-control.md) | Driving a LaserDisc player over its serial port: examining a disc, and the automatic capture that takes a side by itself |
 | [Test mode](test-mode.md) | Proving the capture path with the gateware's test pattern |
 | [Updating your Duplicator](updating-your-domesday-duplicator.md) | Installing firmware and gateware into the device |
 | [Command line](command-line.md) | The options the application accepts, and the scriptable analysis |
@@ -55,6 +55,24 @@ is worth capturing.
 starts the stream too, so the common case is a single press; stopping a capture leaves the
 stream running, so the next side of a disc is one press away and the device is never
 reopened between them.
+
+## Two ways to take a capture
+
+Both write the same file with the same metadata beside it. Which one to use is about who is
+driving the player, not about what you get.
+
+**By hand.** Press **Start capture**, press **Stop capture**. Nothing is sent to a player
+that you did not ask for, so it is the path for setting up, for checking a disc, and for
+anything that is not a whole side of a LaserDisc. Naming is optional; the **Naming…** dialog
+is there when you want it, and can fill three of its fields
+[from the disc itself](capture-naming.md#ask-the-player).
+
+**Automatically**, when a [player is connected](player-control.md). **Tools ▸ Automatic
+capture…** walks four pages — what is in the player, what to take off it and where to put it,
+the run, and what happened — examining the disc, naming the capture from what it found,
+driving the player through the side, and stopping both at the end. **Capture another side**
+on the last page turns the whole thing round for the other side of the disc. It is the path
+for working through a stack of them.
 
 ## What it writes
 

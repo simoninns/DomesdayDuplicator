@@ -1,8 +1,13 @@
 # Settings
 
-**File → Settings…** holds the four things that are set once and left alone. Everything to
-do with an individual capture — the folder, the name, the compression, the duration limit —
-is in the [Capture panel](capture-control.md) instead, where it is visible while you work.
+**File → Settings…** holds the things that are set once and left alone. Everything to do with
+an individual capture — the folder, the name, the compression, the duration limit — is in the
+[Capture panel](capture-control.md) instead, where it is visible while you work.
+
+Its **Capture** tab is below. Its **Player** tab — which model, which serial port, which
+speed, the ports never to open, and the one coupling between player and capture — is on
+[Player control](player-control.md), beside the rest of what it configures. **Tools ▸ Player
+settings…** opens the dialog directly on it.
 
 !!! note "When each one takes effect"
 

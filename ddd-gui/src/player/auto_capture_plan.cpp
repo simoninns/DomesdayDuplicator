@@ -2,7 +2,7 @@
 
     auto_capture_plan.cpp
 
-    What a guided capture setup produces, and what makes one impossible
+    What setting up an automatic capture produces, and what makes one impossible
     Domesday Duplicator - LaserDisc RF sampler
     SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later

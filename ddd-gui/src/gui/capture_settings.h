@@ -199,9 +199,9 @@ struct CaptureSettings {
 
   // The name a capture started at `when` would be given.
   //
-  // One call rather than three, so the panel's preview, the guided setup's
-  // suggestion and the file the engine actually opens cannot disagree about
-  // what a capture is going to be called. Never empty.
+  // One call rather than three, so the panel's preview, the wizard's suggested
+  // name and the file the engine actually opens cannot disagree about what a
+  // capture is going to be called. Never empty.
   std::string CaptureStem(std::time_t when) const;
 };
 

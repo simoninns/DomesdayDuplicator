@@ -65,10 +65,25 @@ the way of somebody taking both sides of a disc.
 | | Exit | Closes the window, saving the layout |
 | **View** | Panels | Show and hide the six panels |
 | | Theme | Auto, Light, Dark |
-| **Tools** | Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
+| **Tools** | Player control | Look for a LaserDisc player — see [Player control](player-control.md) |
+| | Search now | Look for the player again straight away |
+| | Remote control… | The player window: transport, connection, disc codes, manual commands |
+| | Examine disc… | Find out what is in the player, and report it |
+| | Automatic capture… | Examine, name, capture a side, and see what was written |
+| | Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
 | | Analyse test data… | Check a test-mode capture off the disk |
 | | Firmware… | Which build each part of the device is running, and the Update page — see [Updating your Duplicator](updating-your-domesday-duplicator.md) |
+| | Player settings… | Model, port, speed, and the ports never to open |
 | **Help** | About | The build this binary was made from |
+
+The player entries sit above the instrument ones, separated by a rule. They are on **Tools**
+rather than in a menu or a panel of their own because almost everybody has one player, set up
+once and never touched again: it is a tool rather than something that earns permanent screen
+space. Whether it is connected is on the status bar, which cannot be closed.
+
+**Remote control…** opens whether or not a player is connected, because it is the window that
+says *why* one is not. The entries that need a player to do anything — **Examine disc…** and
+**Automatic capture…** — are greyed out until there is one.
 
 **Help ▸ About** carries the same version string `--version` prints, and that is deliberate
 rather than duplication: the Windows build has no console attached, so on the platform with

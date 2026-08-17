@@ -16,14 +16,14 @@ does not present them as two ways:
   it, choose what to capture and how, run it, and see what happened. Today that workflow is
   spread across four windows reached from three places: the Player panel or Player menu →
   **Examine disc** ([examine_dialog.cpp](../ddd-gui/src/gui/examine_dialog.cpp)) → **Set up
-  capture** ([guided_capture_dialog.cpp](../ddd-gui/src/gui/guided_capture_dialog.cpp)),
+  capture** (`guided_capture_dialog.cpp`, retired in Phase 4),
   with the destination, format and rate on the Capture panel, and the naming fields in a
   dialog none of those open. A user doing the normal thing — capture both sides of one
   disc — navigates all of it twice.
 
 Alongside those two paths, two pieces of standing clutter:
 
-- **The Player dock panel** ([player_panel.cpp](../ddd-gui/src/gui/player_panel.cpp))
+- **The Player dock panel** (`player_panel.cpp`, removed in Phase 2)
   duplicates what the status bar already says, holds four buttons that are also in the
   Player menu, and earns permanent screen space for something most users configure once
   and never look at again.
@@ -370,14 +370,46 @@ the Examine report, the rebuild on a second disc, navigation locked during a run
 auto-advance to the summary, and the other-side loop both when a side is being recorded
 and when it is not.
 
-### Phase 5 — Sweep
+### Phase 5 — Sweep — **done**
 
-- Wording pass over every entry point so the two paths are named consistently (“capture” /
-  “automatic capture”).
-- User documentation in [docs/](../docs/) updated to describe the two paths.
-- The **Future** ledger in
-  [ddd-gui-implementation-plan.md](ddd-gui-implementation-plan.md) updated for anything
-  this plan discharged or moved.
+- **Wording.** The Examine window's button is **Automatic capture…**, the same words as the
+  Tools entry and the Capture panel's button, because all three open the same window and
+  start the same thing — "Set up capture…" read as a third feature. Every comment naming
+  the retired guided setup now names what actually does the job, and `CapturePlanForm`'s
+  object names lost the `guided_` prefix they inherited from a class that no longer exists.
+- **User documentation.** [player-control.md](../docs/content/capture-gui/player-control.md)
+  gains a *Two ways to take a capture* section, an *Ask the player* section, a page-by-page
+  account of the wizard and a description of the player window's four tabs; the section
+  index and the quick start carry the same two-path framing;
+  [capture-control.md](../docs/content/capture-gui/capture-control.md) documents the
+  Automatic capture… button and the Naming… nudge;
+  [capture-naming.md](../docs/content/capture-gui/capture-naming.md) documents Ask the
+  player and both halves of its fill rule; and every **Player →** menu path in the docs is
+  now **Tools ▸**, because that menu no longer exists.
+- **The ledger.** The three player rows in
+  [ddd-gui-implementation-plan.md](ddd-gui-implementation-plan.md) that named a dock, a
+  one-column remote or a guided dialog now say where each landed, with a note above the
+  table that a row names the surface this plan left behind rather than the one that first
+  discharged it. Nothing was discharged or retired by this plan — it moved things — and the
+  table says so rather than leaving a reader to infer it from silence.
+- [player-control-implementation-plan.md](player-control-implementation-plan.md) gains a
+  note at the top mapping each UI surface it describes to what replaced it. Its engine
+  reasoning is still the reason to read it; its UI passages are now history, and a document
+  that read as current while describing a deleted dock would be worse than one that says so.
+
+Two things worth recording:
+
+**A real wording bug, found by the sweep.** Two strings — the status bar's and the Capture
+panel's, both for a device with no firmware — sent the user to **Help ▸ Firmware…**. That
+entry is on **Tools**, and has been since it was built. Somebody following either message
+would have opened the About box.
+
+**The menu entry and the window it opens still differ, deliberately.** **Remote control…**
+opens a window titled "Player". Renaming the entry to match was tried on paper and made the
+menu worse: a section that already begins "Player control" and ends "Player settings…" does
+not need a third entry starting with the same word, and "Remote control…" is the only one of
+the three that says what pressing it does. The window keeps the broader title because it is
+no longer only a remote.
 
 ## What deliberately does not change
 

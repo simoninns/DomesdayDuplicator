@@ -92,8 +92,11 @@ ExamineDialog::ExamineDialog(PlayerController* controller, QWidget* parent)
   copy_ = buttons->addButton(tr("Copy report"), QDialogButtonBox::ActionRole);
   copy_->setObjectName(QLatin1String(kCopyButtonName));
 
-  set_up_ =
-      buttons->addButton(tr("Set up capture…"), QDialogButtonBox::ActionRole);
+  // Named exactly as the other two ways in — the Capture panel's button and the
+  // Tools entry — because it opens the same window and starts the same thing.
+  // A third name for it would read as a third feature.
+  set_up_ = buttons->addButton(tr("Automatic capture…"),
+                               QDialogButtonBox::ActionRole);
   set_up_->setObjectName(QLatin1String(kSetUpButtonName));
   set_up_->setToolTip(
       tr("Take this report into the automatic capture, on the page that asks "
@@ -211,8 +214,8 @@ void ExamineDialog::ApplyState() {
 
   // Offered only once there is a profile to build a capture from. A capture
   // needs the disc type and the measured end of the side; without them the
-  // guided setup would open, refuse everything, and say so — which is a worse
-  // way to learn that the examination did not finish.
+  // wizard would open on its settings page, refuse everything, and say so —
+  // which is a worse way to learn that the examination did not finish.
   set_up_->setEnabled(!running_ && profile_.disc_type.known() &&
                       profile_.programme_end.known());
 

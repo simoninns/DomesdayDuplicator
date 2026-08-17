@@ -1,5 +1,27 @@
 # LaserDisc Player Control (`ddd-gui/`) — Implementation Plan
 
+!!! note "The UI in this plan was later restructured"
+
+    Everything below was built. The *engine* — `PlayerController`, `PlayerSession`,
+    `DiscExaminer`, `AutoCaptureSequence`, `AutoCaptureController`, the player definitions
+    and the text helpers — is current, and is the reason to read this document: it records
+    why each of those is shaped the way it is.
+
+    The **user interface it describes is not**. The
+    [capture UX plan](capture-ux-refactor-plan.md) recomposed it without changing the engine:
+
+    | This plan says | Now |
+    | --- | --- |
+    | A **Player dock panel** (Task 2.4) | Gone. Its readouts are the player window's **Connection** tab; whether a player is connected is the status bar's permanent label |
+    | A top-level **Player menu** | A section at the top of **Tools** |
+    | **Remote control…**, one tall column of group boxes (Phase 3) | Titled "Player", tabbed: Control, Connection, Disc codes, Manual command. Opens whether or not a player is connected |
+    | **GuidedCaptureDialog**, reached from the examine report (Phase 5) | Retired. `AutoCaptureWizard` — four pages from examination to summary — reached from Tools, the Capture panel, or an examine report |
+    | The naming fields in a dialog of their own | `CaptureNamingForm`, shared by that dialog and the wizard's first page, and able to ask the player |
+
+    Read a UI passage below as the reasoning that produced the current surface rather than a
+    description of it. `DiscExaminer` also gained an `ExamineScope` after this plan, so a
+    quick identify can run without moving the disc.
+
 ## Purpose
 
 The capture application can drive the Duplicator but not the player. Everything about
@@ -186,9 +208,11 @@ ddd-gui/src/gui/                    ← additions to the existing Qt layer
   player_settings.{h,cpp}           persisted player configuration
   player_text.{h,cpp}               every user-visible string, as pure functions
   player_panel.{h,cpp}              the dock: connection state and live status
-  player_remote_dialog.{h,cpp}      the pop-up remote
+                                    — REMOVED; see the note at the top
+  player_remote_dialog.{h,cpp}      the pop-up remote — now the tabbed player window
   examine_dialog.{h,cpp}            "Examine disc", its progress and its report
   guided_capture_dialog.{h,cpp}     the setup built from the examination
+                                    — REPLACED by auto_capture_wizard.{h,cpp}
   auto_capture_controller.{h,cpp}   player ↔ capture coupling
 ```
 

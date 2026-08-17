@@ -1,7 +1,7 @@
 # Capture control
 
 The **Capture** panel is the one that starts things: which device, where the file goes, and
-the two buttons.
+the buttons.
 
 ## Monitoring and capturing
 
@@ -30,6 +30,15 @@ taking the shortcut away.
 Both buttons take on a colour while they are doing something, so the state reads from across
 a bench rather than only by reading the label: green while monitoring, red while capturing.
 The red says *recording* — it is a normal state, not a fault.
+
+**Automatic capture…** is the third button, and it is greyed out until
+[player control](player-control.md) is on and a player is connected — present rather than
+absent, so that a panel with no player attached still says the path exists. It opens the
+[four-page workflow](player-control.md#capturing-a-side-by-itself) that examines the disc,
+names the capture from what it found, takes the side, and reports what was written. It is a
+way into that window rather than a mode the panel enters: the folder, format and sample rate
+below are the same settings the workflow's own second page shows, and the two cannot
+disagree.
 
 ## Device
 
@@ -93,6 +102,14 @@ reaches the file name. See [Naming and metadata](capture-naming.md).
 
 A name typed here wins outright over anything set there, and the dialog says so rather than
 leaving it to be discovered.
+
+**The Naming… button colours itself** when nothing at all has been said about the disc — no
+name typed, no field ticked — so that a capture is not filed under a timestamp by accident.
+It is a nudge and not a warning: an unnamed capture is a legitimate way to work, the colour
+is the theme's accent rather than an error red, and **Start capture** is never held up by it.
+The colour clears on the first keystroke in the Name field rather than when the field loses
+focus, so it is not arguing with you while you type. Test mode suppresses it, because there
+the name is forced to `TestData_` and there is nothing to offer.
 
 ### Format
 

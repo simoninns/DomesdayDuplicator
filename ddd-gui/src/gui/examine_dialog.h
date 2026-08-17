@@ -49,10 +49,11 @@ class PlayerController;
 // about it — and a report that could only be described rather than pasted is a
 // report that arrives as "it said something about the disc status".
 //
-// **Set up capture…** is here, and it is the whole point of the report: an
+// **Automatic capture…** is here, and it is the whole point of the report: an
 // examination is a precursor to a capture, and the profile it produced is
-// exactly what the guided setup needs. It appears once an examination has
-// produced something to build a capture from, and not before.
+// exactly what AutoCaptureWizard's second page needs. It appears once an
+// examination has produced something to build a capture from, and not before —
+// and it hands the profile over rather than having the disc examined again.
 //
 // Thread-safety: NOT thread-safe. GUI thread only.
 class ExamineDialog : public QDialog {

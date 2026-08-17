@@ -106,7 +106,7 @@ struct ScannedFact {
 // What the examination of the disc found out before the capture started.
 //
 // Present only where an examination actually happened, which today means an
-// automatic capture: the guided setup runs the examination and hands its result
+// automatic capture: its first page examines the disc and hands the result
 // down. A capture taken by hand carries an empty scan rather than a stale one —
 // the disc in the player five minutes and one disc change later is not the disc
 // that was examined, and a sidecar asserting otherwise would be worse than one

@@ -315,7 +315,7 @@ TEST_F(PlayerHardwareTest, AnExaminationOfARealDiscCompletes) {
          "plays, it should";
 
   // The two facts every later step depends on. A profile without them is one
-  // the guided capture cannot build a plan from, so an examination that
+  // the automatic capture cannot build a plan from, so an examination that
   // "completed" without them has not done its job.
   ASSERT_TRUE(disc.disc_type.known());
   ASSERT_TRUE(disc.programme_end.known());

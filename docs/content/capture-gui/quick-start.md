@@ -91,6 +91,13 @@ Both should sit near zero. If either climbs and stays up, the machine is not kee
 [Statistics](statistics.md) says which of the two to act on and
 [If a capture fails](if-a-capture-fails.md) says what to do about it.
 
+!!! tip "If your player has a serial port"
+
+    That is the capture taken by hand, and it is the path to know first. Turn on
+    [player control](player-control.md) and the application will do the whole of it for you
+    instead: **Tools ▸ Automatic capture…** examines the disc, names the capture from what it
+    found, plays the side, and stops both the capture and the player at the end.
+
 ## 7. Use the file
 
 You now have a `.ddd.flac` in the folder you chose. It goes straight into a decode:

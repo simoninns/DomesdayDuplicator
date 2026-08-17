@@ -261,9 +261,10 @@ QWidget* SettingsDialog::BuildPlayerPage(
 
   // The one way the player and the capture are coupled, and it runs in one
   // direction: the player may stop the capture, and the capture never stops the
-  // player. Its place is here rather than in the guided setup's own window
-  // because it is a setting for a machine rather than a decision about one
-  // capture — the guided setup shows it, and changing it there changes it here.
+  // player. Its place is here rather than only on the automatic capture's
+  // settings page because it is a setting for a machine rather than a decision
+  // about one capture — that page shows it, and changing it there changes it
+  // here.
   stop_capture_ =
       new QCheckBox(tr("Stop the capture when the player stops"), page);
   stop_capture_->setObjectName(QLatin1String(kPlayerStopCaptureCheckName));

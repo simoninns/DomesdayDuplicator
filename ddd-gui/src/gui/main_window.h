@@ -123,8 +123,9 @@ class MainWindow : public QMainWindow {
   // The same, for the examine window.
   void ShowExamineDialog();
 
-  // And for the guided setup, which is reached from the examine window's report
-  // and carries the profile that report was written from.
+  // And for the automatic capture. The second form is the way in from the
+  // examine window's report, carrying the profile that report was written from
+  // so the disc is not examined a second time.
   void ShowAutoCaptureWizard();
   void ShowAutoCaptureWizardFor(const ddd::player::DiscProfile& disc);
 
@@ -179,8 +180,8 @@ class MainWindow : public QMainWindow {
   // examinations would be two sequences seeking one player.
   QPointer<ExamineDialog> examine_dialog_;
 
-  // And the guided setup, on the same terms again: two of these would be two
-  // sequences driving one player and one capture engine.
+  // And the automatic capture, on the same terms again: two of these would be
+  // two sequences driving one player and one capture engine.
   QPointer<AutoCaptureWizard> wizard_;
 
   // Held so the two can be related to one another after both exist: the

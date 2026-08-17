@@ -47,7 +47,7 @@ enum class Provenance : uint8_t {
   kInferred,
 
   // The user said so. Nothing in Phase 4 produces this; it is for the fields a
-  // model cannot be asked about, which the guided setup collects.
+  // model cannot be asked about, which the capture setup collects.
   kDeclared,
 };
 
@@ -111,9 +111,9 @@ struct UserCodeReading {
 // Everything an examination established about the disc in the player.
 //
 // **Nothing here is required to be known.** A player that refuses half of these
-// queries yields a profile with the other half in it, and the guided setup asks
-// about what is missing. The old application's equivalent gave up at the first
-// refusal and produced nothing at all, which is why a disc that would not
+// queries yields a profile with the other half in it, and the capture setup
+// asks about what is missing. The old application's equivalent gave up at the
+// first refusal and produced nothing at all, which is why a disc that would not
 // report its status could not be captured automatically even though its length
 // was perfectly measurable.
 //
@@ -175,7 +175,7 @@ struct DiscProfile {
   // Asked for, in the one command that answers it — see TvSystemDecode. It is
   // not in the disc status, and the model does not imply it: this project's own
   // LD-V4300D is dual-format. A model that cannot be asked leaves this unknown
-  // and the guided setup asks the user, which is where kDeclared comes from.
+  // and the capture setup asks the user, which is where kDeclared comes from.
   Fact<VideoStandard> video_standard;
 
   // The disc-status reply exactly as it arrived.
@@ -204,7 +204,7 @@ std::optional<std::chrono::seconds> ProgrammeDuration(const DiscProfile& disc);
 // carrying this standard.
 //
 // The general form of the above, which is this applied to the two ends of the
-// programme — and what the guided setup needs, since a capture of part of a
+// programme — and what the capture setup needs, since a capture of part of a
 // side wants its own estimate rather than the whole side's. Nothing where the
 // span is empty or backwards, and nothing for a CAV span whose standard is
 // unknown, for the reason given above.

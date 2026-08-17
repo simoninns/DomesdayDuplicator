@@ -91,9 +91,9 @@ class AutoCaptureController : public QObject {
 
   bool running() const { return sequence_ != nullptr; }
 
-  // The two controllers, borrowed. Exposed so that the guided setup can apply
-  // the capture name and the coupling preference to the settings they belong
-  // to rather than being handed three pointers to keep in step.
+  // The two controllers, borrowed. Exposed so that the wizard driving this can
+  // apply the capture name and the coupling preference to the settings they
+  // belong to rather than being handed three pointers to keep in step.
   PlayerController* player() const { return player_; }
   CaptureController* capture() const { return capture_; }
 
@@ -112,7 +112,7 @@ class AutoCaptureController : public QObject {
  public slots:
   // Begin an automatic capture. Does nothing when one is already running, when
   // there is no player, or when the plan could not be run against the disc —
-  // the guided setup enables its button on the same function, so the last of
+  // the wizard enables its Start button on the same function, so the last of
   // those is a guard rather than a path.
   void Start(const ddd::player::AutoCapturePlan& plan,
              const ddd::player::DiscProfile& disc);

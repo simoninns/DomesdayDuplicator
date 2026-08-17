@@ -556,7 +556,7 @@ void CapturePanel::OnDevicesChanged(
     if (!selected->is_application()) {
       status_label_->setText(
           tr("This device has no firmware installed, so it cannot capture "
-             "yet. Open Help ▸ Firmware… to program it."));
+             "yet. Open Tools ▸ Firmware… to program it."));
     } else if (!selected->CanCarryCapture()) {
       status_label_->setText(
           tr("Connected at insufficient speed. This device is on a USB 2 port "

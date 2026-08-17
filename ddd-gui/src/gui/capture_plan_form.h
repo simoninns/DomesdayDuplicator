@@ -44,9 +44,10 @@ namespace ddd::gui {
 // asking — which for a fully examined disc is nothing at all.
 //
 // A widget rather than a dialog because the setting-up is one step of a longer
-// business: it is shown inside GuidedCaptureDialog today and on a page of the
-// automatic capture's wizard, and the two must be the same controls rather than
-// two forms agreeing by inspection.
+// business: it is the second page of the automatic capture's wizard, and a
+// widget is what can be embedded rather than opened. It stays a widget rather
+// than being folded back into that page because a plan is a thing with its own
+// validity — Plan() and problem() are the page's whole interest in it.
 //
 // Thread-safety: NOT thread-safe. GUI thread only.
 class CapturePlanForm : public QWidget {
@@ -57,27 +58,27 @@ class CapturePlanForm : public QWidget {
                            QWidget* parent = nullptr);
 
   // Named so the widget tests can find them without depending on layout order.
-  static constexpr const char* kWholeSideRadioName = "guided_whole_side";
-  static constexpr const char* kRangeRadioName = "guided_range";
-  static constexpr const char* kFromSpinUpRadioName = "guided_from_spin_up";
+  static constexpr const char* kWholeSideRadioName = "plan_whole_side";
+  static constexpr const char* kRangeRadioName = "plan_range";
+  static constexpr const char* kFromSpinUpRadioName = "plan_from_spin_up";
 
   // CAV only. A CLV profile does not build these, which is the honest form of
   // "frame entry is not offered for a disc that has no frame numbers".
-  static constexpr const char* kStartFrameSpinName = "guided_start_frame";
-  static constexpr const char* kEndFrameSpinName = "guided_end_frame";
+  static constexpr const char* kStartFrameSpinName = "plan_start_frame";
+  static constexpr const char* kEndFrameSpinName = "plan_end_frame";
 
   // CLV only, on the same terms.
-  static constexpr const char* kStartTimeEditName = "guided_start_time";
-  static constexpr const char* kEndTimeEditName = "guided_end_time";
+  static constexpr const char* kStartTimeEditName = "plan_start_time";
+  static constexpr const char* kEndTimeEditName = "plan_end_time";
 
   // Built only where the examination could not establish the standard.
-  static constexpr const char* kStandardComboName = "guided_standard";
+  static constexpr const char* kStandardComboName = "plan_standard";
 
-  static constexpr const char* kKeyLockCheckName = "guided_key_lock";
-  static constexpr const char* kStopCaptureCheckName = "guided_stop_capture";
+  static constexpr const char* kKeyLockCheckName = "plan_key_lock";
+  static constexpr const char* kStopCaptureCheckName = "plan_stop_capture";
 
-  static constexpr const char* kEstimateLabelName = "guided_estimate";
-  static constexpr const char* kProblemLabelName = "guided_problem";
+  static constexpr const char* kEstimateLabelName = "plan_estimate";
+  static constexpr const char* kProblemLabelName = "plan_problem";
 
   // What the controls currently describe. Not necessarily runnable — see
   // problem().

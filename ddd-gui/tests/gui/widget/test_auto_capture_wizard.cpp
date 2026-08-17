@@ -181,7 +181,7 @@ TEST_F(AutoCaptureWizardTest, AnUnmeasuredSideIsNotSomethingToPlanFrom) {
 }
 
 TEST_F(AutoCaptureWizardTest, AReportHandedOverSkipsStraightToTheSettings) {
-  // What the Examine window's "Set up capture…" does. Examining again would
+  // What the Examine window's "Automatic capture…" does. Examining again would
   // spend a minute rediscovering what the report already says, and leave the
   // disc somewhere else while it did.
   Build();

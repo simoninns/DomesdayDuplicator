@@ -795,7 +795,7 @@ TEST(DiscExaminerTest, AModelThatCannotSeekIsStillExaminedForWhatItCanSay) {
   EXPECT_FALSE(Sent(sent, ExamineStage::kFindingEnd));
   EXPECT_FALSE(examiner.profile().programme_end.known());
 
-  // The disc type is still established, which is most of what the guided setup
+  // The disc type is still established, which is most of what the capture setup
   // needs to ask the right questions.
   EXPECT_EQ(examiner.profile().disc_type.value, DiscType::kCav);
   EXPECT_EQ(examiner.outcome(), ExamineOutcome::kCompleted);

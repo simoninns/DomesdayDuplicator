@@ -2,7 +2,7 @@
 
     auto_capture_plan.h
 
-    What a guided capture setup produces, and what makes one impossible
+    What setting up an automatic capture produces, and what makes one impossible
     Domesday Duplicator - LaserDisc RF sampler
     SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
@@ -75,7 +75,7 @@ constexpr bool EndsWithSpinDown(CaptureShape shape) {
   return shape == CaptureShape::kWholeSide;
 }
 
-// What the guided setup decided.
+// What setting up an automatic capture decided.
 //
 // A plain value with no Qt in it, so the rules below are the same rules the
 // dialog enables its OK button with and the sequence checks its preconditions

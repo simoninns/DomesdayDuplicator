@@ -345,7 +345,7 @@ TEST_F(ExamineDialogTest, SetUpCaptureArrivesWithSomethingToCaptureFrom) {
   ASSERT_NE(set_up, nullptr);
 
   // Nothing examined yet, so there is nothing to build a capture from. A window
-  // that offered it here would open the guided setup on a refusal, which is a
+  // that offered it here would open the wizard on a refusal, which is a
   // worse way to learn that the examination never happened.
   EXPECT_FALSE(set_up->isEnabled());
 
