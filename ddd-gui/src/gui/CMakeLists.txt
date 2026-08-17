@@ -35,7 +35,6 @@ add_library(ddd_gui_lib STATIC
     main_window.cpp
     player_controller.cpp
     player_discovery.cpp
-    player_panel.cpp
     player_remote_dialog.cpp
     player_settings.cpp
     player_text.cpp

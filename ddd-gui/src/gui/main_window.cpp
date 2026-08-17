@@ -40,7 +40,6 @@
 #include "log_message_model.h"
 #include "log_panel.h"
 #include "player_controller.h"
-#include "player_panel.h"
 #include "player_remote_dialog.h"
 #include "player_text.h"
 #include "serial_port_scanner.h"
@@ -109,7 +108,6 @@ MainWindow::MainWindow(ThemeController* theme_controller,
   setCentralWidget(central);
 
   BuildCaptureDock();
-  BuildPlayerDock();
   BuildStatisticsDock();
   BuildWaveformDock();
   BuildSpectrumDock();
@@ -238,21 +236,6 @@ void MainWindow::BuildCaptureDock() {
   addDockWidget(Qt::LeftDockWidgetArea, capture_dock_);
 }
 
-void MainWindow::BuildPlayerDock() {
-  player_dock_ = new QDockWidget(tr("Player"), this);
-  player_dock_->setObjectName(QStringLiteral("player_dock"));
-
-  auto* panel = new PlayerPanel(player_controller_, player_dock_);
-  connect(panel, &PlayerPanel::RemoteRequested, this,
-          &MainWindow::ShowRemoteDialog);
-  connect(panel, &PlayerPanel::ExamineRequested, this,
-          &MainWindow::ShowExamineDialog);
-
-  player_dock_->setWidget(panel);
-  addDockWidget(Qt::LeftDockWidgetArea, player_dock_);
-  splitDockWidget(capture_dock_, player_dock_, Qt::Vertical);
-}
-
 void MainWindow::BuildStatisticsDock() {
   statistics_dock_ = new QDockWidget(tr("Statistics"), this);
   statistics_dock_->setObjectName(QStringLiteral("statistics_dock"));
@@ -325,7 +308,6 @@ void MainWindow::BuildMenus() {
   // without any code here.
   QMenu* panels_menu = view_menu->addMenu(tr("&Panels"));
   panels_menu->addAction(capture_dock_->toggleViewAction());
-  panels_menu->addAction(player_dock_->toggleViewAction());
   panels_menu->addAction(statistics_dock_->toggleViewAction());
   panels_menu->addAction(waveform_dock_->toggleViewAction());
   panels_menu->addAction(spectrum_dock_->toggleViewAction());
@@ -357,19 +339,18 @@ void MainWindow::BuildMenus() {
             [this, mode] { theme_controller_->SetMode(mode); });
   }
 
-  BuildPlayerMenu();
   BuildToolsMenu();
 
   QMenu* help_menu = menuBar()->addMenu(tr("&Help"));
   help_menu->addAction(tr("&About"), this, &MainWindow::ShowAboutDialog);
 }
 
-void MainWindow::BuildPlayerMenu() {
-  // A menu of its own, and reachable with the Player panel closed: somebody who
-  // has hidden every panel but the spectrum still has to be able to switch the
-  // player link on.
-  QMenu* player_menu = menuBar()->addMenu(tr("&Player"));
-
+void MainWindow::BuildPlayerSection(QMenu* player_menu) {
+  // A section of Tools rather than a menu of its own, and this is where the
+  // whole of the player's standing interface now lives. Almost every user has
+  // one player, set up once and never touched again: it does not earn a dock
+  // that is always on screen, and it does not earn a top-level menu either. The
+  // status bar says whether it is connected, and everything else is here.
   player_enabled_action_ = player_menu->addAction(tr("&Player control"));
   player_enabled_action_->setCheckable(true);
   player_enabled_action_->setStatusTip(
@@ -384,7 +365,8 @@ void MainWindow::BuildPlayerMenu() {
 
   player_menu->addSeparator();
   QAction* const remote_action = player_menu->addAction(tr("&Remote control…"));
-  remote_action->setStatusTip(tr("Drive the player by hand"));
+  remote_action->setStatusTip(
+      tr("Drive the player by hand, and see how it is connected"));
 
   QAction* const examine_action = player_menu->addAction(tr("&Examine disc…"));
   examine_action->setStatusTip(
@@ -431,31 +413,45 @@ void MainWindow::BuildPlayerMenu() {
           });
 
   connect(player_controller_, &PlayerController::ConnectionChanged, this,
-          [search_action, remote_action,
-           examine_action](const PlayerConnection& connection) {
+          [search_action, examine_action](const PlayerConnection& connection) {
             search_action->setEnabled(connection.state ==
                                       PlayerConnectionState::kDisconnected);
 
-            // There is nothing to drive without a player. An open remote is
-            // left open and greys itself out instead, because a window that
-            // vanished when a cable was jogged would be worse than one that
-            // says what happened.
-            remote_action->setEnabled(connection.live());
+            // There is nothing to examine without a player, and a disc the
+            // application cannot reach is not one it can report on.
             examine_action->setEnabled(connection.live());
           });
 
   search_action->setEnabled(player_controller_->connection().state ==
                             PlayerConnectionState::kDisconnected);
-  remote_action->setEnabled(player_controller_->connection().live());
+
+  // Both starting states, not just the search's. Without this line Examine sits
+  // enabled from the moment the window opens until the first connection report
+  // arrives — and with player control switched off no report ever comes, so it
+  // stays enabled for the whole session with nothing to examine behind it.
+  examine_action->setEnabled(player_controller_->connection().live());
+
+  // The remote is deliberately *not* gated on there being a player, unlike
+  // every other entry here. Its Connection tab is where a user finds out why
+  // nothing is connected, so an entry that greyed itself out the moment the
+  // link went would withhold the answer at exactly the moment it is wanted —
+  // which is what the Player dock used to be there to give. An open remote
+  // greys its own controls instead, and says what happened.
 }
 
 void MainWindow::BuildToolsMenu() {
-  // A menu of its own, because every entry is about checking the instrument
-  // rather than about taking a recording. Test mode in particular was on the
-  // Capture panel, where it sat among the settings of an ordinary capture and
-  // read as one of them — it is the opposite: it replaces the signal with a
-  // ramp and produces a file with no recording in it at all.
+  // A menu of its own, because every entry is about the equipment rather than
+  // about taking a recording. Test mode in particular was on the Capture panel,
+  // where it sat among the settings of an ordinary capture and read as one of
+  // them — it is the opposite: it replaces the signal with a ramp and produces
+  // a file with no recording in it at all.
   QMenu* tools_menu = menuBar()->addMenu(tr("&Tools"));
+
+  // The player first, and separated from what follows: the entries above the
+  // line are about the other machine on the bench, the ones below are about
+  // this one.
+  BuildPlayerSection(tools_menu);
+  tools_menu->addSeparator();
 
   test_mode_action_ = tools_menu->addAction(tr("&Test data mode"));
   test_mode_action_->setCheckable(true);
@@ -696,6 +692,17 @@ void MainWindow::ShowRemoteDialog() {
     // Deleted when it is closed rather than kept about, so a remote that is not
     // open is not receiving status updates four times a second.
     remote_dialog_->setAttribute(Qt::WA_DeleteOnClose);
+
+    // Opened on the tab that answers the question the user has. With a player
+    // connected that is the transport; without one it is the tab that says why
+    // there is nothing to drive.
+    //
+    // Only on the way in. Somebody who opened the remote, left it on the manual
+    // command page and came back to it through the menu meant to return to what
+    // they were doing, not to be moved.
+    remote_dialog_->ShowTab(player_controller_->connection().live()
+                                ? PlayerRemoteDialog::Tab::kControl
+                                : PlayerRemoteDialog::Tab::kConnection);
   }
 
   remote_dialog_->show();

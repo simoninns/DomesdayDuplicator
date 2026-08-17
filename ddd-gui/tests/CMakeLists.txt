@@ -266,7 +266,6 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     gui/widget/test_capture_naming_dialog.cpp
     gui/widget/test_examine_dialog.cpp
     gui/widget/test_guided_capture_dialog.cpp
-    gui/widget/test_player_panel.cpp
     gui/widget/test_player_remote_dialog.cpp
     gui/widget/test_settings_dialog.cpp
     gui/widget/test_statistics_panel.cpp

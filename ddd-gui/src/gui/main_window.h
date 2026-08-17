@@ -24,6 +24,7 @@
 class QAction;
 class QDockWidget;
 class QLabel;
+class QMenu;
 
 namespace ddd::gui {
 
@@ -87,7 +88,6 @@ class MainWindow : public QMainWindow {
 
  private:
   void BuildCaptureDock();
-  void BuildPlayerDock();
   void BuildStatisticsDock();
   void BuildWaveformDock();
   void BuildSpectrumDock();
@@ -95,7 +95,10 @@ class MainWindow : public QMainWindow {
   void BuildLogDock();
   void BuildMenus();
   void BuildToolsMenu();
-  void BuildPlayerMenu();
+
+  // The player's entries, added to the menu passed in — which is Tools. See the
+  // definition for why the player has no menu and no dock of its own.
+  void BuildPlayerSection(QMenu* player_menu);
 
   // Put the gateware into — or out of — test-pattern mode, through the settings
   // rather than directly, so that everything showing the mode agrees about it.
@@ -140,7 +143,6 @@ class MainWindow : public QMainWindow {
   LogMessageModel* log_model_;
 
   QDockWidget* capture_dock_ = nullptr;
-  QDockWidget* player_dock_ = nullptr;
   QDockWidget* statistics_dock_ = nullptr;
   QDockWidget* waveform_dock_ = nullptr;
   QDockWidget* spectrum_dock_ = nullptr;
@@ -151,8 +153,9 @@ class MainWindow : public QMainWindow {
   // reflected in the tick, and so the entry can be taken away while streaming.
   QAction* test_mode_action_ = nullptr;
 
-  // Player ▸ Player control. Held for the same reason: the panel's checkbox and
-  // the settings dialog change the same setting, and all three have to agree.
+  // Tools ▸ Player control. Held for the same reason: the remote's Connection
+  // tab and the settings dialog change the same setting, and all three have to
+  // agree.
   QAction* player_enabled_action_ = nullptr;
 
   // The player's state in the status bar. A permanent widget rather than a

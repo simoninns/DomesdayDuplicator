@@ -11,11 +11,13 @@
 
 #include "player_remote_dialog.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFont>
 #include <QFontDatabase>
 #include <QFontMetrics>
+#include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QIntValidator>
@@ -25,6 +27,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
+#include <QTabWidget>
 #include <QVBoxLayout>
 #include <QVariant>
 #include <optional>
@@ -77,12 +80,21 @@ QLabel* MakeReadout(QWidget* parent, const char* object_name) {
   return label;
 }
 
+// One row of the status block: a value with nothing in it yet, which is a
+// different thing from a value of zero.
+QLabel* MakeStatusReadout(QWidget* parent, const char* object_name) {
+  auto* label = new QLabel(QStringLiteral("—"), parent);
+  label->setObjectName(QLatin1String(object_name));
+  label->setTextInteractionFlags(Qt::TextSelectableByMouse);
+  return label;
+}
+
 }  // namespace
 
 PlayerRemoteDialog::PlayerRemoteDialog(PlayerController* controller,
                                        QWidget* parent)
     : QDialog(parent), controller_(controller) {
-  setWindowTitle(tr("Remote control"));
+  setWindowTitle(tr("Player"));
 
   // The point of this window rather than a detail of it: the spectrum, the
   // waveform and the capture controls stay usable while the player is being
@@ -93,18 +105,21 @@ PlayerRemoteDialog::PlayerRemoteDialog(PlayerController* controller,
 
   auto* layout = new QVBoxLayout(this);
 
+  // Above the tab bar rather than on a page, because it is the one thing every
+  // page wants in view: what is connected and what it is doing.
   headline_ = MakeReadout(this, kHeadlineLabelName);
   QFont headline_font = headline_->font();
   headline_font.setBold(true);
   headline_->setFont(headline_font);
   layout->addWidget(headline_);
 
-  layout->addWidget(BuildTransport());
-  layout->addWidget(BuildSearch());
-  layout->addWidget(BuildPresentation());
-  layout->addWidget(BuildUserCodes());
-  layout->addWidget(BuildManualCommand());
-  layout->addStretch(1);
+  tabs_ = new QTabWidget(this);
+  tabs_->setObjectName(QLatin1String(kTabsName));
+  tabs_->addTab(BuildControlPage(), tr("Control"));
+  tabs_->addTab(BuildConnectionPage(), tr("Connection"));
+  tabs_->addTab(BuildDiscCodePage(), tr("Disc codes"));
+  tabs_->addTab(BuildManualPage(), tr("Manual command"));
+  layout->addWidget(tabs_);
 
   auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
   connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::close);
@@ -118,15 +133,44 @@ PlayerRemoteDialog::PlayerRemoteDialog(PlayerController* controller,
     connect(controller_, &PlayerController::RequestCompleted, this,
             &PlayerRemoteDialog::OnRequestCompleted);
 
+    // The checkbox is the settings, so anything else that changes them — the
+    // Tools menu, the settings dialog — is reflected here rather than leaving
+    // the two disagreeing.
+    connect(controller_, &PlayerController::SettingsChanged, this,
+            [this](const PlayerSettings& settings) {
+              const QSignalBlocker blocker(enabled_check_);
+              enabled_check_->setChecked(settings.enabled);
+            });
+
+    enabled_check_->setChecked(controller_->settings().enabled);
+
     connection_ = controller_->connection();
     status_ = controller_->status();
   }
 
   ApplyAddressModes();
+  ApplyConnection();
+  SetStatus(status_);
 }
 
-QWidget* PlayerRemoteDialog::BuildTransport() {
-  auto* group = new QGroupBox(tr("Transport"), this);
+void PlayerRemoteDialog::ShowTab(Tab tab) {
+  tabs_->setCurrentIndex(static_cast<int>(tab));
+}
+
+QWidget* PlayerRemoteDialog::BuildControlPage() {
+  auto* page = new QWidget(this);
+  auto* layout = new QVBoxLayout(page);
+
+  layout->addWidget(BuildTransport(page));
+  layout->addWidget(BuildSearch(page));
+  layout->addWidget(BuildPresentation(page));
+  layout->addStretch(1);
+
+  return page;
+}
+
+QWidget* PlayerRemoteDialog::BuildTransport(QWidget* page) {
+  auto* group = new QGroupBox(tr("Transport"), page);
   auto* rows = new QVBoxLayout(group);
 
   auto* disc_row = new QHBoxLayout();
@@ -209,8 +253,8 @@ QWidget* PlayerRemoteDialog::BuildTransport() {
   return group;
 }
 
-QWidget* PlayerRemoteDialog::BuildSearch() {
-  auto* group = new QGroupBox(tr("Go to"), this);
+QWidget* PlayerRemoteDialog::BuildSearch(QWidget* page) {
+  auto* group = new QGroupBox(tr("Go to"), page);
   auto* rows = new QVBoxLayout(group);
 
   auto* row = new QHBoxLayout();
@@ -261,8 +305,8 @@ QWidget* PlayerRemoteDialog::BuildSearch() {
   return group;
 }
 
-QWidget* PlayerRemoteDialog::BuildPresentation() {
-  auto* group = new QGroupBox(tr("Display and audio"), this);
+QWidget* PlayerRemoteDialog::BuildPresentation(QWidget* page) {
+  auto* group = new QGroupBox(tr("Display and audio"), page);
   auto* rows = new QVBoxLayout(group);
 
   auto* display_row = new QHBoxLayout();
@@ -309,35 +353,142 @@ QWidget* PlayerRemoteDialog::BuildPresentation() {
   return group;
 }
 
-QWidget* PlayerRemoteDialog::BuildUserCodes() {
-  auto* group = new QGroupBox(tr("User code"), this);
-  auto* rows = new QVBoxLayout(group);
+QWidget* PlayerRemoteDialog::BuildConnectionPage() {
+  auto* page = new QWidget(this);
+  auto* layout = new QVBoxLayout(page);
+
+  enabled_check_ = new QCheckBox(tr("Player control"), page);
+  enabled_check_->setObjectName(QLatin1String(kEnabledCheckName));
+  enabled_check_->setToolTip(
+      tr("Look for a LaserDisc player on the serial ports, and control it from "
+         "here. While this is off, no serial port on this machine is opened or "
+         "written to."));
+  layout->addWidget(enabled_check_);
+
+  // A sentence rather than a status light, and that is the design: "no player
+  // found" and "that port could not be opened" send somebody to different
+  // places, and a red dot would send them to neither. Everything shown here
+  // comes from player_text.cpp, so this tab, the status bar and the log cannot
+  // drift apart.
+  summary_ = new QLabel(page);
+  summary_->setObjectName(QLatin1String(kSummaryLabelName));
+  summary_->setWordWrap(true);
+  QFont summary_font = summary_->font();
+  summary_font.setBold(true);
+  summary_->setFont(summary_font);
+  layout->addWidget(summary_);
+
+  detail_ = MakeReadout(page, kDetailLabelName);
+  layout->addWidget(detail_);
+
+  source_ = MakeReadout(page, kSourceLabelName);
+  layout->addWidget(source_);
+
+  verification_ = new QLabel(page);
+  verification_->setObjectName(QLatin1String(kVerificationLabelName));
+  verification_->setWordWrap(true);
+  layout->addWidget(verification_);
+
+  auto* buttons = new QWidget(page);
+  auto* button_layout = new QHBoxLayout(buttons);
+  button_layout->setContentsMargins(0, 0, 0, 0);
+
+  search_now_ = new QPushButton(tr("Search now"), buttons);
+  search_now_->setObjectName(QLatin1String(kSearchNowButtonName));
+  search_now_->setToolTip(
+      tr("Look for the player again straight away, rather than waiting for the "
+         "next automatic attempt."));
+  button_layout->addWidget(search_now_);
+
+  use_model_ = new QPushButton(tr("Use this model"), buttons);
+  use_model_->setObjectName(QLatin1String(kUseModelButtonName));
+  use_model_->setToolTip(
+      tr("Change the selected model to the one that actually answered."));
+  use_model_->setVisible(false);
+  button_layout->addWidget(use_model_);
+
+  button_layout->addStretch(1);
+  layout->addWidget(buttons);
+
+  auto* form = new QFormLayout();
+  form->setLabelAlignment(Qt::AlignLeft);
+
+  state_ = MakeStatusReadout(page, kStateLabelName);
+  form->addRow(tr("State"), state_);
+
+  tray_ = MakeStatusReadout(page, kTrayLabelName);
+  form->addRow(tr("Tray"), tray_);
+
+  disc_ = MakeStatusReadout(page, kDiscLabelName);
+  form->addRow(tr("Disc"), disc_);
+
+  address_readout_ = MakeStatusReadout(page, kAddressLabelName);
+  form->addRow(tr("Position"), address_readout_);
+
+  // Built and then hidden rather than not built: the row exists in every build
+  // of the window, so a widget test can find it and check that it stays hidden
+  // for a model that cannot report one.
+  position_row_ = new QWidget(page);
+  auto* position_layout = new QHBoxLayout(position_row_);
+  position_layout->setContentsMargins(0, 0, 0, 0);
+  position_ = MakeStatusReadout(position_row_, kPositionLabelName);
+  position_layout->addWidget(position_);
+  form->addRow(tr("Optical assembly"), position_row_);
+  position_row_->setVisible(false);
+
+  layout->addLayout(form);
+  layout->addStretch(1);
+
+  if (controller_ != nullptr) {
+    connect(enabled_check_, &QCheckBox::toggled, controller_,
+            &PlayerController::SetEnabled);
+    connect(search_now_, &QPushButton::clicked, controller_,
+            &PlayerController::SearchNow);
+    connect(use_model_, &QPushButton::clicked, controller_,
+            &PlayerController::UseConnectedModel);
+  }
+
+  return page;
+}
+
+QWidget* PlayerRemoteDialog::BuildDiscCodePage() {
+  auto* page = new QWidget(this);
+  auto* layout = new QVBoxLayout(page);
+
+  auto* explanation = new QLabel(
+      tr("The codes the disc carries about itself. They are read from the disc "
+         "rather than worked out, and nothing in this application derives a "
+         "length, a start or an end from one."),
+      page);
+  explanation->setWordWrap(true);
+  layout->addWidget(explanation);
 
   auto* row = new QHBoxLayout();
   QPushButton* const standard =
-      AddCommandButton(group, row, kStandardUserCodeButtonName, tr("Standard"),
+      AddCommandButton(page, row, kStandardUserCodeButtonName, tr("Standard"),
                        player::PlayerCommand::kQueryStandardUserCode,
                        tr("Read the disc's standard user code."));
   QPushButton* const pioneer = AddCommandButton(
-      group, row, kPioneerUserCodeButtonName, tr("Pioneer"),
+      page, row, kPioneerUserCodeButtonName, tr("Pioneer"),
       player::PlayerCommand::kQueryPioneerUserCode,
       tr("Read the disc's Pioneer user code. This one moves the player: it "
          "searches to the lead-in to read it, so the disc will not be where "
          "you left it afterwards, and it takes up to ten seconds."));
   row->addStretch(1);
-  rows->addLayout(row);
+  layout->addLayout(row);
 
   // Fifteen lines holds the whole of a 200-byte Pioneer user code — thirteen
   // dump lines and its heading — without scrolling, which is the reply this
   // box exists for.
-  user_code_ = MakeByteView(group, kUserCodeViewName, 15);
+  user_code_ = MakeByteView(page, kUserCodeViewName, 15);
   user_code_->setPlaceholderText(
       tr("The disc's user code, as the player reports it, byte for byte."));
-  rows->addWidget(user_code_);
+  layout->addWidget(user_code_);
+  layout->addStretch(1);
 
   // These two are the only command buttons whose answer is worth showing, so
   // they say that they are waiting for one. Everything else is a movement, and
-  // the panel shows the result of a movement.
+  // the Connection tab shows the result of a movement.
   //
   // The Pioneer code in particular is worth saying so about: the player
   // searches to the lead-in to read it and Pioneer allows ten seconds for the
@@ -352,24 +503,24 @@ QWidget* PlayerRemoteDialog::BuildUserCodes() {
            "seconds."));
   });
 
-  return group;
+  return page;
 }
 
-QWidget* PlayerRemoteDialog::BuildManualCommand() {
-  auto* group = new QGroupBox(tr("Manual command"), this);
-  auto* rows = new QVBoxLayout(group);
+QWidget* PlayerRemoteDialog::BuildManualPage() {
+  auto* page = new QWidget(this);
+  auto* layout = new QVBoxLayout(page);
 
   auto* explanation = new QLabel(
       tr("Send a command straight to the player and see exactly what it "
          "answers. This is how to find out what a player this build does not "
          "recognise can do — and therefore what is needed to add it."),
-      group);
+      page);
   explanation->setWordWrap(true);
-  rows->addWidget(explanation);
+  layout->addWidget(explanation);
 
   auto* row = new QHBoxLayout();
 
-  manual_ = new QLineEdit(group);
+  manual_ = new QLineEdit(page);
   manual_->setObjectName(QLatin1String(kManualEditName));
   manual_->setPlaceholderText(tr("for example: ?P"));
 
@@ -380,23 +531,24 @@ QWidget* PlayerRemoteDialog::BuildManualCommand() {
   manual_->setMaxLength(static_cast<int>(player::kMaximumCommandLength) - 1);
   row->addWidget(manual_, 1);
 
-  manual_send_ = new QPushButton(tr("Send"), group);
+  manual_send_ = new QPushButton(tr("Send"), page);
   manual_send_->setObjectName(QLatin1String(kManualSendButtonName));
   row->addWidget(manual_send_);
 
-  rows->addLayout(row);
+  layout->addLayout(row);
 
-  manual_reply_ = MakeByteView(group, kManualReplyViewName, 6);
+  manual_reply_ = MakeByteView(page, kManualReplyViewName, 6);
   manual_reply_->setPlaceholderText(
       tr("Whatever the player answers, shown exactly as it arrived."));
-  rows->addWidget(manual_reply_);
+  layout->addWidget(manual_reply_);
+  layout->addStretch(1);
 
   connect(manual_send_, &QPushButton::clicked, this,
           &PlayerRemoteDialog::OnManualSend);
   connect(manual_, &QLineEdit::returnPressed, this,
           &PlayerRemoteDialog::OnManualSend);
 
-  return group;
+  return page;
 }
 
 QPushButton* PlayerRemoteDialog::AddCommandButton(
@@ -428,11 +580,13 @@ void PlayerRemoteDialog::SetConnection(
     // A reading taken from a player that is no longer there is a reading from
     // nowhere, and leaving it on screen makes it look current.
     user_code_->clear();
+    ClearStatus();
   }
 
   // Which addresses are offered depends on what this player can search by as
   // well as on the disc, so both are worked out again here.
   ApplyAddressModes();
+  ApplyConnection();
 }
 
 void PlayerRemoteDialog::SetStatus(const ddd::player::PlayerStatus& status) {
@@ -441,12 +595,69 @@ void PlayerRemoteDialog::SetStatus(const ddd::player::PlayerStatus& status) {
 
   headline_->setText(PlayerStatusBarText(connection_, status_));
 
+  if (!status_.valid) {
+    ClearStatus();
+  } else {
+    state_->setText(PlayerStateName(status_.state));
+    tray_->setText(TrayStateName(status_.tray));
+    disc_->setText(DiscTypeName(status_.disc_type));
+    address_readout_->setText(PlayerAddressText(status_));
+
+    const QString position = PhysicalPositionText(status_);
+    position_->setText(position);
+    position_row_->setVisible(!position.isEmpty());
+  }
+
   // Only when the disc has actually changed. Rebuilding four times a second
   // would throw away the mode the user had chosen, several times before they
   // reached the entry field.
   if (status_.disc_type != previous) {
     ApplyAddressModes();
   }
+}
+
+void PlayerRemoteDialog::ClearStatus() {
+  const QString nothing = QStringLiteral("—");
+  state_->setText(nothing);
+  tray_->setText(nothing);
+  disc_->setText(nothing);
+  address_readout_->setText(nothing);
+  position_->setText(nothing);
+  position_row_->setVisible(false);
+}
+
+void PlayerRemoteDialog::ApplyConnection() {
+  summary_->setText(PlayerConnectionSummary(connection_));
+
+  const QString detail = PlayerConnectionDetail(connection_);
+  detail_->setText(detail);
+  detail_->setVisible(!detail.isEmpty());
+
+  const QString source = PlayerConnectionSource(connection_);
+  source_->setText(source);
+  source_->setVisible(!source.isEmpty());
+
+  const QString verification = PlayerVerificationNote(connection_);
+  verification_->setText(verification);
+  verification_->setVisible(!verification.isEmpty());
+
+  use_model_->setVisible(connection_.state ==
+                         PlayerConnectionState::kModelMismatch);
+
+  // Nothing to switch on, search with or accept without a controller behind
+  // them. Shown rather than hidden so this tab has the same shape in every
+  // build of the window, and disabled rather than left to do nothing when
+  // pressed.
+  const bool live_application = controller_ != nullptr;
+  enabled_check_->setEnabled(live_application);
+  use_model_->setEnabled(live_application);
+
+  // Searching now is only meaningful when it is looking and has not found
+  // anything: there is nothing to search for while connected, and nothing to
+  // search with while switched off.
+  search_now_->setEnabled(live_application &&
+                          connection_.state ==
+                              PlayerConnectionState::kDisconnected);
 }
 
 void PlayerRemoteDialog::ApplyControls() {

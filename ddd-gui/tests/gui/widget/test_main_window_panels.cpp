@@ -15,6 +15,7 @@
 #include <QApplication>
 #include <QDockWidget>
 #include <QList>
+#include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
 #include <QPoint>
@@ -26,6 +27,8 @@
 #include "capture_controller.h"
 #include "fake_usb_device.h"
 #include "main_window.h"
+#include "player_controller.h"
+#include "serial_port_scanner.h"
 #include "theme_controller.h"
 
 namespace ddd::gui {
@@ -37,10 +40,9 @@ namespace {
 // layout.
 const QStringList& ExpectedDockNames() {
   static const QStringList names{
-      QStringLiteral("capture_dock"),    QStringLiteral("player_dock"),
-      QStringLiteral("statistics_dock"), QStringLiteral("waveform_dock"),
-      QStringLiteral("spectrum_dock"),   QStringLiteral("amplitude_dock"),
-      QStringLiteral("log_dock")};
+      QStringLiteral("capture_dock"),   QStringLiteral("statistics_dock"),
+      QStringLiteral("waveform_dock"),  QStringLiteral("spectrum_dock"),
+      QStringLiteral("amplitude_dock"), QStringLiteral("log_dock")};
   return names;
 }
 
@@ -80,13 +82,20 @@ QMenu* MenuNamed(const MainWindow& window, const QString& title) {
 }
 
 // An entry in a menu by the words in its label.
+//
+// The ampersand Qt uses to mark the mnemonic is taken out before comparing,
+// because where it falls is a matter of which letters are still free — "Player
+// s&ettings…" — and a test that had to know would be asserting the keyboard
+// shortcuts by accident.
 QAction* EntryNamed(QMenu* menu, const QString& text) {
   if (menu == nullptr) {
     return nullptr;
   }
   const QList<QAction*> entries = menu->actions();
   for (QAction* entry : entries) {
-    if (entry->text().contains(text)) {
+    QString label = entry->text();
+    label.remove(QLatin1Char('&'));
+    if (label.contains(text)) {
       return entry;
     }
   }
@@ -125,6 +134,16 @@ class MainWindowTest : public ::testing::Test {
   // A window wired the way main() wires one.
   std::unique_ptr<MainWindow> MakeWindow() {
     return std::make_unique<MainWindow>(&theme_controller_, &logger_);
+  }
+
+  // A controller that will never touch a serial port: player control is off by
+  // default and Start() is never called, and the port list is empty in any
+  // case. Enough to give the window a live player layer with nothing connected,
+  // which is the state the Remote entry's rule is about.
+  static PlayerBackend NoPortsBackend() {
+    PlayerBackend backend;
+    backend.list_ports = [] { return std::vector<SerialPortCandidate>{}; };
+    return backend;
   }
 
   ThemeController theme_controller_{
@@ -335,6 +354,146 @@ TEST_F(MainWindowTest, TheToolsEntryIsTheTestModeSetting) {
   settings.test_mode = true;
   controller.SetSettings(settings);
   EXPECT_TRUE(mode->isChecked());
+}
+
+// --- The player, which has no dock and no menu of its own -------------------
+
+// Almost every user has one player, set up once and never touched again. It
+// does not earn permanent screen space, and everything the dock showed is
+// either in the status bar or on the remote's Connection tab.
+TEST_F(MainWindowTest, ThereIsNoPlayerDock) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  EXPECT_EQ(DockNamed(*window, QStringLiteral("player_dock")), nullptr)
+      << "the player dock is back";
+
+  // And nothing offers to show one, which would be a menu entry that toggles
+  // nothing.
+  QMenu* const panels = PanelsMenu(*window);
+  ASSERT_NE(panels, nullptr);
+  EXPECT_EQ(EntryNamed(panels, QStringLiteral("Player")), nullptr);
+}
+
+TEST_F(MainWindowTest, ThePlayerHasNoTopLevelMenuOfItsOwn) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  EXPECT_EQ(MenuNamed(*window, QStringLiteral("Player")), nullptr)
+      << "the Player menu is back";
+}
+
+TEST_F(MainWindowTest, EveryPlayerEntryIsUnderTools) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  QMenu* const tools = MenuNamed(*window, QStringLiteral("Tools"));
+  ASSERT_NE(tools, nullptr) << "no Tools menu";
+
+  for (const QString& entry :
+       {QStringLiteral("Player control"), QStringLiteral("Search now"),
+        QStringLiteral("Remote control"), QStringLiteral("Examine disc"),
+        QStringLiteral("Player settings")}) {
+    EXPECT_NE(EntryNamed(tools, entry), nullptr)
+        << "no " << entry.toStdString() << " entry under Tools";
+  }
+
+  // The player's own state, so its entry has to show whether it is on.
+  QAction* const control = EntryNamed(tools, QStringLiteral("Player control"));
+  ASSERT_NE(control, nullptr);
+  EXPECT_TRUE(control->isCheckable());
+
+  // And the instrument entries are still there, below the player's.
+  EXPECT_NE(EntryNamed(tools, QStringLiteral("Test data mode")), nullptr);
+  EXPECT_NE(EntryNamed(tools, QStringLiteral("Firmware")), nullptr);
+}
+
+// The one entry that is deliberately *not* gated on there being a player. The
+// remote's Connection tab is where a user finds out why nothing is connected,
+// so greying it out the moment the link goes would withhold the answer at
+// exactly the moment it is wanted — which is what the dock used to give.
+TEST_F(MainWindowTest, TheRemoteCanBeOpenedWithNoPlayerConnected) {
+  PlayerController player(NoPortsBackend());
+  MainWindow window(&theme_controller_, &logger_, nullptr, &player);
+
+  ASSERT_FALSE(player.connection().live());
+
+  QMenu* const tools = MenuNamed(window, QStringLiteral("Tools"));
+  ASSERT_NE(tools, nullptr);
+
+  QAction* const remote = EntryNamed(tools, QStringLiteral("Remote control"));
+  ASSERT_NE(remote, nullptr);
+  EXPECT_TRUE(remote->isEnabled())
+      << "the remote cannot be reached with nothing connected, so neither can "
+         "the tab that says why";
+
+  // Examine is gated, and rightly: there is no disc to report on.
+  QAction* const examine = EntryNamed(tools, QStringLiteral("Examine disc"));
+  ASSERT_NE(examine, nullptr);
+  EXPECT_FALSE(examine->isEnabled());
+}
+
+// The upgrade path, and the one thing about removing a dock that could reach a
+// user as a fault. Anybody who has run an earlier build has a saved layout with
+// a player_dock in it, and that dock no longer exists. Qt matches docks by
+// object name, so what has to be true is that the rest of the arrangement comes
+// back intact rather than the whole saved state being thrown away.
+TEST_F(MainWindowTest, ALayoutSavedWhenThereWasAPlayerDockStillRestores) {
+  {
+    // A stand-in for the old window: the docks this build still has, plus the
+    // one it does not. Saved through QMainWindow's own format, which is what
+    // the application wrote.
+    QMainWindow before;
+    for (const QString& name :
+         {QStringLiteral("capture_dock"), QStringLiteral("player_dock"),
+          QStringLiteral("statistics_dock"), QStringLiteral("waveform_dock"),
+          QStringLiteral("spectrum_dock"), QStringLiteral("amplitude_dock"),
+          QStringLiteral("log_dock")}) {
+      auto* const dock = new QDockWidget(&before);
+      dock->setObjectName(name);
+      before.addDockWidget(Qt::LeftDockWidgetArea, dock);
+    }
+
+    // Something a user did, so that the restore can be shown to have happened
+    // at all rather than merely not crashed.
+    before.findChild<QDockWidget*>(QStringLiteral("spectrum_dock"))->hide();
+
+    QSettings settings;
+    settings.setValue(QStringLiteral("main_window/state"), before.saveState());
+    settings.sync();
+  }
+
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+  window->show();
+
+  // Every dock this build has is still here, and still reachable from the menu.
+  QMenu* const panels = PanelsMenu(*window);
+  ASSERT_NE(panels, nullptr);
+  for (const QString& name : ExpectedDockNames()) {
+    QDockWidget* const dock = DockNamed(*window, name);
+    ASSERT_NE(dock, nullptr)
+        << "lost after restoring an old layout: " << name.toStdString();
+    EXPECT_TRUE(panels->actions().contains(dock->toggleViewAction()))
+        << name.toStdString();
+  }
+
+  // And the old layout was applied rather than discarded.
+  EXPECT_TRUE(DockNamed(*window, QStringLiteral("spectrum_dock"))->isHidden())
+      << "the saved arrangement was thrown away rather than carried over";
+}
+
+// With no player layer at all the entries are shown and dead, so the menu has
+// the same shape in every build of the window.
+TEST_F(MainWindowTest, ThePlayerEntriesAreOfferedButDeadWithNoPlayerLayer) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  QMenu* const tools = MenuNamed(*window, QStringLiteral("Tools"));
+  ASSERT_NE(tools, nullptr);
+
+  for (const QString& entry :
+       {QStringLiteral("Player control"), QStringLiteral("Search now"),
+        QStringLiteral("Remote control"), QStringLiteral("Examine disc")}) {
+    QAction* const action = EntryNamed(tools, entry);
+    ASSERT_NE(action, nullptr) << entry.toStdString();
+    EXPECT_FALSE(action->isEnabled()) << entry.toStdString();
+  }
 }
 
 TEST_F(MainWindowTest, AFirstRunWithNoSavedLayoutShowsTheDefaultArrangement) {

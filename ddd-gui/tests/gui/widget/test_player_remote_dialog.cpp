@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -19,6 +20,7 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QString>
+#include <QTabWidget>
 #include <algorithm>
 #include <chrono>
 #include <memory>
@@ -31,6 +33,7 @@
 #include "player_controls.h"
 #include "player_registry.h"
 #include "player_remote_dialog.h"
+#include "player_text.h"
 #include "serial_port_scanner.h"
 
 namespace ddd::gui {
@@ -106,11 +109,10 @@ class PlayerRemoteDialogTest : public ::testing::Test {
   // gating is a function of the connection rather than of a real player.
   void BuildBare() { dialog_ = std::make_unique<PlayerRemoteDialog>(nullptr); }
 
-  // Over the test's fake port, with a player on it. Used where the point is
-  // that a button puts the right bytes on the wire.
-  bool BuildConnected() {
-    port_.AddPioneerPlayer(9600, kLdV4300DReply);
-
+  // A real controller over the test's fake port, with nothing started. The
+  // Connection-tab tests drive the link themselves, because what they are about
+  // is what the tab says in each state it can reach.
+  void BuildWithController() {
     PlayerBackend backend;
     backend.make_port = [this] {
       return std::make_unique<player::BorrowedSerialPort>(&port_);
@@ -120,6 +122,13 @@ class PlayerRemoteDialogTest : public ::testing::Test {
 
     controller_ = std::make_unique<PlayerController>(std::move(backend));
     dialog_ = std::make_unique<PlayerRemoteDialog>(controller_.get());
+  }
+
+  // The same, with a player already on the port and the link up. Used where the
+  // point is that a button puts the right bytes on the wire.
+  bool BuildConnected() {
+    port_.AddPioneerPlayer(9600, kLdV4300DReply);
+    BuildWithController();
 
     controller_->Start();
     controller_->SetEnabled(true);
@@ -138,6 +147,8 @@ class PlayerRemoteDialogTest : public ::testing::Test {
   T* Find(const char* name) const {
     return dialog_->findChild<T*>(QLatin1String(name));
   }
+
+  QString TextOf(const char* name) const { return Find<QLabel>(name)->text(); }
 
   player::FakeSerialPort port_;
   std::vector<SerialPortCandidate> ports_;
@@ -510,6 +521,217 @@ TEST_F(PlayerRemoteDialogTest, AShortLegibleReplyIsLeftAsWords) {
 
   EXPECT_FALSE(reply->toPlainText().contains(QStringLiteral("bytes.")));
   EXPECT_FALSE(reply->toPlainText().contains(QStringLiteral("0000  ")));
+}
+
+// --- The pages ------------------------------------------------------------
+
+// The four things this window holds are wanted at very different rates, and
+// stacking them in one column cost every user a window half as tall again as it
+// needs to be. The order is how often each is wanted.
+TEST_F(PlayerRemoteDialogTest, TheFourPagesAreOfferedInOrderOfHowOftenTheyAre) {
+  BuildBare();
+
+  auto* const tabs = Find<QTabWidget>(PlayerRemoteDialog::kTabsName);
+  ASSERT_NE(tabs, nullptr) << "the remote is not tabbed";
+  ASSERT_EQ(tabs->count(), 4);
+
+  EXPECT_TRUE(tabs->tabText(0).contains(QStringLiteral("Control")));
+  EXPECT_TRUE(tabs->tabText(1).contains(QStringLiteral("Connection")));
+  EXPECT_TRUE(tabs->tabText(2).contains(QStringLiteral("Disc codes")));
+  EXPECT_TRUE(tabs->tabText(3).contains(QStringLiteral("Manual")));
+}
+
+TEST_F(PlayerRemoteDialogTest, ThePageToOpenOnCanBeChosen) {
+  // What the main window uses to land somebody on the tab that answers the
+  // question they have: the transport when there is a player, and the reason
+  // when there is not.
+  BuildBare();
+
+  auto* const tabs = Find<QTabWidget>(PlayerRemoteDialog::kTabsName);
+  ASSERT_NE(tabs, nullptr);
+
+  dialog_->ShowTab(PlayerRemoteDialog::Tab::kConnection);
+  EXPECT_EQ(tabs->currentIndex(),
+            static_cast<int>(PlayerRemoteDialog::Tab::kConnection));
+
+  dialog_->ShowTab(PlayerRemoteDialog::Tab::kControl);
+  EXPECT_EQ(tabs->currentIndex(),
+            static_cast<int>(PlayerRemoteDialog::Tab::kControl));
+}
+
+// The headline sits above the tab bar rather than on a page, because what is
+// connected and what it is doing is the one thing every page wants in view.
+TEST_F(PlayerRemoteDialogTest, TheHeadlineIsOutsideThePages) {
+  BuildBare();
+
+  auto* const headline = Find<QLabel>(PlayerRemoteDialog::kHeadlineLabelName);
+  auto* const tabs = Find<QTabWidget>(PlayerRemoteDialog::kTabsName);
+  ASSERT_NE(headline, nullptr);
+  ASSERT_NE(tabs, nullptr);
+
+  EXPECT_FALSE(tabs->isAncestorOf(headline))
+      << "the headline is on a page, so three pages out of four cannot see it";
+}
+
+// --- The Connection tab ----------------------------------------------------
+//
+// This was the Player dock. Its assertions moved here whole, because what they
+// are about — whether there is a player, how it was reached, and what it is
+// doing — did not change when the place it is shown did.
+
+TEST_F(PlayerRemoteDialogTest, TheConnectionTabSaysWhatItIsDoingWithNoLayer) {
+  // The property every window in this application has: it lays out exactly as
+  // it does in the real application and drives nothing, so the interface stays
+  // testable on a machine with no player and no serial adapter.
+  BuildBare();
+
+  EXPECT_EQ(TextOf(PlayerRemoteDialog::kSummaryLabelName),
+            PlayerConnectionSummary(PlayerConnection{}));
+
+  // Present but inert, rather than absent — the tab has the same shape in
+  // every build of the window.
+  auto* const enabled = Find<QCheckBox>(PlayerRemoteDialog::kEnabledCheckName);
+  ASSERT_NE(enabled, nullptr);
+  EXPECT_FALSE(enabled->isEnabled());
+
+  auto* const search =
+      Find<QPushButton>(PlayerRemoteDialog::kSearchNowButtonName);
+  ASSERT_NE(search, nullptr);
+  EXPECT_FALSE(search->isEnabled());
+}
+
+TEST_F(PlayerRemoteDialogTest, EveryReadingIsBlankUntilThereIsAPlayer) {
+  // A stale position left on screen beside "no player" reads as a live one.
+  BuildWithController();
+
+  EXPECT_EQ(TextOf(PlayerRemoteDialog::kStateLabelName), QStringLiteral("—"));
+  EXPECT_EQ(TextOf(PlayerRemoteDialog::kAddressLabelName), QStringLiteral("—"));
+
+  // How the player was reached is a row that only exists once one has been:
+  // isHidden() rather than isVisible(), for the reason given on the
+  // "use this model" button below.
+  EXPECT_TRUE(Find<QLabel>(PlayerRemoteDialog::kSourceLabelName)->isHidden());
+}
+
+TEST_F(PlayerRemoteDialogTest, TheCheckboxIsThePlayerControlSetting) {
+  BuildWithController();
+  controller_->Start();
+
+  auto* const enabled = Find<QCheckBox>(PlayerRemoteDialog::kEnabledCheckName);
+  ASSERT_NE(enabled, nullptr);
+  EXPECT_FALSE(enabled->isChecked());
+
+  enabled->setChecked(true);
+  EXPECT_TRUE(controller_->settings().enabled);
+
+  // And a change made anywhere else — the Tools menu, the settings dialog — is
+  // reflected here, rather than leaving the box and the application
+  // disagreeing.
+  controller_->SetEnabled(false);
+  EXPECT_FALSE(enabled->isChecked());
+}
+
+TEST_F(PlayerRemoteDialogTest, AConnectedPlayerIsNamedWithHowItWasReached) {
+  port_.AddStatusResponses(9600, "P04", "10011", "0012345");
+  ASSERT_TRUE(BuildConnected());
+  ASSERT_TRUE(PumpUntil([this] { return controller_->status().valid; }));
+
+  EXPECT_EQ(TextOf(PlayerRemoteDialog::kSummaryLabelName),
+            QStringLiteral("Pioneer LD-V4300D"));
+  EXPECT_TRUE(TextOf(PlayerRemoteDialog::kSourceLabelName)
+                  .contains(QLatin1String(kPortPath)));
+  EXPECT_TRUE(TextOf(PlayerRemoteDialog::kSourceLabelName)
+                  .contains(QStringLiteral("9600")));
+
+  EXPECT_EQ(TextOf(PlayerRemoteDialog::kStateLabelName),
+            QStringLiteral("Playing"));
+  EXPECT_EQ(TextOf(PlayerRemoteDialog::kDiscLabelName), QStringLiteral("CAV"));
+  EXPECT_EQ(TextOf(PlayerRemoteDialog::kAddressLabelName),
+            QStringLiteral("Frame 12345"));
+
+  // The row for a reading this model cannot produce stays hidden rather than
+  // showing a blank forever.
+  EXPECT_FALSE(
+      Find<QLabel>(PlayerRemoteDialog::kPositionLabelName)->isVisible());
+}
+
+TEST_F(PlayerRemoteDialogTest, AnUnverifiedDefinitionIsSaidSoOnScreen) {
+  // The interface's half of players/README.md's promise.
+  ASSERT_TRUE(BuildConnected());
+
+  auto* const note = Find<QLabel>(PlayerRemoteDialog::kVerificationLabelName);
+  ASSERT_NE(note, nullptr);
+  EXPECT_FALSE(note->text().isEmpty());
+}
+
+TEST_F(PlayerRemoteDialogTest, TheWrongModelOffersToBeAccepted) {
+  port_.AddPioneerPlayer(9600, "P1506A9");  // an LD-V8000
+  BuildWithController();
+
+  PlayerSettings settings = controller_->settings();
+  settings.enabled = true;
+  settings.model_id_code = QStringLiteral("15");  // LD-V4300D
+  controller_->SetSettings(settings);
+
+  ASSERT_TRUE(PumpUntil([this] {
+    return controller_->connection().state ==
+           PlayerConnectionState::kModelMismatch;
+  }));
+
+  auto* const use_model =
+      Find<QPushButton>(PlayerRemoteDialog::kUseModelButtonName);
+  ASSERT_NE(use_model, nullptr);
+
+  // isHidden() rather than isVisible() or isVisibleTo(): the window is never
+  // shown in a widget test, and this button is on a tab page that is not the
+  // current one — so both of those are false however right the code is. What
+  // is under test is the button's own hidden flag, which is what the code sets.
+  EXPECT_FALSE(use_model->isHidden());
+
+  use_model->click();
+
+  ASSERT_TRUE(PumpUntil([this] {
+    return controller_->connection().state == PlayerConnectionState::kConnected;
+  }));
+  EXPECT_TRUE(use_model->isHidden());
+}
+
+TEST_F(PlayerRemoteDialogTest, SearchingNowIsOfferedOnlyWhenNothingIsThere) {
+  BuildWithController();
+  controller_->Start();
+  controller_->SetEnabled(true);
+
+  auto* const search =
+      Find<QPushButton>(PlayerRemoteDialog::kSearchNowButtonName);
+  ASSERT_NE(search, nullptr);
+
+  ASSERT_TRUE(PumpUntil([this] {
+    return controller_->connection().state ==
+           PlayerConnectionState::kDisconnected;
+  }));
+  EXPECT_TRUE(search->isEnabled());
+
+  // Nothing to search for once there is a player.
+  port_.AddPioneerPlayer(9600, kLdV4300DReply);
+  search->click();
+
+  ASSERT_TRUE(PumpUntil([this] { return controller_->connected(); }));
+  EXPECT_FALSE(search->isEnabled());
+}
+
+TEST_F(PlayerRemoteDialogTest, LosingThePlayerBlanksTheReadings) {
+  port_.AddStatusResponses(9600, "P04", "10011", "0012345");
+  ASSERT_TRUE(BuildConnected());
+
+  ASSERT_TRUE(PumpUntil([this] { return controller_->status().valid; }));
+  ASSERT_EQ(TextOf(PlayerRemoteDialog::kStateLabelName),
+            QStringLiteral("Playing"));
+
+  port_.set_link_broken(true);
+
+  ASSERT_TRUE(PumpUntil([this] { return !controller_->connected(); }));
+  EXPECT_EQ(TextOf(PlayerRemoteDialog::kStateLabelName), QStringLiteral("—"));
+  EXPECT_EQ(TextOf(PlayerRemoteDialog::kAddressLabelName), QStringLiteral("—"));
 }
 
 }  // namespace

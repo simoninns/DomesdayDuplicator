@@ -243,18 +243,45 @@ visible difference this phase makes.
 *Tests*: `test_capture_naming_dialog.cpp` and `test_guided_capture_dialog.cpp` pass
 unmodified — that is the proof the extraction changed nothing.
 
-### Phase 2 — Remote tabs, Connection tab, dock removal
+### Phase 2 — Remote tabs, Connection tab, dock removal — **done**
 
-- Restructure `PlayerRemoteDialog` per decision 5; build the Connection tab from the
-  player panel's widgets and connections (the settings-checkbox sync, the
-  `UseConnectedModel` hookup, the search-enabled-only-while-disconnected rule).
-- Make the Remote menu action always enabled; open on the Connection tab when not live.
-- Remove the Player dock and `player_panel.{h,cpp}`; fold the Player menu into Tools.
+- `PlayerRemoteDialog` restructured per decision 5: the headline stays above a
+  `QTabWidget` carrying Control, Connection, Disc codes and Manual command, in that
+  order — how often each is wanted. The window is now titled "Player" rather than
+  "Remote control", since it is no longer only a remote. `ShowTab()` chooses the opening
+  page.
+- The Connection tab is built from the player panel's widgets and connections whole: the
+  settings-checkbox sync, the `UseConnectedModel` hookup, the
+  search-enabled-only-while-disconnected rule, and the status readout block with its
+  hidden optical-assembly row.
+- The Remote menu action is always enabled — see decision 4 — and the main window opens
+  the dialog on Connection when nothing is connected and on Control when something is.
+  The tab is chosen only when the window is created, so somebody returning to a remote
+  they left on the manual page is not moved.
+- The Player dock and `player_panel.{h,cpp}` are gone, and the Player menu is now a
+  section at the top of Tools, separated from the instrument entries.
 
-*Tests*: assertions from `test_player_panel.cpp` migrate into
-`test_player_remote_dialog.cpp` (connection-tab section) before the panel file is
-deleted; a main-window test covers the menu fold and the absence of the dock from the
-Panels menu.
+*Tests*: every assertion from `test_player_panel.cpp` migrated into
+`test_player_remote_dialog.cpp` as a Connection-tab section before the panel was deleted,
+joined by tests for the tab structure and the opening page. `test_main_window_panels.cpp`
+covers the menu fold, the absence of the dock and its Panels entry, and the
+remote-is-always-reachable rule.
+
+Two things worth recording:
+
+**A pre-existing bug, found by writing the menu tests.** `Examine disc…` had no initial
+enabled state — it was only ever set from the `ConnectionChanged` handler. So it sat
+enabled from the moment the window opened until the first connection report arrived, and
+with player control switched off no report ever comes, leaving it enabled for the whole
+session with nothing behind it. Fixed by setting it alongside the search action's initial
+state.
+
+**The upgrade path is tested rather than assumed.** Anybody running an earlier build has a
+saved layout naming a `player_dock` that no longer exists. `ALayoutSavedWhenThereWasAPlayerDockStillRestores`
+writes exactly such a state through `QMainWindow::saveState` and asserts that the
+remaining docks come back and a hidden one stays hidden — that the saved arrangement is
+carried over rather than discarded. Removing a dock is the one change here that could
+otherwise reach a user as a fault.
 
 ### Phase 3 — The manual path
 

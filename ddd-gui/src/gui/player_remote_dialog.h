@@ -22,23 +22,33 @@
 #include "player_status.h"
 
 class QBoxLayout;
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
+class QTabWidget;
 class QValidator;
 
 namespace ddd::gui {
 
 class PlayerController;
 
-// Driving the player by hand.
+// Everything to do with the player, in one window.
 //
 // **Non-modal**, and that is the point of it rather than a detail: setting up a
 // capture consists of moving the player about while watching the spectrum and
 // the waveform, and a window that blocked the rest of the application would
 // make the one thing it is for impossible.
+//
+// **Tabbed, because the four things it holds are wanted at very different
+// rates.** Transport and seeking are used constantly; the connection is looked
+// at when something is wrong; the user codes are read once a disc; and the
+// manual command line exists to work out what an unrecognised player does, so
+// that the next definition header can be written. Stacked in one column, as
+// they were, the two rare ones cost every user a window half as tall again as
+// it needs to be — and the byte views are most of that height.
 //
 // Three departures from the old application's remote:
 //
@@ -54,10 +64,10 @@ class PlayerController;
 //
 //   **Repeat is gone.** It was never functional in the old application.
 //
-// The manual command field is kept deliberately, and kept for unrecognised
-// players in particular: it is the tool that lets somebody work out what an
-// undocumented player does, and therefore the tool that lets the next
-// definition header be written. Its reply is shown exactly as it arrived.
+// The Connection tab is also why this window can be opened with nothing
+// connected, unlike every other player window. It is where a user goes to find
+// out *why* nothing is connected, so refusing to open it until something is
+// would withhold the answer at exactly the moment it is wanted.
 //
 // Thread-safety: NOT thread-safe. GUI thread only. Nothing here touches the
 // player; every control submits a request to the controller and waits.
@@ -66,15 +76,27 @@ class PlayerRemoteDialog : public QDialog {
 
  public:
   // The controller may be null, and the widget tests pass null deliberately:
-  // the dialog then builds, lays out and drives nothing, exactly as the panels
-  // do. Its state can still be set through the two slots below, which is what
-  // lets the capability gating be tested against models that are not on
-  // anybody's bench.
+  // the dialog then builds, lays out and drives nothing. Its state can still be
+  // set through the two slots below, which is what lets the capability gating
+  // be tested against models that are not on anybody's bench.
   explicit PlayerRemoteDialog(PlayerController* controller,
                               QWidget* parent = nullptr);
 
+  // Which page to show. Opening on kConnection is what the main window does
+  // when there is no player: the tab that explains the silence is the one to
+  // land on.
+  enum class Tab {
+    kControl,
+    kConnection,
+    kDiscCodes,
+    kManual,
+  };
+
+  void ShowTab(Tab tab);
+
   // Named so the widget tests can find them without depending on layout order.
   static constexpr const char* kHeadlineLabelName = "remote_headline";
+  static constexpr const char* kTabsName = "remote_tabs";
 
   static constexpr const char* kTrayOpenButtonName = "remote_tray_open";
   static constexpr const char* kTrayCloseButtonName = "remote_tray_close";
@@ -105,6 +127,22 @@ class PlayerRemoteDialog : public QDialog {
   static constexpr const char* kKeyLockOnButtonName = "remote_key_lock_on";
   static constexpr const char* kKeyLockOffButtonName = "remote_key_lock_off";
 
+  // The Connection tab, which was the Player dock until this window grew tabs
+  // to put it in.
+  static constexpr const char* kEnabledCheckName = "remote_enabled_check";
+  static constexpr const char* kSummaryLabelName = "remote_summary_label";
+  static constexpr const char* kDetailLabelName = "remote_detail_label";
+  static constexpr const char* kSourceLabelName = "remote_source_label";
+  static constexpr const char* kVerificationLabelName =
+      "remote_verification_label";
+  static constexpr const char* kSearchNowButtonName = "remote_search_now";
+  static constexpr const char* kUseModelButtonName = "remote_use_model";
+  static constexpr const char* kStateLabelName = "remote_state_label";
+  static constexpr const char* kTrayLabelName = "remote_tray_label";
+  static constexpr const char* kDiscLabelName = "remote_disc_label";
+  static constexpr const char* kAddressLabelName = "remote_address_label";
+  static constexpr const char* kPositionLabelName = "remote_position_label";
+
   static constexpr const char* kStandardUserCodeButtonName =
       "remote_standard_user_code";
   static constexpr const char* kPioneerUserCodeButtonName =
@@ -122,11 +160,16 @@ class PlayerRemoteDialog : public QDialog {
   void SetStatus(const ddd::player::PlayerStatus& status);
 
  private:
-  QWidget* BuildTransport();
-  QWidget* BuildSearch();
-  QWidget* BuildPresentation();
-  QWidget* BuildUserCodes();
-  QWidget* BuildManualCommand();
+  // One page each. The order they are declared in is the order they are added
+  // in, which is the order of how often they are wanted.
+  QWidget* BuildControlPage();
+  QWidget* BuildConnectionPage();
+  QWidget* BuildDiscCodePage();
+  QWidget* BuildManualPage();
+
+  QWidget* BuildTransport(QWidget* page);
+  QWidget* BuildSearch(QWidget* page);
+  QWidget* BuildPresentation(QWidget* page);
 
   // Make a button that sends one command, and enrol it in the capability
   // gating. Every transport, display and key-lock button goes through here, so
@@ -152,6 +195,14 @@ class PlayerRemoteDialog : public QDialog {
   // type changes, which is the only thing it depends on.
   void ApplyAddressModes();
 
+  // Say whether there is a player, how it was reached, and what is wrong when
+  // there is not. The Connection tab's half of the same connection change.
+  void ApplyConnection();
+
+  // Blank every reading. Called when the link goes away, because a stale
+  // position left on screen beside "no player" reads as a live one.
+  void ClearStatus();
+
   PlayerController* controller_ = nullptr;
 
   PlayerConnection connection_;
@@ -170,6 +221,7 @@ class PlayerRemoteDialog : public QDialog {
   std::vector<GatedButton> command_buttons_;
 
   QLabel* headline_ = nullptr;
+  QTabWidget* tabs_ = nullptr;
 
   QComboBox* speed_ = nullptr;
 
@@ -186,6 +238,27 @@ class PlayerRemoteDialog : public QDialog {
   QValidator* chapter_validator_ = nullptr;
 
   QComboBox* audio_ = nullptr;
+
+  // --- The Connection tab ---------------------------------------------------
+
+  QCheckBox* enabled_check_ = nullptr;
+  QLabel* summary_ = nullptr;
+  QLabel* detail_ = nullptr;
+  QLabel* source_ = nullptr;
+  QLabel* verification_ = nullptr;
+  QPushButton* search_now_ = nullptr;
+  QPushButton* use_model_ = nullptr;
+
+  QLabel* state_ = nullptr;
+  QLabel* tray_ = nullptr;
+  QLabel* disc_ = nullptr;
+  QLabel* address_readout_ = nullptr;
+  QLabel* position_ = nullptr;
+
+  // The row the position sits in, hidden on every model that cannot report one
+  // rather than shown as unknown — which would be a row that is blank for
+  // almost every user forever.
+  QWidget* position_row_ = nullptr;
 
   // Both readouts are text views rather than labels, because a reply here may
   // be two hundred bytes of fixed-width record: it wants a monospace font, its
