@@ -24,6 +24,7 @@
 #include <QTest>
 
 #include "application_logger.h"
+#include "board_bringup_wizard.h"
 #include "capture_controller.h"
 #include "fake_usb_device.h"
 #include "main_window.h"
@@ -348,6 +349,49 @@ TEST_F(MainWindowTest, BringUpIsUnderFirmwareAndAlwaysAvailable) {
   ASSERT_FALSE(entries.isEmpty());
   EXPECT_TRUE(entries.front()->text().contains(QStringLiteral("Update")))
       << "the update path is no longer the first entry under Firmware";
+}
+
+// The firmware-version warning is a note, and it must never land modally on
+// top of a window whose whole job is changing what the device runs.
+//
+// Found on the bench, on the bring-up wizard's FX3 step. That step hands the
+// boot ROM a firmware image which then runs and enumerates — so a device
+// appears mid-run, the version check fires on it, and the warning covers the
+// page reporting how the write went. It is guaranteed rather than unlucky: a
+// provisioning set carries whatever firmware it carries, which has no reason
+// to be the build the application was compiled from.
+TEST_F(MainWindowTest,
+       TheVersionWarningIsSuppressedWhileTheBringUpWizardIsOpen) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  EXPECT_FALSE(window->FirmwareWindowIsOpen())
+      << "a window with nothing open is suppressing the version warning";
+
+  QAction* const firmware = EntryNamed(
+      MenuNamed(*window, QStringLiteral("Tools")), QStringLiteral("Firmware"));
+  ASSERT_NE(firmware, nullptr);
+  ASSERT_NE(firmware->menu(), nullptr);
+  QAction* const legacy =
+      EntryNamed(firmware->menu(), QStringLiteral("Legacy"));
+  ASSERT_NE(legacy, nullptr);
+  ASSERT_NE(legacy->menu(), nullptr);
+  QAction* const bringup =
+      EntryNamed(legacy->menu(), QStringLiteral("Bring up"));
+  ASSERT_NE(bringup, nullptr);
+
+  bringup->trigger();
+
+  EXPECT_TRUE(window->FirmwareWindowIsOpen())
+      << "the version warning would appear over the bring-up wizard";
+
+  BoardBringUpWizard* const wizard = window->findChild<BoardBringUpWizard*>();
+  ASSERT_NE(wizard, nullptr);
+  wizard->close();
+
+  // And back again once it has gone, because suppressing it for the rest of
+  // the session would be losing the warning rather than timing it.
+  EXPECT_FALSE(window->FirmwareWindowIsOpen())
+      << "the version warning stayed suppressed after the wizard closed";
 }
 
 TEST_F(MainWindowTest, NeitherTestDataEntryIsLeftBehindOnTheFileMenu) {

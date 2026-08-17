@@ -23,9 +23,24 @@
 #   firmware   fx3/firmware/build/firmware.img, then result-firmware/firmware.img,
 #              then result/firmware.img
 #   gateware   fpga/build/application/*.rpd, then result-bitstream/application/*.rpd
+#   vectors    fpga/build/provisioning/DomesdayDuplicatorProvisioning.svf, then
+#              result-bitstream/provisioning/DomesdayDuplicatorProvisioning.svf
 #
 # A firmware-only bundle is legal by schema, so a firmware developer never needs Quartus
 # for this loop; a gateware-only bundle is legal too. Nothing found at all is an error.
+#
+# Two kinds of set, because the release stream publishes two:
+#
+#   --kind update        (the default) firmware and the application gateware — what a
+#                        working device installs over USB
+#   --kind provisioning  firmware and the gateware as JTAG vectors — what the bring-up
+#                        wizard plays into a board that has no working gateware, and what
+#                        a packaged build bundles. Needs the SVF, so it needs Quartus to
+#                        have run
+#
+# The vectors are deliberately not added to an update bundle: they are an order of
+# magnitude larger than the images beside them, and nothing on the ordinary update path
+# plays them.
 #
 # The bundle is signed with the **development key**, whose secret half is committed to
 # this repository (tools/keys/development.key) and is therefore public. A development
@@ -43,19 +58,27 @@ root="$(dirname "$here")"
 output=""
 firmware=""
 gateware=""
+provisioning=""
 version=""
+kind="update"
 
 usage() {
     cat >&2 <<'EOF'
-Usage: dev-bundle.sh [--output FILE] [--firmware FILE] [--gateware FILE] [--version X.Y.Z]
+Usage: dev-bundle.sh [--kind update|provisioning] [--output FILE]
+                     [--firmware FILE] [--gateware FILE] [--provisioning FILE]
+                     [--version X.Y.Z]
 
 With no arguments it finds what is built locally and writes
 build/domesday-duplicator-update-<version>-dev.dddfw at the repository root.
 
-  --firmware  use this FX3 image instead of searching
-  --gateware  use this raw EPCS image instead of searching
-  --version   the version to stamp; defaults to 0.0.0, which no release will ever
-              carry and which therefore cannot be mistaken for one
+  --kind          update (default) bundles the firmware and the application gateware;
+                  provisioning bundles the firmware and the JTAG vectors, which is what
+                  the bring-up wizard needs and what a packaged build carries
+  --firmware      use this FX3 image instead of searching
+  --gateware      use this raw EPCS image instead of searching
+  --provisioning  use this SVF instead of searching (--kind provisioning only)
+  --version       the version to stamp; defaults to 0.0.0, which no release will ever
+                  carry and which therefore cannot be mistaken for one
 EOF
     exit 2
 }
@@ -63,8 +86,10 @@ EOF
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --output) output="$2"; shift 2 ;;
+        --kind) kind="$2"; shift 2 ;;
         --firmware) firmware="$2"; shift 2 ;;
         --gateware) gateware="$2"; shift 2 ;;
+        --provisioning) provisioning="$2"; shift 2 ;;
         --version) version="$2"; shift 2 ;;
         -h|--help) usage ;;
         *) echo "unknown argument: $1" >&2; usage ;;
@@ -72,6 +97,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 die() { echo "dev-bundle: $*" >&2; exit 1; }
+
+case "$kind" in
+    update|provisioning) ;;
+    *) die "--kind must be update or provisioning, not '$kind'" ;;
+esac
 
 # First existing path, or nothing.
 first_existing() {
@@ -92,7 +122,7 @@ if [[ -z "$firmware" ]]; then
         "$root/result/firmware.img")"
 fi
 
-if [[ -z "$gateware" ]]; then
+if [[ "$kind" == "update" && -z "$gateware" ]]; then
     # Globbed rather than named, because the raw image's filename follows the Quartus
     # project rather than a convention this script gets to set.
     #
@@ -109,7 +139,32 @@ if [[ -z "$gateware" ]]; then
     done
 fi
 
-if [[ -z "$firmware" && -z "$gateware" ]]; then
+if [[ "$kind" == "provisioning" ]]; then
+    # An update bundle never carries vectors and a provisioning set never carries the
+    # application image: the two sets are for different devices in different states, and
+    # mixing them would put megabytes of SVF in front of every ordinary update.
+    gateware=""
+
+    if [[ -z "$provisioning" ]]; then
+        provisioning="$(first_existing \
+            "$root/fpga/build/provisioning/DomesdayDuplicatorProvisioning.svf" \
+            "$root/result-bitstream/provisioning/DomesdayDuplicatorProvisioning.svf")"
+    fi
+
+    [[ -n "$provisioning" ]] || die "no provisioning vectors are built locally.
+The SVF comes out of the Quartus build beside the .jic:
+  ./fpga/build-local.sh        or        nix build .#bitstream
+then run this again, or pass --provisioning explicitly."
+
+    # Both halves, always. A bring-up programs the FX3 first — the ordering is what keeps
+    # the original firmware from ever running underneath the current gateware — so a set
+    # without firmware is one the wizard would refuse on the page that opens it.
+    [[ -n "$firmware" ]] || die "a provisioning set needs the firmware as well as the vectors.
+Build it with:   cmake --build fx3/firmware/build   or   nix build .#fx3-firmware
+then run this again, or pass --firmware explicitly."
+fi
+
+if [[ -z "$firmware" && -z "$gateware" && -z "$provisioning" ]]; then
     die "nothing is built locally.
 Build the firmware with:   cmake --build fx3/firmware/build
 or the gateware with:      ./fpga/build-local.sh
@@ -131,7 +186,7 @@ if [[ -n "$(git -C "$root" status --porcelain 2>/dev/null)" ]]; then
 fi
 
 [[ -n "$output" ]] ||
-    output="$root/build/domesday-duplicator-update-$version-dev.dddfw"
+    output="$root/build/domesday-duplicator-$kind-$version-dev.dddfw"
 
 arguments=(
     --output "$output"
@@ -169,24 +224,37 @@ fi
 
 # What the gateware will report through its identity registers. bitstream-provenance.txt
 # sits one level above the image in both layouts — fpga/build/ and result-bitstream/ — and
-# is generated from the compile rather than typed.
-gateware_identity=""
-if [[ -n "$gateware" ]]; then
-    provenance="$(dirname "$(dirname "$gateware")")/bitstream-provenance.txt"
+# is generated from the compile rather than typed. The vectors are read the same way,
+# because they come out of the same compile and land one directory over.
+bitstream_identity_of() {
+    local artefact="$1" provenance identity
+    provenance="$(dirname "$(dirname "$artefact")")/bitstream-provenance.txt"
     if [[ -f "$provenance" ]]; then
-        gateware_identity="$(sed -n 's/^[[:space:]]*commit[[:space:]]\{1,\}\([^[:space:]]\{1,\}\)[[:space:]]*$/\1/p' \
+        identity="$(sed -n 's/^[[:space:]]*commit[[:space:]]\{1,\}\([^[:space:]]\{1,\}\)[[:space:]]*$/\1/p' \
             "$provenance" | head -1 || true)"
     fi
-    [[ -n "$gateware_identity" ]] || die "cannot tell which commit $gateware was built from.
+    [[ -n "${identity:-}" ]] || die "cannot tell which commit $artefact was built from.
 Expected a provenance record at $provenance, which ./fpga/build-local.sh and
 nix build .#bitstream both write beside the images they compile.
-Rebuild the gateware, or use make-update-bundle.sh directly with --gateware-identity."
+Rebuild the gateware, or use make-update-bundle.sh directly with an explicit identity."
+    printf '%s' "$identity"
+}
+
+gateware_identity=""
+if [[ -n "$gateware" ]]; then
+    gateware_identity="$(bitstream_identity_of "$gateware")"
+fi
+
+provisioning_identity=""
+if [[ -n "$provisioning" ]]; then
+    provisioning_identity="$(bitstream_identity_of "$provisioning")"
 fi
 
 # Packaging artefacts older than the tree is legitimate — it is what happens whenever the
 # gateware is left alone while the firmware is worked on — so this is worth saying and not
 # worth refusing.
-for pair in "firmware:$firmware_identity" "gateware:$gateware_identity"; do
+for pair in "firmware:$firmware_identity" "gateware:$gateware_identity" \
+            "provisioning:$provisioning_identity"; do
     name="${pair%%:*}"
     identity="${pair#*:}"
     if [[ -n "$identity" && "$identity" != "$commit" ]]; then
@@ -200,15 +268,22 @@ fi
 if [[ -n "$gateware" ]]; then
     arguments+=(--gateware "$gateware" --gateware-identity "$gateware_identity")
 fi
+if [[ -n "$provisioning" ]]; then
+    arguments+=(--provisioning "$provisioning"
+                --provisioning-identity "$provisioning_identity")
+fi
 
-echo "Packaging a development bundle from what is built locally:"
+echo "Packaging a development $kind set from what is built locally:"
 if [[ -n "$firmware" ]]; then
     echo "  firmware  ${firmware#"$root"/}"
 fi
 if [[ -n "$gateware" ]]; then
     echo "  gateware  ${gateware#"$root"/}"
 fi
-if [[ -z "$firmware" || -z "$gateware" ]]; then
+if [[ -n "$provisioning" ]]; then
+    echo "  vectors   ${provisioning#"$root"/}"
+fi
+if [[ "$kind" == "update" && ( -z "$firmware" || -z "$gateware" ) ]]; then
     echo "  (the other half is not built; a bundle with one component is complete)"
 fi
 echo

@@ -14,10 +14,16 @@
 # What a complete fw-v* release carries:
 #
 #   domesday-duplicator-update-<ver>.dddfw          CI — the signed device update bundle
+#   domesday-duplicator-provisioning-<ver>.dddfw    CI — the signed board bring-up set:
+#                                                   firmware plus the gateware as JTAG
+#                                                   vectors, which is what a board with no
+#                                                   working gateware is brought up with
 #   firmware.img / firmware.elf / firmware.map      CI (nix build .#fx3-firmware)
 #   fx3-programmer-<ver>-linux-x64                  CI (nix build .#fx3-programmer)
 #   DomesdayDuplicatorProvisioning.jic              CI (nix build .#bitstream) — bench
 #                                                   provisioning of a new board, both images
+#   DomesdayDuplicatorProvisioning.svf              CI — the same, as JTAG vectors: what
+#                                                   ddd-jtag and the bring-up set play
 #   DomesdayDuplicator_auto.rpd                     CI — the raw application image; also
 #                                                   inside the bundle, published for
 #                                                   inspection
@@ -27,10 +33,13 @@
 #                                                   release and canonical
 #   SHA256SUMS / PROVENANCE.txt                     CI
 #
-# The bundle is the only asset a device installs by itself, and it is the only signed one:
-# its manifest carries every payload's SHA-256 and is signed with the release key, so the
-# application can prove what it is about to write before it writes it. The other assets are
-# for bench work and for inspection, and SHA256SUMS covers them.
+# The two .dddfw files are the only assets the application installs from, and the only
+# signed ones: each manifest carries every payload's SHA-256 and is signed with the release
+# key, so the application can prove what it is about to write before it writes it. They
+# differ in what they carry and in who installs them — the update bundle goes to a working
+# device over USB, the provisioning set to a board that has no working gateware, over JTAG
+# — and not in their format, their key or their verifier. The other assets are for bench
+# work and for inspection, and SHA256SUMS covers them.
 #
 # Key custody: the release secret key is the repository secret UPDATE_SIGNING_KEY, generated
 # with `minisign -G -W` (no passphrase, because a passphrase in a second secret protects
@@ -116,6 +125,7 @@ jobs:
           # .cdf files are useful in the workflow artefact and are noise on a release page.
           cp -L bitstream/provisioning/DomesdayDuplicatorProvisioning.jic \
                 bitstream/provisioning/DomesdayDuplicatorProvisioning.map \
+                bitstream/provisioning/DomesdayDuplicatorProvisioning.svf \
                 bitstream/provisioning/boot-block.bin \
                 bitstream/application/DomesdayDuplicator_auto.rpd \
                 bitstream/factory/DomesdayDuplicatorFactory.sof \
@@ -243,36 +253,86 @@ jobs:
               --minimum-register-map-version "$((16#${MAP_VERSION}))" \
               --epcs-layout-version "${EPCS_LAYOUT_VERSION}"
 
+          # The provisioning set: the same firmware, and the gateware as JTAG vectors
+          # instead of a flash image. It is what brings a board up that has no working
+          # gateware to receive an ordinary update through — a newly built unit, or one
+          # running the original firmware — and the capture application's installers pin
+          # and bundle it so that a first bring-up needs no network.
+          #
+          # A second bundle rather than a third component in the first, and deliberately:
+          # the SVF is an order of magnitude larger than the images beside it, and every
+          # user of the ordinary update path would carry it for nothing. One format, one
+          # key, one verifier; two files, because they are installed by different people
+          # at different times.
+          nix shell --inputs-from . nixpkgs#minisign --command \
+            ./tools/make-update-bundle.sh \
+              --output "release-artifacts/domesday-duplicator-provisioning-${VERSION}.dddfw" \
+              --version "${VERSION}" \
+              --commit "${IDENTITY}" \
+              --channel release \
+              --secret-key "${key_file}" \
+              --public-key tools/keys/release.pub \
+              --notes "Domesday Duplicator board bring-up set ${TAG}." \
+              --firmware release-artifacts/firmware.img \
+              --firmware-identity "${IDENTITY}" \
+              --firmware-interface-version "$((16#${PROTOCOL_VERSION}))" \
+              --provisioning release-artifacts/DomesdayDuplicatorProvisioning.svf \
+              --provisioning-identity "${IDENTITY}" \
+              --provisioning-interface-version "$((16#${MAP_VERSION}))" \
+              --minimum-application-version "${MINIMUM_APPLICATION_VERSION}" \
+              --minimum-register-map-version "$((16#${MAP_VERSION}))" \
+              --epcs-layout-version "${EPCS_LAYOUT_VERSION}"
+
           rm -f "${key_file}"
 
       # An independent read of the finished bundle, against the *committed* public key —
       # the same bytes the application compiles in. The assembler already verified its own
       # output, which is the check that catches a mistake; this is the check that catches
       # the wrong key being used at all, and it costs a second.
-      - name: Verify the bundle against the pinned public key
+      - name: Verify the bundles against the pinned public key
         shell: bash
         run: |
           set -euo pipefail
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           VERSION="${TAG#fw-v}"
-          BUNDLE="release-artifacts/domesday-duplicator-update-${VERSION}.dddfw"
 
-          work=$(mktemp -d)
-          tar --extract --file "${BUNDLE}" --directory "${work}"
+          # Both signed bundles, through one loop: the provisioning set is installed by
+          # the same application with the same key policy, so a gate that only covered
+          # the update bundle would leave the file a bare board depends on unchecked.
+          for name in update provisioning; do
+            BUNDLE="release-artifacts/domesday-duplicator-${name}-${VERSION}.dddfw"
 
-          nix shell --inputs-from . nixpkgs#minisign --command \
-            minisign -Vm "${work}/manifest.json" -p tools/keys/release.pub \
-                     -x "${work}/manifest.minisig"
+            work=$(mktemp -d)
+            tar --extract --file "${BUNDLE}" --directory "${work}"
 
-          grep -q '"channel": "release"' "${work}/manifest.json" || {
-            echo "The bundle does not declare the release channel" >&2
+            nix shell --inputs-from . nixpkgs#minisign --command \
+              minisign -Vm "${work}/manifest.json" -p tools/keys/release.pub \
+                       -x "${work}/manifest.minisig"
+
+            grep -q '"channel": "release"' "${work}/manifest.json" || {
+              echo "${BUNDLE} does not declare the release channel" >&2
+              exit 1
+            }
+
+            echo "### ${name} bundle" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat "${work}/manifest.json" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          # And the one property that distinguishes the two, checked rather than assumed:
+          # a provisioning set carries JTAG vectors, and an update bundle must not — it
+          # would be several megabytes of payload nothing on the ordinary path plays.
+          PROV="release-artifacts/domesday-duplicator-provisioning-${VERSION}.dddfw"
+          UPD="release-artifacts/domesday-duplicator-update-${VERSION}.dddfw"
+          tar --list --file "${PROV}" | grep -q '^gateware-provisioning.svf$' || {
+            echo "The provisioning set carries no JTAG vectors" >&2
             exit 1
           }
-
-          echo "### Update bundle" >> "$GITHUB_STEP_SUMMARY"
-          echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          cat "${work}/manifest.json" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if tar --list --file "${UPD}" | grep -q 'provisioning'; then
+            echo "The update bundle carries provisioning vectors, which it must not" >&2
+            exit 1
+          fi
 
       - name: Generate SHA256SUMS and PROVENANCE.txt
         shell: bash
@@ -310,6 +370,14 @@ jobs:
             re-checks every digest before it writes, and the device re-checks them again by
             reading back what it wrote.
 
+          The provisioning set
+            domesday-duplicator-provisioning-*.dddfw is the same format, signed with the same
+            key, carrying the firmware and the gateware as JTAG vectors. It is what the
+            capture application's bring-up wizard uses on a board that has no working
+            gateware to receive an ordinary update through — a newly built unit, or one still
+            running the original Duplicator firmware. Packaged builds of the application
+            bundle it by digest, so a first bring-up needs no network.
+
           Reproducing this release
             The gateware is byte-identical across rebuilds of the same commit on the same
             Quartus, so bitstream-provenance.txt's canonical digests can be checked against
@@ -337,8 +405,15 @@ jobs:
 
             **Updating an existing Duplicator**: download the
             `domesday-duplicator-update-*.dddfw` file and open it from the capture
-            application — *Help → Firmware…*. Everything else attached here is for bench
-            provisioning of a new board or for inspection.
+            application — *Tools ▸ Firmware ▸ Update firmware…*.
+
+            **Bringing up a new or legacy board**: download the
+            `domesday-duplicator-provisioning-*.dddfw` file and open it from *Tools ▸
+            Firmware ▸ Legacy ▸ Bring up a new or legacy board…*. Packaged builds of the
+            application already carry a copy, so this is only needed when yours does not
+            or when this set is newer than the one it carries.
+
+            Everything else attached here is for bench work or for inspection.
 
             Every asset was built by CI from this tag. `SHA256SUMS` covers all of them,
             `PROVENANCE.txt` records the toolchains, and `bitstream-provenance.txt` carries

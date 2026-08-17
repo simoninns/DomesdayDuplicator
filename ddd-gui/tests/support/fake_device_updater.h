@@ -249,6 +249,13 @@ class FakeDeviceUpdater : public IDeviceUpdater {
   void SetFault(Fault fault) { fault_ = fault; }
   void SetFailureError(DeviceUpdateError error) { failure_error_ = error; }
   void SetFailAtChunk(uint16_t index) { fail_at_chunk_ = index; }
+
+  // Fail while writing, having written this much. The offset is what tells a
+  // fault at the first page apart from a medium that ends part way through.
+  void FailDuringWriteAfter(uint32_t bytes) {
+    fault_ = Fault::kFailDuringWrite;
+    fail_after_bytes_ = bytes;
+  }
   void SetMaximumChunkBytes(uint16_t bytes) {
     maximum_chunk_bytes_ = bytes;
     status_.maximum_chunk_bytes = bytes;
@@ -291,6 +298,11 @@ class FakeDeviceUpdater : public IDeviceUpdater {
   void Advance() {
     if (status_.phase == UpdatePhase::kWriting) {
       if (fault_ == Fault::kFailDuringWrite) {
+        // Whatever it had written before it stopped, which for a real device
+        // is rarely nothing: an EEPROM that ends at a bank boundary takes
+        // everything up to that boundary and then refuses. Zero unless a test
+        // says otherwise, so a failure at the first page still looks like one.
+        status_.bytes_written = fail_after_bytes_;
         status_.phase = UpdatePhase::kFailed;
         status_.error = failure_error_;
         return;
@@ -308,6 +320,7 @@ class FakeDeviceUpdater : public IDeviceUpdater {
   }
 
   Fault fault_ = Fault::kNone;
+  uint32_t fail_after_bytes_ = 0;
   DeviceUpdateError failure_error_ = DeviceUpdateError::kWrite;
   uint16_t fail_at_chunk_ = 0;
   uint16_t maximum_chunk_bytes_ = 2048;

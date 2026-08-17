@@ -97,7 +97,13 @@ The USB-Blaster is an FTDI FT245 in front of a small CPLD. The host writes a byt
 
 Byte-shift holds TMS low and clocks eight cycles per data byte, so it carries everything except the last bit of a scan — the one that raises TMS — and, importantly, the waits: a provisioning run spends far more cycles idling than shifting, and clocking those a bit at a time would cost eight times the traffic.
 
+**Every read is a bit-bang read**, and that is a bench finding rather than a design preference (B-V1, 2026-08-17). Byte-shift mode defines the same `READ` bit; asked to use it, this cable returns `FF` for every byte — no information at all rather than the wrong information — while the same bits read correctly one cycle at a time. Byte-shift *shifting* is not in doubt: reading a Cyclone IV's IDCODE with the first 24 bits byte-shifted and the last 8 bit-banged returns the correct top byte, so the shift had advanced exactly 24 places. Only the answer is missing, and why is not understood.
+
+Avoiding it costs nothing measurable. Of the 73,297,811 bits this project's provisioning file shifts, **103 are read** — one ten-thousandth of one per cent — so the fast path still carries everything that takes time, and a read costs sixteen command bytes a byte instead of two. The driver therefore never byte-shifts a scan whose TDO is captured, and the byte-shift read path is deleted rather than left for somebody to reach for.
+
 Reads carry the chip's own framing: an FT245 puts two modem-status bytes at the front of every USB packet it sends, and they are not data.
+
+**Before pointing this at a board, read its IDCODE.** Seven statements, 42 bits, nothing written — and the smallest possible proof that a JTAG cable works at all. TESTING.md's B-V1 carries the file; the first cable session skipped that step and spent a whole bring-up run discovering what it says in a second.
 
 Altera never published this protocol, but it has been described and independently implemented several times over two decades. What is implemented here is written from those public descriptions of the protocol; no code was taken from any of them, deliberately — openFPGALoader is AGPL-3.0 and taking a line of it would change this project's licence position.
 

@@ -174,7 +174,7 @@ corruption is only detectable by comparing against an original that may no longe
 One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
 two bytes, which is Windows.
 
-### 4.2 `ddd-gui/` — 1,623 tests (1,613 without hardware)
+### 4.2 `ddd-gui/` — 1,648 tests (1,638 without hardware)
 
 The replacement capture application. Split by what a test needs rather than by what it
 covers: `ddd_capture_tests` links no Qt at all, which is what makes the engine's Qt-free
@@ -249,7 +249,8 @@ LaserDisc player protocol.
 | `tests/gui/unit/test_capture_faults.cpp` | Fault injection through the controller: each failure reaching the user as its own message and carrying nobody else's remedy, a capture that fails mid-write leaving a finalised and readable partial file, and the message naming where that file is | T1 |
 | `tests/gui/unit/test_capture_failure_presenter.cpp` | The error taxonomy as a user meets it: no two failures sharing a summary or a remedy, every failure naming something to do, the title carrying the code, and the usbfs remedy carrying the exact command to paste | T1 |
 | `tests/gui/unit/test_analysis_cli.cpp` | `--analyse-test-data`'s exit codes: 0 for an intact ramp, 1 for a break, 2 for a file that could not be analysed — with the verdict on stdout and "I could not read this" on stderr | T1 |
-| `tests/gui/unit/test_bringup_text.cpp` | What the bring-up wizard says: every page numbered and titled, the overview naming every physical act in advance, **every power-cycle instruction asking for *both* cables**, the timeout leading with the partial power cycle rather than mentioning it third, one vocabulary for the jumper (fitted and removed, never open and closed), the charge-only cable named ahead of the not-connected case, an attached-but-unopenable cable given the remedy that fits it, the kit's debug port separating an unpowered board from an unanswering one, an ordinary update file refused with the reason, and the closing checks — four for a finished board, one for a device that is not there, and none at all for a claim the set did not make | T1 |
+| `tests/gui/unit/test_bringup_text.cpp` | What the bring-up wizard says: every page numbered and titled, the overview naming every physical act in advance, **every power-cycle instruction asking for *both* cables**, the timeout leading with the partial power cycle rather than mentioning it third, one vocabulary for the jumper (fitted and removed, never open and closed), the charge-only cable named ahead of the not-connected case, an attached-but-unopenable cable given the remedy that fits it, the kit's debug port separating an unpowered board from an unanswering one, each firmware a board can be running named as itself — current firmware with its commit and a pointer at the ordinary update path, firmware predating the update agent, and the original `1d50:603b` — the legend explaining the three marks in the colours the rows actually use, an ordinary update file refused with the reason, and the closing checks — four for a finished board, one for a device that is not there, and none at all for a claim the set did not make | T1 |
+| `tests/gui/unit/test_bundled_provisioning.cpp` | Where an installed build looks for the provisioning set it was packaged with — three layouts, no two of which exist on the same computer: beside the executable for an MSI, `Contents/Resources` for a `.app`, and the XDG data path under the application ID for a Flatpak or a prefix install. One name everywhere, the data directories kept in QStandardPaths' order so a user's own copy wins, nothing offered at all when the application does not know where it is, and a build that bundles nothing finding nothing | T1 |
 | `tests/gui/widget/test_about_dialog.cpp` | That the logo and the application icon are compiled into the binary and load — the failure a static library's dropped resource initialiser causes, which appears only in the real application because the test binaries link it differently — and that the dialog is wider than the text it has to lay out, cuts no line off at the right-hand edge, can still be scrolled to text that does not fit, carries the logo and the notices, and has a link that can be followed | T1 |
 | `tests/gui/widget/test_main_window_panels.cpp` | The dock panel framework: every panel present, floatable, toggled from the View menu, a layout that survives a restart, that no panel demands so much height that the column it shares stops being resizable, and that the separator above the bottom panel can actually be dragged in both directions — the failure a zero-height central widget causes, which resizes fine when asked in code and not at all with the mouse | T1 |
 | `tests/gui/widget/test_settings_dialog.cpp` | The settings dialog and its tabs: the two halves grouped rather than run together, the dialog opening on the tab the menu entry was about, each half round-tripping without touching the other — two controllers apply them, so a page that overwrote the other's values would be a way to lose a setting by opening a window — a chosen port that is not there staying chosen, an exclusion surviving its adapter being unplugged, and a remembered port forgotten when it is excluded or overridden | T1 |
@@ -259,7 +260,7 @@ LaserDisc player protocol.
 | `tests/gui/widget/test_guided_capture_dialog.cpp` | The guided capture setup: built from a profile rather than from nothing, so a CAV disc gets frame entry and a CLV disc gets time entry and neither is offered the other's — absent rather than merely disabled — the three shapes offered with the entry fields each of them needs, a plan that cannot be made saying which of the reasons it is and leaving **Start** unavailable, the estimate following what is typed, a suggested name that is already taken said so before anything is written, and a run's progress and its estimated time remaining shown while it goes | T1 |
 | `tests/gui/widget/test_capture_panel.cpp` | The capture controls: the device list, a USB 2 device named as such and refused, each button reading as the next thing that will happen and turning green while monitoring and red while capturing without changing size — the layout shift a stylesheet on a button causes, because the size the stylesheet path computes is not the one the platform style chose — device and test mode locked while streaming, the destination fixed once the file is open while the duration and low-space settings stay live, test mode taking the name field away, and free space shown as how much capture it holds rather than as a size | T1 |
 | `tests/gui/widget/test_update_page.cpp` | The whole update flow as a widget, driven against fakes with nothing plugged in — including branches a bench cannot be asked for. A verified bundle enabling the install and saying so, a development bundle bannered, a file that is not a bundle and one that is not there each refused with a reason, a bundle needing a newer application disabling the button, a successful install reporting what the device now runs, and each failure by name: a capture in progress, a corrupted transfer caught before anything is committed, a device that never comes back, and the wrong build coming back not being called a success. Plus a device with no firmware: named as being in recovery mode with both ways it gets there stated, offered **Program this device** rather than a repair, its version rows reading "None installed" and "Cannot be read", and a payload that is not firmware proved never to reach the device's memory | T1 |
-| `tests/gui/widget/test_board_bringup_wizard.cpp` | The bring-up flow driven end to end with nothing plugged in: the step order asserted as data — the FPGA page after the FX3 page, the power cycle after both — and the FPGA button refused until the FX3 is done; both branches, where a board in its boot ROM skips two pages and a legacy board is held at the jumper until it comes back; the connectivity page's three failures; an ordinary update file refused and a provisioning set accepted with its development banner; both halves programmed with the restart deferred; a stopped play; a power cycle nobody performed; and an FX3 step that failed offered again with the sentence saying nothing is broken | T1 |
+| `tests/gui/widget/test_board_bringup_wizard.cpp` | The bring-up flow driven end to end with nothing plugged in: the step order asserted as data — the FPGA page after the FX3 page, the power cycle after both — and the FPGA button refused until the FX3 is done; both branches, where a board in its boot ROM skips two pages and a legacy board is held at the jumper until it comes back; the connectivity page's three failures; an ordinary update file refused and a provisioning set accepted with its development banner; both halves programmed with the restart deferred; a stopped play; a power cycle nobody performed; and an FX3 step that failed offered again with the sentence saying nothing is broken; the status marks asserted as characters rather than as words, because a UTF-8 tick read a byte at a time is mojibake that every wording test passes over; and the four states a packaged build's own provisioning set produces — preselected and named as such, refused when it does not verify, replaced by a chosen file and put back again, and a build carrying none saying which file to download | T1 |
 | `tests/gui/widget/test_analysis_dialog.cpp` | The analysis dialog: pass and fail reported with the break's offset, pass and fail coloured differently through the theme tokens, an unreadable file distinguished from a failed one, the cancel button becoming the close button, and a dialog destroyed mid-analysis joining its worker rather than leaving a thread running into a destroyed object | T1 |
 | `tests/gui/widget/test_statistics_panel.cpp` | That the figures reach the right labels: the four integrity states reading differently, a new run clearing the last one's numbers, a finished run leaving them up, the three capture-only rows blank while monitoring and filled in once a writer is attached, and the back-pressure bar — showing a working capture's buffer as half used rather than as nothing, carrying the reading's figures in its tooltip, and saying nothing at all rather than a confident zero when the gateware cannot report | T1 |
 | `tests/gui/widget/test_waveform_panel.cpp` | The scope panel: the span choices reaching the plot, persistence off until asked for, the cursor reading in codes alone until a gain is declared, the plot painting empty, full and in persistence mode, and — counted in pixels a person could actually see — persistence leaving earlier sweeps on screen while its absence leaves only the latest | T1 |
@@ -885,6 +886,9 @@ Use a SuperSpeed Explorer Kit that has never been programmed, or erase one delib
   `provisioning_orchestrator.cpp` and pinned by tests.
 - B0 and B1 before any release that changes `provisioning_orchestrator.cpp` or the bring-up
   wizard, and once per release that changes what a provisioning set contains.
+- B2 whenever `ddd-gui/packaging/bundled-provisioning.env` changes, and after any change to
+  the packaging workflows or to `bundled_provisioning.cpp` — every part of that path is a
+  claim about a machine other than the one it was built on.
 
 ### G0 — provisioning a unit with the dual-image flash
 
@@ -913,10 +917,98 @@ Performed first on 2026-08-15. Needs the USB-Blaster and `nix build .#bitstream`
 
 ### B-V1 — programming the flash with no Quartus (JTAG vectors over the on-board cable)
 
-**Not yet performed.** The gating item for the board bring-up work: it is what decides
-whether the application can provision a board itself, and it is the only thing about that
-path a bench can settle. Everything else is covered at T1 with nothing attached
-(`ctest -R jtag`, 60 tests), and no test can answer any of the three questions below.
+**Partly performed, 2026-08-17 — and it found a defect the whole tier exists to find.**
+The gating item for the board bring-up work: it is what decides whether the application
+can provision a board itself, and it is the only thing about that path a bench can settle.
+Everything else is covered at T1 with nothing attached (`ctest -R jtag`, 61 tests), and no
+test could have answered the question below.
+
+**What the first cable session established.** The cable was pointed at a DE0-Nano for the
+first time as part of a full bring-up run, and the play stopped at the first `TDO`
+comparison in the file — `SDR 4 TDI (0) TDO (0) MASK (F)`, answered `F`. Bisected with an
+IDCODE probe, a seven-statement file that shifts 42 bits and writes nothing:
+
+| Read in | Answer |
+| --- | --- |
+| bit-bang mode, one cycle at a time | correct |
+| byte-shift mode | `FF` for every byte — no information at all |
+
+Reading a Cyclone IV's IDCODE with the first 24 bits byte-shifted and the last 8
+bit-banged returned `02FFFFFF` against the expected `020F30DD`: the top byte, which came
+from the bit-bang cycles, is right. So **byte-shift *shifting* is proved correct** — the
+shift had advanced exactly 24 places — and only its read-back is missing.
+
+`usb_blaster_cable.cpp` now never byte-shifts a scan whose TDO is captured, and the
+mechanism behind the cable's silence is unexplained rather than understood. What makes
+that an acceptable place to stop: of this project's 73,297,811 shifted bits, **103 are
+read** — one ten-thousandth of one per cent — so the fast path still carries everything
+that takes time. An IDCODE probe is the cheapest proof a JTAG cable works at all and
+should be step 1 of this item from now on.
+
+**And a second finding, larger than the first: the provisioning `.svf` is not
+self-contained.** After the cable was fixed the play stopped again, at the first
+identification read, answering `F` to everything. The file speaks **Virtual JTAG** —
+`SIR 00E` is USER1, `SIR 00C` is USER0 — to Altera's **Serial Flash Loader**, a soft
+design that has to be configured into the FPGA before any of it means anything. The file
+carries no configuration of its own: its largest scan is 2,108 bits, and an EP4CE22
+configuration is 5,748,760. `quartus_pgm` loads the loader from its own installation
+before playing this protocol; `quartus_cpf` emits only the second half of the job.
+
+Proved by supplying the missing half by hand:
+
+```
+quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
+    $QUARTUS_ROOTDIR/common/devinfo/programmer/sfl_enhanced_01_020f30dd.sof \
+    provisioning-loader.svf
+ddd-jtag provisioning-loader.svf     # 5,749,532 bits, 2.6 s, volatile
+ddd-jtag <the identification block>  # now plays clean
+```
+
+The loader image is chosen **by IDCODE** — `020f30dd` is the EP4CE22 — and the variant
+matters: `sfl_ep4ce22.sof` configures a loader reporting node `00206E00`, and this file
+expects `18206E00`, which is `sfl_enhanced_01_020f30dd.sof`. `jtagconfig -n` names the
+node it finds, which is the quickest way to tell the two apart.
+
+**Decided 2026-08-17: the loader is not used, and this project's own factory image is
+configured instead.** The two options were —
+
+- **The loader is Altera's.** Putting it in a provisioning set means redistributing an
+  Altera artefact, which is the same question the Quartus caching position answers for the
+  toolchain (see the licence position in *Release pipeline*). Rejected: the second option
+  works and needs no answer to it.
+- **There may be no need for it at all.** The alternative is to JTAG-configure the FPGA
+  with *this project's own* factory image — volatile, one 5.7 Mbit scan, our own artefact —
+  and then write both flash images through the **existing** firmware update path over USB,
+  which G1 has already bench-proved. That would replace the SVF flash-writing half
+  entirely, and the JTAG side would only ever configure.
+
+  **Tried on the bench, 2026-08-17, and it works.** `DomesdayDuplicatorFactory.sof`
+  converted the same way gives a 1.4 MB `.svf` that plays in **2.6 seconds**, and what
+  followed is the designed boot flow arriving by a different road: the factory image came
+  up, validated the application image in the flash, and handed over to it — `jtagconfig`
+  shows the Virtual JTAG node gone, and the register block answers over the FX3's SPI link
+  with `IMAGE_ROLE 0x01` and the application's commit. On a board with nothing valid in
+  flash there is nothing to hand over to, so the factory image stays resident with its
+  bridge, which is the bring-up case.
+
+  What it still needs is the one thing the firmware refuses: writing the factory region at
+  `0x000000` (`update-protocol.h`, *"never written from here by any path"*). The host
+  cannot do it instead — the bridge takes one byte per USB control transfer, so 8 MB is
+  millions of round trips, which is exactly why the firmware shifts the bytes itself.
+
+  **The freeze is lifted for that one path**, decided on the ground that a DE0-Nano
+  carries its USB-Blaster on the board, so the cable that recovers a half-written factory
+  region is present on every unit and already connected during bring-up. The firmware
+  gains a third update target guarded by a magic in the begin flags; the design and its
+  rejected alternatives are Phase 6 of
+  [docs-tech/board-bringup-and-rollback-plan.md](docs-tech/board-bringup-and-rollback-plan.md).
+
+**Still to perform**: the flash write itself, its duration, and the comparison against
+`quartus_pgm` — steps 4 to 6 below, which cannot run until Phase 6's firmware exists.
+Nothing has yet written a byte to an EPCS by this route. When they do run, steps 2 and 4
+change with the design: the file played is the factory *configure* `.svf`, and the write
+that follows is an ordinary update transfer, so what is being timed is a ~212 KB flash
+write of the kind G1 already measured at 17 seconds rather than a 105-second vector play.
 
 What is already known without a board, measured on the CI-built provisioning content
 (Quartus 25.1, 2026-08-17):
@@ -932,19 +1024,36 @@ What is already known without a board, measured on the CI-built provisioning con
 
 The procedure, on a DE0-Nano whose flash content does not matter:
 
-1. `nix build .#bitstream`, and take `provisioning/DomesdayDuplicatorProvisioning.svf`
+1. **Read the IDCODE first**, before any file that writes anything. The probe is seven
+   statements and shifts 42 bits:
+
+   ```
+   TRST ABSENT;
+   ENDIR IDLE;
+   ENDDR IDLE;
+   STATE RESET;
+   STATE IDLE;
+   SIR 10 TDI (006);
+   SDR 32 TDI (00000000) TDO (020F30DD) MASK (0FFFFFFF);
+   ```
+
+   `ddd-jtag <probe>.svf` must report success. A failure here is the cable or the driver
+   and nothing else; the top nibble is masked because it carries the silicon revision.
+   This step exists because the first cable session skipped it and spent a bring-up run
+   discovering what these 42 bits say in a second.
+2. `nix build .#bitstream`, and take `provisioning/DomesdayDuplicatorProvisioning.svf`
    from the result. Confirm the application can read it at all, with nothing plugged in:
    `ddd-jtag --dry-run <file>.svf` must play every statement and report the counts above.
-2. Connect **only** the DE0-Nano's mini-USB. Stop Quartus's `jtagd` if it is running — it
+3. Connect **only** the DE0-Nano's mini-USB. Stop Quartus's `jtagd` if it is running — it
    holds the cable open, and the failure to claim it is the first thing this can go wrong
    on.
-3. `time ddd-jtag <file>.svf`. **Record the wall-clock duration**; it is the number the
+4. `time ddd-jtag <file>.svf`. **Record the wall-clock duration**; it is the number the
    provisioning flow's progress estimate and its page wording will be built on, and it
    cannot be obtained any other way.
-4. Power-cycle the board, then confirm the flash content the way G0 does: the unit comes
+5. Power-cycle the board, then confirm the flash content the way G0 does: the unit comes
    up in the factory image with `IMAGE_ROLE` reading `0x00` (or in the application image
    if a boot block survived — both are correct, and for the same reason as in G0).
-5. Re-run G0 with `quartus_pgm` on the same board and confirm the two routes leave it in
+6. Re-run G0 with `quartus_pgm` on the same board and confirm the two routes leave it in
    the same state.
 
 **Pass** = the run completes with no mismatch reported, and the board afterwards is
@@ -952,11 +1061,12 @@ indistinguishable from one provisioned by `quartus_pgm`.
 
 The three things only this can settle:
 
-- **Which half of the cycle TDO belongs to.** The cable is told to sample TDO with TCK
-  low, on the reasoning that a TAP updates it on the falling edge; reading after the edge
-  instead would shift every answer along by one bit. A wrong choice here fails loudly at
-  the first `TDO` comparison in the file — within the first hundred statements, long
-  before anything is written — which is the best possible way for it to be wrong.
+- **Which half of the cycle TDO belongs to.** ✅ **Settled 2026-08-17.** The cable is told
+  to sample TDO with TCK low, on the reasoning that a TAP updates it on the falling edge;
+  reading after the edge instead would shift every answer along by one bit. The IDCODE
+  probe above returns the right value, so the choice is right — and the failure it did
+  surface behaved exactly as predicted here, loudly and at the first `TDO` comparison,
+  long before anything was written.
 - **How fast the cable actually clocks.** Every wait in the file is a cycle count worked
   out at the declared 4.5 MHz, so a cable clocking faster would shorten them all. The
   player holds each wait open for the time its count stands for, which makes the run
@@ -1077,6 +1187,35 @@ The differences from B0, and they are the point of running it separately:
    This is the failure the whole flow is worded around, and it is worth provoking once.
 
 **Pass** = as B0, plus the wording checks above.
+
+### B2 — the offline bring-up, from an installed release build
+
+**Not yet performed.** What the bundled provisioning set exists for, and the only way to
+find out whether it works: every part of it — the packaging pin, the fetch by digest, the
+install layout, the search — is a claim about a machine that is not the one it was built
+on.
+
+Needs a release build of the application (a Flatpak, an MSI or a DMG from a `gui-v*` run
+whose pin was not empty), a machine it has never been installed on, and the same bare pair
+B0 uses.
+
+1. Install the packaged application on a machine with **no network at all** — unplugged or
+   with the interface down, not merely "not used". A path that quietly fetches something
+   would otherwise pass here and fail in the field.
+2. Open **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy board…** and go to the image
+   page. It must arrive with a set **already chosen**, naming the version and commit the
+   pin points at, and saying it was checked.
+3. Confirm the page names the same version the pin does. A stale pin is the likeliest
+   failure here and it is invisible from inside the application.
+4. Work the wizard through as in B0, and finish with the ordinary update — which does need
+   the update bundle, so this is where the network comes back.
+
+**Pass** = the wizard preselects the bundled set on a machine that has never downloaded
+anything, and the bring-up completes from it.
+
+**Also worth doing once**: rename or delete the installed set and reopen the wizard. It must
+say this build carries none and name the file to download — not offer a set it cannot read,
+and not fail silently.
 
 ### G1 — the gateware update, and the handover it ends in
 

@@ -28,8 +28,29 @@ It builds nothing itself, deliberately. Building the firmware is `cmake --build 
 | --- | --- |
 | firmware | `fx3/firmware/build/firmware.img`, `result-firmware/firmware.img`, `result/firmware.img` |
 | gateware | `fpga/build/application/*.rpd`, `result-bitstream/application/*.rpd` |
+| vectors | `fpga/build/provisioning/DomesdayDuplicatorProvisioning.svf`, `result-bitstream/provisioning/…` |
 
 The **application** directory specifically, in both layouts. That is the half a device update rewrites; the factory image is written by JTAG once and a bundle must never carry it.
+
+### The other kind of set
+
+```bash
+./tools/dev-bundle.sh --kind provisioning
+```
+
+Packages the firmware and the JTAG vectors instead — a *provisioning set*, which is what [the bring-up wizard](../capture-gui/bringing-up-a-board.md) plays into a board that has no working gateware, and what a packaged build of the application carries. It needs the SVF, so it needs Quartus to have run, and it needs the firmware too: a bring-up programs the FX3 first, always, so a set without firmware is one the wizard would refuse.
+
+The vectors are never added to an update bundle. They are an order of magnitude larger than the images beside them and nothing on the ordinary update path plays them.
+
+This is also how to try the offline path locally, since it produces exactly the file the installers bundle:
+
+```bash
+cmake -B build -S ddd-gui \
+    -DDDD_BUNDLED_PROVISIONING_FILE="$PWD/build/domesday-duplicator-provisioning-0.0.0-dev.dddfw"
+cmake --build build
+```
+
+The build then places the set beside the binary under the name an installed application searches for, so `build/bin/ddd-gui` opens its bring-up wizard with a set already chosen — and, being development-signed, bannered as such every time.
 
 A bundle with one component is a complete bundle, so **a firmware developer never needs Quartus for this loop** and a gateware developer never needs the ARM cross-toolchain. Nothing built at all is an error, with a reminder of the two build commands.
 

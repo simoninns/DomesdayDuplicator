@@ -39,6 +39,10 @@ Three consequences worth stating:
 - a bundle carrying *only* provisioning vectors is refused by the update window with a sentence naming the window that does want it. It is a legal manifest and not an update;
 - the schema version is deliberately **not** bumped for this. A build predating the component reads the firmware beside it and offers an ordinary firmware install, which is a true description of what that build can do with the file and exactly as safe as any other firmware bundle. Bumping the version would instead have every older build refuse every bundle, for a component that changes the meaning of no other field.
 
+**It is published as its own file**, `domesday-duplicator-provisioning-<version>.dddfw`, beside the update bundle in every firmware release — rather than as a third component of the update bundle. The vectors are an order of magnitude larger than the images they stand for, and every user of the ordinary update path would carry them for nothing. One format, one key, one verifier; two files, because they are installed by different people at different times.
+
+**Packaged builds of the application carry a copy.** A board being brought up cannot be updated over USB — that is what bring-up is for — so the machine beside it may be one that has just been built, with no network at all. The installers therefore fetch the set by digest at packaging time and install it beside the application, and the wizard preselects it. Being bundled buys the offline case and nothing else: the file is verified exactly as a downloaded one is, by the same reader with the same key policy, so it is data the signature covers and never a second trust anchor. Which set is bundled is pinned in `ddd-gui/packaging/bundled-provisioning.env`, and a build with nothing pinned bundles nothing and says so — see [Release pipeline](release-pipeline.md).
+
 ## Reading one by hand
 
 Nothing about the format needs this project's tools:
@@ -222,7 +226,10 @@ The archive reader is deliberately narrow, too. Directories, symlinks, hard link
 | File | Holds |
 | --- | --- |
 | `tools/make-update-bundle.sh` | The producer: assembly, signing and the self-check |
-| `tools/dev-bundle.sh` | The developer loop's wrapper around it |
+| `tools/dev-bundle.sh` | The developer loop's wrapper around it, `--kind update` or `--kind provisioning` |
+| `tools/fetch-bundled-provisioning.sh` | The packaging jobs' fetch-by-digest of the pinned set |
+| `ddd-gui/packaging/bundled-provisioning.env` | Which published set the installers carry |
+| `ddd-gui/src/gui/bundled_provisioning.{h,cpp}` | Where an installed build looks for its copy |
 | `tools/keys/development.pub`, `.key` | The development keypair, deliberately public |
 | `ddd-gui/src/capture/update_bundle.{h,cpp}` | The archive reader and writer, and the check order above |
 | `ddd-gui/src/capture/update_manifest.{h,cpp}` | The manifest model, its parser and the version comparison |

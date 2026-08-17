@@ -142,6 +142,54 @@ else()
     message(STATUS "Release update key: none pinned — development bundles only")
 endif()
 
+# The provisioning set this build carries, for bringing a board up with no network.
+#
+# A board being brought up cannot be updated over USB — that is the whole reason the
+# bring-up wizard exists — so the machine in front of it may be one that has just been
+# built, with no other way to fetch a file. A packaged build therefore installs one
+# provisioning set beside itself, and the wizard preselects it.
+#
+# Unlike the signing key above, this is *data the signature covers* rather than a trust
+# anchor: it is verified before it is used, by the same reader and the same key policy as
+# a file a user picked. So bundling it is a convenience and never a shortcut, and a build
+# that bundles nothing is a build whose wizard opens with its file picker and no
+# preselection — the honest state, and the same convention the unpinned release key
+# follows.
+#
+# The packaging workflows pass this, having fetched the file by the digest pinned in
+# ddd-gui/packaging/bundled-provisioning.env. A local build can pass one produced by
+# ./tools/dev-bundle.sh --kind provisioning.
+set(DDD_BUNDLED_PROVISIONING_FILE "" CACHE FILEPATH
+    "provisioning set (.dddfw) to install beside the application for offline bring-up")
+
+if(DDD_BUNDLED_PROVISIONING_FILE)
+    if(NOT EXISTS "${DDD_BUNDLED_PROVISIONING_FILE}")
+        message(FATAL_ERROR
+            "DDD_BUNDLED_PROVISIONING_FILE points at ${DDD_BUNDLED_PROVISIONING_FILE}, "
+            "which does not exist. A packaging job whose fetch had silently failed would "
+            "otherwise ship an installer that looks complete and brings nothing up.")
+    endif()
+
+    # Shape-checked rather than taken on trust, because the failure this catches is a
+    # fetch that produced an HTML error page with the right filename. A bundle is an
+    # uncompressed ustar archive whose first member is manifest.json, and a tar header
+    # begins with that member's name — so thirteen bytes at offset zero settle it.
+    #
+    # Compared as hex because file(READ) in its text mode does not give back exactly the
+    # bytes it read — it is reading a tar header, which is not text.
+    file(READ "${DDD_BUNDLED_PROVISIONING_FILE}" DDD_BUNDLED_PROVISIONING_HEAD
+         LIMIT 13 HEX)
+    if(NOT DDD_BUNDLED_PROVISIONING_HEAD STREQUAL "6d616e69666573742e6a736f6e")
+        message(FATAL_ERROR
+            "${DDD_BUNDLED_PROVISIONING_FILE} is not an update bundle: its first archive "
+            "member is not manifest.json.")
+    endif()
+
+    message(STATUS "Bundled provisioning set: ${DDD_BUNDLED_PROVISIONING_FILE}")
+else()
+    message(STATUS "Bundled provisioning set: none — the bring-up wizard picks a file")
+endif()
+
 # Qt 6.5 is the floor, not 6.2 as in gui/: QStyleHints::colorScheme() and its change
 # signal arrived in 6.5, and they are how the application follows the desktop's light/dark
 # setting. Without them the theme could only ever be guessed from the palette.

@@ -34,7 +34,10 @@ constexpr uint8_t kBitBangTdi = 0x10;
 // the rest it only means the light is on while work is happening.
 constexpr uint8_t kBitBangOutputEnable = 0x20;
 
-// Set on a command to ask for TDO back — in either mode.
+// Set on a bit-bang command to ask for TDO back.
+//
+// Byte-shift mode defines the same bit and this cable does not honour it —
+// see Shift(). Every read this driver performs is therefore a bit-bang one.
 constexpr uint8_t kReadFlag = 0x40;
 
 // Set to select byte-shift mode; clear for bit-bang.
@@ -79,12 +82,29 @@ class UsbBlasterCable : public IJtagCable {
 
     size_t bit = 0;
     while (bit < bit_count) {
-      // Byte-shift whenever the next eight cycles hold TMS low, which is
-      // every cycle of a scan except the last. A megabit of flash image
-      // therefore costs a megabit of USB traffic rather than sixteen.
-      const size_t whole_bytes = ByteShiftableBytes(tms, bit, bit_count);
+      // Byte-shift whenever the next eight cycles hold TMS low and nothing
+      // is being read back, which is every cycle of a scan except the last.
+      // A megabit of flash image therefore costs a megabit of USB traffic
+      // rather than sixteen.
+      //
+      // **Not when TDO is wanted**, and that is a bench finding rather than
+      // a design preference (B-V1, 2026-08-17). Asked for a read, this cable
+      // returns FF for every byte-shifted byte — no information at all,
+      // rather than the wrong information — while the same bits read
+      // correctly one cycle at a time. What is not in doubt is byte-shift
+      // *shifting*: reading a Cyclone IV's IDCODE with the first 24 bits
+      // byte-shifted and the last 8 bit-banged returns the correct top byte,
+      // so the shift had advanced exactly 24 places. Only the answer is
+      // missing.
+      //
+      // Nothing is lost by avoiding it. In this project's own provisioning
+      // file 103 bits of 73,297,811 are read — one ten-thousandth of one per
+      // cent — so the fast path still carries everything that takes time,
+      // and a read costs sixteen command bytes a byte instead of two.
+      const size_t whole_bytes =
+          tdo == nullptr ? ByteShiftableBytes(tms, bit, bit_count) : 0;
       if (whole_bytes > 0) {
-        if (!ShiftBytes(tdi, bit, whole_bytes, tdo)) {
+        if (!ShiftBytes(tdi, bit, whole_bytes)) {
           return false;
         }
         bit += whole_bytes * 8;
@@ -158,11 +178,12 @@ class UsbBlasterCable : public IJtagCable {
     return bytes;
   }
 
-  bool ShiftBytes(std::span<const uint8_t> tdi, size_t bit, size_t bytes,
-                  std::vector<uint8_t>* tdo) {
-    const bool reading = tdo != nullptr;
-    Queue(static_cast<uint8_t>(kByteShiftFlag | (reading ? kReadFlag : 0) |
-                               bytes));
+  // Eight cycles a byte, TDI only. There is deliberately no read here: the
+  // caller never byte-shifts a scan it is reading, for the reason given in
+  // Shift(), and a path this cable has been shown not to answer is better
+  // deleted than left for somebody to reach for.
+  bool ShiftBytes(std::span<const uint8_t> tdi, size_t bit, size_t bytes) {
+    Queue(static_cast<uint8_t>(kByteShiftFlag | bytes));
     for (size_t index = 0; index < bytes; ++index) {
       uint8_t value = 0;
       for (size_t offset = 0; offset < 8; ++offset) {
@@ -173,21 +194,7 @@ class UsbBlasterCable : public IJtagCable {
       Queue(value);
     }
 
-    if (!reading) {
-      return FlushIfFull();
-    }
-
-    std::vector<uint8_t> answer;
-    if (!Read(bytes, answer)) {
-      return false;
-    }
-    for (size_t index = 0; index < bytes; ++index) {
-      for (size_t offset = 0; offset < 8; ++offset) {
-        SetBitAt(*tdo, bit + index * 8 + offset,
-                 ((answer[index] >> offset) & 1U) != 0);
-      }
-    }
-    return true;
+    return FlushIfFull();
   }
 
   // One TCK cycle in bit-bang mode: the pins are set with TCK low, then the

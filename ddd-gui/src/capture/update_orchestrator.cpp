@@ -13,6 +13,7 @@
 #include "update_orchestrator.h"
 
 #include <algorithm>
+#include <string>
 #include <thread>
 
 #include "firmware_version.h"
@@ -152,6 +153,18 @@ bool UpdateOrchestrator::AwaitCompletion(UpdateTarget target, uint64_t total,
     if (status->phase == UpdatePhase::kFailed) {
       outcome.stage = UpdateStage::kFailed;
       outcome.problem = DeviceUpdateErrorText(status->error);
+
+      // And where it got to, which is often the whole diagnosis. A device
+      // that fails at the first page and a device that fails after 128 KiB
+      // report the same error code and have completely different faults: the
+      // second one is a medium that ends where the writing stopped. The
+      // counters are already being read for the progress bar, so this costs a
+      // sentence and nothing else.
+      if (status->bytes_written > 0) {
+        outcome.problem += " It stopped after writing " +
+                           std::to_string(status->bytes_written) + " of " +
+                           std::to_string(total) + " bytes.";
+      }
       return false;
     }
 

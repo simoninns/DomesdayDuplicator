@@ -108,6 +108,13 @@ class BoardBringUpWizard : public QDialog {
     std::function<std::unique_ptr<capture::IDeviceUpdater>(
         const std::string& path)>
         open_updater;
+
+    // Where this build's own provisioning set is, or an empty string when it
+    // carries none. A function rather than a path so that the search — which
+    // is about how the application was installed — stays out of this class,
+    // and so that a test can state what a build carries instead of installing
+    // one.
+    std::function<QString()> bundled_set;
   };
 
   explicit BoardBringUpWizard(Access access, QWidget* parent = nullptr);
@@ -125,6 +132,15 @@ class BoardBringUpWizard : public QDialog {
   // Separate from the button so a test can drive the flow without a file
   // dialog, which is modal and native and cannot be driven at all.
   void LoadProvisioningSet(const QString& path);
+
+  // The set this build came with, or empty when it came with none. What the
+  // image page starts on.
+  const QString& bundled_path() const { return bundled_path_; }
+
+  // Whether the set in hand is that one, rather than a file somebody chose.
+  bool using_bundled_set() const {
+    return !bundled_path_.isEmpty() && chosen_path_ == bundled_path_;
+  }
 
   BringUpPage page() const { return page_; }
   bool busy() const { return worker_ != nullptr; }
@@ -154,9 +170,12 @@ class BoardBringUpWizard : public QDialog {
 
   static constexpr const char* kFx3RowName = "bringup_fx3_row";
   static constexpr const char* kFpgaRowName = "bringup_fpga_row";
+  static constexpr const char* kConnectLegendName = "bringup_connect_legend";
   static constexpr const char* kCheckAgainButtonName = "bringup_check_again";
 
   static constexpr const char* kChooseButtonName = "bringup_choose";
+  static constexpr const char* kUseBundledButtonName = "bringup_use_bundled";
+  static constexpr const char* kImageSourceName = "bringup_image_source";
   static constexpr const char* kImageLabelName = "bringup_image";
   static constexpr const char* kImageBannerName = "bringup_image_banner";
 
@@ -265,6 +284,10 @@ class BoardBringUpWizard : public QDialog {
   // Read the finished device back and fill the last page in.
   void Verify();
 
+  // Load the set this build came with, the first time the image page is
+  // reached and only if nothing has been chosen.
+  void LoadBundledSetOnce();
+
   bool RefuseWhileRunning();
 
   Access access_;
@@ -282,6 +305,13 @@ class BoardBringUpWizard : public QDialog {
   // for what the page shows.
   std::vector<uint8_t> archive_;
   std::optional<capture::UpdateManifest> manifest_;
+
+  // Where this build's own set is, asked for once at construction, and which
+  // file is in hand — the two together are what the image page's first
+  // paragraph is about.
+  QString bundled_path_;
+  QString chosen_path_;
+  bool bundled_tried_ = false;
 
   // What the bus last looked like, and what the cable last said.
   std::vector<capture::DeviceInfo> devices_;
@@ -320,8 +350,10 @@ class BoardBringUpWizard : public QDialog {
   QLabel* fx3_row_ = nullptr;
   QLabel* fpga_row_ = nullptr;
 
+  QLabel* image_source_ = nullptr;
   QLabel* image_ = nullptr;
   QLabel* image_banner_ = nullptr;
+  QPushButton* use_bundled_ = nullptr;
 
   QLabel* jumper_status_ = nullptr;
 

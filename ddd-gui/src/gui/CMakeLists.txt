@@ -22,6 +22,7 @@ add_library(ddd_gui_lib STATIC
     board_bringup_wizard.cpp
     bringup_text.cpp
     bringup_worker.cpp
+    bundled_provisioning.cpp
     capture_controller.cpp
     capture_naming_dialog.cpp
     capture_naming_form.cpp
@@ -66,6 +67,11 @@ set_target_properties(ddd_gui_lib PROPERTIES AUTOMOC ON AUTORCC ON)
 
 target_include_directories(ddd_gui_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
+# The application ID, as a string the code can use. bundled_provisioning.cpp searches the
+# data directory named after it, and the install rule below writes into that same
+# directory — one definition, so the search and the install cannot disagree.
+target_compile_definitions(ddd_gui_lib PUBLIC DDD_APP_ID="${DDD_APP_ID}")
+
 # ddd_player is the Qt-free player protocol; the QSerialPort backend that carries it, and
 # the worker thread that drives it, belong here because this is where Qt lives.
 target_link_libraries(ddd_gui_lib
@@ -101,6 +107,47 @@ install(TARGETS ddd-gui
     BUNDLE DESTINATION .
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# The bundled provisioning set, when this build carries one. Installed under the fixed
+# name bundled_provisioning.cpp searches for, so the file the wizard preselects is found
+# by its layout rather than by a path recorded at build time — which would be wrong the
+# moment anything relocated the installation.
+#
+# Copied beside the built binary as well as installed, because the offline case is worth
+# being able to try without installing anything: a build configured with this flag finds
+# its own set when it is run out of the build directory.
+if(DDD_BUNDLED_PROVISIONING_FILE)
+    if(APPLE)
+        set(ddd_bundled_provisioning_dir
+            "$<TARGET_FILE_DIR:ddd-gui>/../Resources")
+    else()
+        set(ddd_bundled_provisioning_dir "$<TARGET_FILE_DIR:ddd-gui>")
+    endif()
+
+    add_custom_command(TARGET ddd-gui POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${ddd_bundled_provisioning_dir}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${DDD_BUNDLED_PROVISIONING_FILE}"
+                "${ddd_bundled_provisioning_dir}/provisioning.dddfw"
+        COMMENT "Placing the bundled provisioning set beside the application"
+        VERBATIM
+    )
+
+    if(APPLE)
+        install(FILES "${DDD_BUNDLED_PROVISIONING_FILE}"
+                DESTINATION "ddd-gui.app/Contents/Resources"
+                RENAME "provisioning.dddfw")
+    elseif(WIN32)
+        install(FILES "${DDD_BUNDLED_PROVISIONING_FILE}"
+                DESTINATION "${CMAKE_INSTALL_BINDIR}"
+                RENAME "provisioning.dddfw")
+    else()
+        install(FILES "${DDD_BUNDLED_PROVISIONING_FILE}"
+                DESTINATION "${CMAKE_INSTALL_DATADIR}/${DDD_APP_ID}"
+                RENAME "provisioning.dddfw")
+    endif()
+endif()
 
 # Desktop integration. Installed on Linux only: macOS gets this from the .app bundle's
 # Info.plist and Windows from the MSI's shortcut, so installing freedesktop files there

@@ -16,11 +16,13 @@
 #                         byte for byte. Quartus fitting is deterministic and these files
 #                         carry no timestamp — measured, not assumed (fpga/README.md,
 #                         "Reproducibility").
-#   .sof                  *canonical* digest only, from bitstream-provenance.txt. A .sof
-#                         embeds a compile timestamp and a per-run design hash, so its
-#                         release digest is expected to differ and comparing it would
-#                         produce a failure that means nothing.
-#   the .dddfw bundle     its manifest's payload digests, against the rebuilt payloads. The
+#   .sof / .svf           *canonical* digest only, from bitstream-provenance.txt. A .sof
+#                         embeds a compile timestamp and a per-run design hash, and an
+#                         .svf's header names the file it read and when that file was
+#                         written, so their release digests are expected to differ and
+#                         comparing them would produce a failure that means nothing.
+#   the .dddfw bundles    their manifests' payload digests, against the rebuilt payloads —
+#                         both of them, the update bundle and the provisioning set. The
 #                         archive itself cannot be compared byte for byte, because
 #                         re-signing it needs the release secret key and this job
 #                         deliberately does not have one. Comparing the digests is the
@@ -221,37 +223,80 @@ jobs:
               "$(canonical_digest "${image}" rebuilt-bitstream/bitstream-provenance.txt)"
           done
 
-          # --- the update bundle ------------------------------------------------------
+          # The JTAG vectors, on their canonical digest for the same kind of reason: the
+          # converter's header names the .jic it read and the time that file was last
+          # written, so two conversions of identical content differ in exactly those
+          # characters. The masking lives in bitstream-provenance.py, like the .sof one.
+          # Skipped for releases predating the .svf, which is the honest reading of an
+          # artefact that was not published.
+          if grep -q "provisioning/DomesdayDuplicatorProvisioning.svf" published/bitstream-provenance.txt; then
+            compare_digest "provisioning/DomesdayDuplicatorProvisioning.svf (canonical)" \
+              "$(canonical_digest provisioning/DomesdayDuplicatorProvisioning.svf published/bitstream-provenance.txt)" \
+              "$(canonical_digest provisioning/DomesdayDuplicatorProvisioning.svf rebuilt-bitstream/bitstream-provenance.txt)"
+          fi
 
-          bundle=$(ls published/*.dddfw 2>/dev/null | head -1 || true)
-          if [[ -z "${bundle}" ]]; then
-            echo "The release has no .dddfw bundle" >&2
-            failures=$((failures + 1))
-          else
+          # --- the signed bundles -----------------------------------------------------
+          #
+          # Two of them since the bring-up wizard existed: the update bundle a working
+          # device installs over USB, and the provisioning set a board with no working
+          # gateware is brought up with. Each is named explicitly rather than globbed —
+          # a glob would audit whichever sorted first and report a tick for the other.
+
+          manifest_digest() {
+            python3 -c "import json,sys;m=json.load(open(sys.argv[1]));c=m['components'].get(sys.argv[2]);print(c['sha256'] if c else '')" \
+              "$1" "$2"
+          }
+
+          # Extracts one bundle and verifies its signature, leaving the manifest at
+          # ${work}/manifest.json. Against the key committed at this tag, not the key at
+          # HEAD: that is what makes rotation auditable rather than something that quietly
+          # invalidates the archive of older releases.
+          open_bundle() {
+            local bundle="$1"
             work=$(mktemp -d)
             tar --extract --file "${bundle}" --directory "${work}"
 
-            # Against the key committed at this tag, not the key at HEAD: that is what
-            # makes rotation auditable rather than something that quietly invalidates the
-            # archive of older releases.
             nix shell --inputs-from . nixpkgs#minisign --command \
               minisign -Vm "${work}/manifest.json" -p tools/keys/release.pub \
                        -x "${work}/manifest.minisig" \
-              || { echo "The published bundle does not verify against the key pinned at ${TAG}" >&2
+              || { echo "${bundle} does not verify against the key pinned at ${TAG}" >&2
                    failures=$((failures + 1)); }
+          }
 
-            manifest_digest() {
-              python3 -c "import json,sys;m=json.load(open(sys.argv[1]));c=m['components'].get(sys.argv[2]);print(c['sha256'] if c else '')" \
-                "${work}/manifest.json" "$1"
-            }
+          bundle=$(ls published/domesday-duplicator-update-*.dddfw 2>/dev/null | head -1 || true)
+          if [[ -z "${bundle}" ]]; then
+            echo "The release has no update bundle" >&2
+            failures=$((failures + 1))
+          else
+            open_bundle "${bundle}"
 
             compare_digest "bundle: firmware payload" \
-              "$(manifest_digest firmware)" \
+              "$(manifest_digest "${work}/manifest.json" firmware)" \
               "$(digest_of result-firmware/firmware.img)"
 
             compare_digest "bundle: gateware payload" \
-              "$(manifest_digest gateware)" \
+              "$(manifest_digest "${work}/manifest.json" gateware)" \
               "$(digest_of rebuilt-bitstream/application/DomesdayDuplicator_auto.rpd)"
+          fi
+
+          # The provisioning set, from the first release that published one. Absent is not
+          # a failure: releases predating it are audited as they were.
+          set=$(ls published/domesday-duplicator-provisioning-*.dddfw 2>/dev/null | head -1 || true)
+          if [[ -n "${set}" ]]; then
+            open_bundle "${set}"
+
+            compare_digest "provisioning set: firmware payload" \
+              "$(manifest_digest "${work}/manifest.json" firmware)" \
+              "$(digest_of result-firmware/firmware.img)"
+
+            # Against the published .svf rather than a rebuilt one, and deliberately: the
+            # SVF's header names the .jic it read and when that file was written, so two
+            # conversions of identical vectors differ in those characters. What this asks
+            # is whether the set carries the vectors this release published; whether those
+            # vectors are themselves reproducible is the canonical comparison above.
+            compare_digest "provisioning set: vectors match the published .svf" \
+              "$(manifest_digest "${work}/manifest.json" gateware-provisioning-svf)" \
+              "$(digest_of published/DomesdayDuplicatorProvisioning.svf)"
           fi
 
           {

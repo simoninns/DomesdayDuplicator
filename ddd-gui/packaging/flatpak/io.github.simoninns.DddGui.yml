@@ -69,6 +69,13 @@ modules:
       # and CMake's in-tree default would find it — this states it rather than relying on
       # a relative path that a subdir build makes surprising.
       - -DDDD_RELEASE_UPDATE_KEY_FILE=/run/build/ddd-gui/tools/keys/release.pub
+      # The bundled provisioning set, so that a board can be brought up on a machine with
+      # no network. Fetched by digest before the build from the pin in
+      # packaging/bundled-provisioning.env — flatpak-builder gives the build no network,
+      # which is exactly right: the file has to be in the source tree by then or it is not
+      # in this build at all. The packaging workflow substitutes the path here, or deletes
+      # this line when nothing is pinned.
+      - -DDDD_BUNDLED_PROVISIONING_FILE=@DDD_BUNDLED_PROVISIONING_FILE@
     sources:
       - type: dir
         path: ../../..

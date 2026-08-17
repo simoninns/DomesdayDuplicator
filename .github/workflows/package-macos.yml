@@ -60,15 +60,35 @@ jobs:
           # without it the configure step fails outright.
           brew install cmake ninja pkg-config qt@6 libusb flac googletest dylibbundler
 
+      - name: Fetch the pinned provisioning set
+        id: provisioning
+        shell: bash
+        run: |
+          set -euo pipefail
+          path="$(./tools/fetch-bundled-provisioning.sh \
+            --output "${PWD}/build-provisioning/provisioning.dddfw")"
+          echo "path=${path}" >> "$GITHUB_OUTPUT"
+
       - name: Configure and build
         shell: bash
         run: |
+          set -euo pipefail
           export PATH="$(brew --prefix qt@6)/bin:${PATH}"
           export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
+
+          # The bundled set, when one is pinned. CMake places it inside the built bundle's
+          # Contents/Resources, which is where the application looks and where the
+          # hand-assembled bundle below takes it from.
+          provisioning=()
+          if [[ -n "${{ steps.provisioning.outputs.path }}" ]]; then
+            provisioning=(-DDDD_BUNDLED_PROVISIONING_FILE="${{ steps.provisioning.outputs.path }}")
+          fi
+
           cmake -B build -S ddd-gui -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
-            -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}"
+            -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}" \
+            "${provisioning[@]}"
           cmake --build build
 
       - name: Run the test suite
@@ -95,6 +115,14 @@ jobs:
           # not depend on what CMake happens to generate by default.
           cp build/bin/ddd-gui.app/Contents/MacOS/ddd-gui \
             "${APP}/Contents/MacOS/"
+
+          # The bundled provisioning set, if this build carries one. Taken from where the
+          # build put it rather than from the download, so that the name and the place are
+          # decided once, in CMake, for every platform.
+          if [[ -f build/bin/ddd-gui.app/Contents/Resources/provisioning.dddfw ]]; then
+            cp build/bin/ddd-gui.app/Contents/Resources/provisioning.dddfw \
+              "${APP}/Contents/Resources/"
+          fi
 
           # An .icns built from the PNG set already in the tree, rather than a second copy
           # of the artwork maintained for macOS alone.
@@ -152,11 +180,22 @@ jobs:
       - name: Check the bundled application runs
         shell: bash
         run: |
+          set -euo pipefail
           reported=$(dist/DomesdayDuplicator.app/Contents/MacOS/ddd-gui --version)
           echo "Packaged application reports: ${reported}"
           case "${reported}" in
             *unknown*) echo "The packaged application reports an unknown version" >&2; exit 1 ;;
           esac
+
+          # A pinned set that did not reach the shipped bundle would leave the offline
+          # bring-up path broken in exactly the case it exists for.
+          if [[ -n "${{ steps.provisioning.outputs.path }}" ]]; then
+            if [[ ! -f dist/DomesdayDuplicator.app/Contents/Resources/provisioning.dddfw ]]; then
+              echo "The pinned provisioning set is not in the application bundle" >&2
+              exit 1
+            fi
+            echo "Bundled provisioning set present"
+          fi
 
       - name: Build the DMG
         shell: bash

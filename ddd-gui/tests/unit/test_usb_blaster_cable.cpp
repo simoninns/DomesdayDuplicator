@@ -136,15 +136,41 @@ TEST_F(UsbBlasterCableTest, TheLastBitOfAScanFallsBackToBitBang) {
   EXPECT_EQ(transport_.written()[3], kOutputEnable | kTms | kTck);
 }
 
-TEST_F(UsbBlasterCableTest, ByteShiftAsksForTheSameNumberOfBytesBack) {
-  transport_.AnswerWith({0x3C, 0x00});
+// A shift that is being read back does not use byte-shift mode at all, and
+// this is the one rule in this file that came from hardware rather than from
+// the protocol (B-V1, 2026-08-17). Asked for a read, the cable returns FF for
+// every byte-shifted byte — no answer at all — while the same bits read
+// correctly one cycle at a time. The cost of avoiding it is nothing that
+// matters: 103 bits of this project's 73,297,811 are read.
+TEST_F(UsbBlasterCableTest, AShiftThatIsReadBackNeverUsesByteShift) {
+  // One payload byte to a packet, which is what a cable answering one
+  // bit-bang cycle at a time looks like.
+  FakeFtdiTransport one_at_a_time(kFtdiStatusBytes + 1);
+  std::unique_ptr<IJtagCable> cable =
+      MakeUsbBlasterCableOver(one_at_a_time, nullptr);
+  one_at_a_time.AnswerWith(std::vector<uint8_t>(16, 0x01));
 
   std::vector<uint8_t> tdo;
-  ASSERT_TRUE(Shift("0000000000000000", "0000000000000000", &tdo));
+  const std::string cycles(16, '0');
+  ASSERT_TRUE(cable->Shift(Packed(cycles), Packed(cycles), 16, &tdo));
 
-  ASSERT_GE(transport_.written().size(), 1u);
-  EXPECT_EQ(transport_.written()[0], kByteShift | kRead | 2);
-  EXPECT_EQ(Unpacked(tdo, 16), "0011110000000000");
+  for (uint8_t byte : one_at_a_time.written()) {
+    EXPECT_EQ(byte & kByteShift, 0)
+        << "a byte-shift command was used for a shift that reads TDO";
+  }
+
+  // And every bit came back, one bit-bang cycle each.
+  EXPECT_EQ(Unpacked(tdo, 16), "1111111111111111");
+}
+
+// The fast path is still the fast path for everything that carries data: a
+// write of the same length is one command and two data bytes.
+TEST_F(UsbBlasterCableTest, AShiftThatIsNotReadStillUsesByteShift) {
+  ASSERT_TRUE(Shift("0000000000000000", "0000000000000000"));
+  ASSERT_TRUE(cable_->Flush());
+
+  ASSERT_EQ(transport_.written().size(), 3u);
+  EXPECT_EQ(transport_.written()[0], kByteShift | 2);
 }
 
 // One command can carry sixty-three data bytes, so a longer run is split.
@@ -213,18 +239,20 @@ TEST_F(UsbBlasterCableTest, AskingForAnAnswerSendsWhatIsWaitingFirst) {
 // they are not data. Getting this wrong reads every answer two bytes late,
 // which looks like a cable that works and returns rubbish.
 TEST_F(UsbBlasterCableTest, TheStatusBytesOnEveryPacketAreNotData) {
-  FakeFtdiTransport small(6);  // Four payload bytes to a packet.
+  FakeFtdiTransport small(kFtdiStatusBytes + 1);  // One payload byte a packet.
   std::unique_ptr<IJtagCable> cable = MakeUsbBlasterCableOver(small, nullptr);
 
-  small.AnswerWith({0x01, 0x02, 0x03, 0x04, 0x05, 0x06});
+  // Three cycles, so three answer bytes, each behind its own pair of status
+  // bytes. A reader that took the status bytes for data would report 0x31.
+  small.AnswerWith({0x01, 0x00, 0x01});
 
   std::vector<uint8_t> tdo;
-  const std::string cycles(48, '0');
-  ASSERT_TRUE(cable->Shift(Packed(cycles), Packed(cycles), 48, &tdo));
+  const std::string cycles(3, '0');
+  ASSERT_TRUE(cable->Shift(Packed(cycles), Packed(cycles), 3, &tdo));
 
-  EXPECT_EQ(tdo, (std::vector<uint8_t>{0x01, 0x02, 0x03, 0x04, 0x05, 0x06}))
+  EXPECT_EQ(Unpacked(tdo, 3), "101")
       << "the payload was reassembled with status bytes in it";
-  EXPECT_GE(small.reads(), 2u) << "the answer arrived in one packet, so the "
+  EXPECT_GE(small.reads(), 3u) << "the answers arrived in one packet, so the "
                                   "framing was never exercised";
 }
 

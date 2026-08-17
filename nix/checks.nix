@@ -116,6 +116,43 @@
         cmp domesday-duplicator-update-1.4.0.dddfw \
             ../second/domesday-duplicator-update-1.4.0.dddfw
 
+        cd "$TMPDIR"
+
+        # The other set the release publishes: firmware plus the gateware as JTAG vectors,
+        # which is what a board with no working gateware is brought up with. Checked here
+        # because the release workflow assembles one on every firmware tag, and because the
+        # entry order is as much a part of this file's format as of the other's.
+        printf '! not a real SVF\nSTATE IDLE;\n' > gateware-provisioning.svf
+
+        bash ${src}/tools/make-update-bundle.sh \
+          --output provisioning/domesday-duplicator-provisioning-1.4.0.dddfw \
+          --version 1.4.0 \
+          --commit 0123abcd \
+          --channel development \
+          --created 2026-01-01T00:00:00Z \
+          --notes "A development provisioning set assembled by nix flake check." \
+          --secret-key ${src}/tools/keys/development.key \
+          --public-key ${src}/tools/keys/development.pub \
+          --firmware firmware.img \
+          --firmware-identity 0123abcd \
+          --provisioning gateware-provisioning.svf \
+          --provisioning-identity 0123abcd
+
+        listed=$(tar --list --file provisioning/domesday-duplicator-provisioning-1.4.0.dddfw |
+          tr '\n' ' ')
+        if [ "$listed" != "manifest.json manifest.minisig firmware.img gateware-provisioning.svf " ]; then
+          echo "the provisioning set's entries came out as '$listed'" >&2
+          exit 1
+        fi
+
+        # The pin that decides which published set a packaged build carries. Its shape
+        # only — fetching would need a network this sandbox does not have, and should
+        # not. What this catches is a half-filled pin: a URL with no digest is an
+        # unverified download and a digest with no URL is a check that never runs, and
+        # both should fail on the commit that made them.
+        bash ${src}/tools/fetch-bundled-provisioning.sh \
+          --check --pin ${src}/ddd-gui/packaging/bundled-provisioning.env
+
         touch $out
       '';
 }

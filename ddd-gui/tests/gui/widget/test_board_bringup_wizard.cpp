@@ -204,8 +204,12 @@ struct WizardUnderTest {
   ProvisioningFile file;
   std::unique_ptr<BoardBringUpWizard> wizard;
 
+  // What this "build" was packaged with, if anything. Empty is the ordinary
+  // state for a build from source, and the state every test that does not say
+  // otherwise runs in.
   explicit WizardUnderTest(capture::DevicePersonality personality =
-                               capture::DevicePersonality::kRecovery) {
+                               capture::DevicePersonality::kRecovery,
+                           const QString& bundled = QString()) {
     bus.push_back(Device(personality));
 
     BoardBringUpWizard::Access access;
@@ -236,6 +240,8 @@ struct WizardUnderTest {
         [this](const std::string&) -> std::unique_ptr<capture::IDeviceUpdater> {
       return std::make_unique<BorrowedUpdater>(&updater);
     };
+
+    access.bundled_set = [bundled] { return bundled; };
 
     wizard = std::make_unique<BoardBringUpWizard>(std::move(access));
 
@@ -517,6 +523,149 @@ TEST(BoardBringUpWizardTest, AFileThatIsNotABundleIsRefusedRatherThanCrashing) {
   EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
 }
 
+TEST(BoardBringUpWizardTest, TheStatusMarksAreTheCharactersTheyLookLike) {
+  // A tick is three bytes of UTF-8. Handing those bytes to something that
+  // reads Latin-1 puts three characters of mojibake on the page where one mark
+  // belongs — and every test that looks only at the words passes while the
+  // page in front of a user is unreadable. So the marks are asserted as
+  // characters, and the lead byte of a misread sequence is asserted absent.
+  WizardUnderTest waiting(capture::DevicePersonality::kLegacy);
+  waiting.AdvanceTo(BringUpPage::kConnect);
+
+  const QString legacy_row =
+      waiting.Label(BoardBringUpWizard::kFx3RowName)->text();
+  const QString cable_row =
+      waiting.Label(BoardBringUpWizard::kFpgaRowName)->text();
+
+  EXPECT_TRUE(legacy_row.contains(QStringLiteral("\u2022")))
+      << legacy_row.toStdString();
+  EXPECT_TRUE(cable_row.contains(QStringLiteral("\u2713")))
+      << cable_row.toStdString();
+
+  // A board in its boot ROM ticks, and nothing attached crosses, so all three
+  // marks are covered.
+  WizardUnderTest ready;
+  ready.AdvanceTo(BringUpPage::kConnect);
+  const QString boot_rom_row =
+      ready.Label(BoardBringUpWizard::kFx3RowName)->text();
+  EXPECT_TRUE(boot_rom_row.contains(QStringLiteral("\u2713")))
+      << boot_rom_row.toStdString();
+
+  WizardUnderTest nothing;
+  nothing.bus.clear();
+  nothing.AdvanceTo(BringUpPage::kConnect);
+  const QString absent_row =
+      nothing.Label(BoardBringUpWizard::kFx3RowName)->text();
+  EXPECT_TRUE(absent_row.contains(QStringLiteral("\u2715")))
+      << absent_row.toStdString();
+
+  for (const QString& text :
+       {legacy_row, cable_row, boot_rom_row, absent_row}) {
+    // U+00E2, which is what the first byte of any of these sequences becomes
+    // when it is read as Latin-1.
+    EXPECT_FALSE(text.contains(QChar(0x00E2))) << text.toStdString();
+  }
+}
+
+// --- the set a packaged build carries -------------------------------------
+//
+// A board being brought up cannot be updated over USB — that is what the whole
+// wizard is for — so the machine beside it may be one that has just been built
+// and has no network. A packaged build therefore installs a provisioning set
+// beside itself, and these are the four states that produces.
+
+TEST(BoardBringUpWizardTest, ABundledSetIsChosenForYouAndSaysWhereItCameFrom) {
+  ProvisioningFile packaged;
+  WizardUnderTest test(capture::DevicePersonality::kRecovery, packaged.path());
+
+  test.AdvanceTo(BringUpPage::kImage);
+  ASSERT_EQ(test.wizard->page(), BringUpPage::kImage);
+
+  EXPECT_TRUE(test.wizard->using_bundled_set());
+  EXPECT_TRUE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
+  EXPECT_TRUE(test.Label(BoardBringUpWizard::kImageLabelName)
+                  ->text()
+                  .contains("1.4.0"));
+
+  // And says so, rather than a set simply appearing in a file field. The
+  // sentence that matters is the one about it being checked anyway.
+  const QString source =
+      test.Label(BoardBringUpWizard::kImageSourceName)->text();
+  EXPECT_TRUE(
+      source.contains("carries a provisioning set", Qt::CaseInsensitive))
+      << source.toStdString();
+  EXPECT_TRUE(source.contains("signature", Qt::CaseInsensitive))
+      << source.toStdString();
+
+  // Nothing to go back to, so nothing offering it.
+  EXPECT_TRUE(
+      test.Button(BoardBringUpWizard::kUseBundledButtonName)->isHidden());
+}
+
+TEST(BoardBringUpWizardTest, ABundledSetIsVerifiedLikeAnyOtherFile) {
+  // The property the whole design turns on: arriving with the application is
+  // not a reason to trust a file. A truncated install, or a file somebody
+  // replaced, is refused exactly as a downloaded one would be.
+  ProvisioningFile packaged;
+  const QString broken =
+      packaged.directory().filePath(QStringLiteral("provisioning.dddfw"));
+
+  QFile file(broken);
+  ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+  file.write("manifest.json, and then nothing that follows one");
+  file.close();
+
+  WizardUnderTest test(capture::DevicePersonality::kRecovery, broken);
+  test.AdvanceTo(BringUpPage::kImage);
+
+  EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
+  EXPECT_TRUE(test.Label(BoardBringUpWizard::kImageSourceName)
+                  ->text()
+                  .contains("could not be used", Qt::CaseInsensitive));
+}
+
+TEST(BoardBringUpWizardTest, AChosenFileReplacesTheBundledSetAndCanBeUndone) {
+  ProvisioningFile packaged;
+  WizardUnderTest test(capture::DevicePersonality::kRecovery, packaged.path());
+  test.AdvanceTo(BringUpPage::kImage);
+
+  // An ordinary update file, which is the wrong file for this window: the
+  // bundled one being good does not make a chosen one acceptable.
+  test.wizard->LoadProvisioningSet(
+      ProvisioningFile::UpdateBundlePath(test.file.directory()));
+
+  EXPECT_FALSE(test.wizard->using_bundled_set());
+  EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
+  EXPECT_FALSE(
+      test.Button(BoardBringUpWizard::kUseBundledButtonName)->isHidden());
+
+  test.Button(BoardBringUpWizard::kUseBundledButtonName)->click();
+
+  EXPECT_TRUE(test.wizard->using_bundled_set());
+  EXPECT_TRUE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
+}
+
+TEST(BoardBringUpWizardTest, ABuildWithNoBundledSetSaysWhereToGetOne) {
+  // What a build from source looks like, and what a build whose packaging
+  // pinned nothing looks like. The honest state: the file picker, and the name
+  // of the file to fetch.
+  WizardUnderTest test;
+  test.AdvanceTo(BringUpPage::kImage);
+
+  EXPECT_TRUE(test.wizard->bundled_path().isEmpty());
+  EXPECT_FALSE(test.wizard->using_bundled_set());
+
+  const QString source =
+      test.Label(BoardBringUpWizard::kImageSourceName)->text();
+  EXPECT_TRUE(source.contains("no provisioning set", Qt::CaseInsensitive))
+      << source.toStdString();
+  EXPECT_TRUE(source.contains("domesday-duplicator-provisioning"))
+      << source.toStdString();
+
+  EXPECT_TRUE(
+      test.Button(BoardBringUpWizard::kUseBundledButtonName)->isHidden());
+}
+
 // --- programming ----------------------------------------------------------
 
 TEST(BoardBringUpWizardTest, ItProgramsBothHalvesAndVerifiesAtTheEnd) {
@@ -664,7 +813,9 @@ TEST(BoardBringUpWizardTest, EveryPageIsBuiltAndNamed) {
 
   for (const char* name :
        {BoardBringUpWizard::kOverviewTextName, BoardBringUpWizard::kFx3RowName,
-        BoardBringUpWizard::kFpgaRowName, BoardBringUpWizard::kImageLabelName,
+        BoardBringUpWizard::kFpgaRowName,
+        BoardBringUpWizard::kConnectLegendName,
+        BoardBringUpWizard::kImageLabelName,
         BoardBringUpWizard::kJumperTextName,
         BoardBringUpWizard::kFirmwareTextName,
         BoardBringUpWizard::kRemoveJumperTextName,

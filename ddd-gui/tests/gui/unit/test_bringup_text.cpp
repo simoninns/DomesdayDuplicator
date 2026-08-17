@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <QString>
+#include <optional>
 #include <vector>
 
 #include "bringup_text.h"
@@ -109,9 +110,21 @@ TEST(BringUpText, EveryPhotographPageHasAPictureAndACaption) {
 
 // --- the connectivity rows ------------------------------------------------
 
+// A device as the wizard receives it: what it enumerated as, which protocol it
+// speaks, and what it says it is running.
+capture::DeviceInfo Board(DevicePersonality personality, int protocol_version,
+                          const char* product_string = "") {
+  capture::DeviceInfo info;
+  info.path = "bus-1-port-2";
+  info.personality = personality;
+  info.protocol_version = protocol_version;
+  info.product_string = product_string;
+  return info;
+}
+
 TEST(BringUpTextFx3Row, ABoardInItsBootRomIsReadyAndNeedsNoJumper) {
-  const BringUpStatusRow row =
-      BringUpFx3Row(true, DevicePersonality::kRecovery, UsbPresence::kAbsent);
+  const BringUpStatusRow row = BringUpFx3Row(
+      Board(DevicePersonality::kRecovery, 0), UsbPresence::kAbsent);
 
   EXPECT_EQ(row.state, BringUpRowState::kReady);
   EXPECT_TRUE(row.usable());
@@ -122,36 +135,110 @@ TEST(BringUpTextFx3Row, ABoardInItsBootRomIsReadyAndNeedsNoJumper) {
 // one — it is waiting for the one thing this flow is about to do.
 TEST(BringUpTextFx3Row, ALegacyBoardIsWaitingRatherThanBroken) {
   const BringUpStatusRow row =
-      BringUpFx3Row(true, DevicePersonality::kLegacy, UsbPresence::kAbsent);
+      BringUpFx3Row(Board(DevicePersonality::kLegacy, 0), UsbPresence::kAbsent);
 
   EXPECT_EQ(row.state, BringUpRowState::kWaiting);
   EXPECT_TRUE(row.usable());
   EXPECT_TRUE(row.detail.contains("original", Qt::CaseInsensitive));
+
+  // Named by the identity it enumerates under, so that "the original firmware"
+  // is a thing somebody can check rather than a claim they have to take.
+  EXPECT_TRUE(row.detail.contains("1d50:603b"));
 }
 
-TEST(BringUpTextFx3Row, ACurrentBoardWillBeSentToTheJumper) {
-  const BringUpStatusRow row = BringUpFx3Row(
-      true, DevicePersonality::kApplication, UsbPresence::kAbsent);
+// The row that started this: "running the Duplicator's firmware" said nothing
+// about *which* firmware, and an amber mark beside it read as a fault. Three
+// boards enumerate under the current identifiers or close to it, and each of
+// them wants a different sentence.
+TEST(BringUpTextFx3Row,
+     ACurrentBoardIsNamedAsCurrentAndPointedAtTheUpdatePath) {
+  const BringUpStatusRow row =
+      BringUpFx3Row(Board(DevicePersonality::kApplication, 1,
+                          "Domesday Duplicator (0123abcd)"),
+                    UsbPresence::kAbsent);
 
   EXPECT_EQ(row.state, BringUpRowState::kWaiting);
+
+  // Which firmware, and which build of it.
+  EXPECT_TRUE(row.detail.contains("this application's own firmware"));
+  EXPECT_TRUE(row.detail.contains("0123abcd"));
+
+  // Somebody who only wanted to update a working board is in the wrong window,
+  // and the row says so rather than letting them find out at the jumper page.
+  EXPECT_TRUE(row.detail.contains("Update firmware"));
+  EXPECT_TRUE(row.detail.contains("does not need bringing up"));
   EXPECT_TRUE(row.detail.contains("jumper"));
+}
+
+TEST(BringUpTextFx3Row,
+     FirmwareThatCannotUpdateItselfIsDistinguishedFromCurrent) {
+  // The U0 case: the current identifiers, and firmware from before the update
+  // agent existed. Indistinguishable from a working board by VID/PID alone,
+  // and the opposite thing to tell somebody.
+  const BringUpStatusRow old_firmware = BringUpFx3Row(
+      Board(DevicePersonality::kApplication, 0), UsbPresence::kAbsent);
+
+  EXPECT_EQ(old_firmware.state, BringUpRowState::kWaiting);
+  EXPECT_TRUE(old_firmware.detail.contains("predates", Qt::CaseInsensitive));
+  EXPECT_TRUE(
+      old_firmware.detail.contains("update itself", Qt::CaseInsensitive));
+
+  const BringUpStatusRow current = BringUpFx3Row(
+      Board(DevicePersonality::kApplication, 1), UsbPresence::kAbsent);
+  EXPECT_NE(old_firmware.detail, current.detail)
+      << "firmware that can update itself and firmware that cannot were "
+         "described the same way";
+}
+
+TEST(BringUpTextFx3Row, ABoardThatNamesNoCommitIsNotGivenAnEmptyOne) {
+  const BringUpStatusRow row = BringUpFx3Row(
+      Board(DevicePersonality::kApplication, 1), UsbPresence::kAbsent);
+
+  EXPECT_FALSE(row.detail.contains("()"));
 }
 
 // The one diagnosis nothing else in the application can make: the kit's debug
 // serial port is powered whenever the board is, so seeing it while seeing no
 // FX3 says the board has power and the USB 3.0 link does not work.
 TEST(BringUpTextFx3Row, TheDebugBridgeSeparatesUnpoweredFromUnanswering) {
-  const BringUpStatusRow powered = BringUpFx3Row(
-      false, DevicePersonality::kApplication, UsbPresence::kPresent);
+  const BringUpStatusRow powered =
+      BringUpFx3Row(std::nullopt, UsbPresence::kPresent);
   EXPECT_FALSE(powered.usable());
   EXPECT_TRUE(powered.detail.contains("power", Qt::CaseInsensitive));
   EXPECT_TRUE(powered.detail.contains("USB 3.0"));
 
-  const BringUpStatusRow nothing = BringUpFx3Row(
-      false, DevicePersonality::kApplication, UsbPresence::kAbsent);
+  const BringUpStatusRow nothing =
+      BringUpFx3Row(std::nullopt, UsbPresence::kAbsent);
   EXPECT_FALSE(nothing.usable());
   EXPECT_NE(nothing.detail, powered.detail)
       << "a powered board and an absent one were given the same advice";
+}
+
+// The marks, and the sentence that says what they mean. Amber is the one worth
+// explaining: it is the state a user is most likely to read as a fault.
+TEST(BringUpText, TheLegendExplainsTheMarksTheRowsActuallyUse) {
+  const QString legend = BringUpConnectLegend();
+
+  for (BringUpRowState state :
+       {BringUpRowState::kReady, BringUpRowState::kWaiting,
+        BringUpRowState::kProblem}) {
+    EXPECT_TRUE(legend.contains(BringUpMark(state)))
+        << "the legend does not show the mark a row uses";
+    EXPECT_TRUE(legend.contains(BringUpMarkColour(state)))
+        << "the legend shows a mark in a colour the rows do not use";
+  }
+
+  EXPECT_TRUE(legend.contains("not", Qt::CaseInsensitive));
+  EXPECT_TRUE(legend.contains("wrong", Qt::CaseInsensitive));
+}
+
+TEST(BringUpText, TheThreeMarksAreDifferentFromEachOther) {
+  EXPECT_NE(BringUpMark(BringUpRowState::kReady),
+            BringUpMark(BringUpRowState::kWaiting));
+  EXPECT_NE(BringUpMark(BringUpRowState::kReady),
+            BringUpMark(BringUpRowState::kProblem));
+  EXPECT_NE(BringUpMarkColour(BringUpRowState::kReady),
+            BringUpMarkColour(BringUpRowState::kProblem));
 }
 
 TEST(BringUpTextFpgaRow, AnOpenedCableIsReady) {
@@ -303,6 +390,52 @@ TEST(BringUpVerify, ASetThatNamesNoCommitIsNotCheckedAgainstOne) {
   for (const BringUpCheck& check : checks) {
     EXPECT_FALSE(check.description.contains("build this set carries"));
   }
+}
+
+// --- where the set came from ----------------------------------------------
+//
+// A packaged build carries a provisioning set, because a board being brought
+// up cannot be updated over USB and the machine beside it may have no network
+// at all. What these three sentences must never let happen is "it came with
+// the application" reading as "so it was not checked".
+
+TEST(BringUpText, ABundledSetSaysItWasCheckedAnyway) {
+  const QString text = BringUpBundledSetText();
+
+  EXPECT_TRUE(text.contains("signature", Qt::CaseInsensitive));
+  EXPECT_TRUE(text.contains("digest", Qt::CaseInsensitive));
+
+  // And that a different file can still be chosen, since a set newer than the
+  // application is an ordinary thing to have.
+  EXPECT_TRUE(text.contains("Choose", Qt::CaseInsensitive));
+}
+
+TEST(BringUpText, ABuildWithNoSetNamesTheFileToDownload) {
+  const QString text = BringUpNoBundledSetText();
+
+  EXPECT_TRUE(text.contains("domesday-duplicator-provisioning"));
+
+  // The one page of this procedure that needs another machine, said as such:
+  // somebody in front of a computer with no network needs to know that a file
+  // fetched elsewhere is the whole of what is missing.
+  EXPECT_TRUE(text.contains("network", Qt::CaseInsensitive));
+}
+
+TEST(BringUpText, AnUnusableBundledSetPointsSomewhereElse) {
+  const QString text = BringUpBundledSetUnusableText();
+
+  // Nothing here can repair it, and the page does not pretend otherwise.
+  EXPECT_TRUE(text.contains("could not be used", Qt::CaseInsensitive));
+  EXPECT_TRUE(text.contains("domesday-duplicator-provisioning"));
+}
+
+TEST(BringUpText, TheThreeSourceSentencesAreDifferentFromEachOther) {
+  // They are shown in the same place, one at a time, so two that read alike
+  // would be a page that changed and said nothing.
+  EXPECT_NE(BringUpBundledSetText(), BringUpChosenSetText());
+  EXPECT_NE(BringUpBundledSetText(), BringUpNoBundledSetText());
+  EXPECT_NE(BringUpChosenSetText(), BringUpNoBundledSetText());
+  EXPECT_TRUE(BringUpChosenSetText().contains("bundled", Qt::CaseInsensitive));
 }
 
 // --- the endings ----------------------------------------------------------

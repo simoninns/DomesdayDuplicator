@@ -84,6 +84,17 @@ class MainWindow : public QMainWindow {
     update_key_policy_ = std::move(policy);
   }
 
+  // Whether a window whose whole job is changing what the device runs is open
+  // — the update dialog, or the bring-up wizard.
+  //
+  // It is the rule the version-mismatch warning is suppressed by, and it is
+  // public because that rule is worth a test: both of those windows make a
+  // device disappear and come back in the middle of their work, so the
+  // warning fires *because* they are doing what they were asked to, and lands
+  // modally on top of the page explaining it. Asserting the rule needs a
+  // query; asserting the warning would need a modal nobody can dismiss.
+  bool FirmwareWindowIsOpen() const;
+
  protected:
   void closeEvent(QCloseEvent* event) override;
 

@@ -130,14 +130,73 @@ QString BringUpDurationText() {
 
 // --- the connectivity page ------------------------------------------------
 
-BringUpStatusRow BringUpFx3Row(bool attached,
-                               capture::DevicePersonality personality,
+QString BringUpMark(BringUpRowState state) {
+  switch (state) {
+    case BringUpRowState::kReady:
+      return QStringLiteral("✓");
+    case BringUpRowState::kWaiting:
+      return QStringLiteral("•");
+    case BringUpRowState::kProblem:
+      return QStringLiteral("✕");
+  }
+  return QStringLiteral("✕");
+}
+
+QString BringUpMarkColour(BringUpRowState state) {
+  switch (state) {
+    case BringUpRowState::kReady:
+      return QStringLiteral("#27ae60");
+    case BringUpRowState::kWaiting:
+      return QStringLiteral("#d68910");
+    case BringUpRowState::kProblem:
+      return QStringLiteral("#c0392b");
+  }
+  return QStringLiteral("#c0392b");
+}
+
+QString BringUpConnectLegend() {
+  // The amber case is the one worth the words. A coloured mark that is not
+  // green reads as a fault, and here it usually is not: it means this board is
+  // in a state the wizard already expects and will deal with a few pages
+  // further on.
+  const QString mark = [](BringUpRowState state) {
+    return QStringLiteral("<span style=\"color:%1\"><b>%2</b></span>")
+        .arg(BringUpMarkColour(state), BringUpMark(state));
+  }(BringUpRowState::kReady);
+
+  return Translate(
+             "<p>%1 means that board is ready as it is. %2 means the wizard "
+             "will ask you to do something to it further on — fit a jumper, or "
+             "pull both cables — and <b>not</b> that anything is wrong with "
+             "it. "
+             "%3 is something to put right before going on.</p>")
+      .arg(mark,
+           QStringLiteral("<span style=\"color:%1\"><b>%2</b></span>")
+               .arg(BringUpMarkColour(BringUpRowState::kWaiting),
+                    BringUpMark(BringUpRowState::kWaiting)),
+           QStringLiteral("<span style=\"color:%1\"><b>%2</b></span>")
+               .arg(BringUpMarkColour(BringUpRowState::kProblem),
+                    BringUpMark(BringUpRowState::kProblem)));
+}
+
+BringUpStatusRow BringUpFx3Row(const std::optional<capture::DeviceInfo>& fx3,
                                capture::UsbPresence debug_bridge) {
   BringUpStatusRow row;
   row.title = Translate("FX3 board (SuperSpeed Explorer Kit)");
 
-  if (attached) {
-    switch (personality) {
+  if (fx3.has_value()) {
+    // The commit the running firmware reports, when it reports one. Naming it
+    // is what separates "this is the build you just installed" from "this is
+    // some firmware or other", which is the whole of what somebody looking at
+    // this row wants to know.
+    const std::optional<std::string> commit =
+        capture::ParseFirmwareCommit(fx3->product_string);
+    const QString named =
+        commit.has_value()
+            ? Translate(" (%1)").arg(QString::fromStdString(*commit))
+            : QString();
+
+    switch (fx3->personality) {
       case capture::DevicePersonality::kRecovery:
         row.state = BringUpRowState::kReady;
         row.detail = Translate(
@@ -147,17 +206,38 @@ BringUpStatusRow BringUpFx3Row(bool attached,
 
       case capture::DevicePersonality::kApplication:
         row.state = BringUpRowState::kWaiting;
-        row.detail = Translate(
-            "Running the Duplicator's firmware. It will be asked to reach its "
-            "boot ROM, which means fitting a jumper.");
+        if (capture::ProtocolVersionIsSupported(fx3->protocol_version)) {
+          // A board that already works. Somebody who only wants to update it
+          // is in the wrong window, and the row says so rather than leading
+          // them through nine pages of jumpers to find out.
+          row.detail =
+              Translate(
+                  "Running this application's own firmware%1, so this board "
+                  "does not need bringing up. If you only want to update it, "
+                  "close this and use <b>Tools ▸ Firmware ▸ Update "
+                  "firmware…</b> instead. Carrying on here is safe and will "
+                  "reinstall both halves — it will be asked to reach its boot "
+                  "ROM, which means fitting a jumper.")
+                  .arg(named);
+        } else {
+          row.detail =
+              Translate(
+                  "Running Duplicator firmware%1 that predates this "
+                  "application's update agent: it enumerates under the current "
+                  "identifiers but has no way to update itself, which is one "
+                  "of the two boards this wizard exists for. It will be asked "
+                  "to reach its boot ROM, which means fitting a jumper.")
+                  .arg(named);
+        }
         return row;
 
       case capture::DevicePersonality::kLegacy:
         row.state = BringUpRowState::kWaiting;
         row.detail = Translate(
-            "Running the original Duplicator firmware. This is exactly what "
-            "this wizard is for: it will be asked to reach its boot ROM, which "
-            "means fitting a jumper.");
+            "Running the <b>original</b> Duplicator firmware — the one from "
+            "before this application existed, enumerating as 1d50:603b. This "
+            "is exactly what this wizard is for: it will be asked to reach its "
+            "boot ROM, which means fitting a jumper.");
         return row;
 
       case capture::DevicePersonality::kFlashProgrammer:
@@ -350,6 +430,44 @@ QString BringUpGatewareText(int seconds) {
              "It pauses for long stretches while blocks of flash are erased, "
              "which is the flash doing its job rather than anything being "
              "stuck. Leave both cables connected throughout.</p>");
+}
+
+QString BringUpBundledSetText() {
+  return Translate(
+      "<p><b>This application carries a provisioning set</b>, published with "
+      "the firmware release it was built beside, and it has been chosen for "
+      "you.</p>"
+      "<p>It is checked here exactly as a downloaded one would be — the "
+      "signature first, then every payload's digest — because arriving with "
+      "the application is not a reason to trust a file. Choose a different one "
+      "below if you have a newer set.</p>");
+}
+
+QString BringUpChosenSetText() {
+  return Translate(
+      "<p>Using the file you chose. The set that came with this application is "
+      "still there — <b>Use the bundled set</b> goes back to it.</p>");
+}
+
+QString BringUpBundledSetUnusableText() {
+  return Translate(
+      "<p><b>The provisioning set that came with this application could not be "
+      "used</b>, and what is wrong with it is below.</p>"
+      "<p>Nothing here can repair it — a set is either intact and signed or it "
+      "is not. Download "
+      "<code>domesday-duplicator-provisioning-&lt;version&gt;.dddfw</code> "
+      "from the firmware release page and choose it below.</p>");
+}
+
+QString BringUpNoBundledSetText() {
+  return Translate(
+      "<p><b>This build carries no provisioning set</b>, so there is one thing "
+      "to fetch before starting: download "
+      "<code>domesday-duplicator-provisioning-&lt;version&gt;.dddfw</code> "
+      "from the firmware release page and choose it below.</p>"
+      "<p>Do that on a machine with a network if this one has none — the file "
+      "is all that is needed, and nothing else in this procedure goes near "
+      "the internet.</p>");
 }
 
 QString BringUpImageSummary(const capture::UpdateManifest& manifest) {

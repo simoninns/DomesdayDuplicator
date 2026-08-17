@@ -331,6 +331,46 @@ TEST(UpdateOrchestrator, ReportsAReadbackThatDoesNotMatch) {
   EXPECT_NE(outcome.problem.find("recovery mode"), std::string::npos);
 }
 
+// A write that stopped part way says where, and that sentence is the whole
+// diagnosis often enough to be worth carrying: an error at the first page is a
+// device that cannot write at all, and the same error code after 131,072 bytes
+// is a medium that ends there. Found on the bench, where a firmware image
+// larger than any release had ever been reported only as "could not write to
+// its own memory".
+TEST(UpdateOrchestrator, ReportsHowFarAFailedWriteGot) {
+  const TestBundle test;
+  FakeDeviceUpdater device;
+  device.FailDuringWriteAfter(2048);
+  device.SetFailureError(DeviceUpdateError::kWrite);
+
+  const UpdateOutcome outcome = RunUpdate(device, test.bundle);
+
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_NE(outcome.problem.find("2048"), std::string::npos) << outcome.problem;
+  EXPECT_NE(outcome.problem.find("stopped after writing"), std::string::npos)
+      << outcome.problem;
+
+  // The error the device gave is still the first thing said; the offset is an
+  // addition to it and not a replacement.
+  EXPECT_EQ(
+      outcome.problem.find(DeviceUpdateErrorText(DeviceUpdateError::kWrite)),
+      0u);
+}
+
+// And a device that wrote nothing is not given a sentence about the nothing it
+// wrote.
+TEST(UpdateOrchestrator, AFailureBeforeAnythingWasWrittenSaysNoOffset) {
+  const TestBundle test;
+  FakeDeviceUpdater device;
+  device.SetFault(FakeDeviceUpdater::Fault::kFailDuringWrite);
+  device.SetFailureError(DeviceUpdateError::kWrite);
+
+  const UpdateOutcome outcome = RunUpdate(device, test.bundle);
+
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_EQ(outcome.problem, DeviceUpdateErrorText(DeviceUpdateError::kWrite));
+}
+
 TEST(UpdateOrchestrator, ReportsADeviceThatStopsAnsweringMidWrite) {
   const TestBundle test;
   FakeDeviceUpdater device;

@@ -79,6 +79,13 @@ site/
 dist/
 stage/
 repo/
+
+# The provisioning set a packaging job fetches by digest from the pin in
+# ddd-gui/packaging/bundled-provisioning.env. It lands inside the checkout because
+# flatpak-builder's source is the checkout and its build has no network — but it is a
+# release asset of another stream, and committing a copy would be a second, unsigned
+# way for one to exist.
+ddd-gui/packaging/bundled/
 .flatpak-builder/
 *.flatpak
 *.dmg

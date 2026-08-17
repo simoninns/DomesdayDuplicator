@@ -190,6 +190,13 @@ nix develop .#ddd-gui     # dev shell, including the clang tooling the gates nee
 nix build .#ddd-gui       # the package, tests included
 ```
 
+Two build inputs a packaged build passes and an ordinary one does not need:
+
+| | |
+| --- | --- |
+| `-DDDD_RELEASE_UPDATE_KEY_FILE` | which minisign public key this build accepts release bundles from. Defaults to `tools/keys/release.pub` when the source tree carries it; a build with none can verify no release bundle and says so |
+| `-DDDD_BUNDLED_PROVISIONING_FILE` | a provisioning set to install beside the application, so a board can be brought up with no network. Placed under one fixed name in the platform's data location and preselected by the bring-up wizard — and verified there exactly as a downloaded file is. A build with none opens that page with its file picker. `./tools/dev-bundle.sh --kind provisioning` produces one locally |
+
 ### Quality gates
 
 Both run as part of an ordinary build, and both fail it:

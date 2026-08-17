@@ -12,6 +12,7 @@
 #pragma once
 
 #include <QString>
+#include <optional>
 #include <vector>
 
 #include "device_updater.h"
@@ -114,16 +115,36 @@ struct BringUpStatusRow {
   bool usable() const { return state != BringUpRowState::kProblem; }
 };
 
+// The mark a row state is shown with, and the colour it is shown in. Here
+// rather than in the widget so that the rows and the legend that explains them
+// cannot disagree about what amber means — and as QString, because these are
+// multi-byte characters and a byte-at-a-time reading of one is three
+// characters of mojibake.
+QString BringUpMark(BringUpRowState state);
+QString BringUpMarkColour(BringUpRowState state);
+
+// What the three marks mean, shown above the rows.
+//
+// Worth a line of its own because the amber one is the state somebody is most
+// likely to misread: it says the wizard will ask something of that board later
+// on, not that anything is wrong with it.
+QString BringUpConnectLegend();
+
 // The FX3 row.
 //
-// `personality` is what the application enumerated, and `attached` says
-// whether it enumerated anything at all. `debug_bridge` is whether the kit's
-// on-board USB-UART answered, which is the one thing that distinguishes an
-// unpowered kit from a powered one whose USB 3.0 link is not working — a
-// distinction worth a great deal, because the two send somebody to different
-// ends of the bench.
-BringUpStatusRow BringUpFx3Row(bool attached,
-                               capture::DevicePersonality personality,
+// Takes the device itself rather than its personality alone, because the
+// personality does not say enough: a board enumerating under the current
+// identifiers may be running this project's current firmware or firmware that
+// predates the update agent entirely, and those two want completely different
+// sentences. The commit the device reports is named when it reports one, so
+// that "running the Duplicator's firmware" cannot be read as "running some
+// Duplicator firmware or other".
+//
+// `debug_bridge` is whether the kit's on-board USB-UART answered, which is the
+// one thing that distinguishes an unpowered kit from a powered one whose USB
+// 3.0 link is not working — a distinction worth a great deal, because the two
+// send somebody to different ends of the bench.
+BringUpStatusRow BringUpFx3Row(const std::optional<capture::DeviceInfo>& fx3,
                                capture::UsbPresence debug_bridge);
 
 // The FPGA row.
@@ -171,6 +192,31 @@ QString BringUpFirmwareText();
 
 // The same for the FPGA step, including how long it is expected to take.
 QString BringUpGatewareText(int seconds);
+
+// Where the set on the image page came from, which is three different
+// sentences and never a silent difference.
+//
+// A packaged build carries a provisioning set, so that a board can be brought
+// up on a machine with no network — which is the ordinary case, since a board
+// being brought up is by definition one that cannot be updated over USB. What
+// the page must not do is let "it came with the application" read as "so it
+// was not checked": it is verified exactly as a downloaded one is, signature
+// first and then every digest, and the wording says so.
+QString BringUpBundledSetText();
+
+// The same page when a file has been chosen over a bundled set, saying that
+// the bundled one is still there.
+QString BringUpChosenSetText();
+
+// And when the bundled one did not verify. A rare state and a real one — a
+// truncated install, a file somebody replaced — and the remedy is not one the
+// user can apply to the bundled copy, so it says to download a set instead of
+// suggesting anything can be repaired here.
+QString BringUpBundledSetUnusableText();
+
+// And when this build carries none at all, which is what a build from source
+// looks like unless it was told otherwise. Names the file to download.
+QString BringUpNoBundledSetText();
 
 // The chosen provisioning set: version, commit, and what it carries. Empty
 // when nothing has been chosen.

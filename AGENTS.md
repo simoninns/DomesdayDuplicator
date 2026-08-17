@@ -114,6 +114,8 @@ architectures.
 │   ├── check-licence-headers.sh
 │   ├── make-update-bundle.sh  # assemble and sign a .dddfw device update bundle
 │   ├── dev-bundle.sh          # the developer loop's wrapper around it
+│   ├── fetch-bundled-provisioning.sh  # the packaging jobs' fetch-by-digest of the
+│   │                          # provisioning set an installer carries
 │   ├── keys/                  # the development signing keypair — the secret half is
 │   │                          # committed deliberately, see §5.5. release.pub joins it
 │   │                          # when a release key is generated; the secret never does
@@ -171,6 +173,8 @@ architectures.
 │   ├── CMakeLists.txt         # build definition, and the clang-format/clang-tidy gates
 │   ├── .clang-format          # BasedOnStyle: Google
 │   ├── .clang-tidy            # google-*, bugprone-*, warnings as errors
+│   ├── packaging/             # the installers, and bundled-provisioning.env: which
+│   │                          # published provisioning set a packaged build carries
 │   ├── src/
 │   │   ├── capture/           # ddd::capture — the engine. Qt-free, by rule
 │   │   ├── vendor/            # the only third-party sources here: SHA-256 and Ed25519
@@ -492,7 +496,7 @@ ctest --test-dir gui/build         # one component
 ```
 
 **What exists today: 1,719 tests across five components** — 37 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 1,623 in `ddd-gui/` (the capture engine — sample and wire
+10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 1,648 in `ddd-gui/` (the capture engine — sample and wire
 formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
 metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
 against each other, capture naming and provenance, the offline test-data analyser and its

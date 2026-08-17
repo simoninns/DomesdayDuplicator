@@ -83,6 +83,20 @@ jobs:
           sed -i "s/@DDD_VERSION@/${{ steps.version.outputs.ddd_version }}/" "${MANIFEST}"
           grep -q "@DDD_VERSION@" "${MANIFEST}" && { echo "version placeholder not substituted" >&2; exit 1; }
 
+          # The provisioning set, if one was fetched. The path is the one the file has
+          # *inside* the sandbox: the module's source is the repository root, mounted at
+          # /run/build/ddd-gui, and subdir: ddd-gui is what the build runs in.
+          if [[ -n "${{ steps.provisioning.outputs.path }}" ]]; then
+            sed -i "s|@DDD_BUNDLED_PROVISIONING_FILE@|/run/build/ddd-gui/${{ steps.provisioning.outputs.path }}|" \
+              "${MANIFEST}"
+          else
+            sed -i "/@DDD_BUNDLED_PROVISIONING_FILE@/d" "${MANIFEST}"
+          fi
+          if grep -q "@DDD_BUNDLED_PROVISIONING_FILE@" "${MANIFEST}"; then
+            echo "provisioning placeholder not resolved" >&2
+            exit 1
+          fi
+
           # Rewrite the <releases> list from the tag rather than maintaining it by hand,
           # which is how a version history goes stale (P7-13).
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
@@ -96,6 +110,18 @@ jobs:
           open(path, "w", encoding="utf-8").write(text)
           PY
           fi
+
+      - name: Fetch the pinned provisioning set
+        id: provisioning
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Into the checkout, because flatpak-builder's source is this directory and the
+          # build itself has no network. An unpinned tree writes nothing and the flag is
+          # removed below; that is a legitimate build, not a failure.
+          path="$(./tools/fetch-bundled-provisioning.sh \
+            --output ddd-gui/packaging/bundled/provisioning.dddfw)"
+          echo "path=${path}" >> "$GITHUB_OUTPUT"
 
       - name: Cache flatpak-builder state
         uses: actions/cache@v4
@@ -144,6 +170,19 @@ jobs:
           case "${reported}" in
             *unknown*) echo "The packaged application reports an unknown version" >&2; exit 1 ;;
           esac
+
+          # A pinned set that did not survive into the installed application is the exact
+          # failure this whole path exists to prevent — a build that looks complete and
+          # then cannot bring a board up on the machine that has no network. Checked
+          # inside the sandbox, at the path the application searches.
+          if [[ -n "${{ steps.provisioning.outputs.path }}" ]]; then
+            flatpak run --command=test io.github.simoninns.DddGui \
+              -f /app/share/io.github.simoninns.DddGui/provisioning.dddfw || {
+              echo "The pinned provisioning set is not in the installed application" >&2
+              exit 1
+            }
+            echo "Bundled provisioning set present"
+          fi
 
       - name: Upload
         uses: actions/upload-artifact@v4

@@ -108,21 +108,13 @@ QWidget* MakePhotograph(QWidget* parent, const QString& path,
   return holder;
 }
 
-// Green tick, amber dash, red cross — as text, because this application does
-// not carry an icon set and a coloured word is legible in every theme.
+// Green tick, amber dot, red cross — as text, because this application does
+// not carry an icon set and a coloured word is legible in every theme. Which
+// mark and which colour is decided in bringup_text, beside the legend that
+// tells a user what they mean, so the two cannot drift apart.
 QString RowMarkup(const BringUpStatusRow& row) {
-  const char* mark = "✕";
-  const char* colour = "#c0392b";
-  if (row.state == BringUpRowState::kReady) {
-    mark = "✓";
-    colour = "#27ae60";
-  } else if (row.state == BringUpRowState::kWaiting) {
-    mark = "•";
-    colour = "#d68910";
-  }
-
   return QStringLiteral("<p><b><span style=\"color:%1\">%2</span> %3</b><br>%4")
-             .arg(QLatin1String(colour), QLatin1String(mark),
+             .arg(BringUpMarkColour(row.state), BringUpMark(row.state),
                   row.title.toHtmlEscaped(), row.detail) +
          QStringLiteral("</p>");
 }
@@ -208,6 +200,21 @@ BoardBringUpWizard::BoardBringUpWizard(Access access, QWidget* parent)
   timer_->start();
 
   ReadDevices();
+
+  // Where this build's own provisioning set is, asked for once. A packaged
+  // build carries one so that a board can be brought up on a machine with no
+  // network — the ordinary case, since a board being brought up is one that
+  // cannot be updated over USB.
+  //
+  // Only *where*, here. Reading and verifying it waits until the image page,
+  // because the key policy this window judges signatures by is set after it is
+  // constructed, and a set checked against the default policy and then never
+  // rechecked would be judged by rules the application had not finished
+  // choosing.
+  if (access_.bundled_set) {
+    bundled_path_ = access_.bundled_set();
+  }
+
   ShowPage(BringUpPage::kOverview);
 }
 
@@ -288,6 +295,13 @@ QWidget* BoardBringUpWizard::BuildConnectPage() {
   fpga_row_->setObjectName(QLatin1String(kFpgaRowName));
   layout->addWidget(fpga_row_);
 
+  // Under the rows rather than above them: it explains marks somebody has
+  // already looked at, and the amber one in particular, which reads as a fault
+  // and usually is not.
+  QLabel* const legend = MakeBody(page, BringUpConnectLegend());
+  legend->setObjectName(QLatin1String(kConnectLegendName));
+  layout->addWidget(legend);
+
   auto* again = new QPushButton(tr("Check again"), page);
   again->setObjectName(QLatin1String(kCheckAgainButtonName));
   connect(again, &QPushButton::clicked, this, [this] {
@@ -319,6 +333,12 @@ QWidget* BoardBringUpWizard::BuildImagePage() {
          "<p>Its signature and every digest are checked here, before anything "
          "is programmed.</p>")));
 
+  // Which of the three states the page is in — bundled, chosen over a bundled
+  // one, or nothing bundled at all — said in words above the set itself.
+  image_source_ = MakeBody(page);
+  image_source_->setObjectName(QLatin1String(kImageSourceName));
+  layout->addWidget(image_source_);
+
   image_ = MakeBody(page, tr("No provisioning set chosen."));
   image_->setObjectName(QLatin1String(kImageLabelName));
   layout->addWidget(image_);
@@ -343,8 +363,20 @@ QWidget* BoardBringUpWizard::BuildImagePage() {
     }
   });
 
+  // Only ever shown when there is one to go back to, so it is never an offer
+  // to do something this build cannot do.
+  use_bundled_ = new QPushButton(tr("Use the bundled set"), page);
+  use_bundled_->setObjectName(QLatin1String(kUseBundledButtonName));
+  use_bundled_->hide();
+  connect(use_bundled_, &QPushButton::clicked, this, [this] {
+    if (!bundled_path_.isEmpty()) {
+      LoadProvisioningSet(bundled_path_);
+    }
+  });
+
   auto* row = new QHBoxLayout();
   row->addWidget(choose);
+  row->addWidget(use_bundled_);
   row->addStretch(1);
   layout->addLayout(row);
 
@@ -603,6 +635,9 @@ void BoardBringUpWizard::ShowPage(BringUpPage page) {
   // runs of one procedure can be talked about in the same words.
   step_->setText(BringUpPageTitle(page));
 
+  if (page == BringUpPage::kImage) {
+    LoadBundledSetOnce();
+  }
   if (page == BringUpPage::kPowerCycle) {
     power_cycle_polls_ = 0;
   }
@@ -621,11 +656,8 @@ bool BoardBringUpWizard::PageIsSatisfied(BringUpPage page) const {
 
     case BringUpPage::kConnect: {
       const std::optional<capture::DeviceInfo> fx3 = Fx3();
-      const BringUpStatusRow fx3_row = BringUpFx3Row(
-          fx3.has_value(),
-          fx3.has_value() ? fx3->personality
-                          : capture::DevicePersonality::kApplication,
-          capture::UsbPresence::kUnknown);
+      const BringUpStatusRow fx3_row =
+          BringUpFx3Row(fx3, capture::UsbPresence::kUnknown);
       return fx3_row.usable() && cable_opened_;
     }
 
@@ -679,6 +711,21 @@ void BoardBringUpWizard::Refresh() {
     stop_button_->setEnabled(running);
   }
 
+  if (image_source_ != nullptr) {
+    if (bundled_path_.isEmpty()) {
+      image_source_->setText(BringUpNoBundledSetText());
+    } else if (using_bundled_set()) {
+      image_source_->setText(manifest_.has_value()
+                                 ? BringUpBundledSetText()
+                                 : BringUpBundledSetUnusableText());
+    } else {
+      image_source_->setText(BringUpChosenSetText());
+    }
+  }
+  if (use_bundled_ != nullptr) {
+    use_bundled_->setVisible(!bundled_path_.isEmpty() && !using_bundled_set());
+  }
+
   // --- what each waiting page is showing ---------------------------------
 
   const std::optional<capture::DeviceInfo> fx3 = Fx3();
@@ -693,11 +740,7 @@ void BoardBringUpWizard::Refresh() {
             ? access_.presence(capture::kCypressDebugBridgeVendorId,
                                capture::kCypressDebugBridgeProductId)
             : capture::UsbPresence::kUnknown;
-    fx3_row_->setText(RowMarkup(BringUpFx3Row(
-        fx3.has_value(),
-        fx3.has_value() ? fx3->personality
-                        : capture::DevicePersonality::kApplication,
-        bridge)));
+    fx3_row_->setText(RowMarkup(BringUpFx3Row(fx3, bridge)));
   }
 
   if (fpga_row_ != nullptr && page_ == BringUpPage::kConnect) {
@@ -959,9 +1002,13 @@ void BoardBringUpWizard::Verify() {
   bool all_passed = true;
   for (const BringUpCheck& check : checks) {
     all_passed = all_passed && check.passed;
+    // The same two marks the connectivity rows use, from the same place: a
+    // page that ticked in one shape and crossed in another would be two
+    // vocabularies for one answer.
+    const BringUpRowState state =
+        check.passed ? BringUpRowState::kReady : BringUpRowState::kProblem;
     text += QStringLiteral("<span style=\"color:%1\">%2</span> %3<br>")
-                .arg(QLatin1String(check.passed ? "#27ae60" : "#c0392b"),
-                     QLatin1String(check.passed ? "✓" : "✕"),
+                .arg(BringUpMarkColour(state), BringUpMark(state),
                      check.description.toHtmlEscaped());
   }
   text += QStringLiteral("</p>");
@@ -973,10 +1020,23 @@ void BoardBringUpWizard::Verify() {
 
 // --- the provisioning set -------------------------------------------------
 
+void BoardBringUpWizard::LoadBundledSetOnce() {
+  // Once, and only when nothing has been chosen: somebody who came back to
+  // this page after picking a file would not expect the choice to be taken off
+  // them, and somebody whose bundled set failed to verify does not want it
+  // tried again every time they navigate.
+  if (bundled_tried_ || bundled_path_.isEmpty() || !chosen_path_.isEmpty()) {
+    return;
+  }
+  bundled_tried_ = true;
+  LoadProvisioningSet(bundled_path_);
+}
+
 void BoardBringUpWizard::LoadProvisioningSet(const QString& path) {
   archive_.clear();
   manifest_.reset();
   image_banner_->hide();
+  chosen_path_ = path;
 
   QFile file(path);
   if (!file.open(QIODevice::ReadOnly)) {

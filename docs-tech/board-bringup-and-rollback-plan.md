@@ -135,10 +135,13 @@ runs regardless, for the reason given under *Two constraints*.
 
 Two boundary facts shape the flow, both bench-established: changing FX3 boot mode always
 requires a **physical power cycle** (a warm reset does not cut bus power —
-`fx3/programmer/README.md:174-177`), and after any JTAG programming pass the FPGA is left
-running Altera's serial flash loader, so a **power cycle is mandatory** there too
-(`fpga/README.md:255-259`). The wizard therefore ends with one deliberate
-pull-the-cables step covering both.
+`fx3/programmer/README.md:174-177`), and a JTAG configuration is volatile, so what the
+FPGA is running is not what the flash holds until it has reloaded. The wizard therefore
+ends with one deliberate pull-the-cables step covering both. (Under the design this plan
+originally carried, the FPGA's power cycle was mandatory for a different reason — JTAG
+programming left Altera's serial flash loader resident, `fpga/README.md:255-259`. That
+route is gone, and the cycle is now what *proves* the flash rather than what escapes a
+vendor loader. `quartus_pgm` still leaves the loader behind, so G0 keeps the old reason.)
 
 ## Two constraints that decide the design
 
@@ -148,8 +151,9 @@ what makes this a design rather than a script.
 ### The case: J4 is reachable, the DE0-Nano's USB is not
 
 With the unit in its enclosure the FX3's `PMODE J4` header can be reached, but the
-DE0-Nano's mini-USB connector cannot. **Any FPGA work therefore means opening the
-case**, and no FX3 work does.
+DE0-Nano's mini-USB connector cannot. **Any work needing JTAG therefore means opening the
+case**, and no FX3 work does. That is bring-up only: rollback reaches the FPGA through
+firmware that is already running, so it stays closed.
 
 That tempts an adaptive design — do the FX3 first, ask the resulting firmware whether
 the gateware needs anything, and only then send the user for a screwdriver. It is
@@ -162,10 +166,13 @@ path instead: **if bring-up is needed at all, both halves are done, and the firs
 says so.** Both cables go on at the start, the case comes off at the start, and no
 physical act is ever performed twice.
 
-**Both cables stay connected for the whole of both flows**, and that is a requirement
-rather than a convenience. The assembled unit is powered through the FX3 kit's USB 3.0
-connector, and it can *also* be powered through the DE0-Nano's mini-USB — either one
-alone keeps the whole assembly alive. Two consequences follow, and the second is a trap:
+**Both cables stay connected for the whole of bring-up**, and that is a requirement
+rather than a convenience. (Rollback needs only the USB 3.0 cable and never opens the
+case — see *The rollback wizard*, where the reason is that it writes both images through
+firmware that is already running.) The assembled unit is powered through the FX3 kit's
+USB 3.0 connector, and it can *also* be powered through the DE0-Nano's mini-USB — either
+one alone keeps the whole assembly alive. Two consequences follow, and the second is a
+trap:
 
 - Requiring both from the start means the FPGA is powered and enumerable whenever the
   wizard needs it, so an unpowered board is never mistaken for an unprogrammed one, and
@@ -234,8 +241,10 @@ change together and there is no window in between at all.
 Reaching the bad pairing therefore needs the wrong order *and* an intermediate power
 cycle. The orchestrator refuses the first; the flows' shape forbids the second, and there
 is a widget test asserting that every power cycle either flow asks for falls before both
-halves or after both. During bring-up the FX3 is additionally sitting in its boot ROM with
-J4 fitted, driving nothing at all, which makes the FPGA work safe a third time over.
+halves or after both. During bring-up the FX3 is additionally running the modern firmware
+by the time the FPGA is touched — it has to be, since that firmware is what writes the
+EPCS — so the pairing at that moment is the safe one by construction rather than by
+sequencing alone.
 
 So this is a property of the design rather than a rule the procedure has to be trusted to
 follow, and B-V0 is correspondingly not a gate — it measures the mixed state the flows
@@ -330,15 +339,21 @@ widget-testable). Pages, in order:
    in the same framing as the previous photo, so the difference the user must make is the
    only difference between the two pictures. Skipped if step 4 was. No power cycle here:
    there is one at the end, and it serves both halves.
-7. **Program the FPGA.** Plays the provisioning SVF through the USB-Blaster: writes the
-   factory image, leaving the unit's defined boot state as *factory/recovery*. Progress
-   is honest (the SVF player knows its position); the page states the expected duration
-   from a measured per-byte cost. The FX3 is at this moment either in its boot ROM or
-   running freshly written modern firmware over gateware that predates it — the safe
-   pairing, and the only mixed state this flow visits.
+7. **Program the FPGA.** Two operations behind one page (*The FPGA path*, below): the
+   factory image is configured into the FPGA over the USB-Blaster — volatile, 2.6 seconds,
+   nothing written — and the firmware that step 5 installed then writes that same image
+   into the EPCS at `0x000000` through its own flash bridge, on the ordinary update path.
+   The unit's defined boot state afterwards is *factory/recovery*. Progress is honest for
+   both halves: the SVF player knows its position, and the update agent reports bytes
+   written exactly as it does for a gateware update. The FX3 is at this moment running
+   freshly installed modern firmware over gateware that predates it — the safe pairing,
+   and the only mixed state this flow visits. It must be **running** that firmware and not
+   sitting in its boot ROM, which is what fixes this step after the jumper comes out
+   rather than before.
 8. **Power cycle.** *"Unplug **both** USB cables, wait a moment, then reconnect them."*
-   One cycle discharges both obligations — the FX3's boot-source change and the mandatory
-   post-JTAG cycle that clears Altera's serial flash loader — and both cables must come
+   One cycle discharges both obligations — the FX3 re-reads where it boots from, and the
+   FPGA drops the volatile configuration JTAG gave it and loads the one just written to
+   flash — and both cables must come
    out, because either one alone keeps the unit powered and nothing reboots. The page
    says why, not just what. Polls until `1209:2347` returns, and if it does not, leads
    with "did both cables come out?".
@@ -391,64 +406,197 @@ of an opened assembly — which is exactly what the user will be looking at when
 appears. An enclosed-unit photograph would show a state the wizard never asks anyone to
 work in.
 
-## The FPGA JTAG path (adopting Phase 8's design)
+## The FPGA path — JTAG configures, USB writes
 
-This plan adopts the device-update plan's Phase 8 FPGA design unchanged in substance,
-and makes it concrete:
+**Rewritten 2026-08-17, after B-V1 disproved the design it replaces.** The original —
+adopted from the device-update plan's Phase 8 — had a `quartus_cpf`-derived provisioning
+`.svf` write the EPCS directly. The bench showed that file is only the second half of the
+job: it speaks Altera's **Virtual JTAG** protocol (`SIR 00E` is USER1, `SIR 00C` is USER0)
+to Altera's **Serial Flash Loader**, a soft design that has to be configured into the FPGA
+before any of it means anything, and it carries no configuration of its own — its largest
+scan is 2,108 bits against the 5,748,760 an EP4CE22 needs. `quartus_pgm` supplies the
+loader from its own installation. `quartus_cpf` does not put it in the file. Supplying it
+by hand made the same file play clean, which is the proof. Evidence in TESTING.md B-V1.
 
-- **`IJtagCable`** — a new engine seam over the USB-Blaster: libusb, Qt-free, a few
-  hundred lines (FT245-style bit-bang + byte-shift modes, the protocol independently
-  implemented in urjtag/OpenOCD/openFPGALoader; none of their code is used — see the
-  licence position in the Phase 8 write-up). A fake implementation records the vector
-  stream for tests.
+Shipping Altera's loader inside a provisioning set was one way out, and it raises a
+redistribution question this project has no need to answer. The other way is to use **this
+project's own factory image**, which is the design from here on:
+
+> **JTAG configures; it never writes flash.** The factory image is configured into the
+> FPGA volatilely over the DE0-Nano's on-board Blaster, and the flash is then written by
+> the firmware's own update agent over USB — the path G1 has already bench-proved.
+
+Bench-established, 2026-08-17: `DomesdayDuplicatorFactory.sof` converts to a 1.4 MB
+configure-only `.svf` that plays in **2.6 seconds**, after which the factory image does
+exactly what it does at power-on — it validates whatever the flash holds and either hands
+over to it or stays resident with its bridge. On a bare board there is nothing valid to
+hand over to, so the bridge is there, and that is the bring-up case; on a board that
+already works the application image takes over and answers instead. Either way the
+firmware has a route to the EPCS, which is all this needs.
+
+What the change is worth, beyond being the version that works:
+
+- **Every artefact is ours.** No vendor loader is redistributed, and the one thing played
+  over JTAG is a file this project compiles.
+- **One flash writer, not two.** The EPCS is written by the update agent and by nothing
+  else, so the erase/program/readback/digest discipline that protects a field update
+  protects a bring-up too — instead of a second implementation living inside a vector file
+  nobody here can read.
+- **Minutes become seconds on the JTAG side.** 5.7 Mbit shifted once, at 2.6 s, replaces
+  73.3 Mbit and ~105 seconds of declared waits.
+- **The bundle shrinks by an order of magnitude.** 1.4 MB of configure vectors plus a
+  ~200 KB image, against the 18.4 MB flash-writing `.svf` — which is what made compression
+  and JBC live questions. Both are now moot; the *Size caveat* below is withdrawn.
+- **The whole FPGA step is about twenty seconds.** 2.6 s to configure, then a flash write
+  the size of G1's: the `.cof` files enable Cyclone IV bitstream compression, so an image
+  lands in the flash at around 200 KB rather than 718 KB, and G1 measured 212 KB at 17
+  seconds. The page that was going to warn about several minutes of erasing now warns
+  about nothing.
+
+The engine pieces are unchanged and already built — they were never the part that was
+wrong:
+
+- **`IJtagCable`** — the engine seam over the USB-Blaster: libusb, Qt-free (FT245-style
+  bit-bang + byte-shift modes, the protocol independently implemented in
+  urjtag/OpenOCD/openFPGALoader; none of their code is used — see the licence position in
+  the Phase 8 write-up). A fake implementation records the vector stream for tests. One
+  defect found on hardware and fixed: it never byte-shifts a scan whose TDO is captured
+  (B-V1).
 - **SVF player** — a pure parser + JTAG TAP state machine from text to vectors,
-  unit-tested against committed fixtures with no hardware. JBC (Jam STAPL byte-code) is
-  the recorded fallback if SVF throughput or size disappoints; the seam is the same.
-- **Build artefacts** — `fpga/package.nix` (and `build-local.sh`) gain one step each:
+  unit-tested against committed fixtures with no hardware. Its job is now strictly
+  configuration, which is the smaller half of what it was written for. JBC is no longer a
+  recorded fallback: nothing about a 2.6-second play needs one.
+- **Build artefacts** — `fpga/package.nix` (and `build-local.sh`) gain two steps and lose
+  one:
 
-  ```
-  quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
-      DomesdayDuplicatorProvisioning_write_jic.cdf DomesdayDuplicatorProvisioning.svf
-  ```
+  | Change | Why |
+  | --- | --- |
+  | `quartus_cpf -c -q 4.5MHz -g 3.3 -n p factory/DomesdayDuplicatorFactory_write_sof.cdf factory/DomesdayDuplicatorFactoryConfigure.svf` | the vectors that configure the factory image. The `.cdf` is already committed and already installed |
+  | a committed `factory/DomesdayDuplicatorFactory.cof` emitting `DomesdayDuplicatorFactory_auto.rpd` | the factory image as raw EPCS bytes, exactly as the application already publishes `DomesdayDuplicator_auto.rpd`. This is what target 2 below writes |
+  | drop `provisioning/DomesdayDuplicatorProvisioning.svf` | nothing can play it, and keeping an unplayable file in the release invites someone to try. The `.jic`, the `.map` and the `.cdf` stay: `quartus_pgm` is still the documented Quartus route (G0) |
 
-  emitting `provisioning/DomesdayDuplicatorProvisioning.svf` beside the `.jic`, covered
-  by `bitstream-provenance.py` like every other output. The Cyclone IV and serial flash
-  loader knowledge stays inside Quartus, at build time, where it already lives.
-- **First bench task, before anything else is built on it:** prove on hardware that a
-  `.cdf`-derived SVF programs the EPCS end-to-end through the on-board Blaster, and
-  measure its size and wall-clock time. Every sizing decision below (bundling, JBC,
-  compression) waits for these two numbers. This was already flagged as Phase 8's first
-  bench task; it is now this plan's gating item **B-V1**.
+  Both new outputs are covered by `bitstream-provenance.py` like every other artefact.
+
+### The firmware change this needs
+
+Bring-up writes the factory region at `0x000000`, and the firmware refuses to — by design
+and in writing (`update-protocol.h:93`):
+
+> The factory image at `0x000000` is never written from here by any path: it is
+> JTAG-provisioned once and the freeze policy in `fpga/factory/README.md` is what keeps it
+> that way.
+
+The host cannot do it instead. A register write packs an address and one byte into
+`wValue`, so driving the flash bridge from the host is one USB control transfer per byte,
+and 8 MB of EPCS is millions of round trips — which is precisely why the agent shifts the
+bytes on the device (G1: 212 KB in 17 seconds).
+
+So the freeze stops being *"no path exists"* and becomes *"the field path cannot, and the
+bring-up path is exempt"* — a third target:
+
+| | |
+| --- | --- |
+| `UPDATE_TARGET_EPCS_FACTORY (2u)` | base address `0x000000`, with the same erase, program, readback and digest discipline target 1 already has |
+| Unlocked by a magic in `updateBegin_t.flags` | the reserved-flags-must-be-zero rule already enforced in `updateBeginDecode()` becomes the guard, at the cost of no new request and no new state |
+| No boot block | `updateBootBlockEncode()` describes the *application* image, so target 2 skips the boot-block write at `update-agent.c:573` entirely |
+| Length ceiling is the boot block | `updateGatewareIsPlausible()` takes the target: the factory region ends at `UPDATE_EPCS_BOOT_BLOCK_ADDRESS`, not at the end of the device |
+| Address arithmetic takes its base from the target | the `UPDATE_EPCS_APPLICATION_ADDRESS` sites in `update-agent.c` (lines 253, 340, 540) become one `updateEpcsTargetBase(target)`, which is host-testable arithmetic and therefore tested |
+
+**Why the flags word and not something stronger.** Settled 2026-08-17: recovery from a
+half-written factory region needs JTAG, and the DE0-Nano has a USB-Blaster *soldered to
+it*. Every board this can be run against carries its own recovery cable, and the one flow
+that uses target 2 has that cable connected by definition — so the loss the freeze policy
+was defending against is an inconvenience on this hardware rather than a dead board. What
+is left worth defending against is a **mistaken** host, not a determined one: a magic word
+in a field already required to be zero means a host that means target 1 and sends a 2 is
+refused, which is the whole of the realistic risk.
+
+Two guards were considered and rejected. A separate unlock request (like the flash
+bridge's own `44 44 55 AA`) buys nothing the flags word does not, at the cost of a new
+request and a new piece of device state. Gating on the running gateware reporting
+`IMAGE_ROLE 0x00` looked precise — it permits exactly the bare-board case — until the
+bench showed a re-provisioned working board hands over to its *application* image, which
+would then refuse the write; a guard that breaks re-running bring-up on a board that
+already works is worse than the one it replaces.
+
+**This is a protocol change across three components** (AGENTS.md §2, §13), and it is
+additive, which is what the version range was built for. `PROTOCOL_VERSION_H` becomes
+`0x02` and `kProtocolVersionMaximum` becomes 2, so this build accepts 1 and 2 and a v1
+device keeps working untouched. The cost lands in the other direction and is the intended
+one: an application build predating the bump refuses a bundle carrying v2 firmware with
+*"update the application first"*. It still captures from a v2 device — `protocol_version`
+gates the update path and the bring-up wizard's verify row, not the capture path — so the
+consequence is an ordering requirement between the two release streams and nothing worse.
+The bring-up wizard is unaffected either way: it RAM-loads the firmware out of the set it
+has just verified, so it knows what it is talking to without having to ask.
+
+### What plays, in what order
+
+The FPGA half of bring-up becomes four device operations with no power cycle between
+them, all while the FX3 runs the firmware the wizard RAM-loaded a page earlier:
+
+1. play `DomesdayDuplicatorFactoryConfigure.svf` over the Blaster — 2.6 s, volatile,
+   writes nothing;
+2. the firmware's register bridge is now answering, so `UPDATE_BEGIN` target 2 writes
+   `DomesdayDuplicatorFactory_auto.rpd` to `0x000000`, verified by readback digest like
+   any other update;
+3. nothing else. The application image and its boot block are not written here — the exit
+   state stays *factory/recovery gateware*, finished by one ordinary update, exactly as
+   before;
+4. the single power cycle at the end of the wizard, which the FX3 needs anyway, is what
+   makes the flash content live.
+
+**B-V1's remaining steps are the proof of 2**, and nothing has yet written a byte to an
+EPCS by this route.
 
 ## The bundled provisioning set
 
 So that first bring-up works offline, release builds of `ddd-gui` carry a **provisioning
-set**: the current `firmware.img` plus the provisioning SVF, packaged as an ordinary
-signed `.dddfw` (the manifest schema already makes components optional; it gains one new
-component kind, `gateware-provisioning-svf`, and the reader refuses unknown kinds today,
-so this is a versioned, gated extension). One format, one verifier, one key policy —
-whether the set arrives bundled, hand-downloaded or (later) fetched.
+set**: an ordinary signed `.dddfw` carrying three payloads —
+
+| Payload | Component kind | What it is for |
+| --- | --- | --- |
+| `firmware.img` | `firmware` | RAM-loaded into the boot ROM, then written to the EEPROM by itself |
+| `DomesdayDuplicatorFactoryConfigure.svf` | `gateware-provisioning-svf` | configures the factory image into the FPGA so the flash bridge exists |
+| `DomesdayDuplicatorFactory_auto.rpd` | `gateware-factory` | the factory image as EPCS bytes — around 200 KB, since the `.cof` compresses it as it already does the application's 212 KB — written to `0x000000` by target 2 |
+
+The manifest schema already makes components optional and the reader refuses unknown
+kinds, so each addition is a versioned, gated extension. One format, one verifier, one key
+policy — whether the set arrives bundled, hand-downloaded or (later) fetched. The third
+kind is what this rewrite adds; the vectors are no longer the thing that writes flash, so
+the set now carries the image they used to encode.
 
 Packaging mechanics, respecting §9 provenance (every artefact CI-built, GUI releases and
 firmware releases are separate streams):
 
 - The firmware release workflow assembles and attaches
-  `domesday-duplicator-provisioning-<version>.dddfw` alongside the update bundle.
+  `domesday-duplicator-provisioning-<version>.dddfw` alongside the update bundle, signed
+  with the same key, and the release gate verifies both against the committed public key —
+  plus the one property that separates them, that the provisioning set carries vectors and
+  the update bundle does not. The `.svf` itself is attached too, for `ddd-jtag` and the
+  bench.
 - The GUI pins the provisioning set it bundles in one committed file
-  (`ddd-gui/packaging/bundled-provisioning.env`: release tag, asset URL, SHA-256). The
-  packaging workflows fetch by that pin, verify the digest, and install the file into the
-  platform data directory (Flatpak `/app/share/…`, MSI/DMG equivalents). CMake accepts
-  `-DDDD_BUNDLED_PROVISIONING_FILE` for local builds; a build with no set bundled simply
-  shows the file picker with no preselection — the honest state, same convention as the
-  unpinned release key.
+  (`ddd-gui/packaging/bundled-provisioning.env`: release tag, asset URL, SHA-256).
+  `tools/fetch-bundled-provisioning.sh` is the one implementation of fetch-and-verify, so
+  the three packaging workflows cannot differ in whether they check the digest; each then
+  passes `-DDDD_BUNDLED_PROVISIONING_FILE` and asserts, after installing what it built,
+  that the set is where the application will look for it. CMake installs it under one fixed
+  name per platform layout (`share/<app-id>/` on Linux, `Contents/Resources` on macOS,
+  beside the executable on Windows) and `ddd-gui/src/gui/bundled_provisioning.cpp` is the
+  matching search. A build with no set bundled simply shows the file picker with no
+  preselection — the honest state, same convention as the unpinned release key.
 - The GUI never trusts the bundle for being bundled: the wizard verifies signature and
-  digests identically for bundled and picked files.
+  digests identically for bundled and picked files, and reads the bundled one on the image
+  page rather than at construction, so it is judged by the key policy the application
+  finished choosing rather than the default it started with.
+- `tools/dev-bundle.sh --kind provisioning` produces the same file locally, which is what
+  makes the whole path testable without a release.
 
-**Size caveat:** the `.dddfw` container is uncompressed ustar by design, and SVF is
-verbose hex text. If B-V1's measured SVF is large enough to embarrass the installers,
-the recorded options are, in preference order: gzip the SVF payload inside the bundle
-(engine gains a small vendored inflate — a new dependency, so it is raised, not assumed),
-or switch the artefact to JBC. Decision deferred until the number exists.
+**Size caveat, withdrawn 2026-08-17.** The concern was the 18.4 MB flash-writing `.svf`
+in an uncompressed ustar container, and the recorded options were a vendored inflate or a
+switch to JBC. Neither is needed: the configure-only vectors are 1.4 MB and the factory
+image 212 KB, so a complete set is about 1.8 MB — no new dependency, and nothing that
+embarrasses an installer.
 
 ## The legacy image set and the rollback flow
 
@@ -482,15 +630,16 @@ The one-time generation (task **B-V2**, performed on a branch and then committed
   `.gitignore` gains the explicit exception (it has ignored `*.jic` since the original
   binaries were removed), and the licence-header check already exempts non-source files.
 
-From then on the release workflow only **packages** what is tracked: it converts
-`legacy/gateware.jic` to the rollback SVF with the pinned Quartus it already has (a
-hand-authored `.cdf` naming the legacy `.jic`, committed beside the existing one in
-`fpga/provisioning/`), assembles `domesday-duplicator-legacy-rollback.dddfw` — manifest
-`channel: "rollback"`, components `firmware.img` (legacy) and `gateware-provisioning-svf`
-(legacy) — signs it with the release key, and attaches it to the release. If keeping
-even that conversion out of Quartus's hands proves worthwhile, the derived `.svf` can be
-committed alongside the `.jic` after B-V1 has settled its size; that is a packaging
-choice, not a design one.
+The legacy gateware is committed as **raw EPCS bytes** (`gateware.rpd`, emitted by a
+`.cof` at generation time) rather than as a `.jic`, because that is what a rollback now
+writes: the image goes to `0x000000` through the firmware's flash bridge, not through
+JTAG. The `.jic` is committed too, as the reference a bench can hand to `quartus_pgm`.
+
+From then on the release workflow only **packages** what is tracked: it assembles
+`domesday-duplicator-legacy-rollback.dddfw` — manifest `channel: "rollback"`, components
+`firmware.img` (legacy) and `gateware-factory` (legacy) — signs it with the release key,
+and attaches it to the release. No Quartus is involved at all, which is one more thing the
+rewrite below removes from this flow.
 
 The set is a **release asset, not bundled with the GUI** — rollback is a rare,
 deliberate act, and the file picker (or the Phase 7 fetcher, later) serves it. Nothing
@@ -500,22 +649,34 @@ prevents bundling it later if B-V1's sizes make that free.
 
 Same chassis and pages as bring-up, reversed payloads — and **reversed order**, for the
 electrical reason in *Two constraints*: the FX3 is the last thing to become legacy, so
-the FPGA goes first. Rollback also opens the case and takes both cables, on the same
-"never twice" principle.
+the FPGA goes first.
 
-1. Intro — the physical asks first, exactly as in bring-up (out of the enclosure, both
-   cables, one power cycle), then what will be lost: self-update, the update protocol,
-   this application's capture support. States what restores it (the bring-up flow).
-   Requires an explicit typed confirmation; this is the one deliberately frightening
-   screen in the application.
-2. Connectivity and permissions — identical page, reused.
+**Rollback needs no JTAG cable and no screwdriver**, and that follows from the same
+rewrite: a rollback target is by definition running the modern firmware over modern
+gateware, so the flash bridge is already there and both images are written over the USB 3.0
+cable. Nothing here needs the DE0-Nano's mini-USB, so nothing here needs the case off.
+
+1. Intro — the physical asks first (one cable, one power cycle), then what will be lost:
+   self-update, the update protocol, this application's capture support. States what
+   restores it — and states the asymmetry honestly, because it is the thing a user will
+   want to know before agreeing: rollback is done through one cable in a closed case, and
+   coming back is not. Requires an explicit typed confirmation; this is the one
+   deliberately frightening screen in the application.
+2. Connectivity and permissions — the same page, with the FPGA row omitted: this flow
+   never opens the Blaster, so a missing one is not a fault to report.
 3. Image source — the legacy rollback `.dddfw`, file-picked (or fetched later);
    `channel: "rollback"` is what distinguishes it, and the wizard refuses a normal
    update bundle here just as the update page refuses a rollback bundle.
-4. **FPGA first**, while modern firmware is still running: play `legacy-gateware.svf` —
-   the legacy single image lands at `0x000000`, overwriting the factory image, and the
-   boot-block sector is explicitly erased by the same SVF so no stale modern state
-   survives. The unit is now modern-firmware-over-legacy-gateware: the safe pairing.
+4. **FPGA first**, while modern firmware is still running and doing the writing: an
+   ordinary update transfer to **target 2** puts the legacy single image at `0x000000`,
+   over the factory image. An EP4CE22 image is 718 KB of raw configuration and about
+   212 KB with the compression the `.cof` files enable — either way inside the 1 MB the
+   factory region allows, which is worth checking at B-V2 rather than assuming, since the
+   legacy `.cof` is whatever that tree shipped. The boot block and the application image are left
+   exactly as they are — the legacy gateware is a single image with no bootloader and
+   never reads either, and leaving them costs a rollback nothing while giving a later
+   bring-up a device that comes straight back up in its application image. The unit is now
+   modern-firmware-over-legacy-gateware: the safe pairing.
 5. **FX3 second, and much simpler than it first appears.** A rollback target is by
    definition running the modern firmware, which is its own flasher — so the legacy
    image is written by an ordinary update-protocol transfer to target 0. **No jumper, no
@@ -529,10 +690,10 @@ the FPGA goes first. Rollback also opens the case and takes both cables, on the 
    bypassed — the rule stays machine-checked, only its direction changes. This step also
    uses *deferred restart*: the EEPROM is written and verified but the FX3 is **not**
    reset, because resetting it alone would start the legacy firmware while the FPGA is
-   still in whatever state JTAG left it in. Both halves change identity together, at the
-   power cycle, or not at all.
-6. Power cycle — unplug **both** cables, reconnect both. One cycle serves the whole
-   flow: it clears Altera's serial flash loader so the FPGA loads the legacy image, and
+   still running the modern gateware it was configured with — the one pairing that must
+   not happen. Both halves change identity together, at the power cycle, or not at all.
+6. Power cycle — unplug the cable, reconnect it. One cycle serves the whole
+   flow: the FPGA reloads from flash and so comes up on the legacy image, and
    it is the boot on which the FX3 first runs the legacy firmware.
 7. Verify — the one check a legacy device permits: it enumerates as `1d50:603b`. The
    wizard says what this application can and cannot do from here, and points at the
@@ -551,10 +712,11 @@ All Qt-free, all behind seams, all with fakes — the pattern the engine already
 | --- | --- | --- |
 | `kLegacyVendorId 0x1d50` / `kLegacyProductId 0x603b`, `DevicePersonality::kLegacy` | `wire_protocol.h`, `usb_device_info.h`, the three match sites | Detection only — the GUI never opens or drives legacy firmware, so no udev change is required (enumeration works unprivileged) |
 | `IJtagCable` + `UsbBlasterCable` + fake | new `jtag_cable.{h,cpp}` | libusb; `09fb:6001` (Blaster I; IDs `6002/6003/6010/6810` recognised, out of scope to drive) |
-| SVF player | new `svf_player.{h,cpp}` | pure; fixtures under `tests/unit/` |
+| SVF player | new `svf_player.{h,cpp}` | pure; fixtures under `tests/unit/`. Configuration only — no flash-writing file is ever played |
+| `UpdateTarget::kEpcsFactory` and its unlock flag | `device_updater.h`, `update_orchestrator.cpp` | target 2 with the factory-write magic in the begin flags. Offered by the two wizards and by nothing else; the update dialog cannot reach it |
 | `UpdateOrchestrator` deferred-restart option | `update_orchestrator.h` | stop after on-device verify: no `0xD4`, no confirm; the wizard owns the power cycle and the post-cycle check. Inert unless set |
 | Provisioning/rollback orchestrator | new `provisioning_orchestrator.{h,cpp}` | sequences the pages' device work in the fixed order each flow requires; drives `RecoveryInstaller` (bring-up only), the deferred-restart update and the SVF player; reports the same stage/progress shape the update worker already consumes. Rollback's FX3 step needs none of the recovery machinery — it is an ordinary target-0 transfer to firmware that is its own flasher |
-| Manifest: `gateware-provisioning-svf` component, `rollback` channel | `update_manifest.{h,cpp}`, `make-update-bundle.sh` | versioned schema extension; readers that predate it refuse cleanly |
+| Manifest: `gateware-provisioning-svf` and `gateware-factory` components, `rollback` channel | `update_manifest.{h,cpp}`, `make-update-bundle.sh` | versioned schema extension; readers that predate it refuse cleanly |
 | Compatibility gate: `rollback` channel verdict | `update_gate.h` | a rollback bundle installs something older than the running application by design; the gate is *satisfied* by the channel, never bypassed, so the refusal of an ordinary too-old bundle is unchanged |
 | Bundled-set locator | new small helper in `src/gui/` | platform data dir + `-DDDD_BUNDLED_PROVISIONING_FILE`; absent = no preselection |
 
@@ -571,7 +733,10 @@ inline.
 - Unit tier: SVF parsing (fixtures including Quartus-emitted files), TAP state
   transitions, Blaster framing against the fake, manifest extension round-trips,
   rollback-vs-update bundle refusal in both directions, personality mapping for
-  `1d50:603b`, deferred-restart orchestrator behaviour.
+  `1d50:603b`, deferred-restart orchestrator behaviour. Phase 6 adds, on the firmware's
+  host-testable side: target 2 refused without the unlock flag, refused with the flag on
+  targets 0 and 1, the factory region's length ceiling at the boot block, the base address
+  each target resolves to, and that target 2 writes no boot block.
 - Widget tier: both wizards end-to-end against fakes — including the J4-needed and
   J4-not-needed branches, permission-failure pages, a stopped SVF play, and the
   post-power-cycle timeout with its "did both cables come out?" first diagnosis. One
@@ -586,7 +751,14 @@ inline.
   - **R0** — rollback of a current unit to legacy; verify `1d50:603b` enumeration and a
     capture under the legacy software.
   - **R1** — bring-up of the R0 unit straight back; proves the loop is closed.
-  - **B-V1** — the gating SVF proof and measurements (size, duration) described above.
+  - **B-V1** — the gating JTAG proof and its measurements. Partly performed 2026-08-17: it
+    found the cable's byte-shift read defect and then found that the flash-writing `.svf`
+    is not self-contained, which is what Phase 6 answers. Steps 4–6 — the flash write
+    itself, its duration, and the comparison against `quartus_pgm` — are what close it.
+  - **B2** — the offline bring-up: a release build installed on a machine with no
+    network at all, whose wizard must arrive at the image page with the set it was
+    packaged with already chosen and named. Every part of that path — pin, fetch, install
+    layout, search — is a claim about a machine other than the one it was built on.
   - **B-V2** — the one-time pinned-ref legacy build, after which the images are
     committed and the task never runs again.
   - **B-V0** — the interconnect-direction check described in *Two constraints*: confirm
@@ -609,6 +781,14 @@ inline.
   two copies enter the tree together.
 - `fx3/programmer/configs/70-domesday-duplicator.rules` keeps its legacy-ID comment;
   the linux-device-access page notes that bring-up needs both rules files installed.
+- With Phase 6, three pages describe something that is no longer true and are corrected in
+  the same change: *Bringing up a new or legacy board* (step 7 is now configure-then-write
+  and takes seconds rather than minutes; the set carries an image as well as vectors; step
+  8's power cycle no longer clears "Altera's flash loader", because none is ever loaded),
+  *Rolling back to legacy firmware* (no mini-USB, no case off, one cable throughout), and
+  the *Device update mechanism* page, which is where the protocol is specified and
+  therefore where target 2, its unlock flag and version 2 are defined. The firmware and
+  host copies of those constants cite it, as §2 requires.
 
 ## Phases
 
@@ -632,25 +812,58 @@ Each lands independently and leaves the tree shippable.
    the bench; docs pages live.
 4. **Bundled provisioning set.** Release workflow attaches the provisioning `.dddfw`;
    packaging pin + fetch-by-digest; wizard preselection. *Exit:* a clean machine with no
-   network installs a release build and brings up a bare pair fully offline.
+   network installs a release build and brings up a bare pair fully offline — bench item
+   **B2**, which cannot run until a firmware release has published a set and the pin names
+   it. Everything either side of that is built and tested: the release workflow's two
+   bundles and their gate, the pin file, the fetch script, the CMake install for all three
+   layouts, the run-time search, and the wizard's four preselection states.
 5. **Legacy set and rollback wizard.** The one-time B-V2 generation and the `legacy/`
    commit with its provenance README; release-workflow packaging of the rollback
    `.dddfw` from the tracked images; the wizard; the `kLegacy` post-rollback messaging.
    *Exit:* R0 and R1 pass on the bench; the legacy set is a published release asset
    whose payloads match the committed digests.
+6. **Own factory image over JTAG** — the rewrite this plan took on 2026-08-17, after B-V1
+   found that the design phases 2 and 3 shipped cannot work (*The FPGA path*, above).
+   Three components in one change, which AGENTS.md §2 requires be said in those words:
+   - **firmware** — `UPDATE_TARGET_EPCS_FACTORY`, the begin-flags unlock, the target-based
+     base address and length ceiling, no boot block on target 2, `PROTOCOL_VERSION_H`
+     `0x02`. All the arithmetic is in `update-protocol.c`, which is host-tested;
+   - **gateware build** — the factory configure `.svf` and the factory `_auto.rpd`; the
+     unplayable provisioning `.svf` withdrawn; provenance covers both new outputs;
+   - **host** — `kProtocolVersionMaximum` 2, the `gateware-factory` component kind,
+     `UpdateTarget::kEpcsFactory`, and the bring-up wizard's FPGA step becoming
+     configure-then-update. The rollback wizard loses its JTAG step entirely.
+
+   *Exit:* B-V1 steps 4–6 pass — a board provisioned by this route is indistinguishable
+   from one `quartus_pgm` provisioned — and B0 passes on a bare pair.
 
 Phases 1 and 2 are independent; 3 needs both; 4 and 5 need 3 and are independent of each
-other.
+other. **Phase 6 is a correction to 2 and 3, and bring-up does not work on hardware until
+it lands** — 1 to 5 are otherwise complete and the tree is shippable, because the wizard
+fails cleanly at the vectors rather than half-programming anything.
 
 ## Risks and open questions
 
-- **B-V1 is load-bearing** (inherited from Phase 8): if a `.cdf`-derived SVF does not
-  program the EPCS end-to-end, or is absurdly slow through the bit-banged Blaster, the
-  fallback is the JBC interpreter — more code, same seams. Nothing else in this plan
-  changes shape. Verify first, build second.
-- **SVF size vs the uncompressed bundle format** — measured in B-V1; options recorded
-  under *The bundled provisioning set*; any new decompression dependency is raised
-  before it is vendored.
+- **B-V1 was load-bearing, and it bore.** The risk was recorded as *"if a `.cdf`-derived
+  SVF does not program the EPCS end-to-end, the fallback is the JBC interpreter"*, and the
+  answer turned out to be neither: the file cannot program the EPCS at all, and JBC would
+  have inherited the same defect, being the same content in a denser encoding. The
+  replacement design is in *The FPGA path*. Two lessons worth keeping: an IDCODE probe is
+  step 1 of any first cable session, and **the phase closed on unit tests where its own
+  exit criterion asked for a bench run** — B-V1 was written into the plan as Phase 2's gate
+  and the phase shipped without it.
+- **The factory-region freeze is deliberately broken**, and the reasoning is recorded
+  rather than assumed: a firmware that can write `0x000000` can, if interrupted, leave a
+  board that only JTAG can recover. Accepted because the DE0-Nano carries a USB-Blaster on
+  the board itself, so that cable is present on every unit this could happen to and is
+  already connected during bring-up. The residual risk is a mistaken host, and the
+  begin-flags magic is sized for that. If the board ever ships on a carrier without an
+  on-board Blaster, this decision is the first thing to revisit.
+- **The protocol bump strands old application builds against new firmware** in one
+  direction only: an application predating `kProtocolVersionMaximum = 2` refuses a bundle
+  carrying v2 firmware with *"update the application first"*. It still captures from such a
+  device. This is the versioning mechanism working, but it does mean the GUI release has to
+  reach users before the firmware release that needs it.
 - **Windows driver surface doubles**: `09fb:6001` needs WinUSB binding like
   `04b4:00f3`, and a machine with Quartus installed has Altera's own driver and
   `jtagd` contending for the cable. The connectivity page must detect an

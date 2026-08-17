@@ -32,6 +32,7 @@
 #include "auto_capture_controller.h"
 #include "auto_capture_wizard.h"
 #include "board_bringup_wizard.h"
+#include "bundled_provisioning.h"
 #include "capture_controller.h"
 #include "capture_naming_dialog.h"
 #include "capture_panel.h"
@@ -881,6 +882,10 @@ void MainWindow::ShowBringUpWizard() {
       return capture::MakeDeviceUpdater(*usb, path, logger);
     };
 
+    // What this build was packaged with, if anything. Verified by the wizard
+    // like any other file — this only says where to look.
+    access.bundled_set = [] { return BundledProvisioningPath(); };
+
     bringup_wizard_ = new BoardBringUpWizard(std::move(access), this);
     bringup_wizard_->setAttribute(Qt::WA_DeleteOnClose);
     bringup_wizard_->SetKeyPolicy(update_key_policy_);
@@ -944,7 +949,7 @@ void MainWindow::ShowCaptureFinished(const QString& file_path, quint64 bytes) {
 }
 
 void MainWindow::ShowFirmwareWarning(const QString& message) {
-  // Never while the Firmware window is open, and this is not a nicety.
+  // Never while a firmware window is open, and this is not a nicety.
   //
   // An update makes the device disappear and reappear, and the version check
   // fires on every reconnection — so a device that came back reporting no
@@ -953,9 +958,17 @@ void MainWindow::ShowFirmwareWarning(const QString& message) {
   // what went wrong. The modal lands on top of that explanation and covers
   // it, so the one message the user needs is the one they do not get.
   //
-  // Suppressing it loses nothing. The Firmware window shows the same
-  // versions in more detail than this sentence does, and it is open.
-  if (firmware_dialog_open_) {
+  // The bring-up wizard is worse again, and it took a bench run to see it.
+  // Its FX3 step *deliberately* makes a device appear in the middle: the boot
+  // ROM is handed firmware which then runs and enumerates. That firmware is
+  // whatever the provisioning set carries, which has no reason to be the
+  // build the application was compiled from — so during bring-up this warning
+  // is not merely badly timed but guaranteed, and it says nothing the user
+  // can act on while a flash is being written underneath it.
+  //
+  // Suppressing it loses nothing. Both windows show the same versions in more
+  // detail than this sentence does, and one of them is open.
+  if (FirmwareWindowIsOpen()) {
     return;
   }
 
@@ -964,6 +977,18 @@ void MainWindow::ShowFirmwareWarning(const QString& message) {
   // and are not known to be broken, and a modal that blocked capture would be
   // punishing a user for a device that works.
   QMessageBox::warning(this, tr("Firmware version"), message);
+}
+
+bool MainWindow::FirmwareWindowIsOpen() const {
+  // The update dialog is modal and exec()s, so a flag around that call is what
+  // "open" means for it. The wizard is modeless, and *visible* rather than
+  // merely alive is what open means there: it deletes itself on close, but
+  // through deleteLater, so a wizard somebody has just closed outlives the
+  // moment they closed it — and suppressing the warning for that gap would be
+  // deciding when a user gets told something on the strength of an event-loop
+  // detail.
+  return firmware_dialog_open_ ||
+         (!bringup_wizard_.isNull() && bringup_wizard_->isVisible());
 }
 
 void MainWindow::ShowFailure(const QString& title, const QString& detail) {

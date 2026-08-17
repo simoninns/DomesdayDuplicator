@@ -20,7 +20,7 @@ You will need:
 | The kit's **USB 3.0 cable** | The one you normally capture through |
 | The DE0-Nano's **mini-USB cable** | A cable that carries **data**. A charge-only cable is the commonest thing that goes wrong here, and the board lights up either way |
 | A **jumper** (shunt) | Only if the board is running firmware already. A newly built kit is already waiting where the wizard needs it |
-| A **provisioning set** | `domesday-duplicator-provisioning-<version>.dddfw`, published beside the release. See *The provisioning set* below |
+| A **provisioning set** | Usually nothing to do: an installed copy of this application already carries one. See *The provisioning set* below |
 
 Both cables stay connected for the whole procedure. Allow about fifteen minutes, most of it watching the FPGA's flash being written.
 
@@ -36,7 +36,14 @@ Every page that asks for a power cycle says *both*, in those words. If a page wa
 
 A provisioning set is an ordinary signed update file with a different payload in it: the FX3 firmware, plus the FPGA's gateware as **JTAG vectors** rather than as a flash image. The vectors are what can be played into a board that has no working gateware — the ordinary gateware update goes *through* the gateware's own flash bridge, which a board being brought up does not yet have.
 
-It is verified exactly like any other update file: the signature first, then every payload's digest, before anything is programmed. A development-signed set says so on the page, every time, because that signature proves the file is well formed and nothing whatever about where it came from.
+**An installed copy of this application already carries one**, and the wizard chooses it for you. That is deliberate and it is the point: a board being brought up cannot be updated over USB, so the computer beside it is quite likely one that has just been built and has nothing downloaded yet. Nothing about this procedure needs a network.
+
+Two reasons to choose a file instead, and the page has a button for it:
+
+- **your copy carries none.** A build from source does, unless it was told otherwise. The page says so and names the file to fetch;
+- **you have a newer set** than the one your application shipped with — bring-up works from any set, and the one that came with your copy is from the release it was packaged alongside.
+
+Either way it is verified identically: the signature first, then every payload's digest, before anything is programmed. Arriving with the application is not a reason to trust a file, and a bundled set that does not verify is refused exactly as a downloaded one would be. A development-signed set says so on the page, every time, because that signature proves the file is well formed and nothing whatever about where it came from.
 
 An ordinary update file chosen here is refused with a sentence saying so — it carries no vectors, so it cannot bring up an FPGA.
 
@@ -52,20 +59,40 @@ It also states where you end up, which is worth reading: **your Duplicator will 
 
 Two live status rows, one per board. Each device is **opened**, not merely noticed, so that a permissions problem turns up here — while nothing is half-programmed — rather than in the middle of writing a flash.
 
-| Row says | Meaning |
+Each row carries a mark, and the middle one is the one people misread:
+
+| Mark | Means |
 | --- | --- |
-| *Waiting in its boot ROM* | A newly built kit. No jumper needed; the wizard skips those pages |
-| *Running the Duplicator's firmware* / *Running the original Duplicator firmware* | The board will be sent to the jumper |
-| *The kit's debug serial port is answering* | The board has power and its USB 3.0 link is not answering. Check that cable and that it is in a USB 3.0 socket |
-| *Found and opened* (FPGA row) | The USB-Blaster is reachable |
-| *Nothing found* (FPGA row) | Nearly always a charge-only cable. On Linux, check `70-altera-usb-blaster.rules` is installed — see [Linux device access](../development/hardware-programming/linux-device-access.md) |
-| *attached but could not be opened* | Something else has it. Quartus's own `jtagd` holds the cable open whenever it is running; on Windows it is the driver binding |
+| Green tick | That board is ready as it is |
+| **Amber dot** | The wizard will ask you to do something to that board later on — fit a jumper, or pull both cables. **Not** that anything is wrong with it |
+| Red cross | Something to put right before going on |
+
+What the FX3 row can say:
+
+| Row says | Meaning | Mark |
+| --- | --- | --- |
+| *Waiting in its boot ROM* | A newly built kit. No jumper needed; the wizard skips those pages | Green |
+| *Running this application's own firmware (commit)* | A board that already works. **You probably want [Update firmware](updating-your-domesday-duplicator.md) instead** — bring-up reinstalls both halves and will send you to the jumper. Carrying on is safe | Amber |
+| *Running Duplicator firmware that predates this application's update agent* | The current identifiers, firmware too old to update itself. One of the two boards this wizard is for | Amber |
+| *Running the **original** Duplicator firmware … 1d50:603b* | The firmware from before this application. The other board this wizard is for | Amber |
+| *The kit's debug serial port is answering* | The board has power and its USB 3.0 link is not answering. Check that cable and that it is in a USB 3.0 socket | Red |
+| *Nothing found* | No cable, no power, or no permissions | Red |
+
+And the FPGA row:
+
+| Row says | Meaning | Mark |
+| --- | --- | --- |
+| *Found and opened* | The USB-Blaster is reachable | Green |
+| *Nothing found* | Nearly always a charge-only cable. On Linux, check `70-altera-usb-blaster.rules` is installed — see [Linux device access](../development/hardware-programming/linux-device-access.md) | Red |
+| *attached but could not be opened* | Something else has it. Quartus's own `jtagd` holds the cable open whenever it is running; on Windows it is the driver binding | Red |
 
 **Bring-up needs both device rules files installed on Linux** — the Duplicator's and the USB-Blaster's.
 
 ### 3 · The provisioning set
 
-Choose the file. Signature and digests are checked here.
+The set your copy of the application carries, already chosen, with what it is and what it carries written out. Signature and digests are checked here, on that one exactly as on any file you choose instead.
+
+If your copy carries none, this is the one page that needs something from elsewhere: the file to download and where from.
 
 ### 4 · Fit jumper J4
 
