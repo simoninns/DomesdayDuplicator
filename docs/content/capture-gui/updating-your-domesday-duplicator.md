@@ -33,7 +33,7 @@ Download one and put it somewhere you can find it again.
 ## Installing it
 
 1. Plug the Duplicator in. If a capture is running, stop it — the device will not update while it is capturing, and it will say so.
-2. Open **Tools → Firmware…** and choose the **Update** tab.
+2. Open **Tools → Firmware → Update firmware…** and choose the **Update** tab.
 3. Press **Choose update file…** and pick the `.dddfw` file you downloaded.
 
 The window now tells you what it found:
@@ -130,7 +130,7 @@ Whatever happens, the window will tell you:
 
 The step list stays on screen with a ✕ against the step it stopped on, and the steps before it keep their ticks. That matters on an update carrying both halves: "the firmware went in and the gateware did not" is a different situation from "nothing happened", and the list is where you can see which of the two you are in. **Show details** has the full account if you want it.
 
-If the message asks you to unplug the device and plug it back in, do that, then reopen **Tools → Firmware…** and look at what it reports. If the update did not take, the versions will be the ones you started with and you can simply try again.
+If the message asks you to unplug the device and plug it back in, do that, then reopen **Tools → Firmware → Update firmware…** and look at what it reports. If the update did not take, the versions will be the ones you started with and you can simply try again.
 
 If the device comes back saying **recovery mode**, that is the state described above and the repair is a single button. [If an update fails](if-an-update-fails.md) is the page for it — and the same page covers bringing a Duplicator you have just built to life for the first time, which is the same procedure.
 

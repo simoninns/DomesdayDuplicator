@@ -61,6 +61,14 @@ enum class DevicePersonality {
   // does puts a device here, but it is worth recognising, because the only
   // way out is a power cycle and a device that says nothing looks broken.
   kFlashProgrammer,
+
+  // 1d50:603b — a Duplicator running the firmware from before the pid.codes
+  // registration. Working hardware, but from before the register interface
+  // and the update protocol: it answers nothing this application asks, and
+  // it cannot be updated from here because it has no way to receive an
+  // update. Recognised so that a board which is plainly attached is named
+  // rather than reported as an absence.
+  kLegacy,
 };
 
 // A short label for logs. What the user sees is the interface layer's

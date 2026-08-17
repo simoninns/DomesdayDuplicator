@@ -72,7 +72,7 @@ the way of somebody taking both sides of a disc.
 | | Automatic capture… | Examine, name, capture a side, and see what was written |
 | | Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
 | | Analyse test data… | Check a test-mode capture off the disk |
-| | Firmware… | Which build each part of the device is running, and the Update page — see [Updating your Duplicator](updating-your-domesday-duplicator.md) |
+| | Firmware ▸ Update firmware… | Which build each part of the device is running, and the Update page — see [Updating your Duplicator](updating-your-domesday-duplicator.md) |
 | **Help** | About | The build this binary was made from |
 
 The player entries sit above the instrument ones, separated by a rule. They are on **Tools**

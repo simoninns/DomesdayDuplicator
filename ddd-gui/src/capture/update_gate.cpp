@@ -64,6 +64,20 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
     return result;
   }
 
+  // Legacy firmware has no update agent, and that is a fact about the device
+  // rather than about the file: nothing this application can send it would be
+  // received, whatever the bundle carries. Refused here so that the refusal
+  // is machine-checked in the one place every install passes through, and so
+  // that no part of the update path ever opens a device it cannot drive.
+  if (input.device_personality == DevicePersonality::kLegacy) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "This device is running the original Duplicator firmware, which "
+           "has no way to install an update. Its firmware and gateware have "
+           "to be programmed directly before updates can be installed from "
+           "here.");
+    return result;
+  }
+
   // A device with no working firmware can only be repaired by a bundle that
   // carries firmware. Refused here rather than discovered part way through
   // the recovery, because "nothing to install" is a fact about the file and

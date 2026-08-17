@@ -35,6 +35,10 @@ the `/dev/ttyUSB<n>` most USB serial adaptors get.
 Boards running firmware from before that registration enumerate as `1d50:603b` and are not
 matched by the current rules; reprogram them rather than adding the old pair back.
 
+The capture application recognises `1d50:603b` all the same, and deliberately never opens
+one: enumeration works without any rule, so such a board is named on screen instead of being
+reported as no device at all, and nothing is asked of firmware that could not answer.
+
 The fifth is the FPGA's JTAG cable and is covered by a separate file,
 `70-altera-usb-blaster.rules`, which also handles the other USB-Blaster and USB-Blaster II
 product IDs (`6002`, `6003`, `6010`, `6810`) for anyone using a standalone cable.

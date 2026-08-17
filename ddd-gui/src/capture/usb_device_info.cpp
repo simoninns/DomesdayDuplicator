@@ -39,6 +39,8 @@ const char* DevicePersonalityName(DevicePersonality personality) {
       return "recovery mode";
     case DevicePersonality::kFlashProgrammer:
       return "Cypress flash programmer";
+    case DevicePersonality::kLegacy:
+      return "legacy firmware";
   }
   return "unknown";
 }

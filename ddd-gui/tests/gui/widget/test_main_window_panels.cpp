@@ -300,6 +300,25 @@ TEST_F(MainWindowTest, TheToolsMenuHoldsBothTestDataEntries) {
       << "no Analyse test data entry under Tools";
 }
 
+// Everything to do with what the device is running lives under one entry, and
+// the ordinary update path is the entry inside it. The sub-menu holds one
+// action today; what it buys is that the path a user learns — and every page
+// of documentation that names it — is the path it will still be when the
+// flows that program a board from scratch join it.
+TEST_F(MainWindowTest, TheUpdatePathIsAnEntryUnderTheFirmwareSubMenu) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  QAction* const firmware = EntryNamed(
+      MenuNamed(*window, QStringLiteral("Tools")), QStringLiteral("Firmware"));
+  ASSERT_NE(firmware, nullptr) << "no Firmware entry under Tools";
+  ASSERT_NE(firmware->menu(), nullptr)
+      << "Firmware opens a dialog directly rather than a sub-menu";
+
+  EXPECT_NE(EntryNamed(firmware->menu(), QStringLiteral("Update firmware")),
+            nullptr)
+      << "no Update firmware entry under Tools ▸ Firmware";
+}
+
 TEST_F(MainWindowTest, NeitherTestDataEntryIsLeftBehindOnTheFileMenu) {
   const std::unique_ptr<MainWindow> window = MakeWindow();
 

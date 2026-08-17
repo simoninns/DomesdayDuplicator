@@ -46,6 +46,17 @@ inline constexpr uint16_t kRecoveryProductId = 0x00f3;
 // EEPROM.
 inline constexpr uint16_t kFlashProgrammerProductId = 0x4720;
 
+// The identifiers the Duplicator wore before the pid.codes registration
+// above: an OpenMoko-range pair this project never held an allocation for.
+//
+// Recognised, never spoken to. Firmware wearing these numbers predates the
+// register interface and the update protocol alike, so there is nothing this
+// application can ask it — but a board running it is a Duplicator, and
+// reporting one as "no device attached" to somebody looking straight at it
+// is the failure this recognition exists to prevent.
+inline constexpr uint16_t kLegacyVendorId = 0x1d50;
+inline constexpr uint16_t kLegacyProductId = 0x603b;
+
 // The boot ROM's RAM download command: wValue and wIndex carry the low and
 // high halves of the load address, and a transfer with no data stage at the
 // end is the jump to the entry point.

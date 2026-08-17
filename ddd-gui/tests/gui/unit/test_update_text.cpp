@@ -234,6 +234,35 @@ TEST(UpdateTextTest, AWorkingDeviceHasNothingToExplain) {
           .isEmpty());
 }
 
+// --- A device running the legacy firmware ----------------------------------
+
+// Old, not broken. The device works; what it predates is this mechanism, and
+// a user told their working board is faulty has been given the wrong problem
+// to solve.
+TEST(UpdateTextTest, TheLegacyStateNamesTheDeviceAsOldRatherThanBroken) {
+  const QString text =
+      DevicePersonalityText(capture::DevicePersonality::kLegacy);
+
+  EXPECT_TRUE(text.contains(QStringLiteral("original Duplicator firmware")));
+  EXPECT_TRUE(text.contains(QStringLiteral("It works")))
+      << "a working board was described as a fault";
+  EXPECT_TRUE(text.contains(QStringLiteral("cannot program it")))
+      << "the one thing this window cannot do about it is not said";
+
+  EXPECT_FALSE(DeviceListPersonalitySuffix(capture::DevicePersonality::kLegacy)
+                   .isEmpty());
+}
+
+// The install button can never act on one, so it stops offering. A disabled
+// button reading "Program this device" beside a paragraph saying this window
+// cannot program it reads as a fault in the application.
+TEST(UpdateTextTest, TheActionOffersNothingOnALegacyDevice) {
+  const QString label = InstallActionLabel(capture::DevicePersonality::kLegacy);
+
+  EXPECT_FALSE(label.contains(QStringLiteral("Program this device")));
+  EXPECT_TRUE(label.contains(QStringLiteral("Cannot be programmed")));
+}
+
 TEST(UpdateTextTest, TheFlashProgrammerStateSaysHowToLeaveIt) {
   const QString text =
       DevicePersonalityText(capture::DevicePersonality::kFlashProgrammer);

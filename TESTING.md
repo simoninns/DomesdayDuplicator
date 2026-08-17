@@ -674,8 +674,8 @@ The reconfigure is not optional. `FIRMWARE_VERSION` is worked out at configure t
 `cmake --build` alone rebuilds the image with the *previous* stamp and the bundle would
 carry a commit the device already reports.
 
-1. Attach the device. Confirm **Tools → Firmware…** reports the commit you expect — the one
-   U0 flashed, not the one in the bundle.
+1. Attach the device. Confirm **Tools → Firmware → Update firmware…** reports the commit
+   you expect — the one U0 flashed, not the one in the bundle.
 2. On the **Update** tab, press **Choose update file…** and pick the bundle above. Confirm
    it reports *verified*, names the version, shows the development banner, states a time
    estimate and "leave the device plugged in", and enables **Update**.
@@ -699,7 +699,8 @@ carry a commit the device already reports.
    measurement of the real one.
 4. **Pass** = the confirmation names the bundle's commit, and it is not the commit the
    device started with.
-5. Re-open **Tools → Firmware…**. The versions page must agree with the confirmation.
+5. Re-open **Tools → Firmware → Update firmware…**. The versions page must agree with the
+   confirmation.
 
 ### U2 — the same update, headlessly
 
@@ -800,9 +801,9 @@ from a device left in bootloader mode by U3.
 1. Confirm the state without opening anything: the application's status bar reads **Device
    attached with no firmware**, and the Capture panel's device list names the port with
    *recovery mode, no firmware installed*. Monitoring and capture are both unavailable.
-2. Open **Tools → Firmware…**. The page says the device is in recovery mode, that its
-   firmware is missing, and that it is not damaged. The firmware row reads **None
-   installed** and the gateware row **Cannot be read**.
+2. Open **Tools → Firmware → Update firmware…**. The page says the device is in recovery
+   mode, that its firmware is missing, and that it is not damaged. The firmware row reads
+   **None installed** and the gateware row **Cannot be read**.
 3. The button reads **Program this device**, not "Update" and not "Repair".
 4. Choose the bundle from U1 and press it. The stages must run:
 

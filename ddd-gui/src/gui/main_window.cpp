@@ -156,16 +156,34 @@ MainWindow::MainWindow(ThemeController* theme_controller,
                                   return device.is_application();
                                 });
 
+              // Every attached device is running the firmware from before the
+              // update mechanism. Answered ahead of the line below because
+              // that line's advice would be wrong here — these devices have
+              // firmware, and the dialog it names cannot reach them — and
+              // only when *every* device is one, so that a repairable board
+              // attached alongside still gets the message with something to
+              // do about it.
+              const auto legacy = std::count_if(
+                  devices.begin(), devices.end(),
+                  [](const ddd::capture::DeviceInfo& device) {
+                    return device.personality ==
+                           ddd::capture::DevicePersonality::kLegacy;
+                  });
+
               // A device in recovery mode is not "no device attached", and
               // saying so to somebody looking straight at one is how a user
               // decides the application is broken. It is also not a device
               // that can capture, so it is not counted as one.
               if (devices.empty()) {
                 statusBar()->showMessage(tr("No capture device attached"));
+              } else if (static_cast<size_t>(legacy) == devices.size()) {
+                statusBar()->showMessage(
+                    tr("Original Duplicator firmware — too old for this "
+                       "application to use"));
               } else if (capturable == 0) {
                 statusBar()->showMessage(
-                    tr("Device attached with no firmware — Tools ▸ Firmware… "
-                       "can program it"));
+                    tr("Device attached with no firmware — Tools ▸ Firmware ▸ "
+                       "Update firmware… can program it"));
               } else {
                 statusBar()->showMessage(
                     tr("%1 device(s) attached").arg(capturable));
@@ -514,8 +532,15 @@ void MainWindow::BuildToolsMenu() {
                         &MainWindow::ShowAnalysisDialog);
 
   tools_menu->addSeparator();
-  tools_menu->addAction(tr("&Firmware…"), this,
-                        &MainWindow::ShowFirmwareDialog);
+
+  // A sub-menu holding one entry, deliberately. Everything to do with what
+  // the device is running belongs in one place, and the flows that bring a
+  // board up to current firmware from scratch are the rest of that place —
+  // so the ordinary update path takes the name and the position it will keep
+  // once they arrive, rather than being moved out from under users later.
+  QMenu* const firmware_menu = tools_menu->addMenu(tr("&Firmware"));
+  firmware_menu->addAction(tr("&Update firmware…"), this,
+                           &MainWindow::ShowFirmwareDialog);
 
   if (capture_controller_ == nullptr) {
     // Nothing to put the device into test mode with. Shown rather than hidden

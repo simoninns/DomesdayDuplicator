@@ -326,6 +326,18 @@ QString DevicePersonalityText(capture::DevicePersonality personality) {
           "it there part way through writing its firmware. Unplug it, plug it "
           "back in, and it will return to recovery mode, where this window "
           "can program it.");
+
+    case capture::DevicePersonality::kLegacy:
+      // Named as old rather than as broken, because it is neither damaged nor
+      // misconfigured: it is a working device from before this mechanism
+      // existed, and the reason this window cannot help is that there is
+      // nothing on it to help with.
+      return Translate(
+          "<b>This device is running the original Duplicator firmware.</b> It "
+          "works, but it predates the update mechanism, so it has no way to "
+          "receive an update and this window cannot program it. Its firmware "
+          "and gateware have to be programmed directly before this "
+          "application can use it.");
   }
   return {};
 }
@@ -347,6 +359,14 @@ QString GatewareRecoveryText(const capture::DeviceIdentity& device) {
 
 QString InstallActionLabel(capture::DevicePersonality personality,
                            bool gateware_recovery) {
+  // The one device this button can never act on, and the only label here
+  // that is not an offer. A disabled button reading "Program this device"
+  // beside a paragraph saying this window cannot program it reads as a fault
+  // in the application rather than as a fact about the device.
+  if (personality == capture::DevicePersonality::kLegacy) {
+    return Translate("Cannot be programmed from here");
+  }
+
   // "Program", not "repair", and the difference matters: somebody holding a
   // board they have just built has not broken anything, and a device that has
   // never been programmed is indistinguishable on the wire from one whose
@@ -372,6 +392,8 @@ QString DeviceListPersonalitySuffix(capture::DevicePersonality personality) {
       return Translate(" — recovery mode, no firmware installed");
     case capture::DevicePersonality::kFlashProgrammer:
       return Translate(" — running a programming tool; unplug and reconnect");
+    case capture::DevicePersonality::kLegacy:
+      return Translate(" — original firmware, too old for this application");
   }
   return {};
 }

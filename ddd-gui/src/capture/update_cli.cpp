@@ -232,6 +232,17 @@ int RunUpdateCli(const std::vector<std::string>& args, std::ostream& out,
 
   const bool recovery = selected->personality == DevicePersonality::kRecovery;
 
+  // Said here rather than left to the gate, because the gate is consulted
+  // after the device has been opened and its identity read — and a device
+  // running the legacy firmware answers neither. Nothing is asked of it.
+  if (selected->personality == DevicePersonality::kLegacy) {
+    error << "The device at " << selected->path
+          << " is running the original Duplicator firmware, which predates "
+             "the update mechanism.\nIt has no way to install an update: its "
+             "firmware and gateware have to be programmed directly.\n";
+    return kUpdateCliNoDevice;
+  }
+
   if (selected->personality == DevicePersonality::kFlashProgrammer) {
     error << "The device at " << selected->path
           << " is running the Cypress flash programmer, left behind by an "

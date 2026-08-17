@@ -520,10 +520,18 @@ void CapturePanel::OnDevicesChanged(
 
   if (shown == nullptr) {
     status_label_->setText(tr("No capture device attached"));
+  } else if (shown->personality == ddd::capture::DevicePersonality::kLegacy) {
+    // A different sentence from the one below, because the advice in it would
+    // be wrong: this device has firmware, and the dialog that programs a
+    // board without any cannot reach this one.
+    status_label_->setText(
+        tr("This device is running the original Duplicator firmware, which "
+           "this application cannot use. Its firmware and gateware have to be "
+           "programmed directly before it can capture."));
   } else if (!shown->is_application()) {
     status_label_->setText(
         tr("This device has no firmware installed, so it cannot capture "
-           "yet. Open Tools ▸ Firmware… to program it."));
+           "yet. Open Tools ▸ Firmware ▸ Update firmware… to program it."));
   } else if (!shown->CanCarryCapture()) {
     status_label_->setText(
         tr("Connected at insufficient speed. This device is on a USB 2 port "

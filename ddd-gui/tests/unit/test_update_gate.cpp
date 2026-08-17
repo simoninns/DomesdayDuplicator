@@ -251,6 +251,42 @@ TEST(UpdateGate, ADeviceInRecoveryRefusesABundleWithNoFirmware) {
       << result.reasons.front();
 }
 
+// --- A device running the legacy firmware ----------------------------------
+
+// The one refusal here that no bundle can satisfy. That firmware predates the
+// update protocol, so there is nothing on the device to receive an update —
+// and the gate is where that has to be said, because it is the one place
+// every install passes through before anything opens the device.
+TEST(UpdateGate, ALegacyDeviceIsRefusedWhateverTheBundleCarries) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.gateware = GatewareComponent();
+
+  UpdateGateInput input = MakeInput();
+  input.device_personality = DevicePersonality::kLegacy;
+  input.device = DeviceIdentity{};
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, input);
+
+  EXPECT_FALSE(result.allowed());
+  EXPECT_EQ(result.verdict, UpdateGateVerdict::kIncompatible);
+  ASSERT_FALSE(result.reasons.empty());
+  EXPECT_NE(result.reasons.front().find("original Duplicator firmware"),
+            std::string::npos)
+      << result.reasons.front();
+}
+
+// And the refusal is about the device, not about anything missing from the
+// file: the bundle that repairs a device with no firmware at all is refused
+// here too.
+TEST(UpdateGate, ALegacyDeviceIsRefusedAFirmwareOnlyBundle) {
+  UpdateManifest manifest = MakeManifest();
+
+  UpdateGateInput input = MakeInput();
+  input.device_personality = DevicePersonality::kLegacy;
+
+  EXPECT_FALSE(CheckUpdateGate(manifest, input).allowed());
+}
+
 // The same bundle on a working device is fine: a gateware-only update needs
 // no firmware, and this refusal is about the device rather than the file.
 TEST(UpdateGate, AGatewareOnlyBundleIsStillFineOnAWorkingDevice) {

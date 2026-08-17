@@ -290,6 +290,25 @@ TEST_F(CapturePanelTest, ADeviceWithNoFirmwareIsSaidSoRatherThanIgnored) {
   EXPECT_FALSE(MonitorButton()->isEnabled());
 }
 
+// And a legacy device gets a different sentence, because the advice in that
+// one would be wrong: this board has firmware, and the dialog that programs a
+// board without any cannot reach it.
+TEST_F(CapturePanelTest, ALegacyDeviceIsNamedRatherThanCalledUnprogrammed) {
+  capture::DeviceInfo info = DeviceAt("bus-1", capture::DeviceSpeed::kSuper);
+  info.personality = capture::DevicePersonality::kLegacy;
+  device_->SetDevices({info});
+  controller_->Start();
+
+  ASSERT_TRUE(PumpUntil([&] {
+    return StatusLabel()->text().contains(
+        QStringLiteral("original Duplicator firmware"));
+  })) << StatusLabel()->text().toStdString();
+
+  EXPECT_FALSE(StatusLabel()->text().contains(QStringLiteral("no firmware")))
+      << "a device with firmware was described as having none";
+  EXPECT_FALSE(MonitorButton()->isEnabled());
+}
+
 // The button is a state, not an action pair. A Start beside a Stop leaves one
 // of them wrong at all times and makes the user read which is disabled to find
 // out what the application is doing.

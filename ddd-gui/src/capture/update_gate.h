@@ -92,6 +92,10 @@ struct UpdateGateInput {
   // against those have nothing to compare and correctly stay quiet. What this
   // adds is the one check that only applies there: a device with no working
   // firmware cannot be repaired by a bundle that carries none.
+  //
+  // A device running the legacy firmware is refused outright, and it is the
+  // only refusal here that no bundle can satisfy: that firmware predates the
+  // update protocol, so there is nothing on the device to receive an update.
   DevicePersonality device_personality = DevicePersonality::kApplication;
 };
 

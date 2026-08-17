@@ -48,17 +48,26 @@ constexpr uint8_t kVendorRequestType = 0x40;
 // The same, device to host, with a data stage.
 constexpr uint8_t kVendorReadRequestType = 0xC0;
 
-// Which of the three identities these identifiers are, if they are one of
+// Which of the four identities these identifiers are, if they are one of
 // them.
 //
 // The match is on exact pairs and not on the Cypress vendor identifier alone:
 // the SuperSpeed Explorer Kit's on-board USB-UART is 04b4:0007 and is powered
 // whenever the board is, and a wildcard would list the debug serial port as a
 // Duplicator in recovery.
+//
+// The legacy pair is matched here for the same reason as on the libusb side,
+// with one Windows caveat worth stating: this backend only sees devices bound
+// to WinUSB, so a legacy board sitting on the driver its own software
+// installed is not enumerated at all. The recognition is real when the
+// binding is; it is not a promise that every legacy board is seen.
 std::optional<DevicePersonality> PersonalityFromIdentifiers(uint16_t vendor,
                                                             uint16_t product) {
   if (vendor == kVendorId && product == kProductId) {
     return DevicePersonality::kApplication;
+  }
+  if (vendor == kLegacyVendorId && product == kLegacyProductId) {
+    return DevicePersonality::kLegacy;
   }
   if (vendor == kCypressVendorId) {
     if (product == kRecoveryProductId) {
@@ -333,8 +342,14 @@ class WinUsbDevice : public IUsbDevice {
         info.speed = SpeedFromPacketSize(max_packet_bytes);
       }
 
-      info.product_string =
-          ReadProductString(handles.interface_handle(), descriptor.iProduct);
+      // Not for a legacy device, so that both backends describe one the same
+      // way: nothing displays the product string of a device that is not
+      // running the current firmware, and the libusb side cannot read it at
+      // all without a udev rule this project deliberately does not ship.
+      if (*personality != DevicePersonality::kLegacy) {
+        info.product_string =
+            ReadProductString(handles.interface_handle(), descriptor.iProduct);
+      }
 
       devices.push_back(std::move(info));
     }

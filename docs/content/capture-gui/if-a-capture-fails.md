@@ -38,6 +38,20 @@ covers a board that has never been programmed as well as one whose update was in
 **Is something else using it?** Only one application can hold the device open. Close the
 other one — including another copy of this one.
 
+### A board running the original firmware
+
+A Duplicator programmed before this application existed enumerates under a different USB
+identity, and it is named for what it is rather than reported as an absence. The status bar
+says *Original Duplicator firmware — too old for this application to use*, the **Capture**
+panel's **Status** line says the same in a sentence, and **Tools ▸ Firmware ▸ Update
+firmware…** says so too.
+
+Nothing is broken. That firmware predates both the register interface this application reads
+and the update mechanism that would replace it, so there is nothing on the board to receive
+an update — which is why the Firmware window names the state and offers nothing. Bringing
+such a board up to current firmware and gateware means programming both directly, with the
+[hardware programming](../development/hardware-programming/index.md) procedure.
+
 ## This machine cannot keep up
 
 Three different messages, one family of causes.

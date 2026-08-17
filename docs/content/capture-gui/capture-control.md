@@ -54,7 +54,8 @@ rather than hiding it:
 | Entry | What it means |
 | --- | --- |
 | A bare path | A capture device, ready |
-| *— recovery mode, no firmware installed* | The device's USB chip has no firmware it will run. It cannot capture, and [Tools ▸ Firmware…](if-an-update-fails.md) can program it |
+| *— recovery mode, no firmware installed* | The device's USB chip has no firmware it will run. It cannot capture, and [Tools ▸ Firmware ▸ Update firmware…](if-an-update-fails.md) can program it |
+| *— original firmware, too old for this application* | The device is running the firmware it had before this application existed. It works, but nothing here can talk to it — see [If a capture fails](if-a-capture-fails.md#a-board-running-the-original-firmware) |
 | *— connected at insufficient speed* | It enumerated below SuperSpeed. It is on a USB 2 port or through a hub that is, and cannot carry 80 MB/s |
 
 A device with no firmware is listed rather than hidden. Reporting "no device attached" to

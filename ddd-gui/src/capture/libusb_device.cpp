@@ -51,7 +51,7 @@ constexpr uint8_t kVendorReadRequestType = 0xC0;
 // at once, so this deadline is only ever reached by something genuinely stuck.
 constexpr unsigned int kRegisterReadTimeoutMilliseconds = 1000;
 
-// Which of the three identities this descriptor is, if it is one of them.
+// Which of the four identities this descriptor is, if it is one of them.
 //
 // The match is on exact identifier pairs and not on the Cypress vendor
 // identifier alone, and that matters: the SuperSpeed Explorer Kit carries an
@@ -61,6 +61,10 @@ std::optional<DevicePersonality> PersonalityFromDescriptor(
     const libusb_device_descriptor& descriptor) {
   if (descriptor.idVendor == kVendorId && descriptor.idProduct == kProductId) {
     return DevicePersonality::kApplication;
+  }
+  if (descriptor.idVendor == kLegacyVendorId &&
+      descriptor.idProduct == kLegacyProductId) {
+    return DevicePersonality::kLegacy;
   }
   if (descriptor.idVendor == kCypressVendorId) {
     if (descriptor.idProduct == kRecoveryProductId) {
@@ -257,8 +261,20 @@ class LibUsbDevice : public IUsbDevice {
       DeviceInfo info;
       info.path = BuildDevicePath(device);
       info.speed = SpeedFromLibUsb(libusb_get_device_speed(device));
-      info.product_string = ReadProductString(device, descriptor.iProduct);
       info.personality = *personality;
+
+      // Every personality but the legacy one has its product string read.
+      //
+      // Reading it means opening the device, and 1d50:603b is deliberately
+      // outside the udev rules this project ships, so the open fails on an
+      // ordinary desktop — with nothing behind it, because the legacy
+      // firmware reports no version and nothing displays the string of a
+      // device that is not running the current firmware. Recognising a
+      // legacy board is the whole of what is wanted, and recognition needs
+      // no open at all.
+      if (*personality != DevicePersonality::kLegacy) {
+        info.product_string = ReadProductString(device, descriptor.iProduct);
+      }
 
       // The vendor protocol version lives in the high byte of bcdDevice, so
       // it arrives with the descriptor and costs nothing: no open, no

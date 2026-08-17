@@ -107,10 +107,21 @@ DeviceInfo RecoveryDeviceAt(const std::string& path) {
   return info;
 }
 
+DeviceInfo LegacyDeviceAt(const std::string& path) {
+  DeviceInfo info = DeviceAt(path);
+  info.personality = DevicePersonality::kLegacy;
+
+  // Nothing is read from a legacy device, so nothing is known about it
+  // beyond the identifiers it enumerated with.
+  info.product_string.clear();
+  info.protocol_version = 0;
+  return info;
+}
+
 TEST(DevicePersonalityTest, EveryPersonalityHasItsOwnName) {
   const DevicePersonality personalities[] = {
       DevicePersonality::kApplication, DevicePersonality::kRecovery,
-      DevicePersonality::kFlashProgrammer};
+      DevicePersonality::kFlashProgrammer, DevicePersonality::kLegacy};
 
   std::set<std::string> names;
   for (DevicePersonality personality : personalities) {
@@ -153,6 +164,37 @@ TEST(SelectDeviceTest, AskingForAnyPersonalityFindsTheRecoveryDevice) {
   ASSERT_NE(found, nullptr);
   EXPECT_EQ(found->path, "bus-1");
   EXPECT_FALSE(found->is_application());
+}
+
+// --- A device running the legacy firmware ----------------------------------
+
+// It cannot capture with this application, so nothing that captures may be
+// handed one — the same rule as a device with no firmware, and for the
+// stronger reason: this one would answer nothing that was asked of it.
+TEST(SelectDeviceTest, ALegacyDeviceIsNotSelectedForCapture) {
+  const std::vector<DeviceInfo> devices{LegacyDeviceAt("bus-1")};
+  EXPECT_EQ(SelectDevice(devices, ""), nullptr);
+  EXPECT_FALSE(devices.front().is_application());
+}
+
+TEST(SelectDeviceTest, ALegacyDeviceIsSkippedInFavourOfAWorkingOne) {
+  const std::vector<DeviceInfo> devices{LegacyDeviceAt("bus-1"),
+                                        DeviceAt("bus-2")};
+  ASSERT_NE(SelectDevice(devices, ""), nullptr);
+  EXPECT_EQ(SelectDevice(devices, "")->path, "bus-2");
+}
+
+// But it is found by the callers that ask for any personality, because being
+// found is the whole point: a board that is plainly attached has to be named
+// rather than reported as an absence, and naming it is what the firmware
+// dialog does with it.
+TEST(SelectDeviceTest, AskingForAnyPersonalityFindsTheLegacyDevice) {
+  const std::vector<DeviceInfo> devices{LegacyDeviceAt("bus-1")};
+
+  const DeviceInfo* const found =
+      SelectDevice(devices, "", DeviceSelection::kAny);
+  ASSERT_NE(found, nullptr);
+  EXPECT_EQ(found->personality, DevicePersonality::kLegacy);
 }
 
 // A device falling back to its boot ROM is at the same path it was at a

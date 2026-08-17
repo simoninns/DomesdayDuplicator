@@ -190,6 +190,26 @@ TEST(FirmwareTextTest, ADeviceInRecoveryIsExplainedRatherThanDiagnosed) {
       << "a device with nothing installed was accused of a version mismatch";
 }
 
+// A working device with nothing to compare, which is a different sentence
+// from a device with nothing installed: the versions are absent because the
+// firmware predates the version stamp, not because it is missing.
+TEST(FirmwareTextTest, ALegacyDeviceIsNamedRatherThanDiagnosed) {
+  FirmwareVersions versions;
+  versions.application = QStringLiteral("7713495d");
+  versions.device_attached = true;
+  versions.personality = capture::DevicePersonality::kLegacy;
+
+  const QString text = FirmwareText(versions);
+
+  EXPECT_TRUE(text.contains(QStringLiteral("original Duplicator firmware")));
+  EXPECT_TRUE(text.contains(QStringLiteral("cannot update itself")));
+
+  EXPECT_FALSE(text.contains(QStringLiteral("recovery mode")))
+      << "a device with firmware was described as having none";
+  EXPECT_FALSE(text.contains(QStringLiteral("firmware older than")))
+      << "the version stamp was used to diagnose firmware that predates it";
+}
+
 TEST(FirmwareTextTest, ADeviceRunningAProgrammingToolSaysHowToClearIt) {
   FirmwareVersions versions;
   versions.application = QStringLiteral("7713495d");

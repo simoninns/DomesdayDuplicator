@@ -168,6 +168,16 @@ QString Verdict(const FirmwareVersions& versions, const Commits& commits) {
         "it has never been programmed, or an update did not finish. The "
         "Update tab will program it.");
   }
+  // Working hardware, and said so: what is missing is not firmware but the
+  // mechanism this dialog is built on, so there is nothing here to repair and
+  // nothing to compare.
+  if (versions.personality == capture::DevicePersonality::kLegacy) {
+    return Translate(
+        "This device is running the original Duplicator firmware, from before "
+        "the version stamp and the update mechanism. It reports no versions, "
+        "it cannot capture with this application, and it cannot update "
+        "itself: its firmware and gateware have to be programmed directly.");
+  }
   if (versions.personality == capture::DevicePersonality::kFlashProgrammer) {
     return Translate(
         "This device is running a programming tool left behind part way "
