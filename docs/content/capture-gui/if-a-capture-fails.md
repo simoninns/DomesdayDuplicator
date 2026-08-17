@@ -91,7 +91,8 @@ administrator rights, and is the right answer on a machine you do not administer
 > The capture file could not be created.
 
 Check that the destination folder exists, that it is writable, and that the volume is not
-full. Choosing a different folder in the Capture panel is the quickest way to test this.
+full. Choosing a different **Folder** in **File ▸ Settings…** is the quickest way to test
+this.
 
 On Linux with the Flatpak, a folder outside your home directory and the usual mount points
 needs an explicit grant — see the [Flatpak page](install-flatpak.md).

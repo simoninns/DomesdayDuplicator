@@ -17,7 +17,7 @@ Neither is a fault to diagnose. Both are states the Duplicator falls back to *on
 
 If the update did not finish, or if the Duplicator has never had its firmware installed, it starts up in **recovery mode**.
 
-You will see it named that way in three places: the status bar says *Device attached with no firmware*, the **Device** list in the Capture panel says *recovery mode, no firmware installed*, and **Tools → Firmware…** opens on a message that says the same thing.
+You will see it named that way in three places: the status bar says *Device attached with no firmware*, the Capture panel's **Status** line says the device has no firmware installed and points at Tools ▸ Firmware…, and **Tools → Firmware…** opens on a message that says the same thing. The **Preferred device** list in **File ▸ Settings…** names it *recovery mode, no firmware installed* as well.
 
 Recovery mode is not a fault. It is the state the USB chip falls back to when it cannot find software it is willing to run, and it exists precisely so that a half-written update leaves you somewhere you can start again from. The chip refuses to run anything it has not fully checked, so it is never running half an update.
 

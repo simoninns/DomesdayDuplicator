@@ -31,12 +31,12 @@ what each one is for.
 
 | | What it does |
 | --- | --- |
-| [Capture control](capture-control.md) | Choosing the device, where the file goes, and the two buttons that start things |
+| [Capture control](capture-control.md) | What the capture is called, what it is written as, and the buttons that start things |
 | [Statistics](statistics.md) | Throughput, integrity, buffer depth and clipping, second by second |
 | [Signal analysis](signal-analysis.md) | The scope, the spectrum and spectrogram, and five minutes of level history |
 | [Capture files](capture-files.md) | What gets written, what it is called, and what reads it |
 | [Naming and metadata](capture-naming.md) | Saying what the disc is, and the metadata file written beside every capture |
-| [Settings](settings.md) | Buffer queue, USB transfer mode, preferred device and the front-end gain declaration |
+| [Settings](settings.md) | Where captures are written, which device to use, buffer queue, USB transfer mode and the front-end gain declaration |
 | [Player control](player-control.md) | Driving a LaserDisc player over its serial port: examining a disc, and the automatic capture that takes a side by itself |
 | [Test mode](test-mode.md) | Proving the capture path with the gateware's test pattern |
 | [Updating your Duplicator](updating-your-domesday-duplicator.md) | Installing firmware and gateware into the device |
@@ -81,9 +81,10 @@ Captures are written as native **FLAC**, with the compound extension `.ddd.flac`
 samples came from. ld-decode and vhs-decode take one directly, at roughly half the size of
 the raw sample data.
 
-Each file carries its own provenance in its tags: the build that made it, the real 40 MHz
-sample rate that a FLAC header cannot express, whether it was taken in test mode, and the
-front-end gain if one was declared. See [Capture files](capture-files.md).
+Each file carries its own provenance in its tags: the builds that made it — the application,
+the Duplicator's firmware and its gateware — the real 40 MHz sample rate that a FLAC header
+cannot express, whether it was taken in test mode, and the front-end gain if one was
+declared. See [Capture files](capture-files.md).
 
 ## Releases
 

@@ -269,6 +269,11 @@ The application is C++20, built with CMake against Qt 6.2 or later (Core, Gui, W
 [Building from source](../legacy-gui/building-from-source.md) for the capture application alone.
 
 ## Source code modules
+
+!!! note "This section describes the legacy application"
+
+    The module list below is the tree in [`gui/`](https://github.com/simoninns/DomesdayDuplicator/tree/main/gui), which is the older capture application. The one the [Capture Application](../capture-gui/index.md) pages document, and the one the release packages install, is [`ddd-gui/`](https://github.com/simoninns/DomesdayDuplicator/tree/main/ddd-gui) — a separate tree with a different structure. `gui/` is kept for now because it still reads the legacy `.lds` files that nothing else does; it is expected to be retired.
+
 The application is split into a Qt front-end in `gui/src/DomesdayDuplicator/` and a Qt-free core in `gui/src/common/`, so the parts that handle sample data can be unit tested without Qt, libusb or hardware.
 
 The Qt front-end modules are as follows:

@@ -73,7 +73,7 @@ Test mode lives on the **Tools** menu, for the same kind of reason: it is a diag
 than part of setting up a capture. The full procedure, and how to check a test capture
 afterwards, is on [Test mode and integrity checking](test-mode.md).
 
-## What each capture is called
+## What gets written
 
 ### Name
 

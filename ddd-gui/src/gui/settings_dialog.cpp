@@ -96,11 +96,13 @@ QWidget* SettingsDialog::BuildCapturePage(
   auto* layout = new QVBoxLayout(page);
   auto* form = new QFormLayout();
 
-  // First, because it is the one setting on this tab that is about the work
-  // rather than about the machine — and it moved here from the Capture panel
-  // for the reason the rest of this dialog exists: a capture drive is chosen
-  // once and then left, and a control that is set once does not earn a row on
-  // the panel somebody works from.
+  // Folder and Preferred device first, together, because they are the two on
+  // this tab that are about the work rather than the machine — which is what
+  // this capture comes off and where it goes. Both moved here from the Capture
+  // panel for the reason the rest of this dialog exists: they are set once and
+  // then left, and a control that is set once does not earn a row on the panel
+  // somebody works from. The buffer and transfer settings below are machine
+  // tuning and are read in that order.
   auto* directory_row = new QWidget(page);
   auto* directory_layout = new QHBoxLayout(directory_row);
   directory_layout->setContentsMargins(0, 0, 0, 0);
@@ -129,29 +131,6 @@ QWidget* SettingsDialog::BuildCapturePage(
 
   form->addRow(tr("Folder"), directory_row);
 
-  queue_size_ = new QComboBox(page);
-  queue_size_->setObjectName(QLatin1String(kQueueSizeComboName));
-  for (const QueueChoice& choice : kQueueChoices) {
-    queue_size_->addItem(tr(choice.label),
-                         static_cast<qulonglong>(choice.bytes));
-    if (choice.bytes == capture_.queue_size_bytes) {
-      queue_size_->setCurrentIndex(queue_size_->count() - 1);
-    }
-  }
-  form->addRow(tr("Buffer queue"), queue_size_);
-
-  transfer_mode_ = new QComboBox(page);
-  transfer_mode_->setObjectName(QLatin1String(kTransferModeComboName));
-  transfer_mode_->addItem(tr("Many small transfers (recommended)"), true);
-  transfer_mode_->addItem(tr("One transfer per buffer"), false);
-  transfer_mode_->setCurrentIndex(capture_.small_transfers ? 0 : 1);
-  transfer_mode_->setToolTip(tr(
-      "Small transfers keep several reads outstanding at once, so the "
-      "device always has somewhere to put the next packet. One transfer per "
-      "buffer is simpler and slightly cheaper, but leaves a gap between each "
-      "transfer completing and the next being submitted."));
-  form->addRow(tr("USB transfers"), transfer_mode_);
-
   device_ = new QComboBox(page);
   device_->setObjectName(QLatin1String(kDeviceComboName));
   device_->addItem(tr("Whichever is attached"), QString());
@@ -178,6 +157,29 @@ QWidget* SettingsDialog::BuildCapturePage(
     }
   }
   form->addRow(tr("Preferred device"), device_);
+
+  queue_size_ = new QComboBox(page);
+  queue_size_->setObjectName(QLatin1String(kQueueSizeComboName));
+  for (const QueueChoice& choice : kQueueChoices) {
+    queue_size_->addItem(tr(choice.label),
+                         static_cast<qulonglong>(choice.bytes));
+    if (choice.bytes == capture_.queue_size_bytes) {
+      queue_size_->setCurrentIndex(queue_size_->count() - 1);
+    }
+  }
+  form->addRow(tr("Buffer queue"), queue_size_);
+
+  transfer_mode_ = new QComboBox(page);
+  transfer_mode_->setObjectName(QLatin1String(kTransferModeComboName));
+  transfer_mode_->addItem(tr("Many small transfers (recommended)"), true);
+  transfer_mode_->addItem(tr("One transfer per buffer"), false);
+  transfer_mode_->setCurrentIndex(capture_.small_transfers ? 0 : 1);
+  transfer_mode_->setToolTip(tr(
+      "Small transfers keep several reads outstanding at once, so the "
+      "device always has somewhere to put the next packet. One transfer per "
+      "buffer is simpler and slightly cheaper, but leaves a gap between each "
+      "transfer completing and the next being submitted."));
+  form->addRow(tr("USB transfers"), transfer_mode_);
 
   front_end_gain_ = new QComboBox(page);
   front_end_gain_->setObjectName(QLatin1String(kFrontEndGainComboName));

@@ -156,7 +156,8 @@ See [If a capture fails](if-a-capture-fails.md).
 
 By default, the platform's Movies or Videos folder — a capture is tens of gigabytes of
 media, and that is the location a machine's backup rules and disk-space expectations are
-already built around. Change it in the Capture panel's **Folder** field.
+already built around. Change it in **File ▸ Settings…**, under **Folder** — it is set once
+and then left, which is why it is there rather than on the Capture panel.
 
 On Linux the Flatpak can reach your home directory, `/run/media`, `/media` and `/mnt`
 without further configuration; anywhere else needs an explicit grant, which the
