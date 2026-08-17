@@ -14,9 +14,12 @@
 #include <QDir>
 #include <QMetaObject>
 #include <ctime>
+#include <filesystem>
+#include <system_error>
 
 #include "capture_failure_presenter.h"
 #include "capture_format.h"
+#include "capture_metadata.h"
 #include "capture_naming.h"
 #include "capture_provenance.h"
 #include "firmware_version.h"
@@ -35,6 +38,18 @@ namespace {
 
 QString ToQString(std::string_view text) {
   return QString::fromUtf8(text.data(), static_cast<qsizetype>(text.size()));
+}
+
+// How much a running total has moved since a capture started.
+//
+// The pipeline's counters cover the whole session, and a file's metadata is
+// about the file — so what is recorded is the difference. The guard is for a
+// counter that has somehow gone backwards, which cannot happen within a run;
+// treating the reading as the whole of it is a wrong-but-bounded answer, where
+// the subtraction would wrap to something like eighteen quintillion and read as
+// a catastrophe.
+uint64_t Since(uint64_t now, uint64_t at_start) {
+  return now >= at_start ? now - at_start : now;
 }
 
 }  // namespace
@@ -105,6 +120,15 @@ void CaptureController::SetSettings(const CaptureSettings& settings) {
 
 void CaptureController::SetDiscProvenance(const capture::DiscProvenance& disc) {
   disc_provenance_ = disc;
+}
+
+void CaptureController::SetPlayerIdentity(
+    const capture::PlayerIdentity& player) {
+  player_identity_ = player;
+}
+
+void CaptureController::SetDiscScan(const capture::DiscScan& disc) {
+  disc_scan_ = disc;
 }
 
 void CaptureController::OnDevicesChanged(
@@ -288,11 +312,13 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
   const int decimation = settings_.decimation_factor;
 
   // The same call the panel and the guided setup ask, so that the name on
-  // screen and the name on disk cannot disagree.
+  // screen and the name on disk cannot disagree. The stem carries whatever the
+  // naming fields say as well as whatever was typed — see
+  // CaptureSettings::CaptureStem, which is the one place those are combined.
   const capture::CaptureDestination destination =
       capture::ResolveCaptureDestination(
           std::filesystem::path(directory.toStdString()),
-          settings_.capture_name.toStdString(), settings_.test_mode, now,
+          settings_.CaptureStem(now), settings_.test_mode, now,
           settings_.output_format);
 
   const std::filesystem::path& path = destination.path;
@@ -302,7 +328,12 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
     // opened — but it is a different file from the one the user asked for, and
     // a rename nobody was told about is how two captures of the same side end
     // up impossible to tell apart later.
-    emit CaptureRenamed(settings_.capture_name,
+    //
+    // The name that was asked for is the stem the naming produced, not the
+    // Name field's text: with the naming fields in use those are different
+    // things, and a message naming the field would be reporting a collision
+    // between two names neither of which is on disk.
+    emit CaptureRenamed(QString::fromStdString(settings_.CaptureStem(now)),
                         QString::fromStdString(destination.stem));
   }
 
@@ -357,6 +388,38 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
   }
 
   capture_path_ = QString::fromStdString(path.string());
+
+  // What the sidecar will say about the setup this capture ran with. Taken now
+  // rather than at the end because the player and the disc are cleared by the
+  // automatic-capture coupling as soon as its run finishes, which is before the
+  // encoder has finished writing this file.
+  pending_metadata_ = capture::CaptureMetadata{};
+  pending_metadata_.capture_file_name = path.filename().string();
+  pending_metadata_.application_version = std::string(capture::Version());
+  pending_metadata_.format =
+      settings_.output_format == capture::CaptureOutputFormat::kSigned16Bit
+          ? "signed 16-bit"
+          : "FLAC";
+  pending_metadata_.test_mode = settings_.test_mode;
+  pending_metadata_.decimation_factor = decimation;
+  pending_metadata_.sample_rate_hz = settings_.SampleRateHz();
+  pending_metadata_.started = now;
+  pending_metadata_.player = player_identity_;
+  pending_metadata_.disc = disc_scan_;
+  if (settings_.DeclaredGain().declared()) {
+    pending_metadata_.front_end_gain =
+        DescribeFrontEndGain(settings_.front_end_gain_switches).toStdString();
+  }
+
+  // The device's loss counters as they stand, so that what the sidecar reports
+  // is what the device lost while writing this file rather than what it has
+  // lost since monitoring began. The signal figures need no equivalent: the
+  // engine measures those over a span of their own — see
+  // SampleMetrics::BeginCaptureSpan.
+  const capture::CaptureStats opening = pipeline_->stats().Read();
+  device_overflows_at_start_ = opening.device_overflow_events;
+  device_drops_at_start_ = opening.device_dropped_words;
+
   if (logger_ != nullptr) {
     logger_->Info("Capturing to " + path.string() + " (" + sink->Name() +
                   (decimation == capture::kUndecimatedFactor
@@ -412,7 +475,8 @@ void CaptureController::StopCapture() {
   emit CapturingChanged(false, QString());
 }
 
-void CaptureController::CollectFinishedCapture() {
+void CaptureController::CollectFinishedCapture(
+    const capture::CaptureStats& stats) {
   if (pending_sink_change_ == 0) {
     return;
   }
@@ -422,17 +486,145 @@ void CaptureController::CollectFinishedCapture() {
 
   pending_sink_change_ = 0;
 
+  // Read off the retired sink rather than off the statistics, and this is the
+  // only place either figure survives: the published statistics report whatever
+  // sink is attached now, which by this point is the null one, so both would
+  // read zero.
   const std::unique_ptr<capture::ISampleSink> retired =
       pipeline_->TakeRetiredSink();
-  const quint64 bytes =
-      retired != nullptr ? static_cast<quint64>(retired->BytesWritten()) : 0;
+  const uint64_t bytes = retired != nullptr ? retired->BytesWritten() : 0;
+  const uint64_t samples = retired != nullptr ? retired->SamplesWritten() : 0;
+
+  FinishCaptureFile(stats, bytes, samples);
+}
+
+void CaptureController::FinishCaptureFile(const capture::CaptureStats& stats,
+                                          uint64_t bytes, uint64_t samples) {
+  // The length of what was recorded, worked out from the file's own contents
+  // rather than from a clock. Samples divided by the rate they were written at
+  // is exactly the duration of the recording, where an elapsed time would
+  // include the encoder's final flush and, on the path where a run ends by
+  // itself, whatever the device took to stop.
+  const uint32_t rate = pending_metadata_.sample_rate_hz != 0
+                            ? pending_metadata_.sample_rate_hz
+                            : settings_.SampleRateHz();
+  const double duration_seconds =
+      rate == 0 ? 0.0
+                : static_cast<double>(samples) / static_cast<double>(rate);
+
+  std::filesystem::path file(capture_path_.toStdString());
+
+  // The duration in the name, where the naming asks for it. Done here because
+  // this is the first moment the duration is a fact, and by renaming rather
+  // than by having guessed at the start.
+  if (settings_.naming.append_duration && duration_seconds > 0.0) {
+    const std::string suffix = capture::MatchedCaptureFileSuffix(file.string());
+    const std::string base = capture::StripCaptureFileSuffix(file.string());
+    const std::filesystem::path renamed(
+        capture::AppendDurationToStem(base, duration_seconds) + suffix);
+
+    std::error_code error;
+    std::filesystem::rename(file, renamed, error);
+    if (error) {
+      // Reported and then dropped. The recording is complete under the name it
+      // already has, and refusing to finish a capture because a rename failed
+      // would turn a cosmetic disappointment into a lost session.
+      if (logger_ != nullptr) {
+        logger_->Warning("The capture could not be renamed to " +
+                         renamed.string() + ": " + error.message());
+      }
+    } else {
+      file = renamed;
+      capture_path_ = QString::fromStdString(file.string());
+      pending_metadata_.capture_file_name = file.filename().string();
+    }
+  }
+
+  WriteMetadataSidecar(file, stats, bytes, samples, duration_seconds);
 
   if (logger_ != nullptr) {
-    logger_->Info("Capture finished: " + capture_path_.toStdString() + ", " +
+    logger_->Info("Capture finished: " + file.string() + ", " +
                   std::to_string(bytes) + " bytes");
   }
 
-  emit CaptureFinished(capture_path_, bytes);
+  emit CaptureFinished(capture_path_, static_cast<quint64>(bytes));
+}
+
+void CaptureController::WriteMetadataSidecar(
+    const std::filesystem::path& capture_file,
+    const capture::CaptureStats& stats, uint64_t bytes, uint64_t samples,
+    double duration_seconds) {
+  capture::CaptureMetadata metadata = pending_metadata_;
+
+  // The naming fields as they are now rather than as they were at the start.
+  // The file's name was settled when it was opened and cannot change, but what
+  // is *said* about the disc can: somebody who types a note while watching a
+  // capture means it to describe that capture.
+  metadata.naming = settings_.naming;
+  metadata.finished = std::time(nullptr);
+
+  metadata.outcome.completed = !capture::TransferFailed(stats.result);
+  if (!metadata.outcome.completed) {
+    metadata.outcome.detail =
+        std::string(capture::TransferResultDescription(stats.result));
+  }
+  metadata.outcome.duration_seconds = duration_seconds;
+  metadata.outcome.samples = samples;
+  metadata.outcome.bytes = bytes;
+
+  // Differences, because the pipeline's device counters run for the whole
+  // session and what belongs in a file's metadata is what the device lost while
+  // that file was being written. Nothing about ring depth or back pressure is
+  // recorded at all — see CaptureOutcome, where the line between the two is
+  // drawn.
+  metadata.outcome.device_overflow_events =
+      Since(stats.device_overflow_events, device_overflows_at_start_);
+  metadata.outcome.device_dropped_words =
+      Since(stats.device_dropped_words, device_drops_at_start_);
+
+  // The validator's own word for how it ended, rather than a boolean derived
+  // from it — see CaptureOutcome::sequence_check, where the reason "disabled"
+  // cannot be folded into "intact" is set out, and why the session-long check
+  // is nonetheless a statement about this file.
+  metadata.outcome.sequence_check =
+      capture::SequenceStateName(stats.sequence_state);
+
+  // Derived rather than copied. The pipeline's flag says the ramp was checked
+  // somewhere in the session, which for a file's own metadata is the wrong
+  // question: in test mode every buffer is checked, so a test capture with
+  // samples in it is a test capture that was checked.
+  metadata.outcome.test_pattern_checked = metadata.test_mode && samples > 0;
+  metadata.outcome.test_pattern_passed = stats.test_pattern_passed;
+
+  // Measured over the file's own samples by a span the engine opens and closes
+  // with the file — not the session-long accumulators the Statistics panel
+  // reads. See SampleMetrics::BeginCaptureSpan.
+  metadata.signal.known = stats.metrics.capture_sample_count > 0;
+  metadata.signal.minimum_value = stats.metrics.capture_minimum_value;
+  metadata.signal.maximum_value = stats.metrics.capture_maximum_value;
+  metadata.signal.rms = stats.metrics.capture_rms;
+  metadata.signal.clipped_low_samples = stats.metrics.capture_clipped_low_count;
+  metadata.signal.clipped_high_samples =
+      stats.metrics.capture_clipped_high_count;
+
+  const std::filesystem::path sidecar =
+      capture::CaptureMetadataPath(capture_file);
+
+  std::string error;
+  if (capture::WriteCaptureMetadataFile(sidecar, metadata, error)) {
+    if (logger_ != nullptr) {
+      logger_->Info("Capture metadata written to " + sidecar.string());
+    }
+    return;
+  }
+
+  // Said, and then let go. The capture is on disk and is complete; a failure to
+  // write a text file beside it is worth knowing about and is not a reason to
+  // tell somebody their recording went wrong.
+  if (logger_ != nullptr) {
+    logger_->Warning(error);
+  }
+  emit MetadataWriteFailed(QString::fromStdString(error));
 }
 
 void CaptureController::CheckDurationLimit(const capture::CaptureStats& stats) {
@@ -521,7 +713,7 @@ void CaptureController::Tick() {
 
   CheckDurationLimit(stats);
   CheckFreeSpace();
-  CollectFinishedCapture();
+  CollectFinishedCapture(stats);
 
   // The pipeline stops on its own schedule: a requested stop still has to drain
   // the ring and finalise whatever sink is attached. Noticing here rather than
@@ -541,7 +733,6 @@ void CaptureController::FinishRun() {
   // left is to say so, and to say it before the failure below, so that the
   // panels are consistent by the time a message box takes over the event loop.
   const bool was_capturing = capturing_;
-  const QString finished_path = capture_path_;
   const capture::CaptureStats final_stats = pipeline_->stats().Read();
 
   if (was_capturing) {
@@ -573,12 +764,26 @@ void CaptureController::FinishRun() {
   emit MonitoringChanged(false);
 
   if (was_capturing) {
-    emit CaptureFinished(finished_path, final_stats.bytes_written);
+    // The figures come from the statistics rather than from a retired sink,
+    // because on this path the sink was never detached: the pipeline finished
+    // it on its way out, with the counters still attached to it.
+    //
+    // The result is taken after the join rather than from the snapshot, so that
+    // a run which ended in a failure records the failure rather than whatever
+    // had been published a fiftieth of a second before it.
+    capture::CaptureStats closing = final_stats;
+    closing.result = result;
+
+    FinishCaptureFile(closing, final_stats.bytes_written,
+                      final_stats.samples_written);
   }
 
   if (capture::TransferFailed(result)) {
+    // capture_path_ rather than the path the file was opened under: a capture
+    // whose naming asks for the duration has just been renamed, and a message
+    // naming the old path would send somebody to a file that is not there.
     const CaptureFailureView view = PresentCaptureFailure(
-        result, ToQString(detail), was_capturing ? finished_path : QString());
+        result, ToQString(detail), was_capturing ? capture_path_ : QString());
     emit Failed(view.title, view.ToMessage());
   }
 }

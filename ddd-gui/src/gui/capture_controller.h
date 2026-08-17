@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "analysis_worker.h"
+#include "capture_metadata.h"
 #include "capture_metatypes.h"
 #include "capture_pipeline.h"
 #include "capture_provenance.h"
@@ -115,6 +116,27 @@ class CaptureController : public QObject {
     return disc_provenance_;
   }
 
+  // Who the player was, for the sidecar.
+  //
+  // Set whenever the link comes up or goes down, and so present for a capture
+  // taken by hand as well as for an automatic one: a manual capture of a disc
+  // in a player is still a capture whose provenance includes which player it
+  // came off.
+  void SetPlayerIdentity(const capture::PlayerIdentity& player);
+  const capture::PlayerIdentity& player_identity() const {
+    return player_identity_;
+  }
+
+  // What the examination of the disc found, for the sidecar.
+  //
+  // Set by the automatic-capture coupling on the same terms as the disc
+  // provenance above, and cleared with it. A capture taken by hand some time
+  // after an examination carries no scan rather than the previous disc's — the
+  // disc in the player is not necessarily the disc that was examined, and a
+  // file asserting otherwise would be worse than one that says nothing.
+  void SetDiscScan(const capture::DiscScan& disc);
+  const capture::DiscScan& disc_scan() const { return disc_scan_; }
+
   // Applying settings while a capture is running changes what the next one will
   // do, not this one. Nothing here can be changed mid-stream without stopping,
   // and pretending otherwise would mean a ring that was resized underneath a
@@ -169,7 +191,17 @@ class CaptureController : public QObject {
   // A capture finished and its file is closed. `bytes` is what reached the
   // disk, which is not derivable from the sample count once a compressor is in
   // the path.
+  //
+  // The path is where the file ended up, which is not necessarily where it was
+  // opened: a capture whose naming asks for the duration in its name is renamed
+  // at this point, since the duration is not a fact until the capture has
+  // stopped.
   void CaptureFinished(const QString& file_path, quint64 bytes);
+
+  // The sidecar could not be written. Not a capture failure — the recording is
+  // on disk and complete — so it is reported separately and never as an error
+  // box, which would send somebody looking for a fault in the wrong place.
+  void MetadataWriteFailed(const QString& detail);
 
   // The destination volume has less space left than the warning threshold.
   // Raised once per capture: a warning that repeated every two seconds for the
@@ -205,7 +237,24 @@ class CaptureController : public QObject {
   // Notice that the writer has been detached and the file closed, and report
   // it. Called from Tick() rather than from StopCapture(), because finalising a
   // FLAC stream happens on the processing thread and takes as long as it takes.
-  void CollectFinishedCapture();
+  void CollectFinishedCapture(const capture::CaptureStats& stats);
+
+  // Everything that happens once a capture's file is closed: the duration
+  // rename where the naming asks for one, the sidecar, and the signal that
+  // says so.
+  //
+  // One function for the three because they have to happen in that order and
+  // share the path they act on — a sidecar written before the rename would be
+  // orphaned by it, and a signal carrying the old path would name a file that
+  // is no longer there.
+  void FinishCaptureFile(const capture::CaptureStats& stats, uint64_t bytes,
+                         uint64_t samples);
+
+  // Write the sidecar beside `capture_file`, and report a failure without
+  // treating it as one.
+  void WriteMetadataSidecar(const std::filesystem::path& capture_file,
+                            const capture::CaptureStats& stats, uint64_t bytes,
+                            uint64_t samples, double duration_seconds);
 
   // Stop the capture because the duration limit has been reached.
   void CheckDurationLimit(const capture::CaptureStats& stats);
@@ -260,6 +309,31 @@ class CaptureController : public QObject {
 
   // See SetDiscProvenance. Empty for every capture taken without a player.
   capture::DiscProvenance disc_provenance_;
+
+  // See SetPlayerIdentity and SetDiscScan.
+  capture::PlayerIdentity player_identity_;
+  capture::DiscScan disc_scan_;
+
+  // What the running capture will say about itself, filled in when its file is
+  // opened and completed when the file is closed.
+  //
+  // Latched at the start rather than gathered at the end, for the facts that
+  // describe the setup: the player and the disc are cleared by the
+  // automatic-capture coupling the moment its run ends, which is before the
+  // encoder has finished the file this describes. The naming fields are
+  // deliberately *not* latched — they are read at the end, so that notes typed
+  // while watching a capture reach that capture's own metadata.
+  capture::CaptureMetadata pending_metadata_;
+
+  // The device's loss counters as they stood when the capture started, so that
+  // the sidecar reports what the device lost while writing this file rather
+  // than what it has lost since monitoring began.
+  //
+  // The signal figures need no equivalent. A minimum and a maximum cannot be
+  // differenced, so the engine measures the file's own span in its own right —
+  // see SampleMetrics::BeginCaptureSpan.
+  uint64_t device_overflows_at_start_ = 0;
+  uint64_t device_drops_at_start_ = 0;
 };
 
 }  // namespace ddd::gui

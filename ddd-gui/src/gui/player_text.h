@@ -17,6 +17,7 @@
 
 #include "auto_capture_plan.h"
 #include "auto_capture_sequence.h"
+#include "capture_metadata.h"
 #include "disc_examiner.h"
 #include "disc_profile.h"
 #include "player_command.h"
@@ -285,5 +286,30 @@ QString AutoCaptureRemainingText(const player::AutoCapturePlan& plan,
 // number in the name, because the two files a user makes in a row are the two
 // sides of one disc and telling them apart afterwards is the whole problem.
 QString SuggestedCaptureName(const player::DiscProfile& disc);
+
+// --- What a capture's metadata file says about the player and the disc -----
+
+// The two below are the only functions here whose output is **not** for a
+// person reading a screen, and they are deliberately not translated.
+//
+// A capture's sidecar is read years later, by a program as often as by a
+// person, and quite possibly on a machine set to a different language from the
+// one that wrote it. A field whose value was "Gemessen" on one bench and
+// "measured" on another is a field nothing downstream can match on — so the
+// vocabulary in a metadata file is fixed English, in the same way the Vorbis
+// comment names are.
+
+// Who the player is, as the sidecar records it. Default-constructed — and so
+// empty — for a link that is not live.
+capture::PlayerIdentity DescribePlayerIdentity(
+    const PlayerConnection& connection);
+
+// What the examination found, as the sidecar records it.
+//
+// Every field carries how it was established alongside its value, which is the
+// point of recording it at all: a programme length that was measured by seeking
+// past the end of the side and one the disc merely claims are both numbers, and
+// a file that showed them alike would have to be believed rather than read.
+capture::DiscScan DescribeDiscScan(const player::DiscProfile& disc);
 
 }  // namespace ddd::gui

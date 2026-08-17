@@ -113,11 +113,8 @@ TEST_F(PlayerSettingsTest, AnEmptyExcludedEntryIsNotAPort) {
             QStringList{QStringLiteral("/dev/ttyS0")});
 }
 
-TEST_F(PlayerSettingsTest, TheCouplingPreferencesHaveTheDefaultsTheyArgueFor) {
+TEST_F(PlayerSettingsTest, TheCouplingPreferenceHasTheDefaultItArguesFor) {
   const PlayerSettings loaded = LoadPlayerSettings();
-
-  // Safe, and on: the capture has already been written by the time this acts.
-  EXPECT_TRUE(loaded.stop_player_with_capture);
 
   // Off, and a considered default rather than timidity: a player that briefly
   // reports a stopped state partway through a side — which a disc with a defect
@@ -125,16 +122,27 @@ TEST_F(PlayerSettingsTest, TheCouplingPreferencesHaveTheDefaultsTheyArgueFor) {
   EXPECT_FALSE(loaded.stop_capture_with_player);
 }
 
-TEST_F(PlayerSettingsTest, TheCouplingPreferencesRoundTrip) {
+TEST_F(PlayerSettingsTest, TheCouplingPreferenceRoundTrips) {
   PlayerSettings settings = LoadPlayerSettings();
-  settings.stop_player_with_capture = false;
   settings.stop_capture_with_player = true;
   SavePlayerSettings(settings);
 
   const PlayerSettings loaded = LoadPlayerSettings();
-  EXPECT_FALSE(loaded.stop_player_with_capture);
   EXPECT_TRUE(loaded.stop_capture_with_player);
   EXPECT_EQ(loaded, settings);
+}
+
+// The preference that is gone, and the check that it stays gone from a settings
+// file written by a build that had it. It is removed on save rather than
+// ignored on load, so a setting nothing reads cannot linger where somebody
+// might later find it and believe it does something.
+TEST_F(PlayerSettingsTest, TheRetiredStopThePlayerPreferenceIsCleanedUp) {
+  QSettings().setValue(QStringLiteral("player/stop_player_with_capture"), true);
+
+  SavePlayerSettings(LoadPlayerSettings());
+
+  EXPECT_FALSE(
+      QSettings().contains(QStringLiteral("player/stop_player_with_capture")));
 }
 
 }  // namespace

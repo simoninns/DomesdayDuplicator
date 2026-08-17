@@ -64,6 +64,25 @@ std::filesystem::path AddCaptureFileSuffix(const std::filesystem::path& stem,
   return std::filesystem::path(text + suffix);
 }
 
+std::string MatchedCaptureFileSuffix(const std::string& file_path) {
+  for (const CaptureOutputFormat format :
+       {CaptureOutputFormat::kFlac, CaptureOutputFormat::kSigned16Bit}) {
+    const std::string candidate = CaptureFileSuffix(format);
+    if (file_path.size() >= candidate.size() &&
+        file_path.compare(file_path.size() - candidate.size(), candidate.size(),
+                          candidate) == 0) {
+      return candidate;
+    }
+  }
+  return {};
+}
+
+std::string StripCaptureFileSuffix(const std::string& file_path) {
+  const std::string suffix = MatchedCaptureFileSuffix(file_path);
+  return suffix.empty() ? file_path
+                        : file_path.substr(0, file_path.size() - suffix.size());
+}
+
 std::string LowerCaseExtension(const std::filesystem::path& file_path) {
   std::string extension = file_path.extension().string();
   if (!extension.empty() && extension.front() == '.') {

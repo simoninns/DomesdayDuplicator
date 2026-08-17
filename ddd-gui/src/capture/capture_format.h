@@ -135,4 +135,17 @@ std::filesystem::path AddCaptureFileSuffix(
 // the two must agree.
 std::string LowerCaseExtension(const std::filesystem::path& file_path);
 
+// Whichever capture suffix a path ends with, or an empty string for one that
+// ends with neither.
+//
+// The suffixes are compound, so `path.stem()` leaves ".ddd" behind and
+// `path.extension()` yields only ".flac" — neither answers the question anyone
+// actually has, which is "what is this file called without the bit that says
+// what format it is". Three callers need that: making a taken name unique,
+// showing a name in a field, and putting the sidecar beside the capture.
+std::string MatchedCaptureFileSuffix(const std::string& file_path);
+
+// The same path with that suffix taken off, or unchanged when it had neither.
+std::string StripCaptureFileSuffix(const std::string& file_path);
+
 }  // namespace ddd::capture

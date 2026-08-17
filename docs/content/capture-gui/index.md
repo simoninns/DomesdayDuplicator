@@ -35,6 +35,7 @@ what each one is for.
 | [Statistics](statistics.md) | Throughput, integrity, buffer depth and clipping, second by second |
 | [Signal analysis](signal-analysis.md) | The scope, the spectrum and spectrogram, and five minutes of level history |
 | [Capture files](capture-files.md) | What gets written, what it is called, and what reads it |
+| [Naming and metadata](capture-naming.md) | Saying what the disc is, and the metadata file written beside every capture |
 | [Settings](settings.md) | Buffer queue, USB transfer mode, preferred device and the front-end gain declaration |
 | [Player control](player-control.md) | Driving a LaserDisc player over its serial port: examining a disc, and capturing a side by itself |
 | [Test mode](test-mode.md) | Proving the capture path with the gateware's test pattern |

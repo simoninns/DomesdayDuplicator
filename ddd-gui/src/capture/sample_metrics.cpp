@@ -40,7 +40,28 @@ void SampleMetrics::Accumulate(const BufferTally& tally) {
   sum_of_squares_ += tally.sum_of_squares;
 
   recent_ = tally;
+
+  // The file's own span, while one is open. Six scalar operations against a
+  // buffer that has just been walked end to end, so the cost of measuring the
+  // recording separately from the session is nothing measurable.
+  if (capturing_) {
+    capture_.sample_count += tally.sample_count;
+    capture_.minimum_value =
+        std::min(capture_.minimum_value, tally.minimum_value);
+    capture_.maximum_value =
+        std::max(capture_.maximum_value, tally.maximum_value);
+    capture_.clipped_low_count += tally.clipped_low_count;
+    capture_.clipped_high_count += tally.clipped_high_count;
+    capture_.sum_of_squares += tally.sum_of_squares;
+  }
 }
+
+void SampleMetrics::BeginCaptureSpan() {
+  capture_ = BufferTally{};
+  capturing_ = true;
+}
+
+void SampleMetrics::EndCaptureSpan() { capturing_ = false; }
 
 SampleMetricsSnapshot SampleMetrics::Snapshot() const {
   SampleMetricsSnapshot snapshot;
@@ -63,6 +84,15 @@ SampleMetricsSnapshot SampleMetrics::Snapshot() const {
   snapshot.recent_rms =
       RootMeanSquare(recent_.sum_of_squares, recent_.sample_count);
 
+  snapshot.capture_sample_count = capture_.sample_count;
+  snapshot.capture_minimum_value =
+      (capture_.sample_count == 0) ? 0 : capture_.minimum_value;
+  snapshot.capture_maximum_value = capture_.maximum_value;
+  snapshot.capture_clipped_low_count = capture_.clipped_low_count;
+  snapshot.capture_clipped_high_count = capture_.clipped_high_count;
+  snapshot.capture_rms =
+      RootMeanSquare(capture_.sum_of_squares, capture_.sample_count);
+
   return snapshot;
 }
 
@@ -74,6 +104,8 @@ void SampleMetrics::Reset() {
   clipped_high_count_ = 0;
   sum_of_squares_ = 0;
   recent_ = BufferTally{};
+  capture_ = BufferTally{};
+  capturing_ = false;
 }
 
 }  // namespace ddd::capture

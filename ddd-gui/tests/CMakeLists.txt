@@ -51,6 +51,7 @@ ddd_add_test(ddd_capture_tests "unit"
     unit/test_sample_format.cpp
     unit/test_test_pattern_verifier.cpp
     unit/test_sequence_validator.cpp
+    unit/test_sample_metrics.cpp
     unit/test_disk_buffer_ring.cpp
     unit/test_monitor_tap.cpp
     unit/test_capture_pipeline.cpp
@@ -61,6 +62,8 @@ ddd_add_test(ddd_capture_tests "unit"
     unit/test_device_monitor.cpp
     unit/test_capture_naming.cpp
     unit/test_capture_provenance.cpp
+    unit/test_capture_metadata.cpp
+    unit/test_yaml_writer.cpp
     unit/test_free_space.cpp
 )
 target_link_libraries(ddd_capture_tests PRIVATE
@@ -260,6 +263,7 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     gui/widget/test_update_page.cpp
     gui/widget/test_analysis_dialog.cpp
     gui/widget/test_capture_panel.cpp
+    gui/widget/test_capture_naming_dialog.cpp
     gui/widget/test_examine_dialog.cpp
     gui/widget/test_guided_capture_dialog.cpp
     gui/widget/test_player_panel.cpp

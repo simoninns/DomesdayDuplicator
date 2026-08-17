@@ -34,6 +34,186 @@ constexpr const char* kCompressionLevelKey = "capture/compression_level";
 constexpr const char* kDurationLimitKey = "capture/duration_limit_seconds";
 constexpr const char* kLowSpaceKey = "capture/low_space_warning_minutes";
 
+// The naming fields. Their own group, so that a settings file stays readable
+// and so that clearing them is one group to remove by hand.
+constexpr const char* kNamingTitleUsedKey = "naming/title_used";
+constexpr const char* kNamingTitleKey = "naming/title";
+constexpr const char* kNamingDiscTypeUsedKey = "naming/disc_type_used";
+constexpr const char* kNamingDiscTypeKey = "naming/disc_type";
+constexpr const char* kNamingStandardUsedKey = "naming/video_standard_used";
+constexpr const char* kNamingStandardKey = "naming/video_standard";
+constexpr const char* kNamingAudioUsedKey = "naming/audio_used";
+constexpr const char* kNamingAudioKey = "naming/audio";
+constexpr const char* kNamingSideUsedKey = "naming/side_used";
+constexpr const char* kNamingSideKey = "naming/side";
+constexpr const char* kNamingNotesUsedKey = "naming/notes_used";
+constexpr const char* kNamingNotesKey = "naming/notes";
+constexpr const char* kNamingMintUsedKey = "naming/mint_marks_used";
+constexpr const char* kNamingMintKey = "naming/mint_marks";
+constexpr const char* kNamingMetadataNotesKey = "naming/metadata_notes";
+constexpr const char* kNamingMetadataInNameKey = "naming/metadata_in_name";
+constexpr const char* kNamingAppendDurationKey = "naming/append_duration";
+constexpr const char* kNamingPerSideNotesKey = "naming/per_side_notes";
+constexpr const char* kNamingPerSideMintKey = "naming/per_side_mint_marks";
+
+// The largest side number the naming fields will hold. Not a limit anybody
+// meets — a disc has two sides and a set has a few dozen — but a stored value
+// has to be bounded somewhere, and a spin box that offers a hundred is
+// generous without being absurd.
+constexpr int kMaximumDiscSide = 100;
+
+// The choice enumerations are stored as words rather than as their
+// enumerators' numbers, on the same reasoning as the output format: a settings
+// file stays readable, and inserting a choice later cannot renumber what an
+// existing file meant.
+QString DiscTypeChoiceKey(capture::DiscTypeChoice choice) {
+  switch (choice) {
+    case capture::DiscTypeChoice::kCav:
+      return QStringLiteral("cav");
+    case capture::DiscTypeChoice::kClv:
+      return QStringLiteral("clv");
+    case capture::DiscTypeChoice::kUnset:
+      break;
+  }
+  return QString();
+}
+
+capture::DiscTypeChoice DiscTypeChoiceFromKey(const QString& text) {
+  if (text == QLatin1String("cav")) {
+    return capture::DiscTypeChoice::kCav;
+  }
+  if (text == QLatin1String("clv")) {
+    return capture::DiscTypeChoice::kClv;
+  }
+  return capture::DiscTypeChoice::kUnset;
+}
+
+QString VideoStandardChoiceKey(capture::VideoStandardChoice choice) {
+  switch (choice) {
+    case capture::VideoStandardChoice::kNtsc:
+      return QStringLiteral("ntsc");
+    case capture::VideoStandardChoice::kPal:
+      return QStringLiteral("pal");
+    case capture::VideoStandardChoice::kUnset:
+      break;
+  }
+  return QString();
+}
+
+capture::VideoStandardChoice VideoStandardChoiceFromKey(const QString& text) {
+  if (text == QLatin1String("ntsc")) {
+    return capture::VideoStandardChoice::kNtsc;
+  }
+  if (text == QLatin1String("pal")) {
+    return capture::VideoStandardChoice::kPal;
+  }
+  return capture::VideoStandardChoice::kUnset;
+}
+
+QString AudioTypeChoiceKey(capture::AudioTypeChoice choice) {
+  switch (choice) {
+    case capture::AudioTypeChoice::kDefault:
+      return QStringLiteral("default");
+    case capture::AudioTypeChoice::kAnalogue:
+      return QStringLiteral("analogue");
+    case capture::AudioTypeChoice::kAc3:
+      return QStringLiteral("ac3");
+    case capture::AudioTypeChoice::kDts:
+      return QStringLiteral("dts");
+    case capture::AudioTypeChoice::kUnset:
+      break;
+  }
+  return QString();
+}
+
+capture::AudioTypeChoice AudioTypeChoiceFromKey(const QString& text) {
+  if (text == QLatin1String("default")) {
+    return capture::AudioTypeChoice::kDefault;
+  }
+  if (text == QLatin1String("analogue")) {
+    return capture::AudioTypeChoice::kAnalogue;
+  }
+  if (text == QLatin1String("ac3")) {
+    return capture::AudioTypeChoice::kAc3;
+  }
+  if (text == QLatin1String("dts")) {
+    return capture::AudioTypeChoice::kDts;
+  }
+  return capture::AudioTypeChoice::kUnset;
+}
+
+capture::CaptureNamingFields LoadNamingFields(const QSettings& settings) {
+  capture::CaptureNamingFields fields;
+
+  const auto flag = [&settings](const char* key) {
+    return settings.value(QLatin1String(key), false).toBool();
+  };
+  const auto text = [&settings](const char* key) {
+    return settings.value(QLatin1String(key)).toString().toStdString();
+  };
+
+  fields.title_used = flag(kNamingTitleUsedKey);
+  fields.title = text(kNamingTitleKey);
+
+  fields.disc_type_used = flag(kNamingDiscTypeUsedKey);
+  fields.disc_type = DiscTypeChoiceFromKey(
+      settings.value(QLatin1String(kNamingDiscTypeKey)).toString());
+
+  fields.video_standard_used = flag(kNamingStandardUsedKey);
+  fields.video_standard = VideoStandardChoiceFromKey(
+      settings.value(QLatin1String(kNamingStandardKey)).toString());
+
+  fields.audio_used = flag(kNamingAudioUsedKey);
+  fields.audio = AudioTypeChoiceFromKey(
+      settings.value(QLatin1String(kNamingAudioKey)).toString());
+
+  fields.side_used = flag(kNamingSideUsedKey);
+  fields.side =
+      std::clamp(settings.value(QLatin1String(kNamingSideKey), 1).toInt(), 1,
+                 kMaximumDiscSide);
+
+  fields.notes_used = flag(kNamingNotesUsedKey);
+  fields.notes = text(kNamingNotesKey);
+
+  fields.mint_marks_used = flag(kNamingMintUsedKey);
+  fields.mint_marks = text(kNamingMintKey);
+
+  fields.metadata_notes = text(kNamingMetadataNotesKey);
+  fields.metadata_in_name = flag(kNamingMetadataInNameKey);
+  fields.append_duration = flag(kNamingAppendDurationKey);
+  fields.per_side_notes = flag(kNamingPerSideNotesKey);
+  fields.per_side_mint_marks = flag(kNamingPerSideMintKey);
+
+  return fields;
+}
+
+void SaveNamingFields(QSettings& store,
+                      const capture::CaptureNamingFields& fields) {
+  const auto set = [&store](const char* key, const QVariant& value) {
+    store.setValue(QLatin1String(key), value);
+  };
+
+  set(kNamingTitleUsedKey, fields.title_used);
+  set(kNamingTitleKey, QString::fromStdString(fields.title));
+  set(kNamingDiscTypeUsedKey, fields.disc_type_used);
+  set(kNamingDiscTypeKey, DiscTypeChoiceKey(fields.disc_type));
+  set(kNamingStandardUsedKey, fields.video_standard_used);
+  set(kNamingStandardKey, VideoStandardChoiceKey(fields.video_standard));
+  set(kNamingAudioUsedKey, fields.audio_used);
+  set(kNamingAudioKey, AudioTypeChoiceKey(fields.audio));
+  set(kNamingSideUsedKey, fields.side_used);
+  set(kNamingSideKey, fields.side);
+  set(kNamingNotesUsedKey, fields.notes_used);
+  set(kNamingNotesKey, QString::fromStdString(fields.notes));
+  set(kNamingMintUsedKey, fields.mint_marks_used);
+  set(kNamingMintKey, QString::fromStdString(fields.mint_marks));
+  set(kNamingMetadataNotesKey, QString::fromStdString(fields.metadata_notes));
+  set(kNamingMetadataInNameKey, fields.metadata_in_name);
+  set(kNamingAppendDurationKey, fields.append_duration);
+  set(kNamingPerSideNotesKey, fields.per_side_notes);
+  set(kNamingPerSideMintKey, fields.per_side_mint_marks);
+}
+
 // The transfer queue is bounded on both sides. Below one slot there is never
 // more than a single transfer outstanding, which defeats the point of it; above
 // the usbfs default there is nothing to gain and a submission failure to lose.
@@ -108,6 +288,11 @@ QString CaptureSettings::ResolvedCaptureDirectory() const {
                                      : capture_directory;
 }
 
+std::string CaptureSettings::CaptureStem(std::time_t when) const {
+  return capture::BuildCaptureStem(naming, capture_name.toStdString(),
+                                   test_mode, when);
+}
+
 CaptureSettings LoadCaptureSettings() {
   const QSettings settings;
   CaptureSettings loaded;
@@ -150,6 +335,8 @@ CaptureSettings LoadCaptureSettings() {
       settings.value(QLatin1String(kCaptureDirectoryKey)).toString();
   loaded.capture_name =
       settings.value(QLatin1String(kCaptureNameKey)).toString();
+
+  loaded.naming = LoadNamingFields(settings);
 
   loaded.output_format =
       OutputFormatFromName(settings
@@ -202,6 +389,7 @@ void SaveCaptureSettings(const CaptureSettings& settings) {
   store.setValue(QLatin1String(kCaptureDirectoryKey),
                  settings.capture_directory);
   store.setValue(QLatin1String(kCaptureNameKey), settings.capture_name);
+  SaveNamingFields(store, settings.naming);
   store.setValue(QLatin1String(kOutputFormatKey),
                  OutputFormatName(settings.output_format));
   store.setValue(QLatin1String(kDecimationFactorKey),

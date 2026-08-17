@@ -19,6 +19,7 @@ add_library(ddd_gui_lib STATIC
     auto_capture_controller.cpp
     application_logger.cpp
     capture_controller.cpp
+    capture_naming_dialog.cpp
     capture_panel.cpp
     capture_failure_presenter.cpp
     capture_settings.cpp

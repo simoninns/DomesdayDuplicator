@@ -64,6 +64,31 @@ struct SampleMetricsSnapshot {
   uint64_t recent_clipped_low_count = 0;
   uint64_t recent_clipped_high_count = 0;
   double recent_rms = 0.0;
+
+  // Over the samples that went into the file, and nothing else.
+  //
+  // The three sets above all cover the whole run, which begins when monitoring
+  // does and usually runs on either side of the capture. That is right for a
+  // display somebody is watching and wrong for the metadata written beside a
+  // file: a capture's metadata describes the recording, and a maximum that
+  // includes a minute of setting up before the file was opened describes
+  // something that was never recorded.
+  //
+  // Measured rather than derived. A count and a clipping tally could be got by
+  // subtracting the figures at the start of the capture from the figures at the
+  // end, but a minimum and a maximum cannot — they only move one way — so the
+  // span is accumulated in its own right. It costs six scalar operations per
+  // two-megabyte buffer.
+  //
+  // Zero throughout until a capture has run, and frozen at the moment the file
+  // is closed rather than left growing: see BeginCaptureSpan and
+  // EndCaptureSpan.
+  uint64_t capture_sample_count = 0;
+  uint16_t capture_minimum_value = 0;
+  uint16_t capture_maximum_value = 0;
+  uint64_t capture_clipped_low_count = 0;
+  uint64_t capture_clipped_high_count = 0;
+  double capture_rms = 0.0;
 };
 
 // Accumulates per-buffer tallies into the figures the monitor panels show.
@@ -78,6 +103,20 @@ class SampleMetrics {
 
   void Reset();
 
+  // Start measuring a capture, discarding whatever the previous one measured.
+  //
+  // Called when a writer is attached, which happens at a buffer boundary — so
+  // the span begins at exactly the sample the file begins at.
+  void BeginCaptureSpan();
+
+  // Stop measuring it, leaving the figures where they stand.
+  //
+  // Called when the writer is detached, for the same reason: without it the
+  // span would go on growing through the tick or two between the file closing
+  // and its metadata being written, and the file would be described as
+  // containing samples that reached no file at all.
+  void EndCaptureSpan();
+
  private:
   uint64_t sample_count_ = 0;
   uint16_t minimum_value_ = UINT16_MAX;
@@ -87,6 +126,10 @@ class SampleMetrics {
   uint64_t sum_of_squares_ = 0;
 
   BufferTally recent_;
+
+  // The span a file's own samples fall in, and whether it is still open.
+  BufferTally capture_;
+  bool capturing_ = false;
 };
 
 }  // namespace ddd::capture

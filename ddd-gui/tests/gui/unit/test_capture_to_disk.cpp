@@ -20,12 +20,14 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <thread>
 
 #include "capture_controller.h"
 #include "capture_format.h"
+#include "capture_metadata.h"
 #include "capture_provenance.h"
 #include "capture_reader.h"
 #include "fake_usb_device.h"
@@ -117,13 +119,36 @@ class CaptureToDiskTest : public ::testing::Test {
 
   // Every capture file left in the test's own directory, sorted, so a test can
   // say what was written without knowing the timestamp it was named after.
+  //
+  // The metadata sidecars are filtered out, because a capture and the text file
+  // beside it are not two captures — every assertion here about "how many files
+  // were written" means recordings. MetadataFiles() below is the other half.
   std::vector<std::filesystem::path> WrittenFiles() const {
     std::vector<std::filesystem::path> files;
     for (const auto& entry : std::filesystem::directory_iterator(directory_)) {
-      files.push_back(entry.path());
+      if (!capture::MatchedCaptureFileSuffix(entry.path().string()).empty()) {
+        files.push_back(entry.path());
+      }
     }
     std::sort(files.begin(), files.end());
     return files;
+  }
+
+  std::vector<std::filesystem::path> MetadataFiles() const {
+    std::vector<std::filesystem::path> files;
+    for (const auto& entry : std::filesystem::directory_iterator(directory_)) {
+      if (entry.path().extension() == ".yaml") {
+        files.push_back(entry.path());
+      }
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+  }
+
+  static std::string ReadWholeFile(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(file),
+                       std::istreambuf_iterator<char>());
   }
 
   void Settings(void (*change)(CaptureSettings&)) {
@@ -853,6 +878,225 @@ TEST_F(CaptureToDiskTest, TheGeneratedNameIsNeverReportedAsRenamed) {
   // It carries a timestamp, so it is free by construction — and a warning that
   // fired on every capture would be one nobody read.
   EXPECT_EQ(renamed.count(), 0);
+}
+
+// --- The metadata file beside it ------------------------------------------
+
+TEST_F(CaptureToDiskTest, EveryCaptureGetsAMetadataFileBesideIt) {
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+
+  // The sidecar is written when the file is closed, which happens on the
+  // processing thread and so lands a tick or two after the stop was asked for.
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+
+  ASSERT_EQ(WrittenFiles().size(), 1U);
+  const std::filesystem::path capture_file = WrittenFiles().front();
+  EXPECT_EQ(MetadataFiles().front(),
+            capture::CaptureMetadataPath(capture_file));
+
+  const std::string document = ReadWholeFile(MetadataFiles().front());
+  EXPECT_NE(document.find("schema_version"), std::string::npos);
+  EXPECT_NE(document.find(capture_file.filename().string()), std::string::npos);
+  EXPECT_NE(document.find("\"completed\": true"), std::string::npos)
+      << document;
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
+// Metadata is data about the data. A capture taken after a stretch of
+// monitoring must describe the samples in the file, not everything that went
+// past while somebody was setting up — so the count the document reports is the
+// count the file actually holds.
+//
+// The sharper form of this — that a loud buffer seen while monitoring does not
+// raise the file's maximum — is in test_sample_metrics.cpp, where the two spans
+// can be fed different signals. A synthetic source produces the same signal
+// before and after the writer is attached, so end to end there is nothing to
+// tell the two apart by except the count.
+TEST_F(CaptureToDiskTest, TheFiguresCountOnlyWhatReachedTheFile) {
+  controller_->StartMonitoring();
+  ASSERT_TRUE(controller_->monitoring());
+
+  // A stretch of the session with nothing being written, so that a figure
+  // covering the session would be visibly larger than one covering the file.
+  // There is nothing to wait *for* here — the point is that samples go past —
+  // so the pump runs to its deadline on a predicate that is never true.
+  PumpUntil([] { return false; }, 100ms);
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  ASSERT_TRUE(PumpUntil([&] {
+    return !WrittenFiles().empty() &&
+           std::filesystem::file_size(WrittenFiles().front()) > 4096;
+  }));
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+
+  capture::CaptureReader reader;
+  std::string error;
+  ASSERT_TRUE(reader.Open(WrittenFiles().front(),
+                          capture::CaptureReader::Format::kFlac, error))
+      << error;
+
+  const std::optional<uint64_t> in_the_file = reader.TotalSamples();
+  ASSERT_TRUE(in_the_file.has_value());
+
+  const std::string document = ReadWholeFile(MetadataFiles().front());
+  EXPECT_NE(document.find("\"samples\": " + std::to_string(*in_the_file)),
+            std::string::npos)
+      << document;
+
+  // And the signal section is there, measured over that same span.
+  EXPECT_NE(document.find("\"signal\":"), std::string::npos) << document;
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
+TEST_F(CaptureToDiskTest, WhatTheUserSaidTheDiscWasReachesBothTheNameAndFile) {
+  Settings([](CaptureSettings& settings) {
+    settings.naming.title_used = true;
+    settings.naming.title = "Casper";
+    settings.naming.side_used = true;
+    settings.naming.side = 2;
+    settings.naming.metadata_notes = "Rot on the outer edge.";
+  });
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  // The title and the side are in the name; the paragraph of notes is not — a
+  // paragraph is not a file name.
+  const QString path = controller_->capture_path();
+  EXPECT_TRUE(path.contains(QStringLiteral("Casper_side2")))
+      << path.toStdString();
+  EXPECT_FALSE(path.contains(QStringLiteral("Rot"))) << path.toStdString();
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+
+  const std::string document = ReadWholeFile(MetadataFiles().front());
+  EXPECT_NE(document.find("\"title\": \"Casper\""), std::string::npos)
+      << document;
+  EXPECT_NE(document.find("\"side\": 2"), std::string::npos) << document;
+  EXPECT_NE(document.find("Rot on the outer edge."), std::string::npos)
+      << document;
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
+TEST_F(CaptureToDiskTest, ThePlayerAndTheDiscScanReachTheMetadataFile) {
+  // Set the way the automatic-capture coupling sets it, which is the only route
+  // either of these takes — and latched when the file is opened, because the
+  // coupling clears both the moment its run ends.
+  capture::PlayerIdentity player;
+  player.model_name = "Pioneer LD-V4300D";
+  player.firmware_version = "12";
+  player.port = "/dev/ttyUSB0";
+  controller_->SetPlayerIdentity(player);
+
+  capture::DiscScan scan;
+  scan.examined = true;
+  scan.disc_type = capture::ScannedFact{"CLV", "reported"};
+  scan.disc_side = capture::ScannedFact{"2", "reported"};
+  scan.programme_end = capture::ScannedFact{"1:02:03", "measured"};
+  scan.disc_status_reply = "11011";
+  controller_->SetDiscScan(scan);
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  // Cleared while the capture is still running, exactly as the coupling clears
+  // it when its run finishes. The file must still carry what was true when it
+  // was opened.
+  controller_->SetDiscScan({});
+  controller_->SetPlayerIdentity({});
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+
+  const std::string document = ReadWholeFile(MetadataFiles().front());
+  EXPECT_NE(document.find("Pioneer LD-V4300D"), std::string::npos) << document;
+  EXPECT_NE(document.find("\"examined\": true"), std::string::npos) << document;
+  EXPECT_NE(document.find("\"source\": \"measured\""), std::string::npos)
+      << document;
+  EXPECT_NE(document.find("\"disc_status_reply\": \"11011\""),
+            std::string::npos)
+      << document;
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
+TEST_F(CaptureToDiskTest, TheDurationJoinsTheNameByRenamingTheFinishedFile) {
+  Settings([](CaptureSettings& settings) {
+    settings.capture_name = QStringLiteral("Casper");
+    settings.naming.append_duration = true;
+  });
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  const QString opened = controller_->capture_path();
+  EXPECT_TRUE(opened.endsWith(QStringLiteral("Casper.ddd.flac")))
+      << opened.toStdString();
+
+  ASSERT_TRUE(PumpUntil([&] {
+    return !WrittenFiles().empty() &&
+           std::filesystem::file_size(WrittenFiles().front()) > 4096;
+  }));
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+
+  // The length is not a fact until the capture has stopped, so the file is
+  // renamed rather than the length having been guessed at the start.
+  ASSERT_EQ(WrittenFiles().size(), 1U);
+  const std::string written = WrittenFiles().front().filename().string();
+  EXPECT_NE(written.find("Casper_00H00M"), std::string::npos) << written;
+
+  // And the metadata file goes with it. A sidecar left under the old name would
+  // be orphaned by the rename, which is the whole reason the two happen in one
+  // place and in this order.
+  EXPECT_EQ(MetadataFiles().front(),
+            capture::CaptureMetadataPath(WrittenFiles().front()));
+  EXPECT_EQ(controller_->capture_path(),
+            QString::fromStdString(WrittenFiles().front().string()));
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+}
+
+TEST_F(CaptureToDiskTest, AnUncompressedCaptureGetsTheSameMetadataFile) {
+  // The format with no tags of its own, which is exactly the case the sidecar
+  // matters most for: without it, nothing anywhere says what the file is.
+  Settings([](CaptureSettings& settings) {
+    settings.output_format = capture::CaptureOutputFormat::kSigned16Bit;
+  });
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+
+  const std::string document = ReadWholeFile(MetadataFiles().front());
+  EXPECT_NE(document.find("\"format\": \"signed 16-bit\""), std::string::npos)
+      << document;
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
 }
 
 }  // namespace

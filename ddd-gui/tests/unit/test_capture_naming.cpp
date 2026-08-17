@@ -270,5 +270,143 @@ TEST_F(UniqueNameTest, TheStemComesBackWithoutTheCompoundSuffix) {
   }
 }
 
+// --- Naming from what the user says the disc is ----------------------------
+
+using NamingFieldsTest = InUtc;
+
+TEST_F(NamingFieldsTest, NothingSaidGivesTheNameItAlwaysGave) {
+  // The compatibility promise: somebody who never opens the naming dialog gets
+  // exactly the name this application produced before it existed.
+  const CaptureNamingFields fields;
+  EXPECT_EQ(BuildCaptureStem(fields, "", false, kFixedTime),
+            DefaultCaptureStem(false, kFixedTime));
+}
+
+TEST_F(NamingFieldsTest, ATypedNameWinsAndCarriesNoTimestamp) {
+  CaptureNamingFields fields;
+  fields.title_used = true;
+  fields.title = "Casper";
+  fields.side_used = true;
+  fields.side = 2;
+
+  // Somebody who typed a name meant that name. The fields are still recorded in
+  // the sidecar; they simply do not get a say in what the file is called.
+  EXPECT_EQ(BuildCaptureStem(fields, "my capture", false, kFixedTime),
+            "my capture");
+}
+
+TEST_F(NamingFieldsTest, TestModeOverridesEverything) {
+  CaptureNamingFields fields;
+  fields.title_used = true;
+  fields.title = "Blade Runner";
+
+  // A file of ramps must never carry a disc's name, whatever has been typed
+  // where — including in the Name field, which is the one that otherwise wins.
+  EXPECT_EQ(BuildCaptureStem(fields, "Blade Runner", true, kFixedTime),
+            "TestData_2026-08-13_12-34-56");
+}
+
+TEST_F(NamingFieldsTest, ATitleReplacesTheRfSamplePrefix) {
+  CaptureNamingFields fields;
+  fields.title_used = true;
+  fields.title = "Casper";
+
+  EXPECT_EQ(BuildCaptureStem(fields, "", false, kFixedTime),
+            "Casper_2026-08-13_12-34-56");
+}
+
+TEST_F(NamingFieldsTest, TheSideIsInTheNameWithoutTheOtherDetails) {
+  // The asymmetry that earns its place: two files made in a row are the two
+  // sides of one disc, so the side is in the name whether or not the rest is.
+  CaptureNamingFields fields;
+  fields.title_used = true;
+  fields.title = "Casper";
+  fields.side_used = true;
+  fields.side = 2;
+  fields.disc_type_used = true;
+  fields.disc_type = DiscTypeChoice::kCav;
+
+  EXPECT_EQ(BuildCaptureStem(fields, "", false, kFixedTime),
+            "Casper_side2_2026-08-13_12-34-56");
+}
+
+TEST_F(NamingFieldsTest, TheDetailsJoinTheNameOnlyWhenAskedFor) {
+  CaptureNamingFields fields;
+  fields.title_used = true;
+  fields.title = "Casper";
+  fields.disc_type_used = true;
+  fields.disc_type = DiscTypeChoice::kClv;
+  fields.video_standard_used = true;
+  fields.video_standard = VideoStandardChoice::kPal;
+  fields.audio_used = true;
+  fields.audio = AudioTypeChoice::kAnalogue;
+  fields.side_used = true;
+  fields.side = 1;
+  fields.notes_used = true;
+  fields.notes = "second pressing";
+  fields.mint_marks_used = true;
+  fields.mint_marks = "NM";
+  fields.metadata_in_name = true;
+
+  EXPECT_EQ(BuildCaptureStem(fields, "", false, kFixedTime),
+            "Casper_CLV_PAL_ANA_side1_second pressing_NM_2026-08-13_12-34-56");
+}
+
+TEST_F(NamingFieldsTest, DefaultAudioIsARealAnswerThatAddsNothingToAName) {
+  // The one choice that means something in the metadata and contributes no
+  // token: "_Default" in a file name says less than the eight characters cost.
+  CaptureNamingFields fields;
+  fields.audio_used = true;
+  fields.audio = AudioTypeChoice::kDefault;
+  fields.metadata_in_name = true;
+
+  EXPECT_EQ(BuildCaptureStem(fields, "", false, kFixedTime),
+            DefaultCaptureStem(false, kFixedTime));
+  EXPECT_STREQ(AudioTypeChoiceName(AudioTypeChoice::kDefault), "Default");
+  EXPECT_STREQ(AudioTypeChoiceToken(AudioTypeChoice::kDefault), "");
+}
+
+TEST_F(NamingFieldsTest, AFieldThatWasNotAskedForContributesNothing) {
+  // The flag is what decides, not whether the value happens to be set. A title
+  // typed and then unticked is a title nobody is claiming.
+  CaptureNamingFields fields;
+  fields.title = "Casper";
+  fields.disc_type = DiscTypeChoice::kCav;
+  fields.side = 3;
+  fields.metadata_in_name = true;
+
+  EXPECT_EQ(BuildCaptureStem(fields, "", false, kFixedTime),
+            DefaultCaptureStem(false, kFixedTime));
+}
+
+TEST_F(NamingFieldsTest, ATitleCannotChooseWhereTheCaptureGoes) {
+  // The security-relevant half of the sanitising, reached through the fields
+  // rather than through the Name field: a title of "../../etc/passwd" must not
+  // become a path.
+  CaptureNamingFields fields;
+  fields.title_used = true;
+  fields.title = "../../etc/passwd";
+
+  const std::string stem = BuildCaptureStem(fields, "", false, kFixedTime);
+  EXPECT_EQ(stem.find_first_of("<>:\"/\\|?*"), std::string::npos) << stem;
+}
+
+TEST_F(NamingFieldsTest, ADurationGoesOnTheEndInFixedWidthFields) {
+  // Letters between the fields rather than colons, which Windows will not
+  // accept in a filename — the same constraint that shapes the timestamp.
+  EXPECT_EQ(AppendDurationToStem("Casper_side1", 2472.0),
+            "Casper_side1_00H41M12S");
+  EXPECT_EQ(AppendDurationToStem("Casper", 1.4), "Casper_00H00M01S");
+  EXPECT_EQ(AppendDurationToStem("Casper", 3661.0), "Casper_01H01M01S");
+}
+
+TEST_F(NamingFieldsTest, ADurationThatIsNotOneIsSimplyNotAppended) {
+  // A capture that recorded nothing has no length to put in a name, and the
+  // moment this is asked is the moment a capture has just ended — the worst
+  // possible place to introduce a failure.
+  EXPECT_EQ(AppendDurationToStem("Casper", 0.0), "Casper");
+  EXPECT_EQ(AppendDurationToStem("Casper", -5.0), "Casper");
+}
+
 }  // namespace
 }  // namespace ddd::capture

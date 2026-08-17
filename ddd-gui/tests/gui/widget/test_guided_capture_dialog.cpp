@@ -399,12 +399,8 @@ TEST_F(GuidedCaptureDialogTest, TheKeyLockIsOffUntilItIsAskedFor) {
   EXPECT_TRUE(dialog_->Plan().key_lock);
 }
 
-TEST_F(GuidedCaptureDialogTest,
-       TheCouplingPreferencesAreHereWithTheirDefaults) {
+TEST_F(GuidedCaptureDialogTest, TheCouplingPreferenceIsHereWithItsDefault) {
   Build(CavDisc());
-
-  EXPECT_TRUE(
-      Find<QCheckBox>(GuidedCaptureDialog::kStopPlayerCheckName)->isChecked());
 
   // Off, and a considered default: a player that stumbles partway through a
   // side would otherwise truncate a capture that was going perfectly well.

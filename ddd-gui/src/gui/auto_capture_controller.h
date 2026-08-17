@@ -45,7 +45,7 @@ class PlayerController;
 // after a capture ended, a file that outlives the sequence that opened it — and
 // they are only testable if there is one place they happen.
 //
-// It does three things:
+// It does two things:
 //
 //   It runs an automatic capture, by driving AutoCaptureSequence one step at a
 //   time. The player steps go through PlayerController and come back as
@@ -53,12 +53,15 @@ class PlayerController;
 //   window keeps painting through a forty-minute side and Stop is answered
 //   between one step and the next.
 //
-//   It stops the player when a capture stops, if that is asked for.
-//
 //   It stops the capture when the player stops, if that is asked for — and only
 //   after the player has said so several times running. See
 //   PlayerSettings::stop_capture_with_player for why that debounce is not
 //   optional.
+//
+// The coupling runs in **one direction only**: the player may stop the capture,
+// and the capture may never stop the player. Outside an automatic capture this
+// object sends the player nothing at all — see OnCapturingChanged, where the
+// old application's opposite preference is not carried over and why.
 //
 // **The sequence is driven from this thread, not the worker's.** That is the
 // opposite of the examine sequence, and for a good reason: an examination is a
@@ -81,15 +84,15 @@ class AutoCaptureController : public QObject {
                         QObject* parent = nullptr);
   ~AutoCaptureController() override;
 
-  // Only the two coupling preferences are read. Passed whole so that there is
-  // one settings value in the application rather than a copy of two fields.
+  // Only the coupling preference is read. Passed whole so that there is one
+  // settings value in the application rather than a copy of one field.
   void SetSettings(const PlayerSettings& settings);
   const PlayerSettings& settings() const { return settings_; }
 
   bool running() const { return sequence_ != nullptr; }
 
   // The two controllers, borrowed. Exposed so that the guided setup can apply
-  // the capture name and the coupling preferences to the settings they belong
+  // the capture name and the coupling preference to the settings they belong
   // to rather than being handed three pointers to keep in step.
   PlayerController* player() const { return player_; }
   CaptureController* capture() const { return capture_; }
@@ -137,6 +140,11 @@ class AutoCaptureController : public QObject {
   void OnReply(const PlayerReply& reply);
   void OnCapturingChanged(bool capturing, const QString& path);
   void OnStatusUpdated(const player::PlayerStatus& status);
+
+  // Tell the capture engine which player it is beside, so a capture's metadata
+  // names it. Follows the link rather than the run: a capture taken by hand
+  // with a player connected is still a capture off that player.
+  void OnConnectionChanged(const PlayerConnection& connection);
 
   void FinishRun();
 

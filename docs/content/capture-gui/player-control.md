@@ -166,15 +166,33 @@ Other things worth knowing:
   side regardless, and truncating a good capture because an adapter came loose would be the
   worse of the two failures.
 
-## The two coupling settings
+## The coupling, and the direction it does not run in
 
-In player settings, and also on the capture setup:
-
-**Stop the player when a capture stops** — on by default. The obvious convenience.
+There is one setting, in player settings and also on the capture setup:
 
 **Stop the capture when the player stops** — **off** by default, deliberately. A player that
 briefly reports a stopped transport mid-side would otherwise truncate a good capture. It is
-debounced when on, and it is still the setting to think twice about.
+debounced when on, and it is still the setting to think twice about. It sends nothing down
+the serial cable: it watches the status the player is already being polled for and stops the
+*capture*, which is the application's own to stop.
+
+**A capture stopping never stops the player.** Outside an automatic capture, nothing in this
+application sends the player a command you did not ask for — pressing **Stop capture** during
+a manual capture leaves the disc exactly where it is, so capturing the first half of a side
+and then the second is two presses and no disc movement.
+
+The legacy application had the opposite preference, on by default, and it is deliberately not
+carried over. An automatic capture still spins the disc down at the end, because there the
+application is the thing operating the player; a manual capture is you operating it.
+
+!!! warning "Nothing ejects a disc by itself"
+
+    On a Pioneer player the stop command is **Reject** (`RJ`), and a Reject arriving while
+    the disc is already spinning down opens the tray. An automatic capture therefore sends at
+    most one stop per run, and only to a transport it started itself. The tray commands
+    (`OP`, `CO`) exist only on the [remote](#the-remote), where a person
+    presses them — a machine ejecting a disc unasked, with nobody necessarily in the room, is
+    not something this application does.
 
 ## Which players have actually been tested
 

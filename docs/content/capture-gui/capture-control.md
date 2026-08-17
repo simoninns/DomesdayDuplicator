@@ -86,6 +86,14 @@ fails on a colleague's machine is prevented here rather than discovered later.
 In test mode the field is disabled, not merely ignored. A field that accepted text and then
 did not use it would be a lie about what the application was going to do.
 
+**Naming…** beside the field opens the other way of naming a capture: say what the disc is —
+title, type, standard, side, notes, mint marks — and let a name be built from it. All of it
+is recorded in the metadata file written beside every capture, whether or not any of it
+reaches the file name. See [Naming and metadata](capture-naming.md).
+
+A name typed here wins outright over anything set there, and the dialog says so rather than
+leaving it to be discovered.
+
 ### Format
 
 | Choice | What you get |

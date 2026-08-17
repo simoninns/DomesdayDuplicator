@@ -24,6 +24,7 @@
 
 #include "capture_controller.h"
 #include "capture_failure_presenter.h"
+#include "capture_format.h"
 #include "capture_reader.h"
 #include "fake_usb_device.h"
 #include "firmware_version.h"
@@ -161,10 +162,14 @@ class CaptureFaultTest : public ::testing::Test {
             failures.front().at(1).toString()};
   }
 
+  // The recordings, not the metadata sidecars written beside them: every
+  // assertion here is about whether a capture file exists and what is in it.
   std::vector<std::filesystem::path> WrittenFiles() const {
     std::vector<std::filesystem::path> files;
     for (const auto& entry : std::filesystem::directory_iterator(directory_)) {
-      files.push_back(entry.path());
+      if (!capture::MatchedCaptureFileSuffix(entry.path().string()).empty()) {
+        files.push_back(entry.path());
+      }
     }
     return files;
   }

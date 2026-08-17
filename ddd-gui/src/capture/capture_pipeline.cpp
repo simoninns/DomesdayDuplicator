@@ -238,6 +238,11 @@ std::unique_ptr<ISampleSink> CapturePipeline::TakeRetiredSink() {
 }
 
 void CapturePipeline::PerformPendingSinkChange() {
+  // Read before the exchanges below, so that a request arriving while this is
+  // running is not claimed as applied — it will be picked up at the next buffer
+  // and counted then.
+  const uint64_t requests_seen = sink_change_requests_.load();
+
   ISampleSink* const incoming = pending_sink_.exchange(nullptr);
   const bool detaching = pending_detach_.exchange(false);
 
@@ -266,7 +271,29 @@ void CapturePipeline::PerformPendingSinkChange() {
 
   sink_ = std::move(replacement);
   last_sink_change_buffer_ = buffers_processed_.load();
-  sink_change_count_.fetch_add(1);
+
+  // Measure the recording separately from the session it sits in. The swap
+  // happens between two buffers, so the span this opens and closes holds
+  // exactly the samples that reached the file — which is what a file's own
+  // metadata has to describe, and not the minute of setting up before it.
+  if (sink_->StoresData()) {
+    metrics_.BeginCaptureSpan();
+  } else {
+    metrics_.EndCaptureSpan();
+  }
+
+  // Set to the number of requests this swap accounted for, rather than
+  // incremented by one.
+  //
+  // Two requests can collapse into one swap: a capture that is stopped inside a
+  // single buffer period leaves an attach and a detach outstanding together,
+  // and DetachSink discards the attach that never happened. Counting swaps then
+  // leaves the count one short of the request the caller is waiting on for ever
+  // — which meant a capture started and stopped in the same instant never
+  // reported that it had finished, and so never had its metadata written.
+  //
+  // The swap itself is unchanged by this; only what is counted is.
+  sink_change_count_.store(requests_seen);
 
   if (logger_ != nullptr) {
     logger_->Info(std::string("Sink changed to ") + sink_->Name() +

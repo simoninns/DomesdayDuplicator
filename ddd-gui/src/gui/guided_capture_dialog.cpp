@@ -196,11 +196,6 @@ GuidedCaptureDialog::GuidedCaptureDialog(AutoCaptureController* controller,
          "on leaves the panel locked, which is why it is not on by default."));
   form->addRow(QString(), key_lock_);
 
-  stop_player_ =
-      new QCheckBox(tr("Stop the player when a capture stops"), this);
-  stop_player_->setObjectName(QLatin1String(kStopPlayerCheckName));
-  form->addRow(QString(), stop_player_);
-
   stop_capture_ =
       new QCheckBox(tr("Stop the capture when the player stops"), this);
   stop_capture_->setObjectName(QLatin1String(kStopCaptureCheckName));
@@ -211,10 +206,7 @@ GuidedCaptureDialog::GuidedCaptureDialog(AutoCaptureController* controller,
   form->addRow(QString(), stop_capture_);
 
   if (controller_ != nullptr) {
-    stop_player_->setChecked(controller_->settings().stop_player_with_capture);
     stop_capture_->setChecked(controller_->settings().stop_capture_with_player);
-  } else {
-    stop_player_->setChecked(true);
   }
 
   layout->addLayout(form);
@@ -413,7 +405,6 @@ void GuidedCaptureDialog::ApplyShape() {
   enable(standard_, editable);
   enable(name_, editable);
   enable(key_lock_, editable);
-  enable(stop_player_, editable);
   enable(stop_capture_, editable);
 }
 
@@ -500,9 +491,9 @@ void GuidedCaptureDialog::Start() {
     return;
   }
 
-  // The name and the two coupling preferences are applied to the settings they
+  // The name and the coupling preference are applied to the settings they
   // belong to rather than carried in the plan: they outlive this capture, and
-  // the settings dialog shows the same two checkboxes.
+  // the settings dialog shows the same checkbox.
   if (CaptureController* const capture = controller_->capture();
       capture != nullptr) {
     CaptureSettings settings = capture->settings();
@@ -513,7 +504,6 @@ void GuidedCaptureDialog::Start() {
   if (PlayerController* const player = controller_->player();
       player != nullptr) {
     PlayerSettings settings = player->settings();
-    settings.stop_player_with_capture = stop_player_->isChecked();
     settings.stop_capture_with_player = stop_capture_->isChecked();
     player->SetSettings(settings);
   }

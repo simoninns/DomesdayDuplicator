@@ -205,6 +205,16 @@ MainWindow::MainWindow(ThemeController* theme_controller,
                 logger_->Info(message.toStdString());
               }
             });
+    // The status bar and the log, never a box to dismiss. The recording is on
+    // disk and is complete; only the text file beside it failed, and a modal
+    // saying otherwise would send somebody looking for a fault in the
+    // recording.
+    connect(capture_controller_, &CaptureController::MetadataWriteFailed, this,
+            [this](const QString& detail) {
+              statusBar()->showMessage(
+                  tr("The capture is written. Its metadata file is not: %1")
+                      .arg(detail));
+            });
     connect(capture_controller_, &CaptureController::LowSpaceWarning, this,
             [this](const QString& message) {
               QMessageBox::warning(this, tr("Running out of space"), message);

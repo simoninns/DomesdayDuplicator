@@ -68,6 +68,7 @@ class CapturePanel : public QWidget {
   static constexpr const char* kDirectoryEditName = "capture_directory_edit";
   static constexpr const char* kBrowseButtonName = "capture_browse_button";
   static constexpr const char* kNameEditName = "capture_name_edit";
+  static constexpr const char* kNamingButtonName = "capture_naming_button";
   static constexpr const char* kFormatComboName = "capture_format_combo";
   static constexpr const char* kSampleRateComboName =
       "capture_sample_rate_combo";
@@ -98,6 +99,11 @@ class CapturePanel : public QWidget {
   void OnCaptureButtonPressed();
   void OnDeviceSelected(int index);
   void OnBrowsePressed();
+
+  // Open the naming dialog, where what the disc is gets typed. A button rather
+  // than more rows here: those are eight fields set once per disc, and this
+  // panel shares a dock column with the signal displays.
+  void OnNamingPressed();
 
   // Say, as the name is typed, what the file will really be called. Cheap
   // enough for every keystroke: it asks the filesystem what is there and
@@ -134,6 +140,7 @@ class CapturePanel : public QWidget {
   QLineEdit* directory_edit_ = nullptr;
   QPushButton* browse_button_ = nullptr;
   QLineEdit* name_edit_ = nullptr;
+  QPushButton* naming_button_ = nullptr;
   QComboBox* format_combo_ = nullptr;
   QComboBox* sample_rate_combo_ = nullptr;
   QSpinBox* compression_spin_ = nullptr;

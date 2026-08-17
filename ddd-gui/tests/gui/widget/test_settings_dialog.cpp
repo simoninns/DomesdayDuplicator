@@ -184,28 +184,33 @@ TEST(SettingsDialogTest, EveryModelAndEverySpeedCanBeChosen) {
   EXPECT_EQ(baud->itemData(0).toUInt(), 0U);
 }
 
-TEST(SettingsDialogTest, TheCouplingPreferencesAreOnThePlayerTabAndRoundTrip) {
+TEST(SettingsDialogTest, TheCouplingPreferenceIsOnThePlayerTabAndRoundTrips) {
   PlayerSettings player;
-  player.stop_player_with_capture = false;
   player.stop_capture_with_player = true;
 
   const SettingsDialog dialog(CaptureSettings{}, {}, player, TwoPorts());
 
-  auto* stop_player =
-      Find<QCheckBox>(dialog, SettingsDialog::kPlayerStopPlayerCheckName);
   auto* stop_capture =
       Find<QCheckBox>(dialog, SettingsDialog::kPlayerStopCaptureCheckName);
-  ASSERT_NE(stop_player, nullptr);
   ASSERT_NE(stop_capture, nullptr);
 
-  EXPECT_FALSE(stop_player->isChecked());
   EXPECT_TRUE(stop_capture->isChecked());
 
-  stop_player->setChecked(true);
   stop_capture->setChecked(false);
-
-  EXPECT_TRUE(dialog.Player().stop_player_with_capture);
   EXPECT_FALSE(dialog.Player().stop_capture_with_player);
+}
+
+// The coupling runs one way, and the dialog is where somebody would look for
+// the other way. There is no control for stopping the player with a capture,
+// because outside an automatic capture this application does not drive the
+// player at all.
+TEST(SettingsDialogTest, ThereIsNoControlForStoppingThePlayerWithACapture) {
+  const SettingsDialog dialog(CaptureSettings{}, {}, PlayerSettings{},
+                              TwoPorts());
+
+  EXPECT_EQ(dialog.findChild<QCheckBox*>(
+                QStringLiteral("settings_player_stop_player")),
+            nullptr);
 }
 
 }  // namespace

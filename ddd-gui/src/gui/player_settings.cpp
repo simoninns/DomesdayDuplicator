@@ -27,7 +27,6 @@ constexpr const char* kBaudKey = "player/baud_rate";
 constexpr const char* kExcludedKey = "player/excluded_ports";
 constexpr const char* kRememberedPortKey = "player/remembered_port";
 constexpr const char* kRememberedBaudKey = "player/remembered_baud_rate";
-constexpr const char* kStopPlayerKey = "player/stop_player_with_capture";
 constexpr const char* kStopCaptureKey = "player/stop_capture_with_player";
 
 // A stored rate that no player family uses reads as "work it out".
@@ -81,10 +80,6 @@ PlayerSettings LoadPlayerSettings() {
       settings.value(QLatin1String(kRememberedPortKey)).toString();
   loaded.remembered_baud = ReadBaudRate(settings, kRememberedBaudKey);
 
-  loaded.stop_player_with_capture =
-      settings
-          .value(QLatin1String(kStopPlayerKey), loaded.stop_player_with_capture)
-          .toBool();
   loaded.stop_capture_with_player = settings
                                         .value(QLatin1String(kStopCaptureKey),
                                                loaded.stop_capture_with_player)
@@ -117,10 +112,14 @@ void SavePlayerSettings(const PlayerSettings& settings) {
   }
   store.setValue(QLatin1String(kRememberedPortKey), settings.remembered_port);
   store.setValue(QLatin1String(kRememberedBaudKey), settings.remembered_baud);
-  store.setValue(QLatin1String(kStopPlayerKey),
-                 settings.stop_player_with_capture);
   store.setValue(QLatin1String(kStopCaptureKey),
                  settings.stop_capture_with_player);
+
+  // The old "stop the player when a capture stops" preference is gone — see
+  // PlayerSettings. Its key is removed rather than left behind, so a settings
+  // file written by an earlier build does not keep a setting nothing reads and
+  // nothing can turn off.
+  store.remove(QStringLiteral("player/stop_player_with_capture"));
 }
 
 }  // namespace ddd::gui

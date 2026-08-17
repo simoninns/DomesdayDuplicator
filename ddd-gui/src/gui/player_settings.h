@@ -70,15 +70,22 @@ struct PlayerSettings {
 
   // --- How the player and the capture are coupled --------------------------
   //
-  // The two preferences the old application had, and the defaults are the
-  // interesting part of both.
-
-  // Stop the disc when a capture stops.
+  // One preference, and it runs in one direction only: the player may stop the
+  // capture, and the capture may never stop the player.
   //
-  // On by default, and safe: the capture has already been written by the time
-  // this acts, so the worst it can do is stop a disc somebody wanted left
-  // playing.
-  bool stop_player_with_capture = true;
+  // **Outside an automatic capture, nothing in this application sends the
+  // player a command the user did not ask for.** The old application had a
+  // second preference here — "stop the player when a capture stops" — and it is
+  // deliberately not carried over. The automatic capture stops the player
+  // itself, as a step of its own sequence, so that preference only ever acted
+  // on captures taken by hand: pressing Stop capture spun the disc down, which
+  // is the application taking over a piece of equipment somebody else is
+  // operating. Somebody who wants the disc stopped has a Stop button on the
+  // player and one in the remote.
+  //
+  // The surviving direction sends nothing down the cable. It watches the status
+  // the player is already being polled for and stops the *capture*, which is
+  // this application's own to stop.
 
   // Stop the capture when the player stops.
   //
@@ -96,7 +103,6 @@ struct PlayerSettings {
            excluded_ports == other.excluded_ports &&
            remembered_port == other.remembered_port &&
            remembered_baud == other.remembered_baud &&
-           stop_player_with_capture == other.stop_player_with_capture &&
            stop_capture_with_player == other.stop_capture_with_player;
   }
   bool operator!=(const PlayerSettings& other) const {

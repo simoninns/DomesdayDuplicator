@@ -39,6 +39,12 @@ AutoCaptureController::AutoCaptureController(PlayerController* player,
             &AutoCaptureController::OnStatusUpdated);
     connect(player_, &PlayerController::SettingsChanged, this,
             &AutoCaptureController::SetSettings);
+    connect(player_, &PlayerController::ConnectionChanged, this,
+            &AutoCaptureController::OnConnectionChanged);
+
+    // The link may already be up when this is built — the widget tests build it
+    // that way — so the current connection is taken now rather than waited for.
+    OnConnectionChanged(player_->connection());
   }
 
   if (capture_ != nullptr) {
@@ -93,6 +99,12 @@ void AutoCaptureController::Start(const player::AutoCapturePlan& plan,
   // is opened, because a file's tags are written into its header when it is
   // created and a fact that arrived afterwards has nowhere to go.
   capture_->SetDiscProvenance(DescribeDisc(disc));
+
+  // And the whole of what the examination found, for the metadata file beside
+  // it. The tags above carry the handful of facts worth having in the capture
+  // itself; this carries the rest — the user codes, the raw disc status, and
+  // how each fact was arrived at.
+  capture_->SetDiscScan(DescribeDiscScan(disc));
 
   // The sequence owns the session for its duration. Without this the status
   // poll would interleave a query into the middle of a seek, and a reply
@@ -215,6 +227,7 @@ void AutoCaptureController::FinishRun() {
   // worse than one carrying none.
   if (capture_ != nullptr) {
     capture_->SetDiscProvenance({});
+    capture_->SetDiscScan({});
   }
 
   Log(tr("Automatic capture %1.").arg(AutoCaptureOutcomeText(outcome)));
@@ -247,24 +260,28 @@ void AutoCaptureController::Cancel() {
 void AutoCaptureController::OnCapturingChanged(bool capturing,
                                                const QString& path) {
   static_cast<void>(path);
+  static_cast<void>(capturing);
 
-  if (capturing) {
-    stopped_readings_ = 0;
-    return;
-  }
-
-  // Not while a sequence is running: it stops the player itself, in its own
-  // order and after the file has been finalised.
-  if (running() || !settings_.stop_player_with_capture) {
-    return;
-  }
-
-  if (player_ == nullptr || !player_->connected()) {
-    return;
-  }
-
-  Log(tr("Stopping the player, because the capture has stopped."));
-  player_->Send(CommandRequest(player::PlayerCommand::kStop));
+  // Only the debounce is reset here, and nothing is sent to the player.
+  //
+  // **A capture stopping never stops the player.** The old application had a
+  // preference for it and it was on by default; it is deliberately not carried
+  // over. Outside an automatic capture the disc belongs to the person operating
+  // it, and pressing Stop capture is a statement about a file rather than about
+  // a disc — a manual capture of the first half of a side, stopped so the
+  // second half can be captured separately, must leave the disc exactly where
+  // it was.
+  //
+  // It is also the unsafe direction. The stop command is Reject on a Pioneer
+  // player, and a Reject arriving while the disc is already spinning down opens
+  // the tray — so a preference that fired on every capture stop was a
+  // preference that could eject somebody's disc with nobody in the room. See
+  // PlayerCommand::kStop.
+  //
+  // An automatic capture still stops the player, because there the application
+  // is the thing operating it: the sequence has a spin-down stage of its own,
+  // sent once and only to a transport it started.
+  stopped_readings_ = 0;
 }
 
 void AutoCaptureController::OnStatusUpdated(
@@ -292,6 +309,17 @@ void AutoCaptureController::OnStatusUpdated(
   stopped_readings_ = 0;
   Log(tr("Stopping the capture, because the player has stopped."));
   capture_->StopCapture();
+}
+
+void AutoCaptureController::OnConnectionChanged(
+    const PlayerConnection& connection) {
+  if (capture_ == nullptr) {
+    return;
+  }
+
+  // Empty for a link that is not live, which is how a player that has been
+  // unplugged stops appearing in the metadata of captures taken after it went.
+  capture_->SetPlayerIdentity(DescribePlayerIdentity(connection));
 }
 
 capture::DiscProvenance AutoCaptureController::DescribeDisc(

@@ -26,6 +26,7 @@ add_library(ddd_capture STATIC
     ${ddd_capture_usb_sources}
     boot_image.cpp
     capture_format.cpp
+    capture_metadata.cpp
     capture_naming.cpp
     capture_pipeline.cpp
     capture_provenance.cpp
@@ -65,6 +66,7 @@ add_library(ddd_capture STATIC
     usb_device.cpp
     usb_device_info.cpp
     version.cpp
+    yaml_writer.cpp
 )
 
 target_include_directories(ddd_capture PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

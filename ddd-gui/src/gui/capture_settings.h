@@ -16,6 +16,7 @@
 #include <cstdint>
 
 #include "capture_format.h"
+#include "capture_naming.h"
 #include "disk_buffer_ring.h"
 #include "flac_writer.h"
 #include "free_space.h"
@@ -69,9 +70,22 @@ struct CaptureSettings {
   // copied between machines still points somewhere that exists.
   QString capture_directory;
 
-  // The name to use, without a suffix. Empty means the generated
-  // RF-Sample_<timestamp>, which is what almost every capture uses.
+  // The name to use, without a suffix. Empty means the name is built from the
+  // naming fields below and a timestamp, which for a user who has not opened
+  // the naming dialog is the generated RF-Sample_<timestamp> — what almost
+  // every capture uses.
   QString capture_name;
+
+  // What the user says the disc is: the title, the type, the standard, the
+  // side, the notes. Every capture records these in its sidecar, and some of
+  // them reach the file name — see capture_naming.h, where the rules are.
+  //
+  // Persisted, like the gain declaration and unlike test mode. Somebody
+  // capturing both sides of a disc types the title once, and an application
+  // that forgot it between the two would be asking for the same answer twice.
+  // The naming dialog's "Clear all fields" is what makes that safe: it is
+  // one press before the next disc, rather than eight fields to empty by hand.
+  capture::CaptureNamingFields naming;
 
   // What the capture is written as. FLAC by default: it halves the file and
   // carries its own provenance, and the encode is affordable.
@@ -139,7 +153,7 @@ struct CaptureSettings {
            front_end_gain_switches == other.front_end_gain_switches &&
            test_mode == other.test_mode &&
            capture_directory == other.capture_directory &&
-           capture_name == other.capture_name &&
+           capture_name == other.capture_name && naming == other.naming &&
            output_format == other.output_format &&
            decimation_factor == other.decimation_factor &&
            compression_level == other.compression_level &&
@@ -182,6 +196,13 @@ struct CaptureSettings {
   // The directory a capture will actually be written to: what the user chose,
   // or the platform's default when they have not chosen.
   QString ResolvedCaptureDirectory() const;
+
+  // The name a capture started at `when` would be given.
+  //
+  // One call rather than three, so the panel's preview, the guided setup's
+  // suggestion and the file the engine actually opens cannot disagree about
+  // what a capture is going to be called. Never empty.
+  std::string CaptureStem(std::time_t when) const;
 };
 
 // Where captures go when nobody has said otherwise.

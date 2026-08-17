@@ -202,8 +202,15 @@ bool AutoCaptureSequence::TeardownStepApplies(AutoCaptureStage stage) const {
 
     case AutoCaptureStage::kStoppingPlayer:
       // Only a player that was actually started, and only over a link that
-      // still exists. Stopping a player that was never played would be a
-      // command sent for the sake of symmetry.
+      // still exists.
+      //
+      // Not tidiness: on a Pioneer player the stop command is Reject, and a
+      // Reject sent to a disc that is already spinning down opens the tray —
+      // see PlayerCommand::kStop. `transport_started_` is what keeps this to at
+      // most one stop per run, sent to a disc this sequence knows it set
+      // turning. A run cancelled between the opening spin-down and the play
+      // that follows it has not started the transport, so nothing is sent and
+      // the tray stays shut.
       return transport_started_ && !link_failed_ &&
              controls_.Has(PlayerCommand::kStop);
 

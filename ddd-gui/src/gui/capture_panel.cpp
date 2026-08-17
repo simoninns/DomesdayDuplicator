@@ -32,6 +32,7 @@
 #include "capture_failure_presenter.h"
 #include "capture_format.h"
 #include "capture_naming.h"
+#include "capture_naming_dialog.h"
 #include "free_space.h"
 #include "statistics_presenter.h"
 #include "theme_color_tokens.h"
@@ -129,12 +130,31 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
 
   form->addRow(tr("Folder"), directory_row);
 
-  name_edit_ = new QLineEdit(contents);
+  // The name and the way into everything else that goes into one. The button
+  // sits beside the field rather than under it because the two are the same
+  // decision approached from different ends: type a name, or say what the disc
+  // is and let one be built.
+  auto* name_row = new QWidget(contents);
+  auto* name_layout = new QHBoxLayout(name_row);
+  name_layout->setContentsMargins(0, 0, 0, 0);
+
+  name_edit_ = new QLineEdit(name_row);
   name_edit_->setObjectName(QLatin1String(kNameEditName));
   name_edit_->setToolTip(
       tr("Leave empty to name each capture after the time it was taken, which "
-         "is what keeps a folder of captures in order."));
-  form->addRow(tr("Name"), name_edit_);
+         "is what keeps a folder of captures in order. Naming… builds the name "
+         "from what the disc is instead."));
+  name_layout->addWidget(name_edit_, 1);
+
+  naming_button_ = new QPushButton(tr("Naming…"), name_row);
+  naming_button_->setObjectName(QLatin1String(kNamingButtonName));
+  naming_button_->setToolTip(
+      tr("What the disc is: title, type, standard, side, notes. All of it is "
+         "recorded in the capture's metadata file, and some of it can be "
+         "folded into the file name."));
+  name_layout->addWidget(naming_button_);
+
+  form->addRow(tr("Name"), name_row);
 
   name_taken_label_ = new QLabel(contents);
   name_taken_label_->setObjectName(QLatin1String(kNameTakenLabelName));
@@ -255,6 +275,8 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
           &CapturePanel::OnDeviceSelected);
   connect(browse_button_, &QPushButton::clicked, this,
           &CapturePanel::OnBrowsePressed);
+  connect(naming_button_, &QPushButton::clicked, this,
+          &CapturePanel::OnNamingPressed);
   connect(duration_reset_button_, &QPushButton::clicked, this,
           &CapturePanel::OnDurationResetPressed);
 
@@ -336,8 +358,16 @@ void CapturePanel::ShowSettings() {
 }
 
 void CapturePanel::UpdateNamePlaceholder() {
-  name_edit_->setPlaceholderText(QString::fromStdString(
-      capture::DefaultCaptureStem(test_mode_, std::time(nullptr))));
+  // What the capture would be called if this field were left alone, which is
+  // the generated RF-Sample_<timestamp> until somebody has said what the disc
+  // is and something more useful afterwards.
+  const capture::CaptureNamingFields fields =
+      controller_ != nullptr ? controller_->settings().naming
+                             : capture::CaptureNamingFields{};
+
+  name_edit_->setPlaceholderText(
+      QString::fromStdString(capture::BuildCaptureStem(
+          fields, std::string(), test_mode_, std::time(nullptr))));
 
   // In test mode the name is not a suggestion, so the field stops accepting
   // one. Disabled rather than silently ignored: a field that took text and
@@ -419,6 +449,20 @@ void CapturePanel::OnBrowsePressed() {
 
   directory_edit_->setText(chosen);
   ApplySettingsFromWidgets();
+}
+
+void CapturePanel::OnNamingPressed() {
+  // Built afresh each time rather than kept, so the fields it shows are the
+  // settings as they are now — the guided setup writes a name into them, and a
+  // dialog held from before that would show the previous one.
+  CaptureNamingDialog dialog(controller_, this);
+  dialog.exec();
+
+  // Everything the dialog changed was applied as it was typed, so there is
+  // nothing to collect. What is left is this panel's own view of it: the
+  // placeholder is the name those fields now produce.
+  UpdateNamePlaceholder();
+  RefreshNameNote();
 }
 
 void CapturePanel::RefreshFreeSpace() {

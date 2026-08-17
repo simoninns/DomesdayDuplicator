@@ -18,6 +18,8 @@
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -26,6 +28,8 @@
 
 #include "auto_capture_controller.h"
 #include "capture_controller.h"
+#include "capture_format.h"
+#include "capture_metadata.h"
 #include "capture_reader.h"
 #include "disk_buffer_ring.h"
 #include "fake_serial_port.h"
@@ -179,10 +183,26 @@ class AutoCaptureControllerTest : public ::testing::Test {
     ASSERT_TRUE(PumpUntil([this] { return player_->connected(); }));
   }
 
+  // The recordings only. The metadata sidecar written beside each one is not a
+  // second capture, and it lands a statistics tick after the file is closed —
+  // so a listing that counted it would be a race as well as a miscount.
   std::vector<std::filesystem::path> WrittenFiles() const {
     std::vector<std::filesystem::path> files;
     for (const auto& entry : std::filesystem::directory_iterator(directory_)) {
-      files.push_back(entry.path());
+      if (!capture::MatchedCaptureFileSuffix(entry.path().string()).empty()) {
+        files.push_back(entry.path());
+      }
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+  }
+
+  std::vector<std::filesystem::path> MetadataFiles() const {
+    std::vector<std::filesystem::path> files;
+    for (const auto& entry : std::filesystem::directory_iterator(directory_)) {
+      if (entry.path().extension() == ".yaml") {
+        files.push_back(entry.path());
+      }
     }
     std::sort(files.begin(), files.end());
     return files;
@@ -250,6 +270,23 @@ TEST_F(AutoCaptureControllerTest, AWholeSideIsCapturedWithTheDiscFactsInIt) {
   EXPECT_EQ(tag(capture::kTagDiscSide), "1");
   EXPECT_EQ(tag(capture::kTagVideoStandard), "NTSC");
   EXPECT_FALSE(tag(capture::kTagPlayer).empty());
+
+  // And the sidecar beside it, which carries what the tags cannot: the whole
+  // examination, with how each fact was established. Waited for rather than
+  // assumed — it is written when the file is closed, which is a statistics tick
+  // after the writer was detached.
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+  EXPECT_EQ(MetadataFiles().front(),
+            capture::CaptureMetadataPath(files.front()));
+
+  std::ifstream metadata(MetadataFiles().front(), std::ios::binary);
+  const std::string document((std::istreambuf_iterator<char>(metadata)),
+                             std::istreambuf_iterator<char>());
+
+  EXPECT_NE(document.find("\"examined\": true"), std::string::npos) << document;
+  EXPECT_NE(document.find("\"source\": \"reported\""), std::string::npos)
+      << document;
+  EXPECT_NE(document.find("\"model_name\""), std::string::npos) << document;
 
   // And it does not leak into the next capture, which may be of another disc.
   EXPECT_TRUE(capture_->disc_provenance().empty());
@@ -353,33 +390,18 @@ TEST_F(AutoCaptureControllerTest, APlanThatCannotBeRunSendsNothing) {
   EXPECT_FALSE(capture_->capturing());
 }
 
-// --- The two coupling preferences ------------------------------------------
+// --- The coupling, and the direction it does not run in --------------------
 
-TEST_F(AutoCaptureControllerTest, StoppingACaptureStopsThePlayerWhenAsked) {
+// **A manual capture never touches the player**, and this is the test that says
+// so. There is no preference for it: the disc belongs to whoever is operating
+// it, and pressing Stop capture is a statement about a file.
+//
+// It is also the unsafe direction. The stop command is Reject on a Pioneer
+// player and a Reject arriving while the disc is already spinning down opens
+// the tray — so the old application's preference, which fired on every capture
+// stop, could eject somebody's disc with nobody in the room.
+TEST_F(AutoCaptureControllerTest, StoppingAManualCaptureLeavesThePlayerAlone) {
   BuildAndConnect();
-
-  PlayerSettings settings = player_->settings();
-  settings.stop_player_with_capture = true;
-  player_->SetSettings(settings);
-
-  capture_->StartCapture();
-  ASSERT_TRUE(capture_->capturing());
-  capture_->StopCapture();
-
-  ASSERT_TRUE(PumpUntil([this] {
-    const std::vector<std::string> written = port_.writes();
-    return std::find(written.begin(), written.end(), "RJ\r") != written.end();
-  }));
-
-  capture_->StopMonitoring();
-}
-
-TEST_F(AutoCaptureControllerTest, StoppingACaptureLeavesThePlayerAloneWhenNot) {
-  BuildAndConnect();
-
-  PlayerSettings settings = player_->settings();
-  settings.stop_player_with_capture = false;
-  player_->SetSettings(settings);
 
   capture_->StartCapture();
   ASSERT_TRUE(capture_->capturing());
@@ -391,9 +413,42 @@ TEST_F(AutoCaptureControllerTest, StoppingACaptureLeavesThePlayerAloneWhenNot) {
   PumpUntil([] { return false; }, 200ms);
 
   const std::vector<std::string> written = port_.writes();
-  EXPECT_EQ(std::find(written.begin(), written.end(), "RJ\r"), written.end());
+  EXPECT_EQ(std::find(written.begin(), written.end(), "RJ\r"), written.end())
+      << "stopping a manual capture stopped the player";
 
   capture_->StopMonitoring();
+}
+
+// Nor does starting or stopping monitoring, which is the same rule reached by
+// the other route somebody uses the two buttons.
+TEST_F(AutoCaptureControllerTest, MonitoringLeavesThePlayerAlone) {
+  BuildAndConnect();
+
+  capture_->StartMonitoring();
+  ASSERT_TRUE(capture_->monitoring());
+  capture_->StopMonitoring();
+
+  PumpUntil([this] { return !capture_->monitoring(); }, 200ms);
+
+  const std::vector<std::string> written = port_.writes();
+  EXPECT_EQ(std::find(written.begin(), written.end(), "RJ\r"), written.end());
+}
+
+// Nothing opens the tray on its own initiative, ever. "OP" reaches the port
+// only from the remote, where a person presses it — a machine ejecting a disc
+// unasked is not something this application does.
+TEST_F(AutoCaptureControllerTest, NothingEjectsTheDiscByItself) {
+  BuildAndConnect();
+
+  capture_->StartCapture();
+  ASSERT_TRUE(capture_->capturing());
+  capture_->StopCapture();
+  PumpUntil([] { return false; }, 200ms);
+  capture_->StopMonitoring();
+
+  const std::vector<std::string> written = port_.writes();
+  EXPECT_EQ(std::find(written.begin(), written.end(), "OP\r"), written.end())
+      << "the disc tray was opened without anybody asking";
 }
 
 TEST_F(AutoCaptureControllerTest, OneStoppedReadingDoesNotTruncateACapture) {

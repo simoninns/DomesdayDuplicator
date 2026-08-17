@@ -118,6 +118,163 @@ std::string SanitiseCaptureStem(const std::string& text) {
   return result;
 }
 
+const char* DiscTypeChoiceName(DiscTypeChoice choice) {
+  switch (choice) {
+    case DiscTypeChoice::kCav:
+      return "CAV";
+    case DiscTypeChoice::kClv:
+      return "CLV";
+    case DiscTypeChoice::kUnset:
+      break;
+  }
+  return "";
+}
+
+const char* VideoStandardChoiceName(VideoStandardChoice choice) {
+  switch (choice) {
+    case VideoStandardChoice::kNtsc:
+      return "NTSC";
+    case VideoStandardChoice::kPal:
+      return "PAL";
+    case VideoStandardChoice::kUnset:
+      break;
+  }
+  return "";
+}
+
+const char* AudioTypeChoiceName(AudioTypeChoice choice) {
+  switch (choice) {
+    case AudioTypeChoice::kDefault:
+      return "Default";
+    case AudioTypeChoice::kAnalogue:
+      return "Analogue";
+    case AudioTypeChoice::kAc3:
+      return "AC3";
+    case AudioTypeChoice::kDts:
+      return "DTS";
+    case AudioTypeChoice::kUnset:
+      break;
+  }
+  return "";
+}
+
+const char* DiscTypeChoiceToken(DiscTypeChoice choice) {
+  return DiscTypeChoiceName(choice);
+}
+
+const char* VideoStandardChoiceToken(VideoStandardChoice choice) {
+  return VideoStandardChoiceName(choice);
+}
+
+const char* AudioTypeChoiceToken(AudioTypeChoice choice) {
+  switch (choice) {
+    case AudioTypeChoice::kAnalogue:
+      return "ANA";
+    case AudioTypeChoice::kAc3:
+      return "AC3";
+    case AudioTypeChoice::kDts:
+      return "DTS";
+    case AudioTypeChoice::kDefault:
+    case AudioTypeChoice::kUnset:
+      break;
+  }
+
+  // Default contributes nothing to a name while still being a real answer in
+  // the sidecar. The old application's rule, and a sound one: "_Default" in a
+  // file name says less than the four characters cost.
+  return "";
+}
+
+std::string BuildCaptureStem(const CaptureNamingFields& fields,
+                             const std::string& typed_name, bool test_mode,
+                             std::time_t when) {
+  if (test_mode) {
+    return DefaultCaptureStem(true, when);
+  }
+
+  // A typed name wins outright, and carries no timestamp. That is what the
+  // Capture panel's Name field has always meant, and this is the one place the
+  // meaning is stated.
+  const std::string typed = SanitiseCaptureStem(typed_name);
+  if (!typed.empty()) {
+    return typed;
+  }
+
+  const std::string title =
+      fields.title_used ? SanitiseCaptureStem(fields.title) : std::string();
+  std::string name = title.empty() ? std::string(kCaptureNamePrefix) : title;
+
+  // kCaptureNamePrefix carries its own trailing underscore, so that the
+  // no-fields case produces exactly the name it produced before any of this
+  // existed. Everything below appends its own separator, so a title has to be
+  // given one.
+  if (!title.empty()) {
+    name += "_";
+  }
+
+  const auto append = [&name](const char* token) {
+    if (token != nullptr && token[0] != '\0') {
+      name += token;
+      name += "_";
+    }
+  };
+
+  if (fields.metadata_in_name) {
+    if (fields.disc_type_used) {
+      append(DiscTypeChoiceToken(fields.disc_type));
+    }
+    if (fields.video_standard_used) {
+      append(VideoStandardChoiceToken(fields.video_standard));
+    }
+    if (fields.audio_used) {
+      append(AudioTypeChoiceToken(fields.audio));
+    }
+  }
+
+  // The side joins the name whether or not the rest of the details do, and that
+  // asymmetry is deliberate rather than inherited. The two files somebody makes
+  // in a row are the two sides of one disc, and telling them apart afterwards
+  // is the whole problem a capture name exists to solve.
+  if (fields.side_used) {
+    name += "side" + std::to_string(fields.side) + "_";
+  }
+
+  if (fields.metadata_in_name) {
+    if (fields.notes_used) {
+      const std::string notes = SanitiseCaptureStem(fields.notes);
+      if (!notes.empty()) {
+        name += notes + "_";
+      }
+    }
+    if (fields.mint_marks_used) {
+      const std::string mint = SanitiseCaptureStem(fields.mint_marks);
+      if (!mint.empty()) {
+        name += mint + "_";
+      }
+    }
+  }
+
+  return name + FormatCaptureTimestamp(when);
+}
+
+std::string AppendDurationToStem(const std::string& stem, double seconds) {
+  // Negative or non-finite is not a duration. Rather than refuse, this records
+  // nothing: the alternative is a file that fails to be renamed at the end of a
+  // capture, which is the worst possible moment to introduce a failure.
+  if (!(seconds > 0.0)) {
+    return stem;
+  }
+
+  const auto whole = static_cast<uint64_t>(seconds);
+  const uint64_t hours = whole / 3600;
+  const uint64_t minutes = (whole / 60) % 60;
+  const uint64_t remainder = whole % 60;
+
+  return stem + "_" + TwoDigits(static_cast<int>(hours)) + "H" +
+         TwoDigits(static_cast<int>(minutes)) + "M" +
+         TwoDigits(static_cast<int>(remainder)) + "S";
+}
+
 std::filesystem::path BuildCapturePath(const std::filesystem::path& directory,
                                        const std::string& stem, bool test_mode,
                                        std::time_t when,
@@ -145,21 +302,8 @@ std::filesystem::path MakeUniqueCapturePath(
   // and produce "name.ddd_2.flac". Taking the whole suffix off the string is
   // the only way to insert the number where a reader expects it.
   const std::string full = preferred.string();
-
-  std::string suffix;
-  for (const CaptureOutputFormat format :
-       {CaptureOutputFormat::kFlac, CaptureOutputFormat::kSigned16Bit}) {
-    const std::string candidate_suffix = CaptureFileSuffix(format);
-    if (full.size() >= candidate_suffix.size() &&
-        full.compare(full.size() - candidate_suffix.size(),
-                     candidate_suffix.size(), candidate_suffix) == 0) {
-      suffix = candidate_suffix;
-      break;
-    }
-  }
-
-  const std::string base =
-      suffix.empty() ? full : full.substr(0, full.size() - suffix.size());
+  const std::string suffix = MatchedCaptureFileSuffix(full);
+  const std::string base = StripCaptureFileSuffix(full);
 
   std::filesystem::path candidate = preferred;
   for (int attempt = 2; attempt <= kMaximumNameAttempts; ++attempt) {

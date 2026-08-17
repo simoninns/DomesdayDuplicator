@@ -60,6 +60,10 @@ look for it, and they remember what time it was where they were standing.
 Type something in the Capture panel's **Name** field and that is used instead, reduced to
 characters that survive a copy to any of the three platforms.
 
+The **Naming…** button beside that field builds the name from what the disc is instead —
+`Casper_CLV_PAL_side2_2026-08-16_14-30-00` — and can append the capture's length once it is
+known. See [Naming and metadata](capture-naming.md).
+
 A capture taken in [test mode](test-mode.md) is **always** called `TestData_…`. That is
 forced rather than defaulted: a file called "Blade Runner side 1" that turns out to be ramps
 is a trap that costs somebody an afternoon.
@@ -92,6 +96,20 @@ Read them with any FLAC tool:
 ```bash
 metaflac --list --block-type=VORBIS_COMMENT capture.ddd.flac
 ```
+
+## The metadata file beside it
+
+Every capture is also written with a `.ddd.yaml` file of the same name, carrying what does
+not belong in a tag block: what you typed about the disc, what the player said about itself,
+what an examination of the disc measured, and how the capture went.
+
+```
+Casper_side2_2026-08-17_14-30-00.ddd.flac
+Casper_side2_2026-08-17_14-30-00.ddd.yaml
+```
+
+For an uncompressed `.ddd.s16` capture it is the only provenance there is. The full field
+reference is on [Naming and metadata](capture-naming.md).
 
 ## Reading a capture
 

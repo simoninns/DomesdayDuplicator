@@ -1411,4 +1411,153 @@ QString SuggestedCaptureName(const player::DiscProfile& disc) {
 
   return parts.join(QLatin1Char('_'));
 }
+
+namespace {
+
+// The fixed English vocabulary the sidecar records provenance in — see the
+// header, where the reason it is not translated is set out.
+const char* ProvenanceKeyword(player::Provenance provenance) {
+  switch (provenance) {
+    case player::Provenance::kReported:
+      return "reported";
+    case player::Provenance::kMeasured:
+      return "measured";
+    case player::Provenance::kInferred:
+      return "inferred";
+    case player::Provenance::kDeclared:
+      return "declared";
+    case player::Provenance::kUnknown:
+      break;
+  }
+  return "";
+}
+
+const char* UserCodeOutcomeKeyword(player::UserCodeReading::Outcome outcome) {
+  switch (outcome) {
+    case player::UserCodeReading::Outcome::kNotRead:
+      return "not read";
+    case player::UserCodeReading::Outcome::kRead:
+      return "read";
+    case player::UserCodeReading::Outcome::kNotEncoded:
+      return "not encoded on the disc";
+    case player::UserCodeReading::Outcome::kRefused:
+      return "no usable answer";
+  }
+  return "not read";
+}
+
+// One field of the profile as a value and where it came from.
+//
+// A template rather than a function per field, because the shape is the same
+// for all of them and only the formatting of the value differs — which is what
+// the caller supplies.
+template <typename T, typename Format>
+capture::ScannedFact Fact(const player::Fact<T>& fact, Format format) {
+  if (!fact.known()) {
+    return {};
+  }
+
+  capture::ScannedFact scanned;
+  scanned.value = format(fact.value);
+  scanned.source = ProvenanceKeyword(fact.provenance);
+  return scanned;
+}
+
+std::string YesOrNo(bool value) { return value ? "yes" : "no"; }
+
+}  // namespace
+
+capture::PlayerIdentity DescribePlayerIdentity(
+    const PlayerConnection& connection) {
+  if (!connection.live()) {
+    // Not merely unpopulated: a link that is searching, disconnected or
+    // switched off has no player on the end of it, and half-filling this from
+    // whatever the last one said would put the previous session's player in
+    // this session's file.
+    return {};
+  }
+
+  capture::PlayerIdentity player;
+  player.model_name = connection.model_name.toStdString();
+  player.model_id_code = connection.model_id_code.toStdString();
+  player.model_code = connection.model_code.toStdString();
+  player.firmware_version = connection.firmware_version.toStdString();
+  player.port = connection.port_path.toStdString();
+  player.baud_rate = connection.baud_rate;
+  player.recognised_model = connection.recognised_model;
+  return player;
+}
+
+capture::DiscScan DescribeDiscScan(const player::DiscProfile& disc) {
+  capture::DiscScan scan;
+  scan.examined = true;
+
+  // The addressing decides how the two programme ends are written, and it is
+  // taken from the profile rather than assumed: a CLV disc's addresses are time
+  // codes, and printing one as a frame number produces a seven-digit number
+  // that looks like a frame count and is not.
+  const player::AddressMode mode = disc.addressing.known()
+                                       ? disc.addressing.value
+                                       : player::AddressMode::kFrame;
+
+  scan.disc_present = Fact(disc.disc_present, YesOrNo);
+  scan.tray = Fact(disc.tray, [](player::TrayState tray) {
+    return TrayStateName(tray).toStdString();
+  });
+  scan.disc_type = Fact(disc.disc_type, [](player::DiscType type) {
+    return DiscTypeName(type).toStdString();
+  });
+  scan.addressing = Fact(disc.addressing, [](player::AddressMode value) {
+    return std::string(value == player::AddressMode::kTimeCode ? "time code"
+                                                               : "frame");
+  });
+  scan.disc_size = Fact(disc.disc_size, [](player::DiscSize size) {
+    return DiscSizeName(size).toStdString();
+  });
+  scan.disc_side =
+      Fact(disc.disc_side, [](int side) { return std::to_string(side); });
+  scan.video_standard =
+      Fact(disc.video_standard, [](player::VideoStandard standard) {
+        return VideoStandardName(standard).toStdString();
+      });
+
+  scan.programme_start = Fact(disc.programme_start, [mode](int32_t address) {
+    return FormatDiscAddress(address, mode).toStdString();
+  });
+  scan.programme_end = Fact(disc.programme_end, [mode](int32_t address) {
+    return FormatDiscAddress(address, mode).toStdString();
+  });
+
+  // Derived rather than read, so it is recorded as inferred: it follows from
+  // the two ends above and, for a CAV disc, from the video standard. Nothing at
+  // all where that standard was never established — a frame count is not a
+  // duration until something says how many frames go past in a second, and
+  // assuming thirty is twenty per cent wrong on a PAL disc.
+  if (const std::optional<std::chrono::seconds> duration =
+          player::ProgrammeDuration(disc);
+      duration.has_value()) {
+    scan.programme_duration.value = std::to_string(duration->count());
+    scan.programme_duration.source = "inferred";
+  }
+
+  scan.lead_in_reachable = Fact(disc.lead_in_reachable, YesOrNo);
+  scan.chapters = Fact(disc.chapters, YesOrNo);
+
+  scan.disc_status_reply = disc.disc_status_reply;
+
+  scan.standard_user_code_outcome =
+      UserCodeOutcomeKeyword(disc.standard_user_code.outcome);
+  scan.standard_user_code = disc.standard_user_code.text;
+
+  // Recorded exactly as it arrived, unreadable characters and all. Those
+  // characters are the evidence — see user_code.h, where telling a field that
+  // was never encoded from one the player could not read is the whole job — and
+  // the metadata writer escapes them rather than dropping them.
+  scan.pioneer_user_code_outcome =
+      UserCodeOutcomeKeyword(disc.pioneer_user_code.outcome);
+  scan.pioneer_user_code = disc.pioneer_user_code.text;
+
+  return scan;
+}
+
 }  // namespace ddd::gui

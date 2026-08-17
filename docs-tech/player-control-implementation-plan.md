@@ -1434,12 +1434,13 @@ From [ddd-gui-implementation-plan.md](ddd-gui-implementation-plan.md)'s *Future*
 | Player remote dialog (full transport, manual serial commands, user-code reads) | Phase 3 |
 | Disc examination (type, addressing, measured length, chapters, user codes) | Phase 4 — no equivalent in the old application |
 | Automatic capture state machine (whole disc / partial / lead-in, CAV+CLV, key-lock) | Phase 5, re-shaped around the examine flow |
-| "Stop player when capture stops" / "Stop capture when player stops" | Task 5.3 |
-| Metadata sidecar — player-derived fields | Partially: disc facts reach the existing capture provenance (Task 5.3). The sidecar itself stays Future with advanced naming |
+| "Stop player when capture stops" / "Stop capture when player stops" | Task 5.3 — and the first of the two has since been **removed**. The automatic capture spins the disc down as a step of its own sequence, so that preference only ever acted on manual captures, where the disc belongs to whoever is operating it; it is also the unsafe direction, since a Reject arriving while the disc is already spinning down opens the tray. The coupling now runs one way only: the player may stop the capture, never the reverse |
+| Metadata sidecar — player-derived fields | **Built.** Disc facts reach the capture provenance (Task 5.3), and the sidecar itself now exists as `<capture>.ddd.yaml` — carrying the player identity for every capture taken with a live link, and the whole examination with each fact's provenance for an automatic one |
 
-Remaining Future after this plan: advanced naming and its metadata sidecar; reset
-notes/mint marks on side change; migration of the old application's INI settings; and
-packaging work already tracked elsewhere.
+Remaining Future after this plan: migration of the old application's INI settings, and
+packaging work already tracked elsewhere. Advanced naming, its metadata sidecar and the
+per-side notes preference have since been built — see the
+[ddd-gui plan](ddd-gui-implementation-plan.md)'s ledger.
 
 ## Out of scope
 

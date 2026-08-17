@@ -49,7 +49,26 @@ enum class PlayerCommand : uint8_t {
 
   kPause,
   kStillFrame,
+
+  // Spin the disc down and park it.
+  //
+  // **On a Pioneer player this is Reject — "RJ" — and a Reject sent to a player
+  // that is already spinning down opens the tray.** That is a mechanical
+  // operation on somebody's disc, done by a machine, with nobody necessarily in
+  // the room; it is not something this application initiates. The consequences
+  // are twofold and both are load-bearing:
+  //
+  //   nothing outside an automatic capture ever sends this — see
+  //   PlayerSettings, where the old application's "stop the player when a
+  //   capture stops" preference is deliberately not carried over;
+  //
+  //   and inside one, it is sent at most once and only to a transport this
+  //   sequence actually started — see AutoCaptureSequence::TeardownStepApplies.
+  //
+  // Nothing anywhere sends kTrayOpen on its own initiative. It exists for the
+  // remote, where a person presses it.
   kStop,
+
   kStepForward,
   kStepReverse,
   kScanForward,

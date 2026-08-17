@@ -92,7 +92,6 @@ class GuidedCaptureDialog : public QDialog {
   static constexpr const char* kNameEditName = "guided_name";
   static constexpr const char* kNameTakenLabelName = "guided_name_taken";
   static constexpr const char* kKeyLockCheckName = "guided_key_lock";
-  static constexpr const char* kStopPlayerCheckName = "guided_stop_player";
   static constexpr const char* kStopCaptureCheckName = "guided_stop_capture";
 
   static constexpr const char* kEstimateLabelName = "guided_estimate";
@@ -178,7 +177,6 @@ class GuidedCaptureDialog : public QDialog {
   // Shown only while the typed name is one a capture already has.
   QLabel* name_taken_ = nullptr;
   QCheckBox* key_lock_ = nullptr;
-  QCheckBox* stop_player_ = nullptr;
   QCheckBox* stop_capture_ = nullptr;
 
   QLabel* estimate_ = nullptr;
