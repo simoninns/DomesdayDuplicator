@@ -198,4 +198,17 @@ class UpdateOrchestrator {
 // direction.
 int EstimateUpdateSeconds(const UpdateManifest& manifest);
 
+// The same estimate for one component on its own.
+//
+// Public because the interface's progress bar needs it and must not derive it
+// a second time: the bar is one bar over the whole update, so how much of it
+// each component is entitled to *is* this arithmetic. Two copies of it would
+// be a bar that disagreed with the estimate printed above it.
+double EstimateComponentSeconds(UpdateTarget target,
+                                const UpdateComponent& component);
+
+// The device restarting and coming back, which no amount of arithmetic will
+// predict. Public for the same reason as the function above.
+inline constexpr int kUpdateRestartSeconds = 10;
+
 }  // namespace ddd::capture

@@ -14,6 +14,7 @@
 #include <QApplication>
 #include <QFile>
 #include <QLabel>
+#include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -29,6 +30,7 @@
 #include "update_fixtures.h"
 #include "update_key.h"
 #include "update_page.h"
+#include "update_step_list.h"
 
 namespace ddd::gui {
 namespace {
@@ -222,6 +224,14 @@ struct PageUnderTest {
     return page->findChild<QProgressBar*>(
         QLatin1String(UpdatePage::kProgressBarName));
   }
+  UpdateStepList* Steps() const {
+    return page->findChild<UpdateStepList*>(
+        QLatin1String(UpdatePage::kStepListName));
+  }
+  QPlainTextEdit* Log() const {
+    return page->findChild<QPlainTextEdit*>(
+        QLatin1String(UpdatePage::kLogViewName));
+  }
 
   // Run the update and wait for it to finish. Returns false if it never did.
   bool RunToCompletion() {
@@ -384,6 +394,229 @@ TEST(UpdatePageTest, ASuccessfulUpdateSendsTheBundleAndRestartsTheDevice) {
       << "both components should have been installed";
   EXPECT_EQ(test.device->reset_count(), 1u);
   EXPECT_EQ(test.device->reconfigure_count(), 1u);
+}
+
+// --- The steps, the one bar, and the details window ------------------------
+//
+// The shape of the flow, as a user meets it: the whole procedure listed and
+// greyed before it starts, one bar that fills once across all of it, the step
+// in hand picked out, and every line the engine produced kept behind a button
+// for whoever wants it.
+
+// The list is on screen before the button is pressed, because what a user
+// needs in order to decide whether to start an update is what starting it
+// commits them to.
+TEST(UpdatePageStepsTest, TheStepsAreListedAndGreyedBeforeTheUpdateStarts) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.page->LoadBundle(bundle.path());
+
+  UpdateStepList* const steps = test.Steps();
+  ASSERT_NE(steps, nullptr);
+
+  // The fixture bundle carries both halves: check, firmware, gateware,
+  // restart, confirm.
+  ASSERT_EQ(steps->count(), 5);
+  EXPECT_TRUE(steps->TitleAt(1).contains(QStringLiteral("firmware")));
+  EXPECT_TRUE(steps->TitleAt(2).contains(QStringLiteral("gateware")));
+
+  for (int step = 0; step < steps->count(); ++step) {
+    EXPECT_EQ(steps->StateAt(step), UpdateStepList::State::kPending)
+        << "step " << step << " is not greyed before anything has happened";
+  }
+}
+
+TEST(UpdatePageStepsTest, ThereIsNothingToListUntilAFileIsChosen) {
+  const PageUnderTest test;
+
+  ASSERT_NE(test.Steps(), nullptr);
+  EXPECT_EQ(test.Steps()->count(), 0);
+}
+
+// A file that turns out to be unreadable must not leave the previous file's
+// plan on the screen, promising steps that will never run.
+TEST(UpdatePageStepsTest, AFileThatCannotBeUsedClearsThePlan) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_GT(test.Steps()->count(), 0);
+
+  test.page->LoadBundle(QStringLiteral("/nonexistent/update.dddfw"));
+  EXPECT_EQ(test.Steps()->count(), 0);
+}
+
+// Pressing the button has a visible effect on the frame after it is pressed,
+// rather than whenever a worker thread gets round to its first report.
+TEST(UpdatePageStepsTest, TheFirstStepIsLitAsSoonAsTheButtonIsPressed) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.page->LoadBundle(bundle.path());
+  test.Button(UpdatePage::kInstallButtonName)->click();
+
+  // Read before the event loop is pumped, so nothing the worker has sent can
+  // have arrived: this is what the button itself did.
+  EXPECT_EQ(test.Steps()->StateAt(0), UpdateStepList::State::kActive);
+  EXPECT_EQ(test.Steps()->StateAt(1), UpdateStepList::State::kPending);
+
+  for (int attempt = 0; attempt < 2000 && test.page->busy(); ++attempt) {
+    QTest::qWait(5);
+  }
+}
+
+TEST(UpdatePageStepsTest, EveryStepIsTickedWhenTheUpdateFinishes) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_TRUE(test.RunToCompletion());
+
+  for (int step = 0; step < test.Steps()->count(); ++step) {
+    EXPECT_EQ(test.Steps()->StateAt(step), UpdateStepList::State::kDone)
+        << "step " << step << " is not ticked after a successful update";
+  }
+
+  EXPECT_EQ(test.Progress()->value(), 100);
+}
+
+// The distinction the list exists to make on a failure: "the firmware went in
+// and the gateware did not" is a different situation from "nothing happened",
+// and the ticks are where a user can see which of them they are in.
+TEST(UpdatePageStepsTest,
+     TheStepItStoppedOnIsMarkedAndTheEarlierOnesKeepTicks) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  // Refused at the first chunk of the firmware, which is step 2 of the five.
+  test.device->SetFault(FakeDeviceUpdater::Fault::kRefuseChunk);
+  test.device->SetFailAtChunk(0);
+  test.device->SetFailureError(capture::DeviceUpdateError::kStreamDigest);
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_TRUE(test.RunToCompletion());
+
+  EXPECT_EQ(test.Steps()->StateAt(0), UpdateStepList::State::kDone)
+      << "the check that did pass lost its tick";
+  EXPECT_EQ(test.Steps()->StateAt(1), UpdateStepList::State::kFailed);
+  EXPECT_EQ(test.Steps()->StateAt(2), UpdateStepList::State::kPending)
+      << "a step that never ran is shown as having been tried";
+}
+
+// One bar over the whole update, and it only ever fills. The engine's byte
+// counts restart from zero when it moves on to the second component, and a
+// bar that slipped back there would be read as an update going wrong.
+TEST(UpdatePageStepsTest, TheOneBarOnlyEverMovesForwards) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.page->LoadBundle(bundle.path());
+
+  std::vector<int> values;
+  QObject::connect(test.Progress(), &QProgressBar::valueChanged,
+                   test.Progress(),
+                   [&values](int value) { values.push_back(value); });
+
+  ASSERT_TRUE(test.RunToCompletion());
+
+  ASSERT_FALSE(values.empty()) << "the bar never moved at all";
+  for (size_t index = 1; index < values.size(); ++index) {
+    EXPECT_GE(values[index], values[index - 1])
+        << "the bar went backwards at report " << index;
+  }
+
+  // And it is a real proportion throughout rather than a busy indicator with
+  // no numbers on it.
+  EXPECT_EQ(test.Progress()->minimum(), 0);
+  EXPECT_EQ(test.Progress()->maximum(), 100);
+}
+
+// The details window is for the user who wants it and out of the way of the
+// user who does not.
+TEST(UpdatePageStepsTest,
+     TheDetailsWindowIsClosedAndUnofferedUntilSomethingRuns) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.page->LoadBundle(bundle.path());
+
+  QPushButton* const details = test.Button(UpdatePage::kDetailsButtonName);
+  ASSERT_NE(details, nullptr);
+  EXPECT_FALSE(details->isVisibleTo(test.page.get()))
+      << "a details button is offered when there is nothing to detail";
+  EXPECT_FALSE(test.Log()->isVisibleTo(test.page.get()));
+}
+
+TEST(UpdatePageStepsTest, TheDetailsWindowHoldsWhatTheEngineReported) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_TRUE(test.RunToCompletion());
+
+  QPushButton* const details = test.Button(UpdatePage::kDetailsButtonName);
+  ASSERT_NE(details, nullptr);
+  EXPECT_TRUE(details->isVisibleTo(test.page.get()));
+
+  details->click();
+  EXPECT_TRUE(test.Log()->isVisibleTo(test.page.get()));
+  EXPECT_EQ(details->text(), QStringLiteral("Hide details"));
+
+  const QString log = test.Log()->toPlainText();
+  EXPECT_TRUE(log.contains(QStringLiteral("Update started")));
+  EXPECT_TRUE(log.contains(QStringLiteral("firmware")))
+      << "the log does not name what was installed: " << log.toStdString();
+  EXPECT_TRUE(log.contains(QStringLiteral("gateware")));
+
+  // Rolling, not one line per chunk: a transfer reports per chunk and a log
+  // that scrolled at that rate would be unreadable, which is the same as not
+  // being there.
+  EXPECT_LT(log.count(QLatin1Char('\n')), 40)
+      << "the log is one line per report rather than one per phase";
+}
+
+// A failure is the case the details window exists for, so the reason has to
+// be in it and not only in the label above.
+TEST(UpdatePageStepsTest, AFailureIsWrittenIntoTheDetailsWindow) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.device->SetFault(FakeDeviceUpdater::Fault::kFailDuringWrite);
+  test.device->SetFailureError(capture::DeviceUpdateError::kWrite);
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_TRUE(test.RunToCompletion());
+
+  EXPECT_FALSE(test.Log()->toPlainText().isEmpty());
+  EXPECT_TRUE(
+      test.Log()->toPlainText().contains(QStringLiteral("Update started")));
+}
+
+// "Try again" runs the same plan from the beginning, so the list has to start
+// again with it rather than keeping the marks from the attempt that failed.
+TEST(UpdatePageStepsTest, TryingAgainStartsTheListOver) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.device->SetFault(FakeDeviceUpdater::Fault::kRefuseChunk);
+  test.device->SetFailAtChunk(0);
+  test.device->SetFailureError(capture::DeviceUpdateError::kStreamDigest);
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_TRUE(test.RunToCompletion());
+  ASSERT_EQ(test.Steps()->StateAt(1), UpdateStepList::State::kFailed);
+
+  test.Button(UpdatePage::kInstallButtonName)->click();
+
+  EXPECT_EQ(test.Steps()->StateAt(0), UpdateStepList::State::kActive);
+  EXPECT_EQ(test.Steps()->StateAt(1), UpdateStepList::State::kPending)
+      << "the second attempt inherited the first one's cross";
+  EXPECT_EQ(test.Progress()->value(), 0);
+
+  for (int attempt = 0; attempt < 2000 && test.page->busy(); ++attempt) {
+    QTest::qWait(5);
+  }
 }
 
 // --- The failure branches --------------------------------------------------

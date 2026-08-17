@@ -342,6 +342,11 @@ debounced when on, and it is still the setting to think twice about. It sends no
 the serial cable: it watches the status the player is already being polled for and stops the
 *capture*, which is the application's own to stop.
 
+It watches for a player that *stops*, not for one that is stopped: nothing is stopped until
+the disc has been seen turning since the capture began. Pressing **Start capture** and then
+walking over to the player to press **Play** is the ordinary order of doing things, and the
+setting leaves that capture alone until the side has actually played.
+
 **A capture stopping never stops the player.** Outside an automatic capture, nothing in this
 application sends the player a command you did not ask for — pressing **Stop capture** during
 a manual capture leaves the disc exactly where it is, so capturing the first half of a side

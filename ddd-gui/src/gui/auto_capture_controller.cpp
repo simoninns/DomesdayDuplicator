@@ -282,6 +282,13 @@ void AutoCaptureController::OnCapturingChanged(bool capturing,
   // is the thing operating it: the sequence has a spin-down stage of its own,
   // sent once and only to a transport it started.
   stopped_readings_ = 0;
+
+  // The watch starts disarmed for every capture, including this one. A capture
+  // begun against a player that is not spinning yet is the ordinary way of
+  // working — start the file, then start the disc — and a watch that counted
+  // from the first reading would end it before the disc turned. See
+  // OnStatusUpdated.
+  seen_spinning_ = false;
 }
 
 void AutoCaptureController::OnStatusUpdated(
@@ -289,6 +296,7 @@ void AutoCaptureController::OnStatusUpdated(
   if (!settings_.stop_capture_with_player || running() || capture_ == nullptr ||
       !capture_->capturing()) {
     stopped_readings_ = 0;
+    seen_spinning_ = false;
     return;
   }
 
@@ -297,7 +305,26 @@ void AutoCaptureController::OnStatusUpdated(
     // Anything but a player that has definitely stopped resets the count. A
     // reading nobody could parse is not evidence of a stop, and treating it as
     // one is how a link with a loose connector truncates a capture.
+    //
+    // A definite spin also arms the watch: from here on there is a disc turning
+    // for it to notice the end of.
+    if (player::IsSpinning(status.state)) {
+      seen_spinning_ = true;
+    }
     stopped_readings_ = 0;
+    return;
+  }
+
+  if (!seen_spinning_) {
+    // A stopped player, but one that has not turned since this capture opened,
+    // so there is nothing here that stopped. The preference is "stop the
+    // capture when the player stops" — an event — and a player that was already
+    // parked when Start capture was pressed has not had one.
+    //
+    // Without this the ordinary manual order of doing things ends the capture
+    // before it has any samples in it: press Start capture, and three readings
+    // later the watch stops the file the user is still walking over to the
+    // player to fill.
     return;
   }
 

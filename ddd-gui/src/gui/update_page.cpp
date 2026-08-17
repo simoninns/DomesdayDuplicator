@@ -11,11 +11,15 @@
 
 #include "update_page.h"
 
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileDialog>
+#include <QFont>
+#include <QFontDatabase>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QThread>
@@ -25,11 +29,18 @@
 
 #include "update_bundle.h"
 #include "update_gate.h"
+#include "update_step_list.h"
 #include "update_text.h"
 #include "update_worker.h"
 
 namespace ddd::gui {
 namespace {
+
+// How many lines the details window keeps. Rolling rather than unbounded: a
+// long update on a slow medium produces thousands of reports, and the lines
+// worth reading are always the recent ones. A hundred is several minutes of
+// an update at the rate distinct messages actually change.
+constexpr int kLogLines = 200;
 
 QLabel* MakeLabel(QWidget* parent, const char* object_name) {
   auto* label = new QLabel(parent);
@@ -67,13 +78,35 @@ UpdatePage::UpdatePage(QString application_version, Device device,
   banner_->setVisible(false);
   layout->addWidget(banner_);
 
-  status_ = MakeLabel(this, kStatusLabelName);
-  layout->addWidget(status_);
+  // The procedure, above the bar that measures it. Greyed until there is a
+  // bundle to plan from, and then greyed until the update starts: what it
+  // shows before the button is pressed is what *will* happen, and the heading
+  // says so in those words rather than leaving a numbered list to be read as
+  // either a plan or a report depending on which the reader assumed.
+  steps_heading_ = MakeLabel(this, kStepsHeadingName);
+  steps_heading_->setVisible(false);
+  SetStepsHeading(tr("What will happen"));
+  layout->addWidget(steps_heading_);
 
+  steps_ = new UpdateStepList(this);
+  steps_->setObjectName(QLatin1String(kStepListName));
+  steps_->setVisible(false);
+  layout->addWidget(steps_);
+
+  // One bar, over the whole update. Its text names the step it is inside, so
+  // that a glance at the bar alone still answers "which of these am I on".
   progress_ = new QProgressBar(this);
   progress_->setObjectName(QLatin1String(kProgressBarName));
+  progress_->setRange(0, 100);
+  progress_->setValue(0);
+  progress_->setTextVisible(true);
   progress_->setVisible(false);
   layout->addWidget(progress_);
+
+  // What the current step is doing right now, under the bar that says how far
+  // through it is.
+  status_ = MakeLabel(this, kStatusLabelName);
+  layout->addWidget(status_);
 
   // The one instruction that matters, and it is on the screen before the
   // first byte moves rather than appearing when it is already too late to
@@ -82,6 +115,39 @@ UpdatePage::UpdatePage(QString application_version, Device device,
   instruction_->setText(UpdateHoldStillInstruction());
   instruction_->setVisible(false);
   layout->addWidget(instruction_);
+
+  // The rolling log, and the button that reveals it. Closed by default and
+  // remembered for the life of the dialog: the step list and the one line
+  // under the bar are the whole of what most users need, and somebody
+  // diagnosing a failure — or reporting one — needs every line the engine
+  // produced. Both are served, and neither is in the other's way.
+  details_ = new QPushButton(tr("Show details"), this);
+  details_->setObjectName(QLatin1String(kDetailsButtonName));
+  details_->setCheckable(true);
+  details_->setVisible(false);
+  connect(details_, &QPushButton::toggled, this, &UpdatePage::ShowDetails);
+
+  auto* details_row = new QHBoxLayout;
+  details_row->addWidget(details_);
+  details_row->addStretch(1);
+  layout->addLayout(details_row);
+
+  log_ = new QPlainTextEdit(this);
+  log_->setObjectName(QLatin1String(kLogViewName));
+  log_->setReadOnly(true);
+  log_->setMaximumBlockCount(kLogLines);
+  log_->setVisible(false);
+
+  // A fixed-pitch font, because the lines are timestamped and a column that
+  // does not line up is a column nobody scans.
+  log_->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+
+  // Tall enough to show the last several lines and no taller. This page sits
+  // inside a scroll area, and a details window that grew without limit would
+  // push the buttons off the bottom of it.
+  constexpr int kLogHeightPixels = 140;
+  log_->setMaximumHeight(kLogHeightPixels);
+  layout->addWidget(log_);
 
   auto* buttons = new QHBoxLayout;
   buttons->addStretch(1);
@@ -173,12 +239,81 @@ void UpdatePage::RefreshButtons() {
   install_->setEnabled(!running && bundle_installable_ && device_.attached);
   cancel_->setVisible(running);
 
-  // The bar stays after a run rather than vanishing with the buttons: it
-  // ends at 100% on a success and stopped part way on a failure, and both
-  // are things worth still being able to see.
-  progress_->setVisible(running || attempted_);
+  // The plan appears as soon as there is one, before the button is pressed:
+  // an update cannot be interrupted safely, so what a user needs in order to
+  // decide whether to start one is what starting it commits them to.
+  //
+  // The list and the bar then stay after a run rather than vanishing with the
+  // buttons — the bar ends full on a success and stopped part way on a
+  // failure, with a tick against every step that did finish, and all of that
+  // is worth still being able to see.
+  const bool planned = steps_->count() > 0;
+  steps_heading_->setVisible(planned);
+  steps_->setVisible(planned);
+  progress_->setVisible(planned || running || attempted_);
 
   instruction_->setVisible(running);
+
+  // The details button appears with the first attempt rather than with the
+  // plan: before anything has run there is nothing in the log to show.
+  details_->setVisible(attempted_);
+  log_->setVisible(attempted_ && details_->isChecked());
+}
+
+void UpdatePage::ShowDetails(bool shown) {
+  details_->setText(shown ? tr("Hide details") : tr("Show details"));
+  log_->setVisible(shown && attempted_);
+}
+
+void UpdatePage::PlanSteps() {
+  if (!manifest_.has_value() || !bundle_installable_) {
+    tracker_ = UpdateProgressTracker();
+    steps_->SetSteps({});
+    progress_->setValue(0);
+    progress_->setFormat(QStringLiteral("%p%"));
+    return;
+  }
+
+  tracker_ = UpdateProgressTracker(PlanUpdateSteps(*manifest_, in_recovery()));
+
+  std::vector<QString> titles;
+  titles.reserve(tracker_.steps().size());
+  for (const UpdateStep& step : tracker_.steps()) {
+    titles.push_back(step.title);
+  }
+
+  steps_->SetSteps(titles);
+  SetStepsHeading(tr("What will happen"));
+  progress_->setValue(0);
+  progress_->setFormat(tr("Not started"));
+}
+
+void UpdatePage::SetStepsHeading(const QString& heading) {
+  steps_heading_->setText(
+      QStringLiteral("<b>%1</b>").arg(heading.toHtmlEscaped()));
+}
+
+void UpdatePage::ShowPosition(const UpdateProgressTracker::Position& position) {
+  progress_->setValue(position.percent);
+
+  if (position.step >= 0 && position.step < steps_->count()) {
+    steps_->SetCurrent(position.step);
+
+    // "Step 2 of 5 — 42%". The bar carries the count because the bar is what
+    // the eye goes to, and a percentage on its own does not say how much of
+    // the procedure is left to sit through.
+    progress_->setFormat(
+        tr("Step %1 of %2 — %p%").arg(position.step + 1).arg(steps_->count()));
+  }
+}
+
+void UpdatePage::AppendLog(const QString& line) {
+  const qint64 seconds = (clock_.isValid() ? clock_.elapsed() : 0) / 1000;
+
+  log_->appendPlainText(QStringLiteral("%1:%2  %3")
+                            .arg(seconds / 60)
+                            .arg(seconds % 60, 2, 10, QLatin1Char('0'))
+                            .arg(line));
 }
 
 void UpdatePage::ChooseBundle() {
@@ -199,6 +334,11 @@ void UpdatePage::LoadBundle(const QString& path) {
   manifest_.reset();
   bundle_installable_ = false;
   status_->clear();
+
+  // The plan belonged to the file that was chosen before this one. Cleared
+  // first so that a file which turns out to be unreadable cannot leave the
+  // previous file's steps on the screen.
+  PlanSteps();
 
   QFile file(path);
   if (!file.open(QIODevice::ReadOnly)) {
@@ -266,6 +406,13 @@ void UpdatePage::LoadBundle(const QString& path) {
   }
 
   SetBundleState(summary, banner);
+
+  // Built from the manifest that has just been verified and gated, so the
+  // list is the truth about this file on this device: a bundle with no
+  // gateware in it shows no gateware step, and a device in recovery shows the
+  // step that wakes it.
+  PlanSteps();
+
   RefreshVersions();
   RefreshButtons();
 }
@@ -312,9 +459,37 @@ void UpdatePage::StartUpdate() {
   connect(worker_, &UpdateWorker::Progress, this, &UpdatePage::HandleProgress);
   connect(worker_, &UpdateWorker::Finished, this, &UpdatePage::HandleFinished);
 
-  progress_->setRange(0, 0);
+  // A second attempt starts from the beginning of the same plan rather than
+  // from where the first one stopped: the engine does, so the list has to.
+  tracker_.Reset();
+  logged_stage_ = -1;
+  logged_target_ = -1;
+  logged_message_.clear();
+
+  clock_.start();
+
+  if (log_->blockCount() > 1 || !log_->toPlainText().isEmpty()) {
+    log_->appendPlainText(QString());
+  }
+  AppendLog(tr("Update started. %1")
+                .arg(manifest_.has_value()
+                         ? tr("Installing version %1.")
+                               .arg(QString::fromStdString(manifest_->version))
+                         : QString()));
+
+  progress_->setRange(0, 100);
+  progress_->setValue(0);
+
+  SetStepsHeading(tr("What is happening"));
+
+  // The first step is lit here rather than waiting for the worker's first
+  // report, so that pressing the button has a visible effect on the frame
+  // after it is pressed rather than whenever a thread gets round to starting.
   ShowStage(capture::UpdateStage::kChecking, capture::UpdateTarget::kFirmware,
             QString());
+  ShowPosition(tracker_.Fold(capture::UpdateStage::kChecking,
+                             capture::UpdateTarget::kFirmware, 0, 0));
+
   RefreshButtons();
   emit BusyChanged(true);
 
@@ -325,40 +500,47 @@ void UpdatePage::CancelUpdate() {
   if (worker_ != nullptr) {
     worker_->Cancel();
     cancel_->setEnabled(false);
-    status_->setText(
-        QStringLiteral("<b>%1</b>")
-            .arg(tr("Stopping at the next safe point. Leave the device "
-                    "plugged in.")));
+
+    const QString stopping =
+        tr("Stopping at the next safe point. Leave the device plugged in.");
+    status_->setText(QStringLiteral("<b>%1</b>").arg(stopping));
+    AppendLog(stopping);
   }
 }
 
 void UpdatePage::ShowStage(capture::UpdateStage stage,
                            capture::UpdateTarget target,
                            const QString& message) {
-  QString text = QStringLiteral("<b>%1</b>")
-                     .arg(UpdateStageTitle(stage, target).toHtmlEscaped());
-  if (!message.isEmpty()) {
-    text += QStringLiteral("<br>") + message.toHtmlEscaped();
-  }
-  status_->setText(text);
+  // The stage's own title is not repeated here during a run: the step list
+  // above the bar is already showing it, in bold, with the steps either side
+  // of it for context. What this line adds is the sentence underneath — what
+  // the device is doing this second, and why it is about to pause.
+  const QString text =
+      message.isEmpty() ? UpdateStageTitle(stage, target) : message;
+  status_->setText(text.toHtmlEscaped());
 }
 
 void UpdatePage::HandleProgress(int stage, int target, quint64 done,
                                 quint64 total, const QString& message) {
   const auto update_stage = static_cast<capture::UpdateStage>(stage);
-  ShowStage(update_stage, static_cast<capture::UpdateTarget>(target), message);
+  const auto update_target = static_cast<capture::UpdateTarget>(target);
 
-  // A stage with no meaningful proportion gets a busy indicator and a line
-  // saying what it is waiting for, rather than a bar invented to fill the
-  // space. Progress here is either real or absent.
-  if (total == 0) {
-    progress_->setRange(0, 0);
-    return;
+  ShowStage(update_stage, update_target, message);
+  ShowPosition(tracker_.Fold(update_stage, update_target, done, total));
+
+  // One line per change of phase, not one per report. A transfer produces a
+  // report per chunk — thousands of them, all saying the same sentence — and
+  // a log that scrolled at that rate would be unreadable, which is the same
+  // as not being there at all.
+  if (stage != logged_stage_ || target != logged_target_ ||
+      message != logged_message_) {
+    logged_stage_ = stage;
+    logged_target_ = target;
+    logged_message_ = message;
+
+    AppendLog(message.isEmpty() ? UpdateStageTitle(update_stage, update_target)
+                                : message);
   }
-
-  progress_->setRange(0, 100);
-  progress_->setValue(
-      static_cast<int>((done * 100) / (total == 0 ? 1 : total)));
 }
 
 void UpdatePage::HandleFinished(bool succeeded, const QString& problem,
@@ -378,6 +560,8 @@ void UpdatePage::HandleFinished(bool succeeded, const QString& problem,
     thread_->deleteLater();
     thread_ = nullptr;
   }
+
+  SetStepsHeading(tr("What happened"));
 
   if (succeeded) {
     // The device is read back rather than assumed, so what is shown here is
@@ -399,8 +583,19 @@ void UpdatePage::HandleFinished(bool succeeded, const QString& problem,
                                   .toHtmlEscaped(),
                               UpdateCompleteText(identity)));
 
+    // Every step ticked and the bar full. The list is then a record of what
+    // was done rather than a plan of what was going to be.
+    tracker_.Complete();
+    steps_->MarkComplete();
     progress_->setRange(0, 100);
     progress_->setValue(100);
+    progress_->setFormat(UpdateStageTitle(capture::UpdateStage::kComplete));
+
+    // What the device reported when it came back, rather than the bare word
+    // the engine has already logged: the log's last line is the one somebody
+    // pastes into a bug report, and this is the line worth having there.
+    AppendLog(tr("Update complete. The device reports %1.")
+                  .arg(QString::fromStdString(identity.product_string)));
 
     // Nothing left to install from this file, so the button does not invite
     // a second run of an update that has already happened, and it stops
@@ -413,6 +608,24 @@ void UpdatePage::HandleFinished(bool succeeded, const QString& problem,
             .arg(
                 UpdateStageTitle(capture::UpdateStage::kFailed).toHtmlEscaped(),
                 UpdateFailureText(problem)));
+
+    // The step it stopped on is crossed, and the ones before it keep their
+    // ticks. On a bundle carrying both halves that distinction is the whole
+    // story: "the firmware went in and the gateware did not" is a different
+    // situation from "nothing happened", and the list is where a user can see
+    // which of them they are in.
+    steps_->MarkFailed();
+
+    const int stopped = tracker_.position().step;
+    progress_->setFormat(stopped >= 0 && stopped < steps_->count()
+                             ? tr("Stopped at step %1 of %2")
+                                   .arg(stopped + 1)
+                                   .arg(steps_->count())
+                             : UpdateStageTitle(capture::UpdateStage::kFailed));
+
+    AppendLog(problem.isEmpty()
+                  ? UpdateStageTitle(capture::UpdateStage::kFailed)
+                  : problem);
 
     // The install button comes back, because "Try again" is the next step for
     // almost every failure this can produce and a user should not have to

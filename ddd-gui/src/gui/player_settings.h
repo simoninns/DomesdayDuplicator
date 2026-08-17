@@ -95,6 +95,12 @@ struct PlayerSettings {
   // was going perfectly well, and a truncated capture of a side is a side that
   // has to be captured again. When it is on, the state has to persist across
   // several readings before anything is stopped.
+  //
+  // It watches for a player that *stops*, not for one that is stopped: nothing
+  // is ended until the disc has been seen turning since the capture opened. A
+  // capture started by hand against a parked player — press Start capture, then
+  // walk over and press Play — is the ordinary way of working, and must not be
+  // ended by the state it began in.
   bool stop_capture_with_player = false;
 
   bool operator==(const PlayerSettings& other) const {

@@ -228,6 +228,7 @@ ddd_add_test(ddd_gui_tests "unit"
     gui/unit/test_about_text.cpp
     gui/unit/test_firmware_text.cpp
     gui/unit/test_update_text.cpp
+    gui/unit/test_update_steps.cpp
     gui/unit/test_theme_manager.cpp
     gui/unit/test_log_message_model.cpp
     gui/unit/test_application_logger.cpp

@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <QElapsedTimer>
 #include <QString>
 #include <QWidget>
 #include <cstdint>
@@ -25,35 +26,44 @@
 #include "update_key.h"
 #include "update_manifest.h"
 #include "update_orchestrator.h"
+#include "update_steps.h"
 #include "usb_device_info.h"
 
 class QLabel;
+class QPlainTextEdit;
 class QProgressBar;
 class QPushButton;
 class QThread;
 
 namespace ddd::gui {
 
+class UpdateStepList;
 class UpdateWorker;
 
-// The update half of the Firmware dialog: a staged, wizard-like flow that at
-// every moment says what is happening, how long it will take, and what the
-// user should not do.
+// The update half of the Firmware dialog: a procedure the user can see the
+// whole of, that at every moment says what is happening, how long it will
+// take, and what they should not do.
 //
-// The stages, and each one has its own progress and its own line of plain
-// language:
+// **The shape of this is the point of it.** An update is the one operation in
+// this application that cannot be interrupted safely, and the interface is
+// arranged around the two questions somebody in front of it is asking — *what
+// is it doing* and *how much longer*:
 //
-//   1. *Checking*   — versions found, what will change, release notes;
-//   2. *Verifying*  — the signature and every digest, with a tick when they
-//                     pass. (The online *Downloading* stage joins this one
-//                     when the fetcher arrives; the file picker is the whole
-//                     of the offline path and verifies identically, because
-//                     it all lives inside the bundle.)
-//   3. *Updating*   — transfer, write and verify shown distinctly, because
-//                     they move at very different speeds and one bar over
-//                     all three would appear to stop;
-//   4. *Restarting* — "the device will disconnect and reconnect by itself";
-//   5. *Confirming* — "your device now reports firmware X."
+//   - the **steps** are listed and greyed before the first byte moves, so the
+//     whole procedure is visible in advance rather than arriving one stage
+//     name at a time. The step in hand is picked out and the finished ones get
+//     a tick, so "where am I" is answered by looking rather than by reading;
+//   - **one bar** fills once across all of them. Not a bar per stage: a bar
+//     that restarts at each boundary cannot answer "how far through the whole
+//     thing am I", which is the only question a progress bar is for. What
+//     stopped the earlier arrangement from misleading — that the stages move
+//     at wildly different speeds — is handled by weighting each step's share
+//     of the bar by how long it is expected to take, in update_steps.h;
+//   - the **detail line** under the bar says what the current step is doing
+//     right now, in the engine's own words;
+//   - the **rolling log** is behind a *Show details* button, closed by
+//     default. Everything the engine reported, timestamped, for the user who
+//     wants it and out of the way of the user who does not.
 //
 // Everything the page needs of a device comes through a factory it is given,
 // so the complete flow — including every error and every rescue branch — is
@@ -132,6 +142,10 @@ class UpdatePage : public QWidget {
   static constexpr const char* kChooseButtonName = "update_choose";
   static constexpr const char* kInstallButtonName = "update_install";
   static constexpr const char* kCancelButtonName = "update_cancel";
+  static constexpr const char* kStepsHeadingName = "update_steps_heading";
+  static constexpr const char* kStepListName = "update_steps";
+  static constexpr const char* kDetailsButtonName = "update_details";
+  static constexpr const char* kLogViewName = "update_log";
 
  signals:
   // Raised when an update starts and again when it ends, so the window can
@@ -143,6 +157,7 @@ class UpdatePage : public QWidget {
   void ChooseBundle();
   void StartUpdate();
   void CancelUpdate();
+  void ShowDetails(bool shown);
   void HandleProgress(int stage, int target, quint64 done, quint64 total,
                       const QString& message);
   void HandleFinished(bool succeeded, const QString& problem,
@@ -151,6 +166,26 @@ class UpdatePage : public QWidget {
  private:
   void RefreshVersions();
   void RefreshButtons();
+
+  // Rebuild the step list from what the chosen bundle carries and what state
+  // the device is in, every step greyed. Called when a bundle is loaded, which
+  // is the first moment there is a truthful plan to show.
+  void PlanSteps();
+
+  // Move the highlight and the bar to where the tracker says the update is.
+  void ShowPosition(const UpdateProgressTracker::Position& position);
+
+  // The heading over the step list. It changes tense as the update goes —
+  // *what will happen*, *what is happening*, *what happened* — because the
+  // same list is a plan, a report and a record in turn, and which of the three
+  // it is is the thing a reader has to know before reading it.
+  void SetStepsHeading(const QString& heading);
+
+  // One line into the rolling log, stamped with how long the update has been
+  // running. Elapsed rather than clock time: what matters when reading a log
+  // back is how long a step took, and a wall-clock time makes that a
+  // subtraction.
+  void AppendLog(const QString& line);
 
   // "Update", or "Program this device" for a device with no firmware. The
   // mechanism is the same either way; the words are not, because somebody
@@ -188,15 +223,34 @@ class UpdatePage : public QWidget {
   // progress bar on screen after one has finished.
   bool attempted_ = false;
 
+  // The plan, and where in it the update has got to.
+  UpdateProgressTracker tracker_;
+
+  // What was last written to the log, so that the thousands of reports one
+  // transfer produces become one line rather than thousands. A rolling log
+  // that scrolled a screenful a second would be unreadable, which is the same
+  // as not being there.
+  int logged_stage_ = -1;
+  int logged_target_ = -1;
+  QString logged_message_;
+
+  // Started when an update starts, and what the log's timestamps are counted
+  // from.
+  QElapsedTimer clock_;
+
   QLabel* versions_ = nullptr;
   QLabel* bundle_ = nullptr;
   QLabel* banner_ = nullptr;
   QLabel* status_ = nullptr;
   QLabel* instruction_ = nullptr;
+  QLabel* steps_heading_ = nullptr;
+  UpdateStepList* steps_ = nullptr;
   QProgressBar* progress_ = nullptr;
   QPushButton* choose_ = nullptr;
   QPushButton* install_ = nullptr;
   QPushButton* cancel_ = nullptr;
+  QPushButton* details_ = nullptr;
+  QPlainTextEdit* log_ = nullptr;
 
   QThread* thread_ = nullptr;
   UpdateWorker* worker_ = nullptr;

@@ -54,9 +54,10 @@ class PlayerController;
 //   between one step and the next.
 //
 //   It stops the capture when the player stops, if that is asked for — and only
-//   after the player has said so several times running. See
-//   PlayerSettings::stop_capture_with_player for why that debounce is not
-//   optional.
+//   after the player has been seen spinning, and then said it has stopped
+//   several times running. See PlayerSettings::stop_capture_with_player for why
+//   that debounce is not optional, and OnStatusUpdated for why a player that
+//   was parked all along is not a player that stopped.
 //
 // The coupling runs in **one direction only**: the player may stop the capture,
 // and the capture may never stop the player. Outside an automatic capture this
@@ -178,6 +179,12 @@ class AutoCaptureController : public QObject {
   // Consecutive readings of a player that is not spinning. Reset by anything
   // else, which is what makes it a debounce rather than a count.
   int stopped_readings_ = 0;
+
+  // Whether the player has been seen spinning since this capture opened, and so
+  // whether there is a disc for the watch to notice the end of. Until it has,
+  // stopped readings are ignored entirely — a player parked when Start capture
+  // was pressed has not stopped, it was never going. See OnStatusUpdated.
+  bool seen_spinning_ = false;
 };
 
 }  // namespace ddd::gui

@@ -267,24 +267,38 @@ The update flow is written for the archivist, not the developer: at every moment
 screen answers *what is happening, how long it will take, and what I should (not) do*.
 This is a requirement on the GUI phases, not a polish item for the end.
 
-- **A staged, wizard-like flow** with plain-language stages, each with its own
-  progress and a one-line description of what the device is doing:
-  1. *Checking* — versions found, what will change (application / firmware /
-     gateware), release notes line shown;
-  2. *Downloading* — bytes progress, verified tick when the signature and digests
-     pass ("update verified as authentic");
-  3. *Updating firmware* / 4. *Updating gateware* — per-stage progress bars fed by
-     `0xD0` (transfer, write, verify shown distinctly), a realistic time estimate
-     up front ("about 4 minutes"), and the one instruction that matters, stated
-     before the first byte moves and shown throughout: **"Leave the device plugged
-     in and powered."**;
-  5. *Restarting device* — "the Duplicator will disconnect and reconnect by itself;
-     this is normal";
-  6. *Confirming* — "your device now reports firmware X / gateware Y — update
-     complete."
-- **Progress is honest**: stage-level bars from real device state, never a fake
-  spinner over a minutes-long silence; if a stage's duration is unknowable the UI
-  says what it is waiting for instead of guessing.
+- **The whole procedure, listed before it starts.** The steps this bundle will take
+  on this device are shown greyed as soon as a file is chosen — check, install the
+  firmware, install the gateware, restart, confirm, with *start the device up* added
+  ahead of them for a unit in recovery and the gateware step absent from a bundle
+  that has none. An update cannot be interrupted safely, so what a user needs before
+  pressing the button is what pressing it commits them to. The step in hand is picked
+  out, finished steps get a tick and keep it, and a stopped update leaves a cross on
+  the step it stopped at — which is what distinguishes "the firmware went in and the
+  gateware did not" from "nothing happened".
+- **One progress bar, over the whole update.** Not a bar per stage: a bar that
+  restarts at every boundary cannot answer *how far through the whole thing am I*,
+  which is the only question a progress bar is for. Each step's share of the bar is
+  weighted by the same per-component estimate the dialog prints before the update
+  starts, so the gateware step — minutes, against the firmware's seconds — occupies
+  most of the bar's width rather than a third of it. The bar never restarts and never
+  moves backwards, including at the moment the engine's byte counts start again from
+  zero for the second component.
+- **A one-line description of what the device is doing** under the bar, in the
+  engine's own words, including why it is about to pause: the gateware erases a block
+  every few seconds and a bar that stopped without saying so is a bar a user stops
+  trusting. A realistic time estimate up front ("about 4 minutes"), and the one
+  instruction that matters, stated before the first byte moves and shown throughout:
+  **"Leave the device plugged in and powered."**
+- **A rolling log behind a *Show details* button**, closed by default: every phase the
+  engine reported, stamped with elapsed time, one line per change of phase rather than
+  one per chunk. Nothing an ordinary update needs, and the first thing to open — or to
+  paste into a bug report — when one goes wrong.
+- **Progress is honest**: the bar is fed from real device state, never a fake spinner
+  over a minutes-long silence and never motion invented to fill a wait. A step whose
+  duration cannot be measured — the restart, the confirmation — holds the bar at its
+  own boundary and says what it is waiting for, and it is the step list that carries
+  the sense of movement while it does.
 - **Errors speak user, not errno**: every failure state names what happened, whether
   the device is safe (it always is — say so), and the exact next step, which is
   usually a single button ("Try again", "Repair firmware", "Reinstall gateware").

@@ -490,8 +490,14 @@ TEST_F(AutoCaptureControllerTest, APlayerThatStaysStoppedStopsTheCapture) {
   capture_->StartCapture();
   ASSERT_TRUE(capture_->capturing());
 
+  player::PlayerStatus playing;
+  playing.state = player::PlayerState::kPlaying;
   player::PlayerStatus stopped;
   stopped.state = player::PlayerState::kParked;
+
+  // A disc that was turning, and then was not. The first reading is what makes
+  // the ones after it a stop rather than a state.
+  emit player_->StatusUpdated(playing);
 
   for (int reading = 0; reading < AutoCaptureController::kStoppedReadings;
        ++reading) {
@@ -499,6 +505,119 @@ TEST_F(AutoCaptureControllerTest, APlayerThatStaysStoppedStopsTheCapture) {
   }
 
   EXPECT_FALSE(capture_->capturing());
+  capture_->StopMonitoring();
+}
+
+// The bug this guards against: press Start capture with a player connected and
+// parked — which is the ordinary order, the disc being started afterwards — and
+// the watch ended the capture within a second of it opening, having read the
+// state the capture began in as an event.
+TEST_F(AutoCaptureControllerTest, APlayerParkedAllAlongDoesNotStopTheCapture) {
+  BuildAndConnect();
+
+  PlayerSettings settings = player_->settings();
+  settings.stop_capture_with_player = true;
+  player_->SetSettings(settings);
+
+  capture_->StartCapture();
+  ASSERT_TRUE(capture_->capturing());
+
+  player::PlayerStatus stopped;
+  stopped.state = player::PlayerState::kParked;
+  for (int reading = 0; reading < 10; ++reading) {
+    emit player_->StatusUpdated(stopped);
+  }
+
+  EXPECT_TRUE(capture_->capturing())
+      << "a capture was stopped by a player that never started";
+
+  capture_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !capture_->capturing(); }));
+  capture_->StopMonitoring();
+}
+
+// And the whole of the intended sequence, in the order somebody works in: open
+// the file, start the disc, let it run, stop the disc. Only the last of those
+// stops the capture.
+TEST_F(AutoCaptureControllerTest, TheWatchArmsWhenTheDiscStarts) {
+  BuildAndConnect();
+
+  PlayerSettings settings = player_->settings();
+  settings.stop_capture_with_player = true;
+  player_->SetSettings(settings);
+
+  capture_->StartCapture();
+  ASSERT_TRUE(capture_->capturing());
+
+  player::PlayerStatus stopped;
+  stopped.state = player::PlayerState::kParked;
+  player::PlayerStatus spinning_up;
+  spinning_up.state = player::PlayerState::kSettingUp;
+  player::PlayerStatus playing;
+  playing.state = player::PlayerState::kPlaying;
+
+  // Walking over to the player.
+  for (int reading = 0; reading < 10; ++reading) {
+    emit player_->StatusUpdated(stopped);
+  }
+  ASSERT_TRUE(capture_->capturing());
+
+  // Play pressed, and the side captured.
+  emit player_->StatusUpdated(spinning_up);
+  for (int reading = 0; reading < 10; ++reading) {
+    emit player_->StatusUpdated(playing);
+  }
+  ASSERT_TRUE(capture_->capturing());
+
+  // Stop pressed, at the end of the side.
+  for (int reading = 0; reading < AutoCaptureController::kStoppedReadings;
+       ++reading) {
+    emit player_->StatusUpdated(stopped);
+  }
+
+  EXPECT_FALSE(capture_->capturing());
+  capture_->StopMonitoring();
+}
+
+// A second capture in the same session starts disarmed too. The flag lives with
+// the capture, not with the link — otherwise the first side would arm the watch
+// and the second capture would be stopped before its disc was started.
+TEST_F(AutoCaptureControllerTest, TheWatchDisarmsForEachNewCapture) {
+  BuildAndConnect();
+
+  PlayerSettings settings = player_->settings();
+  settings.stop_capture_with_player = true;
+  player_->SetSettings(settings);
+
+  player::PlayerStatus stopped;
+  stopped.state = player::PlayerState::kParked;
+  player::PlayerStatus playing;
+  playing.state = player::PlayerState::kPlaying;
+
+  capture_->StartCapture();
+  ASSERT_TRUE(capture_->capturing());
+  emit player_->StatusUpdated(playing);
+  for (int reading = 0; reading < AutoCaptureController::kStoppedReadings;
+       ++reading) {
+    emit player_->StatusUpdated(stopped);
+  }
+  ASSERT_FALSE(capture_->capturing());
+
+  // The disc turned over, and a second capture opened against a player that is
+  // still parked.
+  ASSERT_TRUE(PumpUntil([&] { return !capture_->capturing(); }));
+  capture_->StartCapture();
+  ASSERT_TRUE(capture_->capturing());
+
+  for (int reading = 0; reading < 10; ++reading) {
+    emit player_->StatusUpdated(stopped);
+  }
+
+  EXPECT_TRUE(capture_->capturing())
+      << "the watch stayed armed from the previous capture";
+
+  capture_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !capture_->capturing(); }));
   capture_->StopMonitoring();
 }
 

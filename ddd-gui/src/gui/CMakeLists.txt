@@ -48,6 +48,8 @@ add_library(ddd_gui_lib STATIC
     theme_controller.cpp
     theme_manager.cpp
     update_page.cpp
+    update_step_list.cpp
+    update_steps.cpp
     update_text.cpp
     update_worker.cpp
     waveform_panel.cpp

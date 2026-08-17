@@ -45,29 +45,44 @@ The window now tells you what it found:
 
 > **Leave the device plugged in and powered.**
 
+Underneath all that, the window lists **every step the update will take**, greyed out, with an empty circle against each. That list is the whole procedure: nothing else will happen, and no step in it will be skipped. Read it before you start — it is what pressing **Update** commits you to.
+
 4. Press **Update**.
 
 ## What you will see
 
-The window works through several stages, each with its own progress. They take very different lengths of time, which is why they are shown separately rather than as one bar that would appear to stop.
+The list stops being a plan and starts being a report. One step at a time:
 
-| Stage | What is happening | Roughly |
+- the step being worked on is **picked out in bold** with a ▶ against it;
+- each step that finishes gets a ✓ and stays on screen;
+- the steps still to come stay greyed;
+- one progress bar underneath fills once, across the whole update, and says which step it is on — *Step 3 of 5*. It never restarts and never goes backwards;
+- one line under the bar says what the device is doing this second.
+
+An ordinary update carrying both halves has five steps:
+
+| Step | What is happening | Roughly |
 | --- | --- | --- |
-| **Sending the update to the device** | The file goes over the USB cable, and the Duplicator writes each piece into its own memory as it arrives | Tens of seconds |
-| **The device is checking what it wrote** | The Duplicator reads all of it back and checks it against the update file | Tens of seconds |
-| **Restarting the device** | It disconnects and reconnects by itself. **This is normal** | Ten seconds or so |
+| **Check the update file** | The signature and every digest, before anything is sent anywhere | Immediately |
+| **Install the firmware** | The file goes over the USB cable, the Duplicator writes each piece into its own memory as it arrives, and then reads all of it back and checks it | Tens of seconds |
+| **Install the gateware** | The same again for the programmable chip | A few minutes |
+| **Restart the device** | It disconnects and reconnects by itself. **This is normal** | Ten seconds or so |
 | **Confirming the new version** | The application asks the device what it is now running | Immediately |
 
-The first stage is the slow one, and it is slow because it is doing two things at once: the
-Duplicator writes the update as it receives it rather than collecting it first. There is no
-separate "writing" step to wait for.
+An update that carries only firmware has no gateware step, and a device being brought to life for the first time has an extra one at the start — **Start the device up**. What the list shows is always what this file will do to this device.
 
-**An update carrying gateware takes minutes rather than seconds**, and the checking stage is
-the longest part of it — around a minute where the sending took twenty seconds, because the
-route to that chip's memory is much faster to write than to read back. The progress line
-says which stage it is in, and it will also pause for a second or so at intervals while a
-block of that memory is erased. Both are normal. The window's estimate before you start is
-deliberately pessimistic, so finishing early is the usual outcome.
+**An update carrying gateware takes minutes rather than seconds**, and the reading-back is the
+longest part of it — around a minute where the sending took twenty seconds, because the route
+to that chip's memory is much faster to write than to read back. The bar is weighted for that,
+so the gateware step is most of its width rather than one fifth of it. It will also pause for
+a second or so at intervals while a block of that memory is erased, and it holds still while
+the device restarts, because nothing there can be measured and the window will not invent
+motion it cannot account for. Both are normal. The estimate before you start is deliberately
+pessimistic, so finishing early is the usual outcome.
+
+### If you want to see more
+
+**Show details** opens a running log of everything the device reported, each line stamped with how long the update had been going. Nothing in it is needed for an ordinary update — the five steps and the line under the bar are the whole story — but it is the thing to open if something goes wrong, and the thing to copy into a bug report.
 
 At the end you will see something like:
 
@@ -112,6 +127,8 @@ Whatever happens, the window will tell you:
 - what happened, in words rather than an error number;
 - that the device is safe;
 - the one thing to do next, which is usually a single button — **Try again**.
+
+The step list stays on screen with a ✕ against the step it stopped on, and the steps before it keep their ticks. That matters on an update carrying both halves: "the firmware went in and the gateware did not" is a different situation from "nothing happened", and the list is where you can see which of the two you are in. **Show details** has the full account if you want it.
 
 If the message asks you to unplug the device and plug it back in, do that, then reopen **Tools → Firmware…** and look at what it reports. If the update did not take, the versions will be the ones you started with and you can simply try again.
 

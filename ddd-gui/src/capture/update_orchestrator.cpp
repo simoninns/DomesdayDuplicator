@@ -46,10 +46,6 @@ namespace {
 constexpr double kEepromBytesPerSecond = 12000.0;
 constexpr double kEpcsBytesPerSecond = 2000.0;
 
-// The device restarting and coming back, which no amount of arithmetic will
-// predict.
-constexpr int kRestartSeconds = 10;
-
 // A chunk is a whole number of the medium's pages except the last, which is
 // what lets the firmware write a chunk straight to the medium with no
 // assembly buffer in between. One alignment covers both targets — see
@@ -85,16 +81,23 @@ const char* UpdateStageName(UpdateStage stage) {
   return "Unknown";
 }
 
+double EstimateComponentSeconds(UpdateTarget target,
+                                const UpdateComponent& component) {
+  const double rate = target == UpdateTarget::kGateware ? kEpcsBytesPerSecond
+                                                        : kEepromBytesPerSecond;
+  return static_cast<double>(component.length) / rate;
+}
+
 int EstimateUpdateSeconds(const UpdateManifest& manifest) {
-  double seconds = kRestartSeconds;
+  double seconds = kUpdateRestartSeconds;
 
   if (manifest.firmware.has_value()) {
     seconds +=
-        static_cast<double>(manifest.firmware->length) / kEepromBytesPerSecond;
+        EstimateComponentSeconds(UpdateTarget::kFirmware, *manifest.firmware);
   }
   if (manifest.gateware.has_value()) {
     seconds +=
-        static_cast<double>(manifest.gateware->length) / kEpcsBytesPerSecond;
+        EstimateComponentSeconds(UpdateTarget::kGateware, *manifest.gateware);
   }
 
   return static_cast<int>(seconds) + 1;
