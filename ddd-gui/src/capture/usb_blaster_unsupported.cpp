@@ -10,6 +10,7 @@
 ************************************************************************/
 
 #include <memory>
+#include <string>
 
 #include "jtag_cable.h"
 #include "logger.h"
@@ -30,12 +31,18 @@ namespace ddd::capture {
 // What is missing is small and it is named: an IFtdiTransport over WinUSB's
 // bulk pipes. The protocol that rides on it, the SVF player above that, and
 // every test either has are platform-independent and are built here already.
-std::unique_ptr<IJtagCable> MakeUsbBlasterCable(ILogger* logger) {
+std::unique_ptr<IJtagCable> MakeUsbBlasterCable(ILogger* logger,
+                                                std::string* problem) {
+  const std::string message =
+      "This build cannot drive a USB-Blaster: the cable driver is written "
+      "against libusb and this platform's USB backend is WinUSB. Programme "
+      "the FPGA with Quartus for now.";
+
   if (logger != nullptr) {
-    logger->Error(
-        "This build cannot drive a USB-Blaster: the cable driver is written "
-        "against libusb and this platform's USB backend is WinUSB. Programme "
-        "the FPGA with Quartus for now.");
+    logger->Error(message);
+  }
+  if (problem != nullptr) {
+    *problem = message;
   }
   return nullptr;
 }

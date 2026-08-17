@@ -256,20 +256,37 @@ std::optional<UpdateManifest> ParseUpdateManifest(
     Report(errors, "manifest: missing or malformed \"components\"");
     complete = false;
   } else {
-    complete &=
-        ReadComponent(*components, "firmware", &manifest.firmware, errors);
-    complete &=
-        ReadComponent(*components, "gateware", &manifest.gateware, errors);
+    complete &= ReadComponent(*components, kFirmwareComponentName,
+                              &manifest.firmware, errors);
+    complete &= ReadComponent(*components, kGatewareComponentName,
+                              &manifest.gateware, errors);
+    complete &= ReadComponent(*components, kProvisioningComponentName,
+                              &manifest.provisioning, errors);
+
+    // A component kind this build does not know is refused rather than
+    // skipped. Every member of this object names a payload that something has
+    // to write to somebody's hardware, and a reader that quietly ignored one
+    // would install a partial bundle while reporting a complete one.
+    for (const JsonValue::Member& member : *components->AsObject()) {
+      if (member.first != kFirmwareComponentName &&
+          member.first != kGatewareComponentName &&
+          member.first != kProvisioningComponentName) {
+        Report(errors, "manifest: \"components\" declares \"" + member.first +
+                           "\", which this build does not know how to install");
+        complete = false;
+      }
+    }
 
     // A bundle with nothing to install is not a bundle, and the case is worth
     // naming separately from a malformed component: it is what a release
     // pipeline produces when a build step failed quietly and nobody noticed
     // the artefact had come out empty.
-    if (components->Find("firmware") == nullptr &&
-        components->Find("gateware") == nullptr) {
+    if (components->Find(kFirmwareComponentName) == nullptr &&
+        components->Find(kGatewareComponentName) == nullptr &&
+        components->Find(kProvisioningComponentName) == nullptr) {
       Report(errors, "manifest: \"components\" declares nothing to install");
     }
-    if (!manifest.firmware && !manifest.gateware) {
+    if (!manifest.firmware && !manifest.gateware && !manifest.provisioning) {
       complete = false;
     }
   }
@@ -314,6 +331,11 @@ std::string SerialiseUpdateManifest(const UpdateManifest& manifest) {
   if (manifest.gateware) {
     components.emplace_back(
         "gateware", JsonValue::Object(ComponentMembers(*manifest.gateware)));
+  }
+  if (manifest.provisioning) {
+    components.emplace_back(
+        std::string(kProvisioningComponentName),
+        JsonValue::Object(ComponentMembers(*manifest.provisioning)));
   }
 
   std::vector<JsonValue::Member> compatibility = {

@@ -82,6 +82,64 @@ inline constexpr std::string_view kManifestJson =
 }
 )";
 
+// A provisioning set: a real FX3 boot image beside the JTAG vectors that bring
+// a board's FPGA up. Signed the same way and by the same key, because the whole
+// point of the format extension is that a provisioning set is an ordinary
+// bundle — one verifier, one key policy, one reader.
+//
+// The firmware payload here is MakeBootImage() from boot_image_fixture.h rather
+// than the line of text the update-bundle fixtures carry, and it has to be:
+// this set is played through the recovery path, which parses the image and
+// hands its sections to a boot ROM. A payload that is not an image is refused
+// before anything is programmed — correctly, and uselessly for a test of what
+// happens next.
+inline constexpr std::string_view kProvisioningPayload =
+    "! A provisioning file, for the tests only.\n"
+    "STATE IDLE;\n"
+    "SIR 10 TDI (203);\n"
+    "RUNTEST 4096 TCK;\n";
+
+inline constexpr std::string_view kProvisioningManifestJson =
+    R"({
+  "manifest_version": 1,
+  "channel": "development",
+  "version": "1.4.0",
+  "commit": "0123abcd",
+  "created": "2026-08-17T10:00:00Z",
+  "release_notes": "Test provisioning set for the bring-up unit tests.",
+  "components": {
+    "firmware": {
+      "file": "firmware.img",
+      "length": 352,
+      "sha256": "32cb502b8af350df558e825e7d96699aac0db3c23414c7baee175e07fd2a0af6",
+      "identity": "0123abcd",
+      "interface_version": 1
+    },
+    "gateware-provisioning-svf": {
+      "file": "gateware-provisioning.svf",
+      "length": 91,
+      "sha256": "df1fad2f033577d2c7b9a2b1b18c3c86b1b1699af3d248bad32e129110148628",
+      "identity": "0123abcd",
+      "interface_version": 2
+    }
+  },
+  "compatibility": {
+    "minimum_application_version": "1.4.0",
+    "minimum_register_map_version": 2,
+    "epcs_layout_version": 1
+  }
+}
+)";
+
+inline constexpr std::string_view kProvisioningManifestSignature =
+    "untrusted comment: Domesday Duplicator provisioning set 1.4.0\n"
+    "RUR82Ay8IQPniTMHcLlis90COLTVr9dBs5fhdD7gIYDIJwVD+WcbqRyh8fmAW/YapUQwgdecH"
+    "n7sXcQK6lskjIo3VDWV4nO8lAg=\n"
+    "trusted comment: domesday-duplicator-provisioning-1.4.0.dddfw version "
+    "1.4.0 channel development\n"
+    "Ypb9d9T8+0FsftIGzYz4JOpT7tQUY34NYH4agm6znEKCegx5VOv4XVwqca6zsbT6vQ56Bkzi"
+    "Y7CcMfkp4PS1Cw==\n";
+
 // tools/keys/development.pub, verbatim.
 inline constexpr std::string_view kDevelopmentPublicKey =
     "untrusted comment: Domesday Duplicator development signing key — public "

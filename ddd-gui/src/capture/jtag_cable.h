@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace ddd::capture {
@@ -154,6 +155,12 @@ inline constexpr uint16_t kUsbBlasterTwoAlternateProductId = 0x6810;
 // itself, because on Linux the third is nearly always the udev rules
 // (fpga/configs/70-altera-usb-blaster.rules) and on Windows the driver
 // binding, and neither is diagnosable from "failed".
-std::unique_ptr<IJtagCable> MakeUsbBlasterCable(ILogger* logger);
+//
+// `problem` takes the same sentence the log gets, for a caller that has to put
+// it on the screen rather than in a file. The bring-up wizard's connectivity
+// page is that caller: the whole value of the page is that it names which of
+// those three happened while the user is still in a position to fix it.
+std::unique_ptr<IJtagCable> MakeUsbBlasterCable(ILogger* logger,
+                                                std::string* problem = nullptr);
 
 }  // namespace ddd::capture

@@ -167,6 +167,87 @@ TEST(UpdateManifest, ReportsEveryProblemItFinds) {
   EXPECT_GE(errors.size(), 2u);
 }
 
+// --- the provisioning component ----------------------------------------
+
+// The bring-up wizard's input: firmware beside the JTAG vectors that program
+// an FPGA which has nothing on it to be reached through.
+TEST(UpdateManifest, ReadsAProvisioningSet) {
+  std::vector<std::string> errors;
+  const std::optional<UpdateManifest> parsed =
+      ParseUpdateManifest(test::kProvisioningManifestJson, &errors);
+  for (const std::string& message : errors) {
+    ADD_FAILURE() << message;
+  }
+  ASSERT_TRUE(parsed.has_value());
+
+  const UpdateManifest manifest = test::Checked(parsed);
+  ASSERT_TRUE(manifest.provisioning.has_value());
+
+  const UpdateComponent provisioning = test::Checked(manifest.provisioning);
+  EXPECT_EQ(provisioning.file, "gateware-provisioning.svf");
+  EXPECT_EQ(provisioning.length, test::kProvisioningPayload.size());
+
+  // Firmware beside it, and no ordinary gateware: the vectors are what the
+  // FPGA half of a bring-up uses, and the flash-bridge route the gateware
+  // component takes is exactly what a board being brought up does not have.
+  EXPECT_TRUE(manifest.firmware.has_value());
+  EXPECT_FALSE(manifest.gateware.has_value());
+}
+
+TEST(UpdateManifest, WritesAProvisioningComponentBackUnderItsOwnName) {
+  const std::optional<UpdateManifest> parsed =
+      ParseUpdateManifest(test::kProvisioningManifestJson, nullptr);
+  ASSERT_TRUE(parsed.has_value());
+
+  const std::string written = SerialiseUpdateManifest(test::Checked(parsed));
+  EXPECT_NE(written.find(std::string(kProvisioningComponentName)),
+            std::string::npos)
+      << written;
+
+  // And reads back as the same thing, which is what makes the name a format
+  // rather than a spelling one half of the code happens to use.
+  const std::optional<UpdateManifest> again =
+      ParseUpdateManifest(written, nullptr);
+  ASSERT_TRUE(again.has_value());
+  EXPECT_TRUE(test::Checked(again).provisioning.has_value());
+}
+
+// A set carrying nothing but the vectors is a legal manifest. Whether it may
+// be *installed* is the gate's business, and the gate says no — it is the
+// wizard's input, not an update.
+TEST(UpdateManifest, AcceptsAManifestCarryingOnlyProvisioning) {
+  std::string text(test::kProvisioningManifestJson);
+  const size_t start = text.find(R"(    "firmware": {)");
+  const size_t end = text.find(R"(    "gateware-provisioning-svf")");
+  ASSERT_NE(start, std::string::npos);
+  ASSERT_NE(end, std::string::npos);
+  text.erase(start, end - start);
+
+  std::vector<std::string> errors;
+  const std::optional<UpdateManifest> parsed =
+      ParseUpdateManifest(text, &errors);
+  for (const std::string& message : errors) {
+    ADD_FAILURE() << message;
+  }
+  ASSERT_TRUE(parsed.has_value());
+  EXPECT_TRUE(test::Checked(parsed).provisioning.has_value());
+}
+
+// The property the extension rests on: a payload nobody described is refused
+// rather than skipped. A reader that installed the two components it knew and
+// ignored a third would report a complete install of a partial bundle.
+TEST(UpdateManifest, RefusesAComponentKindItDoesNotKnow) {
+  const std::vector<std::string> errors =
+      ErrorsFrom(With(R"("gateware": {)", R"("bootloader": {)"));
+  ASSERT_FALSE(errors.empty());
+
+  bool named = false;
+  for (const std::string& message : errors) {
+    named = named || message.find("bootloader") != std::string::npos;
+  }
+  EXPECT_TRUE(named) << "the refusal did not name the component it refused";
+}
+
 TEST(UpdateManifest, RefusesTextThatIsNotJsonAtAll) {
   EXPECT_FALSE(ErrorsFrom("").empty());
   EXPECT_FALSE(ErrorsFrom("not json").empty());

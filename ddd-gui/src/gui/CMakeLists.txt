@@ -19,6 +19,9 @@ add_library(ddd_gui_lib STATIC
     auto_capture_controller.cpp
     auto_capture_wizard.cpp
     application_logger.cpp
+    board_bringup_wizard.cpp
+    bringup_text.cpp
+    bringup_worker.cpp
     capture_controller.cpp
     capture_naming_dialog.cpp
     capture_naming_form.cpp

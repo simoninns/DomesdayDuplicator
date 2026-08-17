@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "boot_image_fixture.h"
 #include "digest.h"
 #include "minisign_verify.h"
 #include "update_bundle.h"
@@ -68,6 +69,20 @@ std::vector<uint8_t> MakeBundle() {
   writer.AddFile(kSignatureEntryName, Bytes(test::kManifestSignature));
   writer.AddFile("firmware.img", Bytes(test::kFirmwarePayload));
   writer.AddFile("gateware-app.rpd", Bytes(test::kGatewarePayload));
+  return writer.Finish();
+}
+
+// A provisioning set: firmware beside the JTAG vectors, signed by the same key
+// and read by the same reader. One format, whatever it carries.
+std::vector<uint8_t> MakeProvisioningBundle() {
+  const std::vector<uint8_t> firmware = test::MakeBootImage();
+
+  UstarWriter writer;
+  writer.AddFile(kManifestEntryName, Bytes(test::kProvisioningManifestJson));
+  writer.AddFile(kSignatureEntryName,
+                 Bytes(test::kProvisioningManifestSignature));
+  writer.AddFile(kFirmwareEntryName, firmware);
+  writer.AddFile(kProvisioningEntryName, Bytes(test::kProvisioningPayload));
   return writer.Finish();
 }
 
@@ -215,6 +230,42 @@ TEST(UpdateBundle, OpensASignedBundle) {
   EXPECT_EQ(bundle.firmware.size(), test::kFirmwarePayload.size());
   EXPECT_EQ(bundle.gateware.size(), test::kGatewarePayload.size());
   EXPECT_EQ(Sha256(bundle.firmware), Checked(bundle.manifest.firmware).sha256);
+}
+
+TEST(UpdateBundle, OpensASignedProvisioningSet) {
+  const std::vector<uint8_t> archive = MakeProvisioningBundle();
+
+  std::string error;
+  const std::optional<UpdateBundle> opened =
+      OpenUpdateBundle(archive, DevelopmentKey(), &error);
+  ASSERT_TRUE(opened.has_value()) << error;
+
+  const UpdateBundle bundle = Checked(opened);
+  ASSERT_TRUE(bundle.manifest.provisioning.has_value());
+  EXPECT_EQ(bundle.provisioning.size(), test::kProvisioningPayload.size());
+
+  // Checked against the manifest's digest like every other payload, which is
+  // the whole reason a new component kind costs nothing in trust: it arrives
+  // through the same four checks the format already specifies.
+  EXPECT_EQ(Sha256(bundle.provisioning),
+            Checked(bundle.manifest.provisioning).sha256);
+}
+
+TEST(UpdateBundle, RefusesAProvisioningSetWhoseVectorsHaveBeenChanged) {
+  std::string vectors(test::kProvisioningPayload);
+  vectors[vectors.size() - 2] = '7';
+
+  const std::vector<uint8_t> firmware = test::MakeBootImage();
+
+  UstarWriter writer;
+  writer.AddFile(kManifestEntryName, Bytes(test::kProvisioningManifestJson));
+  writer.AddFile(kSignatureEntryName,
+                 Bytes(test::kProvisioningManifestSignature));
+  writer.AddFile(kFirmwareEntryName, firmware);
+  writer.AddFile(kProvisioningEntryName, Bytes(vectors));
+
+  const std::string error = ErrorFrom(writer.Finish());
+  EXPECT_NE(error.find("digest"), std::string::npos) << error;
 }
 
 TEST(UpdateBundle, RefusesABundleSignedByAKeyItDoesNotHold) {

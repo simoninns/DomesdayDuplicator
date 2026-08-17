@@ -8,11 +8,13 @@ The FX3 can update the FPGA's application image over USB, but only once there is
 
 What can reach it is the DE0-Nano's **on-board USB-Blaster**, on the same mini-USB connector that powers the board. Until now that meant a Quartus install — several gigabytes, unfree, and x86_64-linux only — whose entire role for someone building a board was to write a file the project already publishes.
 
-So the project publishes the JTAG vectors as well:
+So the project publishes the JTAG vectors as well, and the application plays them:
 
 ```
 ddd-jtag DomesdayDuplicatorProvisioning.svf
 ```
+
+In `ddd-gui` the same engine sits behind **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy board…**, which programs both halves of a board in one flow — see [Bringing up a new or legacy board](../capture-gui/bringing-up-a-board.md) for the user's view of it, and `provisioning_orchestrator.h` for the ordering rule it enforces. `ddd-jtag` is the same code with nothing above it, which is what makes it the bench harness.
 
 ## The division of labour
 
@@ -24,6 +26,7 @@ The important decision on this page is what is **not** implemented here.
 | What a JTAG session looks like: instruction registers, data registers, waits, expected answers | The `.svf` the build emits |
 | How to walk a TAP state machine and turn scans into TCK cycles | `ddd-gui/src/capture/svf_player.{h,cpp}` |
 | How to make a USB-Blaster produce those cycles | `ddd-gui/src/capture/usb_blaster_cable.{h,cpp}` |
+| In which order the FX3 and the FPGA may be programmed | `ddd-gui/src/capture/provisioning_orchestrator.{h,cpp}` |
 
 Nothing device-specific is in the application. A different FPGA, a different flash or a newer Quartus changes the `.svf` and nothing else.
 
@@ -111,6 +114,8 @@ ddd-jtag [--dry-run] <file.svf>
 ```
 
 Without `--dry-run` this writes the FPGA's configuration flash through the cable, which is a deliberate manual act and is never run automatically (AGENTS.md §4). It reports how long the run took, which is a number this project needs and cannot get any other way.
+
+**It is also the one path with no ordering above it.** The bring-up flow programs the FX3 before the FPGA, because the original firmware and the current gateware drive the same interconnect line, and `ProvisioningOrchestrator` refuses to do them the other way round. This tool has no such refusal: it plays what it is given at whatever is attached. On a board still running the original Duplicator firmware, that means writing current gateware underneath it — so power-cycle such a board only after its FX3 has been dealt with, or use the wizard, which cannot get it wrong.
 
 `--dry-run` plays the file into a cable that goes nowhere. Everything this application is responsible for runs — the parse, the state machine, the vectors, the counts — and the two things a device would be needed for are skipped: nothing is compared against the answers the file expects, and its waits are not held open. That makes it a complete check of a programming file on a machine with no hardware attached:
 

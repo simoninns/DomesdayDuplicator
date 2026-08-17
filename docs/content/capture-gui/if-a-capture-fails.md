@@ -48,9 +48,12 @@ firmware…** says so too.
 
 Nothing is broken. That firmware predates both the register interface this application reads
 and the update mechanism that would replace it, so there is nothing on the board to receive
-an update — which is why the Firmware window names the state and offers nothing. Bringing
-such a board up to current firmware and gateware means programming both directly, with the
-[hardware programming](../development/hardware-programming/index.md) procedure.
+an update — which is why the Firmware window names the state and offers nothing.
+
+Bringing such a board up to current firmware and gateware means programming both directly,
+and this application does it: **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy
+board…**. See [Bringing up a new or legacy board](bringing-up-a-board.md), which is the
+same procedure a newly built board needs.
 
 ## This machine cannot keep up
 

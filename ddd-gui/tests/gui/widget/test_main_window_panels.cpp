@@ -301,10 +301,9 @@ TEST_F(MainWindowTest, TheToolsMenuHoldsBothTestDataEntries) {
 }
 
 // Everything to do with what the device is running lives under one entry, and
-// the ordinary update path is the entry inside it. The sub-menu holds one
-// action today; what it buys is that the path a user learns — and every page
-// of documentation that names it — is the path it will still be when the
-// flows that program a board from scratch join it.
+// the ordinary update path is the first entry inside it — the one somebody
+// reaches for at every release, ahead of the flows they use once in the life
+// of a board.
 TEST_F(MainWindowTest, TheUpdatePathIsAnEntryUnderTheFirmwareSubMenu) {
   const std::unique_ptr<MainWindow> window = MakeWindow();
 
@@ -317,6 +316,38 @@ TEST_F(MainWindowTest, TheUpdatePathIsAnEntryUnderTheFirmwareSubMenu) {
   EXPECT_NE(EntryNamed(firmware->menu(), QStringLiteral("Update firmware")),
             nullptr)
       << "no Update firmware entry under Tools ▸ Firmware";
+}
+
+// The bring-up flow, behind a sub-menu of its own. It is not gated on any
+// device state — it begins with its own connectivity checks, and a board that
+// is not answering is exactly the board it exists to repair, so an entry
+// greyed out because nothing is attached would be greyed out for the user who
+// most needs it.
+TEST_F(MainWindowTest, BringUpIsUnderFirmwareAndAlwaysAvailable) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  QAction* const firmware = EntryNamed(
+      MenuNamed(*window, QStringLiteral("Tools")), QStringLiteral("Firmware"));
+  ASSERT_NE(firmware, nullptr);
+  ASSERT_NE(firmware->menu(), nullptr);
+
+  QAction* const legacy =
+      EntryNamed(firmware->menu(), QStringLiteral("Legacy"));
+  ASSERT_NE(legacy, nullptr) << "no Legacy sub-menu under Tools ▸ Firmware";
+  ASSERT_NE(legacy->menu(), nullptr)
+      << "Legacy opens something directly rather than a sub-menu";
+
+  QAction* const bringup =
+      EntryNamed(legacy->menu(), QStringLiteral("Bring up"));
+  ASSERT_NE(bringup, nullptr)
+      << "no bring-up entry under Tools ▸ Firmware ▸ Legacy";
+  EXPECT_TRUE(bringup->isEnabled());
+
+  // The ordinary path keeps its place at the top, above the line.
+  const QList<QAction*> entries = firmware->menu()->actions();
+  ASSERT_FALSE(entries.isEmpty());
+  EXPECT_TRUE(entries.front()->text().contains(QStringLiteral("Update")))
+      << "the update path is no longer the first entry under Firmware";
 }
 
 TEST_F(MainWindowTest, NeitherTestDataEntryIsLeftBehindOnTheFileMenu) {

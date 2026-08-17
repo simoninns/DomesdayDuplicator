@@ -110,6 +110,12 @@ class RecoveryInstaller {
     cancel_ = std::move(cancel);
   }
 
+  // Passed through to the update that follows the prelude. See
+  // UpdateOrchestrator::SetDeferRestart — the bring-up wizard sets it because
+  // the PMODE jumper is still fitted, so a reset would land back in the boot
+  // ROM rather than in the firmware that has just been written.
+  void SetDeferRestart(bool defer) { defer_restart_ = defer; }
+
   // Wake the device, then install.
   //
   // The bundle must carry firmware; a gateware-only bundle cannot recover a
@@ -133,6 +139,7 @@ class RecoveryInstaller {
   UpdateTimings update_timings_;
   UpdateProgressCallback progress_;
   std::function<bool()> cancel_;
+  bool defer_restart_ = false;
 };
 
 }  // namespace ddd::capture

@@ -12,17 +12,32 @@ domesday-duplicator-update-<version>.dddfw     uncompressed ustar archive
   manifest.minisig   detached Ed25519 signature over manifest.json
   firmware.img       FX3 image, when the bundle carries firmware
   gateware-app.rpd   raw EPCS byte stream, when it carries gateware
+  gateware-provisioning.svf   JTAG vectors, in a provisioning set
 ```
 
 **Uncompressed tar**, because the two properties that matter are that stock `tar` can list and extract it and that reading it takes a couple of hundred lines of dependency-free code. Both payloads are already compressed by the toolchains that produced them, so a compressed container would trade both properties for nothing measurable.
 
 **The manifest is signed, not the archive.** The manifest carries the SHA-256 of every payload, so signing that one small file authenticates the whole bundle — and nothing has to sign a file that would then have to contain its own signature. It also means the offline file-picker path and the online download path verify by identical means, because everything they check is inside the file.
 
-**The gateware payload is the application image only.** The factory image and the combined provisioning `.jic` are release artefacts too, for bench provisioning, but they are not in the bundle: the bundle contains only what the device is permitted to write to itself.
+**The `gateware` payload is the application image only.** The factory image and the combined provisioning `.jic` are release artefacts too, but they are not that component: it carries only what the device is permitted to write to itself. Provisioning has a component of its own, below, and it is written through a cable rather than by the device.
 
 **And it is written to the flash verbatim** — no header stripped, no bytes reordered, nothing interpreted, by the application or the firmware or the gateware. So the `.rpd` in a bundle must already be in the bit orientation the FPGA's configuration engine reads, which is decided when Quartus emits it and is not observable anywhere downstream: an image in the wrong orientation passes the signature, every digest, and the device's own readback, and then configures nothing. The [EPCS layout and boot flow](epcs-layout-and-boot-flow.md#the-bytes-in-the-flash-are-bit-reversed) page has the detail; what belongs here is that this format carries a payload no check in it can validate the meaning of.
 
 **Components are individually optional.** A firmware-only bundle is a complete bundle. That is what the developer loop produces, what per-commit CI produces, and what the early phases of this work shipped before the gateware path existed. A bundle with no components at all is refused.
+
+**A component kind the reader does not know is refused**, rather than skipped. Every member of `components` names a payload that something has to write to somebody's hardware, and a reader that quietly ignored one would install a partial bundle while reporting a complete one.
+
+### The provisioning set
+
+A third component kind, `gateware-provisioning-svf`, carries the FPGA's gateware as **JTAG vectors** rather than as a flash image. A bundle carrying it and firmware is a *provisioning set*: what a board with no working gateware is brought up with.
+
+The difference from the `gateware` component is not what it contains but what writes it. `gateware` goes to the device over USB, through the flash bridge that the running gateware provides — which is exactly what a board being brought up does not have. The vectors are played into the FPGA's JTAG port through the DE0-Nano's own USB-Blaster, by [the bring-up wizard](../capture-gui/bringing-up-a-board.md); see [USB-Blaster and SVF programming](usb-blaster-and-svf.md).
+
+Three consequences worth stating:
+
+- the ordinary update path **never installs it**. `UpdateOrchestrator` does not look at it, and the compatibility gate does not gate on it;
+- a bundle carrying *only* provisioning vectors is refused by the update window with a sentence naming the window that does want it. It is a legal manifest and not an update;
+- the schema version is deliberately **not** bumped for this. A build predating the component reads the firmware beside it and offers an ordinary firmware install, which is a true description of what that build can do with the file and exactly as safe as any other firmware bundle. Bumping the version would instead have every older build refuse every bundle, for a component that changes the meaning of no other field.
 
 ## Reading one by hand
 
@@ -84,7 +99,7 @@ That the last three lines work with programs this project did not write is the p
 | `commit` | string | The git commit every payload was built from |
 | `created` | string | When the bundle was assembled, ISO 8601 in UTC |
 | `release_notes` | string | One line, shown before the user confirms |
-| `components` | object | At least one of `firmware` and `gateware` |
+| `components` | object | At least one of `firmware`, `gateware` and `gateware-provisioning-svf`; no other member |
 | `compatibility` | object | What a device and an application must already be |
 
 Every field is required. There are no optional top-level fields and no defaults, because a default is a decision made by whoever wrote the reader on behalf of whoever wrote the bundle, and the two are separated here by a release process and possibly by years.
@@ -106,6 +121,8 @@ Every field is required. There are no optional top-level fields and no defaults,
 `identity` is what the post-update confirmation compares against. It is the product-string commit for the firmware and the identity registers for the gateware. Its purpose is to let the application prove an update worked by *reading the device*, rather than by assuming the write it just did had the effect it intended.
 
 `interface_version` means the USB protocol version in `bcdDevice` for the firmware, and the register-map version in register `0x01` for the gateware. One field name for two different registers because the compatibility gate does exactly one thing with it — compare it against the range the application supports — and two names would have invited two code paths for one rule.
+
+For `gateware-provisioning-svf`, both fields describe what the board will report *once it has been provisioned and power-cycled*: the identity registers of the factory image, and its register-map version.
 
 ### Compatibility
 
@@ -162,6 +179,19 @@ Rotation is an application release that pins the new key; old bundles verify aga
     --channel release --secret-key "$RELEASE_KEY" \
     --firmware result-firmware/firmware.img --firmware-identity 0123abcd \
     --notes "Jumper-free firmware updates."
+```
+
+A provisioning set is the same script with one more payload:
+
+```bash
+./tools/make-update-bundle.sh \
+    --output build/domesday-duplicator-provisioning-1.4.0.dddfw \
+    --version 1.4.0 --commit "$(git rev-parse --short=8 HEAD)" \
+    --channel release --secret-key "$RELEASE_KEY" \
+    --firmware result-firmware/firmware.img --firmware-identity 0123abcd \
+    --provisioning result-bitstream/provisioning/DomesdayDuplicatorProvisioning.svf \
+        --provisioning-identity 0123abcd \
+    --notes "Provisioning set for bringing a board up."
 ```
 
 `--help` lists the rest. The script needs bash, coreutils, GNU tar and minisign, all of which are in `nix develop` and all of which are ordinary distribution packages; nothing about it is Nix-only.

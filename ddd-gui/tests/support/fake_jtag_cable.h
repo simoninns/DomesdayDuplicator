@@ -13,6 +13,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -38,7 +39,7 @@ class FakeJtagCable : public IJtagCable {
   bool Shift(std::span<const uint8_t> tms, std::span<const uint8_t> tdi,
              size_t bit_count, std::vector<uint8_t>* tdo) override {
     ++shift_calls_;
-    if (fail_after_ >= 0 && shift_calls_ > fail_after_) {
+    if (fail_after_.has_value() && shift_calls_ > *fail_after_) {
       return false;
     }
 
@@ -121,7 +122,12 @@ class FakeJtagCable : public IJtagCable {
 
   // Fail every shift after this many have been made, so the player's
   // handling of a cable that stops answering can be exercised.
-  void FailAfterShifts(int shifts) { fail_after_ = shifts; }
+  //
+  // Optional rather than a negative sentinel: the count it is compared against
+  // is a size_t, and a sentinel would have meant either an int comparison
+  // against unsigned or a cast at the point where the comparison has to be
+  // right.
+  void FailAfterShifts(size_t shifts) { fail_after_ = shifts; }
 
  private:
   static bool BitAt(std::span<const uint8_t> bits, size_t index) {
@@ -141,7 +147,7 @@ class FakeJtagCable : public IJtagCable {
   size_t shift_calls_ = 0;
   size_t run_calls_ = 0;
   size_t flushes_ = 0;
-  int fail_after_ = -1;
+  std::optional<size_t> fail_after_;
 };
 
 }  // namespace ddd::capture

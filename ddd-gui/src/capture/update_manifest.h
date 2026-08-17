@@ -130,12 +130,49 @@ struct UpdateManifest {
   std::optional<UpdateComponent> firmware;
   std::optional<UpdateComponent> gateware;
 
+  // The provisioning gateware, as JTAG vectors.
+  //
+  // A third kind of payload rather than a second gateware one, and the
+  // difference is what it is written *with*: the gateware component above goes
+  // to the device over USB, through the flash bridge that the running gateware
+  // provides. This one is played into the FPGA's JTAG port through a cable, and
+  // exists precisely for the board that has no working gateware to be reached
+  // through — a board that has never been programmed, or one holding gateware
+  // from before the bridge existed.
+  //
+  // Never installed by the ordinary update path. UpdateOrchestrator does not
+  // look at it, the compatibility gate does not gate on it, and a bundle
+  // carrying nothing else is not an update bundle in any useful sense — it is
+  // the bring-up wizard's input.
+  //
+  // The schema version is deliberately *not* bumped for this, and the reason
+  // is what a build that predates the field does with such a bundle: it reads
+  // the firmware component beside this one and offers an ordinary firmware
+  // install, which is a true description of what that build can do with the
+  // file and is exactly as safe as any other firmware bundle. Bumping the
+  // version would instead have every older build refuse every bundle, which
+  // buys nothing here — nothing about this component changes the meaning of
+  // any other field.
+  //
+  // What did change is that the reader now refuses a component kind it does
+  // not know, rather than reading the two it recognises and ignoring the rest.
+  // A payload nobody described must never be silently skipped by the half of
+  // the chain that would have to write it.
+  std::optional<UpdateComponent> provisioning;
+
   UpdateCompatibility compatibility;
 };
 
 // The schema version this build writes and reads. A bundle declaring anything
 // else is refused.
 inline constexpr int64_t kUpdateManifestVersion = 1;
+
+// The three component kinds, as the manifest names them. Every other member of
+// "components" is refused — see UpdateManifest::provisioning.
+inline constexpr std::string_view kFirmwareComponentName = "firmware";
+inline constexpr std::string_view kGatewareComponentName = "gateware";
+inline constexpr std::string_view kProvisioningComponentName =
+    "gateware-provisioning-svf";
 
 // Read a manifest from its JSON text.
 //

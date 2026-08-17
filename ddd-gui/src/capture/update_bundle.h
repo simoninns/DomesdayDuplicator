@@ -30,6 +30,7 @@ namespace ddd::capture {
 //       manifest.minisig   detached Ed25519 signature over manifest.json
 //       firmware.img       FX3 image, when the bundle carries firmware
 //       gateware-app.rpd   raw EPCS byte stream, when it carries gateware
+//       gateware-provisioning.svf   JTAG vectors, in a provisioning set
 //
 // Uncompressed tar because the two properties that matter are that stock `tar`
 // can list and extract it, and that reading it takes a couple of hundred lines
@@ -97,6 +98,11 @@ struct UpdateBundle {
   // manifest.
   std::span<const uint8_t> firmware;
   std::span<const uint8_t> gateware;
+
+  // The provisioning gateware as JTAG vectors, for a board that has no working
+  // gateware to be reached through. Played through a cable by the bring-up
+  // wizard, and never written by the ordinary update path.
+  std::span<const uint8_t> provisioning;
 };
 
 // Open a bundle: check that it is what it claims to be, and refuse it
@@ -128,6 +134,10 @@ std::optional<UpdateBundle> OpenUpdateBundle(std::span<const uint8_t> archive,
 // looks for nothing else.
 inline constexpr std::string_view kManifestEntryName = "manifest.json";
 inline constexpr std::string_view kSignatureEntryName = "manifest.minisig";
+inline constexpr std::string_view kFirmwareEntryName = "firmware.img";
+inline constexpr std::string_view kGatewareEntryName = "gateware-app.rpd";
+inline constexpr std::string_view kProvisioningEntryName =
+    "gateware-provisioning.svf";
 
 // The extension a bundle carries, for the file dialog's filter and for the
 // release pipeline's asset name.

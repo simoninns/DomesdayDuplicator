@@ -62,6 +62,44 @@ UpdateGateInput MakeInput() {
   return input;
 }
 
+// A provisioning set chosen in the update window. It is a real file with a
+// real purpose and this is not the window for it, so the refusal names the one
+// that is rather than calling the file empty.
+TEST(UpdateGate, RefusesAProvisioningSetAndSaysWhereItBelongs) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.firmware.reset();
+
+  UpdateComponent provisioning;
+  provisioning.file = "gateware-provisioning.svf";
+  provisioning.length = 18400000;
+  provisioning.identity = "0123abcd";
+  provisioning.interface_version = 2;
+  manifest.provisioning = provisioning;
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, MakeInput());
+
+  EXPECT_FALSE(result.allowed());
+  ASSERT_FALSE(result.reasons.empty());
+  EXPECT_NE(result.reasons.front().find("Bring up"), std::string::npos)
+      << result.reasons.front();
+}
+
+// The provisioning component beside firmware changes nothing: the ordinary
+// path installs the firmware and leaves the vectors alone, which is what a
+// build that predates the component would do as well.
+TEST(UpdateGate, IgnoresAProvisioningComponentBesideFirmware) {
+  UpdateManifest manifest = MakeManifest();
+
+  UpdateComponent provisioning;
+  provisioning.file = "gateware-provisioning.svf";
+  provisioning.length = 18400000;
+  provisioning.identity = "0123abcd";
+  provisioning.interface_version = 2;
+  manifest.provisioning = provisioning;
+
+  EXPECT_TRUE(CheckUpdateGate(manifest, MakeInput()).allowed());
+}
+
 TEST(UpdateGate, AllowsAnOrdinaryUpdate) {
   const UpdateGateResult result = CheckUpdateGate(MakeManifest(), MakeInput());
 

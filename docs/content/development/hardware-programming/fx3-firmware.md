@@ -27,11 +27,31 @@ permanent.
     and there has never been an SPI code path. If you are reading documentation that mentions
     SPI flash for this board, it is out of date.
 
+!!! tip "The application can do this for you"
+
+    Everything on this page is now also available from `ddd-gui` — **Tools ▸ Firmware ▸
+    Legacy ▸ Bring up a new or legacy board…** — which programs both the FX3 and the FPGA
+    with no vendor toolchain installed at all. See [Bringing up a new or legacy
+    board](../../capture-gui/bringing-up-a-board.md).
+
+    This page remains the reference for what the wizard is doing, and the route to take
+    when something needs doing by hand.
+
 ## Before you start
 
 1. **Set up device access** — [Linux device access](linux-device-access.md). Without it
    every command below reports that no device was found.
 2. Locate the **PMODE jumper, J4**, on the FX3 board. You will be moving it.
+
+The two positions, which every step below refers to as *fitted* and *removed*:
+
+<div class="grid" markdown>
+
+![Jumper J4 fitted — the USB-boot position](assets/fx3-j4-fitted.jpeg){ width="330" }
+
+![Jumper J4 removed — the EEPROM-boot position](assets/fx3-j4-removed.jpeg){ width="330" }
+
+</div>
 
 ## 1. Build the firmware
 

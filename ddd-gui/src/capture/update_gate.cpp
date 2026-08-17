@@ -53,8 +53,18 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
   }
 
   if (!manifest.firmware.has_value() && !manifest.gateware.has_value()) {
+    // A set carrying only the provisioning gateware is a real file with a real
+    // purpose, and it is not this one: those vectors are played through a JTAG
+    // cable by the bring-up wizard, not sent to a running device. Named rather
+    // than dismissed as empty, so that somebody who has chosen the right file
+    // in the wrong window is told which window.
     refuse(UpdateGateVerdict::kIncompatible,
-           "This update file contains nothing to install.");
+           manifest.provisioning.has_value()
+               ? "This file carries only the provisioning gateware, which is "
+                 "programmed through a JTAG cable rather than installed from "
+                 "here. Use Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or "
+                 "legacy board…"
+               : "This update file contains nothing to install.");
     return result;
   }
 

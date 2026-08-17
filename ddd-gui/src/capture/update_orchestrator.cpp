@@ -342,13 +342,33 @@ UpdateOutcome UpdateOrchestrator::Run(const UpdateBundle& bundle) {
     // Reconfiguration stops the clock underneath the capture path, so it is
     // always followed by the reset below rather than leaving the firmware
     // holding a data path whose clock has gone away.
-    if (!device_.ReconfigureFpga()) {
+    if (!defer_restart_ && !device_.ReconfigureFpga()) {
       outcome.stage = UpdateStage::kFailed;
       outcome.problem =
           "The device would not reload its gateware. Unplug it and plug it "
           "back in.";
       return outcome;
     }
+  }
+
+  // Deferred: the caller owns the restart and the check that follows it. Said
+  // in the outcome as well as in the message, because identity_confirmed stays
+  // false and a caller that ignored that would be reporting a proof it does
+  // not have.
+  if (defer_restart_) {
+    outcome.succeeded = true;
+    outcome.stage = UpdateStage::kComplete;
+    outcome.identity_confirmed = false;
+
+    if (logger_ != nullptr) {
+      logger_->Info(
+          "Device update written and verified; the restart and the "
+          "confirmation are the caller's.");
+    }
+
+    Report(UpdateStage::kComplete, UpdateTarget::kFirmware, 0, 0,
+           "Written and checked. The device has not been restarted yet.");
+    return outcome;
   }
 
   Report(UpdateStage::kRestarting, UpdateTarget::kFirmware, 0, 0,

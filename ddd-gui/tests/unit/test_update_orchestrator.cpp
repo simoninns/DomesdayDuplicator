@@ -95,6 +95,71 @@ TEST(UpdateOrchestrator, InstallsFirmwareAndProvesItAfterwards) {
   EXPECT_EQ(device.reset_count(), 1u);
 }
 
+// --- the deferred restart ------------------------------------------------
+//
+// What the bring-up wizard's FX3 step runs. The jumper that put the device in
+// its boot ROM is still fitted, so a reset would land it back there and the
+// confirmation would compare the firmware just written against a device that
+// is not running it.
+
+TEST(UpdateOrchestrator, ADeferredRestartWritesAndVerifiesButDoesNotReset) {
+  const TestBundle test;
+  FakeDeviceUpdater device;
+
+  UpdateOrchestrator orchestrator(device, nullptr);
+  orchestrator.SetTimings(FastTimings());
+  orchestrator.SetDeferRestart(true);
+
+  const UpdateOutcome outcome = orchestrator.Run(test.bundle);
+
+  // The write happened and the device checked it, which is the commit.
+  EXPECT_TRUE(outcome.succeeded);
+  EXPECT_EQ(outcome.stage, UpdateStage::kComplete);
+  EXPECT_EQ(device.received(), test.firmware_payload);
+
+  // And nothing was restarted or claimed.
+  EXPECT_EQ(device.reset_count(), 0u);
+  EXPECT_FALSE(outcome.identity_confirmed);
+  EXPECT_TRUE(outcome.identity.product_string.empty());
+}
+
+// The FPGA reload goes with the restart, and for the same reason: the power
+// cycle the caller owns reloads the gateware from flash anyway.
+TEST(UpdateOrchestrator, ADeferredRestartDoesNotReloadTheGatewareEither) {
+  TestBundle test;
+  std::vector<uint8_t> gateware_payload = MakePayload(2048);
+
+  UpdateComponent gateware;
+  gateware.file = "gateware-app.rpd";
+  gateware.length = gateware_payload.size();
+  gateware.sha256 = Sha256(std::span<const uint8_t>(gateware_payload));
+  gateware.identity = "0123abcd";
+  gateware.interface_version = 2;
+  test.bundle.manifest.gateware = gateware;
+  test.bundle.gateware = gateware_payload;
+
+  FakeDeviceUpdater device;
+  UpdateOrchestrator orchestrator(device, nullptr);
+  orchestrator.SetTimings(FastTimings());
+  orchestrator.SetDeferRestart(true);
+
+  EXPECT_TRUE(orchestrator.Run(test.bundle).succeeded);
+  EXPECT_EQ(device.reconfigure_count(), 0u);
+  EXPECT_EQ(device.reset_count(), 0u);
+}
+
+// Inert unless it is set, which is the property that keeps the ordinary
+// update path out of this plan's way.
+TEST(UpdateOrchestrator, TheOrdinaryPathStillRestartsAndConfirms) {
+  const TestBundle test;
+  FakeDeviceUpdater device;
+
+  const UpdateOutcome outcome = RunUpdate(device, test.bundle);
+
+  EXPECT_EQ(device.reset_count(), 1u);
+  EXPECT_TRUE(outcome.identity_confirmed);
+}
+
 // Every chunk but the last is a whole number of EEPROM pages, so the
 // firmware can write a chunk straight to the medium with no assembly buffer.
 // The fake enforces it, so a host that broke the rule fails here rather than

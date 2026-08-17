@@ -30,6 +30,7 @@ namespace ddd::gui {
 
 class ExamineDialog;
 class AutoCaptureWizard;
+class BoardBringUpWizard;
 class PlayerRemoteDialog;
 
 class ApplicationLogger;
@@ -112,6 +113,13 @@ class MainWindow : public QMainWindow {
 
   void ShowAboutDialog();
   void ShowFirmwareDialog();
+
+  // Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy board…
+  //
+  // Always available, unlike the update dialog's entry: it begins with its own
+  // connectivity checks, and a board that is not answering is exactly the
+  // board it exists to repair — so there is no device state to grey it out on.
+  void ShowBringUpWizard();
   // The one settings dialog, opened on whichever tab the entry is about.
   void ShowSettingsDialog(
       SettingsDialog::Tab tab = SettingsDialog::Tab::kCapture);
@@ -183,6 +191,10 @@ class MainWindow : public QMainWindow {
   // And the automatic capture, on the same terms again: two of these would be
   // two sequences driving one player and one capture engine.
   QPointer<AutoCaptureWizard> wizard_;
+
+  // And the bring-up wizard, on the same terms once more: two of these would
+  // be two things programming one board.
+  QPointer<BoardBringUpWizard> bringup_wizard_;
 
   // Held so the two can be related to one another after both exist: the
   // Amplitude panel can be asked to keep pace with the spectrogram, and neither

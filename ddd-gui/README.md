@@ -47,6 +47,13 @@ libusb cable driver and a player for the JTAG vectors the bitstream build emits 
 file with nothing attached. The knowledge of what a Cyclone IV and an EPCS64 want stays in
 Quartus, at build time; see *USB-Blaster and SVF programming*.
 
+**Bringing a board up.** Tools → Firmware → Legacy → Bring up a new or legacy board… puts
+both halves of that together: a nine-page flow that programs a newly built kit, or one
+running the firmware from before this application existed, from nothing. Its order is not a
+presentation choice — the original firmware and the current gateware drive the same
+interconnect line, so the FX3 must become current first, and `ProvisioningOrchestrator`
+refuses the FPGA until it has. See *Bringing up a new or legacy board*.
+
 The engine half of all that is Qt-free, so `ddd-update` drives the identical code path
 from a shell — `dev-bundle.sh && ddd-update` is the whole edit-to-running-device loop, and
 it handles a device in recovery mode with no extra option. The FX3 target is complete; the

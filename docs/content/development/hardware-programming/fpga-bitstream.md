@@ -12,6 +12,30 @@ boundary, and feeds them to the FX3 over the GPIF II bus.
 The board has an **onboard USB-Blaster**, so no separate programming pod is needed — the
 DE0-NANO's mini-USB connector is both its power supply and its programming interface.
 
+![The DE0-NANO's mini-USB connector, in an assembled unit](assets/fpga-usb-port.jpeg){ width="330" }
+
+!!! warning "In an assembled Duplicator, it is not the only power supply"
+
+    That description is of the board on its own. Bolted to a Duplicator PCB with the FX3 kit
+    above it, the assembly is powered through **either** USB connector, and either one alone
+    keeps the whole thing alive.
+
+    Two consequences, and the second is a trap. The board is lit whatever the mini-USB is
+    doing, so "the lights are on" says nothing at all about whether the USB-Blaster is
+    connected — a charge-only cable looks identical to a working one. And **a power cycle
+    means unplugging both cables**: pull only one and nothing reboots, while the board stays
+    lit and looks perfectly normal.
+
+!!! tip "The application can do this for you"
+
+    Writing the EPCS no longer needs Quartus: `ddd-gui` plays a CI-built SVF through the same
+    onboard USB-Blaster — **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy board…**.
+    See [Bringing up a new or legacy board](../../capture-gui/bringing-up-a-board.md), and
+    [USB-Blaster and SVF programming](../usb-blaster-and-svf.md) for how it works.
+
+    This page remains the reference for building the bitstream and for programming it by
+    hand.
+
 There are two ways to program it, and you will usually want both:
 
 | | Writes to | Survives a power cycle | Use for |

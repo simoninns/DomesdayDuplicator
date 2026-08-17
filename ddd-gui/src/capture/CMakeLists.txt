@@ -20,12 +20,18 @@ if(WIN32)
         # everything else above the byte pipe are built here, and only the pipe is
         # missing.
         usb_blaster_unsupported.cpp
+
+        # Presence is asked without opening anything, so it has a backend of its own
+        # rather than riding on IUsbDevice: the WinUSB backend can only see devices
+        # bound to WinUSB, and the cable this has to answer for may well not be.
+        usb_presence_winusb.cpp
     )
 else()
     set(ddd_capture_usb_sources
         libusb_device.cpp
         libusb_source.cpp
         usb_blaster_libusb.cpp
+        usb_presence_libusb.cpp
     )
 endif()
 
@@ -56,6 +62,7 @@ add_library(ddd_capture STATIC
     memory_lock.cpp
     minisign_verify.cpp
     monitor_tap.cpp
+    provisioning_orchestrator.cpp
     raw_sink.cpp
     sample_metrics.cpp
     sample_sink.cpp

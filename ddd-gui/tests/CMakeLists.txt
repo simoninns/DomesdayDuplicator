@@ -92,6 +92,7 @@ ddd_add_test(ddd_update_tests "unit"
     unit/test_device_recovery.cpp
     unit/test_update_gate.cpp
     unit/test_update_orchestrator.cpp
+    unit/test_provisioning_orchestrator.cpp
     unit/test_update_cli.cpp
 )
 target_link_libraries(ddd_update_tests PRIVATE
@@ -246,6 +247,7 @@ target_include_directories(ddd_player_hardware_tests PRIVATE support)
 ddd_add_test(ddd_gui_tests "unit"
     support/gui_test_main.cpp
     gui/unit/test_about_text.cpp
+    gui/unit/test_bringup_text.cpp
     gui/unit/test_firmware_text.cpp
     gui/unit/test_update_text.cpp
     gui/unit/test_update_steps.cpp
@@ -288,6 +290,7 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     gui/widget/test_examine_dialog.cpp
     gui/widget/test_capture_plan_form.cpp
     gui/widget/test_auto_capture_wizard.cpp
+    gui/widget/test_board_bringup_wizard.cpp
     gui/widget/test_player_remote_dialog.cpp
     gui/widget/test_settings_dialog.cpp
     gui/widget/test_statistics_panel.cpp

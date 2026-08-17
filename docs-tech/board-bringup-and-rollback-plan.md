@@ -201,8 +201,23 @@ not:
   drives `CTL_00/03/04/11/12`, which modern firmware reads, and modern firmware drives
   the SPI clock, MOSI and chip-select, which legacy gateware reads. **Safe.**
 - **legacy firmware + modern gateware** — the FPGA drives `CTL_07` as MISO while the FX3
-  drives the same net push-pull. Two outputs on one wire is a short whenever they
-  disagree. **Must not happen.**
+  drives the same net push-pull. Two outputs on one wire, whenever they disagree.
+  **Must not happen.**
+
+  How badly, corrected on the schematic: the SuperSpeed Explorer Kit carries a **22 Ω
+  series resistor on every `CTL` line** between the FX3's pin and the GPIF II header, so
+  the fault current is not left to the two output stages alone. With a resistor that size
+  in a loop of two CMOS drivers, contention is of the order of forty milliamps rather than
+  the hundred-plus a bare short would draw.
+  
+  That is a real mitigation and it is not protection. Twenty-two ohms on a 100 MHz bus
+  header is **source-series termination**, put there for signal integrity, and it is an
+  order of magnitude below the value anyone would choose to make contention survivable.
+  Forty milliamps is still past the per-pin DC maximum of both dies, and in this pairing
+  the disagreement is sustained rather than transient — the legacy firmware claims the pin
+  and holds it. So the ordering rule stands unchanged; what changes is the failure it
+  averts, which is out-of-spec stress on two devices rather than a board that dies the
+  moment it is powered.
 
 So the ordering is not a matter of taste in either direction:
 
@@ -210,9 +225,21 @@ So the ordering is not a matter of taste in either direction:
 > legacy.** Bring-up programs the FX3 first, then the FPGA. Rollback programs the FPGA
 > first, then the FX3.
 
-Both flows then pass only through the safe mixed state. (The belt-and-braces option, if
-the bench wants it, is that the FX3 sitting in its boot ROM with J4 fitted drives
-nothing at all, so FPGA work done in that window is safe regardless.)
+Both flows then pass only through the safe mixed state — and the ordering is not the whole
+of why. **What a board is *running* only changes at a power cycle**: the FPGA reloads from
+flash and the FX3 re-reads its boot source, both at that moment and not before. Each flow
+has exactly one power cycle and it comes after both halves are programmed, so the two
+change together and there is no window in between at all.
+
+Reaching the bad pairing therefore needs the wrong order *and* an intermediate power
+cycle. The orchestrator refuses the first; the flows' shape forbids the second, and there
+is a widget test asserting that every power cycle either flow asks for falls before both
+halves or after both. During bring-up the FX3 is additionally sitting in its boot ROM with
+J4 fitted, driving nothing at all, which makes the FPGA work safe a third time over.
+
+So this is a property of the design rather than a rule the procedure has to be trusted to
+follow, and B-V0 is correspondingly not a gate — it measures the mixed state the flows
+deliberately sit in, which is the one that lasts minutes on every board.
 
 This is a reading of two source trees, not a measurement, and it concerns possible
 hardware damage — so it is **verification item B-V0**, to be settled before either
@@ -629,12 +656,13 @@ other.
   `jtagd` contending for the cable. The connectivity page must detect an
   un-openable Blaster and say which of the two problems it is; the docs page carries
   both remedies. macOS and Linux have no equivalent problem.
-- **The interconnect direction change is the one risk here that can damage hardware**,
+- **The interconnect direction change is the one risk here that can stress hardware**,
   and it is why both orderings are fixed rather than chosen: legacy firmware drives
-  `CTL_07` push-pull while modern gateware drives the same net as SPI MISO. The
-  orderings in *Two constraints* mean neither flow ever creates that pairing, but the
-  analysis is a source reading and B-V0 must confirm it before either wizard meets
-  hardware. The tolerated mixed state — modern firmware over legacy gateware — lasts
+  `CTL_07` push-pull while modern gateware drives the same net as SPI MISO. The Explorer
+  Kit's 22 Ω series resistor on that line bounds the resulting current without making it
+  acceptable (see *Two constraints*). The orderings mean neither flow ever creates that
+  pairing, but the analysis is a source reading and B-V0 should confirm it before either
+  wizard meets hardware. The tolerated mixed state — modern firmware over legacy gateware — lasts
   minutes in both flows; the firmware must already survive an unresponsive register
   interface (the factory and absent-gateware cases), and R0 is where that is proved, so
   R0 runs early in Phase 5 rather than last.

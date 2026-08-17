@@ -58,7 +58,8 @@ constexpr uint16_t kFtdiLatencyMilliseconds = 2;
 // The byte pipe, and the owner of everything that has to be given back.
 class LibUsbFtdiTransport : public IFtdiTransport {
  public:
-  explicit LibUsbFtdiTransport(ILogger* logger) : logger_(logger) {}
+  LibUsbFtdiTransport(ILogger* logger, std::string* problem)
+      : logger_(logger), problem_(problem) {}
 
   ~LibUsbFtdiTransport() override {
     if (handle_ != nullptr) {
@@ -269,13 +270,21 @@ class LibUsbFtdiTransport : public IFtdiTransport {
         "connector, and on Linux check that the udev rules are installed.");
   }
 
+  // One sentence, to the log and — for a caller that has to put it on a
+  // screen — to whatever it handed in. The first is kept rather than the last:
+  // the reason a cable could not be opened is decided at the point it failed,
+  // and everything after that is consequence.
   void Fail(const std::string& message) {
     if (logger_ != nullptr) {
       logger_->Error(message);
     }
+    if (problem_ != nullptr && problem_->empty()) {
+      *problem_ = message;
+    }
   }
 
   ILogger* logger_ = nullptr;
+  std::string* problem_ = nullptr;
   libusb_context* context_ = nullptr;
   libusb_device_handle* handle_ = nullptr;
   int interface_number_ = 0;
@@ -307,8 +316,13 @@ class OwningCable : public IJtagCable {
 
 }  // namespace
 
-std::unique_ptr<IJtagCable> MakeUsbBlasterCable(ILogger* logger) {
-  auto transport = std::make_unique<LibUsbFtdiTransport>(logger);
+std::unique_ptr<IJtagCable> MakeUsbBlasterCable(ILogger* logger,
+                                                std::string* problem) {
+  if (problem != nullptr) {
+    problem->clear();
+  }
+
+  auto transport = std::make_unique<LibUsbFtdiTransport>(logger, problem);
   if (!transport->Open()) {
     return nullptr;
   }

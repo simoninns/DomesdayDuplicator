@@ -157,6 +157,28 @@ class UpdateOrchestrator {
     cancel_ = std::move(cancel);
   }
 
+  // Stop once the device has verified what it wrote, instead of restarting it
+  // and reading back what came up.
+  //
+  // Inert unless set, and set by exactly one caller: the bring-up wizard's FX3
+  // step, where the PMODE jumper is fitted. A reset with that jumper fitted
+  // lands the FX3 back in its boot ROM rather than in the firmware just
+  // written, so the confirmation would compare the new image against a device
+  // that is not running it and report a failure for an update that worked.
+  //
+  // The device is left in a defined state either way — the EEPROM is written
+  // and read back before this returns, which is the commit — and what is
+  // deferred is only the proof. The caller then owns the power cycle and the
+  // check afterwards, and must actually do both: an outcome from a deferred
+  // run reports succeeded with identity_confirmed false, and nothing has been
+  // read off the device to confirm.
+  //
+  // Reconfiguring the FPGA is deferred with it, for the same reason: the
+  // power cycle that the caller owns reloads the gateware from flash anyway,
+  // and asking a device to reload it a moment before it loses power is a
+  // reconfiguration nobody watches the result of.
+  void SetDeferRestart(bool defer) { defer_restart_ = defer; }
+
   // Install every component the bundle carries that this firmware can take,
   // then reset the device and confirm what came back.
   //
@@ -186,6 +208,7 @@ class UpdateOrchestrator {
   UpdateTimings timings_;
   UpdateProgressCallback progress_;
   std::function<bool()> cancel_;
+  bool defer_restart_ = false;
 };
 
 // A rough estimate, in seconds, of how long installing this bundle will

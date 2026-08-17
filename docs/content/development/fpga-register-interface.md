@@ -394,7 +394,9 @@ The capture application reports all of these in its **Tools → Firmware** dialo
 
 ## Signal integrity
 
-The lines are push-pull over a few centimetres through two headers, which is unremarkable, but nothing drove a clock down them before this interface existed. If ringing on `FPGA_SCLK` ever proves to double-clock the slave despite the input filter, the remedies in order are: lower the master's clock rate, which costs nothing and is a firmware constant; widen the filter, which costs nothing; and only then reduce the FX3's drive strength or add series termination, which needs a hardware change.
+The lines are push-pull over a few centimetres through two headers, which is unremarkable, but nothing drove a clock down them before this interface existed. If ringing on `FPGA_SCLK` ever proves to double-clock the slave despite the input filter, the remedies in order are: lower the master's clock rate, which costs nothing and is a firmware constant; widen the filter, which costs nothing; and only then reduce the FX3's drive strength, which needs a hardware change.
+
+Series termination is the remedy that is **already present** and is worth knowing about before anyone plans to add it: the SuperSpeed Explorer Kit carries a 22 Ω series resistor on every `CTL` line between the FX3's pin and the GPIF II header, so each of these signals is source-terminated on the FX3 side before it reaches this board. The Duplicator PCB itself adds nothing — the nets run straight from one header to the other.
 
 ## Where the code is
 

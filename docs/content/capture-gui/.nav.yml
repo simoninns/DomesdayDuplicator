@@ -16,6 +16,7 @@ nav:
   - LaserDisc player control: player-control.md
   - Test mode and integrity checking: test-mode.md
   - Updating your Domesday Duplicator: updating-your-domesday-duplicator.md
+  - Bringing up a new or legacy board: bringing-up-a-board.md
   - If an update fails: if-an-update-fails.md
   - If a capture fails: if-a-capture-fails.md
   - Command line: command-line.md

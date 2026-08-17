@@ -72,7 +72,7 @@ Two cases, and the window says which:
 
 A Duplicator you have just built arrives in recovery mode, and the steps above are how you bring it to life. You need the USB cable and a release update file; no programming tools, no jumpers, and nothing to install.
 
-The FPGA is a separate matter for now. A board whose FPGA has never been programmed needs its two images written once over the DE0-Nano's own USB connector, which is covered in the [hardware programming](../development/hardware-programming/index.md) pages. A board freshly set up that way arrives in **recovery gateware** — the resident image is there and the capture gateware is not yet — so the reinstall above is the last step of building a board as well as the repair for an interrupted update.
+The FPGA is a separate matter. A board whose FPGA has never been programmed needs its two images written once over the DE0-Nano's own USB connector — which the application now does, in **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy board…** ([Bringing up a new or legacy board](bringing-up-a-board.md)); the by-hand procedure is in the [hardware programming](../development/hardware-programming/index.md) pages. A board freshly set up that way arrives in **recovery gateware** — the resident image is there and the capture gateware is not yet — so the reinstall above is the last step of building a board as well as the repair for an interrupted update.
 
 ## Two states that look alike but are not
 

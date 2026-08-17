@@ -48,6 +48,14 @@ product IDs (`6002`, `6003`, `6010`, `6810`) for anyone using a standalone cable
     Neither Altera's own installer nor the nixpkgs package ships any udev rules. Without one
     the JTAG device is root-only and every Quartus programming operation fails.
 
+!!! important "Bringing a board up needs both files"
+
+    `ddd-gui`'s [bring-up wizard](../../capture-gui/bringing-up-a-board.md) programs the FX3
+    through the first rules file and the FPGA through the second, in one flow. Its
+    connectivity page opens both devices before anything is programmed, so a missing rule
+    turns up there — named, with the file to install — rather than in the middle of writing
+    a flash.
+
 ## NixOS
 
 The repository provides a NixOS module. Add the flake as an input and enable it:

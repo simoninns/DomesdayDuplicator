@@ -174,6 +174,7 @@ UpdateOutcome RecoveryInstaller::Run(const UpdateBundle& bundle) {
   // covered by the whole integrity chain, not by a shortcut around it.
   UpdateOrchestrator orchestrator(*updater, logger_);
   orchestrator.SetTimings(update_timings_);
+  orchestrator.SetDeferRestart(defer_restart_);
   if (progress_) {
     orchestrator.SetProgressCallback(progress_);
   }

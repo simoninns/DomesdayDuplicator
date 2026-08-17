@@ -25,6 +25,7 @@
 #   manifest.minisig    a detached Ed25519 signature over manifest.json
 #   firmware.img        present when --firmware was given
 #   gateware-app.rpd    present when --gateware was given
+#   gateware-provisioning.svf   present when --provisioning was given
 #
 # Requirements: bash, coreutils, GNU tar and minisign. All four are in `nix develop`; on a
 # distribution they are the tar and minisign packages. Nothing here is Nix-only.
@@ -49,6 +50,9 @@ firmware_interface_version="1"
 gateware=""
 gateware_identity=""
 gateware_interface_version="2"
+provisioning=""
+provisioning_identity=""
+provisioning_interface_version="2"
 minimum_application_version=""
 minimum_register_map_version="1"
 epcs_layout_version="1"
@@ -63,17 +67,27 @@ Usage: make-update-bundle.sh --output FILE --version X.Y.Z --commit HASH
                               --firmware-interface-version N]
                              [--gateware FILE --gateware-identity HASH
                               --gateware-interface-version N]
+                             [--provisioning FILE --provisioning-identity HASH
+                              --provisioning-interface-version N]
                              [--minimum-application-version X.Y.Z]
                              [--minimum-register-map-version N]
                              [--epcs-layout-version N]
 
-At least one of --firmware and --gateware is required; a firmware-only bundle is a
-complete bundle and is what the development loop produces.
+At least one payload is required; a firmware-only bundle is a complete bundle and is
+what the development loop produces.
 
   --firmware-interface-version   the USB protocol version this firmware advertises in
                                  bcdDevice once installed
   --gateware-interface-version   the register-map version this gateware reports at
                                  register 0x01 once installed
+  --provisioning                 the provisioning gateware as JTAG vectors
+                                 (DomesdayDuplicatorProvisioning.svf), played through a
+                                 USB-Blaster by the bring-up wizard rather than installed
+                                 over USB. A set carrying this and firmware is what a
+                                 board with no working gateware is brought up with
+  --provisioning-interface-version
+                                 the register-map version the provisioned gateware
+                                 reports at register 0x01
   --minimum-application-version  the oldest ddd-gui that may install this bundle;
                                  defaults to --version, which is the safe reading
   --public-key                   the matching public key, for the self-check at the end.
@@ -99,6 +113,9 @@ while [[ $# -gt 0 ]]; do
         --gateware) gateware="$2"; shift 2 ;;
         --gateware-identity) gateware_identity="$2"; shift 2 ;;
         --gateware-interface-version) gateware_interface_version="$2"; shift 2 ;;
+        --provisioning) provisioning="$2"; shift 2 ;;
+        --provisioning-identity) provisioning_identity="$2"; shift 2 ;;
+        --provisioning-interface-version) provisioning_interface_version="$2"; shift 2 ;;
         --minimum-application-version) minimum_application_version="$2"; shift 2 ;;
         --minimum-register-map-version) minimum_register_map_version="$2"; shift 2 ;;
         --epcs-layout-version) epcs_layout_version="$2"; shift 2 ;;
@@ -113,7 +130,8 @@ die() { echo "make-update-bundle: $*" >&2; exit 1; }
 [[ -n "$version" ]] || die "--version is required"
 [[ -n "$commit" ]] || die "--commit is required"
 [[ -n "$secret_key" ]] || die "--secret-key is required"
-[[ -n "$firmware" || -n "$gateware" ]] || die "nothing to bundle: pass --firmware, --gateware or both"
+[[ -n "$firmware" || -n "$gateware" || -n "$provisioning" ]] ||
+    die "nothing to bundle: pass --firmware, --gateware, --provisioning or several"
 
 case "$channel" in
     release|development) ;;
@@ -136,6 +154,8 @@ esac
     die "--firmware needs --firmware-identity: the commit the device will report once it is installed"
 [[ -z "$gateware" || -n "$gateware_identity" ]] ||
     die "--gateware needs --gateware-identity"
+[[ -z "$provisioning" || -n "$provisioning_identity" ]] ||
+    die "--provisioning needs --provisioning-identity"
 
 for tool in tar minisign sha256sum; do
     command -v "$tool" >/dev/null 2>&1 ||
@@ -190,6 +210,11 @@ if [[ -n "$gateware" ]]; then
     cp "$gateware" "$stage/gateware-app.rpd"
     chmod u+w "$stage/gateware-app.rpd"
 fi
+if [[ -n "$provisioning" ]]; then
+    [[ -f "$provisioning" ]] || die "no such provisioning file: $provisioning"
+    cp "$provisioning" "$stage/gateware-provisioning.svf"
+    chmod u+w "$stage/gateware-provisioning.svf"
+fi
 
 # The manifest. Written by hand rather than by a JSON library so that this script needs
 # nothing but coreutils — and laid out exactly as ddd-gui's writer lays it out, so the two
@@ -224,6 +249,21 @@ fi
         printf '      "identity": "%s",\n' "$(json_escape "$gateware_identity")"
         printf '      "interface_version": %s\n' "$gateware_interface_version"
         printf '    }'
+        component_separator=",\n"
+    fi
+    # Named for the kind of payload rather than for the half of the device it ends up
+    # in, because the half is the same and the route is not: this one is played into
+    # the FPGA's JTAG port by the bring-up wizard, where "gateware" above goes over USB
+    # through a flash bridge that a board being brought up does not yet have.
+    if [[ -n "$provisioning" ]]; then
+        printf "%b" "$component_separator"
+        printf '    "gateware-provisioning-svf": {\n'
+        printf '      "file": "gateware-provisioning.svf",\n'
+        printf '      "length": %s,\n' "$(length_of "$stage/gateware-provisioning.svf")"
+        printf '      "sha256": "%s",\n' "$(digest_of "$stage/gateware-provisioning.svf")"
+        printf '      "identity": "%s",\n' "$(json_escape "$provisioning_identity")"
+        printf '      "interface_version": %s\n' "$provisioning_interface_version"
+        printf '    }'
     fi
 
     printf '\n  },\n'
@@ -256,6 +296,9 @@ if [[ -n "$firmware" ]]; then
 fi
 if [[ -n "$gateware" ]]; then
     entries+=(gateware-app.rpd)
+fi
+if [[ -n "$provisioning" ]]; then
+    entries+=(gateware-provisioning.svf)
 fi
 
 mkdir -p "$(dirname "$output")"
@@ -305,5 +348,9 @@ fi
 if [[ -n "$gateware" ]]; then
     check_payload gateware-app.rpd
     echo "  gateware  $(digest_of "$stage/gateware-app.rpd")"
+fi
+if [[ -n "$provisioning" ]]; then
+    check_payload gateware-provisioning.svf
+    echo "  provision $(digest_of "$stage/gateware-provisioning.svf")"
 fi
 echo "  verified  signature and every payload digest, re-read from the finished file"

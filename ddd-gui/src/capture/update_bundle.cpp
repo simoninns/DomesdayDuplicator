@@ -395,6 +395,13 @@ std::optional<UpdateBundle> OpenUpdateBundle(std::span<const uint8_t> archive,
                       &bundle.gateware, error)) {
     return std::nullopt;
   }
+  if (manifest->provisioning &&
+      !CheckComponent(*entries, *manifest->provisioning,
+                      "provisioning "
+                      "gateware",
+                      &bundle.provisioning, error)) {
+    return std::nullopt;
+  }
 
   if (error != nullptr) {
     error->clear();

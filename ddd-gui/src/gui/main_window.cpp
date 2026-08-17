@@ -31,6 +31,7 @@
 #include "application_logger.h"
 #include "auto_capture_controller.h"
 #include "auto_capture_wizard.h"
+#include "board_bringup_wizard.h"
 #include "capture_controller.h"
 #include "capture_naming_dialog.h"
 #include "capture_panel.h"
@@ -533,14 +534,24 @@ void MainWindow::BuildToolsMenu() {
 
   tools_menu->addSeparator();
 
-  // A sub-menu holding one entry, deliberately. Everything to do with what
-  // the device is running belongs in one place, and the flows that bring a
-  // board up to current firmware from scratch are the rest of that place —
-  // so the ordinary update path takes the name and the position it will keep
-  // once they arrive, rather than being moved out from under users later.
+  // Everything to do with what the device is running, in one place. The
+  // ordinary update path is first and keeps its behaviour; the legacy flows
+  // are behind a sub-menu of their own, because they are what somebody reaches
+  // for once in the life of a board and the update path is what they reach for
+  // every release.
   QMenu* const firmware_menu = tools_menu->addMenu(tr("&Firmware"));
   firmware_menu->addAction(tr("&Update firmware…"), this,
                            &MainWindow::ShowFirmwareDialog);
+
+  firmware_menu->addSeparator();
+
+  QMenu* const legacy_menu = firmware_menu->addMenu(tr("&Legacy"));
+  QAction* const bringup_action =
+      legacy_menu->addAction(tr("&Bring up a new or legacy board…"), this,
+                             &MainWindow::ShowBringUpWizard);
+  bringup_action->setStatusTip(
+      tr("Program both halves of a board from nothing — a newly built one, or "
+         "one running the original Duplicator firmware"));
 
   if (capture_controller_ == nullptr) {
     // Nothing to put the device into test mode with. Shown rather than hidden
@@ -822,6 +833,79 @@ void MainWindow::ShowAutoCaptureWizard() {
   wizard_->show();
   wizard_->raise();
   wizard_->activateWindow();
+}
+
+void MainWindow::ShowBringUpWizard() {
+  // One wizard, however it was reached: two would be two things programming
+  // one board.
+  if (bringup_wizard_.isNull()) {
+    capture::IUsbDevice* const usb = capture_controller_ != nullptr
+                                         ? capture_controller_->usb_device()
+                                         : nullptr;
+    auto* const logger = static_cast<capture::ILogger*>(logger_);
+
+    BoardBringUpWizard::Access access;
+
+    // The device list the monitor already keeps, rather than a second
+    // enumeration of the bus. It is refreshed five times a second and the
+    // wizard reads it twice a second, so what the wizard sees is what the
+    // rest of the window sees.
+    access.devices = [this] {
+      return capture_controller_ != nullptr
+                 ? capture_controller_->devices()
+                 : std::vector<capture::DeviceInfo>{};
+    };
+
+    access.presence = [](uint16_t vendor, uint16_t product) {
+      return capture::UsbDeviceAttached(vendor, product);
+    };
+
+    access.open_cable =
+        [logger](std::string* problem) -> std::unique_ptr<capture::IJtagCable> {
+      return capture::MakeUsbBlasterCable(logger, problem);
+    };
+
+    access.open_programmer = [usb, logger](const std::string& path)
+        -> std::unique_ptr<capture::IDeviceProgrammer> {
+      if (usb == nullptr || path.empty()) {
+        return nullptr;
+      }
+      return capture::MakeDeviceProgrammer(*usb, path, logger);
+    };
+
+    access.open_updater = [usb, logger](const std::string& path)
+        -> std::unique_ptr<capture::IDeviceUpdater> {
+      if (usb == nullptr || path.empty()) {
+        return nullptr;
+      }
+      return capture::MakeDeviceUpdater(*usb, path, logger);
+    };
+
+    bringup_wizard_ = new BoardBringUpWizard(std::move(access), this);
+    bringup_wizard_->setAttribute(Qt::WA_DeleteOnClose);
+    bringup_wizard_->SetKeyPolicy(update_key_policy_);
+
+    // The monitor opens every attached device to read its identity, and
+    // programming holds one open for minutes and makes it disappear and come
+    // back in the middle. Suspending it for the duration is what keeps those
+    // two out of each other's way — exactly as the update page does.
+    connect(bringup_wizard_, &BoardBringUpWizard::BusyChanged, this,
+            [this](bool busy) {
+              if (capture_controller_ != nullptr) {
+                capture_controller_->SetDeviceMonitorSuspended(busy);
+              }
+            });
+
+    // The last page's button. Opening the update dialog is this window's
+    // business rather than the wizard's, because this window is the one that
+    // knows how to build one.
+    connect(bringup_wizard_, &BoardBringUpWizard::OpenUpdateRequested, this,
+            &MainWindow::ShowFirmwareDialog);
+  }
+
+  bringup_wizard_->show();
+  bringup_wizard_->raise();
+  bringup_wizard_->activateWindow();
 }
 
 void MainWindow::ShowAutoCaptureWizardFor(const player::DiscProfile& disc) {
