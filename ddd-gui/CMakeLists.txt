@@ -189,6 +189,7 @@ add_subdirectory(src/analysis)
 add_subdirectory(src/player)
 add_subdirectory(src/gui)
 add_subdirectory(src/update-cli)
+add_subdirectory(src/jtag-cli)
 
 # Tests are on by default when this is the top-level project, so `cmake -B build` gives a
 # contributor the suite without having to know a flag.
@@ -209,7 +210,8 @@ endif()
 #   clang-tidy — a packaging sandbox exposes the stdenv's unwrapped clang-tidy, which
 #   cannot resolve the standard library headers and fails on otherwise-valid sources.
 
-set(ddd_gated_targets ddd_capture ddd_analysis ddd_player ddd_gui_lib ddd-gui ddd-update)
+set(ddd_gated_targets ddd_capture ddd_analysis ddd_player ddd_gui_lib ddd-gui ddd-update
+    ddd-jtag)
 
 if(BUILD_TESTING)
     get_property(ddd_test_targets GLOBAL PROPERTY DDD_TEST_TARGETS)

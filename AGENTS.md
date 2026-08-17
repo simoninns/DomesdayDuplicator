@@ -491,8 +491,8 @@ nix flake check                    # everything, on a clean machine
 ctest --test-dir gui/build         # one component
 ```
 
-**What exists today: 872 tests across five components** — 37 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 776 in `ddd-gui/` (the capture engine — sample and wire
+**What exists today: 1,654 tests across five components** — 37 in `gui/` (UTF-8 conversion, the
+10-bit/16-bit sample codec, the FLAC round trip, the offline ramp analyser), 1,558 in `ddd-gui/` (the capture engine — sample and wire
 formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
 metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
 against each other, capture naming and provenance, the offline test-data analyser and its
@@ -519,7 +519,10 @@ when a gateware was actually installed — the recovery path that programs a dev
 firmware at all: the FX3 boot image parsed and every malformed form of it refused, the
 prelude that hands that image to a device's boot ROM, and the wording a user meets when
 their board has never been programmed; and the second rescue state, a unit whose FPGA came
-up in its factory image, named and repaired by an ordinary update),
+up in its factory image, named and repaired by an ordinary update — and the JTAG path that
+reaches a board no update can: the USB-Blaster's wire protocol against a fake byte pipe, and
+the programming file's parser and TAP state machine checked cycle by cycle against a fake
+cable, including against a file Quartus itself emitted),
 24 in `fx3/programmer/` (EEPROM paging arithmetic,
 secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and three
 in `fx3/firmware/` (the generated USB product descriptor, the host-testable half of the register map, and the host-testable half of the device update protocol including both media's paging arithmetic, the boot block it writes at the end of a gateware update, and the CRC-32 that block carries). `fpga/` adds nine

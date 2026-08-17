@@ -101,6 +101,26 @@ target_link_libraries(ddd_update_tests PRIVATE
 )
 target_include_directories(ddd_update_tests PRIVATE support)
 
+# T1 — the JTAG programming path: the USB-Blaster's wire protocol, the SVF player and
+# the TAP state machine it walks, and the shell tool's contract.
+#
+# A binary of its own for the reason ddd_update_tests is one: this is the surface that
+# writes an FPGA's configuration flash, and `ctest -R jtag` is the suite anyone touching
+# it needs to be able to run in a second. Nothing here touches hardware — the cable is a
+# fake byte pipe and the player's far end is a fake cable, which between them cover
+# everything but whether a real device agrees (TESTING.md, B-V1).
+ddd_add_test(ddd_jtag_tests "unit"
+    unit/test_usb_blaster_cable.cpp
+    unit/test_svf_player.cpp
+    unit/test_jtag_cli.cpp
+)
+target_link_libraries(ddd_jtag_tests PRIVATE
+    ddd_capture
+    GTest::gtest
+    GTest::gtest_main
+)
+target_include_directories(ddd_jtag_tests PRIVATE support)
+
 # T1 — the LaserDisc player protocol. Links no Qt, which is the check that the protocol
 # has not grown one: the whole of it — probing for a player, identifying the model,
 # encoding every command and reading every reply — runs against a scripted fake serial

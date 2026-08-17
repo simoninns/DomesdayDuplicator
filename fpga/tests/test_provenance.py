@@ -163,6 +163,69 @@ with tempfile.TemporaryDirectory() as scratch:
         "a .jic canonical digest is the plain digest of the file",
     )
 
+print("\ncanonicalise_svf")
+
+# The converter names its input file and that file's modification time in a
+# header comment, so a rebuild whose .jic is byte for byte identical still
+# produces a .svf that is not. Everything below that line is a function of
+# the .jic alone.
+SVF_HEADER = (
+    b"!Quartus Prime SVF converter 25.1\n"
+    b"!\n"
+    b"!Device #1: EP4CE22 - ./DomesdayDuplicatorProvisioning.jic %s\n"
+    b"!\n"
+    b"FREQUENCY 4.50E+06 HZ;\n"
+    b"SIR 10 TDI (006);\n"
+)
+
+first_svf = SVF_HEADER % b"Mon Aug 17 17:43:42 2026"
+second_svf = SVF_HEADER % b"Mon Aug 17 18:11:41 2026"
+
+check(first_svf != second_svf, "the two fixtures differ before canonicalisation")
+check(
+    provenance.canonicalise_svf(first_svf)
+    == provenance.canonicalise_svf(second_svf),
+    "the same vectors converted at different times canonicalise identically",
+)
+check(
+    b"SIR 10 TDI (006);" in provenance.canonicalise_svf(first_svf),
+    "canonicalising a .svf leaves its vectors alone",
+)
+check(
+    provenance.canonicalise_svf(first_svf)
+    != provenance.canonicalise_svf(first_svf.replace(b"(006)", b"(00E)")),
+    "different vectors canonicalise differently",
+)
+
+# A day of the month the C library space-pads, which is the form that would
+# quietly stop matching and leave every rebuild disagreeing with the record.
+check(
+    provenance.canonicalise_svf(SVF_HEADER % b"Sun Aug  3 09:01:02 2025")
+    == provenance.canonicalise_svf(first_svf),
+    "a space-padded day of the month is matched too",
+)
+
+# Fail loudly rather than digesting a file whose header has moved on.
+try:
+    provenance.canonicalise_svf(b"!Quartus Prime SVF converter 26.1\nSIR 10 TDI (0);\n")
+    check(False, "a .svf with no device line raises")
+except ValueError:
+    check(True, "a .svf with no device line raises rather than guessing")
+
+with tempfile.TemporaryDirectory() as scratch:
+    svf = Path(scratch) / "fixture.svf"
+    svf.write_bytes(first_svf)
+    check(
+        provenance.canonical_digest(svf)
+        == hashlib.sha256(provenance.canonicalise_svf(first_svf)).hexdigest(),
+        "a .svf canonical digest is the digest of its canonical form",
+    )
+    check(
+        provenance.canonical_digest(svf)
+        != hashlib.sha256(first_svf).hexdigest(),
+        "a .svf canonical digest is not simply the digest of the file",
+    )
+
 print()
 if failures:
     print(f"test_provenance: FAIL ({len(failures)} of the checks above)")

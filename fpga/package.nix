@@ -103,6 +103,22 @@ stdenvNoCC.mkDerivation {
     (cd provisioning &&
       quartus_cpf -c DomesdayDuplicatorProvisioning.cof &&
       rm -f DomesdayDuplicatorFactory.sof DomesdayDuplicator.sof)
+
+    # The same provisioning content again, as the JTAG vectors that write it,
+    # so that a board can be provisioned by ddd-jtag over the DE0-Nano's
+    # on-board USB-Blaster on a machine that has never had Quartus installed.
+    # Every Cyclone IV and serial flash loader decision stays here, at build
+    # time, in the tool that already holds it.
+    #
+    # The frequency is not decoration: the converter turns every wait into a
+    # count of TCK cycles at the rate named here, so the file says how long
+    # its erases are meant to take only in combination with this number. The
+    # player reads it back out of the file and holds the waits open for that
+    # long whatever the cable's own clock does.
+    (cd provisioning &&
+      quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
+        DomesdayDuplicatorProvisioning_write_jic.cdf \
+        DomesdayDuplicatorProvisioning.svf)
     (cd application && quartus_cpf -c DomesdayDuplicator.cof && rm -f DomesdayDuplicator.jic)
 
     # The boot block that describes the application image. It is not written
@@ -133,6 +149,7 @@ stdenvNoCC.mkDerivation {
     # What a board is provisioned from: both images, the map that says where
     # the converter put them, the boot block, and the file quartus_pgm reads.
     install -Dm444 provisioning/DomesdayDuplicatorProvisioning.jic -t "$out/provisioning"
+    install -Dm444 provisioning/DomesdayDuplicatorProvisioning.svf -t "$out/provisioning"
     install -Dm444 provisioning/DomesdayDuplicatorProvisioning.map -t "$out/provisioning"
     install -Dm444 provisioning/DomesdayDuplicatorProvisioning_write_jic.cdf -t "$out/provisioning"
     install -Dm444 provisioning/boot-block.bin -t "$out/provisioning"
@@ -165,6 +182,7 @@ stdenvNoCC.mkDerivation {
       application/DomesdayDuplicator_auto.rpd \
       factory/DomesdayDuplicatorFactory.sof \
       provisioning/DomesdayDuplicatorProvisioning.jic \
+      provisioning/DomesdayDuplicatorProvisioning.svf \
       provisioning/boot-block.bin \
       bitstream-provenance.txt; do
       if [ ! -s "$out/$required" ]; then

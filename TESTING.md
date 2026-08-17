@@ -174,7 +174,7 @@ corruption is only detectable by comparing against an original that may no longe
 One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
 two bytes, which is Windows.
 
-### 4.2 `ddd-gui/` — 1,325 tests (1,315 without hardware)
+### 4.2 `ddd-gui/` — 1,558 tests (1,548 without hardware)
 
 The replacement capture application. Split by what a test needs rather than by what it
 covers: `ddd_capture_tests` links no Qt at all, which is what makes the engine's Qt-free
@@ -207,6 +207,9 @@ LaserDisc player protocol.
 | `tests/unit/test_update_gate.cpp` | The install-time gate: a bundle needing a newer application refused with that verdict rather than a generic one, an unknown manifest schema refused, firmware or gateware speaking a version outside this build's range refused in both directions, a downgrade inside the range allowed, a build that cannot order its own version saying so rather than assuming, the gateware floor not applied to a device whose FPGA never answered, and a device with no firmware passing the checks that need an identity while being refused a bundle that carries no firmware to give it | T1 |
 | `tests/unit/test_update_orchestrator.cpp` | The whole flow against a fake device: an install proved by reading the identity back, every chunk but the last page-aligned, the chunk size taken from the device and rounded down to whole pages, the stages reported in order, transfer progress monotonic and reaching its total — and each failure branch by name: no update agent, a capture running, a payload that is not firmware, a stream digest mismatch, a readback mismatch, a device that stops answering, one that never returns, one that comes back running the wrong build, and a cancellation proved to leave nothing committed | T1 |
 | `tests/unit/test_update_cli.cpp` | `ddd-update`'s command line and its exit codes: each option parsed, `--device` with nothing after it refused, two bundles refused, and a missing file reported as a bundle error before any device is touched | T1 |
+| `tests/unit/test_usb_blaster_cable.cpp` | The USB-Blaster's wire protocol, against a fake byte pipe: a TCK cycle as the same pin state twice with the clock raised, TDO asked for on the half of the cycle before the edge, eight TMS-low cycles collapsing into one byte-shift command, the last bit of a scan dropping back to bit-bang because it raises TMS, a long run split at the largest command, a wait clocked as whole bytes with the remainder bit-banged and nothing ever asked back, commands held until something needs the cable to have caught up, the two status bytes on every packet dropped rather than read as data, and a cable that only ever answers status given up on rather than waited for | T1 |
+| `tests/unit/test_svf_player.cpp` | The programming file and the TAP state machine it walks: the run forced to a known state, a scan's whole cycle stream — the walk there, TMS raised on the last bit and nowhere else, the walk to the state the file says scans end in — answers compared under their mask and a mismatch naming the line and both values, what a statement remembers and what it deliberately does not, waits counted and left where their end state says, a wait taking at least as long as the count stands for at the rate the file declares, and the files this player refuses rather than half-understands: a chain with more than one device on it, a drive of a reset line the cable does not have, a value wider than its scan, a statement it does not know. Fixtures include a real Quartus-emitted file played against a device that agrees with it and one that does not | T1 |
+| `tests/unit/test_jtag_cli.cpp` | `ddd-jtag`'s command line and its exit codes: each option parsed, two files refused, a missing file reported before any cable is opened, and a dry run reading a whole programming file and reporting what it would have clocked out, with nothing attached and nothing written | T1 |
 | `tests/analysis/test_front_end_gain.cpp` | The board's SW401 gain switch: all fifteen switch patterns against the gain and full-scale input on the hardware calculations sheet, that closing a second switch *lowers* the gain because the resistors are in parallel, all-switches-open treated as no declaration rather than as unity, and an undeclared gain converting nothing at all | T1 |
 | `tests/analysis/test_waveform_mapping.cpp` | The scope's arithmetic: sample and code to pixel and back, span and offset, a cursor clamped to the window, column decimation keeping the extremes of what it covers while leaving genuinely empty columns empty, and that every span the panel offers fits inside a snapshot rather than being silently clamped to less time than its label claims | T1 |
 | `tests/analysis/test_signal_levels.cpp` | The nominal capture level: the 75% bounds landing on codes 128 and 896, symmetrical about mid-scale because the signal swings both ways about 0 V, leaving headroom before the converter clips, and a range failing nominal if either end does | T1 |
@@ -411,7 +414,7 @@ running the same scripts a developer runs, so the two cannot drift.
 | `tests/run-lint.sh` | `verilator --lint-only -Wall` over the thirteen hand-written modules, across both images and the half they share | T4 |
 | `tests/run-sdc.sh` | Both images' timing constraints: that they parse as Tcl, and that they name every pin the top level maps | T4 |
 | `tests/run-version.sh` | The commit-to-identity-register stamp: an eight-character hash, the seven-character one a Nix build passes, a dirty tree, a build with no commit, a full-length hash, and a string that is not a hash at all | T2 |
-| `tests/test_provenance.py` | The byte offsets the canonical bitstream digest masks, that a payload change is *not* masked, and that a moved field raises rather than digesting unmasked data | T1, T2 |
+| `tests/test_provenance.py` | The byte offsets the canonical bitstream digest masks, that a payload change is *not* masked, and that a moved field raises rather than digesting unmasked data — and the same for the `.svf`, whose header names the time its input file was last written and is therefore the one line in it that a rebuild changes | T1, T2 |
 | `tests/test_boot_block.py` | The boot block encoder, field by field and by offset, including the exact bytes `tb_bootLoader.v` is written against, and the four descriptions it refuses to encode | T1 |
 
 Run them with `./fpga/tests/run-lint.sh` and `./fpga/tests/run-sim.sh` from
@@ -864,6 +867,9 @@ Use a SuperSpeed Explorer Kit that has never been programmed, or erase one delib
 - G1 after any change to `epcs-flash.c`, `remoteUpdate.v`, `bootLoader.v` or
   `flashBridge.v` — and after any change to how the `.rpd` is generated, because the byte
   orientation it is emitted in is load-bearing (§6, defect 5).
+- B-V1 after any change to `svf_player.cpp` or `usb_blaster_cable.cpp`, and after any
+  change to the `quartus_cpf` invocation that emits the `.svf` — the declared frequency in
+  particular, which is what every wait in the file is counted in.
 
 ### G0 — provisioning a unit with the dual-image flash
 
@@ -889,6 +895,64 @@ Performed first on 2026-08-15. Needs the USB-Blaster and `nix build .#bitstream`
    so the first thing after any JTAG programming is a power-cycle. An update attempted
    before it is refused with *"the FPGA is not answering"*, which is the gate doing its
    job.
+
+### B-V1 — programming the flash with no Quartus (JTAG vectors over the on-board cable)
+
+**Not yet performed.** The gating item for the board bring-up work: it is what decides
+whether the application can provision a board itself, and it is the only thing about that
+path a bench can settle. Everything else is covered at T1 with nothing attached
+(`ctest -R jtag`, 60 tests), and no test can answer any of the three questions below.
+
+What is already known without a board, measured on the CI-built provisioning content
+(Quartus 25.1, 2026-08-17):
+
+| | |
+| --- | --- |
+| `.svf` emitted beside the `.jic` | 18.4 MB (the `.jic` is 8.4 MB) |
+| the same file gzipped | 251 KB — it is verbose hexadecimal text |
+| the same content as `.jbc`, the recorded fallback | 538 KB |
+| what one run asks for | 37,140 statements, 73.3 Mbit shifted, 471.9 M idle clocks |
+| what the idle clocks stand for | ~105 seconds of waiting, at the 4.5 MHz the file declares |
+| traffic that implies in byte-shift mode | about 68 MB over a full-speed USB link |
+
+The procedure, on a DE0-Nano whose flash content does not matter:
+
+1. `nix build .#bitstream`, and take `provisioning/DomesdayDuplicatorProvisioning.svf`
+   from the result. Confirm the application can read it at all, with nothing plugged in:
+   `ddd-jtag --dry-run <file>.svf` must play every statement and report the counts above.
+2. Connect **only** the DE0-Nano's mini-USB. Stop Quartus's `jtagd` if it is running — it
+   holds the cable open, and the failure to claim it is the first thing this can go wrong
+   on.
+3. `time ddd-jtag <file>.svf`. **Record the wall-clock duration**; it is the number the
+   provisioning flow's progress estimate and its page wording will be built on, and it
+   cannot be obtained any other way.
+4. Power-cycle the board, then confirm the flash content the way G0 does: the unit comes
+   up in the factory image with `IMAGE_ROLE` reading `0x00` (or in the application image
+   if a boot block survived — both are correct, and for the same reason as in G0).
+5. Re-run G0 with `quartus_pgm` on the same board and confirm the two routes leave it in
+   the same state.
+
+**Pass** = the run completes with no mismatch reported, and the board afterwards is
+indistinguishable from one provisioned by `quartus_pgm`.
+
+The three things only this can settle:
+
+- **Which half of the cycle TDO belongs to.** The cable is told to sample TDO with TCK
+  low, on the reasoning that a TAP updates it on the falling edge; reading after the edge
+  instead would shift every answer along by one bit. A wrong choice here fails loudly at
+  the first `TDO` comparison in the file — within the first hundred statements, long
+  before anything is written — which is the best possible way for it to be wrong.
+- **How fast the cable actually clocks.** Every wait in the file is a cycle count worked
+  out at the declared 4.5 MHz, so a cable clocking faster would shorten them all. The
+  player holds each wait open for the time its count stands for, which makes the run
+  correct whatever the cable does — but the *duration* in step 3 is what says how much
+  that costs, and whether the declared rate should be raised to reduce the cycles.
+- **Whether the FT245 framing is right in the direction that matters.** Two status bytes
+  are dropped from the front of every packet the chip sends, checked against fixtures at
+  T1; only a real cable proves the packets arrive as the fixtures say.
+
+If the run is absurdly slow, the recorded fallback is the `.jbc` interpreter — more code,
+the same seams, and a file a third of the size. Verify first, build second.
 
 ### G1 — the gateware update, and the handover it ends in
 

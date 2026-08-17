@@ -14,11 +14,18 @@ if(WIN32)
     set(ddd_capture_usb_sources
         winusb_device.cpp
         winusb_source.cpp
+
+        # The USB-Blaster is reached over libusb, so this platform gets the stub that
+        # says so. See usb_blaster_unsupported.cpp: the protocol, the player and
+        # everything else above the byte pipe are built here, and only the pipe is
+        # missing.
+        usb_blaster_unsupported.cpp
     )
 else()
     set(ddd_capture_usb_sources
         libusb_device.cpp
         libusb_source.cpp
+        usb_blaster_libusb.cpp
     )
 endif()
 
@@ -43,6 +50,7 @@ add_library(ddd_capture STATIC
     fpga_version.cpp
     flac_writer.cpp
     free_space.cpp
+    jtag_cli.cpp
     json_value.cpp
     logger.cpp
     memory_lock.cpp
@@ -52,6 +60,7 @@ add_library(ddd_capture STATIC
     sample_metrics.cpp
     sample_sink.cpp
     sequence_validator.cpp
+    svf_player.cpp
     synthetic_source.cpp
     test_data_analysis.cpp
     test_pattern_verifier.cpp
@@ -63,6 +72,7 @@ add_library(ddd_capture STATIC
     update_key.cpp
     update_manifest.cpp
     update_orchestrator.cpp
+    usb_blaster_cable.cpp
     usb_device.cpp
     usb_device_info.cpp
     version.cpp

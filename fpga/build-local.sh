@@ -93,6 +93,25 @@ cp "$build/factory/DomesdayDuplicatorFactory.sof" "$build/application/DomesdayDu
     rm -f DomesdayDuplicatorFactory.sof DomesdayDuplicator.sof)
 
 echo
+echo "=== Programming vectors for the on-board USB-Blaster ==="
+# The same provisioning content again, as the JTAG vectors that write it.
+#
+# quartus_pgm reads the .jic through Quartus; ddd-jtag reads this through
+# libusb, so a board can be provisioned on a machine that has never had
+# Quartus installed. It is the same conversion either way and the device
+# knowledge stays here, at build time, in the tool that has it.
+#
+# The frequency matters more than it looks: the converter turns every wait in
+# the sequence into a count of TCK cycles at the rate named here, so the same
+# file emitted at 6 MHz has a third more cycles in it and exactly the same
+# hundred-second erase. The player restores the intended durations from this
+# declaration, so what the number costs is cycles to clock, not correctness.
+(cd "$build/provisioning" &&
+    quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
+        DomesdayDuplicatorProvisioning_write_jic.cdf \
+        DomesdayDuplicatorProvisioning.svf)
+
+echo
 echo "=== Application image bytes, and the boot block that describes them ==="
 #
 # The raw programming data is the application image exactly as it sits in the
@@ -123,6 +142,7 @@ sed -n '1,6p' "$build/provisioning/DomesdayDuplicatorProvisioning.map"
 echo
 echo "Provision a board from $build/provisioning:"
 echo "  quartus_pgm DomesdayDuplicatorProvisioning_write_jic.cdf   permanent (EPCS64), both images"
+echo "  ddd-jtag DomesdayDuplicatorProvisioning.svf                the same, with no Quartus"
 echo
 echo "Load one image volatilely over JTAG, for development:"
 echo "  quartus_pgm $build/application/DomesdayDuplicator_write_sof.cdf"

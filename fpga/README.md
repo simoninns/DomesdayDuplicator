@@ -207,6 +207,7 @@ Either produces, in a directory laid out like the sources:
 | `application/DomesdayDuplicator_auto.rpd` | The application image as bytes in the flash — what a device update writes, verbatim and bit for bit |
 | `factory/DomesdayDuplicatorFactory.sof` | Volatile JTAG configuration of the factory image |
 | `provisioning/DomesdayDuplicatorProvisioning.jic` | **Both images**, at their EPCS64 addresses. This is what provisions a board |
+| `provisioning/DomesdayDuplicatorProvisioning.svf` | The same content as JTAG vectors, for provisioning a board without Quartus |
 | `provisioning/DomesdayDuplicatorProvisioning.map` | Where the converter actually put them — the check on the layout |
 | `provisioning/boot-block.bin` | The twenty-four bytes that tell the factory image about that application image |
 | `reports/` | The compilation and timing reports for both images |
@@ -228,7 +229,14 @@ for any of them:
 cd factory     && quartus_sh --flow compile DomesdayDuplicatorFactory
 cd application && quartus_sh --flow compile DomesdayDuplicator
 cd provisioning && quartus_cpf -c DomesdayDuplicatorProvisioning.cof   # both .sof -> one .jic
+cd provisioning && quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
+    DomesdayDuplicatorProvisioning_write_jic.cdf \
+    DomesdayDuplicatorProvisioning.svf                                # the same, as vectors
 ```
+
+The declared frequency in that second conversion is not decoration: the converter turns
+every wait in the sequence into a count of TCK cycles at that rate, so the same content
+emitted at 6 MHz carries a third more cycles and exactly the same hundred-second erase.
 
 ### If Quartus is installed by hand
 
@@ -247,6 +255,18 @@ cd provisioning && quartus_pgm DomesdayDuplicatorProvisioning_write_jic.cdf   # 
 cd application  && quartus_pgm DomesdayDuplicator_write_sof.cdf               # volatile, lost on power cycle
 cd factory      && quartus_pgm DomesdayDuplicatorFactory_write_sof.cdf        # volatile
 ```
+
+The permanent one can also be done without Quartus at all, over the same on-board cable:
+
+```bash
+cd provisioning && ddd-jtag DomesdayDuplicatorProvisioning.svf                # both images, permanent
+```
+
+`ddd-jtag` is built with the capture application and drives the USB-Blaster over libusb —
+see [USB-Blaster and SVF programming](../docs/content/development/usb-blaster-and-svf.md).
+It writes the same flash content by the same sequence, so everything below applies to it
+unchanged, the power cycle most of all. Quartus's `jtagd` holds the cable open whenever it
+is running.
 
 **Provisioning is the last time a cable is needed.** Once a unit carries both images, the
 application half is updated over the USB cable it already has — see the
@@ -314,7 +334,9 @@ So there are two digests, and `bitstream-provenance.txt` carries both for each a
 | **Canonical** | The configuration content, with the four variable fields masked | "Does a rebuild of this commit agree with it?" |
 
 For the `.jic` the two are the same number, because it carries no per-run fields. For the
-`.sof` they differ, and the canonical one is what a rebuild should be compared against. The
+`.svf` they differ by one line: the converter's header names the input file and the time
+that file was last written, and nothing else varies between two conversions of one `.jic`.
+For the `.sof` they differ, and the canonical one is what a rebuild should be compared against. The
 masking is fail-loud — if a future Quartus moves a field, the tool refuses to produce a
 digest rather than producing one that silently matches nothing — and the byte offsets are
 fixed by [tests/test_provenance.py](tests/test_provenance.py), which runs as the

@@ -107,10 +107,38 @@ def canonicalise_sof(data):
     return bytes(out)
 
 
+# The one field the SVF converter varies between runs.
+#
+# Its header comment names the file it read and the time that file was last
+# written, so two conversions of the same .jic differ in exactly those
+# characters and in nothing else — measured, by converting one .jic twice
+# (identical), then touching it and converting again (four bytes, all of them
+# in this line). The vectors themselves are a function of the .jic alone.
+SVF_DEVICE_LINE = re.compile(
+    rb"^(!Device #\d+:.*?)"
+    rb"( [A-Z][a-z]{2} [A-Z][a-z]{2} [ \d]\d \d\d:\d\d:\d\d \d{4})\s*$",
+    re.MULTILINE,
+)
+
+
+def canonicalise_svf(data):
+    """The .svf with the input file's modification time taken out of it."""
+    canonical, replaced = SVF_DEVICE_LINE.subn(rb"\1", data)
+    if replaced == 0:
+        raise ValueError(
+            "no timestamped device line in the .svf. The converter's header "
+            "has changed — re-derive the masking before trusting a canonical "
+            "digest from this Quartus version."
+        )
+    return canonical
+
+
 def canonical_digest(path):
     data = path.read_bytes()
     if path.suffix == ".sof":
         return hashlib.sha256(canonicalise_sof(data)).hexdigest()
+    if path.suffix == ".svf":
+        return hashlib.sha256(canonicalise_svf(data)).hexdigest()
     # The .jic was measured to be reproducible as-is, so canonicalising it
     # would be inventing a difference that is not there.
     return hashlib.sha256(data).hexdigest()
@@ -226,12 +254,14 @@ def main():
             sys.exit(f"no {qsf.name} in {qsf.parent} — the {name} image was not built")
 
     # Everything the build produces that ends up on a device, wherever it
-    # landed: the two .sof files, the provisioning .jic, the raw application
-    # image an update writes, and the boot block that describes it.
+    # landed: the two .sof files, the provisioning .jic and the .svf carrying
+    # the same content as JTAG vectors, the raw application image an update
+    # writes, and the boot block that describes it.
     artefacts = sorted(
         path
         for path in args.build_dir.rglob("*")
-        if path.is_file() and path.suffix in (".sof", ".jic", ".rpd", ".bin")
+        if path.is_file()
+        and path.suffix in (".sof", ".jic", ".svf", ".rpd", ".bin")
     )
     if not artefacts:
         sys.exit(f"no bitstream artefacts under {args.build_dir} — nothing to record")

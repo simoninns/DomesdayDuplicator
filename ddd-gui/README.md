@@ -39,6 +39,14 @@ for the device to come back as a Duplicator, and then installs normally: so a fi
 programming of a bare Explorer Kit runs through the same protocol and the same digest
 checks as a routine update, with no jumper and no shell.
 
+**Programming an FPGA that no update can reach.** A board whose flash has never been
+written cannot be updated over USB — the route to it runs through gateware that is not
+there yet — so the engine also drives the DE0-Nano's on-board USB-Blaster directly: a
+libusb cable driver and a player for the JTAG vectors the bitstream build emits beside its
+`.jic`. `ddd-jtag` is the shell half of it, and `ddd-jtag --dry-run` checks a programming
+file with nothing attached. The knowledge of what a Cyclone IV and an EPCS64 want stays in
+Quartus, at build time; see *USB-Blaster and SVF programming*.
+
 The engine half of all that is Qt-free, so `ddd-update` drives the identical code path
 from a shell — `dev-bundle.sh && ddd-update` is the whole edit-to-running-device loop, and
 it handles a device in recovery mode with no extra option. The FX3 target is complete; the
@@ -204,6 +212,7 @@ src/player/players/ one header per supported player model. See its README to add
 src/gui/          ddd::gui — the Qt layer, built as a static library, plus main().
 src/gui/resources/ the application's graphics, compiled in (a local copy, AGENTS.md §2)
 src/update-cli/   ddd-update — a main() over the engine. Links no Qt, deliberately.
+src/jtag-cli/     ddd-jtag — the same, for the JTAG programming path.
 src/vendor/       the only third-party sources here: SHA-256 and Ed25519. See VENDOR.md.
 cmake/            FindFLAC.cmake, a component-local copy (AGENTS.md §2)
 tests/unit/       T1, engine. Links no Qt at all.

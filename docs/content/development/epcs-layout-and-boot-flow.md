@@ -198,9 +198,11 @@ If the double configuration turns out to be slow enough to matter, the answer is
 
 Once, with a cable, and then never again:
 
-1. Build both images and the combined provisioning `.jic` — one command, `./fpga/build-local.sh`, which also writes the boot block for the application image it just built.
+1. Build both images and the combined provisioning `.jic` — one command, `./fpga/build-local.sh`, which also writes the boot block for the application image it just built, and the `.svf` carrying the same flash content as JTAG vectors.
 2. Check `provisioning/DomesdayDuplicatorProvisioning.map` before programming anything. It must place the factory image at `0x000000` and the application image at `0x200000`. That file is the only check that the converter put the images where this page says they are, and everything downstream is meaningless if it did not.
 3. Program the `.jic` over the DE0-Nano's onboard USB-Blaster, exactly as the existing gateware procedure describes. It takes about eleven seconds, and the programmer prints the flash's silicon identifier as it goes — `0x16` for the EPCS64, which must match what the firmware expects.
+
+    Or `ddd-jtag DomesdayDuplicatorProvisioning.svf`, which writes the same content through the same cable without Quartus in the room — see [USB-Blaster and SVF programming](usb-blaster-and-svf.md). Everything in the steps around it is unchanged, the power cycle below most of all: the vectors leave Altera's serial flash loader running in the FPGA exactly as `quartus_pgm` does, because they are the same sequence.
 4. **Power-cycle, and treat this as mandatory rather than as a convenience.** The programmer leaves the FPGA running its own serial flash loader rather than this project's gateware, so a unit that has just been programmed answers nothing on the register link. An update attempted before the power cycle is refused with *"the FPGA is not answering"* — which is the gate working, not a fault.
 5. The unit comes up in the **factory image** — `IMAGE_ROLE` reads `0x00` and the application reports a unit in recovery — *provided the boot block sector was erased*. The JTAG erase is page-selective, so a unit being reprovisioned over a working installation keeps its old boot block, and if the flash still matches that block's CRC it boots straight into the application image instead. Both outcomes are correct; which one you get depends on what was there before.
 6. Write the boot block, which is the last step of any gateware update and is what makes an application image count.

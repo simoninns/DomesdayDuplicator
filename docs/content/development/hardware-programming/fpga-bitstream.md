@@ -78,13 +78,17 @@ Put Quartus' `bin` directory on `PATH`, then:
 ```
 
 That copies the sources to `fpga/build/`, compiles both images, converts them into one
-provisioning `.jic` and writes the provenance record. Or drive the tools yourself — the GUI
+provisioning `.jic` — and into the `.svf` carrying the same content as JTAG vectors — and
+writes the provenance record. Or drive the tools yourself — the GUI
 is not required for any step:
 
 ```bash
 cd factory      && quartus_sh --flow compile DomesdayDuplicatorFactory
 cd application  && quartus_sh --flow compile DomesdayDuplicator
 cd provisioning && quartus_cpf -c DomesdayDuplicatorProvisioning.cof   # both .sof -> one .jic
+cd provisioning && quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
+    DomesdayDuplicatorProvisioning_write_jic.cdf \
+    DomesdayDuplicatorProvisioning.svf                                # the same, as vectors
 ```
 
 !!! warning "Do not compile in `fpga/application/` or `fpga/factory/`"
@@ -152,6 +156,16 @@ Do this once you are satisfied the bitstream works.
 ```bash
 cd provisioning && quartus_pgm DomesdayDuplicatorProvisioning_write_jic.cdf
 ```
+
+!!! tip "Or without Quartus at all"
+
+    `ddd-jtag DomesdayDuplicatorProvisioning.svf` writes the same content through the same
+    on-board cable, driving it over libusb rather than through Quartus — see
+    [USB-Blaster and SVF programming](../usb-blaster-and-svf.md). The `.svf` comes from the
+    same build as the `.jic` and describes the same flash, so the two routes are
+    interchangeable; everything on the rest of this page — the power cycle, the silicon
+    identifier, what the board comes up as — applies to both. Quartus's own `jtagd` holds
+    the cable open whenever it is running, so stop it first.
 
 This writes the EPCS64 serial configuration device, which the FPGA loads from at every
 power-up, with **both** images: the factory image at address 0 and the capture gateware at
