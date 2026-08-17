@@ -411,6 +411,8 @@ QString PlayerCommandName(player::PlayerCommand command) {
       return QObject::tr("Read the standard user code");
     case player::PlayerCommand::kQueryPioneerUserCode:
       return QObject::tr("Read the Pioneer user code");
+    case player::PlayerCommand::kQueryTvSystem:
+      return QObject::tr("Ask which television standard the disc carries");
     case player::PlayerCommand::kQueryPhysicalPosition:
       return QObject::tr("Read the optical assembly's position");
     case player::PlayerCommand::kCount:
@@ -1118,4 +1120,231 @@ QString DiscProfileReport(const player::DiscProfile& disc,
   return lines.join(QLatin1Char('\n'));
 }
 
+// --- Setting up and running an automatic capture ---------------------------
+
+QString CaptureShapeName(player::CaptureShape shape) {
+  switch (shape) {
+    case player::CaptureShape::kWholeSide:
+      return QObject::tr("The whole side, spin-up to spin-down");
+    case player::CaptureShape::kRange:
+      return QObject::tr("From one address to another");
+    case player::CaptureShape::kFromSpinUp:
+      return QObject::tr("From spin-up to an address");
+  }
+  return QObject::tr("The whole side, spin-up to spin-down");
+}
+
+QString PlanProblemText(player::PlanProblem problem) {
+  switch (problem) {
+    case player::PlanProblem::kNone:
+      return QString();
+    case player::PlanProblem::kNoDisc:
+      return QObject::tr(
+          "The examination found no disc in the player, so there is nothing to "
+          "capture.");
+    case player::PlanProblem::kUnknownDiscType:
+      return QObject::tr(
+          "The examination could not establish whether this is a CAV or a CLV "
+          "disc, and the two are addressed differently. Examine the disc "
+          "again.");
+    case player::PlanProblem::kAddressingMismatch:
+      return QObject::tr(
+          "This setup was built for a disc of the other type. Examine the disc "
+          "in the player and set the capture up from that.");
+    case player::PlanProblem::kUnknownLength:
+      return QObject::tr(
+          "The end of the side was never measured, so there is nothing to stop "
+          "at and no bound to check a range against. Examine the disc again.");
+    case player::PlanProblem::kMalformedAddress:
+      return QObject::tr("That is not an address a disc has.");
+    case player::PlanProblem::kEndBeforeStart:
+      return QObject::tr(
+          "The capture would contain nothing: it ends where it starts, or "
+          "before it.");
+    case player::PlanProblem::kStartBeforeProgramme:
+      return QObject::tr("The programme starts later than that.");
+    case player::PlanProblem::kEndBeyondProgramme:
+      return QObject::tr("The side ends before that.");
+  }
+  return QString();
+}
+
+QString AutoCaptureStageName(player::AutoCaptureStage stage) {
+  switch (stage) {
+    case player::AutoCaptureStage::kIdle:
+      return QObject::tr("Ready");
+    case player::AutoCaptureStage::kLockingFrontPanel:
+      return QObject::tr("Locking the player's front panel");
+    case player::AutoCaptureStage::kConfirmingDisc:
+      return QObject::tr("Checking that this is still the same disc");
+    case player::AutoCaptureStage::kSpinningDown:
+      // Said in full, because a user watching their disc stop when they asked
+      // for a capture is entitled to know why.
+      return QObject::tr(
+          "Stopping the disc — the spin-up can only be captured from a stop");
+    case player::AutoCaptureStage::kSeekingStart:
+      return QObject::tr("Going to the start of the capture");
+    case player::AutoCaptureStage::kStartingCapture:
+      return QObject::tr("Starting the capture");
+    case player::AutoCaptureStage::kSpinningUp:
+      return QObject::tr("Starting the disc");
+    case player::AutoCaptureStage::kWatching:
+      return QObject::tr("Capturing");
+    case player::AutoCaptureStage::kCheckingStall:
+      return QObject::tr(
+          "Asking the player what it is doing — the disc has not moved for a "
+          "few seconds");
+    case player::AutoCaptureStage::kStoppingCapture:
+      return QObject::tr("Finishing the capture file");
+    case player::AutoCaptureStage::kStoppingPlayer:
+      // Which on a whole-side capture happens with the writer still attached,
+      // because the run-out is not an address and this is the only way it
+      // reaches a file.
+      return QObject::tr("Spinning the disc down");
+    case player::AutoCaptureStage::kUnlockingFrontPanel:
+      return QObject::tr("Releasing the player's front panel");
+    case player::AutoCaptureStage::kFinished:
+      return QObject::tr("Finished");
+  }
+  return QObject::tr("Working");
+}
+
+QString AutoCaptureOutcomeText(player::AutoCaptureOutcome outcome) {
+  switch (outcome) {
+    case player::AutoCaptureOutcome::kInProgress:
+      return QObject::tr("in progress");
+    case player::AutoCaptureOutcome::kCompleted:
+      return QObject::tr("completed");
+    case player::AutoCaptureOutcome::kInvalidPlan:
+      return QObject::tr("refused: the setup does not describe this disc");
+    case player::AutoCaptureOutcome::kUnsupportedPlayer:
+      return QObject::tr("refused: this player cannot be driven automatically");
+    case player::AutoCaptureOutcome::kDiscChanged:
+      return QObject::tr("stopped: the disc is not the one that was examined");
+    case player::AutoCaptureOutcome::kPlayerRefused:
+      return QObject::tr("stopped: the player refused");
+    case player::AutoCaptureOutcome::kStalled:
+      return QObject::tr("stopped: the disc stopped advancing");
+    case player::AutoCaptureOutcome::kPlayerStopped:
+      return QObject::tr("stopped: the player stopped");
+    case player::AutoCaptureOutcome::kCaptureFailed:
+      return QObject::tr("stopped: the capture could not be written");
+    case player::AutoCaptureOutcome::kLinkFailed:
+      return QObject::tr("stopped: the link to the player failed");
+    case player::AutoCaptureOutcome::kCancelled:
+      return QObject::tr("stopped at your request");
+  }
+  return QObject::tr("finished");
+}
+
+QString AutoCaptureSummary(player::AutoCaptureOutcome outcome) {
+  switch (outcome) {
+    case player::AutoCaptureOutcome::kInProgress:
+      return QObject::tr("Capturing.");
+    case player::AutoCaptureOutcome::kCompleted:
+      return QObject::tr("The capture finished and the file is closed.");
+    case player::AutoCaptureOutcome::kInvalidPlan:
+      return QObject::tr(
+          "Nothing was captured: the setup does not describe the disc in the "
+          "player.");
+    case player::AutoCaptureOutcome::kUnsupportedPlayer:
+      return QObject::tr(
+          "Nothing was captured: this player has no command for something the "
+          "capture needs. Use the remote to drive it by hand.");
+    case player::AutoCaptureOutcome::kDiscChanged:
+      return QObject::tr(
+          "Nothing was captured: the disc in the player is not the one that "
+          "was examined. Examine it and set the capture up again.");
+    case player::AutoCaptureOutcome::kPlayerRefused:
+      return QObject::tr(
+          "The player refused a command the capture depends on. Anything that "
+          "had been captured has been written and the file closed.");
+    case player::AutoCaptureOutcome::kStalled:
+      return QObject::tr(
+          "The disc stopped advancing while the player went on reporting that "
+          "it was playing. The capture was stopped rather than left writing, "
+          "and the file is closed. This usually means a disc the player cannot "
+          "read past.");
+    case player::AutoCaptureOutcome::kPlayerStopped:
+      return QObject::tr(
+          "The player stopped before the end of the capture. What was captured "
+          "up to then has been written and the file closed.");
+    case player::AutoCaptureOutcome::kCaptureFailed:
+      return QObject::tr("The capture could not be written. See the log.");
+    case player::AutoCaptureOutcome::kLinkFailed:
+      return QObject::tr(
+          "The link to the player failed, so the automation has stopped. **The "
+          "capture is still running** — the player will play to the end of the "
+          "side by itself, and stopping the capture is now yours to do.");
+    case player::AutoCaptureOutcome::kCancelled:
+      return QObject::tr(
+          "Stopped at your request. The file was finished properly and the "
+          "player put back.");
+  }
+  return QObject::tr("The capture finished.");
+}
+
+QString AutoCaptureEstimate(const player::AutoCapturePlan& plan,
+                            const player::DiscProfile& disc,
+                            double bytes_per_second) {
+  const std::optional<std::chrono::seconds> duration =
+      player::PlannedDuration(plan, disc);
+  if (!duration.has_value()) {
+    return QString();
+  }
+
+  const QString elapsed = FormatElapsed(static_cast<double>(duration->count()));
+
+  if (bytes_per_second <= 0.0) {
+    return QObject::tr("About %1.").arg(elapsed);
+  }
+
+  const auto bytes = static_cast<uint64_t>(
+      static_cast<double>(duration->count()) * bytes_per_second);
+  return QObject::tr("About %1, and about %2 on disk.")
+      .arg(elapsed, FormatByteSize(bytes));
+}
+
+QString AutoCaptureRemainingText(const player::AutoCapturePlan& plan,
+                                 const player::DiscProfile& disc,
+                                 int32_t address) {
+  if (address < 0 || address >= plan.end_address || !disc.disc_type.known()) {
+    return QString();
+  }
+
+  const std::optional<std::chrono::seconds> remaining =
+      player::AddressSpanDuration(address, plan.end_address,
+                                  disc.disc_type.value,
+                                  disc.video_standard.value);
+  if (!remaining.has_value()) {
+    return QString();
+  }
+
+  return QObject::tr("about %1 left")
+      .arg(FormatElapsed(static_cast<double>(remaining->count())));
+}
+
+QString SuggestedCaptureName(const player::DiscProfile& disc) {
+  QStringList parts;
+
+  if (disc.disc_type.known()) {
+    parts << DiscTypeName(disc.disc_type.value);
+  }
+
+  if (disc.video_standard.known()) {
+    parts << VideoStandardName(disc.video_standard.value);
+  }
+
+  // The one that earns its place. Two files made in a row are the two sides of
+  // one disc, and telling them apart afterwards is the whole problem.
+  if (disc.disc_side.known()) {
+    parts << QObject::tr("Side%1").arg(disc.disc_side.value);
+  }
+
+  if (parts.isEmpty()) {
+    return QString();
+  }
+
+  return parts.join(QLatin1Char('_'));
+}
 }  // namespace ddd::gui

@@ -202,4 +202,15 @@ CaptureFailureView PresentCaptureFailure(capture::TransferResult result,
   return view;
 }
 
+QString CaptureNameTakenNote(const QString& written) {
+  if (written.isEmpty()) {
+    return QString();
+  }
+
+  return Translate(
+             "A capture of that name is already there. This one will be "
+             "written as \u201c%1\u201d — nothing is overwritten.")
+      .arg(written);
+}
+
 }  // namespace ddd::gui

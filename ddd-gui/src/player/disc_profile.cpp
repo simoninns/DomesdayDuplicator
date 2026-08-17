@@ -46,6 +46,32 @@ std::optional<double> FrameRate(VideoStandard standard) {
   return std::nullopt;
 }
 
+std::optional<std::chrono::seconds> AddressSpanDuration(
+    int32_t start, int32_t end, DiscType type, VideoStandard standard) {
+  if (type == DiscType::kUnknown || end <= start) {
+    return std::nullopt;
+  }
+
+  if (type == DiscType::kClv) {
+    // The addresses are already times, so no frame rate is needed and none of
+    // this depends on the video standard.
+    const int64_t seconds = TimeCodeSeconds(end) - TimeCodeSeconds(start);
+    if (seconds <= 0) {
+      return std::nullopt;
+    }
+    return std::chrono::seconds(seconds);
+  }
+
+  const std::optional<double> rate = FrameRate(standard);
+  if (!rate.has_value() || *rate <= 0.0) {
+    return std::nullopt;
+  }
+
+  const double frames = static_cast<double>(end - start) + 1.0;
+  return std::chrono::seconds(
+      static_cast<int64_t>(std::llround(frames / *rate)));
+}
+
 std::optional<std::chrono::seconds> ProgrammeDuration(const DiscProfile& disc) {
   if (!disc.disc_type.known() || !disc.programme_end.known()) {
     return std::nullopt;
@@ -57,30 +83,9 @@ std::optional<std::chrono::seconds> ProgrammeDuration(const DiscProfile& disc) {
   // duration for a disc whose length is perfectly well known.
   const int32_t start =
       disc.programme_start.known() ? disc.programme_start.value : 0;
-  const int32_t end = disc.programme_end.value;
 
-  if (end <= start) {
-    return std::nullopt;
-  }
-
-  if (disc.disc_type.value == DiscType::kClv) {
-    // The addresses are already times, so no frame rate is needed and none of
-    // this depends on the video standard.
-    const int64_t seconds = TimeCodeSeconds(end) - TimeCodeSeconds(start);
-    if (seconds <= 0) {
-      return std::nullopt;
-    }
-    return std::chrono::seconds(seconds);
-  }
-
-  const std::optional<double> rate = FrameRate(disc.video_standard.value);
-  if (!rate.has_value() || *rate <= 0.0) {
-    return std::nullopt;
-  }
-
-  const double frames = static_cast<double>(end - start) + 1.0;
-  return std::chrono::seconds(
-      static_cast<int64_t>(std::llround(frames / *rate)));
+  return AddressSpanDuration(start, disc.programme_end.value,
+                             disc.disc_type.value, disc.video_standard.value);
 }
 
 }  // namespace ddd::player

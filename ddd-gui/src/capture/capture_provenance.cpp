@@ -58,6 +58,25 @@ std::vector<FlacWriter::Tag> BuildProvenanceTags(
     tags.push_back({kTagFrontEndGain, provenance.front_end_gain});
   }
 
+  // The disc, where a player was asked about it. Written field by field and
+  // only where a field is known: a file claiming a side number nothing
+  // established would be worse than one that says nothing about which side it
+  // is, because the second sends somebody to look and the first does not.
+  const DiscProvenance& disc = provenance.disc;
+  const auto add = [&tags](const char* name, const std::string& value) {
+    if (!value.empty()) {
+      tags.push_back({name, value});
+    }
+  };
+
+  add(kTagPlayer, disc.player);
+  add(kTagDiscType, disc.disc_type);
+  add(kTagDiscSize, disc.disc_size);
+  add(kTagDiscSide, disc.disc_side);
+  add(kTagVideoStandard, disc.video_standard);
+  add(kTagProgrammeStart, disc.programme_start);
+  add(kTagProgrammeEnd, disc.programme_end);
+
   return tags;
 }
 

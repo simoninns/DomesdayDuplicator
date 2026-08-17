@@ -78,6 +78,7 @@ class CapturePanel : public QWidget {
       "capture_duration_reset_button";
   static constexpr const char* kLowSpaceSpinName = "capture_low_space_spin";
   static constexpr const char* kFreeSpaceLabelName = "capture_free_space_label";
+  static constexpr const char* kNameTakenLabelName = "capture_name_taken_label";
 
   // How often the destination volume is interrogated for the free-space
   // readout. The plan asks for it "refreshed continuously", which in practice
@@ -97,6 +98,11 @@ class CapturePanel : public QWidget {
   void OnCaptureButtonPressed();
   void OnDeviceSelected(int index);
   void OnBrowsePressed();
+
+  // Say, as the name is typed, what the file will really be called. Cheap
+  // enough for every keystroke: it asks the filesystem what is there and
+  // nothing else.
+  void RefreshNameNote();
   void OnDurationResetPressed();
   void RefreshFreeSpace();
 
@@ -135,6 +141,10 @@ class CapturePanel : public QWidget {
   QPushButton* duration_reset_button_ = nullptr;
   QSpinBox* low_space_spin_ = nullptr;
   QLabel* free_space_label_ = nullptr;
+
+  // Shown only while the typed name is one a capture already has. Hidden rather
+  // than blank, so the form does not carry a permanently empty row.
+  QLabel* name_taken_label_ = nullptr;
 
   QTimer* free_space_timer_ = nullptr;
 

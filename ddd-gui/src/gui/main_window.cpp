@@ -29,12 +29,14 @@
 #include "amplitude_panel.h"
 #include "analysis_dialog.h"
 #include "application_logger.h"
+#include "auto_capture_controller.h"
 #include "capture_controller.h"
 #include "capture_panel.h"
 #include "device_programmer.h"
 #include "device_updater.h"
 #include "examine_dialog.h"
 #include "firmware_dialog.h"
+#include "guided_capture_dialog.h"
 #include "log_message_model.h"
 #include "log_panel.h"
 #include "player_controller.h"
@@ -61,12 +63,15 @@ constexpr const char* kStateSettingsKey = "main_window/state";
 MainWindow::MainWindow(ThemeController* theme_controller,
                        ApplicationLogger* logger,
                        CaptureController* capture_controller,
-                       PlayerController* player_controller, QWidget* parent)
+                       PlayerController* player_controller,
+                       AutoCaptureController* auto_capture_controller,
+                       QWidget* parent)
     : QMainWindow(parent),
       theme_controller_(theme_controller),
       logger_(logger),
       capture_controller_(capture_controller),
       player_controller_(player_controller),
+      auto_capture_controller_(auto_capture_controller),
       log_model_(new LogMessageModel(this)) {
   setWindowTitle(tr("Domesday Duplicator"));
 
@@ -183,6 +188,23 @@ MainWindow::MainWindow(ThemeController* theme_controller,
             });
     connect(capture_controller_, &CaptureController::CaptureFinished, this,
             &MainWindow::ShowCaptureFinished);
+
+    // Said in the status bar and in the log rather than in a box to dismiss.
+    // Nothing was overwritten — the engine resolves the path before it opens
+    // anything — so this is a fact about the file's name, and a modal in front
+    // of a capture that has just started would be in the way of the very thing
+    // somebody is watching.
+    connect(capture_controller_, &CaptureController::CaptureRenamed, this,
+            [this](const QString& requested, const QString& written) {
+              const QString message =
+                  tr("\u201c%1\u201d was already taken — capturing to "
+                     "\u201c%2\u201d instead.")
+                      .arg(requested, written);
+              statusBar()->showMessage(message);
+              if (logger_ != nullptr) {
+                logger_->Info(message.toStdString());
+              }
+            });
     connect(capture_controller_, &CaptureController::LowSpaceWarning, this,
             [this](const QString& message) {
               QMessageBox::warning(this, tr("Running out of space"), message);
@@ -682,11 +704,43 @@ void MainWindow::ShowExamineDialog() {
   if (examine_dialog_.isNull()) {
     examine_dialog_ = new ExamineDialog(player_controller_, this);
     examine_dialog_->setAttribute(Qt::WA_DeleteOnClose);
+    connect(examine_dialog_, &ExamineDialog::SetUpCaptureRequested, this,
+            &MainWindow::ShowGuidedCaptureDialog);
   }
 
   examine_dialog_->show();
   examine_dialog_->raise();
   examine_dialog_->activateWindow();
+}
+
+void MainWindow::ShowGuidedCaptureDialog(const player::DiscProfile& disc) {
+  if (auto_capture_controller_ == nullptr) {
+    return;
+  }
+
+  // Built afresh for each examination rather than reused, because the profile
+  // is the window: a second disc is a different set of bounds, a different
+  // suggested name and possibly a different set of controls altogether. What is
+  // not allowed is two of them at once — that would be two sequences driving
+  // one player and one capture engine — so an open one is closed first.
+  if (!guided_dialog_.isNull()) {
+    if (guided_dialog_->running()) {
+      // Except while a capture is running, which the open window is watching.
+      // Replacing it would leave the run with nothing reporting it.
+      guided_dialog_->show();
+      guided_dialog_->raise();
+      guided_dialog_->activateWindow();
+      return;
+    }
+    guided_dialog_->close();
+  }
+
+  guided_dialog_ =
+      new GuidedCaptureDialog(auto_capture_controller_, disc, this);
+  guided_dialog_->setAttribute(Qt::WA_DeleteOnClose);
+  guided_dialog_->show();
+  guided_dialog_->raise();
+  guided_dialog_->activateWindow();
 }
 
 void MainWindow::ShowCaptureFinished(const QString& file_path, quint64 bytes) {

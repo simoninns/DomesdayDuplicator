@@ -14,6 +14,8 @@
 # src/gui, where Qt already lives.
 
 add_library(ddd_player STATIC
+    auto_capture_plan.cpp
+    auto_capture_sequence.cpp
     command_encoder.cpp
     disc_examiner.cpp
     disc_profile.cpp

@@ -85,4 +85,39 @@ std::filesystem::path MakeUniqueCapturePath(
 
 inline constexpr int kMaximumNameAttempts = 1000;
 
+// Where a capture with this name will actually be written, and whether that is
+// the name that was asked for.
+//
+// The two questions are answered together because they have one answer, and
+// answering them separately is how an interface comes to show a name that is
+// not the name on disk. A capture has never overwritten another — the path is
+// made unique before the file is opened — but until this existed the renaming
+// was silent, so somebody who captured "Casper side 1" twice got
+// "Casper side 1_2.ddd.flac" with nothing on screen having said so.
+//
+// A typed name is used verbatim, with no timestamp, which is what makes this
+// worth surfacing: it is the *ordinary* case for a name to be taken the second
+// time somebody uses it, not an edge case. The generated name carries a
+// timestamp and so is free by construction.
+struct CaptureDestination {
+  std::filesystem::path path;
+
+  // The name that path carries, without the directory or the suffix — what a
+  // name field should show, so that what is on screen is what is written.
+  std::string stem;
+
+  // False when something was already at the requested name and a number had to
+  // be appended.
+  bool as_requested = true;
+};
+
+// Resolve a name to the file that will really be created.
+//
+// Touches the filesystem only to ask what is there, so it is safe to call from
+// an interface on every keystroke.
+CaptureDestination ResolveCaptureDestination(
+    const std::filesystem::path& directory, const std::string& stem,
+    bool test_mode, std::time_t when,
+    CaptureOutputFormat format = CaptureOutputFormat::kFlac);
+
 }  // namespace ddd::capture

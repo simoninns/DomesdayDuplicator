@@ -638,7 +638,8 @@ TEST_F(PlayerControllerTest, TheStatusPollDoesNotInterleaveWithAnExamination) {
                    [&finished](const player::DiscProfile&,
                                player::ExamineOutcome) { finished = true; });
 
-  const size_t before = port_.writes().size();
+  const auto before = static_cast<std::vector<std::string>::difference_type>(
+      port_.writes().size());
   controller_->Examine();
   ASSERT_TRUE(PumpUntil([&finished] { return finished; }));
 

@@ -27,6 +27,8 @@ constexpr const char* kBaudKey = "player/baud_rate";
 constexpr const char* kExcludedKey = "player/excluded_ports";
 constexpr const char* kRememberedPortKey = "player/remembered_port";
 constexpr const char* kRememberedBaudKey = "player/remembered_baud_rate";
+constexpr const char* kStopPlayerKey = "player/stop_player_with_capture";
+constexpr const char* kStopCaptureKey = "player/stop_capture_with_player";
 
 // A stored rate that no player family uses reads as "work it out".
 uint32_t ReadBaudRate(const QSettings& settings, const char* key) {
@@ -79,6 +81,15 @@ PlayerSettings LoadPlayerSettings() {
       settings.value(QLatin1String(kRememberedPortKey)).toString();
   loaded.remembered_baud = ReadBaudRate(settings, kRememberedBaudKey);
 
+  loaded.stop_player_with_capture =
+      settings
+          .value(QLatin1String(kStopPlayerKey), loaded.stop_player_with_capture)
+          .toBool();
+  loaded.stop_capture_with_player = settings
+                                        .value(QLatin1String(kStopCaptureKey),
+                                               loaded.stop_capture_with_player)
+                                        .toBool();
+
   // A remembered pair is only useful as a pair: a port with no rate would be
   // probed by searching every rate, which is what the scan does anyway, and a
   // rate with no port names nothing.
@@ -106,6 +117,10 @@ void SavePlayerSettings(const PlayerSettings& settings) {
   }
   store.setValue(QLatin1String(kRememberedPortKey), settings.remembered_port);
   store.setValue(QLatin1String(kRememberedBaudKey), settings.remembered_baud);
+  store.setValue(QLatin1String(kStopPlayerKey),
+                 settings.stop_player_with_capture);
+  store.setValue(QLatin1String(kStopCaptureKey),
+                 settings.stop_capture_with_player);
 }
 
 }  // namespace ddd::gui

@@ -49,9 +49,10 @@ class PlayerController;
 // about it — and a report that could only be described rather than pasted is a
 // report that arrives as "it said something about the disc status".
 //
-// **Set up capture… is not here.** It belongs with the guided setup that
-// consumes the profile, and a button that is present and does nothing is
-// exactly what the capability gating in the remote exists to avoid.
+// **Set up capture…** is here, and it is the whole point of the report: an
+// examination is a precursor to a capture, and the profile it produced is
+// exactly what the guided setup needs. It appears once an examination has
+// produced something to build a capture from, and not before.
 //
 // Thread-safety: NOT thread-safe. GUI thread only.
 class ExamineDialog : public QDialog {
@@ -72,11 +73,18 @@ class ExamineDialog : public QDialog {
   static constexpr const char* kStartButtonName = "examine_start";
   static constexpr const char* kCancelButtonName = "examine_cancel";
   static constexpr const char* kCopyButtonName = "examine_copy";
+  static constexpr const char* kSetUpButtonName = "examine_set_up";
 
   // The profile the last examination produced. Empty until one has finished.
   const player::DiscProfile& profile() const { return profile_; }
 
   bool running() const { return running_; }
+
+ signals:
+  // The user wants to capture the disc that was just examined. Carried as a
+  // value rather than read back off this window, so the setup a capture runs
+  // from cannot change underneath it if somebody examines a second disc.
+  void SetUpCaptureRequested(const ddd::player::DiscProfile& disc);
 
  public slots:
   // Begin. Does nothing when one is already running, or when there is no
@@ -122,6 +130,7 @@ class ExamineDialog : public QDialog {
   QPushButton* start_ = nullptr;
   QPushButton* cancel_ = nullptr;
   QPushButton* copy_ = nullptr;
+  QPushButton* set_up_ = nullptr;
 };
 
 }  // namespace ddd::gui

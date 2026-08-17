@@ -19,6 +19,7 @@
 #include "about_text.h"
 #include "analysis_cli.h"
 #include "application_logger.h"
+#include "auto_capture_controller.h"
 #include "capture_controller.h"
 #include "logger.h"
 #include "main_window.h"
@@ -111,8 +112,11 @@ int main(int argc, char* argv[]) {
   // turns it on.
   ddd::gui::PlayerController player_controller({}, &logger);
 
+  ddd::gui::AutoCaptureController auto_capture_controller(
+      &player_controller, &capture_controller, &logger);
+
   ddd::gui::MainWindow window(&theme_controller, &logger, &capture_controller,
-                              &player_controller);
+                              &player_controller, &auto_capture_controller);
   if (parser.isSet(debug_option)) {
     window.ShowLogPanel();
   }

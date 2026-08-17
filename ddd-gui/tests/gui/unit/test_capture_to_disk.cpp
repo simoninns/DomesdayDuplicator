@@ -793,5 +793,67 @@ TEST_F(CaptureToDiskTest, AFolderThatCannotBeWrittenToIsReported) {
   ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
 }
 
+// --- Never overwriting, and never quietly renaming --------------------------
+
+// The engine has never overwritten a capture. What this pins is the other half:
+// that the rename it does instead is reported, because a typed name carries no
+// timestamp and so is taken every time after the first.
+TEST_F(CaptureToDiskTest, ASecondCaptureOfTheSameNameIsRenamedAndSaidSo) {
+  Settings([](CaptureSettings& settings) {
+    settings.capture_name = QStringLiteral("Casper side 1");
+  });
+
+  QSignalSpy renamed(controller_.get(), &CaptureController::CaptureRenamed);
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+  ASSERT_TRUE(PumpUntil([&] { return !WrittenFiles().empty(); }));
+
+  // The first one is the name that was asked for, and nothing is said.
+  EXPECT_EQ(renamed.count(), 0);
+  const QString first = controller_->capture_path();
+  EXPECT_TRUE(first.contains(QStringLiteral("Casper side 1.ddd.flac")));
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+
+  // The second is written beside it rather than over it, and the rename is
+  // reported rather than left for somebody to notice in a directory listing.
+  ASSERT_EQ(renamed.count(), 1);
+  EXPECT_EQ(renamed.front().at(0).toString(), QStringLiteral("Casper side 1"));
+  EXPECT_EQ(renamed.front().at(1).toString(),
+            QStringLiteral("Casper side 1_2"));
+
+  EXPECT_TRUE(controller_->capture_path().contains(
+      QStringLiteral("Casper side 1_2.ddd.flac")));
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  controller_->StopMonitoring();
+
+  // Both files are there, and the first still has its own contents.
+  ASSERT_EQ(WrittenFiles().size(), 2U);
+  EXPECT_GT(std::filesystem::file_size(WrittenFiles().front()), 0U);
+}
+
+TEST_F(CaptureToDiskTest, TheGeneratedNameIsNeverReportedAsRenamed) {
+  ASSERT_TRUE(controller_->settings().capture_name.isEmpty());
+
+  QSignalSpy renamed(controller_.get(), &CaptureController::CaptureRenamed);
+
+  controller_->StartCapture();
+  ASSERT_TRUE(controller_->capturing());
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
+  controller_->StopMonitoring();
+
+  // It carries a timestamp, so it is free by construction — and a warning that
+  // fired on every capture would be one nobody read.
+  EXPECT_EQ(renamed.count(), 0);
+}
+
 }  // namespace
 }  // namespace ddd::gui

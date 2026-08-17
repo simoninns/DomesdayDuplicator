@@ -112,6 +112,8 @@ ddd_add_test(ddd_player_tests "unit"
     player/test_command_encoder.cpp
     player/test_disc_profile.cpp
     player/test_disc_examiner.cpp
+    player/test_auto_capture_plan.cpp
+    player/test_auto_capture_sequence.cpp
     player/test_response_parser.cpp
     player/test_user_code.cpp
     player/test_player_session.cpp
@@ -214,6 +216,7 @@ ddd_add_test(ddd_gui_tests "unit"
     gui/unit/test_player_settings.cpp
     gui/unit/test_player_text.cpp
     gui/unit/test_player_controller.cpp
+    gui/unit/test_auto_capture_controller.cpp
 )
 target_link_libraries(ddd_gui_tests PRIVATE
     ddd_gui_lib
@@ -234,6 +237,7 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     gui/widget/test_analysis_dialog.cpp
     gui/widget/test_capture_panel.cpp
     gui/widget/test_examine_dialog.cpp
+    gui/widget/test_guided_capture_dialog.cpp
     gui/widget/test_player_panel.cpp
     gui/widget/test_player_remote_dialog.cpp
     gui/widget/test_settings_dialog.cpp

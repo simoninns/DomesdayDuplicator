@@ -61,4 +61,18 @@ CaptureFailureView PresentCaptureFailure(capture::TransferResult result,
 // than an action, and it has to be exact: a user is going to copy it.
 QString UsbfsMemoryLimitInstruction();
 
+// What to say about a capture name that is already taken.
+//
+// **A capture has never overwritten another** — the path is made unique before
+// the file is opened, and has been since before this existed. What was missing
+// was anybody being told, and a typed name has no timestamp in it, so the
+// second capture of "Casper side 1" quietly becoming "Casper side 1_2" is the
+// ordinary case rather than an edge one. Two files nobody can tell apart later
+// is a slower way to lose a capture than overwriting one, but it is not a much
+// slower way.
+//
+// Empty where the name is free, so a caller can hide the row. `written` is the
+// name the file will really carry.
+QString CaptureNameTakenNote(const QString& written);
+
 }  // namespace ddd::gui

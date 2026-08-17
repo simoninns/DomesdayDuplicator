@@ -15,6 +15,8 @@
 #include <cstdint>
 #include <optional>
 
+#include "auto_capture_plan.h"
+#include "auto_capture_sequence.h"
 #include "disc_examiner.h"
 #include "disc_profile.h"
 #include "player_command.h"
@@ -202,5 +204,65 @@ QString ExamineSummary(const player::DiscProfile& disc,
 QString DiscProfileReport(const player::DiscProfile& disc,
                           player::ExamineOutcome outcome,
                           double bytes_per_second);
+
+// --- Setting up and running an automatic capture ---------------------------
+
+// What a capture of this shape covers, as the label on its option.
+QString CaptureShapeName(player::CaptureShape shape);
+
+// Why a plan cannot be run, as the sentence shown beside a start button that is
+// not available.
+//
+// A different sentence per problem, which is the whole reason PlanProblem is an
+// enumeration. The old application had one message for all of them — "The disc
+// in the player does not match the selected capture option" — and it arrived
+// several seconds after the disc had started spinning.
+QString PlanProblemText(player::PlanProblem problem);
+
+// What the automatic capture is doing now, in plain language.
+QString AutoCaptureStageName(player::AutoCaptureStage stage);
+
+// How the run ended, as the clause following "Automatic capture ".
+QString AutoCaptureOutcomeText(player::AutoCaptureOutcome outcome);
+
+// The sentence a finished run leaves on screen: what happened, and what it
+// means for the file.
+QString AutoCaptureSummary(player::AutoCaptureOutcome outcome);
+
+// What a capture of this plan is expected to cost, in time and in bytes.
+//
+// Empty where the length cannot be worked out — a CAV plan on a disc whose
+// video standard nobody established, which is the one case a frame count is not
+// a duration. `bytes_per_second` is the current capture settings' estimate, so
+// the figure is for the settings the capture will actually run with.
+QString AutoCaptureEstimate(const player::AutoCapturePlan& plan,
+                            const player::DiscProfile& disc,
+                            double bytes_per_second);
+
+// How much longer the run has to go, from where the player is now.
+//
+// **The disc plays in real time, so the programme left to play *is* the time
+// left to wait.** There is nothing to measure and no rate to estimate, which is
+// why this is a pure function of two addresses rather than something that
+// watches a clock — and why it is right from the first reading rather than
+// settling down over the first minute the way an observed-rate estimate would.
+//
+// Empty where it cannot be worked out: a CAV disc whose video standard nobody
+// established, a player that has not reached the programme yet, or an address
+// already at the end. It is deliberately a little short on the one shape that
+// spins the disc down inside the capture, for the same reason the setup's own
+// estimate is — see PlannedDuration.
+QString AutoCaptureRemainingText(const player::AutoCapturePlan& plan,
+                                 const player::DiscProfile& disc,
+                                 int32_t address);
+
+// A capture name built from what is known about the disc, or empty where
+// nothing is.
+//
+// Deliberately not a scheme: it is a prefill somebody can type over, and full
+// advanced naming is a separate piece of work. What it does do is put the side
+// number in the name, because the two files a user makes in a row are the two
+// sides of one disc and telling them apart afterwards is the whole problem.
+QString SuggestedCaptureName(const player::DiscProfile& disc);
 
 }  // namespace ddd::gui

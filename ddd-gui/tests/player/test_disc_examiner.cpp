@@ -605,7 +605,10 @@ TEST(DiscExaminerTest, ACancelIsPossibleBetweenAnyTwoSteps) {
 
     for (size_t sent = 0; sent < stop_after; ++sent) {
       const std::optional<ExamineStep> step = examiner.Next();
-      ASSERT_TRUE(step.has_value()) << "stop_after=" << stop_after;
+      if (!step.has_value()) {
+        ADD_FAILURE() << "the plan ran out at stop_after=" << stop_after;
+        break;
+      }
       const auto found = script.find(step->stage);
       examiner.Apply(found == script.end() ? Answered("R") : found->second);
     }

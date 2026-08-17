@@ -993,22 +993,145 @@ issue when a disc behaves strangely.
 
 ## Phase 5 — Guided capture setup and automatic capture
 
+**Status: built.** `AutoCapturePlan`, `ValidateAutoCapturePlan()` and `AutoCaptureSequence`
+are in `ddd_player` and link no Qt; `GuidedCaptureDialog` is the window, reached from **Set
+up capture…** on the examine report; `AutoCaptureController` is the one object holding both
+a `PlayerController` and a `CaptureController`. 98 further tests, of which 48 are the plan's
+and the sequence's, 19 the dialog's and 10 the coupling's — and one of those ten is a whole
+automatic capture, end to end, against a fake serial port and the fake USB backend,
+producing a FLAC file with the disc's own facts in its tags. No player, no Duplicator.
+
+Six things worth recording, three of which are departures from what was planned above:
+
+- **The one branch where a started capture is not stopped is the link failing *the run*,
+  and it is stated rather than accidental.** This plan says both things: Task 5.2's acceptance list
+  has "link lost mid-capture" ending with the capture stopped, and Task 5.3's prose says
+  "the link dropping stops the automation, reports it, and leaves the capture running under
+  manual control". They cannot both hold. The second is what is built, because it is the
+  one with an argument attached and because the first is unachievable as written anyway —
+  with the link gone the player cannot be stopped either. A player that loses its cable
+  goes on playing to the end of the side, so stopping the capture would truncate a good one
+  to avoid a file that the user is now watching. The sequence says so through
+  `capture_left_running()`, the controller logs it, and the window says **"the capture is
+  still running"** — so the property test is "every branch but this one stops what it
+  started, and this one announces it", which is checkable rather than aspirational.
+- **The sequence is driven from the interface thread, not the worker's.** The opposite of
+  the examine sequence, and for a reason: an examination is a run of blocking exchanges the
+  session already knows how to make, while this one interleaves player commands with
+  attaching and detaching a writer — which is the interface thread's to do. A step per
+  queued round trip costs nothing when the watch polls twice a second. Cancellation is then
+  answered between one step and the next rather than at the end of a thirty-second seek.
+- **The transport is recorded as started when the command goes out, not when it is
+  answered.** `PL64RBMF` is three commands in one, and a player that took the first and
+  rejected the third is playing a disc the sequence would otherwise believe it never
+  started — and would then leave running.
+- **The stall detector asks rather than assumes.** An address that has not advanced for
+  five readings produces one active-mode query, and that query separates the three things
+  which look identical from the address alone: a player still getting up to speed (carry
+  on), a player that has stopped (a finding — the file is finalised and the capture is
+  good as far as it goes), and a player insisting it is playing a disc that is not moving
+  (a stall — ended, because the alternative is a file that grows until the volume fills).
+- **A refused disc-status check does not refuse the capture.** Partial failure is this
+  library's rule and it applies here too: a player that will not answer `?D` is not evidence
+  the disc changed, and refusing on it would refuse discs on players that seek and play
+  perfectly well. What *is* fatal is a positive disagreement — a CLV reply where a CAV disc
+  was examined, the other side, or a tray the player says is empty.
+- **The video standard is the only thing the guided setup ever has to ask for, and on a
+  model with `?S` it asks for nothing at all.** That is what Phase 4 bought: the old
+  Automatic Capture dialog asked for the disc type before it had looked at the disc, and
+  this one is built from a profile. A CAV disc gets frame controls and no time-code ones; a
+  CLV disc the reverse — absent rather than greyed out, because a disabled field for a thing
+  this disc does not have invites somebody to look for the setting that would enable it.
+
+- **A name that is already taken is said so as it is typed, in the guided setup and in the
+  Capture panel alike.** No capture has ever overwritten another — the engine resolves the
+  path before it opens anything, and has since long before this phase — but the rename it
+  does instead was silent, and a typed name carries no timestamp, so the second capture of
+  "Casper side 1" quietly becoming "Casper side 1_2" is the *ordinary* case rather than an
+  edge one. Two files nobody can tell apart afterwards is a slower way to lose a capture
+  than overwriting one, but not a much slower way. `ResolveCaptureDestination()` is now the
+  single call that answers "where will this really be written, and is that the name that was
+  asked for" — the panel and the guided setup show it live, the controller opens it, and
+  `CaptureRenamed` reports it if it ever happens anyway.
+- **The window says how much longer the capture has to run, and it needs no clock to do
+  it.** The disc plays in real time, so the programme left to play *is* the time left to
+  wait: the figure is a pure function of where the player is and where the plan ends, right
+  from the first reading rather than settling down over the first minute the way an
+  observed-rate estimate would. It is shown only while the disc is actually being watched —
+  a countdown beside "spinning the disc down" would be counting towards something that has
+  already happened — and not at all on a CAV disc whose video standard nobody established,
+  which is the one case a frame count is not a duration.
+
+**A correction to what was written here first, and to the shapes this plan set out.** The
+three shapes were first built as "the whole side", "a range" and "from the lead-in for a
+given number of frames", with the last two words doing damage: they read as though the
+lead-in were somewhere a player could be sent, and the plan's own text had a
+`lead_in_reachable` check refusing both lead-in shapes on a disc whose start the
+examination could not seek to. **There is no command that puts a player on the lead-in.** A
+player takes an address or it starts from a stop; the lead-in is not an address. So it is
+never asked for and never refused — it is what a capture gets by being running while the
+disc spins up, which works on any player that can be stopped and started, and which the
+examination's `lead_in_reachable` (a fact about a *seek* to the first frame) says nothing
+about either way. The check is gone and all three shapes are always on offer.
+
+The same mistake was made at the other end and cost more. The run-out is not an address
+either, and the tail as first built stopped the capture and then the player — so a
+whole-side capture ended a few seconds short of exactly the part of the disc nothing else
+can reach, with no way for a later capture to go back for it. A whole-side capture now
+stops the player **first** and keeps writing through the spin-down; every other shape stops
+the writer first, because there is nothing in the middle of a side worth the extra seconds.
+The order of those two steps is the shape's decision, and `EndsWithSpinDown()` is where it
+is made.
+
+Reordering the tail found a real defect in the branch beneath it, which is the useful half
+of the lesson. The stop-capture step had been guarded on `link_failed_`, so that a link
+lost mid-side left the capture running; with the player stopped first, a link that died
+during a *whole-side spin-down* hit that same guard and left the writer attached for ever.
+The guard is now on `pending_outcome_ == kLinkFailed` — the capture is handed back to the
+user only when the link is what ended the run, not merely when it has since died. Detaching
+a writer needs no serial link, and the side had already been captured.
+
+Deferred, as Phases 3 and 4 were: the T5 walk on real discs belongs to Task 6.1's document.
+Nothing on the bench has yet run an automatic capture end to end.
+
 ### Task 5.1 — The guided setup
 
 Built **from** the profile, showing only what applies:
 
-- **CAV** offers frame addressing: whole side, a frame range, or from the lead-in for a
-  given number of frames. The maximum comes from the measured lead-out, so a range that
-  cannot exist cannot be typed.
-- **CLV** offers time-code addressing on the same three shapes, bounded the same way.
+- Three shapes, and **the list is decided by there being no command that puts a player on
+  the lead-in.** A player can be sent to an address and it can be started from a stop; the
+  lead-in is not an address, so the only way it reaches a file is for the capture to be
+  running while the disc spins up. It is therefore never asked for — it is what two of the
+  three shapes get by construction. The same holds at the other end: the run-out is not an
+  address either, so it reaches a file only if the capture is still running when the player
+  is spun down.
+  1. **The whole side.** Start the capture, spin the disc up, run to the end, and spin it
+     down again *before* the capture is stopped. The only shape whose file holds the whole
+     of the side.
+  2. **From one address to another.** Seek, start the capture, play to the second address.
+     The disc turns throughout, so neither the spin-up nor the spin-down is in the file.
+  3. **From spin-up to an address.** The front of a whole-side capture.
+- **CAV** offers frame addressing and **CLV** time-code addressing, on the same three
+  shapes, bounded by the measured length either way — so a range that cannot exist cannot
+  be typed.
 - Anything the examination could not determine is asked for here, once, with what the
-  application believes prefilled and marked as a guess.
+  application believes prefilled and marked as a guess. *In the event there is exactly one
+  such field — the video standard on a model with no `?S` — and nothing to prefill it with:
+  the disc status reads identically for a PAL and an NTSC disc and the model does not imply
+  it either, which Phase 4's open decision settled at length. So it opens on "not known"
+  and says why, and what the user chooses is recorded as `kDeclared`. A prefilled guess
+  there would be a guess with no evidence behind it, which is worse than a question.*
 - The estimated file size and duration are shown against the destination volume's free
   space, using the capture settings' existing estimator. A setup that will not fit is
   flagged before the disc starts spinning rather than by the low-space warning forty
   minutes in.
 - The capture name is offered prefilled from the disc facts where they are known, without
-  imposing a scheme — full advanced naming remains **Future**.
+  imposing a scheme — full advanced naming remains **Future**. *The prefill is resolved
+  against the destination folder before it is offered, and this is not optional: it is built
+  from what the disc **is** — "CLV_PAL_Side2" — so it is the same every time that side is
+  captured, where the generated `RF-Sample_<timestamp>` is free by construction. A
+  suggestion that was already taken would put a name in the field that is not the name of
+  the file.*
 - Key lock, and the two coupling preferences, are here as checkboxes with the current
   setting.
 
@@ -1018,7 +1141,9 @@ are the same rules rather than two copies of them.
 
 **Acceptance criteria**
 - T1: validation covers every invalid plan — end before start, range beyond the measured
-  length, zero-length lead-in capture, a plan whose addressing does not match the profile.
+  length, a zero-length capture, a plan whose addressing does not match the profile. It does
+  *not* refuse a shape for a lead-in the examination could not seek to: no command puts a
+  player there, and the shapes that hold it need only a player that can be stopped.
 - Widget test: a CAV profile offers no time-code controls and a CLV profile offers no frame
   controls; bounds come from the profile; the size estimate tracks the range and the
   current output format.
@@ -1034,23 +1159,29 @@ result usable:
    From the disc type and the measured length, not from the user code — a disc that has none
    would fail a check built on it, and reading one here would cost eleven seconds and send
    the player to the lead-in immediately before a capture that needs it somewhere else.
-3. Spin down, when the capture starts from the lead-in or covers the whole side. This is
-   the non-obvious step: the lead-in is only readable on the way up from a stop, so capture
-   must start *before* the player does.
+3. Spin down, for either shape that is to hold the spin-up. This is the non-obvious step:
+   there is no command that puts a player on the lead-in, so the only way it reaches a file
+   is for the capture to be running while the disc comes up from a stop — which means
+   stopping a disc the user has very likely just started.
 4. Start the capture, then spin up — in that order, with play-with-stop-codes-disabled for
    CAV so a stop code cannot pause the disc mid-side.
 5. Or, for a partial capture, seek to the start address, then start the capture, then play.
 6. Watch the current address until the end address is reached, with a stall detector: an
    address that has not advanced for several polls while the player claims to be playing
    ends the capture with a specific message rather than running until the disk fills.
-7. Stop the capture, stop the player, release the key lock.
+7. Stop the capture, stop the player, release the key lock — **except on a whole-side
+   capture, where the player is stopped first and the writer stays attached through the
+   spin-down.** The run-out is not an address, so nothing can seek to it and no later
+   capture can go back for it; recording it while the disc is being stopped is the only way
+   it is ever in a file. The order of those two steps is therefore the shape's decision.
 
 Cancellation is honoured between every step and, unlike the old application, during the
 watch phase — the capture is finalised properly rather than abandoned.
 
 **Acceptance criteria**
-- T1: each of the three capture shapes (whole side, range, from lead-in) produces the
-  expected step order for both CAV and CLV, asserted step by step against fakes.
+- T1: each of the three capture shapes (whole side, range, from spin-up) produces the
+  expected step order for both CAV and CLV, asserted step by step against fakes — including
+  which of the writer and the player is stopped first.
 - T1: every failure branch — disc swapped, spin-up refused, seek refused, link lost
   mid-capture, address stalled, user cancelled — ends with the capture stopped, the player
   stopped and its own message.
@@ -1083,7 +1214,7 @@ automation, reports it, and leaves the capture running under manual control.
   backend — no hardware, no player — producing a file with the expected provenance.
 - T1: link loss mid-capture leaves the capture running and reports the automation as ended.
 - T5: whole-side CAV and CLV captures on real discs, with the file's first frames confirmed
-  to contain the lead-in for a lead-in capture.
+  to contain the spin-up and its last to contain the spin-down.
 
 ## Phase 6 — Hardware validation, documentation and support
 

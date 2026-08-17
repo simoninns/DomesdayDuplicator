@@ -15,6 +15,9 @@
 #include <QPointer>
 #include <utility>
 
+// Included rather than forward declared: moc needs the metatype declaration
+// for DiscProfile to be visible where it generates code for the slot below.
+#include "player_metatypes.h"
 #include "settings_dialog.h"
 #include "update_key.h"
 
@@ -25,12 +28,14 @@ class QLabel;
 namespace ddd::gui {
 
 class ExamineDialog;
+class GuidedCaptureDialog;
 class PlayerRemoteDialog;
 
 class ApplicationLogger;
 class CaptureController;
 class AmplitudePanel;
 class LogMessageModel;
+class AutoCaptureController;
 class PlayerController;
 class SpectrumPanel;
 class ThemeController;
@@ -61,6 +66,7 @@ class MainWindow : public QMainWindow {
   MainWindow(ThemeController* theme_controller, ApplicationLogger* logger,
              CaptureController* capture_controller = nullptr,
              PlayerController* player_controller = nullptr,
+             AutoCaptureController* auto_capture_controller = nullptr,
              QWidget* parent = nullptr);
 
   // Reveals the Log dock. Used by --debug, where the point of the run is to
@@ -109,6 +115,10 @@ class MainWindow : public QMainWindow {
   // The same, for the examine window.
   void ShowExamineDialog();
 
+  // And for the guided setup, which is reached from the examine window's report
+  // and carries the profile that report was written from.
+  void ShowGuidedCaptureDialog(const ddd::player::DiscProfile& disc);
+
   void ShowCaptureFinished(const QString& file_path, quint64 bytes);
   void ShowFirmwareWarning(const QString& message);
   void ShowFailure(const QString& title, const QString& detail);
@@ -126,6 +136,7 @@ class MainWindow : public QMainWindow {
   ApplicationLogger* logger_;
   CaptureController* capture_controller_;
   PlayerController* player_controller_;
+  AutoCaptureController* auto_capture_controller_;
   LogMessageModel* log_model_;
 
   QDockWidget* capture_dock_ = nullptr;
@@ -158,6 +169,10 @@ class MainWindow : public QMainWindow {
   // And the examine window, on the same terms and for the same reason: two
   // examinations would be two sequences seeking one player.
   QPointer<ExamineDialog> examine_dialog_;
+
+  // And the guided setup, on the same terms again: two of these would be two
+  // sequences driving one player and one capture engine.
+  QPointer<GuidedCaptureDialog> guided_dialog_;
 
   // Held so the two can be related to one another after both exist: the
   // Amplitude panel can be asked to keep pace with the spectrogram, and neither

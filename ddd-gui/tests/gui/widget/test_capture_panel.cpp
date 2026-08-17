@@ -24,6 +24,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -121,6 +122,10 @@ class CapturePanelTest : public ::testing::Test {
   QLineEdit* NameEdit() const {
     return panel_->findChild<QLineEdit*>(
         QLatin1String(CapturePanel::kNameEditName));
+  }
+  QLabel* NameTakenLabel() const {
+    return panel_->findChild<QLabel*>(
+        QLatin1String(CapturePanel::kNameTakenLabelName));
   }
   QComboBox* FormatCombo() const {
     return panel_->findChild<QComboBox*>(
@@ -781,6 +786,48 @@ TEST_F(CapturePanelTest, APanelWithNoControllerStillBuilds) {
   EXPECT_NE(panel.findChild<QPushButton*>(
                 QLatin1String(CapturePanel::kMonitorButtonName)),
             nullptr);
+}
+
+// --- Saying when a name is already taken ------------------------------------
+
+// A capture has never overwritten another — the engine resolves the path before
+// it opens anything. What this pins is that the rename it does instead is
+// visible *before* the capture starts, because a typed name carries no
+// timestamp and so is taken every time after the first.
+TEST_F(CapturePanelTest, ANameAlreadyTakenIsSaidSoAsItIsTyped) {
+  directory_ =
+      std::filesystem::temp_directory_path() / "ddd-capture-panel-name-test";
+  std::filesystem::remove_all(directory_);
+  std::filesystem::create_directories(directory_);
+
+  {
+    std::ofstream file(directory_ / ("Casper side 1" +
+                                     std::string(capture::kCaptureFileSuffix)));
+    file << "x";
+  }
+
+  DirectoryEdit()->setText(QString::fromStdString(directory_.string()));
+
+  ASSERT_NE(NameTakenLabel(), nullptr);
+
+  // isHidden() rather than isVisible(): the panel is never shown in a widget
+  // test, so isVisible() is false for every child whatever the code does.
+  EXPECT_TRUE(NameTakenLabel()->isHidden());
+
+  NameEdit()->setText(QStringLiteral("Casper side 1"));
+
+  EXPECT_FALSE(NameTakenLabel()->isHidden());
+  EXPECT_TRUE(
+      NameTakenLabel()->text().contains(QStringLiteral("Casper side 1_2")));
+  EXPECT_TRUE(NameTakenLabel()->text().contains(QStringLiteral("overwritten")));
+
+  // A free name says nothing, and neither does the generated one — it carries a
+  // timestamp, so a note about it would never go away.
+  NameEdit()->setText(QStringLiteral("Casper side 2"));
+  EXPECT_TRUE(NameTakenLabel()->isHidden());
+
+  NameEdit()->setText(QString());
+  EXPECT_TRUE(NameTakenLabel()->isHidden());
 }
 
 }  // namespace

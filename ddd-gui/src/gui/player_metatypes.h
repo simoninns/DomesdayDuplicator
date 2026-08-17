@@ -13,6 +13,8 @@
 
 #include <QMetaType>
 
+#include "auto_capture_plan.h"
+#include "auto_capture_sequence.h"
 #include "disc_examiner.h"
 #include "disc_profile.h"
 #include "player_connection.h"
@@ -38,3 +40,6 @@ Q_DECLARE_METATYPE(ddd::player::PlayerStatus)
 Q_DECLARE_METATYPE(ddd::player::DiscProfile)
 Q_DECLARE_METATYPE(ddd::player::ExamineStage)
 Q_DECLARE_METATYPE(ddd::player::ExamineOutcome)
+Q_DECLARE_METATYPE(ddd::player::AutoCapturePlan)
+Q_DECLARE_METATYPE(ddd::player::AutoCaptureStage)
+Q_DECLARE_METATYPE(ddd::player::AutoCaptureOutcome)

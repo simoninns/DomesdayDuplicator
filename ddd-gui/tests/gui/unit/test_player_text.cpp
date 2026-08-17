@@ -854,5 +854,155 @@ TEST(PlayerTextTest, AnExamineTraceLineNamesTheStepAsWellAsTheBytes) {
   EXPECT_TRUE(silent.contains(QStringLiteral("no answer")));
 }
 
+// --- The automatic capture -------------------------------------------------
+
+TEST(PlayerTextTest, EveryAutoCaptureStageHasItsOwnWording) {
+  QStringList seen;
+  for (int value = 0;
+       value <= static_cast<int>(player::AutoCaptureStage::kFinished);
+       ++value) {
+    const QString name =
+        AutoCaptureStageName(static_cast<player::AutoCaptureStage>(value));
+    EXPECT_FALSE(name.isEmpty());
+    EXPECT_FALSE(seen.contains(name)) << name.toStdString();
+    seen << name;
+  }
+
+  // The one nobody would arrive at by reading the code that does it, so the
+  // progress line explains itself: a user watching their disc stop when they
+  // asked for a capture is entitled to know why.
+  EXPECT_TRUE(AutoCaptureStageName(player::AutoCaptureStage::kSpinningDown)
+                  .contains(QStringLiteral("spin-up")));
+}
+
+TEST(PlayerTextTest, EveryAutoCaptureOutcomeHasItsOwnWordingAndItsOwnSentence) {
+  QStringList clauses;
+  QStringList sentences;
+
+  for (int value = 0;
+       value <= static_cast<int>(player::AutoCaptureOutcome::kCancelled);
+       ++value) {
+    const auto outcome = static_cast<player::AutoCaptureOutcome>(value);
+
+    const QString clause = AutoCaptureOutcomeText(outcome);
+    EXPECT_FALSE(clause.isEmpty());
+    EXPECT_FALSE(clauses.contains(clause)) << clause.toStdString();
+    clauses << clause;
+
+    const QString sentence = AutoCaptureSummary(outcome);
+    EXPECT_FALSE(sentence.isEmpty());
+    EXPECT_FALSE(sentences.contains(sentence)) << sentence.toStdString();
+    sentences << sentence;
+  }
+
+  // The one branch that ends with a file still growing has to say so — the
+  // whole reason that branch is allowed to exist is that the user is told.
+  EXPECT_TRUE(AutoCaptureSummary(player::AutoCaptureOutcome::kLinkFailed)
+                  .contains(QStringLiteral("still running")));
+}
+
+TEST(PlayerTextTest, EveryPlanProblemGetsItsOwnSentenceAndNoneIsSilent) {
+  EXPECT_TRUE(PlanProblemText(player::PlanProblem::kNone).isEmpty());
+
+  QStringList seen;
+  for (int value = 1;
+       value <= static_cast<int>(player::PlanProblem::kEndBeyondProgramme);
+       ++value) {
+    const QString text =
+        PlanProblemText(static_cast<player::PlanProblem>(value));
+
+    // The old application had one message for all of them, arriving several
+    // seconds after the disc had started spinning.
+    EXPECT_FALSE(text.isEmpty());
+    EXPECT_FALSE(seen.contains(text)) << text.toStdString();
+    seen << text;
+  }
+}
+
+TEST(PlayerTextTest, TheEstimateNeedsTheStandardOnACavDisc) {
+  player::DiscProfile disc;
+  disc.disc_type.Record(player::DiscType::kCav, player::Provenance::kReported);
+  disc.programme_start.Record(1, player::Provenance::kMeasured);
+  disc.programme_end.Record(54000, player::Provenance::kMeasured);
+
+  const player::AutoCapturePlan plan = player::DefaultPlanFor(disc);
+
+  // A frame count is only a duration once the frame rate is known, and
+  // assuming thirty a second on a PAL disc is twenty per cent out — in the
+  // direction that fills the volume a capture was estimated to fit on.
+  EXPECT_TRUE(AutoCaptureEstimate(plan, disc, 40.0e6).isEmpty());
+
+  disc.video_standard.Record(player::VideoStandard::kNtsc,
+                             player::Provenance::kReported);
+  const QString estimate = AutoCaptureEstimate(plan, disc, 40.0e6);
+  EXPECT_FALSE(estimate.isEmpty());
+  EXPECT_TRUE(estimate.contains(QStringLiteral("disk")));
+}
+
+TEST(PlayerTextTest, TheTimeLeftIsThePlayingTimeLeftAndNeedsNoClock) {
+  player::DiscProfile disc;
+  disc.disc_type.Record(player::DiscType::kCav, player::Provenance::kReported);
+  disc.programme_start.Record(1, player::Provenance::kMeasured);
+  disc.programme_end.Record(54000, player::Provenance::kMeasured);
+  disc.video_standard.Record(player::VideoStandard::kNtsc,
+                             player::Provenance::kReported);
+
+  const player::AutoCapturePlan plan = player::DefaultPlanFor(disc);
+
+  // 1800 frames from the end at 30000/1001 is a minute of disc left, which is a
+  // minute of waiting left — the disc plays in real time, so there is nothing
+  // to measure and no rate to settle down.
+  const QString remaining = AutoCaptureRemainingText(plan, disc, 54000 - 1800);
+  EXPECT_FALSE(remaining.isEmpty());
+  EXPECT_TRUE(remaining.contains(QStringLiteral("1:00")));
+
+  // Nothing once the end has been reached, rather than a countdown that sits
+  // at zero through the spin-down and the file being closed.
+  EXPECT_TRUE(AutoCaptureRemainingText(plan, disc, 54000).isEmpty());
+  EXPECT_TRUE(AutoCaptureRemainingText(plan, disc, -1).isEmpty());
+}
+
+TEST(PlayerTextTest, TheTimeLeftOnACavDiscNeedsTheVideoStandardToo) {
+  player::DiscProfile disc;
+  disc.disc_type.Record(player::DiscType::kCav, player::Provenance::kReported);
+  disc.programme_end.Record(54000, player::Provenance::kMeasured);
+
+  const player::AutoCapturePlan plan = player::DefaultPlanFor(disc);
+
+  // A frame count is only a duration once the frame rate is known. Saying
+  // nothing beats a figure that would be a fifth out on a PAL disc.
+  EXPECT_TRUE(AutoCaptureRemainingText(plan, disc, 27000).isEmpty());
+
+  disc.video_standard.Record(player::VideoStandard::kPal,
+                             player::Provenance::kDeclared);
+  EXPECT_FALSE(AutoCaptureRemainingText(plan, disc, 27000).isEmpty());
+}
+
+TEST(PlayerTextTest, TheTimeLeftOnAClvDiscIsReadStraightOffTheTimeCodes) {
+  player::DiscProfile disc;
+  disc.disc_type.Record(player::DiscType::kClv, player::Provenance::kReported);
+  disc.programme_start.Record(0, player::Provenance::kMeasured);
+  disc.programme_end.Record(504500, player::Provenance::kMeasured);
+
+  const player::AutoCapturePlan plan = player::DefaultPlanFor(disc);
+
+  // 0:20:45 into a side that runs to 0:50:45: half an hour to go, and no video
+  // standard needed for it because the addresses are already times.
+  const QString remaining = AutoCaptureRemainingText(plan, disc, 204500);
+  EXPECT_TRUE(remaining.contains(QStringLiteral("30:00")));
+}
+
+TEST(PlayerTextTest, ASuggestedNameCarriesTheSideAndNothingIsInventedForIt) {
+  player::DiscProfile disc;
+  EXPECT_TRUE(SuggestedCaptureName(disc).isEmpty());
+
+  disc.disc_type.Record(player::DiscType::kClv, player::Provenance::kReported);
+  disc.disc_side.Record(2, player::Provenance::kReported);
+
+  const QString name = SuggestedCaptureName(disc);
+  EXPECT_TRUE(name.contains(QStringLiteral("CLV")));
+  EXPECT_TRUE(name.contains(QStringLiteral("Side2")));
+}
+
 }  // namespace
 }  // namespace ddd::gui

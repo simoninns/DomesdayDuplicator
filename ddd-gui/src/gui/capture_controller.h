@@ -20,6 +20,7 @@
 #include "analysis_worker.h"
 #include "capture_metatypes.h"
 #include "capture_pipeline.h"
+#include "capture_provenance.h"
 #include "capture_settings.h"
 #include "device_monitor.h"
 #include "flac_sink.h"
@@ -102,6 +103,18 @@ class CaptureController : public QObject {
   // three panels share what it produces.
   AnalysisWorker* analysis() { return analysis_.get(); }
 
+  // What was in the player when this capture was set up.
+  //
+  // Set by the automatic-capture coupling and by nothing else, and cleared when
+  // there is no longer a disc it describes. It reaches the file the next
+  // capture opens rather than the one that is running: a file's tags are
+  // written into its header when it is created, so a fact that arrived
+  // afterwards has nowhere to go.
+  void SetDiscProvenance(const capture::DiscProvenance& disc);
+  const capture::DiscProvenance& disc_provenance() const {
+    return disc_provenance_;
+  }
+
   // Applying settings while a capture is running changes what the next one will
   // do, not this one. Nothing here can be changed mid-stream without stopping,
   // and pretending otherwise would mean a ring that was resized underneath a
@@ -146,6 +159,12 @@ class CaptureController : public QObject {
   // A writer was attached or detached. The path is the file being written, or
   // empty when the capture has just ended.
   void CapturingChanged(bool capturing, const QString& file_path);
+
+  // The requested name was already taken, so the capture was written under
+  // another. Not a failure — nothing was overwritten, which the engine
+  // guarantees by resolving the path before it opens anything — but a fact the
+  // user has to be told, because the file is not the one they named.
+  void CaptureRenamed(const QString& requested, const QString& written);
 
   // A capture finished and its file is closed. `bytes` is what reached the
   // disk, which is not derivable from the sample count once a compressor is in
@@ -238,6 +257,9 @@ class CaptureController : public QObject {
 
   // The gateware version that goes with warned_device_path_
   capture::FpgaVersion fpga_version_;
+
+  // See SetDiscProvenance. Empty for every capture taken without a player.
+  capture::DiscProvenance disc_provenance_;
 };
 
 }  // namespace ddd::gui

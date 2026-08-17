@@ -18,6 +18,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QString>
 #include <algorithm>
 #include <chrono>
@@ -335,6 +336,50 @@ TEST_F(ExamineDialogTest, StoppingSaysSoBeforeItHasTakenEffect) {
                   .contains(QStringLiteral("Stopping")));
   EXPECT_FALSE(
       Find<QPushButton>(ExamineDialog::kCancelButtonName)->isEnabled());
+}
+
+TEST_F(ExamineDialogTest, SetUpCaptureArrivesWithSomethingToCaptureFrom) {
+  BuildAlone();
+
+  auto* const set_up = Find<QPushButton>(ExamineDialog::kSetUpButtonName);
+  ASSERT_NE(set_up, nullptr);
+
+  // Nothing examined yet, so there is nothing to build a capture from. A window
+  // that offered it here would open the guided setup on a refusal, which is a
+  // worse way to learn that the examination never happened.
+  EXPECT_FALSE(set_up->isEnabled());
+
+  dialog_->SetResult(ExaminedCavDisc(), player::ExamineOutcome::kCompleted);
+  EXPECT_TRUE(set_up->isEnabled());
+}
+
+TEST_F(ExamineDialogTest, AnExaminationThatFoundNoLengthOffersNoCapture) {
+  BuildAlone();
+
+  player::DiscProfile partial = ExaminedCavDisc();
+  partial.programme_end = player::Fact<int32_t>{};
+
+  // The type is known and the side was never measured. Half a profile is
+  // reported in full — that is the design — and it is still not something a
+  // capture can be bounded by.
+  dialog_->SetResult(partial, player::ExamineOutcome::kCompleted);
+  EXPECT_FALSE(Find<QPushButton>(ExamineDialog::kSetUpButtonName)->isEnabled());
+}
+
+TEST_F(ExamineDialogTest, SetUpCaptureCarriesTheProfileItWasBuiltFrom) {
+  BuildAlone();
+
+  const player::DiscProfile examined = ExaminedCavDisc();
+  dialog_->SetResult(examined, player::ExamineOutcome::kCompleted);
+
+  QSignalSpy requested(dialog_.get(), &ExamineDialog::SetUpCaptureRequested);
+  Find<QPushButton>(ExamineDialog::kSetUpButtonName)->click();
+
+  ASSERT_EQ(requested.count(), 1);
+
+  // Carried as a value rather than read back off this window, so a second
+  // examination cannot change the setup a capture is about to run from.
+  EXPECT_EQ(requested.front().at(0).value<player::DiscProfile>(), examined);
 }
 
 }  // namespace

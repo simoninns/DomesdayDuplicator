@@ -221,5 +221,54 @@ TEST_F(UniqueNameTest, TheUncompressedSuffixIsKeptWholeToo) {
             "capture_2.ddd.s16");
 }
 
+// --- Where a capture really goes -------------------------------------------
+
+TEST_F(UniqueNameTest, AFreeNameResolvesToItself) {
+  const CaptureDestination destination =
+      ResolveCaptureDestination(directory_, "Casper side 1", false, kFixedTime);
+
+  EXPECT_TRUE(destination.as_requested);
+  EXPECT_EQ(destination.stem, "Casper side 1");
+  EXPECT_EQ(destination.path.filename().string(),
+            "Casper side 1" + std::string(kCaptureFileSuffix));
+}
+
+TEST_F(UniqueNameTest, ATakenNameResolvesToTheNameThatWillReallyBeUsed) {
+  const std::filesystem::path first =
+      BuildCapturePath(directory_, "Casper side 1", false, kFixedTime);
+  Touch(first);
+
+  const CaptureDestination destination =
+      ResolveCaptureDestination(directory_, "Casper side 1", false, kFixedTime);
+
+  // Never an overwrite, and now never a silent one either: the stem is what an
+  // interface shows, so the name on screen is the name on disk.
+  EXPECT_FALSE(destination.as_requested);
+  EXPECT_EQ(destination.stem, "Casper side 1_2");
+  EXPECT_NE(destination.path, first);
+  EXPECT_TRUE(std::filesystem::exists(first));
+}
+
+TEST_F(UniqueNameTest, TheGeneratedNameIsFreeByConstruction) {
+  // Nothing typed, so the name carries a timestamp — which is the whole reason
+  // an empty name needs no warning and a typed one does.
+  const CaptureDestination destination =
+      ResolveCaptureDestination(directory_, "", false, kFixedTime);
+
+  EXPECT_TRUE(destination.as_requested);
+  EXPECT_EQ(destination.stem, DefaultCaptureStem(false, kFixedTime));
+}
+
+TEST_F(UniqueNameTest, TheStemComesBackWithoutTheCompoundSuffix) {
+  // ".ddd.flac" is two extensions, so a stem taken with stem() would keep the
+  // ".ddd" and an interface would show a name nobody typed.
+  for (const CaptureOutputFormat format :
+       {CaptureOutputFormat::kFlac, CaptureOutputFormat::kSigned16Bit}) {
+    const CaptureDestination destination = ResolveCaptureDestination(
+        directory_, "disc1", false, kFixedTime, format);
+    EXPECT_EQ(destination.stem, "disc1");
+  }
+}
+
 }  // namespace
 }  // namespace ddd::capture

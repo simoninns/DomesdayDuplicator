@@ -75,6 +75,10 @@ class SettingsDialog : public QDialog {
   static constexpr const char* kPlayerBaudComboName = "settings_player_baud";
   static constexpr const char* kPlayerExcludedListName =
       "settings_player_excluded";
+  static constexpr const char* kPlayerStopPlayerCheckName =
+      "settings_player_stop_player";
+  static constexpr const char* kPlayerStopCaptureCheckName =
+      "settings_player_stop_capture";
 
  private:
   QWidget* BuildCapturePage(
@@ -96,6 +100,8 @@ class SettingsDialog : public QDialog {
   QComboBox* player_port_ = nullptr;
   QComboBox* player_baud_ = nullptr;
   QListWidget* player_excluded_ = nullptr;
+  QCheckBox* stop_player_ = nullptr;
+  QCheckBox* stop_capture_ = nullptr;
 };
 
 }  // namespace ddd::gui

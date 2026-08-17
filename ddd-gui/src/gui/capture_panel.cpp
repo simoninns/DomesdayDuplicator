@@ -26,8 +26,10 @@
 #include <QVBoxLayout>
 #include <algorithm>
 #include <ctime>
+#include <filesystem>
 
 #include "capture_controller.h"
+#include "capture_failure_presenter.h"
 #include "capture_format.h"
 #include "capture_naming.h"
 #include "free_space.h"
@@ -133,6 +135,12 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
       tr("Leave empty to name each capture after the time it was taken, which "
          "is what keeps a folder of captures in order."));
   form->addRow(tr("Name"), name_edit_);
+
+  name_taken_label_ = new QLabel(contents);
+  name_taken_label_->setObjectName(QLatin1String(kNameTakenLabelName));
+  name_taken_label_->setWordWrap(true);
+  name_taken_label_->hide();
+  form->addRow(QString(), name_taken_label_);
 
   format_combo_ = new QComboBox(contents);
   format_combo_->setObjectName(QLatin1String(kFormatComboName));
@@ -254,6 +262,13 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
           &CapturePanel::ApplySettingsFromWidgets);
   connect(name_edit_, &QLineEdit::editingFinished, this,
           &CapturePanel::ApplySettingsFromWidgets);
+
+  // On every keystroke rather than on editingFinished, because the point of it
+  // is to be read while the name is being decided rather than after.
+  connect(name_edit_, &QLineEdit::textChanged, this,
+          [this](const QString&) { RefreshNameNote(); });
+  connect(directory_edit_, &QLineEdit::textChanged, this,
+          [this](const QString&) { RefreshNameNote(); });
   connect(format_combo_, &QComboBox::currentIndexChanged, this,
           [this](int) { ApplySettingsFromWidgets(); });
   connect(sample_rate_combo_, &QComboBox::currentIndexChanged, this,
@@ -303,6 +318,7 @@ void CapturePanel::ShowSettings() {
   test_mode_ = settings.test_mode;
   directory_edit_->setText(settings.ResolvedCaptureDirectory());
   name_edit_->setText(settings.capture_name);
+  RefreshNameNote();
   format_combo_->setCurrentIndex(
       format_combo_->findData(static_cast<int>(settings.output_format)));
   sample_rate_combo_->setCurrentIndex(
@@ -361,6 +377,37 @@ void CapturePanel::OnDurationResetPressed() {
   // it is enough: the valueChanged signal carries it into the settings by the
   // same route typing a number does.
   duration_spin_->setValue(0);
+}
+
+void CapturePanel::RefreshNameNote() {
+  const QString typed = name_edit_->text().trimmed();
+
+  // Nothing to say about the generated name. It carries a timestamp, so it is
+  // free by construction and a note about it would be a row that never went
+  // away.
+  if (typed.isEmpty() || test_mode_) {
+    name_taken_label_->hide();
+    return;
+  }
+
+  const QString directory = directory_edit_->text().trimmed();
+  const capture::CaptureOutputFormat format =
+      controller_ == nullptr ? capture::CaptureOutputFormat::kFlac
+                             : controller_->settings().output_format;
+
+  const capture::CaptureDestination destination =
+      capture::ResolveCaptureDestination(
+          std::filesystem::path(directory.toStdString()), typed.toStdString(),
+          false, std::time(nullptr), format);
+
+  if (destination.as_requested) {
+    name_taken_label_->hide();
+    return;
+  }
+
+  name_taken_label_->setText(
+      CaptureNameTakenNote(QString::fromStdString(destination.stem)));
+  name_taken_label_->show();
 }
 
 void CapturePanel::OnBrowsePressed() {

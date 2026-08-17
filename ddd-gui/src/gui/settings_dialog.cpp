@@ -259,6 +259,30 @@ QWidget* SettingsDialog::BuildPlayerPage(
   }
   form->addRow(tr("Speed"), player_baud_);
 
+  // The two ways the player and the capture are coupled. Their place is here
+  // rather than in the guided setup's own window because they are settings for
+  // a machine rather than decisions about one capture — the guided setup shows
+  // them, and changing them there changes them here.
+  stop_player_ =
+      new QCheckBox(tr("Stop the player when a capture stops"), page);
+  stop_player_->setObjectName(QLatin1String(kPlayerStopPlayerCheckName));
+  stop_player_->setChecked(player_.stop_player_with_capture);
+  stop_player_->setToolTip(
+      tr("Safe: the capture has already been written by the time this acts."));
+  form->addRow(QString(), stop_player_);
+
+  stop_capture_ =
+      new QCheckBox(tr("Stop the capture when the player stops"), page);
+  stop_capture_->setObjectName(QLatin1String(kPlayerStopCaptureCheckName));
+  stop_capture_->setChecked(player_.stop_capture_with_player);
+  stop_capture_->setToolTip(
+      tr("Off by default on purpose. A player that briefly reports a stopped "
+         "state partway through a side — which a disc with a defect will make "
+         "it do — would otherwise truncate a capture that was going perfectly "
+         "well. When it is on, the player has to stay stopped across several "
+         "readings before anything happens."));
+  form->addRow(QString(), stop_capture_);
+
   layout->addLayout(form);
 
   auto* excluded_note = new QLabel(
@@ -314,6 +338,8 @@ PlayerSettings SettingsDialog::Player() const {
   result.model_id_code = player_model_->currentData().toString();
   result.port_path = player_port_->currentData().toString();
   result.baud_rate = player_baud_->currentData().toUInt();
+  result.stop_player_with_capture = stop_player_->isChecked();
+  result.stop_capture_with_player = stop_capture_->isChecked();
 
   result.excluded_ports.clear();
   for (int row = 0; row < player_excluded_->count(); ++row) {

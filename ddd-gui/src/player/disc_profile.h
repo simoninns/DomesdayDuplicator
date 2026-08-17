@@ -200,6 +200,19 @@ struct DiscProfile {
 // the volume it was estimated to fit on.
 std::optional<std::chrono::seconds> ProgrammeDuration(const DiscProfile& disc);
 
+// How long it takes to play from one address to another on a disc of this type
+// carrying this standard.
+//
+// The general form of the above, which is this applied to the two ends of the
+// programme — and what the guided setup needs, since a capture of part of a
+// side wants its own estimate rather than the whole side's. Nothing where the
+// span is empty or backwards, and nothing for a CAV span whose standard is
+// unknown, for the reason given above.
+std::optional<std::chrono::seconds> AddressSpanDuration(int32_t start,
+                                                        int32_t end,
+                                                        DiscType type,
+                                                        VideoStandard standard);
+
 // Frames a second, for a disc carrying this standard.
 //
 // The same rate for CAV and CLV — the difference between them is how many

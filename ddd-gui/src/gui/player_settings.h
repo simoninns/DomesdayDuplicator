@@ -68,12 +68,36 @@ struct PlayerSettings {
   QString remembered_port;
   uint32_t remembered_baud = 0;
 
+  // --- How the player and the capture are coupled --------------------------
+  //
+  // The two preferences the old application had, and the defaults are the
+  // interesting part of both.
+
+  // Stop the disc when a capture stops.
+  //
+  // On by default, and safe: the capture has already been written by the time
+  // this acts, so the worst it can do is stop a disc somebody wanted left
+  // playing.
+  bool stop_player_with_capture = true;
+
+  // Stop the capture when the player stops.
+  //
+  // **Off by default, and this is a considered default rather than timidity.**
+  // A player that briefly reports a stopped state partway through a side —
+  // which a disc with a defect will make it do — would truncate a capture that
+  // was going perfectly well, and a truncated capture of a side is a side that
+  // has to be captured again. When it is on, the state has to persist across
+  // several readings before anything is stopped.
+  bool stop_capture_with_player = false;
+
   bool operator==(const PlayerSettings& other) const {
     return enabled == other.enabled && model_id_code == other.model_id_code &&
            port_path == other.port_path && baud_rate == other.baud_rate &&
            excluded_ports == other.excluded_ports &&
            remembered_port == other.remembered_port &&
-           remembered_baud == other.remembered_baud;
+           remembered_baud == other.remembered_baud &&
+           stop_player_with_capture == other.stop_player_with_capture &&
+           stop_capture_with_player == other.stop_capture_with_player;
   }
   bool operator!=(const PlayerSettings& other) const {
     return !(*this == other);

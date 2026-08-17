@@ -173,4 +173,28 @@ std::filesystem::path MakeUniqueCapturePath(
   return candidate;
 }
 
+CaptureDestination ResolveCaptureDestination(
+    const std::filesystem::path& directory, const std::string& stem,
+    bool test_mode, std::time_t when, CaptureOutputFormat format) {
+  const std::filesystem::path wanted =
+      BuildCapturePath(directory, stem, test_mode, when, format);
+
+  CaptureDestination destination;
+  destination.path = MakeUniqueCapturePath(wanted);
+  destination.as_requested = destination.path == wanted;
+
+  // Taken off the resolved path rather than off the name that was asked for,
+  // so that the stem an interface shows is the stem the file really carries —
+  // including the "_2" this may have just added.
+  const std::string suffix = CaptureFileSuffix(format);
+  const std::string full = destination.path.filename().string();
+  destination.stem =
+      full.size() >= suffix.size() && full.compare(full.size() - suffix.size(),
+                                                   suffix.size(), suffix) == 0
+          ? full.substr(0, full.size() - suffix.size())
+          : full;
+
+  return destination;
+}
+
 }  // namespace ddd::capture

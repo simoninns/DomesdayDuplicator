@@ -103,6 +103,10 @@ void CaptureController::SetSettings(const CaptureSettings& settings) {
   emit SettingsChanged(settings_);
 }
 
+void CaptureController::SetDiscProvenance(const capture::DiscProvenance& disc) {
+  disc_provenance_ = disc;
+}
+
 void CaptureController::OnDevicesChanged(
     const std::vector<capture::DeviceInfo>& devices) {
   devices_ = devices;
@@ -283,12 +287,24 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
 
   const int decimation = settings_.decimation_factor;
 
-  const std::filesystem::path wanted = capture::BuildCapturePath(
-      std::filesystem::path(directory.toStdString()),
-      settings_.capture_name.toStdString(), settings_.test_mode, now,
-      settings_.output_format);
+  // The same call the panel and the guided setup ask, so that the name on
+  // screen and the name on disk cannot disagree.
+  const capture::CaptureDestination destination =
+      capture::ResolveCaptureDestination(
+          std::filesystem::path(directory.toStdString()),
+          settings_.capture_name.toStdString(), settings_.test_mode, now,
+          settings_.output_format);
 
-  const std::filesystem::path path = capture::MakeUniqueCapturePath(wanted);
+  const std::filesystem::path& path = destination.path;
+
+  if (!destination.as_requested) {
+    // Never an overwrite — the path was made unique before anything was
+    // opened — but it is a different file from the one the user asked for, and
+    // a rename nobody was told about is how two captures of the same side end
+    // up impossible to tell apart later.
+    emit CaptureRenamed(settings_.capture_name,
+                        QString::fromStdString(destination.stem));
+  }
 
   std::unique_ptr<capture::ISampleSink> sink;
   std::string open_error;
@@ -311,6 +327,7 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
     provenance.test_mode = settings_.test_mode;
     provenance.decimation_factor = decimation;
     provenance.started = now;
+    provenance.disc = disc_provenance_;
 
     // Written only when a declaration was actually made. DescribeFrontEndGain
     // returns a sentence saying nothing has been declared for the undeclared

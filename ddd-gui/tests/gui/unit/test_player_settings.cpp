@@ -113,5 +113,29 @@ TEST_F(PlayerSettingsTest, AnEmptyExcludedEntryIsNotAPort) {
             QStringList{QStringLiteral("/dev/ttyS0")});
 }
 
+TEST_F(PlayerSettingsTest, TheCouplingPreferencesHaveTheDefaultsTheyArgueFor) {
+  const PlayerSettings loaded = LoadPlayerSettings();
+
+  // Safe, and on: the capture has already been written by the time this acts.
+  EXPECT_TRUE(loaded.stop_player_with_capture);
+
+  // Off, and a considered default rather than timidity: a player that briefly
+  // reports a stopped state partway through a side — which a disc with a defect
+  // will make it do — would truncate a capture that was going perfectly well.
+  EXPECT_FALSE(loaded.stop_capture_with_player);
+}
+
+TEST_F(PlayerSettingsTest, TheCouplingPreferencesRoundTrip) {
+  PlayerSettings settings = LoadPlayerSettings();
+  settings.stop_player_with_capture = false;
+  settings.stop_capture_with_player = true;
+  SavePlayerSettings(settings);
+
+  const PlayerSettings loaded = LoadPlayerSettings();
+  EXPECT_FALSE(loaded.stop_player_with_capture);
+  EXPECT_TRUE(loaded.stop_capture_with_player);
+  EXPECT_EQ(loaded, settings);
+}
+
 }  // namespace
 }  // namespace ddd::gui

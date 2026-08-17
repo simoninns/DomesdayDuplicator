@@ -72,11 +72,9 @@ TEST(DiscProfileTest, AClvDiscsLengthIsATimeAlreadyAndNeedsNoStandard) {
 
   ASSERT_FALSE(disc.video_standard.known());
 
-  const std::optional<std::chrono::seconds> duration = ProgrammeDuration(disc);
-  ASSERT_TRUE(duration.has_value());
-
-  // 0:50:45.
-  EXPECT_EQ(duration->count(), (50 * 60) + 45);
+  // 0:50:45. Compared whole rather than dereferenced, so that a duration which
+  // was never worked out fails here rather than needing its own assertion.
+  EXPECT_EQ(ProgrammeDuration(disc), std::chrono::seconds{(50 * 60) + 45});
 }
 
 TEST(DiscProfileTest, ACavDiscsLengthIsFramesAndSaysNothingWithoutAStandard) {
@@ -98,12 +96,9 @@ TEST(DiscProfileTest, ACavDiscsLengthFollowsFromTheStandardOnceItIsDeclared) {
   const std::optional<std::chrono::seconds> pal_duration =
       ProgrammeDuration(pal);
 
-  ASSERT_TRUE(ntsc_duration.has_value());
-  ASSERT_TRUE(pal_duration.has_value());
-
   // 54,000 frames: half an hour of NTSC, thirty-six minutes of PAL.
-  EXPECT_EQ(ntsc_duration->count(), 1802);
-  EXPECT_EQ(pal_duration->count(), 2160);
+  EXPECT_EQ(ntsc_duration, std::chrono::seconds{1802});
+  EXPECT_EQ(pal_duration, std::chrono::seconds{2160});
 }
 
 TEST(DiscProfileTest, ALengthNobodyMeasuredProducesNoDuration) {
@@ -127,19 +122,14 @@ TEST(DiscProfileTest, AStartNobodyMeasuredIsTakenAsTheBeginning) {
   DiscProfile disc = ClvDisc();
   disc.programme_start = Fact<int32_t>{};
 
-  const std::optional<std::chrono::seconds> duration = ProgrammeDuration(disc);
-  ASSERT_TRUE(duration.has_value());
-  EXPECT_EQ(duration->count(), (50 * 60) + 45);
+  EXPECT_EQ(ProgrammeDuration(disc), std::chrono::seconds{(50 * 60) + 45});
 }
 
 TEST(DiscProfileTest, TheFrameRateIsTheStandardsAndNotARoundNumber) {
-  const std::optional<double> ntsc = FrameRate(VideoStandard::kNtsc);
-  ASSERT_TRUE(ntsc.has_value());
-  EXPECT_NEAR(*ntsc, 29.97, 0.001);
-
-  const std::optional<double> pal = FrameRate(VideoStandard::kPal);
-  ASSERT_TRUE(pal.has_value());
-  EXPECT_DOUBLE_EQ(*pal, 25.0);
+  // The sentinel can never pass either comparison, so a rate that was not
+  // reported fails here rather than needing an assertion of its own.
+  EXPECT_NEAR(FrameRate(VideoStandard::kNtsc).value_or(0.0), 29.97, 0.001);
+  EXPECT_DOUBLE_EQ(FrameRate(VideoStandard::kPal).value_or(0.0), 25.0);
 
   EXPECT_FALSE(FrameRate(VideoStandard::kUnknown).has_value());
 }

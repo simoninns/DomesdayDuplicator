@@ -15,6 +15,7 @@
 #include <ctime>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "capture_format.h"
 #include "capture_provenance.h"
@@ -128,6 +129,55 @@ TEST_F(CaptureProvenanceTest, ADeclaredGainTravelsWithTheSamples) {
 
 TEST_F(CaptureProvenanceTest, TheDateIsIso8601) {
   EXPECT_EQ(Value(BuildProvenanceTags(Facts()), kTagDate), "2026-08-13");
+}
+
+TEST_F(CaptureProvenanceTest, TheDiscFactsReachTheFileWhenThereAreAny) {
+  CaptureProvenance facts = Facts();
+  facts.disc.player = "Pioneer LD-V4300D (firmware 02)";
+  facts.disc.disc_type = "CAV";
+  facts.disc.disc_size = "12 inch";
+  facts.disc.disc_side = "2";
+  facts.disc.video_standard = "PAL";
+  facts.disc.programme_start = "Frame 1";
+  facts.disc.programme_end = "Frame 54000";
+
+  const std::vector<FlacWriter::Tag> tags = BuildProvenanceTags(facts);
+
+  EXPECT_EQ(Value(tags, kTagPlayer), "Pioneer LD-V4300D (firmware 02)");
+  EXPECT_EQ(Value(tags, kTagDiscType), "CAV");
+  EXPECT_EQ(Value(tags, kTagDiscSize), "12 inch");
+  EXPECT_EQ(Value(tags, kTagDiscSide), "2");
+  EXPECT_EQ(Value(tags, kTagVideoStandard), "PAL");
+  EXPECT_EQ(Value(tags, kTagProgrammeStart), "Frame 1");
+  EXPECT_EQ(Value(tags, kTagProgrammeEnd), "Frame 54000");
+}
+
+TEST_F(CaptureProvenanceTest, ADiscFactNobodyEstablishedIsNotWritten) {
+  CaptureProvenance facts = Facts();
+  facts.disc.disc_type = "CLV";
+  // Everything else left empty, as an examination that could not read the disc
+  // status would leave it.
+
+  const std::vector<FlacWriter::Tag> tags = BuildProvenanceTags(facts);
+
+  EXPECT_EQ(Value(tags, kTagDiscType), "CLV");
+
+  // A file claiming "side 1" because nothing said otherwise would send somebody
+  // looking for a disc that does not exist.
+  EXPECT_FALSE(Value(tags, kTagDiscSide).has_value());
+  EXPECT_FALSE(Value(tags, kTagVideoStandard).has_value());
+  EXPECT_FALSE(Value(tags, kTagPlayer).has_value());
+}
+
+TEST_F(CaptureProvenanceTest, ACaptureTakenWithoutAPlayerCarriesNoDiscTags) {
+  const CaptureProvenance facts = Facts();
+  ASSERT_TRUE(facts.disc.empty());
+
+  for (const FlacWriter::Tag& tag : BuildProvenanceTags(facts)) {
+    EXPECT_NE(tag.name, kTagDiscType);
+    EXPECT_NE(tag.name, kTagDiscSide);
+    EXPECT_NE(tag.name, kTagPlayer);
+  }
 }
 
 TEST_F(CaptureProvenanceTest, EveryTagHasANameAndAValue) {
