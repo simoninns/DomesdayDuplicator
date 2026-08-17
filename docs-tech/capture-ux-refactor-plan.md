@@ -329,19 +329,46 @@ attention state's four conditions, and for the button emitting rather than openi
 on the wire that no seek and no `?U` went out for a naming field — the property the scope
 exists for, checked where it can actually be observed.
 
-### Phase 4 — The wizard
+### Phase 4 — The wizard — **done**
 
-- `AutoCaptureWizard` with the four pages, embedding the Phase 1 forms; single-instance
-  and close-refusal-while-running handling in `MainWindow`.
-- Entry points: Capture panel button, Tools menu action; `ExamineDialog`'s Set up
-  capture… retargets to the wizard (profile handed over, page 2).
+- `AutoCaptureWizard`: four pages behind a `QStackedWidget`, embedding
+  `CaptureNamingForm` on page 1 and `CapturePlanForm` on page 2. Page 1 auto-starts the
+  examination when the connection is live; page 4 is reached automatically when the run
+  finishes, because somebody who has left a forty-minute side running wants the answer on
+  screen rather than a button to press for it.
+- `MainWindow` holds one instance (`QPointer` + `WA_DeleteOnClose`), and the wizard's own
+  `closeEvent` refuses while a capture is running — it is the only thing reporting that
+  run, and closing it would leave a disc spinning with no way back to Stop.
+- Entry points: **Tools ▸ Automatic capture…**, a button on the Capture panel, and
+  `ExamineDialog`'s "Set up capture…", which hands its profile over and lands on page 2
+  without examining again.
 - `GuidedCaptureDialog` retired.
 
-*Tests*: a widget test per page gate (Next disabled until examined; Next disabled while
-the plan does not validate; navigation locked while running; another-side loop increments
-the side and restarts the examination), plus the null-controller build the window tests
-require. The run itself is already covered by the `AutoCaptureController` tests and does
-not need re-proving through the wizard.
+Three things worth recording:
+
+**A real bug, found by the page tests.** `RebuildPlanForm` first used `deleteLater()` on
+the outgoing form. A form awaiting deletion is still a child of the window: it still
+answers `findChild`, and it is still connected to `Refresh()`. So after a second disc
+arrived, anything looking a control up by name got the *previous* disc's copy — the CAV
+frame boxes were still findable on a CLV disc, and the two forms disagreed about what was
+being captured until the event loop next ran. Now deleted outright, with the reason and
+the re-entrancy argument recorded at the call site.
+
+**The Capture panel still knows nothing about players.** Its automatic-capture button is
+gated by `SetAutomaticCaptureAvailable(bool)`, which the main window drives from the
+connection. The panel learns only that one of its buttons is or is not available, which
+keeps Phase 3's boundary intact.
+
+**The guided dialog's tests did not simply move.** They were split by what they were
+actually about: the shape, address, standard, key-lock and estimate assertions became
+`test_capture_plan_form.cpp`, testing the form directly rather than through a window;
+the naming, run-progress and outcome assertions became `test_auto_capture_wizard.cpp`.
+The plan form also gained a lock-and-release test that the guided dialog never had.
+
+*Tests*: 15 on the plan form and 23 on the wizard — every page gate, the hand-over from
+the Examine report, the rebuild on a second disc, navigation locked during a run, the
+auto-advance to the summary, and the other-side loop both when a side is being recorded
+and when it is not.
 
 ### Phase 5 — Sweep
 

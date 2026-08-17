@@ -96,8 +96,9 @@ ExamineDialog::ExamineDialog(PlayerController* controller, QWidget* parent)
       buttons->addButton(tr("Set up capture…"), QDialogButtonBox::ActionRole);
   set_up_->setObjectName(QLatin1String(kSetUpButtonName));
   set_up_->setToolTip(
-      tr("Build a capture from what was just found: only the shapes this disc "
-         "can take, bounded by the length that was measured."));
+      tr("Take this report into the automatic capture, on the page that asks "
+         "what to capture: only the shapes this disc can take, bounded by the "
+         "length that was just measured. The disc is not examined again."));
 
   buttons->addButton(QDialogButtonBox::Close);
 

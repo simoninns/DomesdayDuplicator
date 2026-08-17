@@ -80,6 +80,8 @@ class CapturePanel : public QWidget {
   static constexpr const char* kLowSpaceSpinName = "capture_low_space_spin";
   static constexpr const char* kFreeSpaceLabelName = "capture_free_space_label";
   static constexpr const char* kNameTakenLabelName = "capture_name_taken_label";
+  static constexpr const char* kAutomaticButtonName =
+      "capture_automatic_button";
 
   // How often the destination volume is interrogated for the free-space
   // readout. The plan asks for it "refreshed continuously", which in practice
@@ -97,6 +99,20 @@ class CapturePanel : public QWidget {
   // knowing a player exists. The main window holds both controllers, so it is
   // the one place that can build the dialog whole.
   void NamingRequested();
+
+  // The other way of taking a capture: examine the disc, name it from what was
+  // found, take it, and see what was written. A window, and the main window's
+  // to own, for the same reason as above.
+  void AutomaticCaptureRequested();
+
+ public slots:
+  // Whether an automatic capture can be started at all, which is whether a
+  // player is connected.
+  //
+  // Handed in as a plain fact rather than reached for, so this panel still
+  // knows nothing about players — only that one of its buttons is or is not
+  // available. The main window, which holds both controllers, is what decides.
+  void SetAutomaticCaptureAvailable(bool available);
 
  protected:
   void changeEvent(QEvent* event) override;
@@ -159,6 +175,7 @@ class CapturePanel : public QWidget {
   QComboBox* device_combo_ = nullptr;
   QPushButton* monitor_button_ = nullptr;
   QPushButton* capture_button_ = nullptr;
+  QPushButton* automatic_button_ = nullptr;
   QLabel* status_label_ = nullptr;
 
   QLineEdit* directory_edit_ = nullptr;
@@ -186,6 +203,11 @@ class CapturePanel : public QWidget {
   std::vector<ddd::capture::DeviceInfo> devices_;
   bool monitoring_ = false;
   bool capturing_ = false;
+
+  // Whether there is a player to run an automatic capture with. Off until the
+  // main window says otherwise, so a build with no player layer never offers
+  // one.
+  bool automatic_available_ = false;
 
   // Whether the gateware is being asked for its test pattern. Held rather than
   // read from a control, because the control is in the Tools menu now — this

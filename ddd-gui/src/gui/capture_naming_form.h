@@ -129,6 +129,15 @@ class CaptureNamingForm : public QWidget {
   // disc in full before it ever shows these fields.
   void FillFromProfile(const ddd::player::DiscProfile& disc);
 
+  // Move on to the next side of the same disc.
+  //
+  // Only where a side is being recorded at all — somebody who has not ticked
+  // the box is not filing by side, and turning the option on for them would be
+  // deciding how they file. It also ticks nothing new: what it is for is the
+  // gap between capturing side 1 and capturing side 2, where the number is
+  // already in use.
+  void AdvanceToNextSide();
+
  private slots:
   // Read every widget into the settings, and redraw the preview. Called on any
   // change: there is no apply button, so this is the apply.

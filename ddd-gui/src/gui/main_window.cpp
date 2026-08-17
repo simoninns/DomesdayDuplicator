@@ -30,6 +30,7 @@
 #include "analysis_dialog.h"
 #include "application_logger.h"
 #include "auto_capture_controller.h"
+#include "auto_capture_wizard.h"
 #include "capture_controller.h"
 #include "capture_naming_dialog.h"
 #include "capture_panel.h"
@@ -37,7 +38,6 @@
 #include "device_updater.h"
 #include "examine_dialog.h"
 #include "firmware_dialog.h"
-#include "guided_capture_dialog.h"
 #include "log_message_model.h"
 #include "log_panel.h"
 #include "player_controller.h"
@@ -236,6 +236,21 @@ void MainWindow::BuildCaptureDock() {
   auto* panel = new CapturePanel(capture_controller_, capture_dock_);
   connect(panel, &CapturePanel::NamingRequested, this,
           &MainWindow::ShowNamingDialog);
+  connect(panel, &CapturePanel::AutomaticCaptureRequested, this,
+          &MainWindow::ShowAutoCaptureWizard);
+
+  // The panel is told whether a player is there rather than reaching for one,
+  // so it stays ignorant of what a player is. Both the initial state and every
+  // change, because a panel that only learnt on the first reconnection would
+  // offer a capture with no player behind it until then.
+  if (player_controller_ != nullptr && auto_capture_controller_ != nullptr) {
+    connect(player_controller_, &PlayerController::ConnectionChanged, panel,
+            [panel](const PlayerConnection& connection) {
+              panel->SetAutomaticCaptureAvailable(connection.live());
+            });
+    panel->SetAutomaticCaptureAvailable(
+        player_controller_->connection().live());
+  }
 
   capture_dock_->setWidget(panel);
   addDockWidget(Qt::LeftDockWidgetArea, capture_dock_);
@@ -389,6 +404,12 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
   examine_action->setStatusTip(
       tr("Work out the disc's type, addressing and length"));
 
+  QAction* const wizard_action =
+      player_menu->addAction(tr("&Automatic capture…"));
+  wizard_action->setStatusTip(
+      tr("Examine the disc, name the capture, take it, and see what was "
+         "written"));
+
   player_menu->addSeparator();
   QAction* const settings_action =
       player_menu->addAction(tr("Player s&ettings…"));
@@ -400,6 +421,7 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
     search_action->setEnabled(false);
     remote_action->setEnabled(false);
     examine_action->setEnabled(false);
+    wizard_action->setEnabled(false);
     settings_action->setEnabled(false);
     return;
   }
@@ -414,6 +436,8 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
           &MainWindow::ShowRemoteDialog);
   connect(examine_action, &QAction::triggered, this,
           &MainWindow::ShowExamineDialog);
+  connect(wizard_action, &QAction::triggered, this,
+          &MainWindow::ShowAutoCaptureWizard);
   // The same dialog the File menu opens, on the tab this menu is about. A
   // second dialog for the same settings would be a second place for them to
   // disagree.
@@ -430,13 +454,17 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
           });
 
   connect(player_controller_, &PlayerController::ConnectionChanged, this,
-          [search_action, examine_action](const PlayerConnection& connection) {
+          [search_action, examine_action,
+           wizard_action](const PlayerConnection& connection) {
             search_action->setEnabled(connection.state ==
                                       PlayerConnectionState::kDisconnected);
 
             // There is nothing to examine without a player, and a disc the
-            // application cannot reach is not one it can report on.
+            // application cannot reach is not one it can report on. An
+            // automatic capture begins with an examination, so it is gated on
+            // exactly the same thing.
             examine_action->setEnabled(connection.live());
+            wizard_action->setEnabled(connection.live());
           });
 
   search_action->setEnabled(player_controller_->connection().state ==
@@ -447,6 +475,7 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
   // arrives — and with player control switched off no report ever comes, so it
   // stays enabled for the whole session with nothing to examine behind it.
   examine_action->setEnabled(player_controller_->connection().live());
+  wizard_action->setEnabled(player_controller_->connection().live());
 
   // The remote is deliberately *not* gated on there being a player, unlike
   // every other entry here. Its Connection tab is where a user finds out why
@@ -739,7 +768,7 @@ void MainWindow::ShowExamineDialog() {
     examine_dialog_ = new ExamineDialog(player_controller_, this);
     examine_dialog_->setAttribute(Qt::WA_DeleteOnClose);
     connect(examine_dialog_, &ExamineDialog::SetUpCaptureRequested, this,
-            &MainWindow::ShowGuidedCaptureDialog);
+            &MainWindow::ShowAutoCaptureWizardFor);
   }
 
   examine_dialog_->show();
@@ -747,34 +776,52 @@ void MainWindow::ShowExamineDialog() {
   examine_dialog_->activateWindow();
 }
 
-void MainWindow::ShowGuidedCaptureDialog(const player::DiscProfile& disc) {
+void MainWindow::ShowAutoCaptureWizard() {
   if (auto_capture_controller_ == nullptr) {
     return;
   }
 
-  // Built afresh for each examination rather than reused, because the profile
-  // is the window: a second disc is a different set of bounds, a different
-  // suggested name and possibly a different set of controls altogether. What is
-  // not allowed is two of them at once — that would be two sequences driving
-  // one player and one capture engine — so an open one is closed first.
-  if (!guided_dialog_.isNull()) {
-    if (guided_dialog_->running()) {
-      // Except while a capture is running, which the open window is watching.
-      // Replacing it would leave the run with nothing reporting it.
-      guided_dialog_->show();
-      guided_dialog_->raise();
-      guided_dialog_->activateWindow();
-      return;
-    }
-    guided_dialog_->close();
+  // One wizard, however it was reached. Two would be two sequences driving one
+  // player and one capture engine, and the second would be reporting the
+  // first's progress.
+  if (wizard_.isNull()) {
+    wizard_ = new AutoCaptureWizard(auto_capture_controller_, this);
+
+    // Deleted when it is closed rather than kept about, so a wizard that is not
+    // open is not examining discs or listening for run progress. It refuses to
+    // close while a capture is running, so this cannot take a run's only
+    // display away from it.
+    wizard_->setAttribute(Qt::WA_DeleteOnClose);
   }
 
-  guided_dialog_ =
-      new GuidedCaptureDialog(auto_capture_controller_, disc, this);
-  guided_dialog_->setAttribute(Qt::WA_DeleteOnClose);
-  guided_dialog_->show();
-  guided_dialog_->raise();
-  guided_dialog_->activateWindow();
+  wizard_->show();
+  wizard_->raise();
+  wizard_->activateWindow();
+}
+
+void MainWindow::ShowAutoCaptureWizardFor(const player::DiscProfile& disc) {
+  if (auto_capture_controller_ == nullptr) {
+    return;
+  }
+
+  // Reached from the Examine window's report, carrying the disc that report was
+  // written from. A wizard already watching a run is left alone and merely
+  // raised: replacing its disc would rewrite the description of a capture that
+  // is already being taken.
+  const bool fresh = wizard_.isNull();
+  ShowAutoCaptureWizard();
+
+  if (wizard_.isNull() || wizard_->running()) {
+    return;
+  }
+
+  // Only worth handing over on a wizard that has not been sent somewhere else
+  // in the meantime; one just built is on the disc page waiting for exactly
+  // this. Either way it skips the examination, which would spend a minute
+  // rediscovering what the report already says.
+  if (fresh || wizard_->page() == AutoCaptureWizard::Page::kDisc) {
+    wizard_->StartFromProfile(disc);
+  }
 }
 
 void MainWindow::ShowCaptureFinished(const QString& file_path, quint64 bytes) {

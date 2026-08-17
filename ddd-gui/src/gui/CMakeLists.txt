@@ -17,6 +17,7 @@ add_library(ddd_gui_lib STATIC
     analysis_dialog.cpp
     analysis_worker.cpp
     auto_capture_controller.cpp
+    auto_capture_wizard.cpp
     application_logger.cpp
     capture_controller.cpp
     capture_naming_dialog.cpp
@@ -29,7 +30,6 @@ add_library(ddd_gui_lib STATIC
     firmware_dialog.cpp
     firmware_text.cpp
     gain_choices.cpp
-    guided_capture_dialog.cpp
     log_message_model.cpp
     log_panel.cpp
     main_window.cpp

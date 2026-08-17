@@ -29,7 +29,7 @@ class QMenu;
 namespace ddd::gui {
 
 class ExamineDialog;
-class GuidedCaptureDialog;
+class AutoCaptureWizard;
 class PlayerRemoteDialog;
 
 class ApplicationLogger;
@@ -125,7 +125,8 @@ class MainWindow : public QMainWindow {
 
   // And for the guided setup, which is reached from the examine window's report
   // and carries the profile that report was written from.
-  void ShowGuidedCaptureDialog(const ddd::player::DiscProfile& disc);
+  void ShowAutoCaptureWizard();
+  void ShowAutoCaptureWizardFor(const ddd::player::DiscProfile& disc);
 
   void ShowCaptureFinished(const QString& file_path, quint64 bytes);
   void ShowFirmwareWarning(const QString& message);
@@ -180,7 +181,7 @@ class MainWindow : public QMainWindow {
 
   // And the guided setup, on the same terms again: two of these would be two
   // sequences driving one player and one capture engine.
-  QPointer<GuidedCaptureDialog> guided_dialog_;
+  QPointer<AutoCaptureWizard> wizard_;
 
   // Held so the two can be related to one another after both exist: the
   // Amplitude panel can be asked to keep pace with the spectrogram, and neither

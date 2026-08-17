@@ -258,6 +258,16 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
   capture_button_->setObjectName(QLatin1String(kCaptureButtonName));
   layout->addWidget(capture_button_);
 
+  // The other path, and named for what it does rather than for the window it
+  // opens. It sits below the two manual controls because it replaces both: an
+  // automatic capture starts and stops itself.
+  automatic_button_ = new QPushButton(tr("Automatic capture…"), contents);
+  automatic_button_->setObjectName(QLatin1String(kAutomaticButtonName));
+  automatic_button_->setToolTip(
+      tr("Examine the disc, name the capture from what was found, take the "
+         "whole side, and see what was written. Needs a player connected."));
+  layout->addWidget(automatic_button_);
+
   status_label_ = new QLabel(tr("No capture device attached"), contents);
   status_label_->setObjectName(QLatin1String(kStatusLabelName));
   status_label_->setWordWrap(true);
@@ -275,6 +285,8 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
           &CapturePanel::OnBrowsePressed);
   connect(naming_button_, &QPushButton::clicked, this,
           &CapturePanel::OnNamingPressed);
+  connect(automatic_button_, &QPushButton::clicked, this,
+          &CapturePanel::AutomaticCaptureRequested);
   connect(duration_reset_button_, &QPushButton::clicked, this,
           &CapturePanel::OnDurationResetPressed);
 
@@ -557,6 +569,11 @@ void CapturePanel::OnDevicesChanged(
   UpdateEnabledState();
 }
 
+void CapturePanel::SetAutomaticCaptureAvailable(bool available) {
+  automatic_available_ = available;
+  UpdateEnabledState();
+}
+
 bool CapturePanel::NamingWantsAttention() const {
   if (controller_ == nullptr) {
     return false;
@@ -742,6 +759,12 @@ void CapturePanel::UpdateEnabledState() {
   // Capture can be started from idle — it starts the stream itself — so the
   // same condition governs it.
   capture_button_->setEnabled(capturing_ || have_usable_device);
+
+  // The automatic path needs both pieces of equipment, and not a capture
+  // already running: it drives the player and the engine together, and there is
+  // one of each.
+  automatic_button_->setEnabled(automatic_available_ && have_usable_device &&
+                                !capturing_);
 
   // Locked down while streaming, because it cannot be changed without stopping:
   // the device is open.

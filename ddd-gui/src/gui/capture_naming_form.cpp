@@ -572,6 +572,16 @@ void CaptureNamingForm::FillFromProfile(const player::DiscProfile& disc) {
   Apply();
 }
 
+void CaptureNamingForm::AdvanceToNextSide() {
+  if (!side_check_->isChecked() || side_spin_->value() >= kMaximumDiscSide) {
+    return;
+  }
+
+  // Through the spin box, so the per-side notes and mint marks move across with
+  // it exactly as they do when somebody changes the number by hand.
+  side_spin_->setValue(side_spin_->value() + 1);
+}
+
 void CaptureNamingForm::ClearAllFields() {
   // Straight to a default-constructed set rather than clearing widget by
   // widget: a field added later is then cleared by this without anybody having

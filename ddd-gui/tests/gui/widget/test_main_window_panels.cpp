@@ -390,6 +390,7 @@ TEST_F(MainWindowTest, EveryPlayerEntryIsUnderTools) {
   for (const QString& entry :
        {QStringLiteral("Player control"), QStringLiteral("Search now"),
         QStringLiteral("Remote control"), QStringLiteral("Examine disc"),
+        QStringLiteral("Automatic capture"),
         QStringLiteral("Player settings")}) {
     EXPECT_NE(EntryNamed(tools, entry), nullptr)
         << "no " << entry.toStdString() << " entry under Tools";
@@ -424,10 +425,14 @@ TEST_F(MainWindowTest, TheRemoteCanBeOpenedWithNoPlayerConnected) {
       << "the remote cannot be reached with nothing connected, so neither can "
          "the tab that says why";
 
-  // Examine is gated, and rightly: there is no disc to report on.
-  QAction* const examine = EntryNamed(tools, QStringLiteral("Examine disc"));
-  ASSERT_NE(examine, nullptr);
-  EXPECT_FALSE(examine->isEnabled());
+  // Examine is gated, and rightly: there is no disc to report on. An automatic
+  // capture begins with an examination, so it is gated on the same thing.
+  for (const QString& entry :
+       {QStringLiteral("Examine disc"), QStringLiteral("Automatic capture")}) {
+    QAction* const action = EntryNamed(tools, entry);
+    ASSERT_NE(action, nullptr) << entry.toStdString();
+    EXPECT_FALSE(action->isEnabled()) << entry.toStdString();
+  }
 }
 
 // The upgrade path, and the one thing about removing a dock that could reach a
