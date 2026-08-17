@@ -112,9 +112,21 @@ on the same files.
 time. Both refuse a device below SuperSpeed with a specific error rather than opening it
 and failing later, which the old application did not.
 
+**LaserDisc player control**, over the player's serial port and off until it is turned on —
+while it is off, no serial port on the machine is opened, written to or listed. It finds the
+player without being told which port or which speed, drives it from a remote window, and
+**examines a disc**: type, addressing, size, side, chapters, television standard and the two
+ends of the programme *measured* by seeking past each of them, with every field labelled
+with how it was arrived at so a measurement and an inference do not look alike. From that
+report it will capture a side by itself — the whole side including the spin-up and the
+spin-down, a range between two addresses, or from the spin-up to an address — writing the
+disc's own facts into the capture's provenance as it goes. None of that existed in the old
+application beyond the state machine it drove blind. See
+[Player control](../docs/content/capture-gui/player-control.md).
+
 **Not yet**: the four-hour hardware-in-the-loop pass that is the gate for calling this a
-working capture application, and the LaserDisc player control, advanced naming and metadata
-sidecar of the old application. See the plan's inventory table for the full ledger.
+working capture application, and the advanced naming and metadata sidecar of the old
+application. See the plan's inventory table for the full ledger.
 
 That the engine can be tested at all without hardware is the point of the split. The old
 application could only be proven by attaching a device and hoping a fault reproduced;
@@ -148,6 +160,13 @@ On Linux the device needs a udev rule before a non-root user can open it — wit
 enumeration finds the device but opening it fails. See
 the rule shipped with the FX3 programmer,
 [`fx3/programmer/configs/70-domesday-duplicator.rules`](../fx3/programmer/configs/70-domesday-duplicator.rules).
+
+The **serial port** for player control is a separate permission and has no rule shipped with
+it: a USB serial adapter is third-party hardware, so on Linux this is group membership
+(`dialout`, or `uucp` on Arch) rather than anything this project installs. The application
+tells a refused port apart from a busy or absent one and gives the remedy for the platform
+it is running on; [TESTING.md](../TESTING.md) §7 has all three platforms, and the user-facing
+version is in [Player control](../docs/content/capture-gui/player-control.md).
 
 With Nix, from anywhere in the working tree:
 
@@ -196,7 +215,12 @@ tests/golden/     T2, the capture file format checked against what it must be on
 tests/functional/ T1, the whole pipeline at the device's rate. Minutes, not seconds.
 tests/gui/unit/   T1, Qt layer. Runs under a QCoreApplication; no display needed.
 tests/gui/widget/ T1, widgets. Needs a QApplication and the offscreen platform plugin.
-tests/hardware/   T5, needs a device attached. Labelled `hil`; never runs in CI.
+tests/hardware/   T5, needs hardware attached, and two kinds of it: `hil` needs a
+                  Duplicator, `hil-player` needs a LaserDisc player. Separate labels
+                  so a bench with one and not the other runs what it can. Neither
+                  runs in CI. Note that `-L hil` matches both — CTest's label
+                  selection is an unanchored regex — so the device tier alone is
+                  `-L "^hil$"`, while `-LE hil` correctly excludes both.
 tests/support/    Fixtures shared between test binaries.
 ```
 

@@ -84,7 +84,7 @@ this image is not automatically a fall-back to this image**, and nothing about t
 makes it one.
 
 Three things still have to be settled before this image is frozen, and all three are
-listed in TESTING.md §7:
+listed in TESTING.md §8:
 
 1. **The watchdog period.** `WatchdogTimeout` is still the largest value the field holds,
    which is the deliberately generous end of the range. The mechanism is proven - an

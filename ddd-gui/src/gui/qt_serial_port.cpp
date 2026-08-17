@@ -17,6 +17,30 @@
 #include <algorithm>
 
 namespace ddd::gui {
+namespace {
+
+// QSerialPort's failure onto the interface's.
+//
+// Only the three that have different remedies are named; everything else is
+// kOther rather than one of them, because a wrong cause here becomes a
+// confident wrong sentence in the interface. PermissionError is the one that
+// matters — it is what an unconfigured Linux machine gives on every port, and
+// it is the commonest first-run experience this application has.
+player::PortOpenError OpenErrorFor(QSerialPort::SerialPortError error) {
+  switch (error) {
+    case QSerialPort::PermissionError:
+      return player::PortOpenError::kNotPermitted;
+    case QSerialPort::DeviceNotFoundError:
+      return player::PortOpenError::kMissing;
+    case QSerialPort::OpenError:
+      // "Already opened", in QSerialPort's terms — by this process or another.
+      return player::PortOpenError::kBusy;
+    default:
+      return player::PortOpenError::kOther;
+  }
+}
+
+}  // namespace
 
 QtSerialPort::QtSerialPort() : port_(std::make_unique<QSerialPort>()) {}
 
@@ -35,12 +59,19 @@ bool QtSerialPort::Open(const std::string& path,
   port_->setFlowControl(QSerialPort::NoFlowControl);
 
   if (!port_->open(QIODevice::ReadWrite)) {
+    open_error_ = OpenErrorFor(port_->error());
     return false;
   }
+
+  open_error_ = player::PortOpenError::kNone;
 
   // Whatever was in the buffers belongs to whoever had the port before.
   port_->clear();
   return true;
+}
+
+player::PortOpenError QtSerialPort::last_open_error() const {
+  return open_error_;
 }
 
 void QtSerialPort::Close() {

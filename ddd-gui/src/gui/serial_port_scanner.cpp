@@ -55,10 +55,12 @@ std::vector<SerialPortCandidate> EnumerateSerialPorts() {
     candidate.manufacturer = info.manufacturer();
     // Qt 6 removed QSerialPortInfo::isBusy(), so enumeration cannot say. A port
     // somebody else is using therefore reaches the probe and fails to open,
-    // which is reported as "that port could not be opened" — the same words a
-    // permission problem gets, and true of both. The field stays because the
-    // rule it drives is right and a caller that does know may supply it; see
-    // its comment in the header.
+    // which is reported as "that port could not be opened" — true, and as much
+    // as this layer knows. The open itself does better: QSerialPort tells a
+    // refusal from a busy port, which is how a permission problem gets its own
+    // message rather than the generic one (see PortOpenError). The field stays
+    // because the rule it drives is right and a caller that does know may
+    // supply it; see its comment in the header.
     candidate.busy = info.isNull();
 
     // Both identifiers, not either. A driver that reports a vendor and no

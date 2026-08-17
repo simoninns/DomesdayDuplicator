@@ -59,13 +59,21 @@ QString ToDisplayBytes(std::string_view bytes) {
 //
 // A scan of six ports produces six answers, and the one worth showing is not
 // the last: "something answered and was not a player" is a finding, while "that
-// port could not be opened" is the least informative of the three and is what
-// most ports on a machine will say.
+// port could not be opened" is the least informative of them and is what most
+// ports on a machine will say.
+//
+// A port that was *refused* outranks silence, though, and deliberately: it may
+// well be the port the player is on, and unlike every other outcome here it
+// names something the user can go and do. A machine where one port is refused
+// and another simply has nothing on it is better served by the first sentence
+// than the second.
 PlayerConnectionProblem WorseProblem(PlayerConnectionProblem current,
                                      PlayerConnectionProblem candidate) {
   const auto rank = [](PlayerConnectionProblem problem) {
     switch (problem) {
       case PlayerConnectionProblem::kNotAPlayer:
+        return 4;
+      case PlayerConnectionProblem::kPortNotPermitted:
         return 3;
       case PlayerConnectionProblem::kNoPlayerFound:
         return 2;
@@ -81,10 +89,12 @@ PlayerConnectionProblem WorseProblem(PlayerConnectionProblem current,
   return rank(candidate) > rank(current) ? candidate : current;
 }
 
-PlayerConnectionProblem ProblemFor(player::ProbeResult::Status status) {
-  switch (status) {
+PlayerConnectionProblem ProblemFor(const player::ProbeResult& result) {
+  switch (result.status) {
     case player::ProbeResult::Status::kPortUnavailable:
-      return PlayerConnectionProblem::kPortUnavailable;
+      return result.open_error == player::PortOpenError::kNotPermitted
+                 ? PlayerConnectionProblem::kPortNotPermitted
+                 : PlayerConnectionProblem::kPortUnavailable;
     case player::ProbeResult::Status::kUnusableAnswer:
       return PlayerConnectionProblem::kNotAPlayer;
     case player::ProbeResult::Status::kNoAnswer:
@@ -376,6 +386,7 @@ void PlayerWorker::AttemptDiscovery() {
   // than at their group membership.
   PlayerConnectionProblem problem = PlayerConnectionProblem::kNone;
   QString detail;
+  QString refused_port;
 
   if (attempts.empty()) {
     // No ports at all, or every one of them excluded. Not a failure of the
@@ -412,7 +423,8 @@ void PlayerWorker::AttemptDiscovery() {
       return;
     }
 
-    problem = WorseProblem(problem, ProblemFor(result.status));
+    const PlayerConnectionProblem found = ProblemFor(result);
+    problem = WorseProblem(problem, found);
 
     if (result.status == player::ProbeResult::Status::kUnusableAnswer &&
         detail.isEmpty()) {
@@ -421,6 +433,14 @@ void PlayerWorker::AttemptDiscovery() {
     } else if (result.status == player::ProbeResult::Status::kPortUnavailable &&
                detail.isEmpty()) {
       detail = attempt.port_path;
+    }
+
+    // Kept separately from `detail`, which is first-come: the port worth naming
+    // in a permission message is the one that was refused, and it may well not
+    // be the first port that failed to open.
+    if (found == PlayerConnectionProblem::kPortNotPermitted &&
+        refused_port.isEmpty()) {
+      refused_port = attempt.port_path;
     }
   }
 
@@ -431,7 +451,9 @@ void PlayerWorker::AttemptDiscovery() {
   none.problem = problem == PlayerConnectionProblem::kNone
                      ? PlayerConnectionProblem::kNoPlayerFound
                      : problem;
-  none.detail = detail;
+  none.detail = none.problem == PlayerConnectionProblem::kPortNotPermitted
+                    ? refused_port
+                    : detail;
   Publish(none);
 
   ScheduleSearch();

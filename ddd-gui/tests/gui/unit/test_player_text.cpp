@@ -66,6 +66,7 @@ TEST(PlayerTextTest, EveryStateSaysSomethingDifferent) {
       Connected(),
       Failed(PlayerConnectionProblem::kNoPlayerFound),
       Failed(PlayerConnectionProblem::kPortUnavailable),
+      Failed(PlayerConnectionProblem::kPortNotPermitted),
       Failed(PlayerConnectionProblem::kLinkLost),
   };
 
@@ -81,6 +82,7 @@ TEST(PlayerTextTest, EveryFailureNamesSomethingToDoAboutIt) {
   const PlayerConnectionProblem problems[] = {
       PlayerConnectionProblem::kNoPlayerFound,
       PlayerConnectionProblem::kPortUnavailable,
+      PlayerConnectionProblem::kPortNotPermitted,
       PlayerConnectionProblem::kNotAPlayer,
       PlayerConnectionProblem::kLinkLost,
   };
@@ -91,17 +93,63 @@ TEST(PlayerTextTest, EveryFailureNamesSomethingToDoAboutIt) {
   }
 }
 
-TEST(PlayerTextTest, ThePermissionCaseIsNamedBecauseItIsTheCommonOne) {
-  // On Linux, not being in the group that owns the serial devices is the most
-  // likely first-run experience there is, and "could not open the port" without
-  // that sentence sends people to the wrong place.
+// Every platform's advice, checked on whichever platform this happens to be.
+//
+// The point of taking the platform as an argument rather than reading it from
+// the build inside the wording: two of these three sentences can never be seen
+// by the person who wrote them, and a permission message that is wrong is worse
+// than none — it sends somebody to spend an afternoon on the wrong remedy.
+TEST(PlayerTextTest, EachPlatformIsToldItsOwnRemedy) {
+  const QString linux_advice = SerialPermissionAdvice(HostPlatform::kLinux);
+  const QString macos_advice = SerialPermissionAdvice(HostPlatform::kMacOs);
+  const QString windows_advice = SerialPermissionAdvice(HostPlatform::kWindows);
+
+  // The group is the whole of the Linux answer, and it is not the same group on
+  // every distribution.
+  EXPECT_TRUE(linux_advice.contains(QStringLiteral("dialout")));
+  EXPECT_TRUE(linux_advice.contains(QStringLiteral("uucp")));
+
+  // macOS has no group to join — /dev/cu.* is open to everybody — so the Linux
+  // sentence would be actively misleading there. The driver is the answer.
+  EXPECT_TRUE(macos_advice.contains(QStringLiteral("driver")));
+  EXPECT_FALSE(macos_advice.contains(QStringLiteral("dialout")));
+
+  // Nor does Windows: a COM port that will not open is one another program has.
+  EXPECT_TRUE(windows_advice.contains(QStringLiteral("COM")));
+  EXPECT_FALSE(windows_advice.contains(QStringLiteral("dialout")));
+
+  EXPECT_NE(linux_advice, macos_advice);
+  EXPECT_NE(macos_advice, windows_advice);
+}
+
+TEST(PlayerTextTest, ARefusedPortNamesTheRemedyForThisPlatform) {
+  // Not being allowed the port is the most likely first-run experience there
+  // is, and "could not open the port" without the sentence that follows sends
+  // people to look at their cable.
+  PlayerConnection connection =
+      Failed(PlayerConnectionProblem::kPortNotPermitted);
+  connection.detail = QStringLiteral("/dev/ttyUSB0");
+
+  const QString detail = PlayerConnectionDetail(connection);
+  EXPECT_TRUE(detail.contains(QStringLiteral("/dev/ttyUSB0")));
+  EXPECT_TRUE(detail.contains(SerialPermissionAdvice(ThisPlatform())));
+
+  // Without a port to name it is still the advice, rather than nothing.
+  EXPECT_EQ(PlayerConnectionDetail(
+                Failed(PlayerConnectionProblem::kPortNotPermitted)),
+            SerialPermissionAdvice(ThisPlatform()));
+}
+
+TEST(PlayerTextTest, APortThatWouldNotOpenCarriesTheAdviceToo) {
+  // The generic case cannot tell a busy port from a refused one — some backends
+  // genuinely cannot say — so it offers both possibilities and the same remedy.
   PlayerConnection connection =
       Failed(PlayerConnectionProblem::kPortUnavailable);
   connection.detail = QStringLiteral("/dev/ttyUSB0");
 
   const QString detail = PlayerConnectionDetail(connection);
   EXPECT_TRUE(detail.contains(QStringLiteral("/dev/ttyUSB0")));
-  EXPECT_TRUE(detail.contains(QStringLiteral("dialout")));
+  EXPECT_TRUE(detail.contains(SerialPermissionAdvice(ThisPlatform())));
 }
 
 TEST(PlayerTextTest, SomethingThatIsNotAPlayerSaysHowToLeaveItAlone) {

@@ -173,15 +173,33 @@ TEST_F(PlayerControllerTest, AnEmptyPortReportsThatNothingAnswered) {
 }
 
 TEST_F(PlayerControllerTest, APortThatWillNotOpenIsReportedAsSuch) {
-  // Not the same as "no player": on Linux this is usually a permission
-  // problem, and it is the most likely first-run experience there is.
+  // Not the same as "no player". The backend could not say why this one
+  // failed, which is the honest answer for a port that is simply busy or gone.
   port_.set_open_fails(true);
+  port_.set_open_error(player::PortOpenError::kOther);
   BuildController();
   Enable();
 
   ASSERT_TRUE(WaitForState(PlayerConnectionState::kDisconnected));
   EXPECT_EQ(controller_->connection().problem,
             PlayerConnectionProblem::kPortUnavailable);
+}
+
+// The whole permission path, end to end and with nothing plugged in: the port
+// refuses, the session carries the reason out, the worker turns it into its own
+// problem, and the interface has the port to name. This is the acceptance
+// criterion for Task 6.3 that does not need a bench — a machine whose serial
+// ports the developer *can* open cannot produce this failure any other way.
+TEST_F(PlayerControllerTest, ARefusedPortIsReportedAsAPermissionProblem) {
+  port_.set_open_fails(true);
+  port_.set_open_error(player::PortOpenError::kNotPermitted);
+  BuildController();
+  Enable();
+
+  ASSERT_TRUE(WaitForState(PlayerConnectionState::kDisconnected));
+  EXPECT_EQ(controller_->connection().problem,
+            PlayerConnectionProblem::kPortNotPermitted);
+  EXPECT_FALSE(controller_->connection().detail.isEmpty());
 }
 
 TEST_F(PlayerControllerTest, SomethingThatIsNotAPlayerIsNamedAsSuch) {

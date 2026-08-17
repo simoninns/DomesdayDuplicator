@@ -8,7 +8,7 @@ How the DE0-Nano's configuration flash is divided, which half of it can be updat
 
     Getting there cost five defects, every one of which had passed every host-side test and every simulation. Three of them are matters of policy rather than of code and are described on this page: [what the factory image must do before it hands over](#what-the-factory-image-does-before-it-hands-over), and [the bit orientation of the bytes in the flash](#the-bytes-in-the-flash-are-bit-reversed) — which is the one that survived all the others, because nothing in the update chain is capable of detecting it. TESTING.md §6 records all five.
 
-    **One number is still written from documentation: the watchdog period**, which sits at the largest value the field holds. It and the double-configuration time the FX3's readiness assumption rests on must both be measured before the factory image is frozen, and the boot logic still owes a refusal to retry an image that configures and is dead. Those three are the remaining pre-freeze work, tracked in TESTING.md §7.
+    **One number is still written from documentation: the watchdog period**, which sits at the largest value the field holds. It and the double-configuration time the FX3's readiness assumption rests on must both be measured before the factory image is frozen, and the boot logic still owes a refusal to retry an image that configures and is dead. Those three are the remaining pre-freeze work, tracked in TESTING.md §8.
 
 ## Two images, and why the resident one is tiny
 

@@ -67,6 +67,12 @@ struct ProbeResult {
   Status status = Status::kNoAnswer;
   PlayerIdentity identity;
 
+  // Why no port would open, for kPortUnavailable. The most specific cause seen
+  // across every port and rate tried, which on a scan is the only one worth
+  // reporting: half a dozen absent ports and one that was refused is a
+  // permission problem, not six missing ones.
+  PortOpenError open_error = PortOpenError::kNone;
+
   // The rate the player answered at, or the rate the unusable answer came from.
   uint32_t baud_rate = 0;
 

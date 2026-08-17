@@ -3,8 +3,8 @@
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
 This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 844 across five
-components, plus three gateware testbenches, a lint pass over five Verilog modules, a static
+reorganisation there were **no automated tests at all**. There are now 1,421 across five
+components, plus nine gateware testbenches, a lint pass over five Verilog modules, a static
 check on the documentation site, and a licence-header check and an update-bundle check over
 the whole tree. That is a
 start, not a suite, and this document says so where it applies rather than describing an
@@ -41,10 +41,21 @@ Every automated test carries exactly one tier as a CTest label.
 | T2 | `golden` | Host-native, output compared against committed reference data | Yes |
 | T3 | `sim` | Gateware simulation (Verilator / Icarus Verilog) | Yes |
 | T4 | `static` | Lint, format, ERC/DRC, link checks, licence-header checks | Yes |
-| T5 | `hil` | Hardware-in-the-loop. Needs a real Domesday Duplicator, usually a player too | **No** — manual, gated on release |
+| T5 | `hil` | Hardware-in-the-loop. Needs a real Domesday Duplicator | **No** — manual, gated on release |
+| T5 | `hil-player` | Hardware-in-the-loop against a real **LaserDisc player** | **No** — manual, gated on release |
 
 T5 never runs in CI and never runs unattended. Several of its steps write to non-volatile
 memory on the device.
+
+**Why the player has a label of its own.** They are two different pieces of hardware and
+not every bench has both: a machine with a Duplicator and no player must not fail tests it
+has no way to run. Each test still carries exactly one tier label, which keeps the rule
+simple — the two are separate rows here rather than a single test wearing both.
+
+One wrinkle worth knowing, because it is silent otherwise: CTest matches labels as an
+unanchored regular expression, so `-L hil` selects `hil-player` too. The device tier alone
+is `-L "^hil$"`. Exclusion needs no such care — `-LE hil` excludes both, which is what CI
+and the Nix build do.
 
 ## 3. Running the tests
 
@@ -84,10 +95,28 @@ everyday loop — the functional tier takes minutes where the rest takes seconds
 
 ```bash
 ctest --test-dir ddd-gui/build -L unit          # the everyday loop, ~5 seconds
-ctest --test-dir ddd-gui/build -LE hil          # everything but the hardware tier
-ctest --test-dir ddd-gui/build -L hil           # the hardware tier, device attached
+ctest --test-dir ddd-gui/build -LE hil          # everything but the hardware tiers
+ctest --test-dir ddd-gui/build -L "^hil$"       # the device tier, Duplicator attached
+ctest --test-dir ddd-gui/build -L hil-player    # the player tier, player attached
 DDD_SOAK_SECONDS=10 ctest --test-dir ddd-gui/build -L functional   # a shorter soak
 ```
+
+The player tier takes its bench from the environment, so it does not have to scan every
+serial port on the machine — which is a thing to avoid where the bench has other equipment
+on it (see *Risks and safety* in the player control plan):
+
+```bash
+DDD_PLAYER_PORT=/dev/ttyUSB0 DDD_PLAYER_BAUD=9600 \
+DDD_PLAYER_DISC_TYPE=cav DDD_PLAYER_LAST_FRAME=54321 \
+  ctest --test-dir ddd-gui/build -L hil-player --output-on-failure
+```
+
+All four are optional and each buys something: the first two skip the scan, and the last
+two turn the examination from a measurement into a comparison — without them it must
+still complete and establish the disc's type and length, with them it must also get them
+right. `DDD_PLAYER_MODEL_ID` checks the identity against the badge on the front panel.
+**These tests spin the disc**, for about a minute, exactly as the application's own
+**Examine** does.
 
 Note the `-LE hil`: unlike every other component, `ddd-gui/` has a T5 tier that is a gtest
 binary rather than a manual procedure, so a bare `ctest` here would try to talk to a device.
@@ -145,7 +174,7 @@ corruption is only detectable by comparing against an original that may no longe
 One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
 two bytes, which is Windows.
 
-### 4.2 `ddd-gui/` — 1,206 tests (1,199 without hardware)
+### 4.2 `ddd-gui/` — 1,325 tests (1,315 without hardware)
 
 The replacement capture application. Split by what a test needs rather than by what it
 covers: `ddd_capture_tests` links no Qt at all, which is what makes the engine's Qt-free
@@ -199,10 +228,13 @@ LaserDisc player protocol.
 | `tests/player/test_user_code.cpp` | The Pioneer User's Code, which is not one blob but three regions of documented size — Disc Control Data, Key Data, Control Data — totalling 200 characters in disc order. A real disc off this project's bench splitting at those boundaries, which is what turns "sixty of the two hundred failed" into the far more specific "the customer's own identifying data could not be read"; unreadable characters counted per region; a character that was never encoded told apart from one the player could not read, because Pioneer's own worked example has an empty Key Data where this bench's disc has an unreadable one; and a short reply reported as short rather than padded over | T1 |
 | `tests/player/test_disc_profile.cpp` | What an examination found, and what follows from it: a field nobody filled in saying so rather than reading as zero — which matters because zero is a real frame number — every value recorded together with where it came from, a CLV disc's length being a time already and needing no video standard, a CAV disc's frame count producing no playing time at all until a standard is declared and the right one for each once it is, and the three user-code outcomes — not asked, none encoded, could not be read — proved not to compare equal, so nothing downstream can treat "we did not ask" as "the disc has none" | T1 |
 | `tests/player/test_disc_examiner.cpp` | The whole examine sequence, driven with no player attached: a parked CAV disc examined in dependency order, a CLV disc seeked by time code where a CAV one is seeked by frame — with the old application's own impossible addresses — a player already playing not spun up again, and every failure branch, which is the point of the sequence being a value rather than control flow. One refused query leaving one field unknown and the rest of the examination finishing; a disc whose type never arrived not seeked on a guess; a seek back to the start that was refused meaning the address after it is not the start, unlike the seek past the end where a refusal is the technique working; an open tray and a disc that will not spin reported as findings rather than faults; a link failure keeping what was found; a cancel possible at every one of the ten steps and restartable from each; a reply arriving after a cancel ignored; both user codes read without being asked for, with the Pioneer one read before anything has positioned the disc — which is what makes reading it unconditionally affordable — an error code recorded as no user code rather than as one; the disc's size, side and chapters taken from its own programme status rather than by driving the transport, so the chapter probe is not sent at all and survives only as the fallback for a model that cannot report the field; a field the player could not determine left unknown rather than read as a no, and a "not loaded" digit never allowed to undo a disc that demonstrably played; the video standard asked for rather than declared, taken from the disc's field and not the output's, left unknown where the player will not say and not asked for at all on a model without the command; and a model with no user-code queries or no seek at all having a shorter plan rather than a plan full of refusals | T1 |
+| `tests/player/test_auto_capture_plan.cpp` | What a guided setup may produce, and what makes a capture impossible: the three shapes a player can actually be asked for, a plan checked against the disc it was built for rather than against itself — an address in the wrong scheme for the disc refused, a range that ends before it starts refused, a range that runs off the end of the measured programme refused, and a disc whose length nobody established refusing every shape rather than accepting a range nothing can bound — a disc positively found to be absent told apart from a disc nobody asked about, the estimate covering the programme span alone and stating that it does, and the default plan for a profile with holes in it being one that can be shown rather than one that cannot | T1 |
+| `tests/player/test_auto_capture_sequence.cpp` | The automatic capture, step by step and failure by failure, with nothing plugged in: each shape's own ordering — a whole-side capture stopping the player *before* the capture so the spin-down reaches the file, every other shape stopping the capture first — the front panel locked and released, a disc swapped between the setup and the capture noticed rather than captured anyway, a refused spin-up ending the run rather than watching an address that will never move, an address that stops advancing distinguished from a player that has merely stopped by asking the player which it is, a cancel between any two steps still running the tail down so the file is finalised, and the property the whole design exists for: **every branch that started a capture stops it**, with the single exception stated rather than accidental — a link that dies leaves the capture running and says so, because truncating a good capture over a cable is the worse of the two failures | T1 |
 | `tests/player/test_player_session.cpp` | Finding and driving a player against a scripted fake port: found at each of the four baud rates without being told, the model and firmware read out of the reply, an unrecognised model still connecting with the generic set, a terse player still identified, something that is not a player named as such, a fixed rate never departed from, an answer that arrives too late leaving a session that is closed and reusable, a reply arriving a byte at a time still being one reply, every reply carrying the bytes that provoked it — including the failures, since "the link died sending FR100SE" is more use than "the link died" — and every command path: acknowledged, refused, ignored, unsupported, unbuildable, and a link that dies mid-command reported once and then as "not connected" | T1 |
 | `tests/gui/unit/test_player_discovery.cpp` | Which serial ports get written to, and when — the part of this feature that reaches outside the application. USB adapters ranked above built-in ports, excluded and busy ports never offered, the remembered port tried first and only once, a remembered port that has gone not probed at all, a fixed port never departed from and tried even when nothing lists it, and a retry delay that grows and stays bounded | T1 |
 | `tests/gui/unit/test_player_settings.cpp` | Player control off until somebody turns it on, a round trip of everything else, and the clamping: a baud rate no player uses and a model this build does not know both read as "work it out", and half a remembered port is forgotten rather than half-used | T1 |
 | `tests/gui/unit/test_player_text.cpp` | Every wording the player produces, without a widget: no two states reading the same, every failure naming something to do about it, the Linux permission case named because it is the commonest one, a mismatch naming both models and the port, an unverified definition saying so, time codes as a clock and a clock read back as a time code — with "1:99" refused rather than guessed at, because a seek to a number the application invented would move the disc somewhere nobody asked for — the lead-in and lead-out said rather than numbered, a position no model can report shown as no row at all, an unavailable control naming the models that do have it, an exchange described as what went out beside what came back, and the hex dump a reply that is data rather than a word gets — pinned to the column, marking the unprintable, left off entirely for a reply like "P04" that is already legible, and for a Pioneer user code split into its three documented regions, each numbered from its own place in the whole, each saying what it could not read as against what was never encoded, and a reply of the wrong length saying so rather than pretending the format's offsets are the player's. Plus the examine report: every stage named in words a user can act on — with the eleven-second one explaining itself — every fact labelled with how it was arrived at, so a measurement and an inference are not presented alike, a field nobody established reading "not known" rather than as a blank, a CAV disc's playing time withheld with the reason given while a CLV disc's is stated along with what a capture of it would cost, the size and side reported as a disc is described — inches, because that is what a disc is sold as — a side the player could not determine never reported as side 1, the disc-status reply shown beside what was decoded from it so the decode can be checked rather than trusted, the four user-code outcomes reading as four different sentences, the sixty characters a player could not read said in words, the user codes labelled informational only where somebody reading the report will see it, and the undecoded disc-status reply carried through verbatim | T1 |
+| `tests/gui/unit/test_auto_capture_controller.cpp` | The automatic capture where the player meets the capture engine, against fake player and fake USB backends: a whole run driven end to end with the writer attached before the disc starts and detached after it stops, the disc's own facts — model, type, size, side, standard, programme bounds — reaching the capture's provenance so a file says which side of which disc it is, the two coupling preferences each proved in both directions with the debounce that keeps a player's momentary stop from truncating a good capture, and a link that dies leaving the capture running with the interface told so rather than a capture quietly outliving the thing that started it | T1 |
 | `tests/gui/unit/test_player_controller.cpp` | The whole connection state machine against a scripted fake port and a fake clock: nothing opened or written until player control is turned on, a player found and identified with no configuration, the port that worked remembered and written through to the settings file, silence told apart from a port that will not open and from something that is not a player, an excluded port never opened even with a player on it, the wrong model reported as a live connection that says so and resolved by accepting what answered, the status polled and read in the disc's own terms for CAV and CLV, a link that dies reported and searched for again, switching off releasing the port, a command going out and its answer coming back with the request attached — so a caller with more than one thing outstanding can tell the answers apart — a request with no player answered rather than dropped, what the player can do arriving with the connection and leaving with it, an examination driving the whole sequence on the worker's thread and coming back as a profile — with the bytes proved to have gone out in the old application's own form — both user codes read every time, the disc's own programme status reaching the profile as its size, side and chapters with no chapter search sent at all, the video standard reported rather than declared, an examination with no player answered rather than lost so that a window waiting on it never waits forever, an open tray ending it after one question without spinning anything up, the status poll proved not to interleave with it — a query landing between a seek and its answer being how a reply gets attributed to the wrong command — and every method proved to return immediately | T1 |
 | `tests/gui/unit/*.cpp` | Theme resolution across every mode/scheme/fallback combination, the bounded log model, the engine-to-GUI logging bridge, and the About text's build provenance, author, copyright and the notices the GPL asks an interactive program to show | T1 |
 | `tests/gui/unit/test_capture_settings.cpp` | Settings persistence: what was saved comes back, out-of-range values clamped rather than refused, test mode deliberately not remembered, the front-end gain declaration remembered because a switch stays where it is put, an impossible switch pattern read as no declaration, and the gain never reaching the engine's options | T1 |
@@ -219,6 +251,7 @@ LaserDisc player protocol.
 | `tests/gui/widget/test_player_panel.cpp` | The player dock: built and laid out with no controller at all, every reading blank until there is a player, the checkbox being the setting rather than a copy of it, a connected player named with the port and speed it was reached on, an unverified definition saying so on screen, the wrong model offering to be accepted, **Search now** offered only when there is nothing to talk to, **Remote…** and **Examine…** each offered only once there is something to drive and each asking the window rather than opening one — two remotes would be two things sending commands down one cable, and two examinations would be two sequences seeking one disc — and losing the player blanking the readings rather than leaving a stale position on screen | T1 |
 | `tests/gui/widget/test_player_remote_dialog.cpp` | The remote: built and inert with no controller at all, non-modal because driving the player while watching the spectrum is the whole point of it, every button asserted against the bytes it puts on a scripted port rather than against a signal, the speed and audio selectors carrying their per-model parameter, a seek sending the address that was typed and an entry that is not one never sent at all, the addressing following the disc — no frame entry on a CLV disc — a control the model lacks disabled with a tooltip naming the models that have it, losing the player greying the window out rather than closing it, a manual command shown exactly as it was answered, refusal included, and a whole 200-byte Pioneer user code — the real one, off this project's bench — reaching the box intact and dumped for reading, with the sixty characters the player could not read said in words rather than left as a wall of backticks | T1 |
 | `tests/gui/widget/test_examine_dialog.cpp` | The examine window: built and inert with no controller at all, **Examine** offered only when there is a player and a cable pulled out greying it rather than closing the window, the window saying what examining will do to the disc before it is asked for, a whole examination run against a scripted player end to end — stop offered while it runs, start not, the progress bar ending full and the window ready to do the second side — the last disc's report cleared before the next one starts rather than left to be read as the new side's, a profile with holes in it rendered as "not known" rather than as blanks or zeroes, an open tray explained rather than shown as an empty disc, the report copyable and copy offered only once there is something to copy, and stopping saying so before it has taken effect — because a request that is made and not yet granted otherwise looks like a button that was ignored | T1 |
+| `tests/gui/widget/test_guided_capture_dialog.cpp` | The guided capture setup: built from a profile rather than from nothing, so a CAV disc gets frame entry and a CLV disc gets time entry and neither is offered the other's — absent rather than merely disabled — the three shapes offered with the entry fields each of them needs, a plan that cannot be made saying which of the reasons it is and leaving **Start** unavailable, the estimate following what is typed, a suggested name that is already taken said so before anything is written, and a run's progress and its estimated time remaining shown while it goes | T1 |
 | `tests/gui/widget/test_capture_panel.cpp` | The capture controls: the device list, a USB 2 device named as such and refused, each button reading as the next thing that will happen and turning green while monitoring and red while capturing without changing size — the layout shift a stylesheet on a button causes, because the size the stylesheet path computes is not the one the platform style chose — device and test mode locked while streaming, the destination fixed once the file is open while the duration and low-space settings stay live, test mode taking the name field away, and free space shown as how much capture it holds rather than as a size | T1 |
 | `tests/gui/widget/test_update_page.cpp` | The whole update flow as a widget, driven against fakes with nothing plugged in — including branches a bench cannot be asked for. A verified bundle enabling the install and saying so, a development bundle bannered, a file that is not a bundle and one that is not there each refused with a reason, a bundle needing a newer application disabling the button, a successful install reporting what the device now runs, and each failure by name: a capture in progress, a corrupted transfer caught before anything is committed, a device that never comes back, and the wrong build coming back not being called a success. Plus a device with no firmware: named as being in recovery mode with both ways it gets there stated, offered **Program this device** rather than a repair, its version rows reading "None installed" and "Cannot be read", and a payload that is not firmware proved never to reach the device's memory | T1 |
 | `tests/gui/widget/test_analysis_dialog.cpp` | The analysis dialog: pass and fail reported with the break's offset, pass and fail coloured differently through the theme tokens, an unreadable file distinguished from a failed one, the cancel button becoming the close button, and a dialog destroyed mid-analysis joining its worker rather than leaving a thread running into a destroyed object | T1 |
@@ -227,6 +260,7 @@ LaserDisc player protocol.
 | `tests/gui/widget/test_spectrum_panel.cpp` | The spectrum panel: averaging and peak-hold controls, an empty bin described rather than reported as -120 dBFS, the plot painting with and without a spectrum, both views offered with peak hold disabled where it would mean nothing, the frequency range defaulting past the filter's corner — and, in pixels, that the spectrogram draws a carrier as a visible band, that widening the range moves it down the frequency axis, and that it grows from the right over a fixed window of time rather than stretching to fill | T1 |
 | `tests/gui/widget/test_amplitude_panel.cpp` | The amplitude panel: statistics becoming history points at the intended rate, the window's extremes, a new run clearing the history and a finished one keeping it — the property the gain design rests on — that correcting the declaration re-labels history already recorded instead of discarding it — the nominal-level marks and the RMS trace each drawn on both sides of 0 V — measured against the panel's own gridlines so the checks survive a change of margins — a Clear that resets the sampler along with the history, and a time span that can be set to everything held or narrowed to match the spectrogram — checked by measuring what is drawn at the oldest edge, because counting the whole plot passes against a panel that ignores the setting | T1 |
 | `tests/hardware/test_device_capture.cpp` | An attached device: found at a usable speed, reporting a readable firmware commit, delivering at the ADC's rate and no faster, aborting within two seconds, streaming with no samples lost, and its test ramp arriving intact | T5 (`hil`) |
+| `tests/hardware/test_player_hardware.cpp` | An attached LaserDisc player: found and identified on a real port at a real baud rate, the model ID checked against the badge on the front panel where the operator says what it is, the read-only queries a model's definition claims actually answered by the hardware that has them, and a whole examination of a real disc — completing, measuring the end of the side by seeking past it, and matching the type and the last address the operator read off the player's own display | T5 (`hil-player`) |
 
 Three of these are worth singling out.
 
@@ -395,7 +429,7 @@ out the flash. The expected checksums come from an independent implementation (P
 
 What no simulation can cover is the handover itself: a simulated device cannot reconfigure.
 The testbench checks that the right thing was asked for at the right moment; the bench
-checks that asking for it works, which is §7's remaining gateware item.
+checks that asking for it works, which is §8's remaining gateware item.
 
 `tb_dataGenerator.v` is the simulation counterpart of §5: the ramp and sequence number it
 asserts are exactly what the capture-integrity procedure counts breaks in, so a defect
@@ -409,7 +443,7 @@ make simulation and synthesis disagree; the packet-length assertion is what turn
 probably fine" into something checked.
 
 **What is not covered, and cannot be for free:** `buffer.v`, and therefore the design as a
-whole. See the caveat in §7.
+whole. See the caveat in §8.
 
 Lint runs with `-Wall`, and everything it reports is either a failure or a waiver carrying
 its reason in `fpga/verilator-waivers.vlt`. The waived findings — a blocking assignment in
@@ -934,7 +968,242 @@ would cycle factory→application forever at about three seconds a lap. `Cd_earl
 probes the image before every attempt, which narrows the window to exactly that case,
 but the deliberate second-attempt refusal the plan calls for remains open.
 
-## 7. Planned work
+## 7. The player control procedure (T5)
+
+Driving a LaserDisc player over its serial port, and capturing a side without a hand on the
+front panel. The automated half of this is `ctest -L hil-player` (§3), which connects,
+identifies and examines a disc. This is the other half: the per-model checklist that no
+amount of scripting can stand in for, because most of it is *watching the player* rather
+than reading what the application believes about it.
+
+**Why so much of it is manual.** A control that is enabled and does nothing, a control that
+does something other than its label, and a control that works perfectly all look identical
+from inside the application: in every case a command went out and an acknowledgement came
+back. The only instrument that can tell them apart is a person looking at the player. That
+is the whole content of P1 below, and it is why a model stays `bench_verified = false`
+until somebody has walked it.
+
+Everything about the *logic* is already covered at T1 with nothing plugged in — every
+refusal, every open tray, every link that dies halfway through, every branch of the
+automatic capture. What remains for hardware is whether the bytes this project believes it
+is sending mean, to a real player, what its manual says they do.
+
+### What to have ready
+
+- **The player**, and its manual. The manual matters for P1: a control the application
+  leaves greyed out is only a fault if the model actually has it, and that is the one
+  direction the application cannot check itself.
+- **A serial cable that suits the player.** Pioneer industrial players take a straight-
+  through cable to a PC; several of the consumer decks want a null-modem. If nothing at all
+  answers at any rate, this is the first thing to doubt.
+- **A CAV disc and a CLV disc**, both with the last address of the side known — read it off
+  the player's own display by seeking to the end, rather than off the sleeve, since the
+  sleeve is the programme and the measurement is the disc.
+- **A disc with two recorded sides**, for the side check in P2.
+- **A Domesday Duplicator** as well, for P3 onwards. The automatic capture writes a file, so
+  those steps need both pieces of hardware and enough free space for a whole side.
+- **A machine whose serial permissions are settled** — see immediately below, because
+  nothing else here can start until they are.
+
+### Serial port permissions, which is where this usually stops first
+
+Not a step so much as the thing that blocks step one, on every platform and for a different
+reason on each. The application detects a refused port and says which of these applies; this
+is the same information in the place somebody looks when the application will not start.
+
+- **Linux.** The serial devices belong to a group — `dialout` on Debian, Ubuntu and Fedora,
+  `uucp` on Arch and its derivatives. `sudo usermod -a -G dialout $USER`, then **log out and
+  back in**: a group granted to an account does not apply to a session that already exists,
+  which is why "I added myself and it still does not work" is the commonest follow-up.
+  A USB serial adapter is third-party hardware and this project does not ship a udev rule
+  for one — [nix/modules/udev.nix](nix/modules/udev.nix) covers the Duplicator and nothing
+  else. That is deliberate: writing rules for other people's devices is not this project's
+  business.
+- **Flatpak.** The manifest carries `--device=all`, which is what grants `/dev/ttyUSB*` and
+  `/dev/ttyACM*` inside the sandbox; there is no narrower static permission that reaches a
+  serial port and no portal for one. It is the same permission the USB capture path already
+  needs. The sandbox keeps the user's supplementary groups, so the group membership above is
+  still required — a Flatpak install does not route around it.
+- **macOS.** Not a permission problem in the Unix sense at all: `/dev/cu.*` is open to
+  everybody. What goes wrong instead is the driver. An adapter using the built-in FTDI or
+  CH34x support appears as `/dev/cu.usbserial-…` and needs nothing installed; one needing a
+  vendor driver needs that driver *allowed* in **System Settings → Privacy & Security**
+  after installation, and until it is, its port either does not appear or will not open.
+- **Windows.** No group to join, and a COM port can only be held by one program at a time —
+  a terminal left open on it is the usual cause. Check **Device Manager → Ports (COM & LPT)**
+  for the adapter's driver and its port number, and confirm the number the application's
+  scan shows is the number Device Manager shows.
+
+### P0 — connect and identify, at every rate the player offers
+
+From a configuration that has never seen this player: player control off, no remembered
+port, nothing excluded.
+
+1. Set the player's rate to the first position its switches offer, switch it on, enable
+   player control and let auto-detection run.
+2. Confirm the model name and firmware revision the panel shows are the player's own. An
+   unrecognised player is not a failure — it connects on the generic Pioneer set and reports
+   the model code it answered with, which is exactly what a new definition needs — but it
+   *is* the finding that this bench session should end in a new header
+   ([`ddd-gui/src/player/players/README.md`](ddd-gui/src/player/players/README.md)).
+3. Repeat for **each rate the player's own switches support**, fixing the rate in the
+   settings each time and then, separately, letting auto-detection find it unaided. Both
+   paths matter: the fixed one is a single attempt with a long timeout and the search is
+   several short ones, and a player can answer one and not the other.
+4. With a rate that works, confirm the port is remembered: restart the application and watch
+   that it reconnects without scanning. On a configured machine no other port is ever
+   opened, which is the promise the risks section of the plan makes and this is where it is
+   checked.
+5. Power-cycle the player mid-session. It must reconnect on its own.
+6. Unplug the adapter mid-session. The application must report it **once** and settle — not
+   spin, and not report it repeatedly.
+
+### P1 — the remote, control by control
+
+The long one, and the one that has to be done watching the player rather than the screen.
+In this order, because each control leaves the player somewhere the next one needs it:
+
+tray open, tray close, play, pause, still, step forward, step back, scan forward, scan back,
+multi-speed forward and back at **each rate the selector offers**, a frame search, a time
+search, a chapter search, on-screen display on and off, **each audio mode**, key lock on and
+off, and reject.
+
+- A control that is enabled and does nothing is a wrong capability flag.
+- A control that does something other than its label is a wrong command sequence.
+- A control the application greys out **that the model's manual says it has** is a wrong flag
+  in the other direction, and it is the one this checklist would otherwise never reach —
+  which is why the manual is on the list of things to have ready.
+
+Then the two reads, with a disc **spinning**:
+
+- The standard user code (`$Y`), which is cheap and moves nothing.
+- The Pioneer user code (`?U`) **last, or expect to lose your place** — it is not a query,
+  it searches to the lead-in to answer, and on this project's LD-V4300D that took 11.1
+  seconds and left the player parked at frame 1. A model materially slower than the thirty
+  seconds allowed needs its own timeout in its definition.
+- `E04` from either is an error code, not a code to record: the LD-V4400 manual documents it
+  as no user code being encoded, and this project's bench sees it from a parked disc that
+  reads perfectly while spinning. The dialog must say the player refused rather than show
+  `E04` as the disc's code.
+- In the dump, a run of `` ` `` is the *player* saying it could not read those characters off
+  the disc and a run of NULs is data that was never encoded. Both are facts about the disc,
+  they are not the same fact, and the dump must not present them alike.
+
+Finally the manual command field with `?X`, whose answer is the model code that belongs in
+the definition — so it is also the check that the header claims the right ID.
+
+### P2 — examine a CAV disc and a CLV disc
+
+Once for each, with the disc parked rather than playing.
+
+1. **The type and the addressing** must match the disc in your hand: frames on the CAV disc,
+   time codes on the CLV one.
+2. **The last address** must match what the player's own display shows at the end of the
+   side. It is measured by seeking past the end and reading where that landed, so this is a
+   comparison of two measurements rather than of a measurement against a claim.
+3. **Watch what the sequence skips.** A step the model has no command for is not in the plan
+   at all — the progress runs shorter, and that is correct. A step that runs and comes back
+   *not known* is either a wrong capability flag or a reply this definition cannot decode.
+4. **Check the disc status against the disc.** The report prints the five characters it
+   decoded from — loaded, CAV/CLV, size, side, chapters — beside what it made of them. Turn
+   the disc over and examine again: **the side must change and nothing else about it should**.
+   A model whose reply is laid out differently shows up exactly here, as a size or a side
+   that is confidently wrong, and the fix is `DiscStatusDecode` in that model's header.
+5. **Check the video standard**, on a disc of each standard if you have both. It comes from
+   the TV system request (`?S`) and is reported rather than guessed, so a model that answers
+   it *wrongly* is the one failure in this whole procedure that nothing else can catch. Send
+   `?S` from the manual command field to see the raw three characters — output, disc,
+   external sync — and check the middle one. A model that does not answer at all should have
+   `tv_system = false` in its header rather than a report that says the standard could not be
+   established on every disc it ever meets.
+6. The examination should take about a minute and **leave the disc held still at the start of
+   the side**, not playing.
+7. **Examine with the tray open, and with the tray shut and empty.** Two different findings —
+   "the tray is open" and "the player would not start a disc" — and a model that reports its
+   states differently is the one that gets them the wrong way round.
+
+### P3 — the three automatic capture shapes
+
+Needs the Duplicator as well. Each is run from **Set up capture** on the examine report, so
+the plan is built from a profile that was just measured.
+
+1. **A range**, from one address to another well inside the side. The shortest of the three:
+   pick a couple of minutes. The player seeks to the start, the capture attaches, the disc
+   plays, and both stop at the end address. Check the capture's length against the estimate
+   the dialog showed.
+2. **From spin-up to an address.** The capture attaches *first* and the disc is started from
+   a stop, so the file holds the spin-up. Confirm by looking at the beginning of the capture:
+   there is signal before there is a picture.
+3. **The whole side.** The same beginning, and the ordering that matters at the other end —
+   the player is stopped and **the capture keeps running through the spin-down**, because the
+   run-out is not an address and this is the only way it reaches a file. This one takes as
+   long as the side does.
+
+For each: the front panel is locked while it runs if the plan asked for it and released
+afterwards, the progress and the estimated time remaining move sensibly, and the finished
+file carries the disc's own facts — model, type, size, side, standard, programme bounds — in
+its metadata rather than an empty set of them.
+
+Then the two coupling preferences, one each way: **stop the player when the capture stops**
+(on by default) and **stop the capture when the player stops** (off by default, and
+debounced — a momentary stop must not truncate a good capture).
+
+### P4 — a capture cancelled halfway
+
+Start the whole-side shape and cancel it a minute in.
+
+The run must not be abandoned where it stands: the writer is detached, **the file is
+finalised and plays**, the player is stopped and the front panel is released. That is the
+difference from the old application, which walked away from the run and left the rest to
+whoever noticed. Open the resulting capture and confirm it is a valid file of about the
+length it ran for.
+
+### P5 — a cable pulled halfway
+
+Start the whole-side shape and **unplug the serial adapter** a minute in.
+
+The deliberate behaviour, and the one thing here that looks like a bug if you have not read
+this paragraph: **the capture keeps running.** The automation stops, the application says
+the automation stopped and the capture is still going, and the user stops it by hand. The
+player carries on to the end of the side regardless — it does not need the cable — and
+truncating a good capture because an adapter came loose is the worse of the two failures.
+
+A pass is: one message, saying both halves of that; a capture still writing; and no attempt
+to send anything else down a dead port.
+
+### What a pass looks like
+
+- The player is found and identified at **every rate its own switches offer**, both by search
+  and when told.
+- Every control does what its label says, and every control that is greyed out is one the
+  model does not have.
+- Both discs examine to the type, addressing and last address they really are, and turning a
+  disc over changes the side and nothing else.
+- All three capture shapes produce a file of the expected length, with the disc's facts in
+  it, and the whole-side one holds the spin-up and the spin-down.
+- A cancel finalises; a pulled cable does not.
+- Anything that fails is a **definition** change rather than an application change. If it
+  cannot be fixed by editing that model's header, the schema has a gap and that is worth
+  saying out loud rather than working around.
+
+Only then is `bench_verified = true` for that model — and it is a claim about evidence, not
+about capability. The tests passing proves a definition is internally consistent and encodes
+the bytes it says it does. They cannot prove those are the right bytes for a player none of
+them has ever met.
+
+### When to run it
+
+Per model, once, and again whenever that model's definition changes. The shared Pioneer
+Level III base is the exception: a change there is a change to every model at once, so it
+wants at least one verified model re-walked before release.
+
+### What it does not cover
+
+The capture path. A capture started by this procedure is still only proved intact by §5 —
+the automatic sequence decides *when* to start and stop a capture and has nothing to do with
+whether the samples in it are all there.
+
+## 8. Planned work
 
 Listed so this document can be read as a status report rather than a wish list.
 
@@ -944,6 +1213,8 @@ Listed so this document can be read as a status report rather than a wish list.
 | SPDX conversion of the remaining long-form headers | T4 | 25 files. Opportunistic by design (AGENTS.md §5.4) — not a scheduled task, and the check prints the count each run |
 | Finish validating the single-clock gateware | T5 | See below. The board is programmed and a 16-minute capture came back clean; four checks remain |
 | Gateware-target interruption tests | T5 | The clean path ran on 2026-08-15 and is §6 (G0/G1): provisioning, the update, the factory→application handover, V4, V6 and V7 all performed or measured, and the five defects the session surfaced are recorded there. What remains is the interruption half: power pulled mid-write and during the readback verify, the boot block sector erased by JTAG, and the *recovery gateware* → **Reinstall gateware** repair flow driven from each of those states |
+| The player control bench walk | T5 | §7, per model, and the gate on `bench_verified`. **Nothing is walked yet**: every definition in `ddd-gui/src/player/players/` is inherited from the documented Pioneer Level III set, and the LD-V4300D — this project's own bench player — has measured readings for connection, disc status, TV system and both user codes but has not been taken through P1 to P5. The automated half (`ctest -L hil-player`) runs today; the checklist is what turns an inheritance into an observation |
+| A Flatpak build talking to a player | T5 | The manifest's `--device=all` is what grants `/dev/ttyUSB*` inside the sandbox, and there is no narrower static permission or portal for a serial device — so the permission is right by construction and by the same reasoning that covers the USB capture path. It has not been *confirmed* from inside a built Flatpak, which is a ten-minute check and is the acceptance criterion the player control plan's Task 6.3 leaves open |
 | First release through the CI pipeline | T4/T5 | The bitstream, release and reproducibility-audit workflows exist and every part of them that can be exercised without a signing key and a tag has been: the bundle assembles and verifies against a pinned public key, an application built with that key pinned accepts it and one built without refuses it, and a release build refuses a development-signed bundle unless the opt-in is given. What remains needs the maintainer: generate the release keypair, set `UPDATE_SIGNING_KEY`, commit `tools/keys/release.pub`, then tag. The rehearsal is then: the tag publishes a release whose every asset was CI-built from it, the `.dddfw` installs onto bench hardware through the file-picker path with the device reporting the identities the manifest names, and the audit job runs green against that release at least once |
 | Watchdog period and handover timing, before the freeze | T5 | The handover works (§6 G1, 2026-08-15) and the watchdog tickle is proven by the application surviving past the timeout. Still open before the factory image is frozen: narrow `WatchdogTimeout` from the 12-bit maximum to a measured margin over the worst-case FX3 boot, measure the double-configuration time against the FX3's "FPGA ready" assumption (**V5**), and give the boot logic its deliberate second-attempt refusal so a validating-but-dead application image parks in recovery instead of cycling |
 
@@ -1016,7 +1287,7 @@ Verilog with ordinary testbenches. Only the top level is left needing `altpll`, 
 only thing that reaches is the pin mapping and the clock generation, both of which §5
 covers on hardware.
 
-## 8. Conventions for new tests
+## 9. Conventions for new tests
 
 - **One tier label per test.** If a test seems to need two, it is usually two tests. The
   exception is a file whose cases genuinely span T1 and T2, like the sample codec.

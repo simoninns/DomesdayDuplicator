@@ -45,6 +45,12 @@ class QtSerialPort : public player::ISerialPort {
 
   bool Open(const std::string& path,
             const player::SerialSettings& settings) override;
+
+  // What QSerialPort said about the last failed open, mapped onto the causes
+  // the interface distinguishes. This is the one implementation that can
+  // answer it — see PortOpenError.
+  player::PortOpenError last_open_error() const override;
+
   void Close() override;
   bool IsOpen() const override;
   void DiscardBuffers() override;
@@ -64,6 +70,7 @@ class QtSerialPort : public player::ISerialPort {
  private:
   std::unique_ptr<QSerialPort> port_;
   std::atomic<bool> abort_requested_{false};
+  player::PortOpenError open_error_ = player::PortOpenError::kNone;
 };
 
 }  // namespace ddd::gui

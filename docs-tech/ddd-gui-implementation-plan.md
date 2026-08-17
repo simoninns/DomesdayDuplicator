@@ -956,15 +956,21 @@ panel/theming shell (Phase 1).
 
 ### Future
 
+Struck rows are discharged and are kept rather than deleted, because the point of this
+table is that nothing was lost — a row that vanished would be indistinguishable from a row
+nobody ever wrote. The player rows were all taken by
+[player-control-implementation-plan.md](player-control-implementation-plan.md), whose own
+ledger records the same disposition from the other side.
+
 | Feature (old application) | Notes |
 | --- | --- |
 | Advanced naming: auto/manual filename modes, disc metadata fields, mint marks, per-side holdings, append-duration rename | |
-| Metadata sidecar file (`serialInfo`/`namingInfo`/`captureInfo`/`timeSampledData`) | Written as **YAML** in the new application (the old app wrote JSON); the captureInfo portion may land with Phase 5; player-derived fields need player support. The YAML dependency (e.g. yaml-cpp, MIT) is subject to the GPLv3-compatibility rule |
-| LaserDisc player serial control (Pioneer protocol, model detection, auto-reconnect) | |
-| Player information display (model, status, position, physical mm) | |
-| Player remote dialog (full transport, manual serial commands, user-code reads) | |
-| Automatic capture state machine (whole disc / partial / lead-in, CAV+CLV, key-lock) | |
-| "Stop player when capture stops" / "Stop capture when player stops" | With player support |
+| Metadata sidecar file (`serialInfo`/`namingInfo`/`captureInfo`/`timeSampledData`) | Written as **YAML** in the new application (the old app wrote JSON); the captureInfo portion may land with Phase 5; the player-derived fields now exist and reach the capture's own provenance ([player control plan](player-control-implementation-plan.md), Task 5.3), so what is left here is the sidecar itself. The YAML dependency (e.g. yaml-cpp, MIT) is subject to the GPLv3-compatibility rule |
+| ~~LaserDisc player serial control (Pioneer protocol, model detection, auto-reconnect)~~ | **Built** — [player control plan](player-control-implementation-plan.md), Phases 1–2 |
+| ~~Player information display (model, status, position, physical mm)~~ | **Built** — [player control plan](player-control-implementation-plan.md), Task 2.4 |
+| ~~Player remote dialog (full transport, manual serial commands, user-code reads)~~ | **Built** — [player control plan](player-control-implementation-plan.md), Phase 3 |
+| ~~Automatic capture state machine (whole disc / partial / lead-in, CAV+CLV, key-lock)~~ | **Built** — [player control plan](player-control-implementation-plan.md), Phase 5, re-shaped around a disc examination the old application had no equivalent of. The lead-in is not a shape a player can be asked for; the two shapes that hold it get it by starting the capture before the disc |
+| ~~"Stop player when capture stops" / "Stop capture when player stops"~~ | **Built** — [player control plan](player-control-implementation-plan.md), Task 5.3 |
 | Reset notes/mint marks on side change preference | With advanced naming |
 | Flatpak / WiX / macOS packaging, desktop + metainfo files | At rename-and-replace time |
 

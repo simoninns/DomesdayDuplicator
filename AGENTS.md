@@ -529,7 +529,7 @@ timing-constraint check per image, a bitstream-digest test and a boot-block enco
 none of them under CTest — there is no CMake there. `hardware/` has **no automated coverage yet**;
 `docs/` has a static check only. Across the whole tree, `licence-headers` and
 `update-bundle` are T4 checks with no component of their own (§5.4, and the *Update bundle
-format* documentation page). TESTING.md §7 says what is planned and in which phase.
+format* documentation page). TESTING.md §8 says what is planned and in which phase.
 
 Both gateware top levels are deliberately uncovered by simulation: they instantiate
 Altera's `altpll`, which has no free simulation model, so the pin mapping and the clock

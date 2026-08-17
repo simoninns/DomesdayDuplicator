@@ -36,6 +36,7 @@ what each one is for.
 | [Signal analysis](signal-analysis.md) | The scope, the spectrum and spectrogram, and five minutes of level history |
 | [Capture files](capture-files.md) | What gets written, what it is called, and what reads it |
 | [Settings](settings.md) | Buffer queue, USB transfer mode, preferred device and the front-end gain declaration |
+| [Player control](player-control.md) | Driving a LaserDisc player over its serial port: examining a disc, and capturing a side by itself |
 | [Test mode](test-mode.md) | Proving the capture path with the gateware's test pattern |
 | [Updating your Duplicator](updating-your-domesday-duplicator.md) | Installing firmware and gateware into the device |
 | [Command line](command-line.md) | The options the application accepts, and the scriptable analysis |

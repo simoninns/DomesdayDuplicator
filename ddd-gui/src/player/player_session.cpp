@@ -58,6 +58,7 @@ ProbeResult PlayerSession::Probe(const std::string& path,
   Disconnect();
 
   bool any_port_opened = false;
+  PortOpenError open_error = PortOpenError::kNone;
   bool unusable_seen = false;
   std::string unexpected_reply;
   uint32_t unexpected_rate = 0;
@@ -80,6 +81,7 @@ ProbeResult PlayerSession::Probe(const std::string& path,
 
     for (const uint32_t rate : rates) {
       if (!port_->Open(path, SerialSettings{rate})) {
+        open_error = PickOpenError(open_error, port_->last_open_error());
         continue;
       }
       any_port_opened = true;
@@ -140,8 +142,13 @@ ProbeResult PlayerSession::Probe(const std::string& path,
     return result;
   }
 
-  result.status = any_port_opened ? ProbeResult::Status::kNoAnswer
-                                  : ProbeResult::Status::kPortUnavailable;
+  if (any_port_opened) {
+    result.status = ProbeResult::Status::kNoAnswer;
+    return result;
+  }
+
+  result.status = ProbeResult::Status::kPortUnavailable;
+  result.open_error = open_error;
   return result;
 }
 

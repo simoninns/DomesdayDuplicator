@@ -46,9 +46,14 @@ enum class PlayerConnectionProblem : uint8_t {
   // Ports were opened and probed; nothing answered.
   kNoPlayerFound,
 
-  // The port could not be opened at all: busy, absent, or — the most likely
-  // first-run experience on Linux — not permitted.
+  // The port could not be opened at all: busy or absent.
   kPortUnavailable,
+
+  // The port is there and this user is not allowed to open it. Separated from
+  // the above because it is the only one of the two the user can fix, the fix
+  // is different on every platform, and it is the likeliest thing to happen on
+  // a machine that has never run this application — see PortOpenError.
+  kPortNotPermitted,
 
   // Something answered, and it was not a player. Usually a serial device that
   // is not a player at all, which is worth saying rather than reporting as

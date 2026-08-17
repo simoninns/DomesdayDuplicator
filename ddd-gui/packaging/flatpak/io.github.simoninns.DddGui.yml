@@ -35,6 +35,14 @@ finish-args:
   # review will ask about, and the answer is that the application's entire purpose is
   # talking to one specific USB 3.0 device. The same permission covers updating the
   # device's own firmware and gateware, which is the same cable and the same endpoint.
+  #
+  # It is also what grants the serial port for LaserDisc player control: /dev/ttyUSB* and
+  # /dev/ttyACM* are inside /dev, there is no narrower static permission that reaches them
+  # and no portal for a serial device, so this one line covers both cables. Two things
+  # worth stating rather than discovering: the sandbox keeps the user's supplementary
+  # groups, so membership of dialout (or uucp) is still required exactly as it is outside
+  # a Flatpak — this permission does not route around it — and player control is off until
+  # a user turns it on, so a Flatpak install opens no serial port until asked to.
   - --device=all
 
   # Captures are large and usually land on an external or secondary drive, and the file

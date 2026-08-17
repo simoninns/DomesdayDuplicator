@@ -63,8 +63,10 @@ bytes for a player none of them has ever met.
 
 ## The bench checklist
 
-With the player attached, per model. This is the T5 procedure; TESTING.md carries the
-full version and this is its summary.
+With the player attached, per model. This is the T5 procedure in summary;
+[TESTING.md §7](../../../../TESTING.md) carries the full version, including the automatic
+capture shapes, the cancel and the pulled cable — and the serial permissions note, which is
+where a first attempt usually stops before any of this begins.
 
 - Connect with auto-detection, from a configuration that has never seen this player.
   Confirm the model name and firmware revision shown are right.

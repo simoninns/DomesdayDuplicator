@@ -38,6 +38,27 @@ namespace ddd::gui {
 // It also keeps the panel, the status bar and the log saying the same thing,
 // which they did not in the old application.
 
+// Which platform's advice a message should carry.
+//
+// Passed in rather than read from the build inside the wording, so that all
+// three sentences are testable on one machine. A permission message is exactly
+// the kind of text that is written once, never seen by its author again, and
+// wrong on the two platforms they do not use.
+enum class HostPlatform : uint8_t { kLinux, kMacOs, kWindows };
+
+// The platform this build is for.
+HostPlatform ThisPlatform();
+
+// What to do about a serial port this user is not allowed to open.
+//
+// One sentence per platform, naming the actual remedy rather than "check your
+// permissions": on Linux a group, on macOS a driver that was never installed or
+// was blocked, on Windows a port another program is holding. It is the most
+// likely thing to go wrong on a machine that has never run this application,
+// and the support question this documentation and this wording exist to answer
+// once rather than repeatedly.
+QString SerialPermissionAdvice(HostPlatform platform);
+
 // The headline: one short line naming the state.
 QString PlayerConnectionSummary(const PlayerConnection& connection);
 

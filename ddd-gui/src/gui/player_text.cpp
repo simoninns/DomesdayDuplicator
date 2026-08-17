@@ -14,6 +14,7 @@
 #include <QCoreApplication>
 #include <QObject>
 #include <QStringList>
+#include <QtGlobal>
 #include <algorithm>
 #include <chrono>
 #include <optional>
@@ -27,6 +28,57 @@
 #include "user_code.h"
 
 namespace ddd::gui {
+
+HostPlatform ThisPlatform() {
+#if defined(Q_OS_WIN)
+  return HostPlatform::kWindows;
+#elif defined(Q_OS_MACOS)
+  return HostPlatform::kMacOs;
+#else
+  return HostPlatform::kLinux;
+#endif
+}
+
+QString SerialPermissionAdvice(HostPlatform platform) {
+  switch (platform) {
+    case HostPlatform::kLinux:
+      // The group is the whole answer, and which group it is depends on the
+      // distribution — so both are named rather than one guessed at. Naming the
+      // command as well, because "add yourself to the group" is not a thing
+      // everybody knows how to do, and a log-out is the part that is always
+      // forgotten.
+      return QObject::tr(
+          "On Linux the serial devices belong to a group — usually dialout, "
+          "or uucp on Arch and its derivatives — and you have to be in it. "
+          "Add yourself with \"sudo usermod -a -G dialout $USER\", then log "
+          "out and back in: a group you have just been given does not apply "
+          "to the session you were already in.");
+
+    case HostPlatform::kMacOs:
+      // Not a permission problem in the Unix sense at all — /dev/cu.* is world
+      // writable — so the advice that would be right on Linux is useless here
+      // and this says what actually happens instead.
+      return QObject::tr(
+          "On macOS a serial adapter needs its driver, and a third-party one "
+          "has to be allowed in System Settings under Privacy & Security after "
+          "it is installed. Until it is, the adapter's port either does not "
+          "appear or cannot be opened. Adapters using the built-in drivers "
+          "appear as /dev/cu.usbserial-… and need nothing installed.");
+
+    case HostPlatform::kWindows:
+      // Windows has no group to join: an unopenable COM port is somebody else
+      // holding it, which is a different remedy entirely.
+      return QObject::tr(
+          "On Windows a COM port can only be opened by one program at a time. "
+          "Close anything else that might have it — a terminal, a logging "
+          "tool, or another copy of this application — and check in Device "
+          "Manager, under Ports (COM & LPT), that the adapter has a driver "
+          "and a port number.");
+  }
+
+  return QString();
+}
+
 namespace {
 
 QString ModelDescription(const PlayerConnection& connection) {
@@ -138,6 +190,8 @@ QString PlayerConnectionSummary(const PlayerConnection& connection) {
       return QObject::tr("Player disconnected");
     case PlayerConnectionProblem::kPortUnavailable:
       return QObject::tr("No serial port available");
+    case PlayerConnectionProblem::kPortNotPermitted:
+      return QObject::tr("Not allowed to use the serial port");
     case PlayerConnectionProblem::kNotAPlayer:
       return QObject::tr("No player found");
     case PlayerConnectionProblem::kNoPlayerFound:
@@ -198,16 +252,26 @@ QString PlayerConnectionDetail(const PlayerConnection& connection) {
     case PlayerConnectionProblem::kPortUnavailable:
       if (connection.detail.isEmpty()) {
         return QObject::tr(
-            "There is no serial port to look on. Check that the adapter is "
-            "plugged in — and, on Linux, that you are in the group that owns "
-            "the serial devices (usually dialout or uucp).");
+                   "There is no serial port to look on. Check that the adapter "
+                   "is plugged in. %1")
+            .arg(SerialPermissionAdvice(ThisPlatform()));
       }
       return QObject::tr(
                  "%1 could not be opened. It may be in use by something else, "
-                 "or you may not have permission for it — on Linux that "
-                 "usually means being in the group that owns the serial "
-                 "devices (dialout or uucp).")
-          .arg(connection.detail);
+                 "or you may not have permission for it. %2")
+          .arg(connection.detail, SerialPermissionAdvice(ThisPlatform()));
+
+    // The port is there, and the system said no. The one connection problem
+    // whose remedy is entirely on the user's side of the cable, so the message
+    // is the remedy and nothing else.
+    case PlayerConnectionProblem::kPortNotPermitted:
+      if (connection.detail.isEmpty()) {
+        return SerialPermissionAdvice(ThisPlatform());
+      }
+      return QObject::tr(
+                 "%1 is there, and this account is not allowed to open "
+                 "it. %2")
+          .arg(connection.detail, SerialPermissionAdvice(ThisPlatform()));
 
     case PlayerConnectionProblem::kNotAPlayer:
       return QObject::tr(

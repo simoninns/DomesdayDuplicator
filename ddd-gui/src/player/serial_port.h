@@ -28,6 +28,47 @@ struct SerialSettings {
   uint32_t baud_rate = 9600;
 };
 
+// Why a port would not open.
+//
+// Separated from the bool because one of these has a remedy the user can carry
+// out and the others do not: on every platform this application runs on, a
+// first-run serial port is as likely to be refused for permissions as it is to
+// be absent, and "the port could not be opened" sends somebody looking at their
+// cable when the answer is their group membership. Ordered by how specific the
+// finding is — see PickOpenError.
+enum class PortOpenError : uint8_t {
+  kNone,
+
+  // The port is there and the user is not allowed it.
+  kNotPermitted,
+
+  // Something else has it open.
+  kBusy,
+
+  // There is no such port.
+  kMissing,
+
+  // It failed and the backend could not say why. The honest answer, and the
+  // default: a made-up cause is worse than none.
+  kOther,
+};
+
+// The more specific of two open failures.
+//
+// A scan opens many ports and most failures are uninteresting; the one that
+// should reach the user is the most actionable one seen. kNone is not a
+// failure, so it never wins.
+constexpr PortOpenError PickOpenError(PortOpenError current,
+                                      PortOpenError candidate) {
+  if (candidate == PortOpenError::kNone) {
+    return current;
+  }
+  if (current == PortOpenError::kNone) {
+    return candidate;
+  }
+  return candidate < current ? candidate : current;
+}
+
 // A serial port, as the protocol layer needs one.
 //
 // This interface is why the protocol above it links no Qt and opens nothing:
@@ -51,6 +92,16 @@ class ISerialPort {
   // False if the port could not be opened — busy, absent, or not permitted.
   virtual bool Open(const std::string& path,
                     const SerialSettings& settings) = 0;
+
+  // Why the last Open() failed.
+  //
+  // Not pure, and the default is kOther rather than a guess, because most
+  // implementations of this interface genuinely cannot tell the causes apart:
+  // a backend that only has a bool to work with must say so rather than
+  // pick the commonest cause and be confidently wrong about somebody's cable.
+  virtual PortOpenError last_open_error() const {
+    return PortOpenError::kOther;
+  }
 
   virtual void Close() = 0;
 

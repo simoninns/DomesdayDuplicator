@@ -87,6 +87,15 @@ class FakeSerialPort : public ISerialPort {
     open_fails_ = fails;
   }
 
+  // Why an open that fails, fails. The real backend reads this off QSerialPort;
+  // here it is stated, which is the only way the permission path — the one a
+  // developer's own machine is by definition configured not to take — is
+  // exercised at all.
+  void set_open_error(PortOpenError error) {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    open_error_ = error;
+  }
+
   // The one path that exists. Any other fails to open, as a port that is not
   // there does — which is what makes "the user pointed the application at a
   // port with nothing on it" a thing a test can state.
@@ -182,6 +191,11 @@ class FakeSerialPort : public ISerialPort {
     return true;
   }
 
+  PortOpenError last_open_error() const override {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return open_error_;
+  }
+
   void Close() override {
     const std::lock_guard<std::mutex> guard(mutex_);
     if (is_open_) {
@@ -267,6 +281,7 @@ class FakeSerialPort : public ISerialPort {
   SerialSettings settings_;
   bool is_open_ = false;
   bool open_fails_ = false;
+  PortOpenError open_error_ = PortOpenError::kOther;
   bool link_broken_ = false;
   bool aborted_ = false;
 
@@ -300,6 +315,9 @@ class BorrowedSerialPort : public ISerialPort {
 
   bool Open(const std::string& path, const SerialSettings& settings) override {
     return port_->Open(path, settings);
+  }
+  PortOpenError last_open_error() const override {
+    return port_->last_open_error();
   }
   void Close() override { port_->Close(); }
   bool IsOpen() const override { return port_->IsOpen(); }

@@ -194,6 +194,30 @@ target_link_libraries(ddd_hardware_tests PRIVATE
     GTest::gtest_main
 )
 
+# T5 — a real LaserDisc player, which is different hardware from the one above and is
+# not on every bench that has a Duplicator. Its own label for exactly that reason: a
+# machine with a device and no player must not fail tests it cannot run.
+#
+#   ctest --test-dir build -L hil-player
+#
+# Note that `-L hil` matches this label too — CTest's label selection is an unanchored
+# regular expression — so the device tier alone is `-L "^hil$"`. Excluding with `-LE hil`
+# does the right thing for both, which is what CI and the Nix build do.
+#
+# Links the Qt layer because the real serial backend lives there, and it is the real
+# backend that is being tested: the protocol above it has already been exercised in
+# ddd_player_tests against a scripted port, and what is left for hardware is whether the
+# bytes mean to a player what the manuals say.
+ddd_add_test(ddd_player_hardware_tests "hil-player"
+    support/gui_test_main.cpp
+    hardware/test_player_hardware.cpp
+)
+target_link_libraries(ddd_player_hardware_tests PRIVATE
+    ddd_gui_lib
+    GTest::gtest
+)
+target_include_directories(ddd_player_hardware_tests PRIVATE support)
+
 # T1 — the Qt layer. Its own main() builds a QCoreApplication, so queued connections and
 # timers are delivered when a test pumps the event loop.
 ddd_add_test(ddd_gui_tests "unit"

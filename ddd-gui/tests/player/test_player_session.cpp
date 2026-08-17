@@ -154,6 +154,53 @@ TEST_F(PlayerSessionTest, APortThatWillNotOpenIsReportedAsSuch) {
   EXPECT_FALSE(session_.connected());
 }
 
+// The probe carries the *reason* out, because "could not be opened" is three
+// quite different problems and only one of them is something the user can go
+// and fix. Injected, since a developer's own machine is by definition
+// configured so this never happens on it.
+TEST_F(PlayerSessionTest, ARefusedPortIsToldApartFromAnAbsentOne) {
+  port_.set_open_fails(true);
+  port_.set_open_error(PortOpenError::kNotPermitted);
+
+  const ProbeResult refused = session_.Probe("/dev/ttyUSB0");
+  EXPECT_EQ(refused.status, ProbeResult::Status::kPortUnavailable);
+  EXPECT_EQ(refused.open_error, PortOpenError::kNotPermitted);
+
+  port_.set_open_error(PortOpenError::kMissing);
+  const ProbeResult absent = session_.Probe("/dev/ttyUSB0");
+  EXPECT_EQ(absent.open_error, PortOpenError::kMissing);
+}
+
+// A port that opened says nothing about permissions — the reason field is only
+// meaningful when nothing opened at all, and a stale one would have the
+// interface explaining group membership to somebody whose player simply did not
+// answer.
+TEST_F(PlayerSessionTest, APortThatOpenedCarriesNoOpenFailure) {
+  const ProbeResult result = session_.Probe("/dev/ttyUSB0");
+
+  EXPECT_EQ(result.status, ProbeResult::Status::kNoAnswer);
+  EXPECT_EQ(result.open_error, PortOpenError::kNone);
+}
+
+// A scan is mostly failures, and the one worth reporting is the most specific:
+// six absent ports and one refused is a permission problem, not six missing
+// ones. The rule is PickOpenError's; this is it applied to a real probe, where
+// four rates are tried on the one port and the last of them is not the
+// interesting one.
+TEST_F(PlayerSessionTest, TheMostSpecificOpenFailureIsTheOneReported) {
+  EXPECT_EQ(
+      PickOpenError(PortOpenError::kMissing, PortOpenError::kNotPermitted),
+      PortOpenError::kNotPermitted);
+  EXPECT_EQ(PickOpenError(PortOpenError::kNotPermitted, PortOpenError::kOther),
+            PortOpenError::kNotPermitted);
+
+  // kNone is not a failure and never wins, in either direction.
+  EXPECT_EQ(PickOpenError(PortOpenError::kNone, PortOpenError::kBusy),
+            PortOpenError::kBusy);
+  EXPECT_EQ(PickOpenError(PortOpenError::kBusy, PortOpenError::kNone),
+            PortOpenError::kBusy);
+}
+
 TEST_F(PlayerSessionTest, AFixedRateIsNeverDepartedFrom) {
   // If the user says the player is at 1200, an application that quietly found
   // it at 9600 would leave them with a setting that does not describe their
