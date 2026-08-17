@@ -61,12 +61,9 @@ class CapturePanel : public QWidget {
                         QWidget* parent = nullptr);
 
   // Named so the widget tests can find them without depending on layout order.
-  static constexpr const char* kDeviceComboName = "capture_device_combo";
   static constexpr const char* kMonitorButtonName = "capture_monitor_button";
   static constexpr const char* kCaptureButtonName = "capture_capture_button";
   static constexpr const char* kStatusLabelName = "capture_status_label";
-  static constexpr const char* kDirectoryEditName = "capture_directory_edit";
-  static constexpr const char* kBrowseButtonName = "capture_browse_button";
   static constexpr const char* kNameEditName = "capture_name_edit";
   static constexpr const char* kNamingButtonName = "capture_naming_button";
   static constexpr const char* kFormatComboName = "capture_format_combo";
@@ -123,8 +120,6 @@ class CapturePanel : public QWidget {
   void OnCapturingChanged(bool capturing, const QString& file_path);
   void OnMonitorButtonPressed();
   void OnCaptureButtonPressed();
-  void OnDeviceSelected(int index);
-  void OnBrowsePressed();
 
   // Ask for the naming dialog, where what the disc is gets typed. A button
   // rather than more rows here: those are eight fields set once per disc, and
@@ -140,6 +135,11 @@ class CapturePanel : public QWidget {
 
  private:
   void UpdateEnabledState();
+
+  // Where captures are written, from the settings rather than from a field on
+  // this panel — the folder is chosen in File ▸ Settings… now. Empty with no
+  // controller, which is what the widget tests build with.
+  QString CaptureDirectory() const;
 
   // Colour the two buttons for what they are currently doing: green while
   // monitoring, red while capturing, and the window's own button colour
@@ -172,14 +172,11 @@ class CapturePanel : public QWidget {
 
   CaptureController* controller_ = nullptr;
 
-  QComboBox* device_combo_ = nullptr;
   QPushButton* monitor_button_ = nullptr;
   QPushButton* capture_button_ = nullptr;
   QPushButton* automatic_button_ = nullptr;
   QLabel* status_label_ = nullptr;
 
-  QLineEdit* directory_edit_ = nullptr;
-  QPushButton* browse_button_ = nullptr;
   QLineEdit* name_edit_ = nullptr;
   QPushButton* naming_button_ = nullptr;
   QComboBox* format_combo_ = nullptr;

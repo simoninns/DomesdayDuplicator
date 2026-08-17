@@ -937,6 +937,10 @@ QString ExamineStageName(player::ExamineStage stage) {
       return QObject::tr("Reading the first address");
     case player::ExamineStage::kSettling:
       return QObject::tr("Holding the disc still");
+    case player::ExamineStage::kCheckingTransport:
+      return QObject::tr("Checking whether the disc is still turning");
+    case player::ExamineStage::kSpinningDown:
+      return QObject::tr("Stopping the disc, as it was found");
     case player::ExamineStage::kFinished:
       return QObject::tr("Finished");
   }
@@ -1241,6 +1245,15 @@ QString AutoCaptureStageName(player::AutoCaptureStage stage) {
       return QObject::tr("Locking the player's front panel");
     case player::AutoCaptureStage::kConfirmingDisc:
       return QObject::tr("Checking that this is still the same disc");
+    case player::AutoCaptureStage::kCheckingTransport:
+      // The same question at both of the two moments a stop might follow, but
+      // worded for where it is asked: a stop sent to a disc that is not turning
+      // ejects it, so neither stop goes out unasked.
+      return QObject::tr("Checking whether the disc is already stopped");
+    case player::AutoCaptureStage::kCheckingBeforeStopping:
+      return QObject::tr(
+          "Checking the disc is still turning before stopping "
+          "it");
     case player::AutoCaptureStage::kSpinningDown:
       // Said in full, because a user watching their disc stop when they asked
       // for a capture is entitled to know why.

@@ -120,8 +120,20 @@ struct Script {
     }
 
     const auto found = answers.find(step.stage);
-    return PlayerReplied(found == answers.end() ? Answered("R")
-                                                : found->second);
+    if (found != answers.end()) {
+      return PlayerReplied(found->second);
+    }
+
+    // The two "is the disc turning?" steps default to a playing player, since
+    // that is the ordinary case and the one every other assertion here is
+    // written against. A test about a disc that is *not* turning says so by
+    // scripting the stage itself.
+    if (step.stage == AutoCaptureStage::kCheckingTransport ||
+        step.stage == AutoCaptureStage::kCheckingBeforeStopping) {
+      return PlayerReplied(Answered("P04"));
+    }
+
+    return PlayerReplied(Answered("R"));
   }
 };
 
@@ -158,6 +170,13 @@ std::vector<AutoCaptureStep> Drive(AutoCaptureSequence& sequence,
   }
 
   return steps;
+}
+
+// Did this stage go out at all?
+bool Sent(const std::vector<AutoCaptureStep>& steps, AutoCaptureStage stage) {
+  return std::any_of(
+      steps.begin(), steps.end(),
+      [stage](const AutoCaptureStep& step) { return step.stage == stage; });
 }
 
 std::vector<AutoCaptureStage> Stages(
@@ -224,10 +243,19 @@ TEST(AutoCaptureSequence, AWholeCavSideSpinsDownBeforeItStartsWriting) {
   EXPECT_EQ(sequence.outcome(), AutoCaptureOutcome::kCompleted);
   EXPECT_EQ(Shape(steps), (std::vector<AutoCaptureStage>{
                               AutoCaptureStage::kConfirmingDisc,
+
+                              // Asked before the stop, always: a stop sent to
+                              // a disc that is not turning ejects it.
+                              AutoCaptureStage::kCheckingTransport,
                               AutoCaptureStage::kSpinningDown,
                               AutoCaptureStage::kStartingCapture,
                               AutoCaptureStage::kSpinningUp,
                               AutoCaptureStage::kWatching,
+
+                              // Asked again before the closing stop, because
+                              // "this sequence started the disc" is not the
+                              // same claim as "the disc is moving now".
+                              AutoCaptureStage::kCheckingBeforeStopping,
 
                               // The player first, and the writer after it: the
                               // run-out is not an address, so it reaches the
@@ -299,6 +327,92 @@ TEST(AutoCaptureSequence, AClvSideIsSimplyPlayed) {
   EXPECT_EQ(watch->command, PlayerCommand::kQueryAddress);
 }
 
+// --- The stop that opens the tray ------------------------------------------
+//
+// On a Pioneer player the stop command is Reject, and a Reject sent to a disc
+// that is not turning opens the tray. Everything below is one property stated
+// four ways: **no stop goes out that was not preceded by the player saying the
+// disc is moving.**
+
+// The disc was already parked — which is now the ordinary case, because the
+// examination that precedes a capture puts the player back as it found it.
+// Spinning it down again would eject it, and it is already in the state the
+// spin-down was trying to reach.
+TEST(AutoCaptureSequence, AnAlreadyStoppedDiscIsNotSpunDownAgain) {
+  const DiscProfile disc = CavDisc();
+  AutoCaptureSequence sequence(LevelIIIModel(), "02", WholeSide(disc), disc);
+
+  Script script;
+  script.answers[AutoCaptureStage::kConfirmingDisc] = Answered("10001");
+  script.answers[AutoCaptureStage::kCheckingTransport] = Answered("P01");
+  script.addresses = {"<0000001", "0001000", "0054000"};
+
+  const std::vector<AutoCaptureStep> steps = Drive(sequence, script);
+
+  EXPECT_EQ(sequence.outcome(), AutoCaptureOutcome::kCompleted);
+  EXPECT_TRUE(Sent(steps, AutoCaptureStage::kCheckingTransport));
+  EXPECT_FALSE(Sent(steps, AutoCaptureStage::kSpinningDown))
+      << "a stop was sent to a disc that was not turning";
+
+  // And the capture still happened. Skipping the spin-down is not a refusal:
+  // the disc was stopped, so the spin-up this shape exists to hold is captured
+  // regardless.
+  EXPECT_TRUE(Sent(steps, AutoCaptureStage::kStartingCapture));
+  EXPECT_TRUE(Sent(steps, AutoCaptureStage::kSpinningUp));
+}
+
+// The case the tail used to get wrong. A run can end *because* the player
+// stopped — somebody pressed stop on the front panel, or the stop-with-player
+// coupling fired — and "this sequence started the transport" is still true. A
+// tidy-up that stopped it again would eject the disc that had just been
+// captured.
+TEST(AutoCaptureSequence, APlayerThatStoppedItselfIsNotStoppedAgain) {
+  const DiscProfile disc = CavDisc();
+  AutoCaptureSequence sequence(LevelIIIModel(), "02", WholeSide(disc), disc);
+
+  Script script;
+  script.answers[AutoCaptureStage::kConfirmingDisc] = Answered("10001");
+
+  // Turning at the head, parked by the time the tail asks.
+  script.answers[AutoCaptureStage::kCheckingTransport] = Answered("P04");
+  script.answers[AutoCaptureStage::kCheckingBeforeStopping] = Answered("P01");
+
+  // One address, repeated, so the watch calls it a stall and asks — and the
+  // player says it has stopped, which ends the run.
+  script.addresses = {"0001000"};
+  script.answers[AutoCaptureStage::kCheckingStall] = Answered("P01");
+
+  const std::vector<AutoCaptureStep> steps = Drive(sequence, script);
+
+  EXPECT_EQ(sequence.outcome(), AutoCaptureOutcome::kPlayerStopped);
+  EXPECT_TRUE(Sent(steps, AutoCaptureStage::kCheckingBeforeStopping));
+  EXPECT_FALSE(Sent(steps, AutoCaptureStage::kStoppingPlayer))
+      << "the tidy-up ejected the disc it had just captured";
+
+  // The file is still finalised. The disc stopping is a finding, not a fault.
+  EXPECT_TRUE(Sent(steps, AutoCaptureStage::kStoppingCapture));
+}
+
+// Not knowing is not a licence to send it. A query the player refused leaves
+// the answer at "no", so nothing is stopped — a disc left spinning is a thing
+// somebody can stop themselves, and an ejected one is not.
+TEST(AutoCaptureSequence, ATransportCheckThatIsRefusedSendsNoStop) {
+  const DiscProfile disc = CavDisc();
+  AutoCaptureSequence sequence(LevelIIIModel(), "02", WholeSide(disc), disc);
+
+  Script script;
+  script.answers[AutoCaptureStage::kConfirmingDisc] = Answered("10001");
+  script.answers[AutoCaptureStage::kCheckingTransport] = Refused();
+  script.answers[AutoCaptureStage::kCheckingBeforeStopping] = Refused();
+  script.addresses = {"<0000001", "0001000", "0054000"};
+
+  const std::vector<AutoCaptureStep> steps = Drive(sequence, script);
+
+  EXPECT_EQ(sequence.outcome(), AutoCaptureOutcome::kCompleted);
+  EXPECT_FALSE(Sent(steps, AutoCaptureStage::kSpinningDown));
+  EXPECT_FALSE(Sent(steps, AutoCaptureStage::kStoppingPlayer));
+}
+
 TEST(AutoCaptureSequence, ARangeSeeksToItsStartAndNeverSpinsDown) {
   const DiscProfile disc = CavDisc();
   AutoCaptureSequence sequence(LevelIIIModel(), "02", Range(disc, 1000, 2000),
@@ -318,6 +432,7 @@ TEST(AutoCaptureSequence, ARangeSeeksToItsStartAndNeverSpinsDown) {
                               AutoCaptureStage::kSpinningUp,
                               AutoCaptureStage::kWatching,
                               AutoCaptureStage::kStoppingCapture,
+                              AutoCaptureStage::kCheckingBeforeStopping,
                               AutoCaptureStage::kStoppingPlayer,
                           }));
 

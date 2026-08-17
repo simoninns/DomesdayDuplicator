@@ -186,6 +186,37 @@ void CaptureController::CheckFirmware(
   }
 }
 
+capture::DeviceBuild CaptureController::CurrentDeviceBuild() const {
+  capture::DeviceBuild build;
+
+  const capture::DeviceInfo* const selected = capture::SelectDevice(
+      devices_, settings_.preferred_device_path.toStdString());
+  if (selected != nullptr) {
+    if (const std::optional<std::string> commit =
+            capture::ParseFirmwareCommit(selected->product_string);
+        commit.has_value()) {
+      build.firmware_version = *commit;
+    }
+  }
+
+  // The gateware's answer as it stood when the device was last looked at. Only
+  // where the identity block was actually read: an absent or unconfigured FPGA
+  // leaves this default constructed, and a register map of zero recorded from
+  // that would be a reading rather than the absence of one.
+  if (fpga_version_.present) {
+    build.gateware_register_map = fpga_version_.map_version;
+    if (!fpga_version_.commit.empty()) {
+      // The same "-dirty" convention the application's own stamp uses, so a
+      // reader has one rule for all three versions in the document — see
+      // DeviceBuild::gateware_version.
+      build.gateware_version =
+          fpga_version_.commit + (fpga_version_.dirty ? "-dirty" : "");
+    }
+  }
+
+  return build;
+}
+
 capture::FpgaVersion CaptureController::ReadFpgaVersion(
     const std::string& path) {
   if (device_ == nullptr) {
@@ -352,9 +383,13 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
     options.compression_level = settings_.compression_level;
     options.sample_rate_label = capture::FlacSampleRateLabelFor(decimation);
 
+    const capture::DeviceBuild build = CurrentDeviceBuild();
+
     capture::CaptureProvenance provenance;
     provenance.title = path.filename().string();
     provenance.application_version = std::string(capture::Version());
+    provenance.firmware_version = build.firmware_version;
+    provenance.gateware_version = build.gateware_version;
     provenance.test_mode = settings_.test_mode;
     provenance.decimation_factor = decimation;
     provenance.started = now;
@@ -404,6 +439,7 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
   pending_metadata_.decimation_factor = decimation;
   pending_metadata_.sample_rate_hz = settings_.SampleRateHz();
   pending_metadata_.started = now;
+  pending_metadata_.device = CurrentDeviceBuild();
   pending_metadata_.player = player_identity_;
   pending_metadata_.disc = disc_scan_;
   if (settings_.DeclaredGain().declared()) {

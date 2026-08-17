@@ -60,6 +60,30 @@ TEST_F(CaptureProvenanceTest, ACaptureNamesTheBuildThatProducedIt) {
   EXPECT_EQ(Value(tags, kTagTitle), "RF-Sample_2026-08-13_12-34-56");
 }
 
+// A file that has travelled without its sidecar still says which build of the
+// instrument wrote it — all three parts of it, not only the application.
+TEST_F(CaptureProvenanceTest, ACaptureNamesTheDeviceBuildTheSamplesCameOff) {
+  CaptureProvenance facts = Facts();
+  facts.firmware_version = "bbbbbbbb";
+  facts.gateware_version = "cccccccc";
+
+  const std::vector<FlacWriter::Tag> tags = BuildProvenanceTags(facts);
+
+  EXPECT_EQ(Value(tags, kTagVersion), "abcd1234");
+  EXPECT_EQ(Value(tags, kTagFirmwareVersion), "bbbbbbbb");
+  EXPECT_EQ(Value(tags, kTagGatewareVersion), "cccccccc");
+}
+
+// Firmware predating the embedded hash, or an FPGA that never answered. The
+// tag is left out rather than written empty, on the same rule as every other
+// tag here.
+TEST_F(CaptureProvenanceTest, ADeviceThatNamedNoCommitGetsNoTag) {
+  const std::vector<FlacWriter::Tag> tags = BuildProvenanceTags(Facts());
+
+  EXPECT_FALSE(Value(tags, kTagFirmwareVersion).has_value());
+  EXPECT_FALSE(Value(tags, kTagGatewareVersion).has_value());
+}
+
 // The tag that exists because the container cannot carry the truth. FLAC's
 // sample-rate field stops at 655,350 Hz, so the header says 40,000 and this is
 // the only place the file records that the device ran at forty million.

@@ -174,8 +174,9 @@ Everything on the panel exists somewhere else or moves somewhere better:
 | Status-at-a-glance | The status bar's permanent player label, unchanged |
 
 The top-level **Player menu folds into Tools** as a section: Player control (toggle),
-Search now, Remote control…, Examine disc…, Automatic capture…, Player settings…, above a
-separator from the instrument entries. One player, set up once, is a tool — it does not
+Search now, Remote control…, Examine disc…, Automatic capture…, above a separator from the
+instrument entries. (Player settings… was in this list and was later dropped — see *After
+the plan* below.) One player, set up once, is a tool — it does not
 need a top-level menu any more than it needs a dock. (If the flat Tools menu reads too
 long in practice, promoting the section back to a top-level menu is a one-line change;
 the panel's removal does not depend on the choice.)
@@ -420,3 +421,58 @@ no longer only a remote.
 - The single-source-of-truth settings pattern — every new surface reads and writes
   `SetSettings()` and listens to `SettingsChanged`, never keeping a copy.
 - The non-modality of every player-facing window, and the single-instance rule for each.
+
+## After the plan
+
+Changes made on review, once the whole of it was being used rather than read. Recorded here
+rather than folded into the phases above, because the phases are what was designed and this
+is what using it taught.
+
+**The wizard opened too small.** Each page is a `QScrollArea`, and a scroll area reports a
+small fixed size hint whatever it contains — so the window came up a couple of hundred pixels
+square regardless of the four pages inside it, with page 1 scrolling almost immediately. It
+now opens at 760×820, bounded to 90% of the available screen so it cannot come up with its
+own Next button below the desktop edge. The pages stay scroll areas: page 1 genuinely is
+long, and on a short screen no-scroll would be the worse failure.
+
+**The naming form's opening sentence was incoherent**, and worse, it sat flush under the
+wizard's Capture name field where it read as a description of *that*. Rewritten, and the
+capture name moved into a **What it will be called** group box of its own — two blocks each
+with a heading, because the name is one thing and what the disc is another, even though the
+second can build the first.
+
+**A name already taken now gets " (1)", " (2)"** rather than "_2", and the note beside it
+says the resulting name and nothing else. What happens is what every desktop does with a name
+already in use; the paragraph explaining it was a paragraph nobody needed to read twice. The
+first collision is (1) and not (2), because the number counts the copies rather than the
+files.
+
+**The device and the destination folder left the Capture panel** for the Capture tab of
+File ▸ Settings…. Neither changes once it is set — a Duplicator does not move between USB
+ports and captures do not move between drives — and a control that is set once does not earn
+a row on the panel somebody works from. The panel's device combo was already writing
+`preferred_device_path`, the same value the Settings dialog shows, so this removed a second
+view of one setting rather than moving a setting.
+
+Two consequences handled deliberately. The panel's **status line** is now the only thing it
+says about the device, so it carries the diagnosis as well as the state — a device in recovery
+or on a USB 2 port says so there. And **Free space** names its folder in a tooltip, because
+the number is worth nothing if you cannot tell which volume it is about and the folder is no
+longer on the panel to read off.
+
+*A real regression, caught by an existing test.* The first version asked
+`SelectDevice(…) != nullptr` for "is there a device worth enabling the buttons for", on the
+strength of a comment claiming that was the engine's own question. It is not:
+`DeviceSelection::kCaptureCapable` means "running capture firmware" and says nothing about the
+link, so a device on a USB 2 port passed it and the Start buttons came back to life on a
+device that cannot carry 80 MB/s. Both properties are checked now, which is what the panel's
+own code did before the combo was removed.
+
+**Tools ▸ Player settings… is gone.** It opened File ▸ Settings… on its Player tab — the same
+dialog one menu along, so it bought a saved click and cost a menu entry that read as a second
+place to configure a player. `SettingsDialog::Tab` stays: a caller may still know which half
+somebody is after.
+
+**One wording bug found on the way.** Two strings — the status bar's and the Capture panel's,
+both for a device with no firmware — sent the user to **Help ▸ Firmware…**. That entry is on
+**Tools**, and always has been.

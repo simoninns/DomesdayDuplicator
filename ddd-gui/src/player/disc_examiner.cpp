@@ -47,9 +47,7 @@ void DiscExaminer::BuildPlan() {
   // measured by seeking to both ends of the side. That is the whole difference
   // between the two scopes, and it is why the line is here.
   if (scope_ == ExamineScope::kIdentify) {
-    if (controls_.Has(PlayerCommand::kPause)) {
-      plan_.push_back(ExamineStage::kSettling);
-    }
+    AppendRestoreSteps();
     return;
   }
 
@@ -92,8 +90,27 @@ void DiscExaminer::BuildPlan() {
     plan_.push_back(ExamineStage::kReadingStart);
   }
 
+  AppendRestoreSteps();
+}
+
+void DiscExaminer::AppendRestoreSteps() {
   if (controls_.Has(PlayerCommand::kPause)) {
     plan_.push_back(ExamineStage::kSettling);
+  }
+
+  // Whether this one runs is decided on the day, in Applies(): the plan is
+  // built in the constructor and what the player was doing is not known until
+  // the first query has been answered.
+  //
+  // After the settle rather than instead of it, and the order matters on a
+  // Pioneer player: stop is Reject, and a Reject arriving at a transport that
+  // is already spinning down opens the tray. From a held-still disc it is an
+  // ordinary spin-down, and it is the only stop this examination ever sends.
+  if (controls_.Has(PlayerCommand::kStop)) {
+    if (controls_.Has(PlayerCommand::kQueryActiveMode)) {
+      plan_.push_back(ExamineStage::kCheckingTransport);
+    }
+    plan_.push_back(ExamineStage::kSpinningDown);
   }
 }
 
@@ -108,6 +125,19 @@ bool DiscExaminer::Applies(ExamineStage stage) const {
       // A disc that is already turning does not need starting, and starting it
       // again would cost the ten seconds of a spin-up for nothing.
       return !spinning_;
+
+    case ExamineStage::kCheckingTransport:
+      // No point asking where no stop could follow.
+      return spun_up_here_;
+
+    case ExamineStage::kSpinningDown:
+      // Two conditions, and both are load-bearing. The first: only where this
+      // examination is why the disc is turning — a player that was already
+      // running is left running, because put back means put back, not stopped.
+      // The second: only where the player has just said the disc is moving. A
+      // stop is Reject on a Pioneer player, and a Reject sent to a disc that is
+      // not turning opens the tray.
+      return spun_up_here_ && disc_turning_;
 
     case ExamineStage::kFindingEnd:
     case ExamineStage::kFindingStart:
@@ -185,6 +215,12 @@ ExamineStep DiscExaminer::StepFor(ExamineStage stage) const {
       break;
     case ExamineStage::kSettling:
       step.command = PlayerCommand::kPause;
+      break;
+    case ExamineStage::kCheckingTransport:
+      step.command = PlayerCommand::kQueryActiveMode;
+      break;
+    case ExamineStage::kSpinningDown:
+      step.command = PlayerCommand::kStop;
       break;
     case ExamineStage::kIdle:
     case ExamineStage::kFinished:
@@ -279,7 +315,22 @@ void DiscExaminer::Apply(const Reply& reply) {
     case ExamineStage::kReadingStart:
       ApplyStartAddress(reply);
       break;
+    case ExamineStage::kCheckingTransport:
+      // A refusal or an unreadable answer leaves this false, and that is the
+      // answer to act on: not knowing whether the disc is moving is not a
+      // licence to send the command that opens the tray if it is not.
+      if (reply.ok()) {
+        disc_turning_ =
+            IsSpinning(ParsePlayerState(reply.text, definition_->state_decode));
+      }
+      break;
     case ExamineStage::kSettling:
+    case ExamineStage::kSpinningDown:
+      // Nothing to read from either, and a refusal is not a failure: the
+      // examination's findings are already in hand, and a player that will not
+      // be tidied up after is a fact about the player rather than about the
+      // disc.
+      break;
     case ExamineStage::kIdle:
     case ExamineStage::kFinished:
       break;
@@ -331,6 +382,10 @@ void DiscExaminer::ApplySpinningUp(const Reply& reply) {
   if (reply.ok()) {
     profile_.disc_present.Record(true, Provenance::kMeasured);
     profile_.tray.Record(TrayState::kClosed, Provenance::kInferred);
+
+    // This examination is now the reason the disc is turning, so it is this
+    // examination's job to stop it again — see kSpinningDown.
+    spun_up_here_ = true;
   }
 }
 

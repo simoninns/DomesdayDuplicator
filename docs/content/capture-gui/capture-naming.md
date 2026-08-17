@@ -137,6 +137,20 @@ point** rather than the length having been guessed at the start. The metadata fi
 written beside it under the new name. Letters between the fields rather than colons, because
 a colon is not a legal filename character on Windows.
 
+### If the name is already there
+
+`Casper_side2` becomes `Casper_side2 (1)`, then `(2)`, and so on — the convention every
+desktop uses for a name already in use, and the reason for following it is that it needs no
+explaining. **A capture has never overwritten another**, and now it says the name it is going
+to use instead, as you type it, rather than after the file has been written.
+
+That matters most for a typed name, because a typed name has no timestamp in it: the second
+capture of `Casper side 1` is the ordinary case rather than an edge one. Two files nobody can
+tell apart later is a slower way to lose a capture than overwriting one, but it is not a much
+slower way.
+
+### If the rename fails
+
 If the rename fails for any reason, the recording keeps the name it already has and the
 reason goes in the [Log](main-window.md) panel. A cosmetic disappointment is never allowed
 to become a lost session.
@@ -172,10 +186,11 @@ a field that was never encoded — are written as `\x00` escapes rather than dro
 | Key | What it holds |
 | --- | --- |
 | `schema_version` | `1`. Incremented when a field changes meaning, never when one is added — a reader must keep working against a file with more in it than it knows about |
-| `application_version` | The build that produced the capture |
+| `application_version` | The build of the *application* that produced the capture. The device's own two builds are in `device` below |
 | `capture` | The capture itself |
 | `signal` | What the signal looked like — only when there was any |
 | `naming` | What you said the disc was |
+| `device` | What the Duplicator was running |
 | `player` | What the player said about itself |
 | `disc` | What an examination of the disc found |
 
@@ -220,6 +235,36 @@ cannot raise the maximum recorded against the recording.
 `title`, `disc_type`, `video_standard`, `audio`, `side`, `notes`, `mint_marks`,
 `metadata_notes` — each present only when its box was ticked, and spelled out in full where
 the file name gets an abbreviation (`Analogue`, not `ANA`).
+
+### `device`
+
+| Key | What it holds |
+| --- | --- |
+| `firmware_version` | The commit the Duplicator's FX3 firmware was built from |
+| `gateware_version` | The commit its FPGA gateware was built from |
+| `gateware_register_map` | Which version of the gateware's register interface it implements |
+
+**A capture is the product of three builds, not one**: this application,
+the firmware in the Duplicator's USB chip, and the gateware in its FPGA. A release builds all
+three from one commit, so the ordinary case is three fields that agree — and the reason to
+record them is the case where they do not. When a capture turns out to have something wrong
+with it, the first question is which build produced it, and the gateware in particular is
+where sample loss, decimation and the sequence markers all live.
+
+`application_version` is at the top of the document rather than in here, because the
+application is what wrote the document; these two are about the machine on the other end of
+the cable, which is why they sit beside `player` rather than above it.
+
+Each is absent when the device did not say — firmware too old to carry an embedded commit, an
+FPGA that had not finished configuring, or gateware predating the identity register. None of
+those is an error. `gateware_register_map` is the one identification available from gateware
+old enough to carry no commit at all, which is why it is kept beside the hash rather than
+folded into it.
+
+A gateware built from a tree with uncommitted changes carries a **`-dirty`** suffix, the same
+convention `application_version` uses: a bare commit hash asserts that a published build
+produced this file, and for a modified tree that is not true. All three version fields
+therefore read the same way, so a reader has one rule rather than one per field.
 
 ### `player`
 
@@ -323,6 +368,11 @@ examination at all.
   "mint_marks": "NM"
   "metadata_notes": "Slight rot at the outer edge of side 2."
 
+"device":
+  "firmware_version": "a1b2c3d4"
+  "gateware_version": "a1b2c3d4"
+  "gateware_register_map": 2
+
 "player":
   "model_name": "Pioneer LD-V4300D"
   "model_id_code": "P15"
@@ -360,8 +410,8 @@ print(metadata["capture"]["sample_rate_hz"])
 print(metadata["disc"].get("disc_side", {}).get("value"))
 ```
 
-Use `.get()` for anything under `naming`, `player` and `disc`. Those fields are absent when
-nothing established them, which is the ordinary case rather than the exception.
+Use `.get()` for anything under `naming`, `device`, `player` and `disc`. Those fields are
+absent when nothing established them, which is the ordinary case rather than the exception.
 
 ## If the metadata file cannot be written
 

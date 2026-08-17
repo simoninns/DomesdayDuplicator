@@ -1,7 +1,8 @@
 # Capture control
 
-The **Capture** panel is the one that starts things: which device, where the file goes, and
-the buttons.
+The **Capture** panel is the one that starts things: what the capture is called, what it is
+written as, and the buttons. Which device and which folder are set once in
+[Settings](settings.md) — see [below](#where-the-device-and-the-folder-went).
 
 ## Monitoring and capturing
 
@@ -36,16 +37,19 @@ The red says *recording* — it is a normal state, not a fault.
 absent, so that a panel with no player attached still says the path exists. It opens the
 [four-page workflow](player-control.md#capturing-a-side-by-itself) that examines the disc,
 names the capture from what it found, takes the side, and reports what was written. It is a
-way into that window rather than a mode the panel enters: the folder, format and sample rate
-below are the same settings the workflow's own second page shows, and the two cannot
-disagree.
+way into that window rather than a mode the panel enters: the format and sample rate below
+are the same settings the workflow's own second page shows, and the two cannot disagree.
 
-## Device
+## Where the device and the folder went
 
-Every Duplicator the application can see, listed by its device path. When only one is
-attached — which is almost everyone — there is nothing to choose.
+Both are on the **Capture** tab of **File ▸ Settings…** rather than on this panel. Neither
+changes once it is set — a Duplicator does not move between USB ports and captures do not
+move between drives — and a control that is set once does not earn a row on the panel you
+work from.
 
-The list says what is wrong with a device rather than hiding it:
+**Which device.** *Preferred device* in Settings, which offers *Whichever is attached* by
+default and is what almost everybody leaves it at. The list names what is wrong with a device
+rather than hiding it:
 
 | Entry | What it means |
 | --- | --- |
@@ -55,31 +59,21 @@ The list says what is wrong with a device rather than hiding it:
 
 A device with no firmware is listed rather than hidden. Reporting "no device attached" to
 somebody looking straight at one is exactly the moment they most need to be told what to do
-next.
+next — which is why the **Status** line at the bottom of this panel says the same thing
+without your having to open Settings at all.
 
-The choice is remembered. If you always use the same port, [Settings](settings.md) has a
-**Preferred device** that survives restarts.
+**Where the file goes.** *Folder* in Settings, with a `Browse…` beside it. It defaults to the
+platform's Movies or Videos folder — a capture is tens of gigabytes of media, and that is the
+location a machine's backup rules and disk-space expectations are already built around.
 
-The list is locked while the stream is running: the device is open, and it cannot be changed
-without stopping.
+The **Free space** row below stays on this panel, because it is live and it is about the
+capture you are about to take. Hover it and it names the volume it is talking about.
 
-Test mode lives on the **Tools** menu rather than here — it is a diagnostic rather than part
-of setting up a capture. The full procedure, and how to check a test capture afterwards, is
-on [Test mode and integrity checking](test-mode.md).
+Test mode lives on the **Tools** menu, for the same kind of reason: it is a diagnostic rather
+than part of setting up a capture. The full procedure, and how to check a test capture
+afterwards, is on [Test mode and integrity checking](test-mode.md).
 
-## Where it goes
-
-### Folder
-
-Where captures are written. `Browse…` picks one, or type a path.
-
-It defaults to the platform's Movies or Videos folder — a capture is tens of gigabytes of
-media, and that is the location a machine's backup rules and disk-space expectations are
-already built around.
-
-The folder can be changed while monitoring, which is when somebody is setting up for the
-capture they are about to take. It is fixed for the duration of a capture, because the file
-is already open.
+## What each capture is called
 
 ### Name
 
@@ -218,7 +212,9 @@ a shortfall would sometimes be wrong in the direction that costs a session.
 
 ### Free space
 
-How much longer this volume will hold a capture, with the byte figure after it.
+How much longer this volume will hold a capture, with the byte figure after it. Hover it and
+it names the folder it is talking about — that folder is in [Settings](settings.md) now, so
+the row says which volume it means rather than leaving you to remember.
 
 The time comes first because it is the question people actually have. "412 GB free" does not
 tell you whether this will last the side you are about to play; "2:51:40 of capture" does.
@@ -228,8 +224,9 @@ which is what one writes on average, 80 MB/s uncompressed, and half of either wh
 decimating. The same volume therefore holds four times as much 20 Msps FLAC as 40 Msps
 uncompressed, and the readout says so.
 
-An unknown figure means the folder does not exist yet, which is an ordinary thing to have
-typed on the way to creating it — it is not reported as a full disk.
+An unknown figure means the folder does not exist yet, which is an ordinary thing to have on
+the way to creating it — it is not reported as a full disk. It names the folder when it says
+so, because you cannot read it off this panel.
 
 ## Status
 

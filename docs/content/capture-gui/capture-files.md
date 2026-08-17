@@ -79,11 +79,26 @@ later travel with it rather than in somebody's notes:
 | `DATE` | When it started, ISO 8601 |
 | `ENCODER` | What wrote it |
 | `DDD_VERSION` | The build of the application that produced it |
+| `DDD_FIRMWARE_VERSION` | The commit the Duplicator's FX3 firmware was built from — only when the device said |
+| `DDD_GATEWARE_VERSION` | The commit its FPGA gateware was built from, on the same terms |
 | `DDD_SAMPLE_RATE_HZ` | `40000000` — the real rate, which the FLAC header cannot express |
 | `DDD_TEST_MODE` | Whether this is signal or a test ramp |
 | `DDD_FRONT_END_GAIN` | The declared SW401 position — **only when one was actually declared** |
 
-That last row is the one worth understanding. The tag is written only if a
+**Three versions rather than one**, because a capture is the product of three things built
+from one commit: this application, the firmware in the Duplicator's USB chip, and the
+gateware in its FPGA. In a release they agree, so what these are for is the case where they
+do not — a device that was never updated, or a gateware built on the bench. When a capture
+turns out to have something wrong with it, "which build wrote this" is the first question,
+and the gateware is where sample loss, decimation and the sequence markers all live.
+
+A version that is absent means the device did not say: firmware old enough to predate the
+embedded commit, an FPGA that had not finished configuring, or gateware older than the
+identity register. A gateware built from a tree with uncommitted changes carries a `-dirty`
+suffix, the same way the application's own stamp does — a bare commit hash would assert that
+a published build produced the file, and for a modified tree that is not true.
+
+The front-end gain row is the other one worth understanding. The tag is written only if a
 [front-end gain](settings.md#front-end-gain) was declared: a capture carrying a default gain
 figure nobody had checked would look like calibration data and would be wrong, which is
 worse than a capture that says nothing and forces the question to be asked.

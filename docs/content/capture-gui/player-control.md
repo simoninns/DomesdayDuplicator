@@ -18,12 +18,15 @@ on screen, and the status bar says whether it is connected.
 | **Remote control…** | The player window: transport, connection, disc codes, manual commands |
 | **Examine disc…** | Find out what is in the player, and report it |
 | **Automatic capture…** | The four-page workflow that takes a side by itself |
-| **Player settings…** | Model, port, speed, and the ports never to open |
+
+Player *settings* — which model, which port, which speed, the ports never to open — are on
+the **Player** tab of **File ▸ Settings…**, because they are configuration rather than
+something you do to a player.
 
 ## Turning it on
 
-**Tools ▸ Player control**, or the *Look for a LaserDisc player* box in
-**Tools ▸ Player settings…**.
+**Tools ▸ Player control**, or the *Look for a LaserDisc player* box on the **Player** tab of
+**File ▸ Settings…**.
 
 The rest of that settings page is optional and every field defaults to "work it out":
 
@@ -187,8 +190,14 @@ not look alike, and anything that could not be established reads *not known* rat
 a blank or a zero. A player that refuses half of these still produces a usable report with
 the other half in it.
 
-The report is copyable — it is meant to be pasted into an issue — and the examination leaves
-the disc held still at the start of the side rather than playing.
+The report is copyable — it is meant to be pasted into an issue.
+
+**The player is put back the way it was found.** The examination has to spin the disc up to
+ask most of these questions, so if it was stopped when you started it is stopped again at the
+end. A disc that was already playing is left turning and held still rather than stopped —
+putting it back means putting it back, and stopping a disc somebody had running would be as
+much of a change as leaving one spinning that they had not. Either way the disc ends up at
+the start of the side, because that is where the last measurement leaves it.
 
 This window is the diagnostic rather than the way to a capture. If all you want is the
 capture, go straight to **Automatic capture…**, which examines the disc as its first step.
@@ -202,7 +211,10 @@ second time.
 or the button of that name on an examine report. All three open the same window, and only
 one of it exists at a time.
 
-Four pages, **Previous** and **Next**:
+Four pages. **Previous** and **Next** are at the bottom right; **Close** is at the bottom
+*left*, the width of the window away from them, because a Close sitting beside a Next is a
+few pixels and one word away from the button you meant — and on the last page of a
+forty-minute capture that is an expensive slip.
 
 ### 1. What is in the player
 
@@ -210,9 +222,12 @@ The examination starts by itself when you arrive here, because choosing an autom
 has already said what should happen first. It reports what it found, and **Examine again** is
 there for when you have changed the disc.
 
-Below the report, the same naming fields the **Naming…** dialog has, prefilled from what the
-disc turned out to be, and the capture name — also prefilled, and resolved against the folder
-you are writing to, so the suggestion is never a name the file will not get.
+Below the report, two blocks. **What it will be called** is the capture name, prefilled and
+resolved against the folder you are writing to, so the suggestion is never a name the file
+will not get. Under it, the same naming fields the **Naming…** dialog has — what the disc is
+— also prefilled from what the examination found. The two are separate because they are
+separate things: the name is what the file is called, and the fields are what the disc is,
+even though the second can build the first.
 
 **Next** is available once the disc's type and the measured end of the side are both known.
 Those are what a plan is built from, and a page that let you past without them would offer
@@ -220,10 +235,21 @@ everything on the next page and then refuse all of it.
 
 ### 2. What to capture, and where to put it
 
-The plan, and the destination — folder, format and sample rate — together, so that setting up
-a capture does not mean a detour to the Capture panel and back. Those three are the same
-settings that panel shows: change one here and it changes there, because there is one
-settings file and not two.
+The plan, and the destination — folder and format — together, so that setting up a capture
+does not mean a detour to the Capture panel and back. Both are the same settings that panel
+shows: change one here and it changes there, because there is one settings file and not two.
+
+**The sample rate is stated rather than offered: 40 MSPS, a LaserDisc's full rate.** The
+20 MSPS setting exists for VHS and other tape formats, whose RF is a fraction of a
+LaserDisc's bandwidth, and this window drives a LaserDisc player — a decimated capture here
+would fold everything above 10 MHz down on top of the signal, and nothing downstream could
+tell the alias from the disc. If the Capture panel was left at 20 MSPS from some tape work,
+opening this window puts it back to 40.
+
+The one case it cannot fix is a stream that is already running: the rate is written to the
+device before the stream opens and cannot be changed under a running one. If you are
+monitoring at 20 MSPS, this page says so and asks you to stop monitoring first, rather than
+quietly taking the capture at half rate.
 
 Three shapes, and they are the three a player can actually be asked for:
 
@@ -243,8 +269,15 @@ There is no "capture the lead-in" option, because no command puts a player on th
 The two shapes that hold it get it by starting the capture before the disc.
 
 The addresses offered are in the units the examined disc actually uses — frames for a CAV
-disc, time codes for a CLV one, never both — and they are bounded by the length that was
-just measured, so a range that cannot exist cannot be typed. Where the examination could not
+disc, a time for a CLV one, never both — and they are bounded by the length that was just
+measured, so a range that cannot exist cannot be typed.
+
+A time is entered as **its own fields**, each saying which unit it is: minutes and seconds,
+with an hours box added only for a side that runs past the hour, which almost none do. There
+is no `0:00:00` box to get the colons and the leading zero right in — a format somebody has
+to get right before the application will accept it is a format that will be got wrong. The
+minutes box stops at the measured length of the side, and the seconds box stops at 59, so
+"1:99" is not something you can type and then be told off for. Where the examination could not
 establish the video standard, this page asks for it; where it could, it does not.
 
 Two options here rather than in the settings dialog, because they are decisions about this
@@ -254,7 +287,8 @@ capture:
   halfway through a side. It is released afterwards.
 - **Stop the capture when the player stops** — the one coupling between the two, described
   [below](#the-coupling-and-the-direction-it-does-not-run-in). It is the same setting as the
-  one in **Player settings…**; changing it in either place changes it in both.
+  one on the **Player** tab of **File ▸ Settings…**; changing it in either place changes it
+  in both.
 
 Under them, the estimate: how long the capture will take and how much it will write, against
 the free space where it is going. **Next** is available while the plan is one that can be
@@ -287,7 +321,8 @@ is two clicks rather than a second walk through everything.
 Other things worth knowing:
 
 - **The capture name** is prefilled from what the disc turned out to be. If that name is
-  already taken you are told before anything is written — and nothing is ever overwritten.
+  already taken you are told what the file will be called instead — `Casper side 1 (1)`, the
+  way every desktop handles a name already in use. Nothing is ever overwritten.
 - The disc's facts — model, type, size, side, standard, programme bounds — are written into
   the capture's own metadata, so the file says which side of which disc it is. Each one
   carries how it was established; see [Naming and metadata](capture-naming.md#disc).
@@ -298,8 +333,8 @@ Other things worth knowing:
 
 ## The coupling, and the direction it does not run in
 
-There is one setting, in **Player settings…** and also on the automatic capture's second
-page:
+There is one setting, on the **Player** tab of **File ▸ Settings…** and also on the automatic
+capture's second page:
 
 **Stop the capture when the player stops** — **off** by default, deliberately. A player that
 briefly reports a stopped transport mid-side would otherwise truncate a good capture. It is
@@ -318,12 +353,27 @@ application is the thing operating the player; a manual capture is you operating
 
 !!! warning "Nothing ejects a disc by itself"
 
-    On a Pioneer player the stop command is **Reject** (`RJ`), and a Reject arriving while
-    the disc is already spinning down opens the tray. An automatic capture therefore sends at
-    most one stop per run, and only to a transport it started itself. The tray commands
-    (`OP`, `CO`) exist only on the [player window](#the-player-window), where a person
-    presses them — a machine ejecting a disc unasked, with nobody necessarily in the room, is
-    not something this application does.
+    On a Pioneer player the stop command is **Reject** (`RJ`), and a Reject sent to a disc
+    that is **not** turning opens the tray. So the rule everything automatic here follows is:
+    **nothing sends a stop to a player it has not just asked about.**
+
+    Immediately before every stop — the one that spins a disc down so its spin-up can be
+    captured, the one that ends an automatic capture, and the one that puts a player back
+    after an examination — the application asks the player what it is doing, and sends the
+    stop only if the answer is that the disc is moving. If the player refuses the question,
+    or the model cannot be asked, no stop is sent: a disc left spinning is something you can
+    stop yourself, and an ejected one is not.
+
+    That matters because "the application started this disc" is not the same as "this disc
+    is still turning". You can stop it from the player's own front panel halfway through a
+    side; a run can end *because* the player stopped, which is an ordinary outcome and one of
+    the two things [the coupling](#the-coupling-and-the-direction-it-does-not-run-in) exists
+    to produce. Without the check, the tidy-up at the end of those runs would eject the disc
+    that had just been captured.
+
+    The tray commands (`OP`, `CO`) exist only on the [player window](#the-player-window),
+    where a person presses them — a machine ejecting a disc unasked, with nobody necessarily
+    in the room, is not something this application does.
 
 ## Which players have actually been tested
 

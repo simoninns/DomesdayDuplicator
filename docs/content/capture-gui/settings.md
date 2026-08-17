@@ -1,19 +1,48 @@
 # Settings
 
 **File → Settings…** holds the things that are set once and left alone. Everything to do with
-an individual capture — the folder, the name, the compression, the duration limit — is in the
+an individual capture — the name, the format, the compression, the duration limit — is in the
 [Capture panel](capture-control.md) instead, where it is visible while you work.
 
-Its **Capture** tab is below. Its **Player** tab — which model, which serial port, which
-speed, the ports never to open, and the one coupling between player and capture — is on
-[Player control](player-control.md), beside the rest of what it configures. **Tools ▸ Player
-settings…** opens the dialog directly on it.
+Its **Capture** tab is below, and it opens with the two that used to be on that panel:
+**Folder** and **Preferred device**. They moved here because neither changes once it is set —
+a Duplicator does not move between USB ports and captures do not move between drives — and a
+control that is set once does not earn a row on the panel you work from.
+
+Its **Player** tab — which model, which serial port, which speed, the ports never to open,
+and the one coupling between player and capture — is documented on
+[Player control](player-control.md), beside the rest of what it configures.
 
 !!! note "When each one takes effect"
 
     The buffer and transfer settings resize things a running capture is using, so they apply
     to the **next** capture. The front-end gain declaration only changes what a number is
     labelled, so it applies **at once**, including to a capture already running.
+
+## Folder
+
+Where captures are written. `Browse…` picks one, or type a path.
+
+It defaults to the platform's Movies or Videos folder — a capture is tens of gigabytes of
+media, and that is the location a machine's backup rules and disk-space expectations are
+already built around.
+
+The **Free space** row on the [Capture panel](capture-control.md#free-space) is about this
+folder, and names it in its tooltip.
+
+## Preferred device
+
+Which Duplicator to use, when more than one is attached. **Whichever is attached** is the
+default and is what almost everybody leaves it at.
+
+The list names what is wrong with a device rather than hiding it — *recovery mode, no
+firmware installed* for one whose USB chip has nothing to run, *connected at insufficient
+speed* for one below SuperSpeed. Both are still offered, because both are the same physical
+port: one is a programming away from working and the other a cable.
+
+The [Capture panel's](capture-control.md) status line reports the same diagnosis for whichever
+device is actually selected, so a device that cannot capture says so without your opening this
+dialog.
 
 ## Buffer queue
 
@@ -47,14 +76,6 @@ during that gap.
 
 Change it only in response to a specific failure: *this machine did not keep a read request
 outstanding* is the message that points here.
-
-## Preferred device
-
-Which Duplicator to open when several are attached. **Whichever is attached** — the default
-— is right for almost everyone.
-
-A device in recovery mode can be preferred too. It is the same physical port, and it will be
-a capture device again once it has been programmed.
 
 ## Front-end gain
 

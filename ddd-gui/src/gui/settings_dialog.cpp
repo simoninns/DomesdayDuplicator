@@ -14,9 +14,13 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QFileDialog>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
+#include <QPushButton>
 #include <QSet>
 #include <QTabWidget>
 #include <QVBoxLayout>
@@ -92,6 +96,39 @@ QWidget* SettingsDialog::BuildCapturePage(
   auto* layout = new QVBoxLayout(page);
   auto* form = new QFormLayout();
 
+  // First, because it is the one setting on this tab that is about the work
+  // rather than about the machine — and it moved here from the Capture panel
+  // for the reason the rest of this dialog exists: a capture drive is chosen
+  // once and then left, and a control that is set once does not earn a row on
+  // the panel somebody works from.
+  auto* directory_row = new QWidget(page);
+  auto* directory_layout = new QHBoxLayout(directory_row);
+  directory_layout->setContentsMargins(0, 0, 0, 0);
+
+  directory_ = new QLineEdit(directory_row);
+  directory_->setObjectName(QLatin1String(kDirectoryEditName));
+  directory_->setText(capture_.ResolvedCaptureDirectory());
+  directory_->setToolTip(
+      tr("Where captures are written. It defaults to this platform's Movies "
+         "or Videos folder, because a capture is tens of gigabytes of media "
+         "and that is the location a machine's backup rules and disk-space "
+         "expectations are already built around."));
+  directory_layout->addWidget(directory_, 1);
+
+  auto* browse = new QPushButton(tr("Browse…"), directory_row);
+  browse->setObjectName(QLatin1String(kBrowseButtonName));
+  directory_layout->addWidget(browse);
+
+  connect(browse, &QPushButton::clicked, this, [this] {
+    const QString chosen = QFileDialog::getExistingDirectory(
+        this, tr("Where captures are written"), directory_->text());
+    if (!chosen.isEmpty()) {
+      directory_->setText(chosen);
+    }
+  });
+
+  form->addRow(tr("Folder"), directory_row);
+
   queue_size_ = new QComboBox(page);
   queue_size_->setObjectName(QLatin1String(kQueueSizeComboName));
   for (const QueueChoice& choice : kQueueChoices) {
@@ -121,11 +158,21 @@ QWidget* SettingsDialog::BuildCapturePage(
   for (const ddd::capture::DeviceInfo& info : devices) {
     const QString path = QString::fromStdString(info.path);
 
-    // Named for what it is, as in the Capture panel's list. A device in
-    // recovery mode can still be preferred — it is the same physical port,
-    // and it will be a capture device again once it has been programmed.
-    device_->addItem(path + DeviceListPersonalitySuffix(info.personality),
-                     path);
+    // Named for what it is, and this is now the only list of attached devices
+    // in the application, so it carries both annotations rather than only the
+    // one. A device in recovery mode can still be preferred — it is the same
+    // physical port, and it will be a capture device again once it has been
+    // programmed — and so can one on a USB 2 port, which is a cable away from
+    // working.
+    QString label = path;
+    if (!info.is_application()) {
+      label += DeviceListPersonalitySuffix(info.personality);
+    } else if (!info.CanCarryCapture()) {
+      label += tr(" — connected at insufficient speed (%1)")
+                   .arg(QString::fromUtf8(
+                       ddd::capture::DeviceSpeedName(info.speed)));
+    }
+    device_->addItem(label, path);
     if (path == capture_.preferred_device_path) {
       device_->setCurrentIndex(device_->count() - 1);
     }
@@ -320,6 +367,7 @@ CaptureSettings SettingsDialog::Settings() const {
       static_cast<size_t>(queue_size_->currentData().toULongLong());
   result.small_transfers = transfer_mode_->currentData().toBool();
   result.preferred_device_path = device_->currentData().toString();
+  result.capture_directory = directory_->text();
   result.front_end_gain_switches =
       static_cast<uint8_t>(front_end_gain_->currentData().toUInt() & 0xFFU);
   return result;

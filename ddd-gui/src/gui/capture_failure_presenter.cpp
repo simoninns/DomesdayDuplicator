@@ -207,10 +207,11 @@ QString CaptureNameTakenNote(const QString& written) {
     return QString();
   }
 
-  return Translate(
-             "A capture of that name is already there. This one will be "
-             "written as \u201c%1\u201d — nothing is overwritten.")
-      .arg(written);
+  // Just the name it will get. What happens is the thing every desktop does
+  // with a name already in use, so it needs no explaining — and the one piece
+  // of information the field above cannot show is what the file will actually
+  // be called.
+  return Translate("Already taken — this will be \u201c%1\u201d.").arg(written);
 }
 
 }  // namespace ddd::gui

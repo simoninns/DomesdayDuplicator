@@ -199,26 +199,28 @@ TEST_F(UniqueNameTest, AnExistingCaptureIsNeverOverwritten) {
   EXPECT_NE(second, wanted);
   EXPECT_FALSE(std::filesystem::exists(second));
 
-  // The number goes before the compound suffix, not inside it: taking
-  // extension() off would leave ".ddd" behind and produce "capture.ddd_2.flac",
-  // which no tool would recognise as a capture.
-  EXPECT_EQ(second.filename().string(), "capture_2.ddd.flac");
+  // " (1)" and not "_2": the convention every desktop uses, so nobody has to
+  // be told what it means, and the number counts the copies rather than the
+  // files. And it goes before the compound suffix, not inside it — taking
+  // extension() off would leave ".ddd" behind and produce
+  // "capture.ddd (1).flac", which no tool would recognise as a capture.
+  EXPECT_EQ(second.filename().string(), "capture (1).ddd.flac");
 
   Touch(second);
   EXPECT_EQ(MakeUniqueCapturePath(wanted).filename().string(),
-            "capture_3.ddd.flac");
+            "capture (2).ddd.flac");
 }
 
 // The number goes in front of whichever compound suffix the path carries. The
 // format is read off the path rather than passed in, so this has to recognise
-// both — an uncompressed capture named "capture.ddd_2.s16" would be as
-// unrecognisable as "capture.ddd_2.flac" is.
+// both — an uncompressed capture named "capture.ddd (1).s16" would be as
+// unrecognisable as "capture.ddd (1).flac" is.
 TEST_F(UniqueNameTest, TheUncompressedSuffixIsKeptWholeToo) {
   const std::filesystem::path wanted = directory_ / "capture.ddd.s16";
   Touch(wanted);
 
   EXPECT_EQ(MakeUniqueCapturePath(wanted).filename().string(),
-            "capture_2.ddd.s16");
+            "capture (1).ddd.s16");
 }
 
 // --- Where a capture really goes -------------------------------------------
@@ -244,7 +246,7 @@ TEST_F(UniqueNameTest, ATakenNameResolvesToTheNameThatWillReallyBeUsed) {
   // Never an overwrite, and now never a silent one either: the stem is what an
   // interface shows, so the name on screen is the name on disk.
   EXPECT_FALSE(destination.as_requested);
-  EXPECT_EQ(destination.stem, "Casper side 1_2");
+  EXPECT_EQ(destination.stem, "Casper side 1 (1)");
   EXPECT_NE(destination.path, first);
   EXPECT_TRUE(std::filesystem::exists(first));
 }

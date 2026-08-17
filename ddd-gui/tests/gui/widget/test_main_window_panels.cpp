@@ -390,11 +390,17 @@ TEST_F(MainWindowTest, EveryPlayerEntryIsUnderTools) {
   for (const QString& entry :
        {QStringLiteral("Player control"), QStringLiteral("Search now"),
         QStringLiteral("Remote control"), QStringLiteral("Examine disc"),
-        QStringLiteral("Automatic capture"),
-        QStringLiteral("Player settings")}) {
+        QStringLiteral("Automatic capture")}) {
     EXPECT_NE(EntryNamed(tools, entry), nullptr)
         << "no " << entry.toStdString() << " entry under Tools";
   }
+
+  // And no "Player settings…", which opened File ▸ Settings… on its Player
+  // tab: the same dialog one menu along, so it bought nothing but a saved
+  // click and cost a menu entry that read as a second place to configure a
+  // player. This menu is what you do to a player; the dialog is what you set
+  // about one.
+  EXPECT_EQ(EntryNamed(tools, QStringLiteral("Player settings")), nullptr);
 
   // The player's own state, so its entry has to show whether it is on.
   QAction* const control = EntryNamed(tools, QStringLiteral("Player control"));

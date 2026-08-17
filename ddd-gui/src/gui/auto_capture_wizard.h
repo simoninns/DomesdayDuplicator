@@ -115,7 +115,11 @@ class AutoCaptureWizard : public QDialog {
   static constexpr const char* kDirectoryEditName = "wizard_directory";
   static constexpr const char* kBrowseButtonName = "wizard_browse";
   static constexpr const char* kFormatComboName = "wizard_format";
-  static constexpr const char* kSampleRateComboName = "wizard_sample_rate";
+  // A statement rather than a choice — see the definition. The warning beside
+  // it appears only where a running stream has already fixed the rate at half.
+  static constexpr const char* kSampleRateLabelName = "wizard_sample_rate";
+  static constexpr const char* kSampleRateWarningName =
+      "wizard_sample_rate_warning";
 
   static constexpr const char* kRunStatusLabelName = "wizard_run_status";
   static constexpr const char* kRunProgressName = "wizard_run_progress";
@@ -164,6 +168,13 @@ class AutoCaptureWizard : public QDialog {
   void SetRunProgress(ddd::player::AutoCaptureStage stage, int address);
   void SetRunResult(ddd::player::AutoCaptureOutcome outcome);
 
+  // Escape. Public, as it is on QDialog — narrowing it here would only mean the
+  // tests could not reach the one path a user reaches with one keystroke.
+  //
+  // Overridden because it is a second way out and QDialog::reject() raises no
+  // close event, so the guard in closeEvent would never see it.
+  void reject() override;
+
  protected:
   // Refused while a capture is running. See the definition.
   void closeEvent(QCloseEvent* event) override;
@@ -175,6 +186,11 @@ class AutoCaptureWizard : public QDialog {
   QWidget* BuildSummaryPage();
 
   void ShowPage(Page page);
+
+  // Say why leaving is not on offer, and whether it was refused. One function
+  // for both ways out, so the two cannot end up disagreeing about when a run is
+  // interruptible.
+  bool RefuseWhileRunning();
 
   // Build the plan controls for the disc now in hand, replacing whatever was
   // there. It has to be a rebuild rather than an update: a CAV disc is offered
@@ -194,6 +210,14 @@ class AutoCaptureWizard : public QDialog {
   // Read the destination controls into the settings, and back.
   void ApplyCaptureSettings();
   void ShowCaptureSettings();
+
+  // Put the capture settings back to a LaserDisc's full rate, which is the only
+  // rate this window captures at.
+  void ForceFullSampleRate();
+
+  // Say when a running stream has already fixed the rate at half, because
+  // nothing this window does can change it back until that stream is stopped.
+  void ShowSampleRateWarning();
 
   // Where a capture named by the field would actually be written, and what to
   // say when that is not the name that was asked for.
@@ -244,7 +268,8 @@ class AutoCaptureWizard : public QDialog {
   QLineEdit* directory_edit_ = nullptr;
   QPushButton* browse_button_ = nullptr;
   QComboBox* format_combo_ = nullptr;
-  QComboBox* sample_rate_combo_ = nullptr;
+  QLabel* sample_rate_label_ = nullptr;
+  QLabel* sample_rate_warning_ = nullptr;
 
   // --- The capture page -----------------------------------------------------
 

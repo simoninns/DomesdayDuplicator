@@ -41,6 +41,17 @@ enum class AutoCaptureStage : uint8_t {
   // mean anything on the disc that was measured.
   kConfirmingDisc,
 
+  // Is the disc turning? Asked before the step below, and only before that
+  // step.
+  //
+  // **This exists because the stop below is dangerous.** On a Pioneer player
+  // stop is Reject, and a Reject arriving at a transport that is already
+  // stopped or spinning down opens the tray. So the sequence has to know before
+  // it can safely send one — and it cannot assume, because the disc examination
+  // that usually precedes a capture now leaves the player as it found it, which
+  // for a parked disc means parked.
+  kCheckingTransport,
+
   // Stop the disc, for a capture that is to hold the spin-up.
   //
   // **The non-obvious step.** There is no command that puts a player on the
@@ -49,6 +60,9 @@ enum class AutoCaptureStage : uint8_t {
   // has very likely just started. Nothing about the rest of the sequence hints
   // at this, and the old application's ordering is the only evidence it
   // matters.
+  //
+  // Skipped when the disc is already stopped, which is not an optimisation: it
+  // is the difference between a capture and an ejected disc.
   kSpinningDown,
 
   // Or, for a capture of part of the side, go to where it starts.
@@ -72,6 +86,19 @@ enum class AutoCaptureStage : uint8_t {
   // up to speed, a player that has stopped, and a player that claims to be
   // playing a disc that is not moving.
   kCheckingStall,
+
+  // Is the disc still turning? Asked immediately before the stop below, every
+  // time, and this is the rule rather than a special case: **nothing in this
+  // application sends a stop to a player it has not just asked about.**
+  //
+  // "This sequence started the transport" is not the same claim as "the
+  // transport is moving now". Somebody can stop the disc from the player's own
+  // front panel mid-capture; the run can end *because* the player stopped,
+  // which is an ordinary outcome and one of the two the stop-with-player
+  // coupling exists to produce. In every one of those the disc is already
+  // stopped, and a Reject sent to a stopped Pioneer transport opens the tray —
+  // so the tidy-up would eject the disc somebody had just finished capturing.
+  kCheckingBeforeStopping,
 
   // The tail, run down whatever ended the run.
   //
@@ -299,6 +326,16 @@ class AutoCaptureSequence {
   // Is this step of the tail one this run actually has to take?
   bool TeardownStepApplies(AutoCaptureStage stage) const;
 
+  // Whether a stop is on the cards at all in this teardown, leaving aside
+  // whether the disc is actually moving. The condition the ask-first step and
+  // the stop itself share, so the two cannot drift apart.
+  bool WouldStopPlayer() const;
+
+  // Record what the player said it was doing. Does not move the sequence on:
+  // the two callers are in different halves of it and move on differently.
+  void ApplyCheckingTransport(const Reply& reply);
+  void ApplyCheckingTransportAndAdvance(const Reply& reply);
+
   // Mark a step of the tail done and move past it.
   void CompleteTeardownStep(AutoCaptureStage stage);
 
@@ -336,6 +373,13 @@ class AutoCaptureSequence {
 
   bool key_lock_taken_ = false;
   bool transport_started_ = false;
+
+  // Whether the player said it was moving when kCheckingTransport asked.
+  //
+  // False until something says otherwise, and that default is the safe one: a
+  // model that cannot be asked gets no stop, so a whole-side capture of it
+  // misses the spin-up rather than risking the tray.
+  bool disc_turning_ = false;
   bool capture_started_ = false;
   bool capture_stopped_ = false;
 

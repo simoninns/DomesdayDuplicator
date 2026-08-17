@@ -410,9 +410,12 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
       tr("Examine the disc, name the capture, take it, and see what was "
          "written"));
 
-  player_menu->addSeparator();
-  QAction* const settings_action =
-      player_menu->addAction(tr("Player s&ettings…"));
+  // No "Player settings…" here. It opened File ▸ Settings… on its Player tab,
+  // which is the same dialog reached the same way from one menu along — a
+  // second door into one room, and the only thing it bought was not having to
+  // click a tab. The Player tab is where player settings live, and this menu
+  // is the things you do to a player rather than the things you configure
+  // about one.
 
   if (player_controller_ == nullptr) {
     // Shown rather than hidden, so the menu has the same shape in every build
@@ -422,7 +425,6 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
     remote_action->setEnabled(false);
     examine_action->setEnabled(false);
     wizard_action->setEnabled(false);
-    settings_action->setEnabled(false);
     return;
   }
 
@@ -441,8 +443,6 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
   // The same dialog the File menu opens, on the tab this menu is about. A
   // second dialog for the same settings would be a second place for them to
   // disagree.
-  connect(settings_action, &QAction::triggered, this,
-          [this] { ShowSettingsDialog(SettingsDialog::Tab::kPlayer); });
 
   // The settings are the single source of truth, so the panel's checkbox and
   // the dialog are reflected here rather than leaving the tick disagreeing with

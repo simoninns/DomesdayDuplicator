@@ -14,12 +14,16 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QDialog>
+#include <QEvent>
 #include <QLabel>
+#include <QLayout>
 #include <QLineEdit>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSettings>
+#include <QSignalSpy>
 #include <QSpinBox>
 #include <QString>
 #include <filesystem>
@@ -28,8 +32,10 @@
 
 #include "auto_capture_controller.h"
 #include "auto_capture_wizard.h"
+#include "capture_controller.h"
 #include "capture_format.h"
 #include "capture_settings.h"
+#include "fake_usb_device.h"
 #include "player_text.h"
 
 namespace ddd::gui {
@@ -94,6 +100,8 @@ class AutoCaptureWizardTest : public ::testing::Test {
   void TearDown() override {
     wizard_.reset();
     controller_.reset();
+    capture_.reset();
+    device_.reset();
     std::filesystem::remove_all(directory_);
     QSettings().clear();
   }
@@ -118,6 +126,23 @@ class AutoCaptureWizardTest : public ::testing::Test {
     wizard_ = std::make_unique<AutoCaptureWizard>(controller_.get());
   }
 
+  // A real capture engine behind a fake device, which is what it takes to watch
+  // the window write a setting rather than merely show one.
+  //
+  // Separate from building the window on purpose: the window changes settings
+  // as it opens, so a test about what it changed has to be able to look at them
+  // before it exists.
+  void MakeCaptureEngine() {
+    device_ = std::make_unique<capture::FakeUsbDevice>();
+    capture_ = std::make_unique<CaptureController>(device_.get(), nullptr);
+    controller_ =
+        std::make_unique<AutoCaptureController>(nullptr, capture_.get());
+  }
+
+  void BuildOnEngine() {
+    wizard_ = std::make_unique<AutoCaptureWizard>(controller_.get());
+  }
+
   // Hand over an examined disc, as the Examine window's report does.
   void WithDisc(const player::DiscProfile& disc) {
     wizard_->StartFromProfile(disc);
@@ -136,11 +161,25 @@ class AutoCaptureWizardTest : public ::testing::Test {
   }
 
   std::filesystem::path directory_;
+  std::unique_ptr<capture::FakeUsbDevice> device_;
+  std::unique_ptr<CaptureController> capture_;
   std::unique_ptr<AutoCaptureController> controller_;
   std::unique_ptr<AutoCaptureWizard> wizard_;
 };
 
 // --- Where it starts, and what it will not skip ----------------------------
+
+// Each page is a scroll area, and a scroll area's size hint is small whatever
+// it contains — so without a chosen opening size this window comes up a couple
+// of hundred pixels square with page 1 scrolling almost immediately. A floor
+// rather than an exact size, because the real one is bounded by the screen and
+// there is no screen worth asserting about in a test.
+TEST_F(AutoCaptureWizardTest, ItOpensBigEnoughToWorkIn) {
+  Build();
+
+  EXPECT_GE(wizard_->width(), 600);
+  EXPECT_GE(wizard_->height(), 600);
+}
 
 TEST_F(AutoCaptureWizardTest, ItOpensOnTheDiscAndGoesNoFurtherWithoutOne) {
   Build();
@@ -200,7 +239,7 @@ TEST_F(AutoCaptureWizardTest, ThePlanControlsFollowTheDiscThatWasFound) {
   // The plan form's own rule, reached through the wizard: a CAV disc is offered
   // frames and no time codes.
   EXPECT_NE(Find<QSpinBox>(CapturePlanForm::kStartFrameSpinName), nullptr);
-  EXPECT_EQ(Find<QLineEdit>(CapturePlanForm::kStartTimeEditName), nullptr);
+  EXPECT_EQ(Find<QWidget>(CapturePlanForm::kStartTimeRowName), nullptr);
   EXPECT_EQ(wizard_->problem(), player::PlanProblem::kNone);
 }
 
@@ -214,7 +253,7 @@ TEST_F(AutoCaptureWizardTest, ADifferentDiscRebuildsTheControlsForIt) {
   wizard_->SetExamineResult(ClvDisc(), player::ExamineOutcome::kCompleted);
 
   EXPECT_EQ(Find<QSpinBox>(CapturePlanForm::kStartFrameSpinName), nullptr);
-  EXPECT_NE(Find<QLineEdit>(CapturePlanForm::kStartTimeEditName), nullptr);
+  EXPECT_NE(Find<QWidget>(CapturePlanForm::kStartTimeRowName), nullptr);
 }
 
 TEST_F(AutoCaptureWizardTest, APlanThatCannotRunHoldsTheWayForwardShut) {
@@ -245,7 +284,51 @@ TEST_F(AutoCaptureWizardTest, TheDestinationIsHereRatherThanOnAnotherPanel) {
 
   EXPECT_NE(Find<QLineEdit>(AutoCaptureWizard::kDirectoryEditName), nullptr);
   EXPECT_NE(Find<QComboBox>(AutoCaptureWizard::kFormatComboName), nullptr);
-  EXPECT_NE(Find<QComboBox>(AutoCaptureWizard::kSampleRateComboName), nullptr);
+  EXPECT_NE(Find<QLabel>(AutoCaptureWizard::kSampleRateLabelName), nullptr);
+}
+
+// 20 MSPS exists for tape, whose RF is a fraction of a LaserDisc's bandwidth.
+// This window drives a LaserDisc player, so a decimated capture here would fold
+// everything above 10 MHz down on top of the signal — and a drop-down with one
+// entry would only invite somebody to look for the setting that adds the other.
+TEST_F(AutoCaptureWizardTest, TheHalfRateIsNotOfferedForALaserDisc) {
+  Build();
+  WithDisc(CavDisc());
+
+  EXPECT_EQ(Find<QComboBox>(AutoCaptureWizard::kSampleRateLabelName), nullptr)
+      << "the rate is still a choice";
+
+  auto* const stated = Find<QLabel>(AutoCaptureWizard::kSampleRateLabelName);
+  ASSERT_NE(stated, nullptr);
+  EXPECT_TRUE(stated->text().contains(QStringLiteral("40")));
+  EXPECT_FALSE(stated->text().contains(QStringLiteral("20")));
+}
+
+// And a Capture panel left at 20 MSPS from some tape work does not quietly
+// carry that into a LaserDisc capture.
+TEST_F(AutoCaptureWizardTest, ADecimatedSettingIsPutBackForTheCapture) {
+  CaptureSettings decimated;
+  decimated.capture_directory = QString::fromStdString(directory_.string());
+  decimated.decimation_factor = capture::kTapeDecimationFactor;
+  SaveCaptureSettings(decimated);
+
+  MakeCaptureEngine();
+  ASSERT_EQ(capture_->settings().decimation_factor,
+            capture::kTapeDecimationFactor)
+      << "the engine did not load the tape setting to begin with";
+
+  // Settled as the window opens rather than when something is changed on it,
+  // because there is nothing on it to change.
+  BuildOnEngine();
+
+  EXPECT_EQ(capture_->settings().decimation_factor,
+            capture::kUndecimatedFactor);
+
+  // Nothing is streaming, so there was nothing to warn about: the rate could
+  // simply be put back.
+  auto* const warning = Find<QLabel>(AutoCaptureWizard::kSampleRateWarningName);
+  ASSERT_NE(warning, nullptr);
+  EXPECT_TRUE(warning->isHidden());
 }
 
 // --- Naming ----------------------------------------------------------------
@@ -263,7 +346,7 @@ TEST_F(AutoCaptureWizardTest, ASuggestedNameIsResolvedBeforeItIsOffered) {
   ASSERT_NE(name, nullptr);
 
   // What is on screen is what will be written, not what would have been.
-  EXPECT_EQ(name->text(), QStringLiteral("CLV_PAL_Side2_2"));
+  EXPECT_EQ(name->text(), QStringLiteral("CLV_PAL_Side2 (1)"));
 }
 
 TEST_F(AutoCaptureWizardTest, AFreeSuggestionIsOfferedAsItIs) {
@@ -292,8 +375,8 @@ TEST_F(AutoCaptureWizardTest, ATypedNameThatIsTakenSaysWhatWillBeWritten) {
 
   // Said before the disc starts spinning, and said as the name is typed rather
   // than after the file has been written under another one.
-  EXPECT_TRUE(note->text().contains(QStringLiteral("Casper side 1_2")));
-  EXPECT_TRUE(note->text().contains(QStringLiteral("overwritten")));
+  EXPECT_TRUE(note->text().contains(QStringLiteral("Casper side 1 (1)")));
+  EXPECT_FALSE(note->text().contains(QStringLiteral("overwritten")));
   EXPECT_FALSE(note->isHidden());
 
   // And it goes away again for a name that is free.
@@ -466,6 +549,88 @@ TEST_F(AutoCaptureWizardTest, ALinkFailureSaysTheCaptureIsStillRunning) {
   EXPECT_TRUE(Find<QLabel>(AutoCaptureWizard::kSummaryLabelName)
                   ->text()
                   .contains(QStringLiteral("still running")));
+}
+
+// Close at one end of the row and the navigation at the other, because a
+// button box puts Close beside Next — a few pixels apart, differing only in
+// their label. On the last page of a forty-minute capture that is an expensive
+// slip, and it is the arrangement that prevents it rather than a warning.
+TEST_F(AutoCaptureWizardTest, TheWayOutIsNotBesideTheWayForward) {
+  Build();
+
+  auto* const close = Find<QPushButton>(AutoCaptureWizard::kCloseButtonName);
+  ASSERT_NE(close, nullptr);
+  ASSERT_EQ(close->parentWidget(), Next()->parentWidget())
+      << "they are not in the same row, so their order says nothing";
+
+  QLayout* const row = close->parentWidget()->layout();
+  ASSERT_NE(row, nullptr);
+
+  EXPECT_LT(row->indexOf(close), row->indexOf(Previous()));
+  EXPECT_LT(row->indexOf(close), row->indexOf(Next()));
+
+  // And a stretch between them rather than merely an order: adjacent buttons
+  // in the right order are still adjacent.
+  bool spaced = false;
+  for (int index = row->indexOf(close) + 1; index < row->indexOf(Previous());
+       ++index) {
+    if (row->itemAt(index)->spacerItem() != nullptr) {
+      spaced = true;
+    }
+  }
+  EXPECT_TRUE(spaced) << "Close is next to Previous after all";
+}
+
+// The regression this exists for: Close stopped closing.
+//
+// QDialog::closeEvent calls reject(), so an override of reject() that called
+// close() came straight back to itself — and the close ended up refused. Both
+// ways out carry the same guard instead of one forwarding to the other.
+TEST_F(AutoCaptureWizardTest, TheCloseButtonCloses) {
+  Build();
+
+  class CloseWatcher : public QObject {
+   public:
+    bool accepted = false;
+
+   protected:
+    bool eventFilter(QObject*, QEvent* event) override {
+      if (event->type() == QEvent::Close) {
+        accepted = event->isAccepted();
+      }
+      return false;
+    }
+  };
+
+  CloseWatcher watcher;
+  wizard_->installEventFilter(&watcher);
+
+  // Shown, and that is load-bearing rather than tidiness: QDialog::closeEvent
+  // only calls reject() on a *visible* dialog, so the loop this test is about
+  // does not happen at all to a window that was never on screen.
+  wizard_->show();
+  ASSERT_TRUE(wizard_->isVisible());
+
+  Find<QPushButton>(AutoCaptureWizard::kCloseButtonName)->click();
+
+  EXPECT_TRUE(watcher.accepted) << "the close was refused with nothing running";
+  EXPECT_FALSE(wizard_->isVisible()) << "the window is still up";
+}
+
+// Escape is one keystroke and its own way out: QDialog::reject() hides a window
+// without raising a close event, so a guard living only in closeEvent would
+// never see it. Overridden, and it still rejects normally when there is nothing
+// to protect.
+TEST_F(AutoCaptureWizardTest, EscapeIsAWayOutInItsOwnRight) {
+  Build();
+
+  QSignalSpy rejected(wizard_.get(), &QDialog::rejected);
+  ASSERT_TRUE(rejected.isValid());
+
+  wizard_->reject();
+
+  EXPECT_EQ(rejected.count(), 1);
+  EXPECT_FALSE(wizard_->running());
 }
 
 TEST_F(AutoCaptureWizardTest, TheOtherSideIsTwoPressesRatherThanEight) {

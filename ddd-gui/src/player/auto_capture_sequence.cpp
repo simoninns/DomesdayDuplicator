@@ -76,6 +76,10 @@ AutoCaptureStep AutoCaptureSequence::StepFor(AutoCaptureStage stage) const {
     case AutoCaptureStage::kConfirmingDisc:
       step.command = PlayerCommand::kQueryDiscStatus;
       break;
+    case AutoCaptureStage::kCheckingTransport:
+    case AutoCaptureStage::kCheckingBeforeStopping:
+      step.command = PlayerCommand::kQueryActiveMode;
+      break;
     case AutoCaptureStage::kSpinningDown:
       step.command = PlayerCommand::kStop;
       break;
@@ -119,8 +123,12 @@ void AutoCaptureSequence::Advance() {
       stage_ = AutoCaptureStage::kConfirmingDisc;
       return;
     case AutoCaptureStage::kConfirmingDisc:
-      stage_ = BeginsWithSpinUp(plan_.shape) ? AutoCaptureStage::kSpinningDown
-                                             : AutoCaptureStage::kSeekingStart;
+      stage_ = BeginsWithSpinUp(plan_.shape)
+                   ? AutoCaptureStage::kCheckingTransport
+                   : AutoCaptureStage::kSeekingStart;
+      return;
+    case AutoCaptureStage::kCheckingTransport:
+      stage_ = AutoCaptureStage::kSpinningDown;
       return;
     case AutoCaptureStage::kSpinningDown:
     case AutoCaptureStage::kSeekingStart:
@@ -147,6 +155,11 @@ void AutoCaptureSequence::Finish(AutoCaptureOutcome outcome) {
   pending_outcome_ = outcome;
   pending_.reset();
 
+  // Whatever the head learned is stale by now — the run has been going for the
+  // length of a side. The tail asks again, and until it has an answer the
+  // answer is no.
+  disc_turning_ = false;
+
   if (outcome == AutoCaptureOutcome::kLinkFailed) {
     link_failed_ = true;
   }
@@ -161,8 +174,9 @@ AutoCaptureStage AutoCaptureSequence::FirstTeardownStage() const {
   // only reach a file by being recorded while the disc is being stopped, and a
   // capture that detached its writer first would end a few seconds short of
   // exactly the part nothing else can reach.
-  return EndsWithSpinDown(plan_.shape) ? AutoCaptureStage::kStoppingPlayer
-                                       : AutoCaptureStage::kStoppingCapture;
+  return EndsWithSpinDown(plan_.shape)
+             ? AutoCaptureStage::kCheckingBeforeStopping
+             : AutoCaptureStage::kStoppingCapture;
 }
 
 AutoCaptureStage AutoCaptureSequence::TeardownSuccessor(
@@ -170,15 +184,22 @@ AutoCaptureStage AutoCaptureSequence::TeardownSuccessor(
   const bool player_first = EndsWithSpinDown(plan_.shape);
 
   switch (stage) {
+    case AutoCaptureStage::kCheckingBeforeStopping:
+      return AutoCaptureStage::kStoppingPlayer;
     case AutoCaptureStage::kStoppingPlayer:
       return player_first ? AutoCaptureStage::kStoppingCapture
                           : AutoCaptureStage::kUnlockingFrontPanel;
     case AutoCaptureStage::kStoppingCapture:
       return player_first ? AutoCaptureStage::kUnlockingFrontPanel
-                          : AutoCaptureStage::kStoppingPlayer;
+                          : AutoCaptureStage::kCheckingBeforeStopping;
     default:
       return AutoCaptureStage::kFinished;
   }
+}
+
+bool AutoCaptureSequence::WouldStopPlayer() const {
+  return transport_started_ && !link_failed_ &&
+         controls_.Has(PlayerCommand::kStop);
 }
 
 bool AutoCaptureSequence::TeardownStepApplies(AutoCaptureStage stage) const {
@@ -200,19 +221,25 @@ bool AutoCaptureSequence::TeardownStepApplies(AutoCaptureStage stage) const {
       return capture_running() &&
              pending_outcome_ != AutoCaptureOutcome::kLinkFailed;
 
+    case AutoCaptureStage::kCheckingBeforeStopping:
+      // Asked whenever a stop might follow, and skipped only where one could
+      // not. A model that cannot be asked leaves disc_turning_ false and gets
+      // no stop at all — see the stop below.
+      return WouldStopPlayer() &&
+             controls_.Has(PlayerCommand::kQueryActiveMode);
+
     case AutoCaptureStage::kStoppingPlayer:
-      // Only a player that was actually started, and only over a link that
-      // still exists.
+      // Only a player that was actually started, only over a link that still
+      // exists, and **only a disc the player has just said is moving.**
       //
       // Not tidiness: on a Pioneer player the stop command is Reject, and a
-      // Reject sent to a disc that is already spinning down opens the tray —
-      // see PlayerCommand::kStop. `transport_started_` is what keeps this to at
-      // most one stop per run, sent to a disc this sequence knows it set
-      // turning. A run cancelled between the opening spin-down and the play
-      // that follows it has not started the transport, so nothing is sent and
-      // the tray stays shut.
-      return transport_started_ && !link_failed_ &&
-             controls_.Has(PlayerCommand::kStop);
+      // Reject sent to a disc that is not turning opens the tray — see
+      // PlayerCommand::kStop. `transport_started_` keeps this to at most one
+      // stop per run and `disc_turning_` keeps it to a disc that needs one,
+      // and the second is the load-bearing half. A run that ended *because*
+      // the player stopped is an ordinary outcome, and without this it would
+      // eject the disc that had just been captured.
+      return WouldStopPlayer() && disc_turning_;
 
     case AutoCaptureStage::kUnlockingFrontPanel:
       // A lock this sequence took is a lock this sequence releases. A link that
@@ -280,12 +307,28 @@ std::optional<AutoCaptureStep> AutoCaptureSequence::Next() {
     Advance();
   }
 
-  // Likewise a player with no stop command: the disc cannot be spun down, so a
-  // lead-in capture gets whatever the lead-in of a disc that is already turning
-  // amounts to, which is nothing. Not a reason to refuse the capture — the
-  // programme is still captured in full.
+  // A model that cannot be asked what it is doing. Skipped, and the stop below
+  // is then skipped too, because `disc_turning_` stays false — see the member.
+  if (stage_ == AutoCaptureStage::kCheckingTransport &&
+      !controls_.Has(PlayerCommand::kQueryActiveMode)) {
+    Advance();
+  }
+
+  // Two reasons not to send the stop, and they are the same kind of reason.
+  //
+  // A player with no stop command cannot spin the disc down. And a disc that is
+  // *already* stopped must not be sent one: on a Pioneer player stop is Reject,
+  // and a Reject arriving at a stopped or spinning-down transport opens the
+  // tray — so a whole-side capture of a disc the user had already parked would
+  // eject it instead of capturing it.
+  //
+  // Either way a lead-in capture gets whatever the lead-in of a disc in this
+  // state amounts to. Where the disc was already stopped that is the whole
+  // spin-up, which is what this step was for; where the player has no stop it
+  // is nothing. Neither is a reason to refuse the capture — the programme is
+  // captured in full regardless.
   if (stage_ == AutoCaptureStage::kSpinningDown &&
-      !controls_.Has(PlayerCommand::kStop)) {
+      (!controls_.Has(PlayerCommand::kStop) || !disc_turning_)) {
     Advance();
   }
 
@@ -369,6 +412,16 @@ void AutoCaptureSequence::Apply(const StepResult& result) {
     case AutoCaptureStage::kConfirmingDisc:
       ApplyConfirmingDisc(reply);
       break;
+    case AutoCaptureStage::kCheckingTransport:
+      ApplyCheckingTransportAndAdvance(reply);
+      break;
+
+    case AutoCaptureStage::kCheckingBeforeStopping:
+      // The same question, asked from inside the teardown — so the answer is
+      // recorded the same way and the walk carries on the teardown's own way.
+      ApplyCheckingTransport(reply);
+      CompleteTeardownStep(stage);
+      return;
     case AutoCaptureStage::kSpinningDown:
       ApplySpinningDown(reply);
       break;
@@ -547,6 +600,24 @@ void AutoCaptureSequence::ApplyWatching(const Reply& reply) {
   if (readings_without_advance_ >= kStallReadings) {
     stage_ = AutoCaptureStage::kCheckingStall;
   }
+}
+
+void AutoCaptureSequence::ApplyCheckingTransport(const Reply& reply) {
+  // A refusal or an unreadable answer leaves this false, and that is the answer
+  // to act on: not knowing whether the disc is moving is not a licence to send
+  // the command that opens the tray if it is not.
+  if (!reply.ok()) {
+    return;
+  }
+
+  const PlayerState state =
+      ParsePlayerState(reply.text, definition_->state_decode);
+  disc_turning_ = IsSpinning(state);
+}
+
+void AutoCaptureSequence::ApplyCheckingTransportAndAdvance(const Reply& reply) {
+  ApplyCheckingTransport(reply);
+  Advance();
 }
 
 void AutoCaptureSequence::ApplyCheckingStall(const Reply& reply) {

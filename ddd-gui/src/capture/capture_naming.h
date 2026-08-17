@@ -71,7 +71,9 @@ std::filesystem::path BuildCapturePath(
     bool test_mode, std::time_t when,
     CaptureOutputFormat format = CaptureOutputFormat::kFlac);
 
-// The same path, with a number appended if something is already there.
+// The same path, with " (1)", " (2)" and so on appended if something is
+// already there — the convention every desktop file manager uses, and the
+// reason it is worth following is that it needs no explaining.
 //
 // A capture that silently overwrote an earlier one would destroy an archival
 // recording to save a dialog, which is not a trade this application makes.

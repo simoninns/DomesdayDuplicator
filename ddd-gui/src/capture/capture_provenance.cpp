@@ -35,6 +35,13 @@ std::vector<FlacWriter::Tag> BuildProvenanceTags(
   tags.push_back({kTagDate, FormatProvenanceDate(provenance.started)});
   tags.push_back({kTagVersion, provenance.application_version});
 
+  if (!provenance.firmware_version.empty()) {
+    tags.push_back({kTagFirmwareVersion, provenance.firmware_version});
+  }
+  if (!provenance.gateware_version.empty()) {
+    tags.push_back({kTagGatewareVersion, provenance.gateware_version});
+  }
+
   // The real rate, not the label in the FLAC header. FLAC's sample-rate field
   // stops at 655,350 Hz so the container says 40,000; this is the only place
   // the file states what the device actually ran at.

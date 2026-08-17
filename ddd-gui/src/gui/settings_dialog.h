@@ -21,6 +21,7 @@
 
 class QCheckBox;
 class QComboBox;
+class QLineEdit;
 class QListWidget;
 class QTabWidget;
 class QWidget;
@@ -41,8 +42,8 @@ class SettingsDialog : public QDialog {
   Q_OBJECT
 
  public:
-  // Which tab to open on. The Player menu's own entry opens straight on the
-  // player's settings, so that reaching them is not a hunt through a dialog
+  // Which tab to open on. Kept because a caller may know which half somebody
+  // is after, so that reaching it is not a hunt through a dialog
   // named after something else.
   enum class Tab {
     kCapture,
@@ -65,6 +66,8 @@ class SettingsDialog : public QDialog {
   static constexpr const char* kTransferModeComboName =
       "settings_transfer_mode";
   static constexpr const char* kDeviceComboName = "settings_device";
+  static constexpr const char* kDirectoryEditName = "settings_directory";
+  static constexpr const char* kBrowseButtonName = "settings_browse";
   static constexpr const char* kFrontEndGainComboName =
       "settings_front_end_gain";
 
@@ -91,6 +94,7 @@ class SettingsDialog : public QDialog {
   QComboBox* queue_size_ = nullptr;
   QComboBox* transfer_mode_ = nullptr;
   QComboBox* device_ = nullptr;
+  QLineEdit* directory_ = nullptr;
   QComboBox* front_end_gain_ = nullptr;
 
   QCheckBox* player_enabled_ = nullptr;

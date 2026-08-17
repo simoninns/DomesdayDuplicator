@@ -109,25 +109,16 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
   auto* form = new QFormLayout();
   form->setLabelAlignment(Qt::AlignLeft);
 
-  device_combo_ = new QComboBox(contents);
-  device_combo_->setObjectName(QLatin1String(kDeviceComboName));
-  form->addRow(tr("Device"), device_combo_);
-
-  // --- Where it goes -------------------------------------------------------
-
-  auto* directory_row = new QWidget(contents);
-  auto* directory_layout = new QHBoxLayout(directory_row);
-  directory_layout->setContentsMargins(0, 0, 0, 0);
-
-  directory_edit_ = new QLineEdit(directory_row);
-  directory_edit_->setObjectName(QLatin1String(kDirectoryEditName));
-  directory_layout->addWidget(directory_edit_, 1);
-
-  browse_button_ = new QPushButton(tr("Browse…"), directory_row);
-  browse_button_->setObjectName(QLatin1String(kBrowseButtonName));
-  directory_layout->addWidget(browse_button_);
-
-  form->addRow(tr("Folder"), directory_row);
+  // Neither the device nor the destination folder is here. Both are chosen
+  // once and then left — the Duplicator does not move between USB ports and
+  // captures do not move between drives — and a control that is set once does
+  // not earn a row on the panel somebody works from. They are on the Capture
+  // tab of File ▸ Settings…, and what stays here is what changes: the name,
+  // the format, the limits, and the buttons.
+  //
+  // What the device is doing is still reported, on the status line at the
+  // bottom — a device in recovery mode or on a USB 2 port says so there, which
+  // is where somebody looks when nothing works.
 
   // The name and the way into everything else that goes into one. The button
   // sits beside the field rather than under it because the two are the same
@@ -279,10 +270,6 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
           &CapturePanel::OnMonitorButtonPressed);
   connect(capture_button_, &QPushButton::clicked, this,
           &CapturePanel::OnCaptureButtonPressed);
-  connect(device_combo_, &QComboBox::currentIndexChanged, this,
-          &CapturePanel::OnDeviceSelected);
-  connect(browse_button_, &QPushButton::clicked, this,
-          &CapturePanel::OnBrowsePressed);
   connect(naming_button_, &QPushButton::clicked, this,
           &CapturePanel::OnNamingPressed);
   connect(automatic_button_, &QPushButton::clicked, this,
@@ -290,16 +277,12 @@ CapturePanel::CapturePanel(CaptureController* controller, QWidget* parent)
   connect(duration_reset_button_, &QPushButton::clicked, this,
           &CapturePanel::OnDurationResetPressed);
 
-  connect(directory_edit_, &QLineEdit::editingFinished, this,
-          &CapturePanel::ApplySettingsFromWidgets);
   connect(name_edit_, &QLineEdit::editingFinished, this,
           &CapturePanel::ApplySettingsFromWidgets);
 
   // On every keystroke rather than on editingFinished, because the point of it
   // is to be read while the name is being decided rather than after.
   connect(name_edit_, &QLineEdit::textChanged, this,
-          [this](const QString&) { RefreshNameNote(); });
-  connect(directory_edit_, &QLineEdit::textChanged, this,
           [this](const QString&) { RefreshNameNote(); });
   connect(format_combo_, &QComboBox::currentIndexChanged, this,
           [this](int) { ApplySettingsFromWidgets(); });
@@ -348,9 +331,13 @@ void CapturePanel::ShowSettings() {
   const CaptureSettings& settings = controller_->settings();
 
   test_mode_ = settings.test_mode;
-  directory_edit_->setText(settings.ResolvedCaptureDirectory());
   name_edit_->setText(settings.capture_name);
   RefreshNameNote();
+
+  // The folder is set elsewhere now, so this has to follow the settings rather
+  // than a field on this panel: both the free-space figure and the
+  // name-already-taken note are about a directory nothing here can see.
+  RefreshFreeSpace();
   format_combo_->setCurrentIndex(
       format_combo_->findData(static_cast<int>(settings.output_format)));
   sample_rate_combo_->setCurrentIndex(
@@ -392,7 +379,6 @@ void CapturePanel::ApplySettingsFromWidgets() {
   }
 
   CaptureSettings settings = controller_->settings();
-  settings.capture_directory = directory_edit_->text();
   settings.capture_name = name_edit_->text();
   settings.output_format = static_cast<capture::CaptureOutputFormat>(
       format_combo_->currentData().toInt());
@@ -435,7 +421,7 @@ void CapturePanel::RefreshNameNote() {
     return;
   }
 
-  const QString directory = directory_edit_->text().trimmed();
+  const QString directory = CaptureDirectory();
   const capture::CaptureOutputFormat format =
       controller_ == nullptr ? capture::CaptureOutputFormat::kFlac
                              : controller_->settings().output_format;
@@ -455,17 +441,6 @@ void CapturePanel::RefreshNameNote() {
   name_taken_label_->show();
 }
 
-void CapturePanel::OnBrowsePressed() {
-  const QString chosen = QFileDialog::getExistingDirectory(
-      this, tr("Where captures are written"), directory_edit_->text());
-  if (chosen.isEmpty()) {
-    return;
-  }
-
-  directory_edit_->setText(chosen);
-  ApplySettingsFromWidgets();
-}
-
 void CapturePanel::OnNamingPressed() {
   // Asked for rather than opened here: the dialog may offer to ask the player
   // what the disc is, and only the main window holds both controllers.
@@ -477,17 +452,34 @@ void CapturePanel::OnNamingPressed() {
   emit NamingRequested();
 }
 
+QString CapturePanel::CaptureDirectory() const {
+  return controller_ != nullptr
+             ? controller_->settings().ResolvedCaptureDirectory()
+             : QString();
+}
+
 void CapturePanel::RefreshFreeSpace() {
-  const QString directory = directory_edit_->text();
+  const QString directory = CaptureDirectory();
+
+  // Which volume, on the row rather than only in Settings. The figure is the
+  // question people actually have, but "2:51:40 of capture" is worth nothing
+  // if you cannot tell which drive it is about — and the folder is no longer
+  // on this panel to be read off.
+  free_space_label_->setToolTip(
+      directory.isEmpty()
+          ? QString()
+          : tr("Where captures are written: %1\nChange it in File ▸ Settings…")
+                .arg(directory));
 
   const capture::FreeSpace space =
       capture::AvailableSpace(directory.toStdString());
 
   if (!space.known) {
-    // Not "0 bytes". A folder that does not exist yet is an ordinary thing for
-    // someone to have typed on the way to creating it, and a reading of zero
-    // would say the disk was full.
-    free_space_label_->setText(tr("Unknown — this folder does not exist yet"));
+    // Not "0 bytes". A folder that does not exist yet is an ordinary thing to
+    // have on the way to creating it, and a reading of zero would say the disk
+    // was full. Named, because it cannot be seen from here.
+    free_space_label_->setText(
+        tr("Unknown — %1 does not exist yet").arg(directory));
     return;
   }
 
@@ -505,65 +497,39 @@ void CapturePanel::OnDevicesChanged(
     const std::vector<ddd::capture::DeviceInfo>& devices) {
   devices_ = devices;
 
-  const QString previous = controller_ != nullptr
-                               ? controller_->settings().preferred_device_path
-                               : QString();
+  // The device the engine would actually open, asked for the same way the
+  // engine asks. This used to report on whichever entry a combo box on this
+  // panel happened to be showing, which was the same device in every ordinary
+  // case and not guaranteed to be — the engine prefers the first *capturable*
+  // device where the list was simply in order. With the combo gone there is
+  // one answer, and it is the engine's.
+  const ddd::capture::DeviceInfo* const selected =
+      controller_ != nullptr
+          ? ddd::capture::SelectDevice(
+                devices_,
+                controller_->settings().preferred_device_path.toStdString())
+          : nullptr;
 
-  // Rebuilt rather than diffed. The list is at most a handful of entries and
-  // changes only when someone plugs something in, so the cost of getting it
-  // exactly right is nothing and the cost of a subtly wrong diff is a device
-  // that cannot be selected.
-  const QSignalBlocker blocker(device_combo_);
-  device_combo_->clear();
+  // Nothing capturable does not mean nothing attached. A device with no
+  // firmware is reported for what it is rather than as an absence: saying "no
+  // capture device attached" to somebody looking straight at one is how a user
+  // decides the application is broken.
+  const ddd::capture::DeviceInfo* const shown =
+      selected != nullptr ? selected
+                          : (devices_.empty() ? nullptr : &devices_.front());
 
-  int restore_index = -1;
-  for (size_t index = 0; index < devices_.size(); ++index) {
-    const ddd::capture::DeviceInfo& device = devices_[index];
-    const QString path = QString::fromStdString(device.path);
-
-    QString label = path;
-    if (!device.is_application()) {
-      // A device with no firmware is listed rather than hidden, and named for
-      // what it is. Hiding it would report "no device attached" to somebody
-      // looking straight at one, which is the state in which they most need
-      // to be told what to do next.
-      label += DeviceListPersonalitySuffix(device.personality);
-    } else if (!device.CanCarryCapture()) {
-      // Said in the list rather than only when the user presses the button. A
-      // device on the wrong port is the thing they need to know about before
-      // they wonder why nothing works.
-      label += tr(" — connected at insufficient speed (%1)")
-                   .arg(QString::fromUtf8(
-                       ddd::capture::DeviceSpeedName(device.speed)));
-    }
-
-    device_combo_->addItem(label, path);
-    if (path == previous) {
-      restore_index = static_cast<int>(index);
-    }
-  }
-
-  if (restore_index >= 0) {
-    device_combo_->setCurrentIndex(restore_index);
-  }
-
-  if (devices_.empty()) {
+  if (shown == nullptr) {
     status_label_->setText(tr("No capture device attached"));
+  } else if (!shown->is_application()) {
+    status_label_->setText(
+        tr("This device has no firmware installed, so it cannot capture "
+           "yet. Open Tools ▸ Firmware… to program it."));
+  } else if (!shown->CanCarryCapture()) {
+    status_label_->setText(
+        tr("Connected at insufficient speed. This device is on a USB 2 port "
+           "and cannot carry 80 MB/s — move it to a USB 3 port."));
   } else {
-    const ddd::capture::DeviceInfo* const selected =
-        &devices_[static_cast<size_t>(
-            std::max(0, device_combo_->currentIndex()))];
-    if (!selected->is_application()) {
-      status_label_->setText(
-          tr("This device has no firmware installed, so it cannot capture "
-             "yet. Open Tools ▸ Firmware… to program it."));
-    } else if (!selected->CanCarryCapture()) {
-      status_label_->setText(
-          tr("Connected at insufficient speed. This device is on a USB 2 port "
-             "and cannot carry 80 MB/s — move it to a USB 3 port."));
-    } else {
-      status_label_->setText(tr("Ready"));
-    }
+    status_label_->setText(tr("Ready"));
   }
 
   UpdateEnabledState();
@@ -718,22 +684,21 @@ void CapturePanel::OnCaptureButtonPressed() {
   }
 }
 
-void CapturePanel::OnDeviceSelected(int index) {
-  if (controller_ == nullptr || index < 0) {
-    return;
-  }
-  CaptureSettings settings = controller_->settings();
-  settings.preferred_device_path = device_combo_->itemData(index).toString();
-  controller_->SetSettings(settings);
-}
-
 void CapturePanel::UpdateEnabledState() {
-  const bool have_usable_device =
-      !devices_.empty() &&
-      devices_[static_cast<size_t>(std::max(0, device_combo_->currentIndex()))]
-          .is_application() &&
-      devices_[static_cast<size_t>(std::max(0, device_combo_->currentIndex()))]
-          .CanCarryCapture();
+  // Which device, asked the way the engine asks — and then both questions
+  // about it. SelectDevice's kCaptureCapable means "running capture firmware"
+  // and says nothing about the link: a device on a USB 2 port is selected by
+  // it and still cannot carry 80 MB/s. Two conditions, because there are two
+  // ways for an attached Duplicator not to be usable.
+  const ddd::capture::DeviceInfo* const selected =
+      controller_ != nullptr
+          ? ddd::capture::SelectDevice(
+                devices_,
+                controller_->settings().preferred_device_path.toStdString())
+          : nullptr;
+  const bool have_usable_device = selected != nullptr &&
+                                  selected->is_application() &&
+                                  selected->CanCarryCapture();
 
   // Not while a capture is running, and this is the whole of the fix for a
   // button that used to throw away the recording.
@@ -766,15 +731,6 @@ void CapturePanel::UpdateEnabledState() {
   automatic_button_->setEnabled(automatic_available_ && have_usable_device &&
                                 !capturing_);
 
-  // Locked down while streaming, because it cannot be changed without stopping:
-  // the device is open.
-  device_combo_->setEnabled(!monitoring_);
-
-  // The destination is fixed for the duration of a capture — the file is
-  // already open — but stays editable while merely monitoring, which is when
-  // somebody is setting up for the capture they are about to take.
-  directory_edit_->setEnabled(!capturing_);
-  browse_button_->setEnabled(!capturing_);
   format_combo_->setEnabled(!capturing_);
   name_edit_->setEnabled(!capturing_ && !test_mode_);
 

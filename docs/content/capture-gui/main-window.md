@@ -8,7 +8,7 @@ where they are next time.
 
 | Panel | What it is for | Where it starts |
 | --- | --- | --- |
-| **Capture** | The device, the destination, and the two buttons — see [Capture control](capture-control.md) | Left, top |
+| **Capture** | What the capture is called, what it is written as, and the buttons — see [Capture control](capture-control.md) | Left, top |
 | **Statistics** | What the run is doing, second by second — see [Statistics](statistics.md) | Left, below Capture |
 | **Waveform** | The scope: the signal right now — see [Signal analysis](signal-analysis.md#waveform) | Right, top |
 | **Spectrum** | What the signal is made of, live or over time — see [Signal analysis](signal-analysis.md#spectrum) | Right, middle |
@@ -73,13 +73,16 @@ the way of somebody taking both sides of a disc.
 | | Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
 | | Analyse test data… | Check a test-mode capture off the disk |
 | | Firmware… | Which build each part of the device is running, and the Update page — see [Updating your Duplicator](updating-your-domesday-duplicator.md) |
-| | Player settings… | Model, port, speed, and the ports never to open |
 | **Help** | About | The build this binary was made from |
 
 The player entries sit above the instrument ones, separated by a rule. They are on **Tools**
 rather than in a menu or a panel of their own because almost everybody has one player, set up
 once and never touched again: it is a tool rather than something that earns permanent screen
 space. Whether it is connected is on the status bar, which cannot be closed.
+
+Player *settings* — model, port, speed — are on the **Player** tab of **File ▸ Settings…**
+rather than repeated here. This menu is what you do to a player; that dialog is what you set
+about one.
 
 **Remote control…** opens whether or not a player is connected, because it is the window that
 says *why* one is not. The entries that need a player to do anything — **Examine disc…** and

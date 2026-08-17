@@ -66,10 +66,14 @@ QString UsbfsMemoryLimitInstruction();
 // **A capture has never overwritten another** — the path is made unique before
 // the file is opened, and has been since before this existed. What was missing
 // was anybody being told, and a typed name has no timestamp in it, so the
-// second capture of "Casper side 1" quietly becoming "Casper side 1_2" is the
-// ordinary case rather than an edge one. Two files nobody can tell apart later
-// is a slower way to lose a capture than overwriting one, but it is not a much
-// slower way.
+// second capture of "Casper side 1" quietly becoming "Casper side 1 (1)" is
+// the ordinary case rather than an edge one. Two files nobody can tell apart
+// later is a slower way to lose a capture than overwriting one, but it is not
+// a much slower way.
+//
+// It says the resulting name and nothing else. What is being done is what
+// every desktop does with a name already in use, and a sentence explaining it
+// is a sentence nobody needs to read twice.
 //
 // Empty where the name is free, so a caller can hide the row. `written` is the
 // name the file will really carry.

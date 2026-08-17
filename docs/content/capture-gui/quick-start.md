@@ -22,11 +22,11 @@ platform:
 Use a **USB 3** port, directly on the computer rather than through a hub. The device
 produces 80 MB/s and a USB 2 port physically cannot carry it.
 
-Start the application. Look at the **Capture** panel:
+Start the application and read the **Status** line at the bottom of the **Capture** panel:
 
 | What it says | What it means |
 | --- | --- |
-| A path in the **Device** list, and *Ready* below | Found, and it can capture |
+| *Ready* | Found, and it can capture |
 | *connected at insufficient speed* | It is on a USB 2 port. Move it |
 | *recovery mode, no firmware installed* | The device needs programming — go to [Updating your Duplicator](updating-your-domesday-duplicator.md), which does first-time programming too |
 | *No capture device attached* | Nothing was found. On Linux that is almost always the udev rules; on Windows, the WinUSB binding |
@@ -66,12 +66,13 @@ for, and it costs nothing: you can leave it running for as long as you like.
 
 ## 5. Choose where the capture goes
 
-Still in the **Capture** panel:
-
-- **Folder** — `Browse…` to the drive you want. The **Free space** row answers the question
-  you actually have: not "how many gigabytes", but *how much capture this volume holds*.
-- **Name** — leave it empty and each capture is named after the time it was taken, which is
-  what keeps a folder of them in order. Type one and it is used instead.
+- **Folder** — in **File ▸ Settings…**, since it is set once and then left. `Browse…` to the
+  drive you want. Back on the Capture panel, the **Free space** row answers the question you
+  actually have: not "how many gigabytes", but *how much capture this volume holds*.
+- **Name** — on the Capture panel. Leave it empty and each capture is named after the time it
+  was taken, which is what keeps a folder of them in order. Type one and it is used instead;
+  if that name is already there you are told what the file will be called — `Casper (1)` —
+  and nothing is overwritten.
 - **Compression** — leave it at 8 unless the machine cannot keep up.
 
 ## 6. Capture

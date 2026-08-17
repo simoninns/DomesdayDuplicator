@@ -75,6 +75,7 @@ Script CavScript() {
       {ExamineStage::kFindingStart, Answered("R")},
       {ExamineStage::kReadingStart, Answered("<00001")},
       {ExamineStage::kSettling, Answered("R")},
+      {ExamineStage::kSpinningDown, Answered("R")},
   };
 }
 
@@ -101,7 +102,15 @@ std::vector<ExamineStep> Drive(DiscExaminer& examiner, const Script& script) {
   while (const std::optional<ExamineStep> step = examiner.Next()) {
     sent.push_back(*step);
     const auto found = script.find(step->stage);
-    examiner.Apply(found == script.end() ? Answered("R") : found->second);
+
+    // The "is the disc turning?" step defaults to a playing player. It is the
+    // ordinary case, and a test about a disc that has stopped underneath the
+    // examination says so by scripting the stage itself.
+    const Reply reply = found != script.end() ? found->second
+                        : step->stage == ExamineStage::kCheckingTransport
+                            ? Answered("P04")
+                            : Answered("R");
+    examiner.Apply(reply);
 
     // A step machine that handed out the same step forever would hang the
     // suite rather than fail a test, so the loop is bounded here too.
@@ -152,7 +161,80 @@ TEST(DiscExaminerTest, AParkedCavDiscIsExaminedInDependencyOrder) {
           ExamineStage::kReadingPioneerUserCode,
           ExamineStage::kReadingStandardUserCode, ExamineStage::kFindingEnd,
           ExamineStage::kReadingEnd, ExamineStage::kFindingStart,
-          ExamineStage::kReadingStart, ExamineStage::kSettling}));
+          ExamineStage::kReadingStart, ExamineStage::kSettling,
+          ExamineStage::kCheckingTransport, ExamineStage::kSpinningDown}));
+}
+
+// The disc was parked when the examination started, so it is parked when it
+// ends. A player left spinning after being asked a question is one that has
+// been altered by being asked, and whoever comes back to it has to work out
+// whether it was like that already.
+TEST(DiscExaminerTest, ADiscThatWasParkedIsParkedAgainAfterwards) {
+  DiscExaminer examiner(LevelIIIModel(), "A1");
+  const std::vector<ExamineStep> sent = Drive(examiner, CavScript());
+
+  ASSERT_FALSE(sent.empty());
+  EXPECT_EQ(sent.back().stage, ExamineStage::kSpinningDown);
+  EXPECT_EQ(sent.back().command, PlayerCommand::kStop);
+
+  // Exactly one, and after the disc has been held still. On a Pioneer player
+  // stop is Reject, and a Reject arriving at a transport that is already
+  // spinning down opens the tray.
+  int stops = 0;
+  for (const ExamineStep& step : sent) {
+    if (step.command == PlayerCommand::kStop) {
+      ++stops;
+    }
+  }
+  EXPECT_EQ(stops, 1);
+
+  // And asked about immediately before, always: the settle may have been
+  // refused, and somebody can stop the disc from the player's own front panel
+  // while an examination is running.
+  ASSERT_GE(sent.size(), 3u);
+  EXPECT_EQ(sent[sent.size() - 2].stage, ExamineStage::kCheckingTransport);
+  EXPECT_EQ(sent[sent.size() - 3].stage, ExamineStage::kSettling);
+}
+
+// Somebody stopped the disc from the player's own front panel while the
+// examination was running, so by the time it comes to tidy up there is nothing
+// to tidy. Sending the stop anyway would open the tray.
+TEST(DiscExaminerTest, ADiscStoppedByHandMidExaminationIsNotStoppedAgain) {
+  Script script = CavScript();
+  script[ExamineStage::kCheckingTransport] = Answered("P01");
+
+  DiscExaminer examiner(LevelIIIModel(), "A1");
+  const std::vector<ExamineStep> sent = Drive(examiner, script);
+
+  EXPECT_EQ(examiner.outcome(), ExamineOutcome::kCompleted);
+  EXPECT_TRUE(Sent(sent, ExamineStage::kCheckingTransport));
+  EXPECT_FALSE(Sent(sent, ExamineStage::kSpinningDown))
+      << "a stop was sent to a disc that was not turning";
+}
+
+// Not knowing is not a licence to send it either. The findings are already in
+// hand, and a disc left spinning is something somebody can stop themselves.
+TEST(DiscExaminerTest, ATransportCheckThatIsRefusedSendsNoStop) {
+  Script script = CavScript();
+  script[ExamineStage::kCheckingTransport] = Refused();
+
+  DiscExaminer examiner(LevelIIIModel(), "A1");
+  const std::vector<ExamineStep> sent = Drive(examiner, script);
+
+  EXPECT_EQ(examiner.outcome(), ExamineOutcome::kCompleted);
+  EXPECT_FALSE(Sent(sent, ExamineStage::kSpinningDown));
+}
+
+// Put back means put back, not stopped. This player was playing when the
+// examination began, so stopping it at the end would be as much of a change as
+// leaving a parked one spinning.
+TEST(DiscExaminerTest, ADiscThatWasAlreadyPlayingIsNotStopped) {
+  DiscExaminer examiner(LevelIIIModel(), "A1");
+  const std::vector<ExamineStep> sent = Drive(examiner, ClvScript());
+
+  ASSERT_FALSE(Sent(sent, ExamineStage::kSpinningUp));
+  EXPECT_FALSE(Sent(sent, ExamineStage::kSpinningDown));
+  EXPECT_EQ(sent.back().stage, ExamineStage::kSettling);
 }
 
 TEST(DiscExaminerTest, ACavDiscIsSeekedByFrameWithTheOldApplicationsAddresses) {
@@ -593,7 +675,7 @@ TEST(DiscExaminerTest, CancellingKeepsTheProfileAndCanBeStartedAgain) {
 
   const std::vector<ExamineStep> sent = Drive(examiner, CavScript());
   EXPECT_EQ(examiner.outcome(), ExamineOutcome::kCompleted);
-  EXPECT_EQ(sent.size(), size_t{11});
+  EXPECT_EQ(sent.size(), size_t{13});
 }
 
 TEST(DiscExaminerTest, ACancelIsPossibleBetweenAnyTwoSteps) {
@@ -741,7 +823,7 @@ TEST(DiscExaminerTest, AModelThatCannotReportChaptersProbesForThemInstead) {
   EXPECT_TRUE(Sent(sent, ExamineStage::kCheckingChapters));
   EXPECT_TRUE(examiner.profile().chapters.value);
   EXPECT_EQ(examiner.profile().chapters.provenance, Provenance::kMeasured);
-  EXPECT_EQ(examiner.steps_planned(), size_t{12});
+  EXPECT_EQ(examiner.steps_planned(), size_t{14});
 }
 
 TEST(DiscExaminerTest, AModelWithNeitherWayOfKnowingLeavesChaptersUnknown) {
@@ -759,7 +841,7 @@ TEST(DiscExaminerTest, AModelWithNeitherWayOfKnowingLeavesChaptersUnknown) {
 
   // The plan is shorter by exactly that step rather than carrying one that
   // would only ever be refused — so the progress bar is honest too.
-  EXPECT_EQ(examiner.steps_planned(), size_t{11});
+  EXPECT_EQ(examiner.steps_planned(), size_t{13});
   EXPECT_EQ(examiner.outcome(), ExamineOutcome::kCompleted);
 }
 
@@ -831,11 +913,13 @@ TEST(DiscExaminerTest, AnIdentifyingPassAsksWhatTheNamingFieldsWant) {
   DiscExaminer examiner(LevelIIIModel(), "A1", ExamineScope::kIdentify);
   const std::vector<ExamineStep> sent = Drive(examiner, CavScript());
 
-  EXPECT_EQ(Stages(sent),
-            (std::vector<ExamineStage>{
-                ExamineStage::kCheckingPlayer, ExamineStage::kSpinningUp,
-                ExamineStage::kReadingDiscStatus,
-                ExamineStage::kReadingTvSystem, ExamineStage::kSettling}));
+  EXPECT_EQ(
+      Stages(sent),
+      (std::vector<ExamineStage>{
+          ExamineStage::kCheckingPlayer, ExamineStage::kSpinningUp,
+          ExamineStage::kReadingDiscStatus, ExamineStage::kReadingTvSystem,
+          ExamineStage::kSettling, ExamineStage::kCheckingTransport,
+          ExamineStage::kSpinningDown}));
 
   // And the three facts those steps establish are the three the naming fields
   // are filled from.
@@ -845,16 +929,24 @@ TEST(DiscExaminerTest, AnIdentifyingPassAsksWhatTheNamingFieldsWant) {
   EXPECT_TRUE(disc.disc_side.known());
 }
 
-TEST(DiscExaminerTest, AnIdentifyingPassLeavesTheDiscStillRatherThanPlaying) {
+TEST(DiscExaminerTest, AnIdentifyingPassPutsTheDiscBackAsItFoundIt) {
   // The disc has to be turning for anything below the first query to be
-  // answered, so the pass spins it up — and an examination that left it
-  // spinning would be one the user has to go and stop.
+  // answered, so the pass spins it up — and a button in a naming dialog that
+  // quietly leaves a player running is worse than one that takes a moment
+  // longer. This player was parked, so it is parked again.
   DiscExaminer examiner(LevelIIIModel(), "A1", ExamineScope::kIdentify);
   const std::vector<ExamineStep> sent = Drive(examiner, CavScript());
 
-  ASSERT_FALSE(sent.empty());
-  EXPECT_EQ(sent.back().stage, ExamineStage::kSettling);
-  EXPECT_EQ(sent.back().command, PlayerCommand::kPause);
+  ASSERT_GE(sent.size(), 3u);
+  EXPECT_EQ(sent[sent.size() - 3].stage, ExamineStage::kSettling);
+  EXPECT_EQ(sent[sent.size() - 3].command, PlayerCommand::kPause);
+
+  // Asked before it is stopped, always: a stop sent to a disc that is not
+  // turning opens the tray on a Pioneer player.
+  EXPECT_EQ(sent[sent.size() - 2].stage, ExamineStage::kCheckingTransport);
+  EXPECT_EQ(sent[sent.size() - 2].command, PlayerCommand::kQueryActiveMode);
+  EXPECT_EQ(sent.back().stage, ExamineStage::kSpinningDown);
+  EXPECT_EQ(sent.back().command, PlayerCommand::kStop);
 }
 
 TEST(DiscExaminerTest, AnIdentifyingPassCountsOnlyTheStepsItWillTake) {
@@ -864,7 +956,7 @@ TEST(DiscExaminerTest, AnIdentifyingPassCountsOnlyTheStepsItWillTake) {
   DiscExaminer identify(LevelIIIModel(), "A1", ExamineScope::kIdentify);
 
   EXPECT_LT(identify.steps_planned(), full.steps_planned());
-  EXPECT_EQ(identify.steps_planned(), 5u);
+  EXPECT_EQ(identify.steps_planned(), 7u);
 }
 
 TEST(DiscExaminerTest, AnIdentifyingPassStillReportsWhatItDidLearn) {

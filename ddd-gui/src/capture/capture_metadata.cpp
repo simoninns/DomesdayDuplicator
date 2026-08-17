@@ -123,6 +123,19 @@ void WriteNaming(YamlWriter& yaml, const CaptureNamingFields& naming) {
   yaml.EndMapping();
 }
 
+void WriteDevice(YamlWriter& yaml, const DeviceBuild& device) {
+  yaml.BeginMapping("device");
+
+  yaml.StringIfPresent("firmware_version", device.firmware_version);
+  yaml.StringIfPresent("gateware_version", device.gateware_version);
+
+  if (device.gateware_register_map != 0) {
+    yaml.Unsigned("gateware_register_map", device.gateware_register_map);
+  }
+
+  yaml.EndMapping();
+}
+
 void WritePlayer(YamlWriter& yaml, const PlayerIdentity& player) {
   yaml.BeginMapping("player");
 
@@ -261,6 +274,9 @@ std::string BuildCaptureMetadataYaml(const CaptureMetadata& metadata) {
   }
 
   WriteNaming(yaml, metadata.naming);
+  yaml.BlankLine();
+
+  WriteDevice(yaml, metadata.device);
   yaml.BlankLine();
 
   WritePlayer(yaml, metadata.player);

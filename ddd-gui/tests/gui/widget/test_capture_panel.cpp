@@ -99,10 +99,6 @@ class CapturePanelTest : public ::testing::Test {
     QSettings().clear();
   }
 
-  QComboBox* DeviceCombo() const {
-    return panel_->findChild<QComboBox*>(
-        QLatin1String(CapturePanel::kDeviceComboName));
-  }
   QPushButton* MonitorButton() const {
     return panel_->findChild<QPushButton*>(
         QLatin1String(CapturePanel::kMonitorButtonName));
@@ -115,10 +111,14 @@ class CapturePanelTest : public ::testing::Test {
     return panel_->findChild<QPushButton*>(
         QLatin1String(CapturePanel::kCaptureButtonName));
   }
-  QLineEdit* DirectoryEdit() const {
-    return panel_->findChild<QLineEdit*>(
-        QLatin1String(CapturePanel::kDirectoryEditName));
+  // Where captures go is a setting now, not a field on the panel, so a test
+  // that wants a particular folder says so the way the Settings dialog does.
+  void UseDirectory(const QString& path) {
+    CaptureSettings settings = controller_->settings();
+    settings.capture_directory = path;
+    controller_->SetSettings(settings);
   }
+
   QLineEdit* NameEdit() const {
     return panel_->findChild<QLineEdit*>(
         QLatin1String(CapturePanel::kNameEditName));
@@ -205,11 +205,9 @@ class CapturePanelTest : public ::testing::Test {
 };
 
 TEST_F(CapturePanelTest, EveryControlIsPresentAndFindable) {
-  EXPECT_NE(DeviceCombo(), nullptr);
   EXPECT_NE(MonitorButton(), nullptr);
   EXPECT_NE(CaptureButton(), nullptr);
   EXPECT_NE(StatusLabel(), nullptr);
-  EXPECT_NE(DirectoryEdit(), nullptr);
   EXPECT_NE(NameEdit(), nullptr);
   EXPECT_NE(FormatCombo(), nullptr);
   EXPECT_NE(SampleRateCombo(), nullptr);
@@ -227,61 +225,69 @@ TEST_F(CapturePanelTest, TestModeIsNotOneOfThisPanelsControls) {
       << "the panel still carries a checkbox";
 }
 
+// Which device and which folder are chosen once and then left, so they live in
+// File ▸ Settings… and not on the panel somebody works from. A control left
+// behind here would be a second place to set one value, and two places for one
+// value eventually disagree.
+TEST_F(CapturePanelTest, TheDeviceAndTheFolderAreNotOnThisPanel) {
+  EXPECT_EQ(
+      panel_->findChild<QComboBox*>(QLatin1String("capture_device_combo")),
+      nullptr);
+  EXPECT_EQ(
+      panel_->findChild<QLineEdit*>(QLatin1String("capture_directory_edit")),
+      nullptr);
+  EXPECT_EQ(
+      panel_->findChild<QPushButton*>(QLatin1String("capture_browse_button")),
+      nullptr);
+}
+
 TEST_F(CapturePanelTest, WithNoDeviceThereIsNothingToPress) {
   EXPECT_FALSE(MonitorButton()->isEnabled());
   EXPECT_FALSE(CaptureButton()->isEnabled());
-  EXPECT_EQ(DeviceCombo()->count(), 0);
+  EXPECT_TRUE(StatusLabel()->text().contains(QStringLiteral("No capture")))
+      << StatusLabel()->text().toStdString();
 }
 
-TEST_F(CapturePanelTest, AnAttachedDeviceFillsTheListAndEnablesTheButton) {
+TEST_F(CapturePanelTest, AnAttachedDeviceSaysReadyAndEnablesTheButton) {
   device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper, "");
   controller_->Start();
 
-  ASSERT_TRUE(PumpUntil([&] { return DeviceCombo()->count() == 1; }));
-  EXPECT_TRUE(MonitorButton()->isEnabled());
+  ASSERT_TRUE(PumpUntil([&] { return MonitorButton()->isEnabled(); }));
   EXPECT_TRUE(CaptureButton()->isEnabled());
-  EXPECT_EQ(DeviceCombo()->itemData(0).toString(), QStringLiteral("bus-1"));
+  EXPECT_EQ(StatusLabel()->text(), QStringLiteral("Ready"));
 }
 
 // The plan's acceptance criterion, at the point a user meets it: a device on a
 // USB 2 port is reported as "connected at insufficient speed", not opened.
 //
-// It says so in the list rather than only when the button is pressed, because
-// that is where the user is looking when they are wondering which device is
-// which.
+// It says so on the status line rather than only when the button is pressed,
+// and the status line is now the only place the panel says anything about the
+// device at all — so it has to carry the diagnosis as well as the state.
 TEST_F(CapturePanelTest, ADeviceOnAUsb2PortIsNamedAsSuchAndCannotBeStarted) {
   device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kHigh, "");
   controller_->Start();
 
-  ASSERT_TRUE(PumpUntil([&] { return DeviceCombo()->count() == 1; }));
+  ASSERT_TRUE(PumpUntil([&] {
+    return StatusLabel()->text().contains(QStringLiteral("insufficient speed"));
+  })) << StatusLabel()->text().toStdString();
 
-  EXPECT_TRUE(
-      DeviceCombo()->itemText(0).contains(QStringLiteral("insufficient speed")))
-      << DeviceCombo()->itemText(0).toStdString();
-  EXPECT_TRUE(
-      StatusLabel()->text().contains(QStringLiteral("insufficient speed")))
-      << StatusLabel()->text().toStdString();
   EXPECT_FALSE(MonitorButton()->isEnabled());
 }
 
-TEST_F(CapturePanelTest, SeveralDevicesAllAppear) {
-  device_->SetDevices({DeviceAt("bus-1", capture::DeviceSpeed::kSuper),
-                       DeviceAt("bus-2", capture::DeviceSpeed::kSuper)});
+// A device with no firmware is reported for what it is rather than as an
+// absence: saying "no capture device attached" to somebody looking straight at
+// one is how a user decides the application is broken.
+TEST_F(CapturePanelTest, ADeviceWithNoFirmwareIsSaidSoRatherThanIgnored) {
+  capture::DeviceInfo info = DeviceAt("bus-1", capture::DeviceSpeed::kSuper);
+  info.personality = capture::DevicePersonality::kRecovery;
+  device_->SetDevices({info});
   controller_->Start();
 
-  ASSERT_TRUE(PumpUntil([&] { return DeviceCombo()->count() == 2; }));
-}
+  ASSERT_TRUE(PumpUntil([&] {
+    return StatusLabel()->text().contains(QStringLiteral("no firmware"));
+  })) << StatusLabel()->text().toStdString();
 
-TEST_F(CapturePanelTest, ChoosingADeviceRemembersIt) {
-  device_->SetDevices({DeviceAt("bus-1", capture::DeviceSpeed::kSuper),
-                       DeviceAt("bus-2", capture::DeviceSpeed::kSuper)});
-  controller_->Start();
-  ASSERT_TRUE(PumpUntil([&] { return DeviceCombo()->count() == 2; }));
-
-  DeviceCombo()->setCurrentIndex(1);
-
-  EXPECT_EQ(controller_->settings().preferred_device_path,
-            QStringLiteral("bus-2"));
+  EXPECT_FALSE(MonitorButton()->isEnabled());
 }
 
 // The button is a state, not an action pair. A Start beside a Stop leaves one
@@ -314,12 +320,14 @@ TEST_F(CapturePanelTest, TheDeviceIsLockedWhileStreaming) {
   MonitorButton()->click();
   ASSERT_TRUE(controller_->monitoring());
 
-  EXPECT_FALSE(DeviceCombo()->isEnabled());
+  // The rate is the one on this panel that locks with the stream rather than
+  // with the file. The device itself is no longer chosen here at all.
+  EXPECT_FALSE(SampleRateCombo()->isEnabled());
 
   MonitorButton()->click();
   ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
 
-  EXPECT_TRUE(DeviceCombo()->isEnabled());
+  EXPECT_TRUE(SampleRateCombo()->isEnabled());
 }
 
 // The rate is written to the device's decimation register before the stream is
@@ -474,7 +482,6 @@ TEST_F(CapturePanelTest, TheDestinationIsFixedOnceTheFileIsOpen) {
 
   // The file is already open, so these cannot take effect and say so rather
   // than accepting input that would be ignored.
-  EXPECT_FALSE(DirectoryEdit()->isEnabled());
   EXPECT_FALSE(NameEdit()->isEnabled());
   EXPECT_FALSE(CompressionSpin()->isEnabled());
 
@@ -487,7 +494,6 @@ TEST_F(CapturePanelTest, TheDestinationIsFixedOnceTheFileIsOpen) {
   controller_->StopCapture();
   ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
 
-  EXPECT_TRUE(DirectoryEdit()->isEnabled());
   EXPECT_TRUE(NameEdit()->isEnabled());
   EXPECT_TRUE(CompressionSpin()->isEnabled());
 
@@ -651,8 +657,7 @@ TEST_F(CapturePanelTest, FreeSpaceIsShownAsHowMuchCaptureItHolds) {
 // Unknown, and specifically not zero. Zero reads as "the disk is full" and
 // would stop somebody capturing to a folder they were about to create.
 TEST_F(CapturePanelTest, AFolderThatIsNotThereReadsAsUnknownRatherThanFull) {
-  DirectoryEdit()->setText(QStringLiteral("/no/such/folder/anywhere"));
-  emit DirectoryEdit() -> editingFinished();
+  UseDirectory(QStringLiteral("/no/such/folder/anywhere"));
 
   EXPECT_TRUE(FreeSpaceLabel()->text().contains(QStringLiteral("Unknown"),
                                                 Qt::CaseInsensitive))
@@ -810,7 +815,7 @@ TEST_F(CapturePanelTest, ANameAlreadyTakenIsSaidSoAsItIsTyped) {
     file << "x";
   }
 
-  DirectoryEdit()->setText(QString::fromStdString(directory_.string()));
+  UseDirectory(QString::fromStdString(directory_.string()));
 
   ASSERT_NE(NameTakenLabel(), nullptr);
 
@@ -822,8 +827,13 @@ TEST_F(CapturePanelTest, ANameAlreadyTakenIsSaidSoAsItIsTyped) {
 
   EXPECT_FALSE(NameTakenLabel()->isHidden());
   EXPECT_TRUE(
-      NameTakenLabel()->text().contains(QStringLiteral("Casper side 1_2")));
-  EXPECT_TRUE(NameTakenLabel()->text().contains(QStringLiteral("overwritten")));
+      NameTakenLabel()->text().contains(QStringLiteral("Casper side 1 (1)")));
+
+  // The name it will get, and nothing else. What is being done is what every
+  // desktop does with a name already in use, so a sentence explaining it would
+  // be one nobody needs to read twice.
+  EXPECT_FALSE(
+      NameTakenLabel()->text().contains(QStringLiteral("overwritten")));
 
   // A free name says nothing, and neither does the generated one — it carries a
   // timestamp, so a note about it would never go away.
@@ -893,7 +903,7 @@ TEST_F(CapturePanelTest, TheNudgeNeverBlocksTheCapture) {
   // started must still be startable with nothing named.
   device_->SetDevices({DeviceAt("bus-1", capture::DeviceSpeed::kSuper)});
   controller_->Start();
-  ASSERT_TRUE(PumpUntil([&] { return DeviceCombo()->count() == 1; }));
+  ASSERT_TRUE(PumpUntil([&] { return CaptureButton()->isEnabled(); }));
 
   ASSERT_FALSE(NamingButton()->styleSheet().isEmpty());
   EXPECT_TRUE(CaptureButton()->isEnabled());

@@ -167,9 +167,9 @@ void CaptureNamingForm::BuildWidgets() {
   layout->setContentsMargins(0, 0, 0, 0);
 
   auto* intro = new QLabel(
-      tr("What this disc is. All of it is recorded in the capture's metadata "
-         "file; the parts that make sense in one can also be folded into the "
-         "file name."),
+      tr("What this disc is. Everything ticked below is written to the "
+         "capture's metadata file, and the file name can be built from it as "
+         "well."),
       this);
   intro->setWordWrap(true);
   layout->addWidget(intro);
@@ -189,8 +189,9 @@ void CaptureNamingForm::BuildWidgets() {
     ask_button_->setToolTip(
         tr("Spin the disc up and read what it says about itself: its type, its "
            "video standard and which side is loaded. It takes a few seconds, "
-           "leaves the disc where it started, and fills in only what the "
-           "player actually reports — nothing you have typed is touched."));
+           "does not move the disc, puts the player back the way it found it, "
+           "and fills in only what the player actually reports — nothing you "
+           "have typed is touched."));
     ask_layout->addWidget(ask_button_);
 
     ask_status_ = new QLabel(ask_row);

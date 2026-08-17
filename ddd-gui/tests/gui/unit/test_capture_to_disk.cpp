@@ -850,10 +850,10 @@ TEST_F(CaptureToDiskTest, ASecondCaptureOfTheSameNameIsRenamedAndSaidSo) {
   ASSERT_EQ(renamed.count(), 1);
   EXPECT_EQ(renamed.front().at(0).toString(), QStringLiteral("Casper side 1"));
   EXPECT_EQ(renamed.front().at(1).toString(),
-            QStringLiteral("Casper side 1_2"));
+            QStringLiteral("Casper side 1 (1)"));
 
   EXPECT_TRUE(controller_->capture_path().contains(
-      QStringLiteral("Casper side 1_2.ddd.flac")));
+      QStringLiteral("Casper side 1 (1).ddd.flac")));
 
   controller_->StopCapture();
   ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));

@@ -113,17 +113,59 @@ TEST_F(CapturePlanFormTest, ACavDiscIsOfferedFramesAndNoTimeCodes) {
 
   EXPECT_NE(Find<QSpinBox>(CapturePlanForm::kStartFrameSpinName), nullptr);
   EXPECT_NE(Find<QSpinBox>(CapturePlanForm::kEndFrameSpinName), nullptr);
-  EXPECT_EQ(Find<QLineEdit>(CapturePlanForm::kStartTimeEditName), nullptr);
-  EXPECT_EQ(Find<QLineEdit>(CapturePlanForm::kEndTimeEditName), nullptr);
+  EXPECT_EQ(Find<QWidget>(CapturePlanForm::kStartTimeRowName), nullptr);
+  EXPECT_EQ(Find<QWidget>(CapturePlanForm::kEndTimeRowName), nullptr);
 }
 
 TEST_F(CapturePlanFormTest, AClvDiscIsOfferedTimeCodesAndNoFrames) {
   Build(ClvDisc());
 
-  EXPECT_NE(Find<QLineEdit>(CapturePlanForm::kStartTimeEditName), nullptr);
-  EXPECT_NE(Find<QLineEdit>(CapturePlanForm::kEndTimeEditName), nullptr);
+  EXPECT_NE(Find<QWidget>(CapturePlanForm::kStartTimeRowName), nullptr);
+  EXPECT_NE(Find<QWidget>(CapturePlanForm::kEndTimeRowName), nullptr);
   EXPECT_EQ(Find<QSpinBox>(CapturePlanForm::kStartFrameSpinName), nullptr);
   EXPECT_EQ(Find<QSpinBox>(CapturePlanForm::kEndFrameSpinName), nullptr);
+}
+
+// A field per unit, each saying which unit it is, rather than one box wanting
+// "0:00:00". A format somebody has to get right before the application will
+// accept it is a format that will be got wrong.
+TEST_F(CapturePlanFormTest, ATimeIsEnteredAsItsOwnFields) {
+  Build(ClvDisc());
+
+  auto* const minutes = Find<QSpinBox>(CapturePlanForm::kStartMinutesSpinName);
+  auto* const seconds = Find<QSpinBox>(CapturePlanForm::kStartSecondsSpinName);
+  ASSERT_NE(minutes, nullptr);
+  ASSERT_NE(seconds, nullptr);
+
+  EXPECT_FALSE(minutes->suffix().trimmed().isEmpty()) << "no unit on the box";
+  EXPECT_FALSE(seconds->suffix().trimmed().isEmpty()) << "no unit on the box";
+
+  // Seconds are seconds wherever they are. Minutes are bounded by the measured
+  // length, on the same rule the frame boxes follow: a range that cannot exist
+  // should not be typeable. This side is 50:45.
+  EXPECT_EQ(seconds->maximum(), 59);
+  EXPECT_EQ(minutes->maximum(), 50);
+}
+
+// Almost no LaserDisc side runs past the hour, and a box whose only legal value
+// is zero is one somebody has to read, understand and then decide to ignore.
+TEST_F(CapturePlanFormTest, AnHoursBoxAppearsOnlyForASideThatNeedsOne) {
+  Build(ClvDisc());
+  EXPECT_EQ(Find<QSpinBox>(CapturePlanForm::kStartHoursSpinName), nullptr);
+  EXPECT_EQ(Find<QSpinBox>(CapturePlanForm::kEndHoursSpinName), nullptr);
+
+  player::DiscProfile long_side = ClvDisc();
+  long_side.programme_end.Record(1023000, player::Provenance::kMeasured);
+  Build(long_side);
+
+  auto* const hours = Find<QSpinBox>(CapturePlanForm::kStartHoursSpinName);
+  ASSERT_NE(hours, nullptr) << "a 1:02:30 side has an hour to enter";
+  EXPECT_EQ(hours->maximum(), 1);
+
+  // And with an hours box beside it, the minutes box goes back to a full hour:
+  // 1:15:00 is past the end, but 0:59:00 is not, and the two share a box.
+  EXPECT_EQ(Find<QSpinBox>(CapturePlanForm::kStartMinutesSpinName)->maximum(),
+            59);
 }
 
 TEST_F(CapturePlanFormTest, TheBoundsComeFromTheMeasuredLength) {
@@ -194,8 +236,10 @@ TEST_F(CapturePlanFormTest, AClvRangeIsReadAsTimeCodes) {
   Build(ClvDisc());
 
   Find<QRadioButton>(CapturePlanForm::kRangeRadioName)->setChecked(true);
-  Find<QLineEdit>(CapturePlanForm::kStartTimeEditName)->setText("10:00");
-  Find<QLineEdit>(CapturePlanForm::kEndTimeEditName)->setText("20:30");
+  Find<QSpinBox>(CapturePlanForm::kStartMinutesSpinName)->setValue(10);
+  Find<QSpinBox>(CapturePlanForm::kStartSecondsSpinName)->setValue(0);
+  Find<QSpinBox>(CapturePlanForm::kEndMinutesSpinName)->setValue(20);
+  Find<QSpinBox>(CapturePlanForm::kEndSecondsSpinName)->setValue(30);
 
   const player::AutoCapturePlan plan = form_->Plan();
   EXPECT_EQ(plan.addressing, player::AddressMode::kTimeCode);
@@ -204,15 +248,21 @@ TEST_F(CapturePlanFormTest, AClvRangeIsReadAsTimeCodes) {
   EXPECT_EQ(form_->problem(), player::PlanProblem::kNone);
 }
 
-TEST_F(CapturePlanFormTest, ATimeThatIsNotATimeIsRefusedRatherThanGuessed) {
+// There is no longer such a thing as a malformed time here, and that is the
+// point of the change: "1:99" was a thing somebody could type into one box and
+// be told off for. A minute is a box that stops at 59, so the sentence about a
+// malformed address has nothing left to describe on a CLV disc.
+TEST_F(CapturePlanFormTest, ATimeThatIsNotATimeCannotBeEnteredAtAll) {
   Build(ClvDisc());
 
   Find<QRadioButton>(CapturePlanForm::kRangeRadioName)->setChecked(true);
-  Find<QLineEdit>(CapturePlanForm::kEndTimeEditName)->setText("1:99");
 
-  // "1:99" is not a time, and guessing what it meant would be worse than saying
-  // so. It reaches the plan as an address no disc has.
-  EXPECT_EQ(form_->problem(), player::PlanProblem::kMalformedAddress);
+  auto* const seconds = Find<QSpinBox>(CapturePlanForm::kEndSecondsSpinName);
+  ASSERT_NE(seconds, nullptr);
+  seconds->setValue(99);
+
+  EXPECT_EQ(seconds->value(), 59) << "a second past 59 is not a second";
+  EXPECT_NE(form_->problem(), player::PlanProblem::kMalformedAddress);
 }
 
 // --- What the examination could not say ------------------------------------

@@ -456,7 +456,9 @@ TEST_F(PlayerControllerTest, WhatAPlayerCanDoArrivesWithTheConnection) {
 // was sent past the end, and where it stopped when it was sent back to the
 // start.
 void ScriptCavDisc(player::FakeSerialPort& port) {
-  port.AddResponse(9600, "?P\r", "P01\r");
+  // Parked when the examination starts, so it is spun up — and turning by
+  // the time the examination asks whether it is safe to stop it.
+  port.AddResponseSequence(9600, "?P\r", {"P01\r", "P04\r"});
   port.AddResponse(9600, "?D\r", "10001\r");
   port.AddResponse(9600, "PL\r", "R\r");
   port.AddResponse(9600, "$Y\r", "Y1000\r");
@@ -465,6 +467,10 @@ void ScriptCavDisc(player::FakeSerialPort& port) {
   port.AddResponse(9600, "FR60000SE\r", "E04\r");
   port.AddResponse(9600, "FR1SE\r", "R\r");
   port.AddResponse(9600, "PA\r", "R\r");
+
+  // The disc was parked when this examination started ("P01"), so it is
+  // stopped again at the end — Reject is the Pioneer stop.
+  port.AddResponse(9600, "RJ\r", "R\r");
   port.AddResponseSequence(9600, "?F\r", {"054000\r", "<00001\r"});
 }
 
@@ -513,7 +519,7 @@ TEST_F(PlayerControllerTest, AnExaminationDrivesTheWholeSequenceAndReportsIt) {
 
   // Every step said what it was for, so the progress line had something to
   // show throughout.
-  EXPECT_EQ(stages.size(), size_t{11});
+  EXPECT_EQ(stages.size(), size_t{13});
   EXPECT_EQ(stages.front(), player::ExamineStage::kCheckingPlayer);
 
   // And the bytes really went out, in the old application's own form.
@@ -521,6 +527,12 @@ TEST_F(PlayerControllerTest, AnExaminationDrivesTheWholeSequenceAndReportsIt) {
   EXPECT_NE(std::find(writes.begin(), writes.end(), "FR60000SE\r"),
             writes.end());
   EXPECT_NE(std::find(writes.begin(), writes.end(), "PA\r"), writes.end());
+
+  // Including the one that puts the player back where it was found. On the
+  // wire, because that is the only place "the disc is not still spinning" can
+  // actually be observed — and exactly once, since a Reject arriving at a
+  // transport already spinning down opens the tray.
+  EXPECT_EQ(std::count(writes.begin(), writes.end(), "RJ\r"), 1);
 }
 
 TEST_F(PlayerControllerTest, BothUserCodesAreReadEveryTime) {

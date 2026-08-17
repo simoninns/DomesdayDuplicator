@@ -24,9 +24,11 @@
 #include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QScreen>
 #include <QScrollArea>
 #include <QStackedWidget>
 #include <QVBoxLayout>
+#include <algorithm>
 #include <ctime>
 #include <filesystem>
 
@@ -40,6 +42,32 @@
 
 namespace ddd::gui {
 namespace {
+
+// The size this window opens at.
+//
+// Chosen rather than derived, and it has to be: each page is a QScrollArea, and
+// a scroll area reports a small fixed size hint whatever it contains, so the
+// natural size of this window is a couple of hundred pixels square regardless
+// of the four pages inside it. The pages are scroll areas because page 1 is
+// genuinely long — an examination report, a capture name and the whole naming
+// form — and a window that could not scroll would be worse on a short screen
+// than one that opens too small on a tall one.
+//
+// Wide enough for the naming form's labelled fields and the plan's address
+// boxes without the wrapped explanatory sentences becoming a column of five
+// words, and tall enough to hold page 1 down to the naming form's first group
+// box, which is where somebody's eye goes after reading what the disc is.
+constexpr int kWantedWidthPixels = 760;
+constexpr int kWantedHeightPixels = 820;
+
+// Never more than this much of the screen, in either direction.
+//
+// A dialog that opens taller than the desktop puts its own Next button below
+// the bottom edge, where on several window managers it cannot be reached or
+// resized back into view — which would turn "the window is too big" into "the
+// window is unusable". The margin is what leaves the title bar and a taskbar
+// somewhere to be.
+constexpr double kMostOfTheScreen = 0.9;
 
 // A page's heading, so somebody landing on one knows which of the four steps
 // they are in without counting tabs.
@@ -68,6 +96,15 @@ AutoCaptureWizard::AutoCaptureWizard(AutoCaptureController* controller,
   setWindowModality(Qt::NonModal);
   setSizeGripEnabled(true);
 
+  const QScreen* const display = screen();
+  const QSize available = display != nullptr
+                              ? display->availableGeometry().size()
+                              : QSize(kWantedWidthPixels, kWantedHeightPixels);
+  resize(std::min(kWantedWidthPixels,
+                  static_cast<int>(available.width() * kMostOfTheScreen)),
+         std::min(kWantedHeightPixels,
+                  static_cast<int>(available.height() * kMostOfTheScreen)));
+
   auto* layout = new QVBoxLayout(this);
 
   pages_ = new QStackedWidget(this);
@@ -78,24 +115,40 @@ AutoCaptureWizard::AutoCaptureWizard(AutoCaptureController* controller,
   pages_->addWidget(BuildSummaryPage());
   layout->addWidget(pages_, 1);
 
-  auto* buttons = new QDialogButtonBox(this);
+  // Laid out by hand rather than through a QDialogButtonBox, and the layout is
+  // the whole reason: **Close goes on the left, with the width of the window
+  // between it and Next.**
+  //
+  // A button box puts Close beside Next, where the button that leaves and the
+  // button that carries on are a few pixels apart and differ only in their
+  // label. On the last page of a long capture that is a genuinely expensive
+  // slip. Two ends of the row is the arrangement that cannot be misread —
+  // navigation on the right where it belongs, and the way out somewhere it is
+  // not reached for by accident.
+  auto* button_row = new QWidget(this);
+  auto* button_layout = new QHBoxLayout(button_row);
+  button_layout->setContentsMargins(0, 0, 0, 0);
 
-  previous_button_ =
-      buttons->addButton(tr("‹ Previous"), QDialogButtonBox::ActionRole);
-  previous_button_->setObjectName(QLatin1String(kPreviousButtonName));
-
-  next_button_ = buttons->addButton(tr("Next ›"), QDialogButtonBox::ActionRole);
-  next_button_->setObjectName(QLatin1String(kNextButtonName));
-
-  QPushButton* const close = buttons->addButton(QDialogButtonBox::Close);
+  QPushButton* const close = new QPushButton(tr("Close"), button_row);
   close->setObjectName(QLatin1String(kCloseButtonName));
+  button_layout->addWidget(close);
+
+  button_layout->addStretch(1);
+
+  previous_button_ = new QPushButton(tr("‹ Previous"), button_row);
+  previous_button_->setObjectName(QLatin1String(kPreviousButtonName));
+  button_layout->addWidget(previous_button_);
+
+  next_button_ = new QPushButton(tr("Next ›"), button_row);
+  next_button_->setObjectName(QLatin1String(kNextButtonName));
+  button_layout->addWidget(next_button_);
 
   connect(previous_button_, &QPushButton::clicked, this,
           &AutoCaptureWizard::GoPrevious);
   connect(next_button_, &QPushButton::clicked, this,
           &AutoCaptureWizard::GoNext);
-  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::close);
-  layout->addWidget(buttons);
+  connect(close, &QPushButton::clicked, this, &QWidget::close);
+  layout->addWidget(button_row);
 
   if (player_ != nullptr) {
     connect(player_, &PlayerController::ExamineProgress, this,
@@ -125,6 +178,7 @@ AutoCaptureWizard::AutoCaptureWizard(AutoCaptureController* controller,
             });
   }
 
+  ForceFullSampleRate();
   ShowCaptureSettings();
   RebuildPlanForm();
   ShowPage(Page::kDisc);
@@ -180,8 +234,8 @@ QWidget* AutoCaptureWizard::BuildDiscPage() {
   examine_button_->setObjectName(QLatin1String(kExamineButtonName));
   examine_button_->setToolTip(
       tr("Spin the disc up, read what it says about itself, and measure the "
-         "side by seeking to both ends of it. About a minute, and it leaves "
-         "the disc held still at its beginning."));
+         "side by seeking to both ends of it. About a minute, and it puts the "
+         "player back the way it found it."));
   examine_row->addWidget(examine_button_);
 
   examine_stop_button_ = new QPushButton(tr("Stop"), page);
@@ -197,9 +251,16 @@ QWidget* AutoCaptureWizard::BuildDiscPage() {
 
   // --- What it will be called ---------------------------------------------
 
-  auto* name_form = new QFormLayout();
+  // In a box of its own, and it has to be. The naming form below opens with a
+  // sentence about the disc's fields, and with the name field loose above it
+  // that sentence lands directly under "Capture name" and reads as a
+  // description of it. Two blocks, each with its own heading, is the fix: the
+  // name is one thing and what the disc is another, even though the second can
+  // build the first.
+  auto* name_box = new QGroupBox(tr("What it will be called"), page);
+  auto* name_form = new QFormLayout(name_box);
 
-  name_edit_ = new QLineEdit(page);
+  name_edit_ = new QLineEdit(name_box);
   name_edit_->setObjectName(QLatin1String(kNameEditName));
   name_edit_->setPlaceholderText(tr("RF-Sample_<timestamp>"));
   name_edit_->setToolTip(
@@ -207,13 +268,13 @@ QWidget* AutoCaptureWizard::BuildDiscPage() {
          "over it. Leaving it empty gives the usual timestamped name."));
   name_form->addRow(tr("Capture name"), name_edit_);
 
-  name_taken_ = new QLabel(page);
+  name_taken_ = new QLabel(name_box);
   name_taken_->setObjectName(QLatin1String(kNameTakenLabelName));
   name_taken_->setWordWrap(true);
   name_taken_->hide();
   name_form->addRow(QString(), name_taken_);
 
-  layout->addLayout(name_form);
+  layout->addWidget(name_box);
 
   connect(name_edit_, &QLineEdit::textChanged, this,
           [this](const QString&) { RefreshNameNote(); });
@@ -277,13 +338,27 @@ QWidget* AutoCaptureWizard::BuildSettingsPage() {
       static_cast<int>(capture::CaptureOutputFormat::kSigned16Bit));
   destination_form->addRow(tr("Format"), format_combo_);
 
-  sample_rate_combo_ = new QComboBox(destination);
-  sample_rate_combo_->setObjectName(QLatin1String(kSampleRateComboName));
-  sample_rate_combo_->addItem(tr("40 MSPS for LaserDisc"),
-                              capture::kUndecimatedFactor);
-  sample_rate_combo_->addItem(tr("20 MSPS for VHS"),
-                              capture::kTapeDecimationFactor);
-  destination_form->addRow(tr("Sample rate"), sample_rate_combo_);
+  // Stated rather than offered, and the half rate is not among the choices
+  // because there are no choices. 20 MSPS exists for tape, whose RF is a
+  // fraction of a LaserDisc's bandwidth; this window drives a LaserDisc player,
+  // so a decimated capture here would fold everything above 10 MHz down on top
+  // of the signal and nothing downstream could tell the alias from the disc. A
+  // drop-down with one entry in it would only invite somebody to look for the
+  // setting that adds the other one.
+  sample_rate_label_ =
+      new QLabel(tr("40 MSPS — a LaserDisc's full rate"), destination);
+  sample_rate_label_->setObjectName(QLatin1String(kSampleRateLabelName));
+  sample_rate_label_->setToolTip(
+      tr("The 20 MSPS setting is for VHS and other tape formats, and is not "
+         "offered here: an automatic capture drives a LaserDisc player. If the "
+         "Capture panel is set to 20 MSPS, this capture puts it back to 40."));
+  destination_form->addRow(tr("Sample rate"), sample_rate_label_);
+
+  sample_rate_warning_ = new QLabel(destination);
+  sample_rate_warning_->setObjectName(QLatin1String(kSampleRateWarningName));
+  sample_rate_warning_->setWordWrap(true);
+  sample_rate_warning_->hide();
+  destination_form->addRow(QString(), sample_rate_warning_);
 
   settings_layout_->addWidget(destination);
   settings_layout_->addStretch(1);
@@ -303,8 +378,6 @@ QWidget* AutoCaptureWizard::BuildSettingsPage() {
   connect(directory_edit_, &QLineEdit::editingFinished, this,
           &AutoCaptureWizard::ApplyCaptureSettings);
   connect(format_combo_, &QComboBox::currentIndexChanged, this,
-          [this](int) { ApplyCaptureSettings(); });
-  connect(sample_rate_combo_, &QComboBox::currentIndexChanged, this,
           [this](int) { ApplyCaptureSettings(); });
 
   return scroll;
@@ -591,9 +664,61 @@ void AutoCaptureWizard::ShowCaptureSettings() {
   directory_edit_->setText(settings.ResolvedCaptureDirectory());
   format_combo_->setCurrentIndex(
       format_combo_->findData(static_cast<int>(settings.output_format)));
-  sample_rate_combo_->setCurrentIndex(
-      sample_rate_combo_->findData(settings.decimation_factor));
   loading_ = false;
+
+  ShowSampleRateWarning();
+}
+
+void AutoCaptureWizard::ForceFullSampleRate() {
+  if (capture_ == nullptr) {
+    return;
+  }
+
+  // Settled when the window opens rather than when somebody changes something,
+  // because there is nothing here to change: an automatic capture is a
+  // LaserDisc capture, and 20 MSPS is for tape. A Capture panel left decimated
+  // from some tape work would otherwise carry that silently into a LaserDisc
+  // capture, which is the whole failure this prevents.
+  //
+  // Not while a stream is open. The rate is written to the device before the
+  // stream is opened and cannot be changed under a running one, so writing it
+  // here would change what the settings say without changing what the device
+  // is doing — and a file labelled 40 MSPS carrying half-rate samples is worse
+  // than a warning. ShowSampleRateWarning raises that warning instead.
+  if (capture_->monitoring()) {
+    return;
+  }
+
+  CaptureSettings settings = capture_->settings();
+  if (settings.decimation_factor == capture::kUndecimatedFactor) {
+    return;
+  }
+  settings.decimation_factor = capture::kUndecimatedFactor;
+  capture_->SetSettings(settings);
+}
+
+void AutoCaptureWizard::ShowSampleRateWarning() {
+  if (capture_ == nullptr || sample_rate_warning_ == nullptr) {
+    return;
+  }
+
+  // The rate is written to the device before the stream is opened, so it is
+  // fixed from the moment monitoring starts — the Capture panel locks its own
+  // control for the same reason. Forcing the setting here would change what the
+  // panel says without changing what the device is doing, which is the one
+  // outcome worse than saying nothing: a file labelled 40 MSPS carrying half
+  // rate samples.
+  const bool decimated =
+      capture_->settings().decimation_factor != capture::kUndecimatedFactor;
+  const bool stuck = decimated && capture_->monitoring();
+
+  sample_rate_warning_->setVisible(stuck);
+  if (stuck) {
+    sample_rate_warning_->setText(
+        tr("Monitoring is running at 20 MSPS, and the rate cannot be changed "
+           "while a stream is open. Stop monitoring first — otherwise this "
+           "capture is taken at half a LaserDisc's rate."));
+  }
 }
 
 void AutoCaptureWizard::ApplyCaptureSettings() {
@@ -605,7 +730,9 @@ void AutoCaptureWizard::ApplyCaptureSettings() {
   settings.capture_directory = directory_edit_->text();
   settings.output_format = static_cast<capture::CaptureOutputFormat>(
       format_combo_->currentData().toInt());
-  settings.decimation_factor = sample_rate_combo_->currentData().toInt();
+  // The rate is not among these. It is not a control on this page and it is
+  // not a decision — see ForceFullSampleRate, which settles it when the window
+  // opens. Carried through unchanged from the settings this copied.
 
   if (settings != capture_->settings()) {
     capture_->SetSettings(settings);
@@ -855,7 +982,6 @@ void AutoCaptureWizard::Refresh() {
   directory_edit_->setEnabled(!running_);
   browse_button_->setEnabled(!running_);
   format_combo_->setEnabled(!running_);
-  sample_rate_combo_->setEnabled(!running_);
 
   start_button_->setEnabled(!running_ && controller_ != nullptr &&
                             problem() == player::PlanProblem::kNone);
@@ -864,16 +990,40 @@ void AutoCaptureWizard::Refresh() {
   another_side_button_->setEnabled(!running_ && !examining_ && live);
 }
 
+bool AutoCaptureWizard::RefuseWhileRunning() {
+  // This window is the only thing reporting the run: leaving would leave a disc
+  // spinning and a file being written with nothing on screen to say so, and no
+  // way back to the Stop button.
+  if (!running_) {
+    return false;
+  }
+
+  QMessageBox::information(
+      this, tr("Capture in progress"),
+      tr("The capture is still running. Stop it first — the file is "
+         "finished properly and the player put back, which takes a few "
+         "seconds."));
+  return true;
+}
+
+void AutoCaptureWizard::reject() {
+  // Escape, which is its own way out: QDialog::reject() hides the window
+  // without raising a close event, so the guard in closeEvent would never see
+  // it. One keystroke would otherwise abandon a running capture.
+  //
+  // Guarded here rather than forwarded to close(). Forwarding looks tidier and
+  // is a loop: QDialog::closeEvent calls reject(), so a reject() that called
+  // close() would come straight back to itself — and the close would end up
+  // refused, which is what a Close button that stopped working looks like.
+  if (RefuseWhileRunning()) {
+    return;
+  }
+
+  QDialog::reject();
+}
+
 void AutoCaptureWizard::closeEvent(QCloseEvent* event) {
-  // Refused while a capture is running, and this window is the only thing
-  // reporting it: closing would leave a disc spinning and a file being written
-  // with nothing on screen to say so, and no way back to the Stop button.
-  if (running_) {
-    QMessageBox::information(
-        this, tr("Capture in progress"),
-        tr("The capture is still running. Stop it first — the file is "
-           "finished properly and the player put back, which takes a few "
-           "seconds."));
+  if (RefuseWhileRunning()) {
     event->ignore();
     return;
   }

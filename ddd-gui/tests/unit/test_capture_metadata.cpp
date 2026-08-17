@@ -115,6 +115,7 @@ TEST_F(CaptureMetadataTest, NothingEstablishedIsNothingWritten) {
   // But the sections themselves are there and empty, so a reader can tell this
   // document from one written before those sections existed.
   EXPECT_TRUE(Contains(document, "\"naming\": {}"));
+  EXPECT_TRUE(Contains(document, "\"device\": {}"));
   EXPECT_TRUE(Contains(document, "\"player\": {}"));
   EXPECT_TRUE(Contains(document, "\"disc\": {}"));
 }
@@ -185,6 +186,65 @@ TEST_F(CaptureMetadataTest, ThePlayerIsRecordedWhereThereWasOne) {
   EXPECT_TRUE(Contains(document, "\"port\": \"/dev/ttyUSB0\""));
   EXPECT_TRUE(Contains(document, "\"baud_rate\": 9600"));
   EXPECT_TRUE(Contains(document, "\"recognised_model\": true"));
+}
+
+TEST_F(CaptureMetadataTest, TheDevicesOwnBuildIsRecorded) {
+  CaptureMetadata metadata = Ordinary();
+  metadata.device.firmware_version = "a1b2c3d4";
+  metadata.device.gateware_version = "a1b2c3d4";
+  metadata.device.gateware_register_map = 2;
+
+  const std::string document = BuildCaptureMetadataYaml(metadata);
+
+  EXPECT_TRUE(Contains(document, "\"device\":"));
+  EXPECT_TRUE(Contains(document, "\"firmware_version\": \"a1b2c3d4\""));
+  EXPECT_TRUE(Contains(document, "\"gateware_version\": \"a1b2c3d4\""));
+  EXPECT_TRUE(Contains(document, "\"gateware_register_map\": 2"));
+}
+
+// The three versions in a release are one commit, so what this section is for
+// is the case where they are not: a device that was never updated, or a
+// gateware built by hand on the bench.
+TEST_F(CaptureMetadataTest, ThreeVersionsThatDisagreeAreAllRecorded) {
+  CaptureMetadata metadata = Ordinary();
+  metadata.application_version = "1.2.3-aaaaaaa";
+  metadata.device.firmware_version = "bbbbbbbb";
+  metadata.device.gateware_version = "cccccccc";
+
+  const std::string document = BuildCaptureMetadataYaml(metadata);
+
+  EXPECT_TRUE(Contains(document, "\"application_version\": \"1.2.3-aaaaaaa\""));
+  EXPECT_TRUE(Contains(document, "\"firmware_version\": \"bbbbbbbb\""));
+  EXPECT_TRUE(Contains(document, "\"gateware_version\": \"cccccccc\""));
+}
+
+// A commit hash on its own asserts that a published build produced this file.
+// For a tree with uncommitted changes that is not true, and the same "-dirty"
+// convention the application's own stamp uses is what says so.
+TEST_F(CaptureMetadataTest, GatewareBuiltFromAModifiedTreeSaysSo) {
+  CaptureMetadata metadata = Ordinary();
+  metadata.device.gateware_version = "a1b2c3d4-dirty";
+
+  EXPECT_TRUE(Contains(BuildCaptureMetadataYaml(metadata),
+                       "\"gateware_version\": \"a1b2c3d4-dirty\""));
+}
+
+// Firmware too old to stamp its commit, gateware that had not finished
+// configuring, a device nothing asked — all of them land here, and none of
+// them is an error worth writing a field about.
+TEST_F(CaptureMetadataTest, ADeviceThatSaidNothingWritesNothing) {
+  const std::string document = BuildCaptureMetadataYaml(Ordinary());
+
+  EXPECT_FALSE(Contains(document, "gateware_version"));
+  EXPECT_FALSE(Contains(document, "gateware_register_map"));
+
+  // Zero is not a register map, and writing it would be a reading rather than
+  // the absence of one.
+  CaptureMetadata metadata = Ordinary();
+  metadata.device.firmware_version = "a1b2c3d4";
+  metadata.device.gateware_register_map = 0;
+  EXPECT_FALSE(
+      Contains(BuildCaptureMetadataYaml(metadata), "gateware_register_map"));
 }
 
 TEST_F(CaptureMetadataTest, TheScanRecordsEveryFactWithHowItWasEstablished) {

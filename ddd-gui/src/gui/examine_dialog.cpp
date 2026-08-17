@@ -234,8 +234,9 @@ void ExamineDialog::ApplyState() {
     stage_->setText(
         tr("Examining spins the disc up, reads both of the disc's own "
            "identifying codes, seeks to the end of the side to measure it, and "
-           "comes back to the start. It takes about a minute and leaves the "
-           "disc held still at its beginning."));
+           "comes back to the start. It takes about a minute, and it puts the "
+           "player back the way it found it: a disc that was stopped when it "
+           "began is stopped again at the end."));
   }
 }
 

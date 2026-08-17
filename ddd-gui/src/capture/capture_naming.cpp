@@ -299,16 +299,21 @@ std::filesystem::path MakeUniqueCapturePath(
   }
 
   // The suffix is compound, so parent_path()/stem() would leave ".ddd" behind
-  // and produce "name.ddd_2.flac". Taking the whole suffix off the string is
+  // and produce "name.ddd (1).flac". Taking the whole suffix off the string is
   // the only way to insert the number where a reader expects it.
   const std::string full = preferred.string();
   const std::string suffix = MatchedCaptureFileSuffix(full);
   const std::string base = StripCaptureFileSuffix(full);
 
+  // " (1)", " (2)", … — the convention every desktop uses for a name already
+  // taken, so it needs no explaining and reads as a copy rather than as part
+  // of the name. The first collision is (1) and not (2): the number counts the
+  // copies, not the files, which is what somebody comparing "Casper side 1"
+  // with "Casper side 1 (1)" expects it to mean.
   std::filesystem::path candidate = preferred;
-  for (int attempt = 2; attempt <= kMaximumNameAttempts; ++attempt) {
-    candidate =
-        std::filesystem::path(base + "_" + std::to_string(attempt) + suffix);
+  for (int copy = 1; copy < kMaximumNameAttempts; ++copy) {
+    candidate = std::filesystem::path(base + " (" + std::to_string(copy) + ")" +
+                                      suffix);
     if (!std::filesystem::exists(candidate, error)) {
       return candidate;
     }

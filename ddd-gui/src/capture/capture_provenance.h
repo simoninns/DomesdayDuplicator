@@ -31,6 +31,16 @@ inline constexpr const char* kTagDecimation = "DDD_DECIMATION";
 inline constexpr const char* kTagTestMode = "DDD_TEST_MODE";
 inline constexpr const char* kTagFrontEndGain = "DDD_FRONT_END_GAIN";
 
+// What the device was running: the FX3's commit and the FPGA's. Written only
+// where the device said, on the same terms as everything else here.
+//
+// These belong in the tags and not only in the sidecar, because the case the
+// tags exist for is a file that has travelled without its sidecar — and "which
+// build of the instrument wrote this" is exactly the question asked of a
+// capture that turns out to have something wrong with it.
+inline constexpr const char* kTagFirmwareVersion = "DDD_FIRMWARE_VERSION";
+inline constexpr const char* kTagGatewareVersion = "DDD_GATEWARE_VERSION";
+
 // What the disc was, where a player was there to be asked. Every one of these
 // is written only when it is known — a file that carried "side 1" because
 // nothing said otherwise would be a file asserting something nobody
@@ -84,6 +94,13 @@ struct CaptureProvenance {
 
   // This build's version stamp
   std::string application_version;
+
+  // The commits the device's two halves were built from, empty where the
+  // device did not say. A release builds all three of these from one commit,
+  // so three fields that agree is the ordinary case and three that do not is
+  // the thing worth being able to see.
+  std::string firmware_version;
+  std::string gateware_version;
 
   bool test_mode = false;
 

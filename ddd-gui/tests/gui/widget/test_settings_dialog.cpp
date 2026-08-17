@@ -13,7 +13,9 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QLineEdit>
 #include <QListWidget>
+#include <QPushButton>
 #include <QString>
 #include <QStringList>
 #include <QTabWidget>
@@ -22,6 +24,7 @@
 #include "player_settings.h"
 #include "serial_port_scanner.h"
 #include "settings_dialog.h"
+#include "usb_device_info.h"
 
 namespace ddd::gui {
 namespace {
@@ -35,6 +38,14 @@ SerialPortCandidate Port(const char* path) {
 
 std::vector<SerialPortCandidate> TwoPorts() {
   return {Port("/dev/ttyUSB0"), Port("/dev/ttyUSB1")};
+}
+
+ddd::capture::DeviceInfo Device(const char* path,
+                                ddd::capture::DeviceSpeed speed) {
+  ddd::capture::DeviceInfo info;
+  info.path = path;
+  info.speed = speed;
+  return info;
 }
 
 template <typename T>
@@ -92,6 +103,78 @@ TEST(SettingsDialogTest, EachHalfComesBackAsItWentIn) {
   EXPECT_EQ(dialog.Player().model_id_code, QStringLiteral("15"));
   EXPECT_EQ(dialog.Player().port_path, QStringLiteral("/dev/ttyUSB1"));
   EXPECT_EQ(dialog.Player().baud_rate, 4800U);
+}
+
+// Both moved off the Capture panel: neither is changed once it is set, and a
+// control that is set once does not earn a row on the panel somebody works
+// from. Which means this dialog is now the only place either can be chosen.
+TEST(SettingsDialogTest, TheDeviceAndTheFolderAreChosenHere) {
+  CaptureSettings capture;
+  capture.capture_directory = QStringLiteral("/captures/archive");
+  capture.preferred_device_path = QStringLiteral("bus-2");
+
+  const SettingsDialog dialog(
+      capture,
+      {Device("bus-1", ddd::capture::DeviceSpeed::kSuper),
+       Device("bus-2", ddd::capture::DeviceSpeed::kSuper)},
+      PlayerSettings{}, TwoPorts());
+
+  auto* folder = Find<QLineEdit>(dialog, SettingsDialog::kDirectoryEditName);
+  ASSERT_NE(folder, nullptr);
+  EXPECT_EQ(folder->text(), QStringLiteral("/captures/archive"));
+  EXPECT_NE(Find<QPushButton>(dialog, SettingsDialog::kBrowseButtonName),
+            nullptr);
+
+  auto* device = Find<QComboBox>(dialog, SettingsDialog::kDeviceComboName);
+  ASSERT_NE(device, nullptr);
+  EXPECT_EQ(device->currentData().toString(), QStringLiteral("bus-2"));
+
+  // And both come back out, because nothing else is going to write them now.
+  folder->setText(QStringLiteral("/captures/elsewhere"));
+  device->setCurrentIndex(device->findData(QStringLiteral("bus-1")));
+
+  EXPECT_EQ(dialog.Settings().capture_directory,
+            QStringLiteral("/captures/elsewhere"));
+  EXPECT_EQ(dialog.Settings().preferred_device_path, QStringLiteral("bus-1"));
+}
+
+// An empty setting is not an empty field: the folder defaults to the
+// platform's Movies or Videos directory, and a blank box would read as "no
+// folder chosen" for a capture that is going to land somewhere perfectly
+// definite.
+TEST(SettingsDialogTest, TheFolderShowsWhereCapturesWouldActuallyGo) {
+  const SettingsDialog dialog(CaptureSettings{}, {}, PlayerSettings{},
+                              TwoPorts());
+
+  auto* folder = Find<QLineEdit>(dialog, SettingsDialog::kDirectoryEditName);
+  ASSERT_NE(folder, nullptr);
+  EXPECT_FALSE(folder->text().isEmpty());
+  EXPECT_EQ(folder->text(), CaptureSettings{}.ResolvedCaptureDirectory());
+}
+
+// This is now the only list of attached devices in the application, so it has
+// to carry both reasons a device cannot capture rather than only the one it
+// used to show. A device on a USB 2 port can still be *preferred* — it is a
+// cable away from working — so it is listed and named, not hidden.
+TEST(SettingsDialogTest, TheDeviceListSaysWhatIsWrongWithADevice) {
+  ddd::capture::DeviceInfo recovery =
+      Device("bus-1", ddd::capture::DeviceSpeed::kSuper);
+  recovery.personality = ddd::capture::DevicePersonality::kRecovery;
+
+  const SettingsDialog dialog(
+      CaptureSettings{},
+      {recovery, Device("bus-2", ddd::capture::DeviceSpeed::kHigh)},
+      PlayerSettings{}, TwoPorts());
+
+  auto* device = Find<QComboBox>(dialog, SettingsDialog::kDeviceComboName);
+  ASSERT_NE(device, nullptr);
+  ASSERT_EQ(device->count(), 3) << "the two devices and \"whichever\"";
+
+  EXPECT_NE(device->itemText(1), QStringLiteral("bus-1"))
+      << "a device in recovery mode is not named as an ordinary one";
+  EXPECT_TRUE(
+      device->itemText(2).contains(QStringLiteral("insufficient speed")))
+      << device->itemText(2).toStdString();
 }
 
 TEST(SettingsDialogTest, TheCaptureHalfIsUntouchedByThePlayerHalf) {

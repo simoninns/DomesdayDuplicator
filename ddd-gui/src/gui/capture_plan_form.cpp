@@ -15,6 +15,7 @@
 #include <QComboBox>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPalette>
@@ -175,8 +176,13 @@ CapturePlanForm::CapturePlanForm(const player::DiscProfile& disc,
     connect(start_frame_, &QSpinBox::valueChanged, this, refresh);
     connect(end_frame_, &QSpinBox::valueChanged, this, refresh);
   } else {
-    connect(start_time_, &QLineEdit::textChanged, this, refresh);
-    connect(end_time_, &QLineEdit::textChanged, this, refresh);
+    for (const TimeCodeEntry* entry : {&start_time_, &end_time_}) {
+      for (QSpinBox* box : {entry->hours, entry->minutes, entry->seconds}) {
+        if (box != nullptr) {
+          connect(box, &QSpinBox::valueChanged, this, refresh);
+        }
+      }
+    }
   }
 
   if (standard_ != nullptr) {
@@ -199,6 +205,72 @@ CapturePlanForm::CapturePlanForm(const player::DiscProfile& disc,
   Refresh();
 }
 
+int32_t CapturePlanForm::TimeCodeEntry::Address() const {
+  if (minutes == nullptr || seconds == nullptr) {
+    return -1;
+  }
+  const int32_t hour_value = hours != nullptr ? hours->value() : 0;
+  return (hour_value * 1000000) + (minutes->value() * 10000) +
+         (seconds->value() * 100);
+}
+
+CapturePlanForm::TimeCodeEntry CapturePlanForm::BuildTimeCodeEntry(
+    QWidget* page, int32_t value, int32_t bound, const char* row_name,
+    const char* hours_name, const char* minutes_name,
+    const char* seconds_name) {
+  TimeCodeEntry entry;
+
+  entry.row = new QWidget(page);
+  entry.row->setObjectName(QLatin1String(row_name));
+  auto* row_layout = new QHBoxLayout(entry.row);
+  row_layout->setContentsMargins(0, 0, 0, 0);
+
+  const int32_t bound_hours = bound / 1000000;
+  const int32_t bound_minutes = (bound / 10000) % 100;
+
+  // A box per field, each saying its own unit. One box wanting "0:00:00" is a
+  // format to be got right before the application will accept it — and where a
+  // form can be got wrong it will be, so the colons and the leading zero stop
+  // being the user's problem.
+  const auto add = [&](const char* name, int maximum, const QString& suffix,
+                       int initial) {
+    auto* box = new QSpinBox(entry.row);
+    box->setObjectName(QLatin1String(name));
+    box->setRange(0, maximum);
+    box->setSuffix(suffix);
+    box->setValue(initial);
+    box->setAlignment(Qt::AlignRight);
+    row_layout->addWidget(box);
+    return box;
+  };
+
+  // Only for a side that runs past the hour, which almost none do. A box whose
+  // only legal value is zero is one somebody has to read, understand and then
+  // decide to ignore — and its absence says the same thing more quickly.
+  if (bound_hours > 0) {
+    entry.hours = add(hours_name, bound_hours, tr(" h"), value / 1000000);
+  }
+
+  // Bounded by the measured length where the whole side fits inside the hour,
+  // which is the same rule the frame boxes follow: a range that cannot exist
+  // should not be typeable. Inside the last minute it is still possible to ask
+  // for a second past the end, and the problem line below says so — clamping
+  // across three boxes while somebody is typing into one of them would fight
+  // them for no gain.
+  entry.minutes = add(minutes_name, entry.hours != nullptr ? 59 : bound_minutes,
+                      tr(" min"), (value / 10000) % 100);
+  entry.seconds = add(seconds_name, 59, tr(" s"), (value / 100) % 100);
+
+  row_layout->addStretch(1);
+
+  entry.row->setToolTip(
+      tr("Where this side runs from and to, as it was measured: %1 to %2.")
+          .arg(FormatTimeCode(ProgrammeStart(disc_)),
+               FormatTimeCode(ProgrammeEnd(disc_, clv_))));
+
+  return entry;
+}
+
 void CapturePlanForm::BuildAddressControls(QWidget* page, QFormLayout* form) {
   const int32_t first = ProgrammeStart(disc_);
   const int32_t last = ProgrammeEnd(disc_, clv_);
@@ -207,17 +279,15 @@ void CapturePlanForm::BuildAddressControls(QWidget* page, QFormLayout* form) {
     // Time codes, and no frame controls exist at all. Not disabled — absent:
     // a CLV disc has no frame numbers, and a greyed-out field for one invites
     // somebody to look for the setting that would turn it on.
-    start_time_ = new QLineEdit(page);
-    start_time_->setObjectName(QLatin1String(kStartTimeEditName));
-    start_time_->setText(FormatTimeCode(first));
-    start_time_->setPlaceholderText(tr("h:mm:ss"));
-    form->addRow(tr("From"), start_time_);
+    start_time_ = BuildTimeCodeEntry(page, first, last, kStartTimeRowName,
+                                     kStartHoursSpinName, kStartMinutesSpinName,
+                                     kStartSecondsSpinName);
+    form->addRow(tr("From time"), start_time_.row);
 
-    end_time_ = new QLineEdit(page);
-    end_time_->setObjectName(QLatin1String(kEndTimeEditName));
-    end_time_->setText(FormatTimeCode(last));
-    end_time_->setPlaceholderText(tr("h:mm:ss"));
-    form->addRow(tr("To"), end_time_);
+    end_time_ =
+        BuildTimeCodeEntry(page, last, last, kEndTimeRowName, kEndHoursSpinName,
+                           kEndMinutesSpinName, kEndSecondsSpinName);
+    form->addRow(tr("To time"), end_time_.row);
     return;
   }
 
@@ -242,16 +312,14 @@ int32_t CapturePlanForm::StartAddress() const {
   if (start_frame_ != nullptr) {
     return start_frame_->value();
   }
-  const std::optional<int32_t> parsed = ParseTimeCodeEntry(start_time_->text());
-  return parsed.value_or(-1);
+  return start_time_.Address();
 }
 
 int32_t CapturePlanForm::EndAddress() const {
   if (end_frame_ != nullptr) {
     return end_frame_->value();
   }
-  const std::optional<int32_t> parsed = ParseTimeCodeEntry(end_time_->text());
-  return parsed.value_or(-1);
+  return end_time_.Address();
 }
 
 player::AutoCapturePlan CapturePlanForm::Plan() const {
@@ -314,9 +382,9 @@ void CapturePlanForm::ApplyShape() {
   enable(range_, editable);
 
   enable(start_frame_, editable && ranged);
-  enable(start_time_, editable && ranged);
+  enable(start_time_.row, editable && ranged);
   enable(end_frame_, editable && bounded);
-  enable(end_time_, editable && bounded);
+  enable(end_time_.row, editable && bounded);
 
   enable(standard_, editable);
   enable(key_lock_, editable);

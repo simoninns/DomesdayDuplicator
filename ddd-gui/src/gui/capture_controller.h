@@ -227,6 +227,15 @@ class CaptureController : public QObject {
 
   // Read and parse the gateware identity block from the device at `path`.
   capture::FpgaVersion ReadFpgaVersion(const std::string& path);
+
+  // What the device this capture is coming off was built from, for the file's
+  // own tags and for the sidecar beside it.
+  //
+  // Assembled from what was already read when the device appeared rather than
+  // by asking it again: a capture is about to start, and the device is about
+  // to be opened for the stream. Whatever could not be established is left
+  // empty, which is what both writers treat as "say nothing".
+  capture::DeviceBuild CurrentDeviceBuild() const;
   void Tick();
   void FinishRun();
 

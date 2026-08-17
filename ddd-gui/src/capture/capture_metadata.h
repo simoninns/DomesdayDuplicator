@@ -52,6 +52,59 @@ namespace ddd::capture {
 // carrying a default nobody checked — is indistinguishable from a measurement
 // once the session is over.
 
+// What the Duplicator itself was running.
+//
+// A release builds three things from one commit — this application, the FX3
+// firmware and the FPGA gateware (AGENTS.md §9) — and a capture is the product
+// of all three. The application's stamp is at the top of the document because
+// the application is what wrote the document; these two are about the machine
+// on the other end of the cable, which is why they are a section of their own
+// beside `player` rather than three scalars in a row.
+//
+// It is worth recording for the same reason the application's version is: when
+// a capture turns out to have something wrong with it, the first question is
+// which build produced it, and a file that cannot answer sends somebody to a
+// changelog and a guess. The gateware in particular is where sample loss,
+// decimation and the sequence markers live — the three things a defect in a
+// capture is most likely to be about.
+//
+// Every field is empty or absent until something establishes it. A device that
+// was never asked, gateware that predates the identity register and firmware
+// too old to stamp its commit all land here as nothing written, which is the
+// honest answer and not an error.
+struct DeviceBuild {
+  // The commit the FX3 firmware was built from, out of the USB product string.
+  // Empty for firmware predating the embedded hash, or a descriptor that could
+  // not be read.
+  std::string firmware_version;
+
+  // The commit the FPGA gateware was built from, out of its identity register.
+  // Empty on the same terms, plus the case of an FPGA that had not finished
+  // configuring when it was asked.
+  //
+  // Carries a "-dirty" suffix when that gateware came from a tree with
+  // uncommitted changes, which is the same convention the application's own
+  // stamp uses and is the reason this is a string rather than a hash beside a
+  // boolean: all three version fields in this document then read the same way,
+  // and a reader has one rule rather than one per field. It has to be said
+  // somehow — a bare commit hash asserts that a specific published build
+  // produced this file, and for a modified tree that is not true.
+  std::string gateware_version;
+
+  // The register map the gateware implements, zero when it said nothing.
+  //
+  // Kept beside the commit rather than folded into it because it is the one
+  // identification available from gateware old enough to carry no commit at
+  // all, and because it is what says which capture path was in play — the
+  // decimation filter and the two-image split are both map-version facts.
+  uint8_t gateware_register_map = 0;
+
+  bool empty() const {
+    return firmware_version.empty() && gateware_version.empty() &&
+           gateware_register_map == 0;
+  }
+};
+
 // What the player said about itself, where there was one to ask.
 //
 // Recorded for every capture taken with player control connected, not only for
@@ -271,6 +324,7 @@ struct CaptureMetadata {
   CaptureNamingFields naming;
   CaptureOutcome outcome;
   SignalSummary signal;
+  DeviceBuild device;
   PlayerIdentity player;
   DiscScan disc;
 };

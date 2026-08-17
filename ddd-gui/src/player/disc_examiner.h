@@ -72,6 +72,24 @@ enum class ExamineStage : uint8_t {
   // the disc running would be one the user has to go and stop.
   kSettling,
 
+  // Is the disc still turning? Asked immediately before the stop below, on the
+  // same rule the automatic capture follows: **nothing sends a stop to a player
+  // it has not just asked about.** The settle above may have been refused, or
+  // the model may not have one — and somebody can stop the disc from the
+  // player's own front panel while an examination is running.
+  kCheckingTransport,
+
+  // Put the disc back the way it was found. Only where the examination started
+  // it turning: a player left spinning after an examination it was stopped
+  // before is one that has been altered by being asked a question, and the
+  // person who comes back to it has to work out whether it was like that
+  // already.
+  //
+  // Skipped when the disc was already turning, which is not the same rule read
+  // backwards. Stopping a disc somebody had playing would be as much of a
+  // change as leaving one spinning that they had not.
+  kSpinningDown,
+
   kFinished,
 };
 
@@ -97,10 +115,11 @@ enum class ExamineScope : uint8_t {
   // type is it, which side, and which standard. Cheap enough to sit behind a
   // button in a naming dialog.
   //
-  // The spin-up and the settle are still in it. Almost nothing below the first
-  // query can be answered by a stopped player, so the disc has to be turning —
-  // and an examination that left it turning would be one the user has to go and
-  // stop.
+  // The spin-up, the settle and the spin-down are still in it. Almost nothing
+  // below the first query can be answered by a stopped player, so the disc has
+  // to be turning — and a disc this scope started turning is one it puts back,
+  // because a button in a naming dialog that quietly leaves a player running is
+  // worse than one that takes a moment longer.
   kIdentify,
 };
 
@@ -208,6 +227,11 @@ class DiscExaminer {
   // Work out which steps this model can be asked at all. Called once.
   void BuildPlan();
 
+  // The steps that put the player back: hold the disc still, and stop it if
+  // this examination is why it is moving. Shared by both scopes, because
+  // "leave it as you found it" is not a property of how much was asked.
+  void AppendRestoreSteps();
+
   // Does this step still apply, given what has been learnt?
   bool Applies(ExamineStage stage) const;
 
@@ -251,6 +275,17 @@ class DiscExaminer {
 
   // Set when the player is already spinning, so the spin-up step is skipped.
   bool spinning_ = false;
+
+  // Set when the spin-up step ran and the player accepted it, which is the only
+  // case in which this examination is the reason the disc is turning — and so
+  // the only case in which it is this examination's business to stop it.
+  bool spun_up_here_ = false;
+
+  // What the player said it was doing when kCheckingTransport asked, just
+  // before the stop. False until something says otherwise, so a model that
+  // cannot be asked and a query that was refused both end in no stop being
+  // sent — which leaves a disc spinning rather than risking the tray.
+  bool disc_turning_ = false;
 
   // The seek past the end went out. Its answer is ignored — a refusal is the
   // expected one — so this records only that the player was asked to go there.
