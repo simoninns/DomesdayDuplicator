@@ -165,10 +165,19 @@ jobs:
       # this gate exists. The version reaches the USB product descriptor, so it is in
       # the image itself and can be checked without a device.
       #
+      # Read as UTF-16LE, and only there. A USB string descriptor is UTF-16, so the stamp
+      # sits in the image as "D\0o\0m\0..." and a byte grep for the bare hash never
+      # matches it — while a byte grep for "unknown" matches the unrelated ASCII literal
+      # that fpga-registers.c prints when a *gateware* identity is missing. Both halves of
+      # the old check were therefore wrong in opposite directions: the first failed a
+      # correctly stamped image, and the second would have passed one stamped "unknown".
+      # `strings -e l` reads exactly the bytes the device would report and nothing else.
+      #
       # Seven characters, not eight: a Nix build stamps `self.shortRev`, which is git's
       # seven. The application compares commit stamps on their common prefix for exactly
       # this reason (ddd-gui/src/capture/firmware_version.h), so a seven-character identity
-      # in the manifest matches an eight-character one on a device and the other way round.
+      # in the manifest matches an eight-character one on a device and the other way round
+      # — hence a prefix match on the descriptor rather than an equality test.
       - name: Check the firmware carries the commit
         shell: bash
         run: |
@@ -176,11 +185,19 @@ jobs:
           SHORT_SHA="${GITHUB_SHA:0:7}"
           IMG=$(ls release-artifacts/*.img | head -1)
 
-          if grep -aq "unknown" "${IMG}"; then
-            echo "The firmware image contains the string 'unknown' — check the version stamping" >&2
+          DESCRIPTOR=$(strings -e l "${IMG}" | grep -m1 '^Domesday Duplicator (' || true)
+          if [[ -z "${DESCRIPTOR}" ]]; then
+            echo "The firmware image carries no USB product descriptor at all — the" >&2
+            echo "descriptor generation, not just the version stamping, has failed" >&2
             exit 1
           fi
-          if ! grep -aq "${SHORT_SHA}" "${IMG}"; then
+          echo "Product descriptor: ${DESCRIPTOR}"
+
+          if [[ "${DESCRIPTOR}" == *"(unknown)"* ]]; then
+            echo "The firmware image reports an unknown commit — check the version stamping" >&2
+            exit 1
+          fi
+          if [[ "${DESCRIPTOR}" != *"(${SHORT_SHA}"* ]]; then
             echo "The firmware image does not carry the commit ${SHORT_SHA}" >&2
             exit 1
           fi
