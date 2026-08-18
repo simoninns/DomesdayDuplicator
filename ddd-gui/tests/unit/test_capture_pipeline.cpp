@@ -635,9 +635,35 @@ TEST_F(CapturePipelineTest, ASwapLandsBetweenBuffersRatherThanDuringOne) {
 
 // --- Throughput -------------------------------------------------------------
 
-// Half wire rate. Fast enough that a window holds a great many buffers, slow
-// enough that a loaded CI runner is not the thing being measured.
-constexpr uint64_t kTestPacedBytesPerSecond = kWireBytesPerSecond / 2;
+// An eighth of wire rate: 10 MB/s. Fast enough that a window holds a good many
+// buffers, slow enough that a loaded CI runner is not the thing being measured.
+//
+// The ceiling matters more than it looks. A paced source can only run late, so
+// on a host that cannot generate, validate and write at this rate the pacing
+// simply never applies and these tests measure the machine instead of the
+// pipeline. Half wire rate was inside the ceiling of every runner here except
+// the macOS one, which managed around 17 MB/s and failed both tests on the
+// lower bound alone. An eighth leaves that host most of its headroom, and
+// PacingSlipSeconds() below says so outright when a slower one comes along.
+constexpr uint64_t kTestPacedBytesPerSecond = kWireBytesPerSecond / 8;
+
+// Long enough at the paced rate to hold a dozen buffers, so the figure is a
+// rate rather than a verdict on the last two buffers' scheduling.
+constexpr auto kTestThroughputWindow = 300ms;
+
+// The pacing has to have applied for anything measured against the configured
+// rate to mean anything. Scheduler jitter puts a source a fraction of a
+// millisecond behind; a host that cannot keep up falls behind without bound, so
+// anything approaching a whole window apart says the run was never paced.
+void ExpectThePacingApplied(const SyntheticSource& source) {
+  const double window =
+      std::chrono::duration<double>(kTestThroughputWindow).count();
+  EXPECT_LT(source.PacingSlipSeconds(), window)
+      << "the source fell " << source.PacingSlipSeconds() << " s behind its "
+      << (kTestPacedBytesPerSecond / 1'000'000)
+      << " MB/s pacing, so this host never ran the capture at the rate the "
+         "test asked for and the figures below are measuring the machine";
+}
 
 TEST_F(CapturePipelineTest, ThroughputIsTheRecentRateNotTheAverageSinceStart) {
   // The figure a user reads has to say what the capture is doing now. An
@@ -647,16 +673,16 @@ TEST_F(CapturePipelineTest, ThroughputIsTheRecentRateNotTheAverageSinceStart) {
   // holding the figure below the true rate for as long as anyone is looking at
   // it.
   //
-  // Thirty-two discarded slots is a fifth of a second here, exaggerating what
-  // the real device does with four so that the two definitions give visibly
-  // different answers.
+  // Twelve discarded slots is a third of a second at the paced rate,
+  // exaggerating what the real device does with four so that the two
+  // definitions give visibly different answers.
   SyntheticSource::Options source_options = BaseSourceOptions();
   source_options.rate_bytes_per_second = kTestPacedBytesPerSecond;
-  source_options.discard_slots = 32;
+  source_options.discard_slots = 12;
   SyntheticSource source(source_options);
 
   CapturePipeline::Options options = BasePipelineOptions();
-  options.throughput_window = 150ms;
+  options.throughput_window = kTestThroughputWindow;
   options.stall_timeout = 2000ms;
 
   CapturePipeline pipeline(&logger_);
@@ -670,6 +696,8 @@ TEST_F(CapturePipelineTest, ThroughputIsTheRecentRateNotTheAverageSinceStart) {
 
   pipeline.Abort();
   pipeline.Wait();
+
+  ExpectThePacingApplied(source);
 
   const double measured = stats.throughput_bytes_per_second;
   const auto paced = static_cast<double>(kTestPacedBytesPerSecond);
@@ -714,13 +742,17 @@ TEST_F(CapturePipelineTest, AStoppedCaptureKeepsTheLastRateItMeasured) {
   // further buffer can arrive. Measuring across that would end every capture by
   // reporting a fraction of the rate it actually ran at, which is the one
   // reading a user is most likely to write down.
+  //
+  // Thirty-two slots is most of a second at the paced rate: enough that the
+  // window has turned over several times before the stop, so the figure being
+  // checked is a settled one rather than the first the run produced.
   SyntheticSource::Options source_options = BaseSourceOptions();
   source_options.rate_bytes_per_second = kTestPacedBytesPerSecond;
-  source_options.slot_limit = 80;
+  source_options.slot_limit = 32;
   SyntheticSource source(source_options);
 
   CapturePipeline::Options options = BasePipelineOptions();
-  options.throughput_window = 150ms;
+  options.throughput_window = kTestThroughputWindow;
   options.stall_timeout = 2000ms;
 
   CapturePipeline pipeline(&logger_);
@@ -728,6 +760,8 @@ TEST_F(CapturePipelineTest, AStoppedCaptureKeepsTheLastRateItMeasured) {
 
   const RunResult outcome = RunToCompletion(pipeline);
   ASSERT_EQ(outcome.result, TransferResult::kSuccess);
+
+  ExpectThePacingApplied(source);
 
   const auto paced = static_cast<double>(kTestPacedBytesPerSecond);
   EXPECT_GT(outcome.stats.throughput_bytes_per_second, paced * 0.8);

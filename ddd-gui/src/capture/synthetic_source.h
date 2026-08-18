@@ -150,6 +150,23 @@ class SyntheticSource : public ISampleSource {
     return first_delivered_sample_value_;
   }
 
+  // The largest amount, in seconds, by which the source ever fell behind the
+  // rate it was asked to generate at. Zero when the rate is unpaced, and near
+  // zero when the host kept up.
+  //
+  // A paced source can only run late. PaceForBytes holds back when it is ahead
+  // of schedule and can do nothing at all when it is behind, so a host that
+  // cannot generate, validate and write at the configured rate does not produce
+  // a slower version of the same capture: it produces one in which the pacing
+  // never applies at all and the rate is the machine's rather than the one
+  // asked for. Anything measuring against the configured rate has to check this
+  // first, or it is measuring how fast the machine is.
+  double PacingSlipSeconds() const {
+    return static_cast<double>(
+               max_pacing_slip_nanoseconds_.load(std::memory_order_relaxed)) /
+           1e9;
+  }
+
  private:
   // Fill `bytes` of a slot with the next stretch of the stream.
   void GenerateInto(uint8_t* destination, size_t bytes);
@@ -173,6 +190,10 @@ class SyntheticSource : public ISampleSource {
   // Nanoseconds since the run started, as the pacing clock's origin
   uint64_t pacing_origin_nanoseconds_ = 0;
   uint64_t paced_bytes_ = 0;
+
+  // Written only by the source's own thread; read by whoever is measuring,
+  // which is why it is atomic and nothing else here is.
+  std::atomic<uint64_t> max_pacing_slip_nanoseconds_{0};
 };
 
 }  // namespace ddd::capture

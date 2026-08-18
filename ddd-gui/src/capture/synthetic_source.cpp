@@ -132,6 +132,17 @@ void SyntheticSource::PaceForBytes(uint64_t bytes_generated) {
   if (due_nanoseconds > now) {
     std::this_thread::sleep_for(
         std::chrono::nanoseconds(due_nanoseconds - now));
+    return;
+  }
+
+  // Behind schedule: this stretch should already have finished arriving, and
+  // there is nothing the source can do about it — it is already generating as
+  // fast as the host allows. Recording how far behind it fell is the only way
+  // a caller can tell a capture that ran at the configured rate from one that
+  // ran at whatever the machine could manage.
+  const uint64_t slip = now - due_nanoseconds;
+  if (slip > max_pacing_slip_nanoseconds_.load(std::memory_order_relaxed)) {
+    max_pacing_slip_nanoseconds_.store(slip, std::memory_order_relaxed);
   }
 }
 
