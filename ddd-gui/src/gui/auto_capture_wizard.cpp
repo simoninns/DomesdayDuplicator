@@ -179,6 +179,7 @@ AutoCaptureWizard::AutoCaptureWizard(AutoCaptureController* controller,
   }
 
   ForceFullSampleRate();
+  ClearDurationLimit();
   ShowCaptureSettings();
   RebuildPlanForm();
   ShowPage(Page::kDisc);
@@ -721,6 +722,43 @@ void AutoCaptureWizard::ShowSampleRateWarning() {
   }
 }
 
+void AutoCaptureWizard::ClearDurationLimit() {
+  if (capture_ == nullptr) {
+    return;
+  }
+
+  // Settled when the window opens, for the same reason as the sample rate above
+  // and against the same failure: a Capture panel setting left over from other
+  // work carrying silently into an automatic capture. A limit set for a manual
+  // capture — half a side, taken by hand and stopped after a couple of minutes
+  // — would otherwise cut a whole-side run short in the middle of the disc.
+  //
+  // Every shape in AutoCapturePlan ends at an address: kWholeSide at the end of
+  // the side, kRange and kFromSpinUp at one that was asked for. None of them
+  // ends on a clock, so there is no shape this needs to be kept for and no
+  // decision here to leave to the user.
+  //
+  // Worse than early, it ends quietly. CheckDurationLimit calls StopCapture,
+  // and AutoCaptureController::OnCapturingChanged does not act on a capture
+  // stopping — so the sequence plays the rest of the side, reaches its own
+  // kStopCapture step, finds the capture already stopped, and reports the run
+  // as having succeeded. The file is short and nothing says so.
+  //
+  // Cleared outright rather than warned about, and unlike the sample rate this
+  // can always be done: the limit is a number compared against a counter on the
+  // statistics tick, re-read every time, so a running stream is no obstacle to
+  // changing it. There is no case here that needs the warning label the rate
+  // has. Not put back when the window closes either — SetSettings persists it,
+  // so the Capture panel shows "No limit" afterwards and says what it will
+  // actually do, which is the point.
+  CaptureSettings settings = capture_->settings();
+  if (settings.duration_limit_seconds == 0) {
+    return;
+  }
+  settings.duration_limit_seconds = 0;
+  capture_->SetSettings(settings);
+}
+
 void AutoCaptureWizard::ApplyCaptureSettings() {
   if (capture_ == nullptr || loading_) {
     return;
@@ -730,9 +768,10 @@ void AutoCaptureWizard::ApplyCaptureSettings() {
   settings.capture_directory = directory_edit_->text();
   settings.output_format = static_cast<capture::CaptureOutputFormat>(
       format_combo_->currentData().toInt());
-  // The rate is not among these. It is not a control on this page and it is
-  // not a decision — see ForceFullSampleRate, which settles it when the window
-  // opens. Carried through unchanged from the settings this copied.
+  // The rate and the duration limit are not among these. Neither is a control
+  // on this page and neither is a decision — see ForceFullSampleRate and
+  // ClearDurationLimit, which settle both when the window opens. Carried
+  // through unchanged from the settings this copied.
 
   if (settings != capture_->settings()) {
     capture_->SetSettings(settings);

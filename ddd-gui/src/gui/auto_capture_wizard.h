@@ -219,6 +219,10 @@ class AutoCaptureWizard : public QDialog {
   // nothing this window does can change it back until that stream is stopped.
   void ShowSampleRateWarning();
 
+  // Take off any capture duration limit, because in this window it is the
+  // sequence that decides when a capture ends.
+  void ClearDurationLimit();
+
   // Where a capture named by the field would actually be written, and what to
   // say when that is not the name that was asked for.
   void RefreshNameNote();

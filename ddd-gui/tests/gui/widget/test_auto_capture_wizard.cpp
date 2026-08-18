@@ -331,6 +331,28 @@ TEST_F(AutoCaptureWizardTest, ADecimatedSettingIsPutBackForTheCapture) {
   EXPECT_TRUE(warning->isHidden());
 }
 
+// Issue #100, carried over from the old application: a duration limit set for
+// a manual capture stayed armed when an automatic one was started, and cut the
+// run short in the middle of a side. It is the same failure as the decimation
+// above — a Capture panel setting left over from other work — and it is settled
+// the same way, when the window opens.
+TEST_F(AutoCaptureWizardTest, ADurationLimitIsTakenOffForTheCapture) {
+  CaptureSettings limited;
+  limited.capture_directory = QString::fromStdString(directory_.string());
+  limited.duration_limit_seconds = 120;
+  SaveCaptureSettings(limited);
+
+  MakeCaptureEngine();
+  ASSERT_EQ(capture_->settings().duration_limit_seconds, 120)
+      << "the engine did not load the limit to begin with";
+
+  BuildOnEngine();
+
+  // Every shape an automatic capture comes in ends at an address rather than on
+  // a clock, so there is nothing here the limit could have been kept for.
+  EXPECT_EQ(capture_->settings().duration_limit_seconds, 0);
+}
+
 // --- Naming ----------------------------------------------------------------
 
 // The defect this exists for: the suggestion is built from what the disc *is*,
