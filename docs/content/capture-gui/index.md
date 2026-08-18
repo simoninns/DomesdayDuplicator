@@ -6,6 +6,10 @@ the signal is doing while it happens, and writes it to disk in a format the deco
 toolchains open directly. It also installs the software that runs inside the Duplicator
 itself.
 
+![The main window in its default arrangement: Capture and Statistics on the left, Waveform,
+Spectrum and Amplitude History on the right, and the Log panel shown at the
+bottom](assets/main-window.png)
+
 If you have just plugged a Duplicator in for the first time, go to the
 **[Quick start](quick-start.md)**.
 
