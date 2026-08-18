@@ -138,10 +138,22 @@ T* Named(const WaveformPanel& panel, const char* name) {
   return panel.findChild<T*>(QLatin1String(name));
 }
 
+// Put the panel on a span short enough to resolve the carrier.
+//
+// The trigger tests below are about the trigger and not about where the panel
+// opens, and the two are only separable at a span where individual cycles are
+// drawn. At the default 200 µs a snapshot is thirteen samples to a pixel and
+// is drawn as an envelope, in which a phase shift moves nothing visible —
+// which is correct, and would leave those tests passing whether the trigger
+// worked or not. They each ask for the span they need instead.
+void ShowIndividualCycles(const WaveformPanel& panel) {
+  auto* const span = Named<QComboBox>(panel, WaveformPanel::kSpanComboName);
+  span->setCurrentIndex(span->findData(static_cast<qulonglong>(40)));
+}
+
 TEST(WaveformFormatTest, SpansAreLabelledInTheTimeTheyCover) {
   // 40 samples at 40 Msps is 1 µs, which is about eight cycles of a LaserDisc
-  // FM carrier and the span the panel opens on; 20,000 is the longest it
-  // offers.
+  // FM carrier; 20,000 is the longest span the panel offers.
   EXPECT_EQ(FormatWaveformSpan(40), QStringLiteral("1 µs"));
   EXPECT_EQ(FormatWaveformSpan(20), QStringLiteral("0.5 µs"));
   EXPECT_EQ(FormatWaveformSpan(20'000), QStringLiteral("500 µs"));
@@ -185,18 +197,18 @@ TEST(WaveformPanelTest, TheSpanListIsRelabelledForADecimatedStream) {
 
   const int chosen = span->currentIndex();
   const int count = span->count();
-  ASSERT_EQ(span->itemText(chosen), QStringLiteral("1 µs"));
+  ASSERT_EQ(span->itemText(chosen), QStringLiteral("200 µs"));
   ASSERT_EQ(plot->sample_rate_hz(), capture::kSampleRateHz);
 
   panel.SetSampleRate(capture::SampleRateHzFor(capture::kTapeDecimationFactor));
 
   EXPECT_EQ(span->count(), count);
   EXPECT_EQ(span->currentIndex(), chosen);
-  EXPECT_EQ(span->itemText(chosen), QStringLiteral("2 µs"));
+  EXPECT_EQ(span->itemText(chosen), QStringLiteral("400 µs"));
 
   // The data behind each entry is still a count of samples, so the plot is
   // asked for the same window it was before.
-  EXPECT_EQ(span->currentData().toULongLong(), 40U);
+  EXPECT_EQ(span->currentData().toULongLong(), 8'000U);
   EXPECT_EQ(plot->sample_rate_hz(),
             capture::SampleRateHzFor(capture::kTapeDecimationFactor));
 }
@@ -401,6 +413,7 @@ TEST(WaveformPanelTest, AFlatInputIsReportedAsFreeRunningRatherThanTriggered) {
   // why the display has to say which one it is drawing.
   WaveformPanel panel(nullptr);
   panel.resize(600, 300);
+  ShowIndividualCycles(panel);
 
   auto* const plot = Named<WaveformPlot>(panel, WaveformPanel::kPlotName);
   ASSERT_NE(plot, nullptr);
@@ -423,6 +436,7 @@ TEST(WaveformPanelTest, NoTriggerMarkerIsDrawnOverAFreeRunningTrace) {
   // to be the start of a cycle than any other one on screen.
   WaveformPanel panel(nullptr);
   panel.resize(600, 300);
+  ShowIndividualCycles(panel);
 
   auto* const plot = Named<WaveformPlot>(panel, WaveformPanel::kPlotName);
   ASSERT_NE(plot, nullptr);
@@ -440,16 +454,18 @@ TEST(WaveformPanelTest, NoTriggerMarkerIsDrawnOverAFreeRunningTrace) {
       << "the marker was still drawn with nothing to align to";
 }
 
-TEST(WaveformPanelTest, TheDefaultSpanShowsCyclesRatherThanAFuzzyBand) {
-  // 1 µs: about eight cycles of an 8 MHz carrier. The ladder used to open at
-  // 10 µs, which is eighty of them and unreadable at any panel size.
+TEST(WaveformPanelTest, TheDefaultSpanShowsTheEnvelopeRatherThanTheCarrier) {
+  // 200 µs: about three television lines, so the panel opens on the shape that
+  // says whether the player's RF output is set sensibly. A carrier-length span
+  // answers only whether there is a carrier, and is still on the ladder for
+  // anybody who wants it.
   WaveformPanel panel(nullptr);
 
   auto* const plot = Named<WaveformPlot>(panel, WaveformPanel::kPlotName);
   EXPECT_EQ(
       plot->sample_span(),
       analysis::kWaveformSpanChoices[analysis::kDefaultWaveformSpanIndex]);
-  EXPECT_EQ(plot->sample_span(), 40U);
+  EXPECT_EQ(plot->sample_span(), 8'000U);
 }
 
 TEST(WaveformPanelTest, ATriggeredCarrierIsDrawnTheSameWhateverThePhase) {
@@ -459,6 +475,7 @@ TEST(WaveformPanelTest, ATriggeredCarrierIsDrawnTheSameWhateverThePhase) {
   // snapshot rate and reads as a band of fuzz rather than as a waveform.
   WaveformPanel panel(nullptr);
   panel.resize(600, 300);
+  ShowIndividualCycles(panel);
 
   auto* const plot = Named<WaveformPlot>(panel, WaveformPanel::kPlotName);
   ASSERT_TRUE(plot->triggered());
@@ -501,6 +518,7 @@ TEST(WaveformPanelTest, ATriggeredSnapshotYieldsManySweepsForPersistence) {
   // instant of it.
   WaveformPanel panel(nullptr);
   panel.resize(600, 300);
+  ShowIndividualCycles(panel);
 
   panel.OnWaveformReady(MakeCarrier(32'768, 0.0));
   panel.grab();

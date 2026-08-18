@@ -54,6 +54,27 @@ On NixOS, use the module the repository ships instead:
 Details, including how to check the rules took effect, are in
 [Linux device access](../development/hardware-programming/linux-device-access.md).
 
+## What player control needs
+
+[Player control](player-control.md) drives a LaserDisc player over a serial cable, and that
+is a second cable with a second permission behind it. Three things are worth knowing before
+you go looking for a Flatpak setting that does not exist:
+
+- **No override is needed.** The same `--device=all` permission that reaches the Duplicator
+  reaches `/dev/ttyUSB*` and `/dev/ttyACM*`, because both are inside `/dev`. There is no
+  narrower static permission for a serial port and no portal for one, so this single
+  permission covers both cables.
+- **Your group membership still applies.** Serial devices belong to a group — `dialout` on
+  Debian, Ubuntu and Fedora, `uucp` on Arch and its derivatives — and the sandbox keeps your
+  supplementary groups rather than routing around them. `sudo usermod -a -G dialout $USER`,
+  then **log out and back in**: a group you have just been granted does not apply to the
+  session you are already in.
+- **Nothing opens a port until you ask it to.** Player control is off until it is switched
+  on, so a Flatpak install touches no serial port at all until then.
+
+The rest — which players are supported, how the port is found, and what to do when nothing
+answers — is on the [Player control](player-control.md) page.
+
 ## Where captures can be written
 
 The Flatpak is granted your home directory plus `/run/media`, `/media` and `/mnt`, which
@@ -82,7 +103,22 @@ flatpak uninstall --user io.github.simoninns.DddGui
 The udev rules are separate and stay behind; remove
 `/etc/udev/rules.d/99-domesdayduplicator.rules` if you want them gone too.
 
-## Next
+## First time through
 
-The [Quick start](quick-start.md) takes it from here: finding the device, setting the
-front-end gain, and taking a first capture.
+In this order:
+
+1. **Install the udev rules** on the host, as above. Without them the device is not found at
+   all.
+
+2. **Join the serial port's group** — `dialout`, or `uucp` on Arch — if you want [player
+   control](player-control.md), and log out and back in. Skip it if you are not using it;
+   nothing else needs it.
+
+3. **Tell the application what SW401 is set to.** **File → Settings…**, and set **Front-end
+   gain** to the position of the four-way DIP switch on the Duplicator board. The switch is
+   mechanical and has no electrical path to anything the application can read, so until it is
+   declared every level is shown in converter codes rather than in millivolts. Nothing about
+   the capture itself depends on it — see [Front-end gain](settings.md#front-end-gain).
+
+4. **Take a first capture.** The [Quick start](quick-start.md) walks through monitoring,
+   setting the player's RF output by what is on screen, and writing a file.
