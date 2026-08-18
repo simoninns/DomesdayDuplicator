@@ -159,29 +159,10 @@ TEST(DeviceUpdaterTarget, TheWireIndicesAreWhatTheProtocolSays) {
 
 // --- What the identity says about the gateware -----------------------------
 
-// The route to the configuration flash runs through the gateware's own flash
-// bridge, so whether a device can take a gateware update is a question about
-// which register map it implements.
-TEST(DeviceIdentityGateware, OnlyAGatewareWithTheBridgeCanBeUpdated) {
-  DeviceIdentity identity;
-  identity.gateware_present = true;
-  identity.register_map_version = kRegisterMapVersionWithImageRole;
-  EXPECT_TRUE(identity.GatewareCanBeUpdated());
-
-  identity.register_map_version = 1;
-  EXPECT_FALSE(identity.GatewareCanBeUpdated());
-
-  // An FPGA that never answered is an ordinary state and not a fault, and it
-  // is equally not a device whose gateware can be rewritten from here.
-  identity.register_map_version = kRegisterMapVersionWithImageRole;
-  identity.gateware_present = false;
-  EXPECT_FALSE(identity.GatewareCanBeUpdated());
-}
-
 TEST(DeviceIdentityGateware, TheFactoryImageIsRecognisedAsRecovery) {
   DeviceIdentity identity;
   identity.gateware_present = true;
-  identity.register_map_version = kRegisterMapVersionWithImageRole;
+  identity.register_map_version = kRegisterMapVersionMaximum;
 
   identity.image_role = kImageRoleApplication;
   EXPECT_FALSE(identity.GatewareIsRecovery());
@@ -190,13 +171,13 @@ TEST(DeviceIdentityGateware, TheFactoryImageIsRecognisedAsRecovery) {
   EXPECT_TRUE(identity.GatewareIsRecovery());
 }
 
-// A role byte read from a gateware whose map predates the register is a byte
-// that means nothing. Reading it as "factory" would put a working device
-// into a recovery state that does not exist for it.
-TEST(DeviceIdentityGateware, AnOlderMapHasNoRoleToBelieve) {
+// A role byte read from an FPGA that never answered is a byte that means
+// nothing. Reading it as "factory" would put a working device into a recovery
+// state that does not exist for it.
+TEST(DeviceIdentityGateware, AnFpgaThatDidNotAnswerHasNoRoleToBelieve) {
   DeviceIdentity identity;
-  identity.gateware_present = true;
-  identity.register_map_version = 1;
+  identity.gateware_present = false;
+  identity.register_map_version = kRegisterMapVersionMaximum;
   identity.image_role = kImageRoleFactory;
 
   EXPECT_FALSE(identity.GatewareIsRecovery());

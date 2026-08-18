@@ -256,10 +256,7 @@ TEST(FlacRoundTripTest, TheDecodedLengthIsKnownBeforeReadingTheSamples) {
 }
 
 TEST(CaptureReaderTest, TheUncompressedFormatReadsBackTheSameValues) {
-  // Retained because it costs four lines and gives the test-pattern analyser a
-  // format in common with the old application, so the two can be checked
-  // against each other on the same file.
-  TemporaryFile file(".raw");
+  TemporaryFile file(".s16");
 
   const std::vector<uint16_t> values = SampleValues(5000);
   {
@@ -294,10 +291,9 @@ TEST(CaptureReaderTest, TheFormatIsGuessedFromTheExtension) {
   EXPECT_EQ(CaptureReader::FormatFromExtension("capture.S16"),
             CaptureReader::Format::kSigned16Bit);
 
-  // The old application's spelling of the same layout, kept readable so the
-  // test-pattern analyser works on both.
-  EXPECT_EQ(CaptureReader::FormatFromExtension("capture.raw"),
-            CaptureReader::Format::kSigned16Bit);
+  // The old application's spelling of the same layout is not this
+  // application's business to read.
+  EXPECT_FALSE(CaptureReader::FormatFromExtension("capture.raw").has_value());
 }
 
 // --- The uncompressed sink ------------------------------------------------

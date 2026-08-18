@@ -110,14 +110,8 @@ inline constexpr const char* kCaptureFileSuffix = ".ddd.flac";
 inline constexpr const char* kSigned16BitCaptureFileSuffix = ".ddd.s16";
 
 // Extensions the reader recognises, without the leading dot.
-//
-// Two for the uncompressed format. ".s16" is what this application writes;
-// ".raw" is accepted as well because it is what the old application's
-// uncompressed captures are called, and the test-pattern analyser is more
-// useful for being able to read both.
 inline constexpr const char* kFlacExtension = "flac";
 inline constexpr const char* kSigned16BitExtension = "s16";
-inline constexpr const char* kLegacySigned16BitExtension = "raw";
 
 // The suffix a capture in this format is written with.
 const char* CaptureFileSuffix(CaptureOutputFormat format);

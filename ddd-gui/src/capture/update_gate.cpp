@@ -144,8 +144,8 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
 
   // Whether this device can take a gateware update at all.
   //
-  // The route to the EPCS runs through the gateware's own flash bridge, so a
-  // device below map version 2 has no route: the writes would go nowhere and
+  // The route to the EPCS runs through the gateware's own flash bridge, so an
+  // FPGA that is not answering has no route: the writes would go nowhere and
   // the readback would be whatever the flash happened to hold. Checked here
   // rather than discovered at the first chunk, because it is a fact about
   // this device and this file that is known before anything moves.
@@ -154,18 +154,12 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
   // therefore nothing to read a register with. It is asked again when the
   // device comes back, by the firmware that has just been written to it.
   if (manifest.gateware.has_value() &&
-      input.device_personality == DevicePersonality::kApplication) {
-    if (!input.device.gateware_present) {
-      refuse(UpdateGateVerdict::kIncompatible,
-             "This device's FPGA is not answering, so its gateware cannot be "
-             "updated from here. Reconnect the device, and if it still does "
-             "not answer, the bench procedure will program it.");
-    } else if (!input.device.GatewareCanBeUpdated()) {
-      refuse(UpdateGateVerdict::kIncompatible,
-             "This device's gateware predates the update mechanism and cannot "
-             "replace itself. It has to be programmed once with the bench "
-             "procedure before gateware updates can be installed from here.");
-    }
+      input.device_personality == DevicePersonality::kApplication &&
+      !input.device.gateware_present) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "This device's FPGA is not answering, so its gateware cannot be "
+           "updated from here. Reconnect the device, and if it still does "
+           "not answer, the bench procedure will program it.");
   }
 
   if (manifest.gateware.has_value()) {
@@ -179,6 +173,28 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
              "The gateware in this update is older than this application can "
              "work with.");
     }
+  }
+
+  // The EPCS boot block layout the gateware payload assumes.
+  //
+  // Nothing on the device reports this, so it is checked against what this
+  // build knows rather than against the unit: a bundle laid out for a boot
+  // block nobody here has described is refused before a byte moves. The
+  // resident factory image's boot logic was frozen at provisioning time and
+  // cannot be taught a new layout from the field, so a boot block it cannot
+  // parse leaves the board with nothing to fall back to — the one outcome no
+  // later update can repair.
+  //
+  // Zero means the bundle declares nothing, which is a bundle from before the
+  // field existed rather than a claim about layout zero. Anything else above
+  // what this build knows is a bundle from ahead of it, and there is nothing
+  // below the first layout for it to be behind.
+  if (manifest.gateware.has_value() &&
+      manifest.compatibility.epcs_layout_version >
+          kEpcsBootBlockLayoutVersion) {
+    refuse(UpdateGateVerdict::kApplicationTooOld,
+           "The gateware in this update uses a newer flash layout than this "
+           "application understands. Update the application first.");
   }
 
   // A firmware-only bundle installed onto older gateware: the firmware

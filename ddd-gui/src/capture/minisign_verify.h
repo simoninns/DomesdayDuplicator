@@ -50,17 +50,6 @@ namespace ddd::capture {
 // second signature is what makes the trusted comment trustworthy, and checking
 // it is not optional here.
 
-// The two-byte algorithm tag a signature carries.
-enum class MinisignAlgorithm : uint8_t {
-  // "Ed" — the signature covers the message bytes directly.
-  kLegacy,
-
-  // "ED" — the signature covers a BLAKE2b-512 hash of the message, so a signer
-  // need not hold the whole file in memory. Both are produced by current
-  // minisign releases depending on its -H flag, so both are accepted.
-  kPrehashed,
-};
-
 struct MinisignPublicKey {
   // Identifies which key signed a file. Not a security property — it is a hint
   // that stops a verifier reporting "bad signature" when the honest answer is
@@ -73,7 +62,6 @@ struct MinisignPublicKey {
 };
 
 struct MinisignSignature {
-  MinisignAlgorithm algorithm = MinisignAlgorithm::kLegacy;
   std::array<uint8_t, 8> key_id{};
   std::array<uint8_t, 64> signature{};
 

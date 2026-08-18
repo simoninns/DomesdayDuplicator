@@ -46,8 +46,8 @@ bool PumpUntil(Predicate predicate, std::chrono::milliseconds limit = 10000ms) {
   return predicate();
 }
 
-// The gateware's ramp, written as the .raw both this application and the old
-// one read. break_at corrupts one sample, which is what a lost sample looks
+// The gateware's ramp, written as the uncompressed .s16 this application
+// writes. break_at corrupts one sample, which is what a lost sample looks
 // like coming back off the disk.
 void WriteRamp(const std::filesystem::path& path, size_t count,
                size_t break_at = 0) {
@@ -89,7 +89,7 @@ class AnalysisDialogTest : public ::testing::Test {
   void TearDown() override { std::filesystem::remove_all(directory_); }
 
   QString FileWith(size_t samples, size_t break_at = 0) {
-    const std::filesystem::path path = directory_ / "capture.raw";
+    const std::filesystem::path path = directory_ / "capture.s16";
     WriteRamp(path, samples, break_at);
     return QString::fromStdString(path.string());
   }
@@ -176,7 +176,7 @@ TEST_F(AnalysisDialogTest, PassAndFailAreColouredDifferently) {
 TEST_F(AnalysisDialogTest, AFileThatCannotBeReadSaysSoRatherThanFailing) {
   AnalysisDialog dialog;
   dialog.Analyse(
-      QString::fromStdString((directory_ / "no-such-capture.raw").string()));
+      QString::fromStdString((directory_ / "no-such-capture.s16").string()));
 
   ASSERT_TRUE(PumpUntil([&] {
     return dialog.outcome() == capture::TestDataAnalysis::Outcome::kUnreadable;

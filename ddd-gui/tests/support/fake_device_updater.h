@@ -77,7 +77,7 @@ class FakeDeviceUpdater : public IDeviceUpdater {
     identity_.product_string = "Domesday Duplicator (0123abcd)";
     identity_.protocol_version = 1;
     identity_.gateware_present = true;
-    identity_.register_map_version = kRegisterMapVersionWithImageRole;
+    identity_.register_map_version = kRegisterMapVersionMaximum;
     identity_.image_role = kImageRoleApplication;
     identity_.gateware_commit = "0123abcd";
 

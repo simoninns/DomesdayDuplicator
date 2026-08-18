@@ -55,8 +55,9 @@ everything between the processing thread and the bytes that will still be there 
 somebody wants to check is almost always the one they have just taken. It shows progress and can be
 cancelled; the verdict is coloured so it reads across a bench.
 
-The dialog reads `.ddd.flac` and `.flac`, and uncompressed 16-bit `.ddd.s16` and `.s16` —
-and `.raw`, which is what the old application called the same layout.
+The dialog reads `.ddd.flac` and `.flac`, and uncompressed 16-bit `.ddd.s16` and `.s16`.
+Captures made by the application this one replaced are not read: its `.raw`, `.lds` and
+`.ldf` all belong to it.
 
 ## The verdicts
 

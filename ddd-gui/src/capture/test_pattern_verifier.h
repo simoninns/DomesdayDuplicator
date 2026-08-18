@@ -28,10 +28,6 @@ namespace ddd::capture {
 // same code serves the live capture path, the offline analysis of a written
 // file, and the unit tests.
 //
-// Sequence length is discovered rather than assumed. Older gateware ramps
-// 0..1023 and newer ramps 0..1020, and a check that hard-coded either would
-// report the other as corrupt.
-//
 // Thread-safety: none, and none is wanted. The live path feeds one of these
 // from the processing thread only.
 class TestPatternVerifier {
@@ -45,10 +41,10 @@ class TestPatternVerifier {
     uint16_t expected_value = 0;
     uint16_t actual_value = 0;
 
-    // The ramp length that was detected, or nothing if the stream ended before
-    // it wrapped. A capture too short to wrap is not a failure, but it is worth
-    // reporting: a pass over 900 samples proves much less than a pass over a
-    // disc.
+    // The ramp length, once the stream has been all the way round it, and
+    // nothing if it ended before wrapping. A capture too short to wrap is not
+    // a failure, but it is worth reporting: a pass over 900 samples proves
+    // much less than a pass over a disc.
     std::optional<uint16_t> sequence_length;
   };
 
@@ -77,9 +73,6 @@ class TestPatternVerifier {
   Result result_;
   bool have_first_sample_ = false;
   uint16_t current_value_ = 0;
-
-  // Nothing until the first wrap reveals it
-  std::optional<uint16_t> detected_sequence_length_;
 };
 
 }  // namespace ddd::capture

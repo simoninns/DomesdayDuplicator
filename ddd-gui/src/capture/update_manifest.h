@@ -95,10 +95,11 @@ struct UpdateCompatibility {
   // for a firmware-only bundle installed onto older gateware.
   int64_t minimum_register_map_version = 0;
 
-  // The EPCS layout the gateware payload assumes. The factory image's boot
-  // logic is frozen at provisioning time and reads one layout; a bundle built
-  // against a different one must not be written, because the boot block it
-  // would leave behind is the one thing a field update cannot repair.
+  // The EPCS layout the gateware payload assumes, checked by the gate against
+  // kEpcsBootBlockLayoutVersion. The factory image's boot logic is frozen at
+  // provisioning time and reads one layout; a bundle built against a different
+  // one must not be written, because the boot block it would leave behind is
+  // the one thing a field update cannot repair.
   int64_t epcs_layout_version = 0;
 };
 

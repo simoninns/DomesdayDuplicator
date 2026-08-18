@@ -32,8 +32,9 @@ UpdateManifest MakeManifest() {
   manifest.firmware = firmware;
 
   manifest.compatibility.minimum_application_version = "1.0.0";
-  manifest.compatibility.minimum_register_map_version = 1;
-  manifest.compatibility.epcs_layout_version = 1;
+  manifest.compatibility.minimum_register_map_version =
+      kRegisterMapVersionMinimum;
+  manifest.compatibility.epcs_layout_version = kEpcsBootBlockLayoutVersion;
   return manifest;
 }
 
@@ -43,7 +44,7 @@ UpdateComponent GatewareComponent() {
   gateware.file = "gateware-app.rpd";
   gateware.length = 2048;
   gateware.identity = "0123abcd";
-  gateware.interface_version = 1;
+  gateware.interface_version = kRegisterMapVersionMaximum;
   return gateware;
 }
 
@@ -54,10 +55,7 @@ UpdateGateInput MakeInput() {
   input.device.protocol_version = 1;
   input.device.gateware_present = true;
 
-  // A device whose gateware carries the flash bridge, which is what a
-  // gateware update goes through. The version-1 cases below say so
-  // explicitly, because that is the interesting half of the check.
-  input.device.register_map_version = kRegisterMapVersionWithImageRole;
+  input.device.register_map_version = kRegisterMapVersionMaximum;
   input.device.image_role = kImageRoleApplication;
   return input;
 }
@@ -341,25 +339,9 @@ TEST(UpdateGate, AGatewareOnlyBundleIsStillFineOnAWorkingDevice) {
 // --- Whether this device can take a gateware update at all -----------------
 
 // The route to the configuration flash runs through the gateware's own flash
-// bridge, so a gateware that predates the bridge cannot replace itself. That
-// is a fact about the device, known before a byte moves, and the refusal
-// names the one thing that fixes it.
-TEST(UpdateGate, RefusesGatewareForADeviceWhoseGatewareHasNoFlashBridge) {
-  UpdateManifest manifest = MakeManifest();
-  manifest.gateware = GatewareComponent();
-
-  UpdateGateInput input = MakeInput();
-  input.device.register_map_version = 1;
-
-  const UpdateGateResult result = CheckUpdateGate(manifest, input);
-
-  EXPECT_FALSE(result.allowed());
-  EXPECT_EQ(result.verdict, UpdateGateVerdict::kIncompatible);
-  ASSERT_FALSE(result.reasons.empty());
-  EXPECT_NE(result.reasons.front().find("bench procedure"), std::string::npos)
-      << result.reasons.front();
-}
-
+// bridge, so an FPGA that is not answering has no route at all. That is a fact
+// about the device, known before a byte moves, and the refusal names the one
+// thing that fixes it.
 TEST(UpdateGate, RefusesGatewareForADeviceWhoseFpgaDidNotAnswer) {
   UpdateManifest manifest = MakeManifest();
   manifest.gateware = GatewareComponent();
@@ -375,15 +357,58 @@ TEST(UpdateGate, RefusesGatewareForADeviceWhoseFpgaDidNotAnswer) {
 }
 
 // The same device takes a firmware-only bundle without complaint. The check
-// is about what the bundle asks the device to do, not about the device.
-TEST(UpdateGate, AllowsFirmwareForADeviceWhoseGatewareCannotBeUpdated) {
+// is about what the bundle asks the device to do, not about the device: an
+// unconfigured FPGA is an ordinary state, and refusing to repair the firmware
+// over it would refuse help to the device that most needs it.
+TEST(UpdateGate, AllowsFirmwareForADeviceWhoseFpgaDidNotAnswer) {
   UpdateManifest manifest = MakeManifest();
   manifest.compatibility.minimum_register_map_version = 0;
 
   UpdateGateInput input = MakeInput();
-  input.device.register_map_version = 1;
+  input.device.gateware_present = false;
+  input.device.register_map_version = 0;
 
   const UpdateGateResult result = CheckUpdateGate(manifest, input);
+
+  EXPECT_TRUE(result.allowed());
+}
+
+// --- The EPCS boot block layout --------------------------------------------
+
+// The factory image's boot logic is frozen at provisioning time, so a bundle
+// laid out for a boot block this build cannot describe is refused before a
+// byte moves: a boot block the resident logic cannot parse is the one thing a
+// later update cannot repair.
+TEST(UpdateGate, RefusesAGatewareLaidOutForANewerBootBlock) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.gateware = GatewareComponent();
+  manifest.compatibility.epcs_layout_version = kEpcsBootBlockLayoutVersion + 1;
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, MakeInput());
+
+  EXPECT_FALSE(result.allowed());
+  EXPECT_EQ(result.verdict, UpdateGateVerdict::kApplicationTooOld);
+}
+
+// Zero is a bundle that declares nothing rather than one claiming layout
+// zero, and a bundle that declares nothing is not refused for it.
+TEST(UpdateGate, DoesNotGateAGatewareThatDeclaresNoBootBlockLayout) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.gateware = GatewareComponent();
+  manifest.compatibility.epcs_layout_version = 0;
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, MakeInput());
+
+  EXPECT_TRUE(result.allowed());
+}
+
+// A firmware-only bundle is not laid out for anything, so the layout it
+// declares is not the gate's business.
+TEST(UpdateGate, DoesNotGateAFirmwareOnlyBundleOnTheBootBlockLayout) {
+  UpdateManifest manifest = MakeManifest();
+  manifest.compatibility.epcs_layout_version = kEpcsBootBlockLayoutVersion + 1;
+
+  const UpdateGateResult result = CheckUpdateGate(manifest, MakeInput());
 
   EXPECT_TRUE(result.allowed());
 }
@@ -425,13 +450,14 @@ TEST(UpdateGate, SupportedRangesAreRangesAndNotSingleValues) {
   EXPECT_TRUE(ProtocolVersionIsSupported(kProtocolVersionMaximum));
   EXPECT_FALSE(ProtocolVersionIsSupported(kProtocolVersionMaximum + 1));
 
-  // Firmware predating the field reports zero, which is not a version and
-  // must not be treated as one.
-  EXPECT_FALSE(ProtocolVersionIsSupported(kProtocolVersionUnknown));
+  // A device that reports nothing at all in the field reports zero, which is
+  // not a version and must not be treated as one.
+  EXPECT_FALSE(ProtocolVersionIsSupported(0));
 
   EXPECT_TRUE(RegisterMapVersionIsSupported(kRegisterMapVersionMinimum));
   EXPECT_TRUE(RegisterMapVersionIsSupported(kRegisterMapVersionMaximum));
   EXPECT_FALSE(RegisterMapVersionIsSupported(kRegisterMapVersionMaximum + 1));
+  EXPECT_FALSE(RegisterMapVersionIsSupported(kRegisterMapVersionMinimum - 1));
 }
 
 }  // namespace

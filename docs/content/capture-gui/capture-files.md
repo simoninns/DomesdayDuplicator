@@ -141,8 +141,8 @@ such as Audacity and Tenacity, which cannot open the Ogg-encapsulated `.ldf` at 
 flac -t capture.ddd.flac      # verify the file is intact
 ```
 
-The application can also read back an uncompressed signed 16-bit `.raw` file — for the
-[test-data analysis](test-mode.md) only. Nothing writes that format.
+The application can also read an uncompressed `.ddd.s16` file back — for the
+[test-data analysis](test-mode.md) only.
 
 ## If a capture stops badly
 

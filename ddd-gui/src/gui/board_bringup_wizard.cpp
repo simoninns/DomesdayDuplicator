@@ -973,8 +973,6 @@ bool BoardBringUpWizard::ReturnedOnItsOwnFlash() {
   // the application image out of flash.
   const bool still_on_the_jtag_image =
       identity->gateware_present &&
-      identity->register_map_version >=
-          capture::kRegisterMapVersionWithImageRole &&
       identity->image_role == capture::kImageRoleFactory;
   return !still_on_the_jtag_image;
 }

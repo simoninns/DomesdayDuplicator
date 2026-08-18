@@ -110,14 +110,16 @@ std::vector<std::string_view> SplitLines(std::string_view text) {
   return lines;
 }
 
-std::optional<MinisignAlgorithm> ReadAlgorithm(const uint8_t* bytes) {
-  if (bytes[0] == 'E' && bytes[1] == 'd') {
-    return MinisignAlgorithm::kLegacy;
-  }
-  if (bytes[0] == 'E' && bytes[1] == 'D') {
-    return MinisignAlgorithm::kPrehashed;
-  }
-  return std::nullopt;
+// The only algorithm tag accepted here.
+//
+// "ED" is prehashed Ed25519 — the signature covers a BLAKE2b-512 of the
+// message rather than the message — and it is what minisign has produced by
+// default since 0.10 and what tools/make-update-bundle.sh therefore writes.
+// minisign's other tag, "Ed", signs the bytes directly and is reachable only
+// through its -H flag; no bundle this application will ever see carries it,
+// so it is refused rather than implemented.
+bool IsPrehashedTag(const uint8_t* bytes) {
+  return bytes[0] == 'E' && bytes[1] == 'D';
 }
 
 }  // namespace
@@ -177,9 +179,7 @@ std::optional<MinisignSignature> ParseMinisignSignature(std::string_view text,
     return std::nullopt;
   }
 
-  const std::optional<MinisignAlgorithm> algorithm =
-      ReadAlgorithm(decoded->data());
-  if (!algorithm) {
+  if (!IsPrehashedTag(decoded->data())) {
     Fail(error, "unknown signature algorithm");
     return std::nullopt;
   }
@@ -191,7 +191,6 @@ std::optional<MinisignSignature> ParseMinisignSignature(std::string_view text,
   }
 
   MinisignSignature signature;
-  signature.algorithm = *algorithm;
   std::copy_n(decoded->begin() + 2, signature.key_id.size(),
               signature.key_id.begin());
   std::copy_n(decoded->begin() + 10, signature.signature.size(),
@@ -211,20 +210,14 @@ bool VerifyMinisign(std::span<const uint8_t> message,
   }
 
   // The message signature. Prehashed mode signs a BLAKE2b-512 of the file
-  // rather than the file, so hash first and sign the hash — this is minisign's
-  // own scheme and not Ed25519ph, which is a different construction.
-  int result = 0;
-  if (signature.algorithm == MinisignAlgorithm::kPrehashed) {
-    std::array<uint8_t, 64> hash{};
-    crypto_blake2b(hash.data(), hash.size(), message.data(), message.size());
-    result =
-        crypto_ed25519_check(signature.signature.data(), public_key.key.data(),
-                             hash.data(), hash.size());
-  } else {
-    result =
-        crypto_ed25519_check(signature.signature.data(), public_key.key.data(),
-                             message.data(), message.size());
-  }
+  // rather than the file, so hash first and check the hash — this is
+  // minisign's own scheme and not Ed25519ph, which is a different
+  // construction.
+  std::array<uint8_t, 64> hash{};
+  crypto_blake2b(hash.data(), hash.size(), message.data(), message.size());
+  const int result =
+      crypto_ed25519_check(signature.signature.data(), public_key.key.data(),
+                           hash.data(), hash.size());
 
   if (result != 0) {
     return Fail(error, "the signature does not match the signed data");

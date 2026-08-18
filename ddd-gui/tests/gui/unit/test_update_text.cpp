@@ -314,7 +314,7 @@ TEST(UpdateTextTest, EverythingInTheBundleChangesOnADeviceWithNoFirmware) {
 
 capture::DeviceIdentity MakeGatewareRecoveryDevice() {
   capture::DeviceIdentity device = MakeDevice();
-  device.register_map_version = capture::kRegisterMapVersionWithImageRole;
+  device.register_map_version = capture::kRegisterMapVersionMaximum;
   device.image_role = capture::kImageRoleFactory;
   return device;
 }
@@ -373,12 +373,12 @@ TEST(UpdateTextTest, TheRecoveryGatewareStateIsExplained) {
 TEST(UpdateTextTest, AWorkingGatewareHasNothingToExplain) {
   EXPECT_TRUE(GatewareRecoveryText(MakeDevice()).isEmpty());
 
-  // And neither has gateware that predates the two-image model: it is one
-  // image, it captures, and it has no recovery state to be in.
-  capture::DeviceIdentity old = MakeDevice();
-  old.register_map_version = 1;
-  old.image_role = capture::kImageRoleFactory;
-  EXPECT_TRUE(GatewareRecoveryText(old).isEmpty());
+  // And neither has an FPGA that did not answer: the role byte read from one
+  // is not a role byte, and there is no recovery state to report from it.
+  capture::DeviceIdentity silent = MakeDevice();
+  silent.gateware_present = false;
+  silent.image_role = capture::kImageRoleFactory;
+  EXPECT_TRUE(GatewareRecoveryText(silent).isEmpty());
 }
 
 // "Reinstall", not "repair" and not "program": the firmware is fine, and

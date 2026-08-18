@@ -59,21 +59,10 @@ TEST(TestPatternVerifierTest, TheCurrentGatewareRampLengthIsDiscovered) {
   TestPatternVerifier verifier;
   ASSERT_TRUE(verifier.Feed(samples.data(), samples.size()));
   // Compared as an optional rather than dereferenced: the assertion then covers
-  // "a length was found" and "it was the right one" in one statement.
+  // "the stream wrapped" and "it wrapped where the gateware says it does" in
+  // one statement.
   EXPECT_EQ(verifier.GetResult().sequence_length,
             std::optional<uint16_t>(1021));
-}
-
-TEST(TestPatternVerifierTest, TheLegacyGatewareRampLengthIsAlsoDiscovered) {
-  // Older gateware ramps 0..1023. A check that assumed either length would
-  // report the other as corrupt, which is why the length is found rather than
-  // assumed.
-  const std::vector<uint16_t> samples = Ramp(0, 3000, 1024);
-
-  TestPatternVerifier verifier;
-  ASSERT_TRUE(verifier.Feed(samples.data(), samples.size()));
-  EXPECT_EQ(verifier.GetResult().sequence_length,
-            std::optional<uint16_t>(1024));
 }
 
 TEST(TestPatternVerifierTest, ACaptureTooShortToWrapReportsNoLength) {

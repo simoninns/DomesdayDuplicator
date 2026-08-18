@@ -16,10 +16,11 @@
 namespace ddd::capture {
 namespace {
 
-// The two ramp lengths the gateware has used. 1024 is the original 10-bit
-// counter; 1021 is what the current test-pattern generator produces.
-constexpr uint16_t kLegacySequenceLength = 1024;
-constexpr uint16_t kCurrentSequenceLength = 1021;
+// The ramp the gateware's test-pattern generator produces: 0 to 1020, wrapping
+// at 1021. A second copy of the constant in fpga/application/dataGenerator.v,
+// and the two must agree — a host that expected a different length would
+// report every good capture as corrupt.
+constexpr uint16_t kSequenceLength = 1021;
 
 }  // namespace
 
@@ -34,25 +35,21 @@ bool TestPatternVerifier::FeedOne(uint16_t sample_value) {
   }
 
   ++current_value_;
-  if (detected_sequence_length_.has_value() &&
-      current_value_ == *detected_sequence_length_) {
+
+  // Wrapped rather than discovered. `>=` and not `==` because the seed above
+  // is whatever the first sample happened to be, and a stream that is not the
+  // test pattern at all can start outside the ramp — from which `==` would
+  // never come back round, and the run would fail on a mismatch several
+  // samples later than the one that was actually wrong.
+  if (current_value_ >= kSequenceLength) {
     current_value_ = 0;
+
+    // Recorded because a capture that has been all the way round proves more
+    // than one that has not, and the caller has no other way to tell.
+    result_.sequence_length = kSequenceLength;
   }
 
   if (sample_value != current_value_) {
-    // The first disagreement may be the sequence wrapping rather than a fault:
-    // if the stream restarts at 0 exactly where one of the known ramp lengths
-    // would end, that is the length being revealed, not a lost sample.
-    if (!detected_sequence_length_.has_value() && sample_value == 0 &&
-        (current_value_ == kCurrentSequenceLength ||
-         current_value_ == kLegacySequenceLength)) {
-      detected_sequence_length_ = current_value_;
-      result_.sequence_length = current_value_;
-      current_value_ = 0;
-      ++result_.samples_checked;
-      return true;
-    }
-
     result_.passed = false;
     result_.expected_value = current_value_;
     result_.actual_value = sample_value;

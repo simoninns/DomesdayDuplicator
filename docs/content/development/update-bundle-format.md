@@ -143,7 +143,7 @@ For `gateware-provisioning-svf` and `gateware-factory`, both fields describe wha
 
 It is dotted decimal numbers rather than a commit because this is the one question a commit cannot answer. Missing trailing components read as zero, so `1.2` and `1.2.0` are the same version, and comparison is component by component: `1.10.0` is newer than `1.9.0`. Anything that is not a dotted sequence of decimal numbers — a commit hash, `unknown`, an empty string, `1.4.0-dirty` — cannot be ordered, and the comparison says so rather than guessing.
 
-`epcs_layout_version` matters more than it looks. The factory image's boot logic is frozen at provisioning time and reads exactly one layout; a bundle built against a different one must not be written, because the boot block it would leave behind is the one thing a field update cannot repair.
+`epcs_layout_version` matters more than it looks. The factory image's boot logic is frozen at provisioning time and reads exactly one layout; a bundle built against a different one must not be written, because the boot block it would leave behind is the one thing a field update cannot repair. The compatibility gate enforces it against `kEpcsBootBlockLayoutVersion` in `wire_protocol.h`, so a bundle laid out for a boot block the application cannot describe is refused before a byte moves.
 
 ### What a reader refuses, and why
 
@@ -157,7 +157,7 @@ The manifest is the only untrusted input this application will ever parse, and i
 
 ## The signature
 
-`manifest.minisig` is a [minisign](https://jedisct1.github.io/minisign/) detached signature over the exact bytes of `manifest.json`. Both of minisign's modes are accepted — the default, which signs the message, and the prehashed form, which signs a BLAKE2b-512 of it — because minisign produces either depending on a flag, and a verifier that understood only one would fail on a bundle signed by a maintainer who typed the other.
+`manifest.minisig` is a [minisign](https://jedisct1.github.io/minisign/) detached signature over the exact bytes of `manifest.json`. Only minisign's prehashed mode — the `ED` tag, which signs a BLAKE2b-512 of the message — is accepted, because it is what minisign has produced by default since 0.10 and therefore the only thing `tools/make-update-bundle.sh` writes. A bundle signed with `-H`'s opposite is refused rather than read, which is the right way round: a signature scheme nothing in this project produces is one nothing in it should verify.
 
 A signature file has four lines: an untrusted comment, the signature, a *trusted* comment, and a second signature covering the first signature concatenated with that trusted comment. **Both signatures are checked.** Without the second, the trusted comment would be attacker-editable text presented to a user as though the project had written it.
 

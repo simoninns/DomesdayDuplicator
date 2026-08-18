@@ -129,9 +129,6 @@ inline constexpr uint8_t kCommitLength = 8;
 inline constexpr uint8_t kImageRoleFactory = 0x00;
 inline constexpr uint8_t kImageRoleApplication = 0x01;
 
-// The map version at which the image role became meaningful.
-inline constexpr int kRegisterMapVersionWithImageRole = 2;
-
 // The capture buffer's back-pressure instrument.
 //
 // A read-only block at addresses that used to be unmapped, self-described by a
@@ -270,6 +267,26 @@ inline constexpr size_t kUpdateBeginLength = 40;
 // any advertised size, which is what the alignment is for.
 inline constexpr size_t kUpdateChunkAlignment = 256;
 
+// The EPCS boot block layout this build knows how to reason about.
+//
+// The boot block is what the FPGA's configuration controller reads to find an
+// image, and the factory image's boot logic is frozen at provisioning time —
+// it reads one layout and cannot be taught another from here. A bundle whose
+// gateware assumes a different one must not be written, because a boot block
+// the resident logic cannot parse is the one thing a field update cannot
+// repair: the board would come back with nothing to fall back to.
+//
+// Nothing on the device reports this, so the check is against what this build
+// was written for rather than against the unit in front of the user. That is
+// the whole of what can be known here, and it is enough to refuse a bundle
+// from a future nobody has described.
+//
+// A second copy of UPDATE_BOOT_BLOCK_LAYOUT_VERSION in
+// fx3/firmware/src/update-protocol.h and LAYOUT_VERSION in
+// fpga/make-boot-block.py (AGENTS.md §2 — it is a flash format, and the three
+// definitions live on three processors).
+inline constexpr int64_t kEpcsBootBlockLayoutVersion = 1;
+
 // The vendor protocol version this build understands, as the firmware
 // advertises it in the high byte of bcdDevice.
 //
@@ -283,22 +300,12 @@ inline constexpr size_t kUpdateChunkAlignment = 256;
 inline constexpr int kProtocolVersionMinimum = 1;
 inline constexpr int kProtocolVersionMaximum = 1;
 
-// Firmware predating the field at all reports zero, because bcdDevice was a
-// dead 0x0000 until the update work needed somewhere to state what the
-// firmware speaks. It is not a version and does not compare as one.
-inline constexpr int kProtocolVersionUnknown = 0;
-
-// The register map versions this build understands, on the same rule.
-inline constexpr int kRegisterMapVersionMinimum = 1;
+// The register map versions this build understands, on the same rule. The
+// minimum is the version that first carried the flash bridge and the image
+// role, which is also the first version any Duplicator ever shipped with:
+// everything older is the original firmware, which does not answer these
+// requests at all.
+inline constexpr int kRegisterMapVersionMinimum = 2;
 inline constexpr int kRegisterMapVersionMaximum = 2;
-
-// The dormant start/stop request.
-//
-// Recorded rather than used. The current gateware samples continuously from the
-// moment the device is opened, so the host never sends this, and a capture
-// starts and stops by attaching and detaching a writer rather than by telling
-// the device anything. It is here so that a future firmware which does honour
-// it does not have to rediscover the request number.
-inline constexpr uint8_t kStartStopRequest = 0xB5;
 
 }  // namespace ddd::capture

@@ -76,9 +76,7 @@ std::vector<uint16_t> Ramp(size_t count, size_t break_at = 0) {
   return values;
 }
 
-// Signed 16-bit, which is the .raw both this application and the old one read.
-// The format they have in common, and so the format a file can be handed to
-// both of them in.
+// Signed 16-bit, the uncompressed format this application writes.
 void WriteSigned16Bit(const std::filesystem::path& path,
                       const std::vector<uint16_t>& values) {
   std::ofstream file(path, std::ios::binary);
@@ -128,7 +126,7 @@ uint64_t RecordedTotal(const std::optional<uint64_t>& total) {
 // --- The three verdicts --------------------------------------------------
 
 TEST(TestDataAnalysisTest, AnIntactRampPasses) {
-  const TemporaryFile file(".raw");
+  const TemporaryFile file(".s16");
   WriteSigned16Bit(file.path(), Ramp(kLongEnoughToWrap));
 
   const TestDataAnalysis analysis = AnalyseTestData(file.path());
@@ -151,7 +149,7 @@ TEST(TestDataAnalysisTest, AnIntactRampPasses) {
 TEST(TestDataAnalysisTest, ABrokenRampFailsAndSaysWhere) {
   constexpr size_t kBreakAt = 5000;
 
-  const TemporaryFile file(".raw");
+  const TemporaryFile file(".s16");
   WriteSigned16Bit(file.path(), Ramp(kLongEnoughToWrap, kBreakAt));
 
   const TestDataAnalysis analysis = AnalyseTestData(file.path());
@@ -170,7 +168,7 @@ TEST(TestDataAnalysisTest, ABrokenRampFailsAndSaysWhere) {
 // A pass over 900 samples proves much less than a pass over a disc, and a
 // verdict that did not distinguish the two would be quoted as though it had.
 TEST(TestDataAnalysisTest, ACaptureTooShortToWrapPassesButSaysSoWeakly) {
-  const TemporaryFile file(".raw");
+  const TemporaryFile file(".s16");
   WriteSigned16Bit(file.path(), Ramp(500));
 
   const TestDataAnalysis analysis = AnalyseTestData(file.path());
@@ -188,7 +186,7 @@ TEST(TestDataAnalysisTest, ACaptureTooShortToWrapPassesButSaysSoWeakly) {
 
 TEST(TestDataAnalysisTest, AFileThatIsNotThereIsNoVerdict) {
   const TestDataAnalysis analysis = AnalyseTestData(
-      std::filesystem::temp_directory_path() / "ddd-no-such-capture.raw");
+      std::filesystem::temp_directory_path() / "ddd-no-such-capture.s16");
 
   EXPECT_EQ(analysis.outcome, TestDataAnalysis::Outcome::kUnreadable);
   EXPECT_EQ(analysis.ExitCode(), 2);
@@ -272,7 +270,7 @@ TEST(TestDataAnalysisTest, ProgressIsReportedAgainstTheFilesOwnLength) {
 }
 
 TEST(TestDataAnalysisTest, CancellingIsNotAPass) {
-  const TemporaryFile file(".raw");
+  const TemporaryFile file(".s16");
   WriteSigned16Bit(file.path(), Ramp(kLongEnoughToWrap));
 
   const TestDataAnalysis analysis =
@@ -291,7 +289,7 @@ TEST(TestDataAnalysisTest, CancellingIsNotAPass) {
 
 // A break already found is a verdict, and stopping afterwards does not undo it.
 TEST(TestDataAnalysisTest, ABreakFoundBeforeACancelIsStillReported) {
-  const TemporaryFile file(".raw");
+  const TemporaryFile file(".s16");
   WriteSigned16Bit(file.path(), Ramp(kAnalysisChunkSamples + 1000, 100));
 
   bool first_chunk_done = false;

@@ -134,8 +134,7 @@ std::optional<CaptureReader::Format> CaptureReader::FormatFromExtension(
   if (extension == kFlacExtension) {
     return Format::kFlac;
   }
-  if (extension == kSigned16BitExtension ||
-      extension == kLegacySigned16BitExtension) {
+  if (extension == kSigned16BitExtension) {
     return Format::kSigned16Bit;
   }
   return std::nullopt;
@@ -146,7 +145,7 @@ const char* CaptureReader::FormatName(Format format) {
     case Format::kFlac:
       return "FLAC (.flac)";
     case Format::kSigned16Bit:
-      return "signed 16-bit (.s16, .raw)";
+      return "signed 16-bit (.s16)";
   }
   return "unknown";
 }

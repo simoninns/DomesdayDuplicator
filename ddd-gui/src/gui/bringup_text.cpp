@@ -631,8 +631,6 @@ std::vector<BringUpCheck> BringUpVerification(
   gateware.description =
       Translate("Its FPGA is answering, on the application gateware");
   gateware.passed = identity.gateware_present &&
-                    identity.register_map_version >=
-                        capture::kRegisterMapVersionWithImageRole &&
                     identity.image_role == capture::kImageRoleApplication;
   checks.push_back(gateware);
 

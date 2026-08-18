@@ -69,7 +69,7 @@ Data from the ADC is read on the system clock edge that also takes the ADC clock
 
 The lengths of the test sequence (1021) and the sequence number sequence (63) were chosen in order to maximise the length of time before a USB transfer has the same contents as a previous transfer in test mode (about 210 seconds). The number of samples per sequence number was chosen to allow a length of blocks of missing samples up to 0.1s to be detected correctly; experimentation on a machine with an early USB3 controller showed maximum dropouts of about 0.01s under artifically heavy CPU load, so this gives some additional margin.
 
-(In versions of the firmware before June 2022, there were no sequence numbers, and the test sequence ran from 0 to 1023. The DomesdayDuplicator application will still work with older firmware.)
+(In versions of the firmware before June 2022, there were no sequence numbers, and the test sequence ran from 0 to 1023. That firmware enumerates under the old USB identifiers, so the capture application recognises a board running it but does not speak to it — see [bringing up a legacy board](../capture-gui/bringing-up-a-board.md).)
 
 ### buffer.v
 The buffering functionality is provided by a single FIFO of 16384 16-bit words, implemented in `fifo.v` rather than by vendor IP. It is written one word per sample and read one word per system clock cycle while the FX3 is taking a packet.

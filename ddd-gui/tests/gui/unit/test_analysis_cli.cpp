@@ -73,7 +73,7 @@ class AnalysisCliTest : public ::testing::Test {
   void TearDown() override { std::filesystem::remove_all(directory_); }
 
   QString FileWith(size_t samples, size_t break_at = 0) {
-    const std::filesystem::path path = directory_ / "capture.raw";
+    const std::filesystem::path path = directory_ / "capture.s16";
     WriteRamp(path, samples, break_at);
     return QString::fromStdString(path.string());
   }
@@ -124,7 +124,7 @@ TEST_F(AnalysisCliTest, ABreakExitsOne) {
 // three.
 TEST_F(AnalysisCliTest, AFileThatIsNotThereExitsTwo) {
   const Run run = Analyse(
-      QString::fromStdString((directory_ / "no-such-capture.raw").string()));
+      QString::fromStdString((directory_ / "no-such-capture.s16").string()));
 
   EXPECT_EQ(run.code, 2);
   EXPECT_TRUE(run.error.contains(QStringLiteral("Error:")))

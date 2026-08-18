@@ -467,7 +467,7 @@ capture::DeviceIdentity BroughtUpDevice() {
   identity.product_string = "Domesday Duplicator (0123abcd)";
   identity.protocol_version = 1;
   identity.gateware_present = true;
-  identity.register_map_version = capture::kRegisterMapVersionWithImageRole;
+  identity.register_map_version = capture::kRegisterMapVersionMaximum;
   identity.image_role = capture::kImageRoleApplication;
   return identity;
 }

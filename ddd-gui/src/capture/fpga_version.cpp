@@ -29,12 +29,8 @@ bool FpgaVersion::MapVersionIsKnown() const {
          map_version <= kRegisterMapVersionMaximum;
 }
 
-bool FpgaVersion::ImageRoleIsKnown() const {
-  return present && map_version >= kRegisterMapVersionWithImageRole;
-}
-
 bool FpgaVersion::IsRecoveryGateware() const {
-  return ImageRoleIsKnown() && image_role == kImageRoleFactory;
+  return MapVersionIsKnown() && image_role == kImageRoleFactory;
 }
 
 FpgaVersion ParseFpgaIdentity(const std::vector<uint8_t>& identity) {

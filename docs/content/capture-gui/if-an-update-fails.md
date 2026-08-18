@@ -62,11 +62,7 @@ When it finishes, the Duplicator restarts its FPGA by itself and the Firmware wi
 
 ### If the button is not offered
 
-Two cases, and the window says which:
-
-**"This device's gateware predates the update mechanism."** The Duplicator was set up before the two-image arrangement existed, so there is no resident image behind the capture gateware and no way for it to replace itself. It needs its gateware written once over the DE0-Nano's own USB connector, using the [hardware programming](../development/hardware-programming/index.md) pages. After that it updates from this window like any other.
-
-**"This device's FPGA is not answering."** Reconnect the Duplicator. If it still does not answer, the same hardware programming pages are the next place to look.
+**"This device's FPGA is not answering."** Reconnect the Duplicator. If it still does not answer, the [hardware programming](../development/hardware-programming/index.md) pages are the next place to look.
 
 ## A brand-new Duplicator
 

@@ -286,17 +286,12 @@ class UsbDeviceUpdater : public IDeviceUpdater {
 
 }  // namespace
 
-bool DeviceIdentity::GatewareCanBeUpdated() const {
-  return gateware_present &&
-         register_map_version >= kRegisterMapVersionWithImageRole;
-}
-
 bool DeviceIdentity::GatewareIsRecovery() const {
   // The same rule FpgaVersion applies to the same registers, and it has to
-  // be: a role byte read from a gateware whose map predates the register is
-  // a byte that means nothing, and reading it as "factory" would put a
-  // working device into a recovery state that does not exist for it.
-  return GatewareCanBeUpdated() && image_role == kImageRoleFactory;
+  // be: a role byte read from a gateware that did not answer is a byte that
+  // means nothing, and reading it as "factory" would put a working device
+  // into a recovery state that does not exist for it.
+  return gateware_present && image_role == kImageRoleFactory;
 }
 
 const char* UpdateTargetName(UpdateTarget target) {
