@@ -75,13 +75,19 @@ struct ProvisioningAccess {
 };
 
 // What the FPGA half did.
+//
+// It is two operations behind one outcome, because it is one thing to a user:
+// the factory image is configured into the FPGA over JTAG, and then written
+// into the flash over USB by the firmware that configuration just made
+// reachable. Neither half is meaningful alone — the configuration is volatile
+// and the write has nowhere to go without it.
 struct ProvisioningGatewareOutcome {
   bool succeeded = false;
 
   // Set when the caller asked for the run to stop rather than anything going
-  // wrong. The flash is then partly written, which is safe: the same vectors
-  // can simply be played again, and nothing boots from a half-written EPCS
-  // until it is power-cycled.
+  // wrong. Safe at either half: the configuration is volatile, and a partly
+  // written flash is not a broken one, because nothing boots from it until the
+  // board is power-cycled and the same set can simply be run again.
   bool stopped = false;
 
   // Written for a user, and empty on success.
@@ -89,24 +95,32 @@ struct ProvisioningGatewareOutcome {
 
   // What the player counted, for the log and for TESTING.md's bench records.
   SvfPlayResult play;
+
+  // Whether the configuration succeeded, which is worth knowing separately
+  // when the write did not: those are different faults with different
+  // remedies — a cable and a flash — and a page that said only "the FPGA step
+  // failed" would send the user to look at the wrong one.
+  bool configured = false;
 };
 
 // Roughly how long playing this many bytes of SVF will take, in seconds.
 //
-// Derived rather than measured, and deliberately pessimistic, exactly like
-// EstimateUpdateSeconds: an estimate that is too long makes a user wait and an
-// estimate that is too short makes them unplug the cable in the middle of a
-// flash write.
+// Measured rather than derived, which it was not when this file was first
+// written. The estimate then covered a flash-writing SVF of 18.4 MB whose
+// idle clocks alone stood for 105 seconds; that file turned out not to be
+// playable at all outside Quartus (TESTING.md B-V1), and what is played now is
+// a configuration file that writes nothing.
 //
-// The derivation, from this project's own provisioning file (18.4 MB of SVF,
-// 37,140 statements, 73.3 Mbit shifted, 471.9 M idle clocks, declared at
-// 4.5 MHz): the clocks alone stand for about 105 seconds the flash genuinely
-// needs, the shifted bits for another 16, and the byte-shift traffic for those
-// is about 68 MB over a full-speed FT245 — which overlaps the waiting rather
-// than adding to it. Rounded up to five minutes for that file, which is
-// 60 KB of file per second.
+// The measurement: 1,450,426 bytes — 5,749,532 bits, 17 statements — took
+// **2.6 seconds** through the DE0-Nano's on-board Blaster on 2026-08-17. That
+// is 558 KB of file per second, and the rate below is rounded down to 500 KB
+// for the same reason the update path rounds its own estimate up: an estimate
+// that is too long makes a user wait and one that is too short makes them
+// unplug a cable in the middle of something.
 //
-// Replaced with a measurement when B-V1 is taken on the bench.
+// The flash write that follows the configuration is estimated by
+// EstimateUpdateSeconds, like every other write to that flash, because that is
+// exactly what it is.
 int EstimateProvisioningSeconds(uint64_t svf_bytes);
 
 class ProvisioningOrchestrator {
@@ -167,6 +181,13 @@ class ProvisioningOrchestrator {
   std::function<bool()> cancel_;
 
   bool firmware_installed_ = false;
+
+  // Where the device was once it was running the firmware this class
+  // installed. The FPGA half writes its flash through that same device, and
+  // the two steps are separated only by a user taking a jumper out with the
+  // power still on — so the path survives, and using it is more honest than
+  // searching the bus again for "a Duplicator".
+  std::string fx3_path_;
 };
 
 }  // namespace ddd::capture

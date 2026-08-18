@@ -83,6 +83,8 @@ std::vector<uint8_t> MakeProvisioningBundle() {
                  Bytes(test::kProvisioningManifestSignature));
   writer.AddFile(kFirmwareEntryName, firmware);
   writer.AddFile(kProvisioningEntryName, Bytes(test::kProvisioningPayload));
+  writer.AddFile(kFactoryGatewareEntryName,
+                 Bytes(test::kFactoryGatewarePayload));
   return writer.Finish();
 }
 

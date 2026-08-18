@@ -150,10 +150,13 @@ std::optional<std::string> RecoveryInstaller::Wake(const UpdateBundle& bundle,
 UpdateOutcome RecoveryInstaller::Run(const UpdateBundle& bundle) {
   UpdateOutcome outcome;
 
+  device_path_.clear();
+
   const std::optional<std::string> path = Wake(bundle, outcome);
   if (!path.has_value()) {
     return outcome;
   }
+  device_path_ = *path;
 
   if (!access_.open_updater) {
     return Failure("This device cannot be reached for updating.");

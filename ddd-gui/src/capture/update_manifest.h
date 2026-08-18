@@ -34,6 +34,26 @@ namespace ddd::capture {
 // the documentation site. This header is the reader's half of it and says why
 // each field exists; the page says what a producer must write.
 
+// What the bundle is for.
+//
+// Kept apart from the channel below, which answers a different question: the
+// channel says which key signed a file and the purpose says what installing
+// it does to a device. A rollback bundle is release-signed like any other,
+// and conflating the two would have made "an authentic rollback" unsayable.
+enum class UpdatePurpose : uint8_t {
+  // Moves a device forward, or leaves it where it is. Every bundle that
+  // predates the field, which is why it is the default rather than a value a
+  // producer has to remember to write.
+  kUpdate,
+
+  // Takes a device *back* to the original Duplicator firmware and gateware —
+  // deliberately older than the application installing it, which is the one
+  // thing the compatibility gate otherwise exists to refuse. The gate is
+  // satisfied by this value rather than bypassed for it, so the refusal of an
+  // ordinary too-old bundle is unchanged.
+  kRollback,
+};
+
 // Which key signed the bundle, and therefore what the signature proves.
 enum class UpdateChannel : uint8_t {
   // Signed with the release key. Authentic.
@@ -111,6 +131,12 @@ struct UpdateManifest {
 
   UpdateChannel channel = UpdateChannel::kDevelopment;
 
+  // Absent in every bundle written before rollback existed, and absent means
+  // an ordinary update — which is what those bundles are. An unknown value is
+  // refused rather than defaulted, on the same rule as the channel: a purpose
+  // this build does not know is a promise about the device it cannot keep.
+  UpdatePurpose purpose = UpdatePurpose::kUpdate;
+
   // The release this bundle belongs to, as a dotted numeric version, and the
   // commit every payload was built from.
   std::string version;
@@ -160,6 +186,23 @@ struct UpdateManifest {
   // the chain that would have to write it.
   std::optional<UpdateComponent> provisioning;
 
+  // The factory image, as the raw EPCS bytes that go into the flash at
+  // address 0 — the image a board falls back to.
+  //
+  // The fourth kind, and it exists because the vectors above turned out not
+  // to be able to write flash at all: a quartus_cpf flash .svf drives
+  // Altera's serial flash loader and carries no configuration of its own, so
+  // the route that works is to configure *this* project's factory image over
+  // JTAG and then write it from the firmware, over USB. So the two now come
+  // as a pair — the vectors put a flash bridge on the FPGA, and this is what
+  // that bridge writes.
+  //
+  // Never installed by the ordinary update path either, and for a stronger
+  // reason than the vectors: the firmware refuses this destination unless the
+  // request carries the factory-write word, so an update dialog that somehow
+  // offered it would be refused by the device.
+  std::optional<UpdateComponent> factory_gateware;
+
   UpdateCompatibility compatibility;
 };
 
@@ -167,12 +210,19 @@ struct UpdateManifest {
 // else is refused.
 inline constexpr int64_t kUpdateManifestVersion = 1;
 
-// The three component kinds, as the manifest names them. Every other member of
+// The four component kinds, as the manifest names them. Every other member of
 // "components" is refused — see UpdateManifest::provisioning.
 inline constexpr std::string_view kFirmwareComponentName = "firmware";
 inline constexpr std::string_view kGatewareComponentName = "gateware";
 inline constexpr std::string_view kProvisioningComponentName =
     "gateware-provisioning-svf";
+inline constexpr std::string_view kFactoryGatewareComponentName =
+    "gateware-factory";
+
+// The purposes, as the manifest names them. "update" is written by producers
+// that know about the field and assumed of those that do not.
+inline constexpr std::string_view kUpdatePurposeName = "update";
+inline constexpr std::string_view kRollbackPurposeName = "rollback";
 
 // Read a manifest from its JSON text.
 //

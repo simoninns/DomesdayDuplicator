@@ -402,6 +402,11 @@ std::optional<UpdateBundle> OpenUpdateBundle(std::span<const uint8_t> archive,
                       &bundle.provisioning, error)) {
     return std::nullopt;
   }
+  if (manifest->factory_gateware &&
+      !CheckComponent(*entries, *manifest->factory_gateware, "factory gateware",
+                      &bundle.factory_gateware, error)) {
+    return std::nullopt;
+  }
 
   if (error != nullptr) {
     error->clear();

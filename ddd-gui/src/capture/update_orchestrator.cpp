@@ -84,8 +84,11 @@ const char* UpdateStageName(UpdateStage stage) {
 
 double EstimateComponentSeconds(UpdateTarget target,
                                 const UpdateComponent& component) {
-  const double rate = target == UpdateTarget::kGateware ? kEpcsBytesPerSecond
-                                                        : kEepromBytesPerSecond;
+  // Both flash targets are the same flash written the same way, so they share
+  // a rate. What differs is where the bytes land, and an erase costs the same
+  // at either address.
+  const double rate = target == UpdateTarget::kFirmware ? kEepromBytesPerSecond
+                                                        : kEpcsBytesPerSecond;
   return static_cast<double>(component.length) / rate;
 }
 
@@ -236,15 +239,30 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
   // it, which takes about a second and stops the bar for that long, roughly
   // every thirty chunks. A progress bar that pauses for a second with no
   // explanation is a progress bar a user starts to distrust.
-  const std::string sending =
-      target == UpdateTarget::kGateware
-          ? std::string(
-                "Sending the gateware to the device, which erases and writes "
-                "its flash as it arrives. It pauses every few seconds while a "
-                "block is erased.")
-          : std::string(
-                "Sending the firmware to the device, which writes it as it "
-                "arrives.");
+  //
+  // The factory target says which image it is writing, because it is the one
+  // write in the application that replaces the thing a board falls back to,
+  // and a user watching it should be able to tell it apart from the gateware
+  // write that looks exactly like it.
+  std::string sending;
+  switch (target) {
+    case UpdateTarget::kGateware:
+      sending =
+          "Sending the gateware to the device, which erases and writes its "
+          "flash as it arrives. It pauses every few seconds while a block is "
+          "erased.";
+      break;
+    case UpdateTarget::kEpcsFactory:
+      sending =
+          "Sending the factory image to the device, which erases and writes "
+          "its flash as it arrives. It pauses every few seconds while a block "
+          "is erased.";
+      break;
+    case UpdateTarget::kFirmware:
+      sending =
+          "Sending the firmware to the device, which writes it as it arrives.";
+      break;
+  }
 
   Report(UpdateStage::kTransferring, target, 0, total, sending);
 
@@ -319,6 +337,48 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
   // announcing a stage on its behalf would flash a stage it is not in.
   // AwaitCompletion's first poll reports whatever the device actually says.
   return AwaitCompletion(target, total, outcome);
+}
+
+UpdateOutcome UpdateOrchestrator::InstallFactoryGateware(
+    const UpdateBundle& bundle) {
+  UpdateOutcome outcome;
+  outcome.stage = UpdateStage::kChecking;
+
+  Report(UpdateStage::kChecking, UpdateTarget::kEpcsFactory, 0, 0,
+         "Checking the factory image.");
+
+  if (!bundle.manifest.factory_gateware.has_value() ||
+      bundle.factory_gateware.empty()) {
+    outcome.stage = UpdateStage::kFailed;
+    outcome.problem = "This file carries no factory image.";
+    return outcome;
+  }
+
+  if (!InstallComponent(UpdateTarget::kEpcsFactory,
+                        *bundle.manifest.factory_gateware,
+                        bundle.factory_gateware, outcome)) {
+    return outcome;
+  }
+
+  // No reset, no reconfiguration, and no confirmation — deliberately, and not
+  // as a convenience to the caller. Reconfiguring would reload the
+  // *application* image from flash, which is not what has just been written
+  // and, on a board being brought up, is not there at all. What proves this
+  // write is the power cycle the wizard asks for and the identity it reads
+  // afterwards.
+  outcome.succeeded = true;
+  outcome.stage = UpdateStage::kComplete;
+  outcome.identity_confirmed = false;
+
+  if (logger_ != nullptr) {
+    logger_->Info(
+        "Factory image written and read back. The board must be power-cycled "
+        "to run it.");
+  }
+
+  Report(UpdateStage::kComplete, UpdateTarget::kEpcsFactory, 0, 0,
+         "Written and checked. The board has not been restarted yet.");
+  return outcome;
 }
 
 UpdateOutcome UpdateOrchestrator::Run(const UpdateBundle& bundle) {

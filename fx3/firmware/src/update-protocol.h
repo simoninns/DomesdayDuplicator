@@ -43,10 +43,34 @@
 
 // wIndex selects the target throughout. Target 0 is the FX3's own boot
 // EEPROM, written over I2C; target 1 is the FPGA's EPCS configuration
-// flash, reached through the gateware's flash bridge. Anything else is
-// refused with UPDATE_ERROR_TARGET rather than pretending.
+// flash, reached through the gateware's flash bridge. Target 2 is the same
+// flash at its other address, the factory region, and is the one target
+// that is not offered to a user going about ordinary business — see
+// UPDATE_FLAG_FACTORY_WRITE. Anything else is refused with
+// UPDATE_ERROR_TARGET rather than pretending.
 #define UPDATE_TARGET_EEPROM            (0u)
 #define UPDATE_TARGET_EPCS              (1u)
+#define UPDATE_TARGET_EPCS_FACTORY      (2u)
+
+// The flag words UPDATE_BEGIN may carry. Every other value is refused by
+// updateBeginDecode(), which is the rule that was already there — the field
+// used to have no legal value but zero.
+//
+// UPDATE_FLAG_FACTORY_WRITE is what unlocks target 2, and it is a whole
+// word rather than a bit because of what it is protecting against. Writing
+// the factory region is safe when it is meant and irreversible when it is
+// not: a host that means target 1 and sends a 2 would otherwise erase the
+// image a board falls back to. Such a host sends a zero flags word, so it
+// is refused. This is a guard against a mistake and not against a
+// determined host; nothing here could be, and the reason it does not need
+// to be is that every DE0-Nano carries the USB-Blaster that reprovisions
+// it (see the bring-up plan, "Why the flags word and not something
+// stronger").
+//
+// The bytes are 'D','D','F','W' in the order they appear on the wire, so
+// the word reads as itself in a capture.
+#define UPDATE_FLAGS_NONE               (0x00000000u)
+#define UPDATE_FLAG_FACTORY_WRITE       (0x57464444u)
 
 // Sizes fixed by the protocol.
 #define UPDATE_STATUS_LENGTH            (16u)
@@ -90,9 +114,20 @@
 // The whole of an EPCS64, which is what the DE0-Nano carries.
 #define UPDATE_EPCS_SIZE                (0x800000u)
 
-// Where the two field-writable regions live. The factory image at 0x000000
-// is never written from here by any path: it is JTAG-provisioned once and
-// the freeze policy in fpga/factory/README.md is what keeps it that way.
+// Where the three regions live.
+//
+// The factory image at 0x000000 is written from here by exactly one path:
+// target 2, which nothing but a bring-up or a rollback ever selects and
+// which is refused without UPDATE_FLAG_FACTORY_WRITE. It used to be written
+// by no path at all, on a freeze policy (fpga/factory/README.md) that took
+// its safety from JTAG being the only way in. What changed is that the
+// vectors which were going to do that job cannot: a quartus_cpf flash .svf
+// drives Altera's serial flash loader and carries no configuration of its
+// own, so the route that works is to configure this project's own factory
+// image over JTAG and then write the flash from here, over USB. The freeze
+// therefore moved rather than lifted — from "no path" to "one path, named,
+// unlocked and never taken by an ordinary update".
+#define UPDATE_EPCS_FACTORY_ADDRESS     (0x000000u)
 #define UPDATE_EPCS_BOOT_BLOCK_ADDRESS  (0x100000u)
 #define UPDATE_EPCS_APPLICATION_ADDRESS (0x200000u)
 
@@ -245,15 +280,22 @@ int updateBeginDecode(const uint8_t *data, uint16_t length, updateBegin_t *out);
 // Write the 16-byte status packet.
 void updateStatusEncode(const updateState_t *state, uint8_t *out);
 
-// May an UPDATE_BEGIN for this target and length be accepted right now?
+// May an UPDATE_BEGIN for this target, length and flag word be accepted
+// right now?
 //
 // Returns UPDATE_ERROR_NONE if it may, and the error to report if it may
 // not. captureRunning is the mutual exclusion the "Device update mechanism"
 // page requires: an update is refused while a capture is running, and a
 // capture is refused while an update is in progress, by state rather than
 // by convention.
+//
+// The flag word is checked against the target here rather than in
+// updateBeginDecode(), because "is this a word this firmware knows" and "is
+// this a word this target accepts" are different questions and only the
+// second one needs to know what is being written.
 uint8_t updateBeginIsAllowed(const updateState_t *state, uint8_t target,
-                             uint32_t length, int captureRunning);
+                             uint32_t length, uint32_t flags,
+                             int captureRunning);
 
 // May this UPDATE_DATA chunk be accepted?
 //
@@ -306,13 +348,33 @@ uint16_t updateEepromReadSpan(uint32_t address, uint32_t remaining,
 // written.
 uint32_t updateEepromPadToPage(uint32_t length);
 
-// Is this a gateware image the EPCS could hold at the application address?
+// Is this an image the EPCS could hold in this target's region?
 //
-// The counterpart of updateImageIsPlausible() for target 1, and weaker than
-// it on purpose: a raw EPCS byte stream has no signature, so the only thing
-// that can be checked before the first sector is erased is that the length
-// is one an application image could have.
-int updateGatewareIsPlausible(uint32_t totalLength);
+// The counterpart of updateImageIsPlausible() for the two flash targets,
+// and weaker than it on purpose: a raw EPCS byte stream has no signature,
+// so the only thing that can be checked before the first sector is erased
+// is that the length is one such an image could have.
+int updateGatewareIsPlausible(uint8_t target, uint32_t totalLength);
+
+// Is this target one of the two that live on the EPCS?
+//
+// Written down once because the agent asks it in five places, and because
+// "the flash targets" is the distinction every one of them means — not
+// "target 1", which is what they used to say when there was only one.
+int updateTargetIsEpcs(uint8_t target);
+
+// The address this target's region starts at.
+//
+// Anything that is not the factory target answers with the application
+// address, and that default is chosen rather than arbitrary: a dispatch bug
+// that reached here with a target this function does not know would write
+// into the application region, which a later update repairs, rather than
+// over the factory image, which is the one thing a field update cannot.
+uint32_t updateEpcsTargetBase(uint8_t target);
+
+// How many bytes that region holds. The factory region ends where the boot
+// block begins; the application region runs to the end of the device.
+uint32_t updateEpcsTargetCapacity(uint8_t target);
 
 // How many bytes the device with this silicon identifier holds, or zero if
 // it is not one this firmware recognises.

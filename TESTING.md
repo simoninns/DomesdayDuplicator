@@ -1000,8 +1000,8 @@ configured instead.** The two options were —
   carries its USB-Blaster on the board, so the cable that recovers a half-written factory
   region is present on every unit and already connected during bring-up. The firmware
   gains a third update target guarded by a magic in the begin flags; the design and its
-  rejected alternatives are Phase 6 of
-  [docs-tech/board-bringup-and-rollback-plan.md](docs-tech/board-bringup-and-rollback-plan.md).
+  rejected alternatives are recorded in
+  [docs-tech/board-bringup-plan.md](docs-tech/board-bringup-plan.md).
 
 **Still to perform**: the flash write itself, its duration, and the comparison against
 `quartus_pgm` — steps 4 to 6 below, which cannot run until Phase 6's firmware exists.

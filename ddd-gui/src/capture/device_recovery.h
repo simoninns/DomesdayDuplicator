@@ -123,6 +123,16 @@ class RecoveryInstaller {
   // That is refused with a sentence rather than attempted.
   UpdateOutcome Run(const UpdateBundle& bundle);
 
+  // Where the device appeared once it was running the firmware it was given,
+  // and empty until it has.
+  //
+  // Exposed because bring-up has a second thing to do to the same device
+  // afterwards — write its FPGA's flash — and the device does not go away in
+  // between: the jumper comes out with the power still on, so this path is
+  // still the path. Finding the device a second time would be finding it by
+  // guesswork on a bench that may have two of them.
+  const std::string& device_path() const { return device_path_; }
+
  private:
   // The prelude on its own: parse, download, jump, wait. Returns the path the
   // device appeared at, or nothing with `outcome` filled in.
@@ -135,6 +145,7 @@ class RecoveryInstaller {
 
   DeviceAccess access_;
   ILogger* logger_ = nullptr;
+  std::string device_path_;
   DeviceRecoveryTimings timings_;
   UpdateTimings update_timings_;
   UpdateProgressCallback progress_;

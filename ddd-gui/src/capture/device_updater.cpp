@@ -48,8 +48,25 @@ constexpr unsigned int kWriteTimeoutMilliseconds = 0;
 constexpr auto kReturnPollInterval = std::chrono::milliseconds(250);
 
 uint16_t TargetIndex(UpdateTarget target) {
-  return target == UpdateTarget::kFirmware ? kUpdateTargetFirmware
-                                           : kUpdateTargetGateware;
+  switch (target) {
+    case UpdateTarget::kFirmware:
+      return kUpdateTargetFirmware;
+    case UpdateTarget::kGateware:
+      return kUpdateTargetGateware;
+    case UpdateTarget::kEpcsFactory:
+      return kUpdateTargetFactoryGateware;
+  }
+  return kUpdateTargetGateware;
+}
+
+// The flag word this target's UPDATE_BEGIN must carry.
+//
+// One place, so that the unlock cannot be spelled differently by two
+// callers, and so that adding a target without deciding what it unlocks is
+// a compile error rather than a silently zero word.
+uint32_t TargetFlags(UpdateTarget target) {
+  return target == UpdateTarget::kEpcsFactory ? kUpdateFactoryWriteFlag
+                                              : kUpdateFlagsNone;
 }
 
 // An updater over a USB control channel. The only implementation that talks
@@ -144,8 +161,16 @@ class UsbDeviceUpdater : public IDeviceUpdater {
     packet[3] = static_cast<uint8_t>((length >> 24) & 0xFF);
     std::copy(digest.begin(), digest.end(), packet.begin() + 4);
 
-    // Bytes 36 to 39 are the reserved flags and stay zero. The firmware
-    // refuses a packet with any of them set rather than ignoring them.
+    // Bytes 36 to 39 are the flag word: zero for the two ordinary targets,
+    // and the factory-write word for the one target that may write the
+    // image a board falls back to. The firmware refuses any other value
+    // rather than ignoring it, and refuses each of these two on the targets
+    // they do not belong to.
+    const uint32_t flags = TargetFlags(target);
+    packet[36] = static_cast<uint8_t>(flags & 0xFF);
+    packet[37] = static_cast<uint8_t>((flags >> 8) & 0xFF);
+    packet[38] = static_cast<uint8_t>((flags >> 16) & 0xFF);
+    packet[39] = static_cast<uint8_t>((flags >> 24) & 0xFF);
 
     const int sent = channel_->Transfer(
         kVendorWriteRequestType, kUpdateBeginRequest, 0, TargetIndex(target),
@@ -280,6 +305,8 @@ const char* UpdateTargetName(UpdateTarget target) {
       return "firmware";
     case UpdateTarget::kGateware:
       return "gateware";
+    case UpdateTarget::kEpcsFactory:
+      return "factory gateware";
   }
   return "unknown";
 }

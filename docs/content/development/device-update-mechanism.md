@@ -24,17 +24,20 @@ The FPGA is harder, and the reason is in the wiring rather than in the code: **t
 
 That single fact shapes the whole design. It is also why loading the gateware from the host at every connection — the obvious way to make staleness impossible — is not merely inadvisable here but electrically impossible.
 
-## One agent, two targets
+## One agent, three targets
 
 ```
 ddd-gui ──EP0 vendor requests──▶ FX3 application firmware
                                     │
                                     ├─ target 0:  I2C block ──▶ boot EEPROM (M24M02)
                                     │
-                                    └─ target 1:  bit-banged SPI ──▶ spiRegisters
-                                                        │ (flash bridge unlocked)
-                                                        └──▶ asmiblock ──▶ EPCS64
-                                                             rublock  ──▶ reconfigure
+                                    ├─ target 1:  bit-banged SPI ──▶ spiRegisters
+                                    │                   │ (flash bridge unlocked)
+                                    │                   └──▶ asmiblock ──▶ EPCS64
+                                    │                        rublock  ──▶ reconfigure
+                                    │                          application image, 0x200000
+                                    │
+                                    └─ target 2:  the same route, the factory image at 0
 ```
 
 The FX3 application firmware is the single on-device update agent. It is its own flasher for its own EEPROM, and it is the host's proxy for the EPCS. The gateware stays deliberately dumb: it offers a byte-at-a-time SPI pass-through and a reconfiguration trigger, and every decision about erase order, page programming and verification lives in C, where it can be reviewed and — for the pure parts — tested without hardware.
@@ -45,7 +48,9 @@ The alternative was a flash command engine in the gateware, with the firmware re
 
 Six requests, all on endpoint 0. Existing codes are untouched: `0xA0` belongs to the Cypress boot ROM, `0xB0`/`0xBA`/`0xBB` to the Cypress flash programmer personality, and `0xB5`–`0xB8` to this firmware's capture and register interface.
 
-`wIndex` selects the target throughout: **0** is the FX3 boot EEPROM, **1** is the FPGA EPCS application image. A request naming any other target stalls.
+`wIndex` selects the target throughout: **0** is the FX3 boot EEPROM, **1** is the FPGA EPCS application image, **2** is the same flash at the factory image's address. A request naming any other target stalls.
+
+Target 2 is the one a user never reaches. It is written by a board bring-up and by a rollback, both of which replace the image a board falls back to, and it is refused unless `UPDATE_BEGIN` carries the factory-write word below. Adding it was an **additive** change and deliberately did not bump the protocol version — no existing field changed meaning, and firmware that predates it answers `UPDATE_ERROR_TARGET`, which is how a host discovers what it is talking to.
 
 | Request | `bmRequestType` | Direction | Data stage | Purpose |
 | --- | --- | --- | --- | --- |
@@ -62,7 +67,9 @@ Six requests, all on endpoint 0. Existing codes are untouched: `0xA0` belongs to
 | --- | --- | --- |
 | 0 | 4 | Payload length in bytes, little-endian |
 | 4 | 32 | SHA-256 of the payload |
-| 36 | 4 | Flags, little-endian; all bits reserved and zero |
+| 36 | 4 | Flags, little-endian. `0x00000000` for targets 0 and 1; `0x57464444` — `'D','D','F','W'` on the wire — unlocks target 2. Any other value is refused |
+
+**The flag word is a guard against a mistake, not against a determined host**, and it is sized for exactly that. Writing the factory region is safe when it is meant and irreversible when it is not, so a host that means target 1 and sends a 2 is refused because it carries a zero flags word. Nothing stronger is needed here: recovery from a half-written factory region needs JTAG, and every DE0-Nano has a USB-Blaster soldered to it — the cable is present on every unit this could happen to, and connected by definition during the one flow that uses the target. The word is required *only* on target 2, and target 2 is refused without it, so neither can be reached by accident from the other.
 
 The digest arrives *before* the first byte of payload, which is what lets the firmware hash the incoming stream as it arrives and abort before anything is committed. It is SHA-256 and not a CRC because it is the same number the bundle's manifest carries and the same number CI computed at build time — one digest, checked at every hand-off, is the rule the whole chain is built on.
 

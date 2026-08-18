@@ -11,6 +11,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <memory>
 #include <span>
 #include <string>
@@ -104,6 +105,7 @@ class BorrowedCable : public IJtagCable {
 struct Fixture {
   std::vector<uint8_t> firmware = test::MakeBootImage();
   std::vector<uint8_t> vectors;
+  std::vector<uint8_t> factory_image;
   UpdateBundle bundle;
 
   FakeDeviceProgrammer programmer;
@@ -137,6 +139,23 @@ struct Fixture {
     provisioning.interface_version = 2;
     bundle.manifest.provisioning = provisioning;
     bundle.provisioning = vectors;
+
+    // The image the vectors make writable. A set carrying only vectors cannot
+    // bring a board up: they configure an FPGA and write nothing, so without
+    // this the flash would still hold whatever it held before.
+    factory_image.assign(
+        reinterpret_cast<const uint8_t*>(test::kFactoryGatewarePayload.data()),
+        reinterpret_cast<const uint8_t*>(test::kFactoryGatewarePayload.data()) +
+            test::kFactoryGatewarePayload.size());
+
+    UpdateComponent factory;
+    factory.file = std::string(kFactoryGatewareEntryName);
+    factory.length = factory_image.size();
+    factory.sha256 = Sha256(factory_image);
+    factory.identity = "0123abcd";
+    factory.interface_version = 2;
+    bundle.manifest.factory_gateware = factory;
+    bundle.factory_gateware = factory_image;
   }
 
   ProvisioningAccess Access() {
@@ -225,10 +244,56 @@ TEST(ProvisioningOrchestrator, ProgramsBothHalvesInOrder) {
       orchestrator.ProgramGateware(fixture.bundle);
   ASSERT_TRUE(gateware.succeeded) << gateware.problem;
 
-  EXPECT_EQ(fixture.updater.begin_count(), 1u);
+  // Two transfers, not one: the firmware into the EEPROM, and then the factory
+  // image into the flash the configured FPGA has just made reachable.
+  EXPECT_EQ(fixture.updater.begin_count(), 2u);
+  EXPECT_EQ(fixture.updater.target(), UpdateTarget::kEpcsFactory);
   EXPECT_EQ(fixture.cable_opens, 1);
   EXPECT_GT(gateware.play.statements, 0u);
   EXPECT_GT(fixture.cable.clocks(), 0u);
+  EXPECT_TRUE(gateware.configured);
+}
+
+// The two halves of the FPGA step fail differently, and a page that could not
+// tell them apart would send the user to check a cable that is working.
+TEST(ProvisioningOrchestrator, AFlashFailureIsNotACableFailure) {
+  Fixture fixture;
+  fixture.updater.RefuseTarget(UpdateTarget::kEpcsFactory);
+
+  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+
+  ASSERT_TRUE(orchestrator.InstallFirmware(fixture.bundle).succeeded);
+
+  const ProvisioningGatewareOutcome outcome =
+      orchestrator.ProgramGateware(fixture.bundle);
+
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_TRUE(outcome.configured) << "the cable was blamed for a flash failure";
+  EXPECT_FALSE(outcome.problem.empty());
+}
+
+// A set that could configure the FPGA but not write its flash is refused
+// before the cable is opened. Such a set would leave a board looking
+// provisioned until the next power cycle, which is the most confusing state
+// this flow could stop in.
+TEST(ProvisioningOrchestrator, RefusesASetThatCarriesNoFactoryImage) {
+  Fixture fixture;
+  fixture.bundle.manifest.factory_gateware.reset();
+  fixture.bundle.factory_gateware = {};
+
+  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+
+  ASSERT_TRUE(orchestrator.InstallFirmware(fixture.bundle).succeeded);
+
+  const ProvisioningGatewareOutcome outcome =
+      orchestrator.ProgramGateware(fixture.bundle);
+
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_NE(outcome.problem.find("factory image"), std::string::npos)
+      << outcome.problem;
+  EXPECT_EQ(fixture.cable_opens, 0);
 }
 
 // --- the FX3 half ---------------------------------------------------------
@@ -335,23 +400,50 @@ TEST(ProvisioningOrchestrator, ReportsProgressAsTheUpdateFlowDoes) {
   ASSERT_TRUE(orchestrator.ProgramGateware(fixture.bundle).succeeded);
 
   ASSERT_FALSE(reports.empty());
-  EXPECT_EQ(reports.back().target, UpdateTarget::kGateware);
-  EXPECT_EQ(reports.back().total, fixture.vectors.size());
+
+  // Both halves report against the factory target, because both are that one
+  // thing: the vectors that make the flash reachable and the write that
+  // reaches it.
+  EXPECT_EQ(reports.front().target, UpdateTarget::kEpcsFactory);
+  EXPECT_EQ(reports.back().target, UpdateTarget::kEpcsFactory);
   EXPECT_FALSE(reports.back().message.empty());
+
+  // The configuration counts bytes of the file it is playing, and it happens
+  // first.
+  const auto configuring = std::find_if(
+      reports.begin(), reports.end(), [&fixture](const UpdateProgress& report) {
+        return report.total == fixture.vectors.size();
+      });
+  EXPECT_NE(configuring, reports.end())
+      << "no report counted the vectors being played";
+
+  // And the write counts bytes of the image, which is a different number.
+  const auto writing = std::find_if(
+      reports.begin(), reports.end(), [&fixture](const UpdateProgress& report) {
+        return report.total == fixture.factory_image.size();
+      });
+  EXPECT_NE(writing, reports.end())
+      << "no report counted the factory image being written";
 }
 
 // --- the estimate ---------------------------------------------------------
 
-TEST(ProvisioningEstimate, GrowsWithTheFileAndIsMinutesForARealOne) {
+TEST(ProvisioningEstimate, GrowsWithTheFileAndIsSecondsForARealOne) {
   EXPECT_LT(EstimateProvisioningSeconds(1000),
             EstimateProvisioningSeconds(1000000));
 
-  // This project's own provisioning file is 18.4 MB, and a run of it is
-  // minutes rather than seconds or hours. The exact figure is B-V1's to
-  // settle; what is asserted here is the order of magnitude a user is told.
-  const int seconds = EstimateProvisioningSeconds(18400000);
-  EXPECT_GT(seconds, 120);
-  EXPECT_LT(seconds, 1800);
+  // This project's own configuration file is 1,450,426 bytes and took 2.6
+  // seconds on the bench (B-V1). The estimate must be of that order and never
+  // shorter than the measurement — an estimate a user beats is one they stop
+  // believing.
+  const int seconds = EstimateProvisioningSeconds(1450426);
+  EXPECT_GE(seconds, 3);
+  EXPECT_LT(seconds, 30);
+
+  // It used to be minutes, and deliberately: what was played then was an
+  // 18.4 MB flash-writing file whose idle clocks alone stood for 105 seconds.
+  // That file cannot be played at all outside Quartus, which is why nothing
+  // plays it any more.
 }
 
 }  // namespace

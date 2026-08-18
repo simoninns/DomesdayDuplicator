@@ -125,10 +125,11 @@ jobs:
           # .cdf files are useful in the workflow artefact and are noise on a release page.
           cp -L bitstream/provisioning/DomesdayDuplicatorProvisioning.jic \
                 bitstream/provisioning/DomesdayDuplicatorProvisioning.map \
-                bitstream/provisioning/DomesdayDuplicatorProvisioning.svf \
                 bitstream/provisioning/boot-block.bin \
                 bitstream/application/DomesdayDuplicator_auto.rpd \
                 bitstream/factory/DomesdayDuplicatorFactory.sof \
+                bitstream/factory/DomesdayDuplicatorFactory_auto.rpd \
+                bitstream/factory/DomesdayDuplicatorFactoryConfigure.svf \
                 bitstream/bitstream-provenance.txt \
                 release-artifacts/
 
@@ -226,9 +227,29 @@ jobs:
           EPCS_LAYOUT_VERSION=$(sed -n 's/^LAYOUT_VERSION = \([0-9]\+\).*/\1/p' \
             fpga/make-boot-block.py | head -1)
 
-          for name in PROTOCOL_VERSION MAP_VERSION EPCS_LAYOUT_VERSION; do
+          # The commit the tracked legacy images were built from, read out of the
+          # provenance record beside them rather than typed here — the same rule the
+          # interface versions above follow, for the same reason.
+          LEGACY_COMMIT=$(sed -n 's/^| Pinned ref | \*\*`\([0-9a-f]\{7,\}\)`\*\*.*/\1/p' \
+            legacy/README.md | head -1)
+
+          for name in PROTOCOL_VERSION MAP_VERSION EPCS_LAYOUT_VERSION LEGACY_COMMIT; do
             if [[ -z "${!name}" ]]; then
               echo "Could not read ${name} out of the sources" >&2
+              exit 1
+            fi
+          done
+
+          # And the images themselves, against the digests their README records. They are
+          # frozen binaries that nothing rebuilds, so the one thing worth checking before
+          # they are signed into a release is that they are still the bytes somebody
+          # wrote that provenance about.
+          for image in firmware.img gateware.rpd gateware.sof gateware.cof; do
+            recorded=$(sed -n "s/^| \`${image}\` | [0-9,]* | \`\([0-9a-f]\{64\}\)\` |.*/\1/p" \
+              legacy/README.md | head -1)
+            actual=$(sha256sum "legacy/${image}" | cut -d' ' -f1)
+            if [[ "${recorded}" != "${actual}" ]]; then
+              echo "legacy/${image} is ${actual}, and legacy/README.md records ${recorded}" >&2
               exit 1
             fi
           done
@@ -253,17 +274,23 @@ jobs:
               --minimum-register-map-version "$((16#${MAP_VERSION}))" \
               --epcs-layout-version "${EPCS_LAYOUT_VERSION}"
 
-          # The provisioning set: the same firmware, and the gateware as JTAG vectors
-          # instead of a flash image. It is what brings a board up that has no working
-          # gateware to receive an ordinary update through — a newly built unit, or one
-          # running the original firmware — and the capture application's installers pin
-          # and bundle it so that a first bring-up needs no network.
+          # The provisioning set: the same firmware, the vectors that configure the
+          # factory image into an FPGA, and that image as raw flash bytes. It is what
+          # brings a board up that has no working gateware to receive an ordinary update
+          # through — a newly built unit, or one running the original firmware — and the
+          # capture application's installers pin and bundle it so that a first bring-up
+          # needs no network.
           #
-          # A second bundle rather than a third component in the first, and deliberately:
-          # the SVF is an order of magnitude larger than the images beside it, and every
-          # user of the ordinary update path would carry it for nothing. One format, one
-          # key, one verifier; two files, because they are installed by different people
-          # at different times.
+          # The vectors write nothing. They give the board a flash bridge, and the
+          # firmware then writes the image through it, over USB, exactly as it writes an
+          # ordinary gateware update. (The flash-writing .svf this used to carry cannot be
+          # played outside Quartus: it drives Altera's serial flash loader and carries no
+          # configuration of its own. TESTING.md, B-V1.)
+          #
+          # A second bundle rather than more components in the first, and deliberately:
+          # every user of the ordinary update path would carry 1.7 MB for nothing. One
+          # format, one key, one verifier; two files, because they are installed by
+          # different people at different times.
           nix shell --inputs-from . nixpkgs#minisign --command \
             ./tools/make-update-bundle.sh \
               --output "release-artifacts/domesday-duplicator-provisioning-${VERSION}.dddfw" \
@@ -276,11 +303,46 @@ jobs:
               --firmware release-artifacts/firmware.img \
               --firmware-identity "${IDENTITY}" \
               --firmware-interface-version "$((16#${PROTOCOL_VERSION}))" \
-              --provisioning release-artifacts/DomesdayDuplicatorProvisioning.svf \
+              --provisioning release-artifacts/DomesdayDuplicatorFactoryConfigure.svf \
               --provisioning-identity "${IDENTITY}" \
               --provisioning-interface-version "$((16#${MAP_VERSION}))" \
+              --factory-gateware release-artifacts/DomesdayDuplicatorFactory_auto.rpd \
+              --factory-gateware-identity "${IDENTITY}" \
+              --factory-gateware-interface-version "$((16#${MAP_VERSION}))" \
               --minimum-application-version "${MINIMUM_APPLICATION_VERSION}" \
               --minimum-register-map-version "$((16#${MAP_VERSION}))" \
+              --epcs-layout-version "${EPCS_LAYOUT_VERSION}"
+
+          # The legacy rollback set, assembled from the images tracked in legacy/ and
+          # from nothing that is built here. Those two files are frozen — generated once
+          # from the pinned ref bb65470 and committed, with their provenance in
+          # legacy/README.md — so this step only signs and packages what is already in
+          # the tree. No workflow ever checks out the historical tree.
+          #
+          # The identities are the pinned commit rather than this release's, because that
+          # is what the images will report once they are running: a manifest that promised
+          # this release's commit would be promising something the payload cannot say.
+          # The interface versions are 0 for the same reason — the original firmware
+          # advertises no protocol version at all, and claiming one for it would be
+          # claiming a capability it does not have.
+          nix shell --inputs-from . nixpkgs#minisign --command \
+            ./tools/make-update-bundle.sh \
+              --output "release-artifacts/domesday-duplicator-legacy-rollback-${VERSION}.dddfw" \
+              --version "${VERSION}" \
+              --commit "${IDENTITY}" \
+              --channel release \
+              --purpose rollback \
+              --secret-key "${key_file}" \
+              --public-key tools/keys/release.pub \
+              --notes "Returns a unit to the original Duplicator firmware and gateware." \
+              --firmware legacy/firmware.img \
+              --firmware-identity "${LEGACY_COMMIT}" \
+              --firmware-interface-version 0 \
+              --factory-gateware legacy/gateware.rpd \
+              --factory-gateware-identity "${LEGACY_COMMIT}" \
+              --factory-gateware-interface-version 0 \
+              --minimum-application-version "${MINIMUM_APPLICATION_VERSION}" \
+              --minimum-register-map-version 0 \
               --epcs-layout-version "${EPCS_LAYOUT_VERSION}"
 
           rm -f "${key_file}"
@@ -299,7 +361,7 @@ jobs:
           # Both signed bundles, through one loop: the provisioning set is installed by
           # the same application with the same key policy, so a gate that only covered
           # the update bundle would leave the file a bare board depends on unchecked.
-          for name in update provisioning; do
+          for name in update provisioning legacy-rollback; do
             BUNDLE="release-artifacts/domesday-duplicator-${name}-${VERSION}.dddfw"
 
             work=$(mktemp -d)
@@ -325,6 +387,10 @@ jobs:
           # would be several megabytes of payload nothing on the ordinary path plays.
           PROV="release-artifacts/domesday-duplicator-provisioning-${VERSION}.dddfw"
           UPD="release-artifacts/domesday-duplicator-update-${VERSION}.dddfw"
+          tar --list --file "${PROV}" | grep -q '^gateware-factory.rpd$' || {
+            echo "The provisioning set carries no factory image" >&2
+            exit 1
+          }
           tar --list --file "${PROV}" | grep -q '^gateware-provisioning.svf$' || {
             echo "The provisioning set carries no JTAG vectors" >&2
             exit 1

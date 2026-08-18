@@ -125,6 +125,15 @@ class FakeDeviceUpdater : public IDeviceUpdater {
              const Sha256Digest& digest) override {
     ++begin_count_;
 
+    // Firmware that does not have this target, which is how a device older
+    // than the target answers: a refusal before a byte moves, naming the
+    // target rather than pretending to write it somewhere.
+    if (refused_target_.has_value() && target == *refused_target_) {
+      status_.phase = UpdatePhase::kFailed;
+      status_.error = DeviceUpdateError::kTarget;
+      return false;
+    }
+
     if (fault_ == Fault::kRefuseBegin) {
       status_.phase = UpdatePhase::kFailed;
       status_.error = failure_error_;
@@ -284,6 +293,11 @@ class FakeDeviceUpdater : public IDeviceUpdater {
     const auto found = committed_.find(target);
     return found == committed_.end() ? nothing : found->second;
   }
+  // Refuse one target with UPDATE_ERROR_TARGET, the way firmware that predates
+  // it does. Distinct from kRefuseBegin, which refuses everything: what is
+  // being modelled here is an older device rather than a broken one.
+  void RefuseTarget(UpdateTarget target) { refused_target_ = target; }
+
   uint64_t begin_count() const { return begin_count_; }
   uint64_t chunk_count() const { return chunk_count_; }
   uint64_t reset_count() const { return reset_count_; }
@@ -337,6 +351,7 @@ class FakeDeviceUpdater : public IDeviceUpdater {
   std::map<UpdateTarget, std::vector<uint8_t>> committed_;
   uint16_t next_chunk_ = 0;
 
+  std::optional<UpdateTarget> refused_target_;
   uint64_t begin_count_ = 0;
   uint64_t chunk_count_ = 0;
   uint64_t reset_count_ = 0;

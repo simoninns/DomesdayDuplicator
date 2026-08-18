@@ -52,6 +52,19 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
     return result;
   }
 
+  // A rollback bundle is refused here and accepted by CheckRollbackGate, and
+  // the refusal comes before everything else because it is about what the
+  // file is rather than about what it contains: a rollback carries firmware
+  // and gateware exactly as an update does, so every check below it would
+  // pass or fail on the wrong question.
+  if (manifest.purpose == UpdatePurpose::kRollback) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "This file takes a device back to the original Duplicator firmware "
+           "rather than updating it. Use Tools \u25b8 Firmware \u25b8 Legacy "
+           "\u25b8 Roll back to legacy firmware\u2026");
+    return result;
+  }
+
   if (!manifest.firmware.has_value() && !manifest.gateware.has_value()) {
     // A set carrying only the provisioning gateware is a real file with a real
     // purpose, and it is not this one: those vectors are played through a JTAG
@@ -196,6 +209,93 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
            "has. Install an update that carries both.");
   }
 
+  return result;
+}
+
+UpdateGateResult CheckRollbackGate(const UpdateManifest& manifest,
+                                   const UpdateGateInput& input) {
+  UpdateGateResult result;
+
+  const auto refuse = [&result](UpdateGateVerdict verdict, std::string reason) {
+    if (result.verdict != UpdateGateVerdict::kApplicationTooOld) {
+      result.verdict = verdict;
+    }
+    result.reasons.push_back(std::move(reason));
+  };
+
+  if (manifest.manifest_version != kUpdateManifestVersion) {
+    refuse(UpdateGateVerdict::kApplicationTooOld,
+           "This file was made for a newer version of the application. Update "
+           "the application first.");
+    return result;
+  }
+
+  // The purpose is what makes the age comparisons below unnecessary, so it is
+  // required rather than assumed. An ordinary update bundle offered here is
+  // named, not dismissed: somebody has chosen a real file in the wrong window.
+  if (manifest.purpose != UpdatePurpose::kRollback) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "This is an ordinary update file rather than a legacy rollback. Use "
+           "Tools \u25b8 Firmware \u25b8 Update firmware\u2026");
+    return result;
+  }
+
+  // Both halves, or neither. A rollback that installed the legacy firmware
+  // over modern gateware would leave the one pairing this whole plan is
+  // ordered to avoid — legacy firmware driving CTL_07 into gateware driving
+  // the same net — so a bundle that cannot complete the job must not start
+  // it.
+  if (!manifest.firmware.has_value() ||
+      !manifest.factory_gateware.has_value()) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "A rollback file has to carry both the legacy firmware and the "
+           "legacy gateware, and this one does not.");
+    return result;
+  }
+
+  if (!input.device_attached) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "No Domesday Duplicator is attached.");
+    return result;
+  }
+
+  // Already there. Said plainly rather than refused as an error, because a
+  // user who has arrived here with a legacy device has got what they came for.
+  if (input.device_personality == DevicePersonality::kLegacy) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "This device is already running the original Duplicator firmware.");
+    return result;
+  }
+
+  // The device does its own writing, so it has to be running firmware that
+  // can. A device in recovery has none, and one that is mid-bring-up is not a
+  // device anybody means to roll back.
+  if (input.device_personality != DevicePersonality::kApplication) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "This device is not running its own firmware, so it cannot write "
+           "anything to itself. Finish bringing it up first.");
+    return result;
+  }
+
+  // And the flash bridge, because the legacy gateware goes to the EPCS
+  // through it. This is the one refusal a user is most likely to meet: it is
+  // what a device whose FPGA is unconfigured looks like.
+  if (!input.device.gateware_present) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "This device's FPGA is not answering, so its gateware cannot be "
+           "replaced from here. Reconnect the device and try again.");
+  } else if (!input.device.GatewareCanBeUpdated()) {
+    refuse(UpdateGateVerdict::kIncompatible,
+           "This device's gateware predates the flash bridge, so it cannot "
+           "replace itself. There is nothing to roll back from.");
+  }
+
+  // Deliberately not checked: minimum_application_version, and the firmware's
+  // and gateware's interface versions. Every one of them would refuse a valid
+  // rollback for being old, which is the property that defines the file. What
+  // stands in their place is the purpose above, the pair of payloads, and the
+  // device state — all of which are checked, and none of which a rollback
+  // bundle can be malformed enough to pass.
   return result;
 }
 

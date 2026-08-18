@@ -85,9 +85,14 @@ int updateBeginDecode(const uint8_t *data, uint16_t length, updateBegin_t *out)
     }
     out->flags = updateReadLittleEndian32(data + 4 + UPDATE_DIGEST_LENGTH);
 
-    // Every flag bit is reserved, so a set bit is a host asking for
-    // behaviour this firmware does not have.
-    if (out->flags != 0) return 0;
+    // Every word but the two named ones is reserved, so anything else is a
+    // host asking for behaviour this firmware does not have. Whether the
+    // word it did send is one this *target* accepts is a separate question,
+    // answered by updateBeginIsAllowed().
+    if (out->flags != UPDATE_FLAGS_NONE &&
+        out->flags != UPDATE_FLAG_FACTORY_WRITE) {
+        return 0;
+    }
 
     return 1;
 }
@@ -105,11 +110,28 @@ void updateStatusEncode(const updateState_t *state, uint8_t *out)
 }
 
 uint8_t updateBeginIsAllowed(const updateState_t *state, uint8_t target,
-                             uint32_t length, int captureRunning)
+                             uint32_t length, uint32_t flags,
+                             int captureRunning)
 {
     if (state == NULL) return UPDATE_ERROR_SEQUENCE;
 
-    if (target != UPDATE_TARGET_EEPROM && target != UPDATE_TARGET_EPCS) {
+    if (target != UPDATE_TARGET_EEPROM && !updateTargetIsEpcs(target)) {
+        return UPDATE_ERROR_TARGET;
+    }
+
+    // The unlock, and it is symmetrical on purpose. The factory target
+    // without the word is refused because a host that has not said what it
+    // is doing must not erase the image a board falls back to; any other
+    // target *with* the word is refused because a host that thinks it is
+    // writing the factory region and is not has misunderstood something,
+    // and the write it is about to do is not the one it means.
+    //
+    // Reported as UPDATE_ERROR_TARGET rather than a new code: from the
+    // host's side "this firmware will not write that" is exactly what has
+    // happened, and it is what a build that predates target 2 answers too.
+    if (target == UPDATE_TARGET_EPCS_FACTORY) {
+        if (flags != UPDATE_FLAG_FACTORY_WRITE) return UPDATE_ERROR_TARGET;
+    } else if (flags != UPDATE_FLAGS_NONE) {
         return UPDATE_ERROR_TARGET;
     }
 
@@ -119,8 +141,10 @@ uint8_t updateBeginIsAllowed(const updateState_t *state, uint8_t target,
     // hosts updating one device is not a case to arbitrate between.
     if (updateIsInProgress(state)) return UPDATE_ERROR_SEQUENCE;
 
-    if (target == UPDATE_TARGET_EPCS) {
-        if (!updateGatewareIsPlausible(length)) return UPDATE_ERROR_LENGTH;
+    if (updateTargetIsEpcs(target)) {
+        if (!updateGatewareIsPlausible(target, length)) {
+            return UPDATE_ERROR_LENGTH;
+        }
         return UPDATE_ERROR_NONE;
     }
 
@@ -141,8 +165,8 @@ uint8_t updateBeginIsAllowed(const updateState_t *state, uint8_t target,
 // advertised size, which is what the capture application does.
 static uint32_t updateTargetPageSize(uint8_t target)
 {
-    return (target == UPDATE_TARGET_EPCS) ? UPDATE_EPCS_PAGE_SIZE
-                                          : UPDATE_EEPROM_PAGE_SIZE;
+    return updateTargetIsEpcs(target) ? UPDATE_EPCS_PAGE_SIZE
+                                      : UPDATE_EEPROM_PAGE_SIZE;
 }
 
 uint8_t updateChunkIsAllowed(const updateState_t *state, uint8_t target,
@@ -267,16 +291,43 @@ uint32_t updateEepromPadToPage(uint32_t length)
             UPDATE_EEPROM_PAGE_SIZE) * UPDATE_EEPROM_PAGE_SIZE;
 }
 
-int updateGatewareIsPlausible(uint32_t totalLength)
+int updateTargetIsEpcs(uint8_t target)
 {
+    return (target == UPDATE_TARGET_EPCS ||
+            target == UPDATE_TARGET_EPCS_FACTORY) ? 1 : 0;
+}
+
+uint32_t updateEpcsTargetBase(uint8_t target)
+{
+    return (target == UPDATE_TARGET_EPCS_FACTORY)
+        ? UPDATE_EPCS_FACTORY_ADDRESS
+        : UPDATE_EPCS_APPLICATION_ADDRESS;
+}
+
+uint32_t updateEpcsTargetCapacity(uint8_t target)
+{
+    if (target == UPDATE_TARGET_EPCS_FACTORY) {
+        // Not to the end of the device: the boot block lives immediately
+        // above the factory region, and a factory image long enough to
+        // reach it would erase the record of where the application image is
+        // — while claiming to be a bring-up.
+        return UPDATE_EPCS_BOOT_BLOCK_ADDRESS - UPDATE_EPCS_FACTORY_ADDRESS;
+    }
+
+    return UPDATE_EPCS_SIZE - UPDATE_EPCS_APPLICATION_ADDRESS;
+}
+
+int updateGatewareIsPlausible(uint8_t target, uint32_t totalLength)
+{
+    if (!updateTargetIsEpcs(target)) return 0;
+
     if (totalLength < UPDATE_GATEWARE_MINIMUM_LENGTH) return 0;
 
-    // The application region is everything above its start address. An
-    // image that ran past the end of the device would be written until the
-    // address wrapped, which on this medium means over the factory image.
-    if (totalLength > (UPDATE_EPCS_SIZE - UPDATE_EPCS_APPLICATION_ADDRESS)) {
-        return 0;
-    }
+    // A region is everything from its base to the next thing along. An
+    // image that ran past that would be written into whatever follows it —
+    // for the application region the address would wrap, and for the
+    // factory region it would take the boot block with it.
+    if (totalLength > updateEpcsTargetCapacity(target)) return 0;
 
     return 1;
 }

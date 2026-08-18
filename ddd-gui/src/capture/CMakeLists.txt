@@ -63,6 +63,7 @@ add_library(ddd_capture STATIC
     minisign_verify.cpp
     monitor_tap.cpp
     provisioning_orchestrator.cpp
+    rollback_orchestrator.cpp
     raw_sink.cpp
     sample_metrics.cpp
     sample_sink.cpp

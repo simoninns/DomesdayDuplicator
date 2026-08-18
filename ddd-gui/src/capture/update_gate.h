@@ -103,6 +103,25 @@ struct UpdateGateInput {
 UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
                                  const UpdateGateInput& input);
 
+// The same question for a rollback, which is a different question.
+//
+// A rollback bundle installs software deliberately older than the application
+// installing it — that is what it is for — so the age comparisons above would
+// refuse every valid one. They are **satisfied by the manifest's purpose
+// rather than skipped for it**, and the distinction is the whole point: the
+// rule "a user cannot flash a device past this application's understanding"
+// still holds, because a rollback does not go past it. It goes back to a
+// state this application knows exactly, recognises on the bus, and can undo.
+//
+// What replaces them is stricter than what it replaces, because a rollback
+// has exactly one starting state that works: a device running this
+// application's own firmware over gateware with a flash bridge. It is the
+// firmware that does the writing and the bridge that carries it, so a device
+// missing either cannot be rolled back from — and, unlike an update, there is
+// no half of the job that could still be done.
+UpdateGateResult CheckRollbackGate(const UpdateManifest& manifest,
+                                   const UpdateGateInput& input);
+
 // Whether a device's advertised protocol version is one this build speaks.
 //
 // Zero — firmware predating the field — is neither supported nor

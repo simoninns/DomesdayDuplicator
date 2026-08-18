@@ -104,22 +104,39 @@ stdenvNoCC.mkDerivation {
       quartus_cpf -c DomesdayDuplicatorProvisioning.cof &&
       rm -f DomesdayDuplicatorFactory.sof DomesdayDuplicator.sof)
 
-    # The same provisioning content again, as the JTAG vectors that write it,
-    # so that a board can be provisioned by ddd-jtag over the DE0-Nano's
-    # on-board USB-Blaster on a machine that has never had Quartus installed.
-    # Every Cyclone IV and serial flash loader decision stays here, at build
-    # time, in the tool that already holds it.
+    (cd application && quartus_cpf -c DomesdayDuplicator.cof && rm -f DomesdayDuplicator.jic)
+
+    # And the same for the factory image, whose raw bytes a bring-up or a
+    # rollback writes to address 0 through the firmware's flash bridge. Its
+    # .jic is deleted for the mirror-image reason the application's is: it
+    # would write a factory image with no application image and no boot block
+    # beside it, which is what the provisioning .jic above does properly.
+    (cd factory && quartus_cpf -c DomesdayDuplicatorFactory.cof &&
+      rm -f DomesdayDuplicatorFactory.jic)
+
+    # The vectors that configure the factory image into the FPGA, so that a
+    # board with nothing usable in its flash can be given a flash bridge over
+    # the DE0-Nano's on-board USB-Blaster, on a machine that has never had
+    # Quartus installed. Volatile: this writes nothing, and the write that
+    # follows it is an ordinary update transfer over USB.
+    #
+    # This replaces a conversion of the provisioning .jic that used to be
+    # emitted here, and the reason it had to is worth keeping: a flash-writing
+    # .svf from this converter is only half a job. It speaks Altera's Virtual
+    # JTAG protocol to Altera's serial flash loader — a soft design that has
+    # to be configured into the FPGA first — and carries no configuration of
+    # its own, so nothing outside Quartus can play it. quartus_pgm supplies
+    # the loader from its own installation. See TESTING.md, B-V1.
     #
     # The frequency is not decoration: the converter turns every wait into a
     # count of TCK cycles at the rate named here, so the file says how long
-    # its erases are meant to take only in combination with this number. The
-    # player reads it back out of the file and holds the waits open for that
-    # long whatever the cable's own clock does.
-    (cd provisioning &&
+    # its waits are meant to last only in combination with this number. The
+    # player reads it back out of the file and holds them open for that long
+    # whatever the cable's own clock does.
+    (cd factory &&
       quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
-        DomesdayDuplicatorProvisioning_write_jic.cdf \
-        DomesdayDuplicatorProvisioning.svf)
-    (cd application && quartus_cpf -c DomesdayDuplicator.cof && rm -f DomesdayDuplicator.jic)
+        DomesdayDuplicatorFactory_write_sof.cdf \
+        DomesdayDuplicatorFactoryConfigure.svf)
 
     # The boot block that describes the application image. It is not written
     # by this build - the update path writes it onto a device - but it is
@@ -144,12 +161,13 @@ stdenvNoCC.mkDerivation {
     install -Dm444 application/DomesdayDuplicator_write_sof.cdf -t "$out/application"
 
     install -Dm444 factory/DomesdayDuplicatorFactory.sof -t "$out/factory"
+    install -Dm444 factory/DomesdayDuplicatorFactory_auto.rpd -t "$out/factory"
+    install -Dm444 factory/DomesdayDuplicatorFactoryConfigure.svf -t "$out/factory"
     install -Dm444 factory/DomesdayDuplicatorFactory_write_sof.cdf -t "$out/factory"
 
     # What a board is provisioned from: both images, the map that says where
     # the converter put them, the boot block, and the file quartus_pgm reads.
     install -Dm444 provisioning/DomesdayDuplicatorProvisioning.jic -t "$out/provisioning"
-    install -Dm444 provisioning/DomesdayDuplicatorProvisioning.svf -t "$out/provisioning"
     install -Dm444 provisioning/DomesdayDuplicatorProvisioning.map -t "$out/provisioning"
     install -Dm444 provisioning/DomesdayDuplicatorProvisioning_write_jic.cdf -t "$out/provisioning"
     install -Dm444 provisioning/boot-block.bin -t "$out/provisioning"
@@ -181,8 +199,9 @@ stdenvNoCC.mkDerivation {
       application/DomesdayDuplicator.sof \
       application/DomesdayDuplicator_auto.rpd \
       factory/DomesdayDuplicatorFactory.sof \
+      factory/DomesdayDuplicatorFactory_auto.rpd \
+      factory/DomesdayDuplicatorFactoryConfigure.svf \
       provisioning/DomesdayDuplicatorProvisioning.jic \
-      provisioning/DomesdayDuplicatorProvisioning.svf \
       provisioning/boot-block.bin \
       bitstream-provenance.txt; do
       if [ ! -s "$out/$required" ]; then
@@ -207,9 +226,11 @@ stdenvNoCC.mkDerivation {
       Compiles both DE0-Nano gateware images with Quartus Prime Lite: the
       resident factory boot loader and the capture application. Produces a
       .sof per image for volatile JTAG configuration, one provisioning .jic
-      carrying both at their EPCS64 addresses, the raw application image a
-      device update writes, the boot block that describes it, and a
-      provenance record with digests for all of them.
+      carrying both at their EPCS64 addresses, the raw bytes of each image
+      that a device writes to its own flash, the JTAG vectors that configure
+      the factory image into a board that cannot yet be reached over USB, the
+      boot block that describes the application image, and a provenance
+      record with digests for all of them.
 
       Not part of `nix flake check`: Quartus is unfree, x86_64-linux only, and
       non-redistributable, so it cannot come from a binary cache and has no

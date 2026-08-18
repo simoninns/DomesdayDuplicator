@@ -22,7 +22,7 @@ You will need:
 | A **jumper** (shunt) | Only if the board is running firmware already. A newly built kit is already waiting where the wizard needs it |
 | A **provisioning set** | Usually nothing to do: an installed copy of this application already carries one. See *The provisioning set* below |
 
-Both cables stay connected for the whole procedure. Allow about fifteen minutes, most of it watching the FPGA's flash being written.
+Both cables stay connected for the whole procedure. Allow about five minutes, most of it watching the FX3's firmware being written and checked.
 
 ## The one thing that catches people
 
@@ -34,7 +34,7 @@ Every page that asks for a power cycle says *both*, in those words. If a page wa
 
 ## The provisioning set
 
-A provisioning set is an ordinary signed update file with a different payload in it: the FX3 firmware, plus the FPGA's gateware as **JTAG vectors** rather than as a flash image. The vectors are what can be played into a board that has no working gateware — the ordinary gateware update goes *through* the gateware's own flash bridge, which a board being brought up does not yet have.
+A provisioning set is an ordinary signed update file with a different payload in it: the FX3 firmware, the FPGA's **factory image**, and the **JTAG vectors that load it**. Two gateware payloads rather than one, and the pair is the point: the ordinary gateware update goes *through* the gateware's own flash bridge, which a board being brought up does not yet have — so the vectors put a gateware into the FPGA first, and the image is then written through the bridge that gateware provides.
 
 **An installed copy of this application already carries one**, and the wizard chooses it for you. That is deliberate and it is the point: a board being brought up cannot be updated over USB, so the computer beside it is quite likely one that has just been built and has nothing downloaded yet. Nothing about this procedure needs a network.
 
@@ -112,13 +112,17 @@ Same board, same photograph, header bare. Do not unplug anything yet.
 
 ### 7 · Program the FPGA
 
-The configuration flash is written through the DE0-Nano's own USB-Blaster. This writes the **factory image** — the one the board falls back to, and the one that makes ordinary gateware updates possible from then on.
+Two things behind one page, and the first makes the second possible.
 
-Expect several minutes, with long pauses while blocks of flash are erased. That is the flash doing its job, not something stuck. **Stop** is safe at any point: a partly written flash is not a broken one, because nothing boots from it until the power cycle, and the same vectors can simply be played again.
+The **factory image** is loaded into the FPGA through the DE0-Nano's own USB-Blaster — the only route to a board with no working gateware. That takes about three seconds and **writes nothing**: a JTAG configuration lives in the FPGA's own memory and lasts until the power goes off.
+
+The Duplicator can now reach the FPGA's flash for itself, so it writes that same image into it, exactly as it writes an ordinary gateware update. The factory image is the one the board falls back to, and the one that makes those updates possible from then on.
+
+Expect under a minute for both. The flash write pauses every few seconds while a block is erased — that is the flash doing its job, not something stuck. **Stop** is safe at any point: a partly written flash is not a broken one, because nothing boots from it until the power cycle, and the whole step can simply be run again.
 
 ### 8 · Power cycle
 
-One cycle, discharging two obligations: the FX3 has to re-read where it boots from, and the FPGA has to stop running Altera's flash loader and start using what was just written.
+One cycle, discharging two obligations: the FX3 has to re-read where it boots from, and the FPGA has to drop the configuration JTAG gave it and load the one that was just written to flash.
 
 **Both cables.** See above.
 
@@ -153,3 +157,7 @@ The commonest failures, in order:
 ## What this replaces
 
 Before this existed, both halves were programmed with vendor tools: `fx3-programmer` for the firmware and Quartus for the FPGA — several gigabytes of unfree, x86_64-Linux-only software whose entire role was to write a file this project already publishes. Those procedures still work and are still documented under [hardware programming](../development/hardware-programming/index.md); the wizard is the same operations without the toolchain.
+
+## The reverse
+
+[Rolling back to legacy firmware](rolling-back-to-legacy-firmware.md) undoes all of this, and takes about two minutes over one cable with the case on. The two flows are a closed loop: a unit can be rolled back and brought up again as often as anybody likes.

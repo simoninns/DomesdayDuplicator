@@ -26,6 +26,7 @@
 #   firmware.img        present when --firmware was given
 #   gateware-app.rpd    present when --gateware was given
 #   gateware-provisioning.svf   present when --provisioning was given
+#   gateware-factory.rpd        present when --factory-gateware was given
 #
 # Requirements: bash, coreutils, GNU tar and minisign. All four are in `nix develop`; on a
 # distribution they are the tar and minisign packages. Nothing here is Nix-only.
@@ -53,6 +54,10 @@ gateware_interface_version="2"
 provisioning=""
 provisioning_identity=""
 provisioning_interface_version="2"
+factory=""
+factory_identity=""
+factory_interface_version="2"
+purpose="update"
 minimum_application_version=""
 minimum_register_map_version="1"
 epcs_layout_version="1"
@@ -69,6 +74,10 @@ Usage: make-update-bundle.sh --output FILE --version X.Y.Z --commit HASH
                               --gateware-interface-version N]
                              [--provisioning FILE --provisioning-identity HASH
                               --provisioning-interface-version N]
+                             [--factory-gateware FILE
+                              --factory-gateware-identity HASH
+                              --factory-gateware-interface-version N]
+                             [--purpose update|rollback]
                              [--minimum-application-version X.Y.Z]
                              [--minimum-register-map-version N]
                              [--epcs-layout-version N]
@@ -88,6 +97,18 @@ what the development loop produces.
   --provisioning-interface-version
                                  the register-map version the provisioned gateware
                                  reports at register 0x01
+  --factory-gateware             the factory image as raw EPCS bytes
+                                 (DomesdayDuplicatorFactory_auto.rpd), written to
+                                 address 0 by the device itself once the vectors above
+                                 have given it a flash bridge. The two go together: a
+                                 provisioning set with only one of them cannot bring a
+                                 board up
+  --factory-gateware-identity    the commit that image reports once it is running
+  --purpose                      update (the default) or rollback. A rollback bundle
+                                 carries the legacy firmware and the legacy gateware,
+                                 and is the one file that installs software older than
+                                 the application installing it — so the update window
+                                 refuses it by name and the rollback wizard requires it
   --minimum-application-version  the oldest ddd-gui that may install this bundle;
                                  defaults to --version, which is the safe reading
   --public-key                   the matching public key, for the self-check at the end.
@@ -116,6 +137,10 @@ while [[ $# -gt 0 ]]; do
         --provisioning) provisioning="$2"; shift 2 ;;
         --provisioning-identity) provisioning_identity="$2"; shift 2 ;;
         --provisioning-interface-version) provisioning_interface_version="$2"; shift 2 ;;
+        --factory-gateware) factory="$2"; shift 2 ;;
+        --factory-gateware-identity) factory_identity="$2"; shift 2 ;;
+        --factory-gateware-interface-version) factory_interface_version="$2"; shift 2 ;;
+        --purpose) purpose="$2"; shift 2 ;;
         --minimum-application-version) minimum_application_version="$2"; shift 2 ;;
         --minimum-register-map-version) minimum_register_map_version="$2"; shift 2 ;;
         --epcs-layout-version) epcs_layout_version="$2"; shift 2 ;;
@@ -130,8 +155,21 @@ die() { echo "make-update-bundle: $*" >&2; exit 1; }
 [[ -n "$version" ]] || die "--version is required"
 [[ -n "$commit" ]] || die "--commit is required"
 [[ -n "$secret_key" ]] || die "--secret-key is required"
-[[ -n "$firmware" || -n "$gateware" || -n "$provisioning" ]] ||
-    die "nothing to bundle: pass --firmware, --gateware, --provisioning or several"
+[[ -n "$firmware" || -n "$gateware" || -n "$provisioning" || -n "$factory" ]] ||
+    die "nothing to bundle: pass --firmware, --gateware, --provisioning, --factory-gateware or several"
+
+[[ "$purpose" == "update" || "$purpose" == "rollback" ]] ||
+    die "--purpose must be update or rollback"
+
+# A rollback takes a device back to the original firmware and gateware, and it is the one
+# file that installs software older than the application installing it. Both halves are
+# required, because a rollback that installed only the legacy firmware would leave it
+# driving the modern gateware — the one pairing the bring-up plan's ordering exists to
+# avoid.
+if [[ "$purpose" == "rollback" ]]; then
+    [[ -n "$firmware" && -n "$factory" ]] ||
+        die "a rollback bundle needs both --firmware and --factory-gateware"
+fi
 
 case "$channel" in
     release|development) ;;
@@ -156,6 +194,8 @@ esac
     die "--gateware needs --gateware-identity"
 [[ -z "$provisioning" || -n "$provisioning_identity" ]] ||
     die "--provisioning needs --provisioning-identity"
+[[ -z "$factory" || -n "$factory_identity" ]] ||
+    die "--factory-gateware needs --factory-gateware-identity"
 
 for tool in tar minisign sha256sum; do
     command -v "$tool" >/dev/null 2>&1 ||
@@ -215,6 +255,11 @@ if [[ -n "$provisioning" ]]; then
     cp "$provisioning" "$stage/gateware-provisioning.svf"
     chmod u+w "$stage/gateware-provisioning.svf"
 fi
+if [[ -n "$factory" ]]; then
+    [[ -f "$factory" ]] || die "no such factory gateware image: $factory"
+    cp "$factory" "$stage/gateware-factory.rpd"
+    chmod u+w "$stage/gateware-factory.rpd"
+fi
 
 # The manifest. Written by hand rather than by a JSON library so that this script needs
 # nothing but coreutils — and laid out exactly as ddd-gui's writer lays it out, so the two
@@ -223,6 +268,12 @@ fi
     printf '{\n'
     printf '  "manifest_version": 1,\n'
     printf '  "channel": "%s",\n' "$(json_escape "$channel")"
+    # Written only when it says something. An ordinary update carries no purpose field,
+    # which is what every bundle written before rollback existed looks like — and the
+    # reader defaults to exactly that.
+    if [[ "$purpose" != "update" ]]; then
+        printf '  "purpose": "%s",\n' "$(json_escape "$purpose")"
+    fi
     printf '  "version": "%s",\n' "$(json_escape "$version")"
     printf '  "commit": "%s",\n' "$(json_escape "$commit")"
     printf '  "created": "%s",\n' "$(json_escape "$created")"
@@ -264,6 +315,20 @@ fi
         printf '      "identity": "%s",\n' "$(json_escape "$provisioning_identity")"
         printf '      "interface_version": %s\n' "$provisioning_interface_version"
         printf '    }'
+        component_separator=",\n"
+    fi
+    # The bytes those vectors make it possible to write. The vectors configure an FPGA and
+    # write nothing; this is what the firmware then writes to the flash at address 0,
+    # through the bridge that configuration provided.
+    if [[ -n "$factory" ]]; then
+        printf "%b" "$component_separator"
+        printf '    "gateware-factory": {\n'
+        printf '      "file": "gateware-factory.rpd",\n'
+        printf '      "length": %s,\n' "$(length_of "$stage/gateware-factory.rpd")"
+        printf '      "sha256": "%s",\n' "$(digest_of "$stage/gateware-factory.rpd")"
+        printf '      "identity": "%s",\n' "$(json_escape "$factory_identity")"
+        printf '      "interface_version": %s\n' "$factory_interface_version"
+        printf '    }'
     fi
 
     printf '\n  },\n'
@@ -299,6 +364,9 @@ if [[ -n "$gateware" ]]; then
 fi
 if [[ -n "$provisioning" ]]; then
     entries+=(gateware-provisioning.svf)
+fi
+if [[ -n "$factory" ]]; then
+    entries+=(gateware-factory.rpd)
 fi
 
 mkdir -p "$(dirname "$output")"
@@ -340,6 +408,9 @@ check_payload() {
 
 echo "$output"
 echo "  channel   $channel"
+if [[ "$purpose" != "update" ]]; then
+    echo "  purpose   $purpose"
+fi
 echo "  version   $version ($commit)"
 if [[ -n "$firmware" ]]; then
     check_payload firmware.img
@@ -352,5 +423,9 @@ fi
 if [[ -n "$provisioning" ]]; then
     check_payload gateware-provisioning.svf
     echo "  provision $(digest_of "$stage/gateware-provisioning.svf")"
+fi
+if [[ -n "$factory" ]]; then
+    check_payload gateware-factory.rpd
+    echo "  factory   $(digest_of "$stage/gateware-factory.rpd")"
 fi
 echo "  verified  signature and every payload digest, re-read from the finished file"

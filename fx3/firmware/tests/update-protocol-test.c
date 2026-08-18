@@ -111,6 +111,117 @@ static void testBeginDecode(void)
     makeBeginPacket(packet, 4096u, 0u, 0x00000001u);
     check(!updateBeginDecode(packet, UPDATE_BEGIN_LENGTH, &begin),
           "a BEGIN packet with a reserved flag set is refused");
+
+    // The one word that is not reserved. Decoding it is not the same as
+    // being allowed to use it — that is testFactoryTarget's business — and
+    // the two are kept apart so a decoder change cannot quietly widen what
+    // may be written.
+    makeBeginPacket(packet, 4096u, 0u, UPDATE_FLAG_FACTORY_WRITE);
+    check(updateBeginDecode(packet, UPDATE_BEGIN_LENGTH, &begin),
+          "a BEGIN packet carrying the factory-write word decodes");
+    checkNumber(begin.flags, UPDATE_FLAG_FACTORY_WRITE,
+                "the factory-write word survives decoding");
+
+    // A near miss is not a hit. One bit out is a host that has computed the
+    // word rather than copied it, and computing it is not something any
+    // host should be doing.
+    makeBeginPacket(packet, 4096u, 0u, UPDATE_FLAG_FACTORY_WRITE ^ 1u);
+    check(!updateBeginDecode(packet, UPDATE_BEGIN_LENGTH, &begin),
+          "a flag word one bit off the factory-write word is refused");
+}
+
+// Target 2, which writes the image a board falls back to.
+//
+// The rules this pins are the ones that keep an ordinary update away from
+// the factory region: the unlock word is required, it is required *only*
+// there, and the region ends at the boot block rather than at the end of
+// the device.
+static void testFactoryTarget(void)
+{
+    updateState_t state;
+    const uint32_t factoryCapacity =
+        UPDATE_EPCS_BOOT_BLOCK_ADDRESS - UPDATE_EPCS_FACTORY_ADDRESS;
+
+    updateStateReset(&state);
+
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS_FACTORY, 215200u,
+                                     UPDATE_FLAG_FACTORY_WRITE, 0),
+                UPDATE_ERROR_NONE,
+                "a factory image with the unlock word is admitted");
+
+    // The guard, and the whole reason the word exists: a host that meant
+    // target 1 and sent a 2 carries a zero flags word.
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS_FACTORY, 215200u,
+                                     UPDATE_FLAGS_NONE, 0),
+                UPDATE_ERROR_TARGET,
+                "a factory write without the unlock word is refused");
+
+    // And the other way round, because a host that thinks it is writing the
+    // factory region and is not has misunderstood which image it is
+    // replacing.
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS, 215200u,
+                                     UPDATE_FLAG_FACTORY_WRITE, 0),
+                UPDATE_ERROR_TARGET,
+                "an application write carrying the unlock word is refused");
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u,
+                                     UPDATE_FLAG_FACTORY_WRITE, 0),
+                UPDATE_ERROR_TARGET,
+                "a firmware write carrying the unlock word is refused");
+
+    // A capture still wins, exactly as for the other two targets: the
+    // unlock word says what may be written, not when.
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS_FACTORY, 215200u,
+                                     UPDATE_FLAG_FACTORY_WRITE, 1),
+                UPDATE_ERROR_BUSY,
+                "a factory write is refused while a capture runs");
+
+    // The ceiling is the boot block. An image that reached it would erase
+    // the record of where the application image is while claiming to be a
+    // bring-up, which is the one way this target could break a working
+    // board that the rest of the design does not already prevent.
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS_FACTORY,
+                                     factoryCapacity,
+                                     UPDATE_FLAG_FACTORY_WRITE, 0),
+                UPDATE_ERROR_NONE,
+                "a factory image exactly filling its region is admitted");
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS_FACTORY,
+                                     factoryCapacity + 1u,
+                                     UPDATE_FLAG_FACTORY_WRITE, 0),
+                UPDATE_ERROR_LENGTH,
+                "a factory image reaching the boot block is refused");
+
+    // Which is a tighter bound than the application region's, and that is
+    // the point of asking the target rather than assuming one region.
+    check(!updateGatewareIsPlausible(UPDATE_TARGET_EPCS_FACTORY,
+                                     UPDATE_EPCS_SIZE -
+                                     UPDATE_EPCS_APPLICATION_ADDRESS),
+          "an image sized for the application region is too big for the factory one");
+
+    // Where each target's bytes land, which is the arithmetic every write,
+    // erase and readback in the agent is built on.
+    checkNumber(updateEpcsTargetBase(UPDATE_TARGET_EPCS_FACTORY),
+                UPDATE_EPCS_FACTORY_ADDRESS,
+                "the factory target writes from the bottom of the flash");
+    checkNumber(updateEpcsTargetBase(UPDATE_TARGET_EPCS),
+                UPDATE_EPCS_APPLICATION_ADDRESS,
+                "the gateware target writes from the application address");
+
+    // The default is the application address rather than zero, so that a
+    // dispatch bug writes somewhere a later update repairs rather than over
+    // the image a board falls back to.
+    checkNumber(updateEpcsTargetBase(UPDATE_TARGET_EEPROM),
+                UPDATE_EPCS_APPLICATION_ADDRESS,
+                "a target that is not on the flash defaults away from the factory image");
+    checkNumber(updateEpcsTargetBase(99u), UPDATE_EPCS_APPLICATION_ADDRESS,
+                "an unknown target defaults away from the factory image too");
+
+    check(updateTargetIsEpcs(UPDATE_TARGET_EPCS), "target 1 is on the flash");
+    check(updateTargetIsEpcs(UPDATE_TARGET_EPCS_FACTORY),
+          "target 2 is on the flash");
+    check(!updateTargetIsEpcs(UPDATE_TARGET_EEPROM),
+          "target 0 is not on the flash");
+    check(!updateGatewareIsPlausible(UPDATE_TARGET_EEPROM, 215200u),
+          "the EEPROM target is not a flash region at all");
 }
 
 static void testStatusEncoding(void)
@@ -152,32 +263,32 @@ static void testBeginAdmission(void)
 
     updateStateReset(&state);
 
-    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u, 0),
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_NONE, "an ordinary firmware update is admitted");
 
-    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u, 1),
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u, UPDATE_FLAGS_NONE, 1),
                 UPDATE_ERROR_BUSY, "an update is refused while a capture runs");
 
-    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS, 65536u, 0),
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS, 65536u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_NONE, "an ordinary gateware update is admitted");
-    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS, 65536u, 1),
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS, 65536u, UPDATE_FLAGS_NONE, 1),
                 UPDATE_ERROR_BUSY, "a gateware update is refused while a capture runs");
 
     // Refused rather than accepted and ignored, so a host built against a
     // later firmware finds out before it streams a megabyte.
-    checkNumber(updateBeginIsAllowed(&state, 7u, 65536u, 0),
+    checkNumber(updateBeginIsAllowed(&state, 7u, 65536u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_TARGET, "an unknown target is refused");
 
-    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 0u, 0),
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 0u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_LENGTH, "a zero-length payload is refused");
     checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM,
-                                     UPDATE_IMAGE_MINIMUM_LENGTH - 1u, 0),
+                                     UPDATE_IMAGE_MINIMUM_LENGTH - 1u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_LENGTH, "a payload too short to be an image is refused");
     checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM,
-                                     UPDATE_EEPROM_SIZE + 1u, 0),
+                                     UPDATE_EEPROM_SIZE + 1u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_LENGTH, "a payload larger than the EEPROM is refused");
     checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM,
-                                     UPDATE_EEPROM_SIZE, 0),
+                                     UPDATE_EEPROM_SIZE, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_NONE, "a payload that exactly fills the EEPROM is admitted");
 
     // The gateware's bound is the region above the application address, not
@@ -186,25 +297,25 @@ static void testBeginAdmission(void)
     // image — the one thing on the device a field update may never touch.
     checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS,
                                      UPDATE_EPCS_SIZE -
-                                     UPDATE_EPCS_APPLICATION_ADDRESS, 0),
+                                     UPDATE_EPCS_APPLICATION_ADDRESS, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_NONE, "a gateware image filling the region is admitted");
     checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS,
                                      (UPDATE_EPCS_SIZE -
-                                      UPDATE_EPCS_APPLICATION_ADDRESS) + 1u, 0),
+                                      UPDATE_EPCS_APPLICATION_ADDRESS) + 1u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_LENGTH, "a gateware image past the end of the device is refused");
     checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EPCS,
-                                     UPDATE_GATEWARE_MINIMUM_LENGTH - 1u, 0),
+                                     UPDATE_GATEWARE_MINIMUM_LENGTH - 1u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_LENGTH, "a gateware image too short to be one is refused");
 
     // A second BEGIN during a transfer is refused rather than restarting it.
     makeReceiving(&state, 65536u);
-    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u, 0),
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_SEQUENCE, "a second BEGIN during a transfer is refused");
 
     // A failed update does not block the retry that follows it.
     updateStateReset(&state);
     updateStateFail(&state, UPDATE_ERROR_STREAM_DIGEST);
-    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u, 0),
+    checkNumber(updateBeginIsAllowed(&state, UPDATE_TARGET_EEPROM, 65536u, UPDATE_FLAGS_NONE, 0),
                 UPDATE_ERROR_NONE, "a retry after a failure is admitted");
 }
 
@@ -488,15 +599,15 @@ static void testGatewarePlausibility(void)
 {
     // A raw EPCS byte stream carries no signature, so length is all there
     // is to check — and it is checked rather than nothing being checked.
-    check(updateGatewareIsPlausible(368000u),
+    check(updateGatewareIsPlausible(UPDATE_TARGET_EPCS, 368000u),
           "an image the size of a real gateware is plausible");
-    check(!updateGatewareIsPlausible(0u), "an empty gateware image is refused");
-    check(!updateGatewareIsPlausible(UPDATE_GATEWARE_MINIMUM_LENGTH - 1u),
+    check(!updateGatewareIsPlausible(UPDATE_TARGET_EPCS, 0u), "an empty gateware image is refused");
+    check(!updateGatewareIsPlausible(UPDATE_TARGET_EPCS, UPDATE_GATEWARE_MINIMUM_LENGTH - 1u),
           "a gateware image shorter than a flash page is refused");
-    check(updateGatewareIsPlausible(UPDATE_EPCS_SIZE -
+    check(updateGatewareIsPlausible(UPDATE_TARGET_EPCS, UPDATE_EPCS_SIZE -
                                     UPDATE_EPCS_APPLICATION_ADDRESS),
           "an image exactly filling the application region is plausible");
-    check(!updateGatewareIsPlausible((UPDATE_EPCS_SIZE -
+    check(!updateGatewareIsPlausible(UPDATE_TARGET_EPCS, (UPDATE_EPCS_SIZE -
                                       UPDATE_EPCS_APPLICATION_ADDRESS) + 1u),
           "an image one byte past the end of the device is refused");
 }
@@ -732,6 +843,7 @@ int main(void)
     testBeginDecode();
     testStatusEncoding();
     testBeginAdmission();
+    testFactoryTarget();
     testChunkAdmission();
     testFinishAdmission();
     testMutualExclusion();

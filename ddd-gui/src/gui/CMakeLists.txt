@@ -21,6 +21,9 @@ add_library(ddd_gui_lib STATIC
     application_logger.cpp
     board_bringup_wizard.cpp
     bringup_text.cpp
+    rollback_text.cpp
+    rollback_worker.cpp
+    legacy_rollback_wizard.cpp
     bringup_worker.cpp
     bundled_provisioning.cpp
     capture_controller.cpp

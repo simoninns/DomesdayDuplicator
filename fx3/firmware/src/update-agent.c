@@ -250,11 +250,11 @@ static uint8_t updateAgentMediumIsReady(uint8_t target, uint32_t length)
         return UPDATE_ERROR_HARDWARE;
     }
 
-    if (!updateEpcsDeviceIsUsable(siliconId, UPDATE_EPCS_APPLICATION_ADDRESS,
+    if (!updateEpcsDeviceIsUsable(siliconId, updateEpcsTargetBase(target),
                                   length)) {
         CyU3PDebugPrint(4, "updateAgentBegin(): the flash answered with silicon id %d, "
-            "which will not hold %d bytes at the application address\r\n",
-            siliconId, length);
+            "which will not hold %d bytes at address %d\r\n",
+            siliconId, length, updateEpcsTargetBase(target));
         return UPDATE_ERROR_LENGTH;
     }
 
@@ -276,7 +276,7 @@ CyBool_t updateAgentBegin(uint8_t target, const uint8_t *data, uint16_t length,
     }
 
     refusal = updateBeginIsAllowed(&glUpdateState, target, begin.length,
-                                   captureRunning ? 1 : 0);
+                                   begin.flags, captureRunning ? 1 : 0);
 
     // The medium is only asked about once the request itself is admissible.
     // Reaching for the flash to answer a request that was going to be
@@ -337,7 +337,8 @@ static CyBool_t updateAgentDataEpcs(uint8_t *data, uint16_t length)
 
     while (consumed < (uint32_t)length) {
         const uint32_t imageOffset = glUpdateState.received + consumed;
-        const uint32_t address = UPDATE_EPCS_APPLICATION_ADDRESS + imageOffset;
+        const uint32_t address =
+            updateEpcsTargetBase(glUpdateState.target) + imageOffset;
         const uint32_t remaining = (uint32_t)length - consumed;
         const uint16_t span = updateEpcsWriteSpan(address, remaining);
 
@@ -405,7 +406,7 @@ CyBool_t updateAgentData(uint8_t target, uint16_t index, uint8_t *data,
     // UPDATE_FINISH and never reaches the commit record.
     sha_256_write(&glUpdateStreamHash, data, length);
 
-    if (glUpdateState.target == UPDATE_TARGET_EPCS) {
+    if (updateTargetIsEpcs(glUpdateState.target)) {
         if (!updateAgentDataEpcs(data, length)) return CyFalse;
 
         glUpdateState.received += length;
@@ -537,7 +538,7 @@ static void updateAgentVerifyEpcs(void)
         const uint16_t span = (remaining < UPDATE_READBACK_SIZE)
             ? (uint16_t)remaining : (uint16_t)UPDATE_READBACK_SIZE;
 
-        if (!epcsFlashRead(UPDATE_EPCS_APPLICATION_ADDRESS + offset,
+        if (!epcsFlashRead(updateEpcsTargetBase(glUpdateState.target) + offset,
                            glUpdateReadback, span)) {
             CyU3PDebugPrint(4, "updateAgentVerify(): EPCS read failed at %d\r\n",
                             offset);
@@ -561,6 +562,25 @@ static void updateAgentVerifyEpcs(void)
             updateStateFail(&glUpdateState, UPDATE_ERROR_MEDIUM_DIGEST);
             return;
         }
+    }
+
+    // The factory target stops here, and stops here because there is
+    // nothing left for it to do. The boot block describes the *application*
+    // image — where it is and what it checksums to — and it is the factory
+    // image that reads it. A factory write leaves whatever the block said
+    // alone: on a bare board it says nothing valid and the image that has
+    // just been written stays resident, which is the bring-up case; on a
+    // board that already worked it still describes the application image
+    // that is still there, which is the case where re-running a bring-up
+    // must leave a working unit working.
+    if (glUpdateState.target == UPDATE_TARGET_EPCS_FACTORY) {
+        glUpdateState.written = glUpdateState.length;
+        glUpdateState.verified = glUpdateState.length;
+        glUpdateState.phase = UPDATE_PHASE_COMPLETE;
+
+        CyU3PDebugPrint(4, "updateAgentVerify(): factory image written and read "
+                        "back; power-cycle the board to run it\r\n");
+        return;
     }
 
     // Everything the boot block will describe is now known to be right, so
@@ -619,7 +639,7 @@ void updateAgentVerify(void)
 
     if (glUpdateState.phase != UPDATE_PHASE_VERIFYING) return;
 
-    if (glUpdateState.target == UPDATE_TARGET_EPCS) {
+    if (updateTargetIsEpcs(glUpdateState.target)) {
         updateAgentVerifyEpcs();
         return;
     }

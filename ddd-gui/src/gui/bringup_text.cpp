@@ -124,8 +124,8 @@ QString BringUpOverviewText() {
 
 QString BringUpDurationText() {
   return Translate(
-      "About fifteen minutes, most of it spent watching the FPGA's flash being "
-      "written.");
+      "About five minutes, most of it spent writing and checking the FX3's "
+      "firmware.");
 }
 
 // --- the connectivity page ------------------------------------------------
@@ -347,9 +347,10 @@ QString BringUpPowerCycleText() {
   return Translate("<p>One power cycle, and it discharges two obligations: ") +
          Translate(
              "the FX3 has to re-read where it boots from, and the FPGA has to "
-             "reload from the flash that has just been written — it is "
-             "currently running Altera's serial flash loader, which is what "
-             "put the image there.</p>") +
+             "load the gateware from the flash that has just been written. It "
+             "is running that same gateware now, but only out of its own "
+             "memory — that is what a JTAG cable can put there, and it lasts "
+             "until the power goes off.</p>") +
          QStringLiteral("<p>") + BothCables() + QStringLiteral("</p>") +
          Translate(
              "<p>Wait a couple of seconds, then reconnect them both. This page "
@@ -415,21 +416,24 @@ QString BringUpFirmwareText() {
 }
 
 QString BringUpGatewareText(int seconds) {
-  const int minutes = (seconds + 59) / 60;
   return Translate(
-             "<p>The FPGA's configuration flash is written through the "
-             "DE0-Nano's own USB-Blaster, which is the only route to a board "
-             "with no working gateware on it.</p>"
+             "<p>Two things, and the first makes the second possible. The "
+             "<b>factory image</b> is loaded into the FPGA through the "
+             "DE0-Nano's own USB-Blaster — the only route to a board with no "
+             "working gateware — and nothing is written to the board by "
+             "that.</p>"
 
-             "<p>This writes the <b>factory image</b>: the one the board falls "
-             "back to, and the one that makes ordinary gateware updates "
-             "possible from then on.</p>") +
-         Translate("<p><b>Expect this to take about %1 minutes.</b> ")
-             .arg(minutes) +
+             "<p>The Duplicator can then reach the FPGA's flash for itself, so "
+             "it writes that same image into it, exactly as it writes an "
+             "ordinary gateware update. The factory image is the one the board "
+             "falls back to, and the one that makes those updates possible "
+             "from then on.</p>") +
+         Translate("<p><b>Expect this to take about %1 seconds.</b> ")
+             .arg(seconds) +
          Translate(
-             "It pauses for long stretches while blocks of flash are erased, "
-             "which is the flash doing its job rather than anything being "
-             "stuck. Leave both cables connected throughout.</p>");
+             "The flash write pauses every few seconds while a block is "
+             "erased, which is the flash doing its job rather than anything "
+             "being stuck. Leave both cables connected throughout.</p>");
 }
 
 QString BringUpBundledSetText() {

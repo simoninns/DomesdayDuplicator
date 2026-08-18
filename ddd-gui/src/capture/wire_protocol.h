@@ -233,9 +233,27 @@ inline constexpr uint8_t kDeviceResetRequest = 0xD4;
 inline constexpr uint8_t kFpgaReconfigRequest = 0xD5;
 
 // wIndex selects the target throughout: 0 is the FX3's boot EEPROM, 1 is
-// the FPGA's EPCS application image.
+// the FPGA's EPCS application image, 2 is the same flash at its factory
+// address.
 inline constexpr uint16_t kUpdateTargetFirmware = 0;
 inline constexpr uint16_t kUpdateTargetGateware = 1;
+inline constexpr uint16_t kUpdateTargetFactoryGateware = 2;
+
+// The flag words UPDATE_BEGIN may carry, in bytes 36 to 39.
+//
+// Zero is what an ordinary update sends and the only word the two ordinary
+// targets accept. kUpdateFactoryWriteFlag unlocks target 2, which writes the
+// image a board falls back to — a thing that is safe when it is meant and
+// irreversible when it is not, so the firmware requires the word to be said
+// out loud rather than inferring it from the target alone. Copied, never
+// computed: the whole value of a magic word is that a host which arrived at
+// it by arithmetic has not arrived at it at all.
+//
+// This is a second copy of UPDATE_FLAG_FACTORY_WRITE in
+// fx3/firmware/src/update-protocol.h (AGENTS.md §2 — it is a wire protocol,
+// and the two definitions live on two processors).
+inline constexpr uint32_t kUpdateFlagsNone = 0x00000000;
+inline constexpr uint32_t kUpdateFactoryWriteFlag = 0x57464444;
 
 // The fixed sizes of the two packets that are not payload.
 inline constexpr size_t kUpdateStatusLength = 16;

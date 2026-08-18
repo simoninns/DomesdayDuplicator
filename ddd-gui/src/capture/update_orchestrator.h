@@ -185,7 +185,33 @@ class UpdateOrchestrator {
   // The gate is the caller's to run first — it needs the device identity and
   // the application's version, and it decides whether there is anything to
   // offer at all. Run() assumes it passed.
+  //
+  // Never writes the factory image, whatever the bundle carries. That is
+  // InstallFactoryGateware below, and the separation is the point: an
+  // ordinary update cannot reach the factory region even by being handed a
+  // file that contains one.
   UpdateOutcome Run(const UpdateBundle& bundle);
+
+  // Write the bundle's factory image to the EPCS at address 0.
+  //
+  // The image a board falls back to, and the one thing an ordinary update
+  // never touches — so this is a separate entry point rather than another
+  // branch of Run(), called by the bring-up wizard and by the rollback
+  // wizard and by nothing else. The firmware refuses it too, unless the
+  // request carries the factory-write word, so this being reachable in the
+  // code is not what makes it reachable on a device.
+  //
+  // Two conditions the caller owns, because this class cannot check either:
+  // the FPGA must be running gateware with a flash bridge (bring-up has just
+  // configured one over JTAG; rollback is talking to a working unit), and the
+  // power cycle afterwards is what makes the written image the running one.
+  // No reset and no reconfiguration happen here — reconfiguring would reload
+  // the *application* image, which is not what has just been written.
+  //
+  // Firmware that predates the factory target refuses it before a byte moves,
+  // and says so: the outcome then carries the device's own refusal, which is
+  // "no such target on this firmware".
+  UpdateOutcome InstallFactoryGateware(const UpdateBundle& bundle);
 
  private:
   bool InstallComponent(UpdateTarget target, const UpdateComponent& component,

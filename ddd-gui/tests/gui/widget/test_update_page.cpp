@@ -311,6 +311,16 @@ TEST(UpdatePageTest,
                     "the only one it could verify anything against";
   }
 
+  // And the other build that legitimately accepts it: a debug build implies
+  // the opt-in, so that a developer does not type --dev-update-key on every
+  // run. That is DefaultUpdateKeyPolicy's own decision and this test is about
+  // what a shipped build does, so it is asked of shipped builds only — which
+  // is what "default" means here.
+  if (capture::DefaultUpdateKeyPolicy().accept_development_key) {
+    GTEST_SKIP() << "this is a debug build, whose default policy accepts the "
+                    "development key deliberately";
+  }
+
   const BundleFile bundle;
   PageUnderTest test;
 

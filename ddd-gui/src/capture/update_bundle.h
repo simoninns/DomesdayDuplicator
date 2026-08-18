@@ -31,6 +31,7 @@ namespace ddd::capture {
 //       firmware.img       FX3 image, when the bundle carries firmware
 //       gateware-app.rpd   raw EPCS byte stream, when it carries gateware
 //       gateware-provisioning.svf   JTAG vectors, in a provisioning set
+//       gateware-factory.rpd        the factory image, in a provisioning set
 //
 // Uncompressed tar because the two properties that matter are that stock `tar`
 // can list and extract it, and that reading it takes a couple of hundred lines
@@ -103,6 +104,12 @@ struct UpdateBundle {
   // gateware to be reached through. Played through a cable by the bring-up
   // wizard, and never written by the ordinary update path.
   std::span<const uint8_t> provisioning;
+
+  // The factory image as raw EPCS bytes: what the vectors above make it
+  // possible to write, and what a bring-up or a rollback actually puts in the
+  // flash at address 0. The two travel together in a provisioning set — one
+  // gives the board a flash bridge, the other is written through it.
+  std::span<const uint8_t> factory_gateware;
 };
 
 // Open a bundle: check that it is what it claims to be, and refuse it
@@ -138,6 +145,8 @@ inline constexpr std::string_view kFirmwareEntryName = "firmware.img";
 inline constexpr std::string_view kGatewareEntryName = "gateware-app.rpd";
 inline constexpr std::string_view kProvisioningEntryName =
     "gateware-provisioning.svf";
+inline constexpr std::string_view kFactoryGatewareEntryName =
+    "gateware-factory.rpd";
 
 // The extension a bundle carries, for the file dialog's filter and for the
 // release pipeline's asset name.

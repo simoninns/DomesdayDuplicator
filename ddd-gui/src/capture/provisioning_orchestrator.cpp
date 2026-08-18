@@ -20,8 +20,9 @@
 namespace ddd::capture {
 namespace {
 
-// The rate the estimate is built on. See the header for where it comes from.
-constexpr double kProvisioningBytesPerSecond = 60000.0;
+// The rate the estimate is built on. See the header for where it comes from:
+// 1,450,426 bytes in 2.6 seconds, measured, rounded down.
+constexpr double kProvisioningBytesPerSecond = 500000.0;
 
 }  // namespace
 
@@ -66,6 +67,7 @@ UpdateOutcome ProvisioningOrchestrator::InstallFirmware(
 
   outcome = installer.Run(bundle);
   firmware_installed_ = outcome.succeeded;
+  fx3_path_ = installer.device_path();
   return outcome;
 }
 
@@ -95,7 +97,18 @@ ProvisioningGatewareOutcome ProvisioningOrchestrator::ProgramGateware(
   if (!bundle.manifest.provisioning.has_value() ||
       bundle.provisioning.empty()) {
     return GatewareFailure(
-        "This provisioning set carries no gateware for the FPGA.");
+        "This provisioning set carries no JTAG vectors, so there is no way to "
+        "give this board a gateware to be reached through.");
+  }
+
+  // Both halves, checked before either runs. A set that could configure the
+  // FPGA but not write its flash would leave a board looking provisioned
+  // until the next power cycle, which is the most confusing state this flow
+  // could possibly stop in.
+  if (!bundle.manifest.factory_gateware.has_value() ||
+      bundle.factory_gateware.empty()) {
+    return GatewareFailure(
+        "This provisioning set carries no factory image for the FPGA's flash.");
   }
 
   if (!access_.open_cable) {
@@ -103,7 +116,7 @@ ProvisioningGatewareOutcome ProvisioningOrchestrator::ProgramGateware(
   }
 
   std::string problem;
-  const std::unique_ptr<IJtagCable> cable = access_.open_cable(&problem);
+  std::unique_ptr<IJtagCable> cable = access_.open_cable(&problem);
   if (cable == nullptr) {
     return GatewareFailure(problem.empty()
                                ? std::string("The USB-Blaster could not be "
@@ -120,12 +133,12 @@ ProvisioningGatewareOutcome ProvisioningOrchestrator::ProgramGateware(
     player.SetProgressCallback([this](size_t done, size_t total) {
       UpdateProgress progress;
       progress.stage = UpdateStage::kWriting;
-      progress.target = UpdateTarget::kGateware;
+      progress.target = UpdateTarget::kEpcsFactory;
       progress.done = done;
       progress.total = total;
       progress.message =
-          "Programming the FPGA's configuration flash through the "
-          "USB-Blaster. It pauses for a long while as each block is erased.";
+          "Loading the recovery gateware into the FPGA through the "
+          "USB-Blaster. Nothing is written to the board by this step.";
       progress_(progress);
     });
   }
@@ -153,12 +166,83 @@ ProvisioningGatewareOutcome ProvisioningOrchestrator::ProgramGateware(
     return outcome;
   }
 
+  outcome.configured = true;
+
   if (logger_ != nullptr) {
-    logger_->Info("FPGA provisioning complete: " +
+    logger_->Info("The FPGA is running the recovery gateware: " +
                   std::to_string(outcome.play.statements) +
                   " statements played, " +
                   std::to_string(outcome.play.shifted_bits) +
-                  " bits shifted. The board must now be power-cycled.");
+                  " bits shifted. Nothing has been written to the board yet.");
+  }
+
+  // The cable's work is done, and it is let go before the flash write starts.
+  // Two reasons, and the second is the one that would be hard to diagnose:
+  // the write does not need it, and holding a USB-Blaster open across an
+  // operation that has nothing to do with it is how Quartus's jtagd and this
+  // application end up fighting over a cable neither is using.
+  cable.reset();
+
+  // And now the half that writes something. The FPGA is running the factory
+  // image out of its own RAM, so it is offering the flash bridge the firmware
+  // needs — which is the whole point of the step above. From here it is an
+  // ordinary update transfer, aimed at the factory region: the same protocol,
+  // the same digest of the stream, the same readback digest off the medium.
+  //
+  // The host cannot do this part itself. A register write carries one byte per
+  // USB control transfer, so driving the bridge from here would be millions of
+  // round trips for an image the device writes in seconds.
+  //
+  // Failures from here on are reported through `outcome` rather than through
+  // GatewareFailure, so that `configured` survives: the cable did its job, and
+  // a page that blamed the cable for a flash failure would send the user to
+  // check the one thing that is working.
+  const auto fail = [this, &outcome](std::string problem) {
+    outcome.succeeded = false;
+    outcome.problem = std::move(problem);
+    if (logger_ != nullptr) {
+      logger_->Error(outcome.problem);
+    }
+    return outcome;
+  };
+
+  if (!access_.fx3.open_updater) {
+    return fail("This device cannot be reached for updating.");
+  }
+  if (fx3_path_.empty()) {
+    return fail(
+        "The device the firmware was installed on is no longer known, so its "
+        "FPGA cannot be programmed. Start the wizard again.");
+  }
+
+  const std::unique_ptr<IDeviceUpdater> updater =
+      access_.fx3.open_updater(fx3_path_);
+  if (updater == nullptr) {
+    return fail(
+        "The FPGA is loaded, but the Duplicator could not be opened to write "
+        "it to the board. Unplug both cables, reconnect them, and start the "
+        "wizard again.");
+  }
+
+  UpdateOrchestrator flash(*updater, logger_);
+  flash.SetTimings(update_timings_);
+  if (progress_) {
+    flash.SetProgressCallback(progress_);
+  }
+  if (cancel_) {
+    flash.SetCancelCallback(cancel_);
+  }
+
+  const UpdateOutcome written = flash.InstallFactoryGateware(bundle);
+  outcome.succeeded = written.succeeded;
+  if (!written.succeeded) {
+    return fail(written.problem);
+  }
+
+  if (logger_ != nullptr) {
+    logger_->Info(
+        "The FPGA's flash now holds the recovery gateware. The board must be "
+        "power-cycled to run it from there.");
   }
 
   return outcome;

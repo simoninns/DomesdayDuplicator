@@ -237,6 +237,28 @@ std::optional<UpdateManifest> ParseUpdateManifest(
     complete = false;
   }
 
+  // Optional, unlike the channel: a bundle written before rollback existed
+  // carries no purpose and is an update, which is what it always was. A
+  // value this build does not know is refused rather than defaulted, because
+  // a purpose is a statement about what installing the file does.
+  if (const JsonValue* purpose = document->Find("purpose");
+      purpose != nullptr) {
+    std::string text;
+    if (ReadString(*document, "purpose", "manifest", &text, errors)) {
+      if (text == kUpdatePurposeName) {
+        manifest.purpose = UpdatePurpose::kUpdate;
+      } else if (text == kRollbackPurposeName) {
+        manifest.purpose = UpdatePurpose::kRollback;
+      } else {
+        Report(errors,
+               "manifest: \"purpose\" is neither \"update\" nor \"rollback\"");
+        complete = false;
+      }
+    } else {
+      complete = false;
+    }
+  }
+
   complete &=
       ReadString(*document, "version", "manifest", &manifest.version, errors);
   complete &=
@@ -262,6 +284,8 @@ std::optional<UpdateManifest> ParseUpdateManifest(
                               &manifest.gateware, errors);
     complete &= ReadComponent(*components, kProvisioningComponentName,
                               &manifest.provisioning, errors);
+    complete &= ReadComponent(*components, kFactoryGatewareComponentName,
+                              &manifest.factory_gateware, errors);
 
     // A component kind this build does not know is refused rather than
     // skipped. Every member of this object names a payload that something has
@@ -270,7 +294,8 @@ std::optional<UpdateManifest> ParseUpdateManifest(
     for (const JsonValue::Member& member : *components->AsObject()) {
       if (member.first != kFirmwareComponentName &&
           member.first != kGatewareComponentName &&
-          member.first != kProvisioningComponentName) {
+          member.first != kProvisioningComponentName &&
+          member.first != kFactoryGatewareComponentName) {
         Report(errors, "manifest: \"components\" declares \"" + member.first +
                            "\", which this build does not know how to install");
         complete = false;
@@ -283,10 +308,12 @@ std::optional<UpdateManifest> ParseUpdateManifest(
     // the artefact had come out empty.
     if (components->Find(kFirmwareComponentName) == nullptr &&
         components->Find(kGatewareComponentName) == nullptr &&
-        components->Find(kProvisioningComponentName) == nullptr) {
+        components->Find(kProvisioningComponentName) == nullptr &&
+        components->Find(kFactoryGatewareComponentName) == nullptr) {
       Report(errors, "manifest: \"components\" declares nothing to install");
     }
-    if (!manifest.firmware && !manifest.gateware && !manifest.provisioning) {
+    if (!manifest.firmware && !manifest.gateware && !manifest.provisioning &&
+        !manifest.factory_gateware) {
       complete = false;
     }
   }
@@ -337,6 +364,11 @@ std::string SerialiseUpdateManifest(const UpdateManifest& manifest) {
         std::string(kProvisioningComponentName),
         JsonValue::Object(ComponentMembers(*manifest.provisioning)));
   }
+  if (manifest.factory_gateware) {
+    components.emplace_back(
+        std::string(kFactoryGatewareComponentName),
+        JsonValue::Object(ComponentMembers(*manifest.factory_gateware)));
+  }
 
   std::vector<JsonValue::Member> compatibility = {
       {"minimum_application_version",
@@ -347,7 +379,7 @@ std::string SerialiseUpdateManifest(const UpdateManifest& manifest) {
        JsonValue::Number(manifest.compatibility.epcs_layout_version)},
   };
 
-  const JsonValue document = JsonValue::Object({
+  std::vector<JsonValue::Member> members = {
       {"manifest_version", JsonValue::Number(manifest.manifest_version)},
       {"channel", JsonValue::String(manifest.channel == UpdateChannel::kRelease
                                         ? "release"
@@ -358,9 +390,22 @@ std::string SerialiseUpdateManifest(const UpdateManifest& manifest) {
       {"release_notes", JsonValue::String(manifest.release_notes)},
       {"components", JsonValue::Object(std::move(components))},
       {"compatibility", JsonValue::Object(std::move(compatibility))},
-  });
+  };
 
-  return SerialiseJson(document);
+  // The purpose is written only when it says something. An ordinary update
+  // carries no purpose field — which is exactly what every bundle written
+  // before rollback existed looks like — so a manifest that goes through the
+  // reader and back out comes out byte for byte as it went in, and the
+  // signature over it still verifies. Writing a field whose only value is its
+  // own default would have invalidated every signature ever made over one of
+  // these files, for no information.
+  if (manifest.purpose == UpdatePurpose::kRollback) {
+    members.insert(
+        members.begin() + 2,
+        {"purpose", JsonValue::String(std::string(kRollbackPurposeName))});
+  }
+
+  return SerialiseJson(JsonValue::Object(std::move(members)));
 }
 
 std::optional<int> CompareDottedVersions(std::string_view left,

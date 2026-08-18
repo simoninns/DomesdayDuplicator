@@ -63,6 +63,9 @@ class ProvisioningFile {
     writer.AddFile(capture::kFirmwareEntryName, capture::test::MakeBootImage());
     writer.AddFile(capture::kProvisioningEntryName,
                    capture::test::Bytes(capture::test::kProvisioningPayload));
+    writer.AddFile(
+        capture::kFactoryGatewareEntryName,
+        capture::test::Bytes(capture::test::kFactoryGatewarePayload));
     Write(writer.Finish(), QStringLiteral("provisioning.dddfw"));
   }
 

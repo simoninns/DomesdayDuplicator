@@ -99,6 +99,13 @@ inline constexpr std::string_view kProvisioningPayload =
     "SIR 10 TDI (203);\n"
     "RUNTEST 4096 TCK;\n";
 
+// And the image those vectors make it possible to write. A real set carries
+// the factory gateware as raw EPCS bytes beside the vectors that configure it,
+// because the vectors write nothing: they give the board a flash bridge, and
+// the firmware writes these bytes through it.
+inline constexpr std::string_view kFactoryGatewarePayload =
+    "! A factory image, for the tests only. Not a real one.\n";
+
 inline constexpr std::string_view kProvisioningManifestJson =
     R"({
   "manifest_version": 1,
@@ -121,6 +128,13 @@ inline constexpr std::string_view kProvisioningManifestJson =
       "sha256": "df1fad2f033577d2c7b9a2b1b18c3c86b1b1699af3d248bad32e129110148628",
       "identity": "0123abcd",
       "interface_version": 2
+    },
+    "gateware-factory": {
+      "file": "gateware-factory.rpd",
+      "length": 55,
+      "sha256": "8002f8434e1185db6d1f770defa824bb0cc1a93581bbc70d4bfbf087aab586aa",
+      "identity": "0123abcd",
+      "interface_version": 2
     }
   },
   "compatibility": {
@@ -133,12 +147,62 @@ inline constexpr std::string_view kProvisioningManifestJson =
 
 inline constexpr std::string_view kProvisioningManifestSignature =
     "untrusted comment: Domesday Duplicator provisioning set 1.4.0\n"
-    "RUR82Ay8IQPniTMHcLlis90COLTVr9dBs5fhdD7gIYDIJwVD+WcbqRyh8fmAW/YapUQwgdecH"
-    "n7sXcQK6lskjIo3VDWV4nO8lAg=\n"
+    "RUR82Ay8IQPniW6+huWG2VUfRTwqI8nCorYu950wFjSRlQJ22u7IWxRW+TR+UJQESRbQHv2Jd"
+    "xL/4FsiZNf9osz+40vJq/Dd5gc=\n"
     "trusted comment: domesday-duplicator-provisioning-1.4.0.dddfw version "
     "1.4.0 channel development\n"
-    "Ypb9d9T8+0FsftIGzYz4JOpT7tQUY34NYH4agm6znEKCegx5VOv4XVwqca6zsbT6vQ56Bkzi"
-    "Y7CcMfkp4PS1Cw==\n";
+    "42XwJpIHzxx9acx+hBM5FQQ4yJ3G6iO10kqYH6J/KP/6dy/ndLuWGihXyjjZX4/s1iY0V0rD"
+    "WgnJ9+qUIEdkBw==\n";
+
+// A legacy rollback set: the original firmware and the original gateware, the
+// second of which goes to the factory region because that is where an EPCS
+// boots from. Signed by the same key as everything else here — a rollback file
+// is an ordinary signed bundle and there is no second set of rules for it.
+//
+// What makes it a rollback is the one field: "purpose". Without it this would
+// be an ordinary update carrying old software, which is exactly the thing the
+// compatibility gate exists to refuse.
+inline constexpr std::string_view kRollbackManifestJson =
+    R"({
+  "manifest_version": 1,
+  "channel": "development",
+  "purpose": "rollback",
+  "version": "1.4.0",
+  "commit": "bb65470",
+  "created": "2026-08-17T10:00:00Z",
+  "release_notes": "Test rollback set for the rollback unit tests.",
+  "components": {
+    "firmware": {
+      "file": "firmware.img",
+      "length": 352,
+      "sha256": "32cb502b8af350df558e825e7d96699aac0db3c23414c7baee175e07fd2a0af6",
+      "identity": "bb65470",
+      "interface_version": 1
+    },
+    "gateware-factory": {
+      "file": "gateware-factory.rpd",
+      "length": 55,
+      "sha256": "8002f8434e1185db6d1f770defa824bb0cc1a93581bbc70d4bfbf087aab586aa",
+      "identity": "bb65470",
+      "interface_version": 1
+    }
+  },
+  "compatibility": {
+    "minimum_application_version": "1.4.0",
+    "minimum_register_map_version": 2,
+    "epcs_layout_version": 1
+  }
+}
+)";
+
+inline constexpr std::string_view kRollbackManifestSignature =
+    "untrusted comment: Domesday Duplicator legacy rollback set 1.4.0\n"
+    "RUR82Ay8IQPniYJG6vEo0SRCfGuRhItYLHCLSG4e+7ahA0VL1wzrNfGT/OfwaHJIgrHPezn7V"
+    "PbeePKDi40zT8SRoWQ3X6u94gE=\n"
+    "trusted comment: domesday-duplicator-legacy-rollback-1.4.0.dddfw version "
+    "1.4.0 channel development\n"
+    "vCcl33cCgnC12p+CeGp1lHKE9fbrTOrrQOvqFL4z6rKTF9IigvuRAGuFzBqnJxnarpXKYGpx"
+    "Qd6w2GUcEnU2Bw==\n";
 
 // tools/keys/development.pub, verbatim.
 inline constexpr std::string_view kDevelopmentPublicKey =

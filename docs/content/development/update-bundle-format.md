@@ -29,7 +29,9 @@ domesday-duplicator-update-<version>.dddfw     uncompressed ustar archive
 
 ### The provisioning set
 
-A third component kind, `gateware-provisioning-svf`, carries the FPGA's gateware as **JTAG vectors** rather than as a flash image. A bundle carrying it and firmware is a *provisioning set*: what a board with no working gateware is brought up with.
+A third component kind, `gateware-provisioning-svf`, carries **JTAG vectors** that configure the factory image into an FPGA, and a fourth, `gateware-factory`, carries that image as raw EPCS bytes. A bundle carrying both of them and firmware is a *provisioning set*: what a board with no working gateware is brought up with.
+
+The two go together and neither is useful alone. The vectors write nothing — a JTAG configuration lives in the FPGA's own memory — but they give the board a gateware with a flash bridge, and the firmware then writes `gateware-factory` through that bridge at address `0x000000`, over USB. (An earlier design had the vectors write the flash directly. They cannot: a `quartus_cpf` flash `.svf` speaks Altera's Virtual JTAG protocol to Altera's serial flash loader and carries no configuration of its own, so nothing outside Quartus can play it. See TESTING.md, B-V1.)
 
 The difference from the `gateware` component is not what it contains but what writes it. `gateware` goes to the device over USB, through the flash bridge that the running gateware provides — which is exactly what a board being brought up does not have. The vectors are played into the FPGA's JTAG port through the DE0-Nano's own USB-Blaster, by [the bring-up wizard](../capture-gui/bringing-up-a-board.md); see [USB-Blaster and SVF programming](usb-blaster-and-svf.md).
 
@@ -103,7 +105,8 @@ That the last three lines work with programs this project did not write is the p
 | `commit` | string | The git commit every payload was built from |
 | `created` | string | When the bundle was assembled, ISO 8601 in UTC |
 | `release_notes` | string | One line, shown before the user confirms |
-| `components` | object | At least one of `firmware`, `gateware` and `gateware-provisioning-svf`; no other member |
+| `components` | object | At least one of `firmware`, `gateware`, `gateware-provisioning-svf` and `gateware-factory`; no other member |
+| `purpose` | string | Optional. `"update"` (the default, and what every bundle written before rollback existed means) or `"rollback"`. Any other value is refused. A rollback bundle installs software deliberately older than the application installing it, so the update path refuses it by name and the rollback wizard requires it |
 | `compatibility` | object | What a device and an application must already be |
 
 Every field is required. There are no optional top-level fields and no defaults, because a default is a decision made by whoever wrote the reader on behalf of whoever wrote the bundle, and the two are separated here by a release process and possibly by years.
@@ -126,7 +129,7 @@ Every field is required. There are no optional top-level fields and no defaults,
 
 `interface_version` means the USB protocol version in `bcdDevice` for the firmware, and the register-map version in register `0x01` for the gateware. One field name for two different registers because the compatibility gate does exactly one thing with it — compare it against the range the application supports — and two names would have invited two code paths for one rule.
 
-For `gateware-provisioning-svf`, both fields describe what the board will report *once it has been provisioned and power-cycled*: the identity registers of the factory image, and its register-map version.
+For `gateware-provisioning-svf` and `gateware-factory`, both fields describe what the board will report *once it has been provisioned and power-cycled*: the identity registers of the factory image, and its register-map version. The two components describe the same image by two routes, so they carry the same values.
 
 ### Compatibility
 

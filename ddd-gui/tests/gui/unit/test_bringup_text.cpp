@@ -328,9 +328,23 @@ TEST(BringUpTextImage, ASetWithNoFirmwareIsRefusedForTheOrderingReason) {
   EXPECT_TRUE(problem.contains("FX3 first", Qt::CaseInsensitive));
 }
 
-TEST(BringUpTextGateware, TheEstimateIsShownInMinutes) {
-  EXPECT_TRUE(BringUpGatewareText(300).contains("5 minutes"));
-  EXPECT_TRUE(BringUpGatewareText(300).contains("factory image"));
+// Seconds rather than minutes, and that is a measurement rather than a
+// wording preference: the step used to play an 18.4 MB flash-writing file that
+// could not in fact be played at all, and what it does now is a 2.6-second
+// configuration followed by a flash write of about seventeen (TESTING.md
+// B-V1).
+TEST(BringUpTextGateware, TheEstimateIsShownInSeconds) {
+  EXPECT_TRUE(BringUpGatewareText(20).contains("20 seconds"));
+  EXPECT_TRUE(BringUpGatewareText(20).contains("factory image"));
+}
+
+// And the page says both halves happen, because a user who was told only about
+// the flash write would not understand why a JTAG cable is still needed — nor
+// why the first half writes nothing at all.
+TEST(BringUpTextGateware, TheTextSaysTheLoadWritesNothing) {
+  const QString text = BringUpGatewareText(20);
+  EXPECT_TRUE(text.contains("USB-Blaster"));
+  EXPECT_TRUE(text.contains("nothing is written", Qt::CaseInsensitive));
 }
 
 // --- the verification -----------------------------------------------------

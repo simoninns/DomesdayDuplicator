@@ -40,6 +40,7 @@
 #include "device_updater.h"
 #include "examine_dialog.h"
 #include "firmware_dialog.h"
+#include "legacy_rollback_wizard.h"
 #include "log_message_model.h"
 #include "log_panel.h"
 #include "player_controller.h"
@@ -554,6 +555,13 @@ void MainWindow::BuildToolsMenu() {
       tr("Program both halves of a board from nothing — a newly built one, or "
          "one running the original Duplicator firmware"));
 
+  QAction* const rollback_action =
+      legacy_menu->addAction(tr("&Roll back to legacy firmware…"), this,
+                             &MainWindow::ShowRollbackWizard);
+  rollback_action->setStatusTip(
+      tr("Put the original Duplicator firmware and gateware back on a working "
+         "unit — a deliberate act, and the bring-up entry above undoes it"));
+
   if (capture_controller_ == nullptr) {
     // Nothing to put the device into test mode with. Shown rather than hidden
     // so the menu has the same shape in every build of the window, and disabled
@@ -913,6 +921,51 @@ void MainWindow::ShowBringUpWizard() {
   bringup_wizard_->activateWindow();
 }
 
+void MainWindow::ShowRollbackWizard() {
+  // One wizard, on the same terms as the bring-up one: two would be two things
+  // writing one device's flash.
+  if (rollback_wizard_.isNull()) {
+    capture::IUsbDevice* const usb = capture_controller_ != nullptr
+                                         ? capture_controller_->usb_device()
+                                         : nullptr;
+    auto* const logger = static_cast<capture::ILogger*>(logger_);
+
+    LegacyRollbackWizard::Access access;
+
+    access.devices = [this] {
+      return capture_controller_ != nullptr
+                 ? capture_controller_->devices()
+                 : std::vector<capture::DeviceInfo>{};
+    };
+
+    // The only route this flow has to hardware. There is no cable factory and
+    // no programmer: a unit that can be rolled back is a working unit, and it
+    // writes both images itself over the link it is already on.
+    access.open_updater = [usb, logger](const std::string& path)
+        -> std::unique_ptr<capture::IDeviceUpdater> {
+      if (usb == nullptr || path.empty()) {
+        return nullptr;
+      }
+      return capture::MakeDeviceUpdater(*usb, path, logger);
+    };
+
+    rollback_wizard_ = new LegacyRollbackWizard(std::move(access), this);
+    rollback_wizard_->setAttribute(Qt::WA_DeleteOnClose);
+    rollback_wizard_->SetKeyPolicy(update_key_policy_);
+
+    connect(rollback_wizard_, &LegacyRollbackWizard::BusyChanged, this,
+            [this](bool busy) {
+              if (capture_controller_ != nullptr) {
+                capture_controller_->SetDeviceMonitorSuspended(busy);
+              }
+            });
+  }
+
+  rollback_wizard_->show();
+  rollback_wizard_->raise();
+  rollback_wizard_->activateWindow();
+}
+
 void MainWindow::ShowAutoCaptureWizardFor(const player::DiscProfile& disc) {
   if (auto_capture_controller_ == nullptr) {
     return;
@@ -987,8 +1040,14 @@ bool MainWindow::FirmwareWindowIsOpen() const {
   // moment they closed it — and suppressing the warning for that gap would be
   // deciding when a user gets told something on the strength of an event-loop
   // detail.
+  //
+  // The rollback wizard counts for the same reason as the bring-up one, and
+  // more so: it makes a device disappear and come back as a *different*
+  // device, so a version-mismatch warning is not merely likely there — it is
+  // the expected consequence of the page being followed correctly.
   return firmware_dialog_open_ ||
-         (!bringup_wizard_.isNull() && bringup_wizard_->isVisible());
+         (!bringup_wizard_.isNull() && bringup_wizard_->isVisible()) ||
+         (!rollback_wizard_.isNull() && rollback_wizard_->isVisible());
 }
 
 void MainWindow::ShowFailure(const QString& title, const QString& detail) {

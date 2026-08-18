@@ -1077,8 +1077,17 @@ void BoardBringUpWizard::LoadProvisioningSet(const QString& path) {
   }
 
   if (manifest_->provisioning.has_value()) {
+    // Both halves, because the page describes both: the vectors being played
+    // and the flash write that follows them. The write is the longer of the
+    // two by roughly five to one, and quoting only the play would leave a user
+    // watching a bar for four times as long as they were told.
     gateware_text_->setText(BringUpGatewareText(
-        capture::EstimateProvisioningSeconds(manifest_->provisioning->length)));
+        capture::EstimateProvisioningSeconds(manifest_->provisioning->length) +
+        (manifest_->factory_gateware.has_value()
+             ? static_cast<int>(capture::EstimateComponentSeconds(
+                   capture::UpdateTarget::kEpcsFactory,
+                   *manifest_->factory_gateware))
+             : 0)));
   }
 
   Refresh();

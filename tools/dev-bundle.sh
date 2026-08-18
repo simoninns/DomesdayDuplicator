@@ -23,8 +23,10 @@
 #   firmware   fx3/firmware/build/firmware.img, then result-firmware/firmware.img,
 #              then result/firmware.img
 #   gateware   fpga/build/application/*.rpd, then result-bitstream/application/*.rpd
-#   vectors    fpga/build/provisioning/DomesdayDuplicatorProvisioning.svf, then
-#              result-bitstream/provisioning/DomesdayDuplicatorProvisioning.svf
+#   vectors    fpga/build/factory/DomesdayDuplicatorFactoryConfigure.svf, then
+#              result-bitstream/factory/DomesdayDuplicatorFactoryConfigure.svf
+#   factory    fpga/build/factory/DomesdayDuplicatorFactory_auto.rpd, then
+#              result-bitstream/factory/DomesdayDuplicatorFactory_auto.rpd
 #
 # A firmware-only bundle is legal by schema, so a firmware developer never needs Quartus
 # for this loop; a gateware-only bundle is legal too. Nothing found at all is an error.
@@ -33,14 +35,18 @@
 #
 #   --kind update        (the default) firmware and the application gateware — what a
 #                        working device installs over USB
-#   --kind provisioning  firmware and the gateware as JTAG vectors — what the bring-up
-#                        wizard plays into a board that has no working gateware, and what
-#                        a packaged build bundles. Needs the SVF, so it needs Quartus to
-#                        have run
+#   --kind provisioning  firmware, the vectors that configure the factory image into an
+#                        FPGA, and that image as raw flash bytes — what the bring-up
+#                        wizard needs for a board with no working gateware, and what a
+#                        packaged build bundles. Needs both Quartus outputs
 #
-# The vectors are deliberately not added to an update bundle: they are an order of
-# magnitude larger than the images beside them, and nothing on the ordinary update path
-# plays them.
+# The vectors and the factory image go together and are deliberately not added to an
+# update bundle: nothing on the ordinary update path plays vectors, and the firmware
+# refuses the factory region to anything but the bring-up and rollback paths.
+#
+# The vectors configure and write nothing. What writes the flash is the firmware itself,
+# over USB, once configuration has given the board a flash bridge — which is why a
+# provisioning set carries an image as well as the vectors that make it reachable.
 #
 # The bundle is signed with the **development key**, whose secret half is committed to
 # this repository (tools/keys/development.key) and is therefore public. A development
@@ -59,6 +65,7 @@ output=""
 firmware=""
 gateware=""
 provisioning=""
+factory=""
 version=""
 kind="update"
 
@@ -66,6 +73,7 @@ usage() {
     cat >&2 <<'EOF'
 Usage: dev-bundle.sh [--kind update|provisioning] [--output FILE]
                      [--firmware FILE] [--gateware FILE] [--provisioning FILE]
+                     [--factory-gateware FILE]
                      [--version X.Y.Z]
 
 With no arguments it finds what is built locally and writes
@@ -77,6 +85,8 @@ build/domesday-duplicator-update-<version>-dev.dddfw at the repository root.
   --firmware      use this FX3 image instead of searching
   --gateware      use this raw EPCS image instead of searching
   --provisioning  use this SVF instead of searching (--kind provisioning only)
+  --factory-gateware
+                  use this raw image instead of searching (--kind provisioning only)
   --version       the version to stamp; defaults to 0.0.0, which no release will ever
                   carry and which therefore cannot be mistaken for one
 EOF
@@ -90,6 +100,7 @@ while [[ $# -gt 0 ]]; do
         --firmware) firmware="$2"; shift 2 ;;
         --gateware) gateware="$2"; shift 2 ;;
         --provisioning) provisioning="$2"; shift 2 ;;
+        --factory-gateware) factory="$2"; shift 2 ;;
         --version) version="$2"; shift 2 ;;
         -h|--help) usage ;;
         *) echo "unknown argument: $1" >&2; usage ;;
@@ -147,14 +158,25 @@ if [[ "$kind" == "provisioning" ]]; then
 
     if [[ -z "$provisioning" ]]; then
         provisioning="$(first_existing \
-            "$root/fpga/build/provisioning/DomesdayDuplicatorProvisioning.svf" \
-            "$root/result-bitstream/provisioning/DomesdayDuplicatorProvisioning.svf")"
+            "$root/fpga/build/factory/DomesdayDuplicatorFactoryConfigure.svf" \
+            "$root/result-bitstream/factory/DomesdayDuplicatorFactoryConfigure.svf")"
     fi
 
-    [[ -n "$provisioning" ]] || die "no provisioning vectors are built locally.
-The SVF comes out of the Quartus build beside the .jic:
+    [[ -n "$provisioning" ]] || die "no configuration vectors are built locally.
+The SVF comes out of the Quartus build beside the factory image:
   ./fpga/build-local.sh        or        nix build .#bitstream
 then run this again, or pass --provisioning explicitly."
+
+    if [[ -z "$factory" ]]; then
+        factory="$(first_existing \
+            "$root/fpga/build/factory/DomesdayDuplicatorFactory_auto.rpd" \
+            "$root/result-bitstream/factory/DomesdayDuplicatorFactory_auto.rpd")"
+    fi
+
+    [[ -n "$factory" ]] || die "no factory image is built locally.
+The raw image comes out of the same Quartus build as the vectors:
+  ./fpga/build-local.sh        or        nix build .#bitstream
+then run this again, or pass --factory-gateware explicitly."
 
     # Both halves, always. A bring-up programs the FX3 first — the ordering is what keeps
     # the original firmware from ever running underneath the current gateware — so a set
@@ -164,7 +186,7 @@ Build it with:   cmake --build fx3/firmware/build   or   nix build .#fx3-firmwar
 then run this again, or pass --firmware explicitly."
 fi
 
-if [[ -z "$firmware" && -z "$gateware" && -z "$provisioning" ]]; then
+if [[ -z "$firmware" && -z "$gateware" && -z "$provisioning" && -z "$factory" ]]; then
     die "nothing is built locally.
 Build the firmware with:   cmake --build fx3/firmware/build
 or the gateware with:      ./fpga/build-local.sh
@@ -250,11 +272,16 @@ if [[ -n "$provisioning" ]]; then
     provisioning_identity="$(bitstream_identity_of "$provisioning")"
 fi
 
+factory_identity=""
+if [[ -n "$factory" ]]; then
+    factory_identity="$(bitstream_identity_of "$factory")"
+fi
+
 # Packaging artefacts older than the tree is legitimate — it is what happens whenever the
 # gateware is left alone while the firmware is worked on — so this is worth saying and not
 # worth refusing.
 for pair in "firmware:$firmware_identity" "gateware:$gateware_identity" \
-            "provisioning:$provisioning_identity"; do
+            "provisioning:$provisioning_identity" "factory:$factory_identity"; do
     name="${pair%%:*}"
     identity="${pair#*:}"
     if [[ -n "$identity" && "$identity" != "$commit" ]]; then
@@ -272,6 +299,10 @@ if [[ -n "$provisioning" ]]; then
     arguments+=(--provisioning "$provisioning"
                 --provisioning-identity "$provisioning_identity")
 fi
+if [[ -n "$factory" ]]; then
+    arguments+=(--factory-gateware "$factory"
+                --factory-gateware-identity "$factory_identity")
+fi
 
 echo "Packaging a development $kind set from what is built locally:"
 if [[ -n "$firmware" ]]; then
@@ -282,6 +313,9 @@ if [[ -n "$gateware" ]]; then
 fi
 if [[ -n "$provisioning" ]]; then
     echo "  vectors   ${provisioning#"$root"/}"
+fi
+if [[ -n "$factory" ]]; then
+    echo "  factory   ${factory#"$root"/}"
 fi
 if [[ "$kind" == "update" && ( -z "$firmware" || -z "$gateware" ) ]]; then
     echo "  (the other half is not built; a bundle with one component is complete)"

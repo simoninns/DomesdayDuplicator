@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="US-ASCII" standalone="yes"?>
+<cof>
+	<eprom_name>EPCS64</eprom_name>
+	<flash_loader_device>EP4CE22</flash_loader_device>
+	<output_filename>DomesdayDuplicatorFactory.jic</output_filename>
+	<n_pages>1</n_pages>
+	<width>1</width>
+	<mode>7</mode>
+	<sof_data>
+		<user_name>Page_0</user_name>
+		<page_flags>1</page_flags>
+		<bit0>
+			<sof_filename>DomesdayDuplicatorFactory.sof<compress_bitstream>1</compress_bitstream></sof_filename>
+		</bit0>
+	</sof_data>
+	<version>10</version>
+	<create_cvp_file>0</create_cvp_file>
+	<create_hps_iocsr>0</create_hps_iocsr>
+	<!--
+	    The factory image's counterpart to application/DomesdayDuplicator.cof,
+	    and it exists for the same one reason: to emit the raw EPCS bytes.
+	    The .jic this also produces is deleted by the build, because
+	    programming it would write the factory image with no application
+	    image and no boot block beside it - which the provisioning .jic
+	    already does properly.
+
+	    What the .rpd is for is newer. Bring-up used to write the flash with
+	    JTAG vectors; it cannot, because a quartus_cpf flash .svf drives
+	    Altera's serial flash loader and carries no configuration of its own.
+	    So the factory image is configured into the FPGA volatilely instead -
+	    that is what the _write_sof.cdf beside this file becomes - and these
+	    bytes are then written to address 0 by the firmware's own update
+	    agent, over USB, through the flash bridge that configuration just
+	    provided.
+	-->
+	<auto_create_rpd>1</auto_create_rpd>
+	<!--
+	    0, deliberately, exactly as in application/DomesdayDuplicator.cof -
+	    see the note there for the day of bench time that setting cost. The
+	    configuration engine consumes the stream LSB-first while SPI delivers
+	    MSB-first, so the flash must hold each byte bit-reversed; quartus_pgm
+	    performs that reversal when it programs a .jic, but the update path
+	    writes the .rpd verbatim.
+	-->
+	<rpd_little_endian>0</rpd_little_endian>
+	<options>
+		<map_file>1</map_file>
+	</options>
+	<advanced_options>
+		<ignore_epcs_id_check>2</ignore_epcs_id_check>
+		<ignore_condone_check>2</ignore_condone_check>
+		<plc_adjustment>0</plc_adjustment>
+		<post_chain_bitstream_pad_bytes>-1</post_chain_bitstream_pad_bytes>
+		<post_device_bitstream_pad_bytes>-1</post_device_bitstream_pad_bytes>
+		<bitslice_pre_padding>1</bitslice_pre_padding>
+	</advanced_options>
+</cof>
