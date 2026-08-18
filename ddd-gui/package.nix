@@ -7,9 +7,9 @@
 # Call with qt6Packages.callPackage, not plain callPackage — the Qt package set supplies
 # wrapQtAppsHook and the matching qtbase.
 #
-# This builds alongside gui/ rather than replacing it. The two are separate derivations
-# with separate executables, so both can be installed at once while this one is brought up
-# to the older application's capability.
+# The capture application this replaced was a separate derivation with a separate
+# executable, so both could be installed at once. It has since been removed from the
+# repository; a machine that still has it installed keeps it.
 
 {
   lib,

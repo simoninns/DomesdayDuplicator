@@ -27,10 +27,10 @@ namespace ddd::capture {
 // (lddecode/utils.py), while general audio editors — Tenacity, Audacity —
 // import native FLAC and cannot open Ogg FLAC at all.
 //
-// The packed 10-bit .lds and the Ogg .ldf are neither written nor read here:
-// gui/ remains the tool for those, and carrying a second decoder into a new
-// application to re-read files an existing application already reads would be
-// duplication for its own sake.
+// The packed 10-bit .lds and the Ogg .ldf are neither written nor read here.
+// They were the output of the capture application this one replaced, which has
+// been removed from the repository; carrying a decoder for them into a format
+// nothing new is written in would be duplication for its own sake.
 
 // What a capture is written as.
 enum class CaptureOutputFormat {

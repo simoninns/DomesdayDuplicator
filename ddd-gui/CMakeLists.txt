@@ -29,11 +29,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # the AppStream component ID and the installed icon's name are all this string, and the
 # files under packaging/assets/ are named after it.
 #
-# It is deliberately not gui/'s io.github.simoninns.DomesdayDuplicator. That application
-# is still in the repository and may still be installed on somebody's machine; a shared
-# identifier would mean installing this one replaces it, which is not a decision a package
-# manager should make on a user's behalf while this one is still reaching parity. The
-# Windows installer keeps them apart the same way, with its own UpgradeCode.
+# It is deliberately not io.github.simoninns.DomesdayDuplicator, the identifier of the
+# capture application this one replaced. That application has been removed from the
+# repository but may still be installed on somebody's machine; a shared identifier would
+# mean installing this one replaces it, which is not a decision a package manager should
+# make on a user's behalf. The Windows installer keeps them apart the same way, with its
+# own UpgradeCode.
 #
 # Changing this after the first publish is a migration rather than an edit — Flathub and
 # Windows both key on it — so it wants settling before the first release that ships it.
@@ -46,7 +47,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # Commit stamp, so a released binary can be traced back to the source that produced it.
-# Mirrors gui/CMakeLists.txt and fx3/firmware/CMakeLists.txt: callers building outside a
+# Mirrors fx3/firmware/CMakeLists.txt: callers building outside a
 # git checkout — Nix, release tarballs, a shallow CI clone — pass -DDDD_VERSION=<hash>,
 # and only when they have not does the build ask git. A release artefact reporting
 # "unknown" fails the release gate (AGENTS.md §9).
@@ -190,17 +191,17 @@ else()
     message(STATUS "Bundled provisioning set: none — the bring-up wizard picks a file")
 endif()
 
-# Qt 6.5 is the floor, not 6.2 as in gui/: QStyleHints::colorScheme() and its change
-# signal arrived in 6.5, and they are how the application follows the desktop's light/dark
-# setting. Without them the theme could only ever be guessed from the palette.
+# Qt 6.5 is the floor: QStyleHints::colorScheme() and its change signal arrived in 6.5,
+# and they are how the application follows the desktop's light/dark setting. Without them
+# the theme could only ever be guessed from the palette.
 #
 # Test is part of qtbase everywhere the application is built, and only the test binaries
 # link it: QSignalSpy and QAbstractItemModelTester live there.
 #
 # SerialPort is for the LaserDisc player link, and only the Qt layer links it — the player
 # protocol itself is Qt-free and talks to an interface (src/player). It is a separate Qt
-# module rather than part of qtbase, so a distribution build needs its package installed;
-# gui/ has required it since long before this application existed, so no machine that could
+# module rather than part of qtbase, so a distribution build needs its package installed.
+# The capture application this one replaced required it too, so no machine that could
 # build this repository is losing anything.
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets SerialPort Test)
 

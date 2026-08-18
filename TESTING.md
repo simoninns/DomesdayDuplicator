@@ -70,20 +70,12 @@ nix flake check                      # everything, on a clean machine
 Or per component, from a configured build tree:
 
 ```bash
-cmake -B gui/build -S gui
-cmake --build gui/build
-ctest --test-dir gui/build                    # all tests
-ctest --test-dir gui/build -L unit            # one tier
-ctest --test-dir gui/build -LE hil            # everything except hardware
-ctest --test-dir gui/build --output-on-failure
-```
-
-`ddd-gui/` works the same way, with the same tier labels:
-
-```bash
 cmake -B ddd-gui/build -S ddd-gui
 cmake --build ddd-gui/build
-ctest --test-dir ddd-gui/build -L unit
+ctest --test-dir ddd-gui/build                    # all tests
+ctest --test-dir ddd-gui/build -L unit            # one tier
+ctest --test-dir ddd-gui/build -LE hil            # everything except hardware
+ctest --test-dir ddd-gui/build --output-on-failure
 ```
 
 It also uses the `functional` label, which no other component does. Those are whole-pipeline
@@ -150,7 +142,7 @@ nix develop .#fpga -c ./fpga/tests/run-lint.sh     # T4
 nix develop .#fpga -c ./fpga/tests/run-sim.sh      # T3
 ```
 
-The licence-header check (§4.8) belongs to no component and needs no toolchain at all:
+The licence-header check (§4.7) belongs to no component and needs no toolchain at all:
 
 ```bash
 ./tools/check-licence-headers.sh          # T4; -v also lists the unconverted files
@@ -158,25 +150,9 @@ The licence-header check (§4.8) belongs to no component and needs no toolchain 
 
 ## 4. What exists today
 
-### 4.1 `gui/` — 37 tests
+### 4.1 `ddd-gui/` — 1,648 tests (1,638 without hardware)
 
-| File | Covers | Tiers |
-| --- | --- | --- |
-| `tests/test_stringutilities.cpp` | UTF-8 ↔ wide-string conversion: round trips, all four UTF-8 sequence lengths, surrogate pairs, truncated input, embedded NUL | T1 |
-| `tests/test_samplecodec.cpp` | The 10-bit/16-bit sample codec: exhaustive round trip over all 1024 values in all 4 slot positions, bit-position isolation, golden byte vectors, the test-pattern ramp | T1, T2 |
-| `tests/test_flacroundtrip.cpp` | The FLAC writer and reader against each other, and the container's bytes at fixed offsets | T1, T2 |
-| `tests/test_testdataanalyser.cpp` | The offline test-pattern analyser: an unbroken ramp, an injected discontinuity, and the exit codes a script depends on | T1 |
-
-The codec tests are the most valuable thing in the suite. A defect there does not crash and
-does not print an error — it silently corrupts every capture that is ever converted, and the
-corruption is only detectable by comparing against an original that may no longer exist.
-
-One test is skipped on Linux: `LoneHighSurrogateIsDropped` only applies where `wchar_t` is
-two bytes, which is Windows.
-
-### 4.2 `ddd-gui/` — 1,648 tests (1,638 without hardware)
-
-The replacement capture application. Split by what a test needs rather than by what it
+The capture application. Split by what a test needs rather than by what it
 covers: `ddd_capture_tests` links no Qt at all, which is what makes the engine's Qt-free
 rule enforceable — if the engine ever grows a Qt dependency, that binary stops linking.
 `ddd_player_tests` links none either, for the same reason and with the same effect on the
@@ -300,7 +276,7 @@ Measured against a device running gateware built from this tree: 79.2 MB/s over 
 returning in 10 ms. This tier is twenty seconds and does not replace §5 — it is what makes
 starting §5 worthwhile.
 
-### 4.3 `fx3/programmer/` — 24 tests
+### 4.2 `fx3/programmer/` — 24 tests
 
 | File | Covers | Tiers |
 | --- | --- | --- |
@@ -320,7 +296,7 @@ device — which bricks the FX3, recoverable only via the PMODE jumper. The path
 tests guard the D13 fix, where every candidate path used to be relative to the working
 directory, so an installed binary could not find the secondary loader at all.
 
-### 4.4 `fx3/firmware/` — three tests
+### 4.3 `fx3/firmware/` — three tests
 
 | File | Covers | Tiers |
 | --- | --- | --- |
@@ -361,7 +337,7 @@ allowing something rather than by crashing. An off-by-one in the paging arithmet
 past a page or a slave boundary and leaves a device that will not enumerate, and a bench is
 a poor place to discover that.
 
-### 4.5 `fx3/mkimage/` — 32 tests
+### 4.4 `fx3/mkimage/` — 32 tests
 
 | File | Covers | Tiers |
 | --- | --- | --- |
@@ -384,7 +360,7 @@ Two tests are worth knowing about individually:
 A wrong image here does not fail loudly — the bootloader either refuses it or runs something
 subtly wrong on a device that is expensive to recover.
 
-### 4.6 `docs/` — one static check
+### 4.5 `docs/` — one static check
 
 `nix build .#docs-site` runs `mkdocs build --strict`, which fails on broken internal links,
 `.nav.yml` entries pointing at missing files, and orphaned pages. That replaces the three
@@ -398,7 +374,7 @@ was migrated. **Use markdown image syntax**, `![](path){ width="600" }`, which M
 rewrite. If you need to check the built output directly, resolve every `href` and `src` in
 `result/` against the output tree.
 
-### 4.7 `fpga/` — nine testbenches, a lint pass and two digest tests
+### 4.6 `fpga/` — nine testbenches, a lint pass and two digest tests
 
 Unlike every other component, the gateware has no `ctest` suite: there is no CMake here, and
 the tools are a linter and a simulator rather than a compiler. The checks are Nix derivations
@@ -458,7 +434,7 @@ sequential logic, two incomplete `case` statements, an implicit width promotion,
 control-bus bits fixed by the PCB — are each pinned by one of the testbenches above rather
 than merely declared benign.
 
-### 4.8 Repository-wide — the licence-header and update-bundle checks
+### 4.7 Repository-wide — the licence-header and update-bundle checks
 
 Two checks have no component, because their subject is the whole tree rather than any part
 of it. Both are T4 and both live in `nix/checks.nix`.
@@ -481,7 +457,7 @@ the point. An exemption nobody had to write is an exemption nobody reviewed.
 
 The check reads only tracked files. It asks git when git is there, and walks the tree when it
 is not — inside the Nix sandbox the flake source *is* the tracked set, so both routes see the
-same files. Without that, a local run would header-check every `moc_*.cpp` in `gui/build/`.
+same files. Without that, a local run would header-check every `moc_*.cpp` in `ddd-gui/build/`.
 
 #### `update-bundle`
 
@@ -493,14 +469,14 @@ inputs twice gives byte-identical files.
 
 Everything after the bundle exists is done with **stock tools**: GNU `tar` lists it,
 `minisign` verifies it, `sha256sum` checks the digest. That is the point of the check.
-The application's own reader is covered by the tests in §4.2, and a check that used this
+The application's own reader is covered by the tests in §4.1, and a check that used this
 project's reader to validate this project's writer could only ever say that the two agree
 with each other.
 
 Nothing here writes to a device. The payload is a text file, and installing a bundle stays
 a deliberate human act (AGENTS.md §4).
 
-### 4.9 Everything else — nothing yet
+### 4.8 Everything else — nothing yet
 
 | Component | Automated coverage | Why |
 | --- | --- | --- |
@@ -535,7 +511,7 @@ dropped samples are the failure mode that matters and the one that is invisible 
 ### Procedure
 
 1. Build or install the capture application:
-   `nix build .#gui` — or `nix develop .#gui` and build from source.
+   `nix build .#ddd-gui` — or `nix develop .#ddd-gui` and build from source.
 2. Connect the Domesday Duplicator. Confirm it enumerates as `1209:2347`
    (`lsusb | grep 1209`). If it appears as `04b4:...` it is still in bootloader mode and has
    no firmware loaded.
@@ -1585,8 +1561,8 @@ because the capture application converts each sample back to the 10-bit domain a
 that — the sequence field exists during a capture and nowhere afterwards.
 
 The gateware items that used to be on this list are done: the `-Wall` lint pass and the
-`dataGenerator`, `fx3StateMachine` and `spiRegisters` testbenches are all in §4.7, and the
-licence-header check is in §4.8. So is the `buffer.v` testbench, which is here because it
+`dataGenerator`, `fx3StateMachine` and `spiRegisters` testbenches are all in §4.6, and the
+licence-header check is in §4.7. So is the `buffer.v` testbench, which is here because it
 needed a free `dcfifo` model — replacing the IP with `fifo.v` removed the requirement
 rather than meeting it.
 

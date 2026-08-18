@@ -17,6 +17,10 @@ The hardware is a USB 3.0 based 10-bit analogue to digital converter designed to
 
 The hardware/software solution is designed to act as a sampling front-end to the [ld-decode](https://github.com/happycube/ld-decode) (software decoder of LaserDiscs) project, which replaces the generic TV capture card to provide the entire 4fsc sampled picture frame and any data contained above its active "picture" area.
 
+![](capture-gui/assets/main-window-spectrogram.png)
+
+>The capture application, showing the live spectrogram of the incoming RF
+
 There are 3 main components that make up the Domesday Duplicator:
 
 A custom ADC board based around the Texas Instruments ADS825 10-Bit, 40MSPS analogue to digital converter.  This board contains an RF amplifier and conditioner (to amplify the output from the LaserDiscs player RF tap and condition it for the single-ended ADC chip) as well as headers for both the DE0-Nano FPGA development board and Cypress FX3 SuperSpeed Explorer board.  RF input is physically provided by a BNC connector.

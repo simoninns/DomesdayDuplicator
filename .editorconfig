@@ -1,5 +1,5 @@
 ; Editor-neutral formatting for the whole repository.
-; Promoted from gui/src/DomesdayDuplicator/ and extended to the other languages in the tree.
+; Promoted from the capture application and extended to the other languages in the tree.
 ; end_of_line is lf rather than the crlf the GUI copy used: .gitattributes normalises with
 ; `* text=auto`, so lf is what git actually stores.
 
@@ -77,10 +77,4 @@ max_line_length = off
 
 [*.ui]
 indent_size = 1
-max_line_length = off
-
-[gui/src/DomesdayDuplicator/qcustomplot.{cpp,h}]
-indent_style = unset
-indent_size = unset
-trim_trailing_whitespace = false
 max_line_length = off

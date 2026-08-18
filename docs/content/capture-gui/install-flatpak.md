@@ -35,7 +35,7 @@ Install the rules once, on the host:
 
 ```bash
 sudo curl -o /etc/udev/rules.d/99-domesdayduplicator.rules \
-  https://raw.githubusercontent.com/simoninns/DomesdayDuplicator/master/nix/modules/99-domesdayduplicator.rules
+  https://raw.githubusercontent.com/simoninns/DomesdayDuplicator/main/fx3/programmer/configs/70-domesday-duplicator.rules
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```

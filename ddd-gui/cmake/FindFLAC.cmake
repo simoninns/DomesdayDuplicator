@@ -1,9 +1,9 @@
 # Find libFLAC, the encoder and decoder the capture application writes and reads
 # captures with.
 #
-# A component-local copy of gui/cmake/FindFLAC.cmake rather than a shared one: AGENTS.md §2
-# keeps the two applications from including each other's files, and a find module is no
-# different from a header in that respect.
+# A component-local copy rather than a repository-wide shared one: AGENTS.md §2 keeps
+# components from including each other's files, and a find module is no different from a
+# header in that respect.
 #
 # pkg-config first, because that is the path that works unchanged on Nix, Homebrew and
 # MSYS2 — the three toolchains the packaging jobs use. flac 1.5 also installs a CMake

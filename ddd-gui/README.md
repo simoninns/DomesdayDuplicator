@@ -2,10 +2,10 @@
 
 The capture and signal-monitoring application for the Domesday Duplicator.
 
-This is the application being built to replace [gui/](../gui/). Both are in the tree and
-both are built by CI: `gui/` is the one that captures today, and it stays until this one
-has passed the hardware capture-integrity procedure in [TESTING.md](../TESTING.md) §5.
-Nothing here is a supported capture path yet.
+This is the project's capture application, and what CI builds, tests, packages and
+releases. The application it replaced was removed from the repository on 2026-08-18; its
+history remains in git. The hardware capture-integrity procedure that this application is
+held to is [TESTING.md](../TESTING.md) §5.
 
 The phased plan it is being built to is
 [docs-tech/ddd-gui-implementation-plan.md](../docs-tech/ddd-gui-implementation-plan.md).

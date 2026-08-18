@@ -158,8 +158,8 @@ something you did last week would produce a capture full of ramps.
 | macOS | `~/Library/Preferences/com.domesday86.ddd-gui.plist` |
 | Windows | `HKEY_CURRENT_USER\Software\Domesday86\ddd-gui` |
 
-These are the application's own; the [legacy application](../legacy-gui/index.md) uses a
-different identity, so installing one never disturbs the other's settings.
+These are the application's own. The capture application this one replaced used a different
+identity, so installing this one never disturbed that one's settings.
 
 A settings file that has been edited by hand, or written by a different version, is
 **clamped** to sensible values rather than rejected — an out-of-range value produces a

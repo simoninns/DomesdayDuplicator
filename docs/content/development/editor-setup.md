@@ -30,7 +30,7 @@ command here is correct.
 
 ```bash
 nix develop                      # everything free, across all components
-cmake -B gui/build -S gui
+cmake -B ddd-gui/build -S ddd-gui
 cmake -B fx3/programmer/build -S fx3/programmer
 cmake -B fx3/firmware/build -S fx3/firmware \
       -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake
@@ -57,13 +57,13 @@ direnv allow
 
 Editors launched from inside the directory then inherit the toolchain, which matters for
 GUI editors that do not read your shell profile. To use a component shell instead, put
-`use flake .#gui` in `.envrc.local`.
+`use flake .#ddd-gui` in `.envrc.local`.
 
 ## Per-component notes
 
 | Component | Language server | Notes |
 | --- | --- | --- |
-| `gui/` | clangd | Qt's moc and uic output lands in the build tree; the compile database already includes those paths |
+| `ddd-gui/` | clangd | Qt's moc output lands in the build tree; the compile database already includes those paths |
 | `fx3/programmer/` | clangd | Nothing special — ordinary host C |
 | `fx3/firmware/` | clangd | `.clangd` sets `Compiler: arm-none-eabi-gcc`. Without it clangd probes the *host* compiler for system headers and reports hundreds of false errors, because the firmware is freestanding and never sees the host libc |
 | `fpga/` | verible-verilog-ls | `nix develop .#fpga` — free tools only, no Quartus needed to edit, lint or simulate |
@@ -87,7 +87,7 @@ over the same files and produce contradictory diagnostics:
 }
 ```
 
-Open the *component* directory (`gui/`, `fx3/firmware/`) rather than the repository root, so
+Open the *component* directory (`ddd-gui/`, `fx3/firmware/`) rather than the repository root, so
 clangd finds the right `.clangd`. If you prefer a single window, use a multi-root workspace
 with one folder per component.
 
@@ -151,7 +151,7 @@ args = ["--rules_config_search"]
 ## Qt Creator
 
 Qt Creator opens CMake projects natively. Use *File → Open File or Project* and select
-`gui/CMakeLists.txt`.
+`ddd-gui/CMakeLists.txt`.
 
 Do **not** look for `.pro` files — the qmake project files were removed. They were a second
 build definition maintained by hand alongside the CMake one, and they drifted. Qt Creator
@@ -181,8 +181,8 @@ component. What exists:
   in `fpga/.verible-format`. The gateware has already had its one-off reformat, so there is
   no history left to bury.
 - **`clang-format`** ships in the dev shells. `ddd-gui/` has a `.clang-format` and gates on
-  it; `gui/` and `fx3/` do not, so running it there would reformat against its default style.
-  Do not run it across those files.
+  it; `fx3/` does not, so running it there would reformat against its default style. Do not
+  run it across those files.
 
 The rule that matters, everywhere except `fpga/`: **do not reformat code you are not
 otherwise changing.** Whitespace-only diffs bury the actual change and break `git blame`.

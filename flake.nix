@@ -5,11 +5,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Components carry package.nix and shell.nix, never a flake.nix of their own. An earlier
-# layout gave each component a thin flake so that `cd gui && nix develop` worked; every one
+# layout gave each component a thin flake so that `cd ddd-gui && nix develop` worked; every one
 # of those resolved `nixos-unstable` into its own lock file, so entering the tree through a
 # component quietly got a different nixpkgs from the pin here. Reproducibility is worth more
 # than the shorthand, and nothing is lost: Nix walks up to find this file, so
-# `nix develop .#gui` works from any subdirectory.
+# `nix develop .#ddd-gui` works from any subdirectory.
 {
   description = "Domesday Duplicator — LaserDisc RF capture hardware, gateware, firmware and software";
 
@@ -64,20 +64,11 @@
       #
       # Merged per system, not with `//` across two forAllSystems/forLinux calls: `//` is
       # a shallow update, so the Linux set would replace the portable one wholesale and
-      # `gui` would silently disappear on exactly the systems that can build it.
+      # `ddd-gui` would silently disappear on exactly the systems that can build it.
       packages = forAllSystems (
         pkgs:
         rec {
-          # The application `ddd-gui` replaces. Still packaged, so that anybody who needs
-          # the capture path that has years of use behind it can still build it — and
-          # deliberately **not** in `checks` below, so `nix flake check` no longer builds
-          # or tests it. It is a reference kept until the replacement reaches feature
-          # parity, and nothing in CI verifies it in the meantime (maintainer,
-          # 2026-08-15). Removing the directory is a separate decision from removing it
-          # from CI, and this is only the second.
-          gui = pkgs.qt6Packages.callPackage ./gui/package.nix { dddVersion = version; };
-
-          # The capture application, and what every packaging and release workflow now
+          # The capture application, and what every packaging and release workflow
           # builds.
           ddd-gui = pkgs.qt6Packages.callPackage ./ddd-gui/package.nix {
             dddVersion = version;
@@ -129,7 +120,6 @@
         pkgs:
         {
           default = import ./nix/shell.nix { inherit pkgs; };
-          gui = import ./gui/shell.nix { inherit pkgs; };
           ddd-gui = import ./ddd-gui/shell.nix { inherit pkgs; };
           fx3 = import ./fx3/shell.nix { inherit pkgs; };
           # Free tools only — lint and simulate the Verilog with no Quartus download.
@@ -200,8 +190,10 @@
       overlays.default =
         final: _prev:
         {
-          domesday-duplicator-gui = final.qt6Packages.callPackage ./gui/package.nix {
+          domesday-duplicator-ddd-gui = final.qt6Packages.callPackage ./ddd-gui/package.nix {
             dddVersion = version;
+            releaseUpdateKeyFile =
+              if builtins.pathExists ./tools/keys/release.pub then ./tools/keys/release.pub else null;
           };
         }
         // final.lib.optionalAttrs final.stdenv.hostPlatform.isLinux {

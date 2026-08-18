@@ -4,11 +4,8 @@
 # workflow must not build firmware: two streams that both rebuild everything are one
 # stream with extra steps.
 #
-# What it packages is ddd-gui. The application it replaces is still in the repository
-# under gui/, and is no longer built, tested, packaged or released by anything in CI — it
-# is kept as a reference until the replacement reaches feature parity, and nothing about
-# it is verified in the meantime. The tag prefix stays gui-v*: it names the stream, not
-# the directory.
+# What it packages is ddd-gui. The tag prefix stays gui-v*: it names the release stream,
+# not the directory.
 #
 # What a complete gui-v* release carries:
 #
@@ -159,9 +156,9 @@ jobs:
 
             | Platform | Download |
             | --- | --- |
-            | Linux | `.flatpak` — see [Linux installation](https://simoninns.github.io/domesdayduplicator/capture-gui/install-flatpak/) |
-            | macOS | `.dmg` — see [macOS installation](https://simoninns.github.io/domesdayduplicator/capture-gui/install-dmg/) |
-            | Windows | `.msi` — see [Windows installation](https://simoninns.github.io/domesdayduplicator/capture-gui/install-msi/) |
+            | Linux | `.flatpak` — see [Linux installation](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-flatpak/) |
+            | macOS | `.dmg` — see [macOS installation](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-dmg/) |
+            | Windows | `.msi` — see [Windows installation](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-msi/) |
 
             Verify a download against `SHA256SUMS`; `PROVENANCE.txt` records the commit and
             the toolchains this was built with.

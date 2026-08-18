@@ -7,11 +7,11 @@
   the tag by the packaging job rather than maintained by hand, because a hand-maintained
   version history goes stale the first time someone forgets it.
 
-  **The identifier is deliberately not the one gui/ used.** The application this replaces
-  shipped as io.github.simoninns.DomesdayDuplicator; this one is a separate identifier so
-  that an existing install is never silently upgraded over by a rewrite that has not yet
-  reached feature parity. The two can sit side by side, and retiring the old one is then a
-  decision somebody makes rather than something an update does to them.
+  **The identifier is deliberately not the one the previous application used.** The
+  application this replaces shipped as io.github.simoninns.DomesdayDuplicator; this one is
+  a separate identifier so that an existing install is never silently upgraded over. The
+  two can sit side by side, and retiring the old one is then a decision somebody makes
+  rather than something an update does to them.
 
   Changing an identifier after the first publish is a migration rather than an edit, so it
   wants deciding before then. It is set once, in ddd-gui/CMakeLists.txt, and every file

@@ -3,10 +3,9 @@
 # Reusable, following decode-orc: build.yml calls it on every non-PR push so the installer
 # is testable per branch, and release-gui.yml calls it again on a gui-v* tag.
 #
-# This packages ddd-gui. The application it replaces is still in the repository under
-# gui/ and is no longer built, tested or packaged by CI — see build.yml. It ships under a
-# separate application ID, so a machine with the old Flatpak installed keeps it until
-# somebody removes it deliberately.
+# This packages ddd-gui, which ships under an application ID of its own, so a machine with
+# the Flatpak of the application it replaced installed keeps it until somebody removes it
+# deliberately.
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 

@@ -19,8 +19,8 @@ without opening it.
 | An hour of capture | Roughly 90–145 GB |
 
 The application writes this format and nothing else. The historical `.lds` (packed 10-bit)
-and `.ldf` (FLAC inside Ogg) are neither written nor read here — the
-[legacy application](../legacy-gui/index.md) remains the tool for those.
+and `.ldf` (FLAC inside Ogg) are neither written nor read here — they were the output of the
+capture application this one replaced, which is no longer part of the project.
 
 ### The sample-rate label
 

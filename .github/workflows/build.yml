@@ -2,7 +2,7 @@
 #
 # Replaces the three per-submodule workflows that came in with the monorepo, one of which
 # had never worked because it pointed at a directory that did not exist (D1). Those files
-# lived at fx3/.github and gui/.github, where GitHub does not look for them; they are
+# lived at fx3/.github and ddd-gui/.github, where GitHub does not look for them; they are
 # deleted rather than left as decoration.
 #
 # One build path per component, because Nix is the only supported development environment
@@ -12,10 +12,6 @@
 # workflows, where they are unavoidable — Nix cannot produce an MSI or a DMG — and those
 # jobs build, install and launch what they package, which is the platform coverage the
 # deleted native jobs used to provide.
-#
-# The application under gui/ is no longer built, tested or packaged here. It remains in the
-# repository as a reference until ddd-gui reaches feature parity, and nothing in CI verifies
-# it in the meantime.
 #
 # **Every push builds and packages everything**, on every branch (maintainer, 2026-08-13).
 # An earlier revision path-filtered branch builds so that a docs-only change skipped the

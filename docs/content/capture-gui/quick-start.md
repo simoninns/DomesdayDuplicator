@@ -6,6 +6,30 @@ download.
 You need the Duplicator, a USB 3 cable, a computer with a USB 3 port, and somewhere to put
 the file — a capture writes about 40 MB every second, so roughly 145 GB an hour.
 
+!!! warning "These pages describe the August 2026 release"
+
+    This documentation covers the current capture application, FX3 firmware and FPGA
+    gateware, released together in **August 2026**. The three are a matched set: the
+    application talks to the firmware and gateware of its own release, and a board
+    programmed before then is running something it does not know.
+
+    **If the application does not find your board, or finds it and reports it as running
+    something else, the board needs bringing up to this release** — that is the expected
+    outcome for an existing Duplicator, not a fault. Follow
+    [Bringing up a new or legacy board](bringing-up-a-board.md) for a board that has never
+    run this firmware, or
+    [Updating your Domesday Duplicator](updating-your-domesday-duplicator.md) to move one
+    from an earlier release. Neither needs any special equipment beyond the USB cable.
+
+    **The device's USB ID has changed with this release**, from `1d50:603b` to
+    **`1209:2347`** — the pair now [registered to this project with
+    pid.codes](https://pid.codes/1209/2347/). Device access is granted per USB ID, so
+    **follow step 1 below even if this machine already captured with an older board**: udev
+    rules or a Zadig binding written for the old ID do not match the new one, and the
+    symptom is a device that enumerates perfectly and still cannot be opened. A board part
+    way through bring-up appears as `04b4:…` instead, which the rules shipped with the
+    project also cover.
+
 ## 1. Install the application
 
 Take the package for your platform and follow the page for it, including the part about

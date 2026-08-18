@@ -11,12 +11,12 @@
   and development builds deliberately use 0.0.<run>.0 so that one can never out-version a
   real release and block its upgrade.
 
-  **The UpgradeCode is deliberately not the one gui/ used.** Windows treats a shared
-  UpgradeCode as "these are the same product", so reusing it would make installing this
-  uninstall the application it replaces — silently, on a machine whose owner had not
-  agreed to swap a working capture application for a rewrite. A distinct code lets the two
-  sit side by side until somebody decides otherwise. INSTALLFOLDER and the Start Menu
-  folder are named apart for the same reason.
+  **The UpgradeCode is deliberately not the one the previous application used.** Windows
+  treats a shared UpgradeCode as "these are the same product", so reusing it would make
+  installing this uninstall the application it replaces — silently, on a machine whose
+  owner had not agreed to swap one capture application for another. A distinct code lets
+  the two sit side by side until somebody decides otherwise. INSTALLFOLDER and the Start
+  Menu folder are named apart for the same reason.
 
   SPDX-License-Identifier: GPL-3.0-or-later
 -->

@@ -26,10 +26,10 @@
 // bit-perfect: a host that stalls loses whole USB packets, and the gap shows up
 // as a counter that skipped. Nothing else in the stream would reveal it.
 //
-// These constants are deliberately a local copy rather than shared with gui/
-// (AGENTS.md §2). They describe a wire protocol, not shared code: if the
-// gateware ever changes them, the two applications must be able to disagree
-// about it for as long as it takes to migrate.
+// These constants are deliberately a component-local copy rather than shared
+// with the gateware or the firmware (AGENTS.md §2). They describe a wire
+// protocol, not shared code: if the gateware ever changes them, the three
+// definitions must be able to disagree for as long as it takes to migrate.
 namespace ddd::capture {
 
 // Bytes per sample on the wire

@@ -423,4 +423,4 @@ auditable because of the same byte-identical reproducibility measured above.
 ## Documentation
 
 For detailed documentation, please see the
-[main project documentation](https://simoninns.github.io/domesdayduplicator).
+[main project documentation](https://simoninns.github.io/DomesdayDuplicator).

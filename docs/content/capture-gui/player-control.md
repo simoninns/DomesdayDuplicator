@@ -359,7 +359,7 @@ application sends the player a command you did not ask for — pressing **Stop c
 a manual capture leaves the disc exactly where it is, so capturing the first half of a side
 and then the second is two presses and no disc movement.
 
-The legacy application had the opposite preference, on by default, and it is deliberately not
+The capture application this one replaced had the opposite preference, on by default, and it is deliberately not
 carried over. An automatic capture still spins the disc down at the end, because there the
 application is the thing operating the player; a manual capture is you operating it.
 

@@ -74,7 +74,7 @@ result-*
 # directory is called content/ and not site/.
 site/
 
-# Packaging outputs and scratch (gui/packaging, .github/workflows/package-*.yml).
+# Packaging outputs and scratch (ddd-gui/packaging, .github/workflows/package-*.yml).
 # *.msi is already covered by the Windows section above.
 dist/
 stage/

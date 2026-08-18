@@ -17,8 +17,8 @@
 // The USB side of the device contract. Nothing here needs libusb, so the values
 // are testable and readable by a front end that has not opened a device.
 //
-// These constants are a deliberate second copy of the ones in gui/ (AGENTS.md
-// §2). They are protocol, not shared code.
+// These constants are a deliberate second copy of the ones in the gateware and
+// the firmware (AGENTS.md §2). They are protocol, not shared code.
 namespace ddd::capture {
 
 // pid.codes assigned identifiers, in use since the FX3 firmware moved off the

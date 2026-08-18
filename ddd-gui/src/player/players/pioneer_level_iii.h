@@ -22,8 +22,8 @@
 // sent, carried over unchanged. They are field-proven across years of captures
 // and this port deliberately does not improve them; where a comment there
 // disagreed with the command beside it, the command won. (In particular: "CO"
-// closes the tray and "OP" opens it, whatever gui/playercommunication.cpp's
-// comments say.)
+// closes the tray and "OP" opens it, whatever the previous application's
+// playercommunication.cpp comments said.)
 //
 // Documented in the Pioneer *Level III User's Manual*, which covers the LD-V
 // and CLD-V series as one command set. That is why this is a shared base rather

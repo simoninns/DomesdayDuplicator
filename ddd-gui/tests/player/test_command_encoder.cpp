@@ -27,11 +27,10 @@ namespace {
 // The exact bytes the previous capture application sent, command by command.
 //
 // This is the test that proves the port did not change the wire protocol. Every
-// sequence here was read out of
-// gui/src/DomesdayDuplicator/playercommunication.cpp, which is what years of
-// field captures were taken with — so a change to any of these is a change to
-// behaviour known to work, and has to be a deliberate one with a player on the
-// bench behind it.
+// sequence here was read out of the previous capture application's
+// playercommunication.cpp, which is what years of field captures were taken
+// with — so a change to any of these is a change to behaviour known to work,
+// and has to be a deliberate one with a player on the bench behind it.
 struct ExpectedCommand {
   PlayerCommand command;
   std::string_view bytes;

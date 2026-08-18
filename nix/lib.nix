@@ -13,7 +13,7 @@
 #
 # Usage:
 #   inherit (import ./nix/lib.nix { inherit nixpkgs; }) forAllSystems forLinux;
-#   packages = forAllSystems (pkgs: { gui = pkgs.callPackage ./gui/package.nix { }; });
+#   packages = forAllSystems (pkgs: { ddd-gui = pkgs.callPackage ./ddd-gui/package.nix { }; });
 #
 # The callback receives a `pkgs` rather than a system string, because every use site wants
 # `pkgs` and threading the string through adds a `let` block to each one.

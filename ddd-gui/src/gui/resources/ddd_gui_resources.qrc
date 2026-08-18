@@ -6,9 +6,9 @@
     SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
 
-    Component-local copies of the graphics gui/ uses, not references to them
-    (AGENTS.md §2). The two applications ship independently and either may
-    change its artwork without the other having to agree.
+    Component-local copies of the repository's graphics, not references to
+    them (AGENTS.md §2), so the application's artwork travels with the
+    component that ships it.
 -->
 <RCC>
     <qresource prefix="/graphics">

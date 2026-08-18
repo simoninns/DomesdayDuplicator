@@ -264,7 +264,7 @@ install(FILES
     DESTINATION ${FIRMWARE_INSTALL_DIR}
 )
 
-# Tests. On by default when this is the top-level project, matching gui/ and
+# Tests. On by default when this is the top-level project, matching ddd-gui/ and
 # fx3/programmer/. Everything here is host-side — the cross toolchain cannot run its own
 # output, so nothing in this project can be tested by executing it.
 include(CTest)

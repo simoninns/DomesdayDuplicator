@@ -23,9 +23,9 @@
 
 site_name: Domesday Duplicator Documentation
 site_description: Documentation for the Domesday Duplicator LaserDisc RF capture hardware
-site_url: https://simoninns.github.io/domesdayduplicator
-repo_url: https://github.com/simoninns/domesdayduplicator
-repo_name: simoninns/domesdayduplicator
+site_url: https://simoninns.github.io/DomesdayDuplicator/
+repo_url: https://github.com/simoninns/DomesdayDuplicator
+repo_name: simoninns/DomesdayDuplicator
 copyright: >
   All content provided under the Attribution-ShareAlike 4.0 International
   (CC BY-SA 4.0) license.

@@ -69,7 +69,7 @@ stdenvNoCC.mkDerivation {
 
   meta = {
     description = "Domesday Duplicator documentation site";
-    homepage = "https://simoninns.github.io/domesdayduplicator";
+    homepage = "https://simoninns.github.io/DomesdayDuplicator";
     license = lib.licenses.cc-by-sa-40;
     platforms = lib.platforms.all;
   };

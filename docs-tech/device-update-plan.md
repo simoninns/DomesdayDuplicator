@@ -15,8 +15,8 @@ hardware actually permits, the options considered (including the "bootloader-sty
 load-at-connection" alternative), and the recommended design with an implementation
 sequence.
 
-This plan deliberately targets `ddd-gui` only. The legacy `gui/` application is being
-retired before the next release and gains none of this.
+This plan deliberately targets `ddd-gui` only. The capture application it replaced, under
+`gui/`, gained none of this and has since been removed from the repository.
 
 ## Authoritative references (in-tree)
 

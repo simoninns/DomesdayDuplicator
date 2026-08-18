@@ -1,8 +1,15 @@
 # Capture Application Rebuild (`ddd-gui/`) — Implementation Plan
 
+!!! note
+
+    This is a record of how `ddd-gui/` was planned, written while the capture application
+    it replaced still existed in the repository under `gui/`. That application was removed
+    on 2026-08-18, so the `gui/` paths below no longer resolve in a checkout; read them
+    from git history.
+
 ## Purpose
 
-The existing capture application ([gui/](../gui/)) is functionally complete and its USB
+The existing capture application (`gui/`) is functionally complete and its USB
 transfer engine is proven, but its user feedback is thin: during a capture the operator sees
 an RMS number, a coarse waveform refreshed once a second, and counters. There is no way to
 run the device *without* writing to disk, so checking cabling, RF level or spectral content
@@ -31,10 +38,10 @@ remains shippable.
   [docs/content/development/software-guide.md](../docs/content/development/software-guide.md),
   firmware constants in [fx3/firmware/src/domesday-duplicator.h](../fx3/firmware/src/domesday-duplicator.h)
 - Proven transfer-engine mechanisms to carry forward:
-  [gui/src/DomesdayDuplicator/UsbDeviceBase.cpp](../gui/src/DomesdayDuplicator/UsbDeviceBase.cpp),
-  [UsbDeviceLibUsb.cpp](../gui/src/DomesdayDuplicator/UsbDeviceLibUsb.cpp),
-  [UsbDeviceWinUsb.cpp](../gui/src/DomesdayDuplicator/UsbDeviceWinUsb.cpp)
-- Format and codec ground truth: [gui/src/common/](../gui/src/common/)
+  `gui/src/DomesdayDuplicator/UsbDeviceBase.cpp`,
+  `UsbDeviceLibUsb.cpp`,
+  `UsbDeviceWinUsb.cpp`
+- Format and codec ground truth: `gui/src/common/`
   (`captureformat.h`, `samplecodec.h`, `flacwriter.*`, `capturereader.*`, `testdataanalyser.*`)
 
 ## The real-time problem, stated once
@@ -77,7 +84,7 @@ pipeline can never wait on the GUI.
 - Qt ≥ 6.5 for `QStyleHints::colorScheme` (the old app requires 6.2; raising the floor is
   acceptable for a new application and must be stated in `ddd-gui/README.md`).
 - Tests are gtest under CTest with tier labels exactly as in
-  [gui/tests/CMakeLists.txt](../gui/tests/CMakeLists.txt) (`unit`, `golden`, `functional`
+  `gui/tests/CMakeLists.txt` (`unit`, `golden`, `functional`
   additions use the same labelling function pattern).
 - The build works with ordinary distribution tools; Nix packaging is added alongside, never
   instead (AGENTS.md §7). Version is injected (`-DDDD_VERSION=`), git lookup is a local
@@ -901,7 +908,7 @@ silently ignored. A test capture is a ramp with no signal in it at all, and a fi
 
 ## Existing-application feature inventory and disposition
 
-Every user-facing feature of [gui/](../gui/), with where it lands. Four dispositions:
+Every user-facing feature of `gui/`, with where it lands. Four dispositions:
 
 - **Phase N** — built by this plan, in that phase.
 - **Superseded** — replaced in this plan by something strictly better; nothing to revisit.

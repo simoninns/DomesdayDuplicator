@@ -256,63 +256,42 @@ Then issue the following command to re-read the USB configuration rules:
 
 ```sudo udevadm control --reload-rules```
 
-# GUI capture application
+# Capture application
 ## Purpose
-The GUI application provides a capture front-end for the user. The application also provides a high-speed multi-threaded USB implementation that allows extremely high-speed data transfer from the FX3 in real-time. In addition, a multi-buffer disk IO implementation deals with writing the large amounts of capture data to disk in a timely manner. The application is also capable of sending vendor-specific USB commands to the Domesday Duplicator in order to control and configure the capture device. 
+The capture application provides a capture front-end for the user. The application also provides a high-speed multi-threaded USB implementation that allows extremely high-speed data transfer from the FX3 in real-time. In addition, a multi-buffer disk IO implementation deals with writing the large amounts of capture data to disk in a timely manner. The application is also capable of sending vendor-specific USB commands to the Domesday Duplicator in order to control and configure the capture device.
 
-![](assets/software/domdup_capture_running.png)
+![](../capture-gui/assets/main-window.png)
 
-_Domesday Duplicator GUI application_
+_The Domesday Duplicator capture application_
 
 ## Development environment
-The application is C++20, built with CMake against Qt 6.2 or later (Core, Gui, Widgets and SerialPort), libusb-1.0 and libFLAC. It builds for Linux, Windows and macOS; Windows uses WinUSB in place of libusb. For instructions on how to build it please see [Building Locally](building-locally.md), which covers all three components, or
-[Building from source](../legacy-gui/building-from-source.md) for the capture application alone.
+The application is C++20, built with CMake against Qt 6.5 or later (Core, Gui, Widgets and SerialPort), libusb-1.0 and libFLAC. It builds for Linux, Windows and macOS; Windows uses WinUSB in place of libusb. For instructions on how to build it please see [Building Locally](building-locally.md), which covers all of the components.
+
+The build runs `clang-format` and `clang-tidy` as gates, so compiling is what enforces the code style. Use the Nix development shell for this even if you build everything else natively — both tools change their check sets between releases, and CI runs them from that shell.
 
 ## Source code modules
 
-!!! note "This section describes the legacy application"
+The application lives in [`ddd-gui/`](https://github.com/simoninns/DomesdayDuplicator/tree/main/ddd-gui). Its defining rule is that the parts which handle sample data link no Qt at all, so they can be unit tested without Qt, libusb or hardware — and if one of them ever grows a Qt dependency, its test binary stops linking.
 
-    The module list below is the tree in [`gui/`](https://github.com/simoninns/DomesdayDuplicator/tree/main/gui), which is the older capture application. The one the [Capture Application](../capture-gui/index.md) pages document, and the one the release packages install, is [`ddd-gui/`](https://github.com/simoninns/DomesdayDuplicator/tree/main/ddd-gui) — a separate tree with a different structure. `gui/` is kept for now because it still reads the legacy `.lds` files that nothing else does; it is expected to be retired.
+| Directory | Contents |
+| --- | --- |
+| `src/capture/` | `ddd::capture` — the engine: the disk buffer ring, sequence validation and metrics, the capture file format, the FLAC writer and reader, the USB back-ends, the test-pattern verifier, and the device update and programming paths. Qt-free, by rule |
+| `src/analysis/` | `ddd::analysis` — the display mathematics behind the waveform, spectrum and amplitude panels. Qt-free, for the same reason |
+| `src/player/` | `ddd::player` — the LaserDisc player protocol, with one header per supported model under `src/player/players/`. Qt-free, and portless |
+| `src/gui/` | `ddd::gui` — the Qt layer, built as a static library, plus `main()` |
+| `src/update-cli/` | `ddd-update` — a `main()` over the engine that links no Qt, deliberately: it stops linking the moment a Qt dependency reaches the update path |
+| `src/jtag-cli/` | `ddd-jtag` — the same, for the JTAG programming path |
+| `src/vendor/` | The only third-party sources here: SHA-256 and Ed25519. Never edited in place — see [`src/vendor/VENDOR.md`](https://github.com/simoninns/DomesdayDuplicator/blob/main/ddd-gui/src/vendor/VENDOR.md) |
 
-The application is split into a Qt front-end in `gui/src/DomesdayDuplicator/` and a Qt-free core in `gui/src/common/`, so the parts that handle sample data can be unit tested without Qt, libusb or hardware.
-
-The Qt front-end modules are as follows:
-
-* aboutdialog - the About window dialogue containing application info, GPL licence terms and credits
-* advancednamingdialog - the advanced naming dialogue window and associated GUI logic
-* amplitudemeasurement - the live RF amplitude plot shown during a capture
-* automaticcapturedialog - the automatic capture dialogue window and associated GUI logic
-* configuration - a class dealing with saving and loading the persistent configuration (used to save preferences)
-* configurationdialog - the preferences dialogue window and associated GUI logic
-* main - the Qt application start-up code
-* mainwindow - the main window and associated GUI logic
-* playercommunication - simple blocking serial communication to the LaserDisc player
-* playercontrol - threaded player communication and automatic capture state-machine logic
-* playerremotedialog - the player remote control dialogue window and associated GUI logic
-* testdataanalysisdialog - the dialogue that reports the results of a test-data analysis
-* ILogger / QtLogger - the logging interface and its Qt implementation
-* StringUtilities - header-only UTF-8 and UTF-16 conversion helpers
-* UsbDeviceBase - the capture pipeline, disk buffering and sample processing, independent of any USB library
-* UsbDeviceLibUsb / UsbDeviceWinUsb - the two USB back-ends, libusb-1.0 and WinUSB
-* qcustomplot - vendored third-party plotting library
-
-The Qt-free core modules are as follows:
-
-* captureformat - the capture output formats and their parameters
-* samplecodec - the 10-bit and 16-bit sample packing and unpacking
-* capturereader - reading captured files back
-* flacwriter - Ogg FLAC capture output
-* testdataanalyser - walks a captured file checking the test-pattern ramp is unbroken; this is the host half of the project's end-to-end capture integrity check, and is a product feature rather than a test
+The full layout, including the test binaries and what each of them is allowed to link, is in [`ddd-gui/README.md`](https://github.com/simoninns/DomesdayDuplicator/blob/main/ddd-gui/README.md).
 
 ## Multi-threaded USB transfer architecture
-The following diagram shows the approximate structure of the multi-threaded architecture used by the GUI application to achieve the required USB and disk bandwidth: 
+The following diagram shows the approximate structure of the multi-threaded architecture used by the capture application to achieve the required USB and disk bandwidth:
 
 ![](assets/software/Transfer-diagram-1_0.png)
 
-_GUI transfer architecture. The queue entries are asynchronous transfers in flight rather than separate threads_
+_The transfer architecture. The queue entries are asynchronous transfers in flight rather than separate threads_
 
-The USB interface is read through a queue of transfers that are all in flight at once, so the device is never left waiting for the host to ask for more data. These are asynchronous transfers rather than a thread each: libusb's asynchronous API on Linux and macOS, and overlapped IO through WinUSB on Windows. Each completion is written into the current disk buffer slot and the request is immediately resubmitted. The queue size and the disk buffer size are both configurable from the preferences dialogue.
+The USB interface is read through a queue of transfers that are all in flight at once, so the device is never left waiting for the host to ask for more data. These are asynchronous transfers rather than a thread each: libusb's asynchronous API on Linux and macOS, and overlapped IO through WinUSB on Windows. Each completion is written into the current disk buffer slot and the request is immediately resubmitted. The transfer queue size and the disk buffer size are both configurable from the Settings dialog.
 
-The disk buffers are much larger than the individual transfers as, for optimal disk write performance, it is more efficient to write larger blocks of data rather than many smaller writes. Once a disk buffer is full it is marked as ready, and a separate processing thread picks it up, checks the sequence numbers for dropped samples, packs the sample data (10-bit, 16-bit or Ogg FLAC) and commits the result to disk.
-
-A capture runs on three worker threads — a capture thread that owns the run, the USB transfer thread and the processing thread — alongside the Qt main thread that drives the interface. Both worker threads request realtime scheduling priority where the platform allows it, and the buffers are locked into physical memory so that a page fault cannot stall the capture.
+The disk buffers are much larger than the individual transfers as, for optimal disk write performance, it is more efficient to write larger blocks of data rather than many smaller writes. Once a disk buffer is full it is marked as ready, and a separate processing thread picks it up, checks the sequence numbers for dropped samples, packs the sample data and commits the result to disk.

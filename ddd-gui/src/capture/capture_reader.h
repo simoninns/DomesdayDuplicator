@@ -30,8 +30,8 @@ namespace ddd::capture {
 //
 // The two formats this application writes, plus the old application's ".raw"
 // spelling of the uncompressed one — see capture_format.h. Neither the packed
-// 10-bit .lds nor the Ogg-encapsulated .ldf is read here; gui/ remains the tool
-// for those.
+// 10-bit .lds nor the Ogg-encapsulated .ldf is read here; both belonged to the
+// capture application this one replaced.
 //
 // A decimated capture reads back as the samples it holds and nothing else. The
 // rate a file was written at is in a FLAC header's label and in no part of an

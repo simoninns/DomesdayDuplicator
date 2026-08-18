@@ -56,7 +56,7 @@ somebody wants to check is almost always the one they have just taken. It shows 
 cancelled; the verdict is coloured so it reads across a bench.
 
 The dialog reads `.ddd.flac` and `.flac`, and uncompressed 16-bit `.ddd.s16` and `.s16` —
-and `.raw`, which is what the old application calls the same layout.
+and `.raw`, which is what the old application called the same layout.
 
 ## The verdicts
 

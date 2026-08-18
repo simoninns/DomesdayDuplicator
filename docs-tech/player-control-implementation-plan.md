@@ -26,7 +26,7 @@
 
 The capture application can drive the Duplicator but not the player. Everything about
 getting a disc spinning, finding the start of a side and stopping at the right place is
-still done by hand, or by keeping the old application ([gui/](../gui/)) open beside the new
+still done by hand, or by keeping the old application (`gui/`) open beside the new
 one. This plan closes that gap, and closes the largest remaining block of **Future** rows
 in the [capture application plan](ddd-gui-implementation-plan.md) — the ledger that plan
 keeps precisely so nothing from the old application is quietly lost.
@@ -63,11 +63,17 @@ asked. Asking the player first turns a form into a report.
 | [AGENTS.md](../AGENTS.md) §2, §5, §6, §8 | Component boundaries, C++ style, naming, testing obligations |
 | [TESTING.md](../TESTING.md) §2, §5, §8 | Tier labels, the hardware-in-the-loop procedure, conventions for new tests |
 | [ddd-gui-implementation-plan.md](ddd-gui-implementation-plan.md) | The architecture this plugs into, and the **Future** ledger this plan discharges |
-| [gui/src/DomesdayDuplicator/playercommunication.cpp](../gui/src/DomesdayDuplicator/playercommunication.cpp) | The Pioneer command sequences, response formats and timeouts that are known to work on real hardware |
-| [gui/src/DomesdayDuplicator/playercontrol.cpp](../gui/src/DomesdayDuplicator/playercontrol.cpp) | The automatic-capture state machine, including the spin-down/spin-up ordering that makes lead-in capture work |
+| `gui/src/DomesdayDuplicator/playercommunication.cpp` (removed — see below) | The Pioneer command sequences, response formats and timeouts that are known to work on real hardware |
+| `gui/src/DomesdayDuplicator/playercontrol.cpp` (removed — see below) | The automatic-capture state machine, including the spin-down/spin-up ordering that makes lead-in capture work |
 | [ddd-gui/src/capture/device_monitor.h](../ddd-gui/src/capture/device_monitor.h) | The polling-rather-than-callback discovery pattern this plan copies for serial ports |
 | [ddd-gui/src/gui/capture_controller.h](../ddd-gui/src/gui/capture_controller.h) | The Qt-bridge shape a `PlayerController` must match |
 | [docs/content/general/laserdisc-player.md](../docs/content/general/laserdisc-player.md), [docs/content/ldv4300d/](../docs/content/ldv4300d/) | What the project already tells users about players |
+
+!!! note
+
+    The `gui/` rows above name the capture application this project used to carry. It was
+    removed from the repository on 2026-08-18, so those paths no longer resolve in a
+    checkout; read them from git history when the original wire behaviour needs checking.
 
 The old application's player code is **the specification for the wire protocol** and is not
 the specification for anything else. Its command strings, response prefixes, timeout
@@ -94,7 +100,7 @@ These are decided, and every task below is subject to them.
   becomes unit-testable against a scripted fake port, on a machine with no player, no
   serial adapter and no display.
 - **Qt owns the port and the thread, in exactly one place.** `QSerialPort` (Qt 6
-  `SerialPort` module, already a dependency of [gui/](../gui/)) implements `ISerialPort`
+  `SerialPort` module) implements `ISerialPort`
   behind the interface, and one worker thread owns the session. Nothing in the GUI thread
   ever waits on a serial read.
 - **Serial is blocking and slow, and the design must say so.** At 1200 baud a status poll
@@ -351,8 +357,8 @@ first commit. Link `ddd_gui_lib` against it. Add `Qt6::SerialPort` to the compon
 `find_package` line and to `ddd_gui_lib` only — `ddd_capture` and `ddd_player` must both
 still link with no Qt at all, which is what the existing `ddd_capture_tests` binary proves
 by continuing to link. Add `qt6.qtserialport` to
-[ddd-gui/package.nix](../ddd-gui/package.nix)'s `buildInputs` (as
-[gui/package.nix](../gui/package.nix) already does) and confirm `nix build .#ddd-gui`.
+[ddd-gui/package.nix](../ddd-gui/package.nix)'s `buildInputs` (as `gui/package.nix`
+already did) and confirm `nix build .#ddd-gui`.
 
 **Acceptance criteria**
 - `cmake -B ddd-gui/build -S ddd-gui && cmake --build ddd-gui/build` succeeds with only
@@ -937,7 +943,7 @@ provenance — *measured*, *reported by the player*, *inferred*, or *unknown*:
 | Disc type (CAV / CLV) | Disc status query, C2 |
 | Addressing (frame / time code) | Follows from disc type |
 | Disc size, disc side | Disc status query, C3 and C4 — the disc's own programme status, so it costs nothing and moves nothing |
-| Length: lead-out frame or time code | Seek to an impossible address, then read the current address — the technique the old application already used to find the disc end. `FR60000SE` for CAV and `FR1595900SE` for CLV, exactly as [playercommunication.cpp](../gui/src/DomesdayDuplicator/playercommunication.cpp)'s `getMaximumFrameNumber()` and `getMaximumTimeCode()` send them |
+| Length: lead-out frame or time code | Seek to an impossible address, then read the current address — the technique the old application already used to find the disc end. `FR60000SE` for CAV and `FR1595900SE` for CLV, exactly as `playercommunication.cpp`'s `getMaximumFrameNumber()` and `getMaximumTimeCode()` send them |
 | Lead-in reachable | Whether the lead-in flag is seen when seeking to the start |
 | Chapters present | Disc status query, C5. A chapter search only where the model does not report the field |
 | Standard and Pioneer user codes | Their queries, always both — **informational only**, see below |

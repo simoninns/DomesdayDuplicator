@@ -25,8 +25,6 @@ It builds the firmware, the programmer, the capture application and the document
 
 The capture application's two quality gates — `clang-format` and `clang-tidy` — run in a separate job, inside `nix develop`. That is deliberate and was learned the hard way: both are version-sensitive, and when CI used a runner's toolchain while developers used the pinned one, the project spent a day on a failure nobody could reproduce locally, because the two disagreed about which checks existed. A gate that can disagree with the shell it enforces reports on the toolchain, not on the code.
 
-The application under `gui/` is **not** built, tested or packaged by any of this. It remains in the repository as a reference until its replacement reaches feature parity; `nix build .#gui` still works, and nothing in CI verifies it.
-
 `nix flake check` deliberately contains no Quartus. A contributor fixing a typo must not need an unfree-enabled Nix configuration and a multi-gigabyte download to find out whether their change is sound.
 
 ### Bitstream workflow

@@ -75,10 +75,6 @@ exempt=(
     "fx3/firmware/tests/descriptor-0123abcd.h"
     "fx3/firmware/tests/descriptor-unknown.h"
 
-    # QCustomPlot, third-party GPLv3, vendored upstream and updated wholesale.
-    "gui/src/DomesdayDuplicator/qcustomplot.cpp"
-    "gui/src/DomesdayDuplicator/qcustomplot.h"
-
     # Vendored cryptography — Monocypher (BSD-2-Clause or CC0-1.0) and Alain Mosnier's
     # SHA-256 (Unlicense or 0BSD). Each file carries its own upstream licence text, and
     # each is copied byte-for-byte from a pinned release; the versions, digests and the
@@ -102,7 +98,7 @@ is_exempt() {
 }
 
 # Only tracked sources are checked. Locally that means asking git, because a working tree
-# usually has a gui/build/ full of moc output and CMake probe files, none of which is ours
+# usually has a ddd-gui/build/ full of moc output and CMake probe files, none of which is ours
 # to header. Inside the Nix sandbox there is no git and no .git — but the flake source only
 # ever contains tracked files, so walking it gives the same set. Hence two ways in and one
 # answer.

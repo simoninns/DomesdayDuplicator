@@ -82,7 +82,7 @@ as **`04b4:4720`**. That is expected and transient.
 
 `1209:2347` is registered to this project with [pid.codes](https://pid.codes/1209/2347/), the
 open-source USB ID allocation service. It is set in `firmware/src/usb-descriptor.c`, and the
-same pair is the capture application's default (`gui/src/DomesdayDuplicator/configuration.cpp`)
+same pair is the capture application's (`ddd-gui/src/capture/wire_protocol.h`)
 and is matched by `programmer/configs/70-domesday-duplicator.rules`. All three must agree.
 Firmware built before the registration used `1d50:603b`, which this project had no allocation
 for; a board still showing that ID needs reprogramming.

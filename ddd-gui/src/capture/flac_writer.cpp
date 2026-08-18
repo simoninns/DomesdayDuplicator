@@ -215,7 +215,7 @@ bool FlacWriter::Open(const std::filesystem::path& file_path,
   }
 
   // init_file, not init_ogg_file. That one call is the whole difference between
-  // this and the .ldf the old application writes.
+  // this and the .ldf the old application wrote.
   const std::string utf8_path = PathToUtf8(file_path);
   const FLAC__StreamEncoderInitStatus init_status =
       FLAC__stream_encoder_init_file(impl_->encoder, utf8_path.c_str(),

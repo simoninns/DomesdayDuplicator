@@ -52,6 +52,6 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="0007", MODE="0666"
 # replaces 1d50:603b, an OpenMoko-range ID this project never held an allocation for — usb.ids
 # lists it as someone else's device. Boards running earlier firmware still enumerate as
 # 1d50:603b and are not matched here; reprogram them.
-# The VID/PID pair is set in fx3/firmware/src/usb-descriptor.c and defaulted in
-# gui/src/DomesdayDuplicator/configuration.cpp; all three must agree.
+# The VID/PID pair is set in fx3/firmware/src/usb-descriptor.c and in
+# ddd-gui/src/capture/wire_protocol.h; all three must agree.
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1209", ATTR{idProduct}=="2347", MODE="0666", TAG+="uaccess", TAG+="ddd_dev"

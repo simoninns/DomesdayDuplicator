@@ -33,7 +33,7 @@ squeeze them into a strip.
 | **Mint marks** | The condition of the disc, in whatever shorthand you already use |
 | **Metadata notes** | A paragraph. Written to the metadata file only, never to a file name |
 
-The same set of fields the [legacy application](../legacy-gui/index.md) collected, so notes
+The same set of fields the capture application this one replaced collected, so notes
 already written against those field names still mean what they meant.
 
 The same fields appear as the first page of an
@@ -157,7 +157,7 @@ to become a lost session.
 
 ## What the metadata file contains
 
-YAML rather than the legacy application's JSON. Both are text and both are parsed by
+YAML rather than the JSON the previous capture application wrote. Both are text and both are parsed by
 everything, so the choice is about the reader who is not a program: a sidecar exists to be
 legible in five years by somebody with a text editor and no tooling, and YAML lets the
 document carry comments explaining its own fields. The structure is deliberately close to

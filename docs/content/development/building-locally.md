@@ -23,7 +23,6 @@ exactly what it needs, pinned by the repository's single `flake.lock`.
 | Shell | Carries |
 | --- | --- |
 | `nix develop .#ddd-gui` | Qt 6, libusb, libFLAC, GoogleTest, CMake, Ninja, clangd, clang-format and clang-tidy |
-| `nix develop .#gui` | the same, for the superseded application still in the tree |
 | `nix develop .#fx3` | `arm-none-eabi-gcc`, CMake, Ninja, libusb, GoogleTest |
 | `nix develop .#fpga` | verible, verilator, iverilog, gtkwave — free tools, no Quartus |
 | `nix develop .#fpga-quartus` | the above plus Quartus Prime Lite (`x86_64-linux` only, several GB) |
@@ -71,17 +70,6 @@ occasionally the reverse.
 One consequence worth knowing: changing `.clang-tidy` does not invalidate object files, so
 an incremental build re-analyses only what you edited. After a config change, build from a
 clean tree before believing a green result.
-
-The superseded application is still in the tree and still builds — `-S gui`, and
-`nix build .#gui` — but nothing in CI builds, tests or packages it.
-
-The binary lands at `build/gui/bin/DomesdayDuplicator`.
-
-Run the tests — the T1 unit and T2 golden tiers:
-
-```bash
-QT_QPA_PLATFORM=offscreen ctest --test-dir build/gui --output-on-failure
-```
 
 `QT_QPA_PLATFORM=offscreen` is only needed where there is no display, such as over SSH; drop
 it to run the application itself.
@@ -324,7 +312,7 @@ what was built. Building from a tarball or inside a sandbox has no `git` to ask,
 is passed in:
 
 ```bash
-cmake -B build/gui -S gui -DDDD_VERSION=af2511a5
+cmake -B build/ddd-gui -S ddd-gui -DDDD_VERSION=af2511a5
 cmake -B build/fx3-firmware -S fx3/firmware -DFIRMWARE_VERSION=af2511a5 ...
 ```
 
