@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="US-ASCII" standalone="yes"?>
+<cof>
+	<eprom_name>EPCS64</eprom_name>
+	<flash_loader_device>EP4CE22</flash_loader_device>
+	<output_filename>DomesdayDuplicator.jic</output_filename>
+	<n_pages>1</n_pages>
+	<width>1</width>
+	<mode>7</mode>
+	<sof_data>
+		<user_name>Page_0</user_name>
+		<page_flags>1</page_flags>
+		<bit0>
+			<sof_filename>DomesdayDuplicator.sof<compress_bitstream>1</compress_bitstream></sof_filename> 
+		</bit0>
+	</sof_data>
+	<version>10</version>
+	<create_cvp_file>0</create_cvp_file>
+	<create_hps_iocsr>0</create_hps_iocsr>
+	<auto_create_rpd>1</auto_create_rpd>
+	<!--
+	    0, deliberately, and this is load-bearing: it makes the .rpd's
+	    bytes the bytes an AS read must deliver. The configuration engine
+	    consumes the stream LSB-first while SPI delivers MSB-first, so the
+	    flash must hold each byte bit-reversed - quartus_pgm performs that
+	    reversal when it programs a .jic, but the update path writes the
+	    .rpd verbatim. With this set to 1 every image the updater wrote was
+	    bit-backwards on the wire: the fabric's own CRC check passed, the
+	    AS engine rejected the header, and the device cycled between the
+	    images for a day of bench time. Confirmed by logic analyser on the
+	    EPCS pins: the page that boots delivers 56 EF EF..., the page the
+	    updater wrote delivered 6A F7 F7... - the same header, reversed.
+	-->
+	<rpd_little_endian>0</rpd_little_endian>
+	<options>
+		<map_file>1</map_file>
+	</options>
+	<advanced_options>
+		<ignore_epcs_id_check>2</ignore_epcs_id_check>
+		<ignore_condone_check>2</ignore_condone_check>
+		<plc_adjustment>0</plc_adjustment>
+		<post_chain_bitstream_pad_bytes>-1</post_chain_bitstream_pad_bytes>
+		<post_device_bitstream_pad_bytes>-1</post_device_bitstream_pad_bytes>
+		<bitslice_pre_padding>1</bitslice_pre_padding>
+	</advanced_options>
+</cof>

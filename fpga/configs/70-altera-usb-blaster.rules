@@ -23,7 +23,7 @@
 # nothing consumes it, and no ACL is applied — while MODE, which udev accumulates across all
 # matching rules and applies at node creation, keeps working. That combination is why the
 # same bug survived for years in this project's FX3 rule as 88-cyusb.rules: the observable
-# behaviour was right for the wrong reason. See defect D23, and the identical note in
+# behaviour was right for the wrong reason. See the identical note in
 # fx3/programmer/configs/70-domesday-duplicator.rules. Anything below 73 is fine.
 #
 # Installed on NixOS by nix/modules/udev.nix when hardware.domesdayDuplicator.enable and

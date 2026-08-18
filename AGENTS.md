@@ -71,10 +71,19 @@ gateware, firmware, host software and documentation.
 | [fpga/](fpga/) | Verilog | Intel Quartus Prime Lite | Cyclone IV `EP4CE22F17C6` on a Terasic DE0-NANO |
 | [fx3/firmware/](fx3/firmware/) | C, bare metal | `arm-none-eabi-gcc` + CMake | Cypress FX3 (ARM926EJ-S) on a **SuperSpeed Explorer Kit CYUSB3KIT-003**, which plugs into the main board's GPIF II headers — see [fx3/README.md](fx3/README.md) |
 | [fx3/programmer/](fx3/programmer/) | C | host compiler + CMake, libusb-1.0 | Developer machine |
-| [gui/](gui/) | C++20 | Qt 6.2+ + CMake | Developer / user machine |
+| [ddd-gui/](ddd-gui/) | C++20 | Qt 6.5+ + CMake | Developer / user machine |
 | [docs/](docs/) | Markdown | MkDocs + Material | GitHub Pages |
 
 Five toolchains, four target architectures. Assume nothing transfers between them.
+
+`ddd-gui/` is the capture application. It is what CI builds, tests, packages and releases — every Flatpak, DMG and MSI carries it,
+under an application ID of its own so that an install of the application it replaced is
+never silently overwritten.
+
+The application it replaced lived under `gui/` and was **removed from the repository on
+2026-08-18**. Its history remains in git and nothing in the tree depends on it: the FX3
+firmware and the FPGA gateware have no backwards-compatibility requirement towards it, so
+design the FX3 ↔ FPGA and USB protocols for `ddd-gui/` alone.
 
 ### 1.2 Repository layout
 
@@ -94,27 +103,45 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 │   ├── checks.nix             # whole-tree checks that belong to no component
 │   └── modules/udev.nix       # NixOS device permissions
 ├── tools/                     # repository-wide scripts, run by hand and by the checks
-│   └── check-licence-headers.sh
-├── .github/workflows/         # deploy-docs.yml — builds the site with Nix
+│   ├── check-licence-headers.sh
+│   ├── make-update-bundle.sh  # assemble and sign a .dddfw device update bundle
+│   ├── dev-bundle.sh          # the developer loop's wrapper around it
+│   ├── fetch-bundled-update.sh  # the packaging jobs' fetch-by-digest of the
+│   │                          # update bundle an installer carries
+│   ├── keys/                  # the development signing keypair — the secret half is
+│   │                          # committed deliberately, see §5.5. release.pub joins it
+│   │                          # when a release key is generated; the secret never does
+│   └── release/               # release policy the tag pins: compatibility.env
+├── .github/workflows/         # build.yml per commit; bitstream.yml for Quartus;
+│                              # release-firmware.yml and release-gui.yml for the two
+│                              # release streams; reproducibility-audit.yml weekly;
+│                              # deploy-docs.yml builds the site with Nix
 ├── docs/
 │   ├── mkdocs.yml             # site config; docs_dir is "content", never "site"
 │   └── content/               # the site's markdown, one directory per nav section
-├── fpga/
+├── fpga/                      # two gateware images in one flash, see fpga/README.md
 │   ├── README.md
-│   ├── src/                   # Quartus project and Verilog
-│   ├── tests/                 # testbenches, lint and simulation runners
+│   ├── application/           # the capture gateware: its Quartus project and Verilog
+│   ├── factory/               # the resident boot loader. Frozen after provisioning —
+│   │                          # read fpga/factory/README.md before touching it
+│   ├── common/                # what both images contain, plus sim/ models of the
+│   │                          # device primitives the free tools cannot simulate
+│   ├── provisioning/          # the conversion that puts both images in one .jic
+│   ├── tests/                 # testbenches, lint, style, simulation and SDC runners
 │   ├── configs/               # USB-Blaster udev rules
 │   ├── verilator-waivers.vlt  # lint waivers, each with its reason
 │   ├── bitstream-provenance.py
-│   ├── build-local.sh         # out-of-tree local build
-│   ├── checks.nix             # fpga-lint, fpga-sim, fpga-provenance
-│   ├── package.nix            # the bitstream — unfree, x86_64-linux, not in CI
+│   ├── make-boot-block.py     # the boot block the factory image reads at power-on
+│   ├── build-local.sh         # out-of-tree local build of both images
+│   ├── checks.nix             # fpga-lint, fpga-sim, fpga-provenance, fpga-boot-block
+│   ├── package.nix            # the bitstreams — unfree, x86_64-linux, own CI workflow
 │   └── quartus-shell.nix      # nix develop .#fpga-quartus
 ├── fx3/
 │   ├── README.md
 │   ├── .clangd                # per-component, see §7
 │   ├── firmware/
 │   │   ├── src/               # firmware C sources
+│   │   │   └── vendor/        # the same pinned SHA-256 ddd-gui vendors, second copy
 │   │   ├── tests/             # descriptor golden test and its reference headers
 │   │   ├── gpif/              # GPIF II Designer project (not built)
 │   │   ├── CMakeLists.txt
@@ -127,13 +154,20 @@ Five toolchains, four target architectures. Assume nothing transfers between the
 │   │   └── src/
 │   └── sdk/                   # vendored Cypress FX3 SDK 1.3.5
 ├── graphics/                  # logos and screenshots used by READMEs
-├── gui/
-│   ├── CMakeLists.txt         # the single build definition
-│   ├── cmake/                 # FindLibUSB.cmake, FindFLAC.cmake
-│   ├── packaging/             # flatpak/, windows/, macos/, assets/ — the installers
-│   └── src/
-│       ├── DomesdayDuplicator/  # the capture application
-│       └── common/              # Qt-free core: sample codec, FLAC writer, reader, analyser
+├── ddd-gui/                   # the capture application (see §1.1)
+│   ├── CMakeLists.txt         # build definition, and the clang-format/clang-tidy gates
+│   ├── .clang-format          # BasedOnStyle: Google
+│   ├── .clang-tidy            # google-*, bugprone-*, warnings as errors
+│   ├── packaging/             # the installers, and bundled-update.env: which
+│   │                          # published update bundle a packaged build carries
+│   ├── src/
+│   │   ├── capture/           # ddd::capture — the engine. Qt-free, by rule
+│   │   ├── vendor/            # the only third-party sources here: SHA-256 and Ed25519
+│   │   ├── gui/               # ddd::gui — Qt layer (static lib) plus main()
+│   │   └── update-cli/        # ddd-update — a main() over the engine, links no Qt
+│   └── tests/
+│       ├── unit/              # T1, engine. Links no Qt — that is the rule's enforcement
+│       └── gui/unit/          # T1, Qt layer, under a QCoreApplication
 └── hardware/
     ├── pcb/                   # KiCad project
     └── doc/
@@ -146,8 +180,8 @@ There are **no git submodules**. A plain `git clone` gives the complete project.
 Each component builds independently, and that must stay true. The monorepo makes it easy to
 violate for the first time.
 
-- **No cross-component source includes.** `gui/` must not `#include` from `fx3/`, and so on.
-- **Shared constants are duplicated deliberately.** The USB VID/PID (`0x1D50`/`0x603B`) and
+- **No cross-component source includes.** `ddd-gui/` must not `#include` from `fx3/`, and so on.
+- **Shared constants are duplicated deliberately.** The USB VID/PID (`0x1209`/`0x2347`) and
   the control-bit assignments appear separately in the gateware, the firmware and the host
   software. This is not accidental duplication to be refactored away — it is a *wire
   protocol*, and the three definitions live in three different languages on three different
@@ -162,8 +196,9 @@ violate for the first time.
 | --- | --- |
 | `fx3/sdk/**` | Vendored Infineon/Cypress SDK. Never reformat, never "fix" warnings, never re-indent. Do not restore `fx3/sdk/util/` — see [fx3/sdk/README.md](fx3/sdk/README.md) |
 | `fx3/firmware/src/domesday-duplicator-gpif.h` | Generated by GPIF II Designer. Regenerate it, do not edit it — [fx3/firmware/gpif/README.md](fx3/firmware/gpif/README.md) |
-| `fpga/src/IPfifo.v`, `fpga/src/IPpllGenerator.v` | Originally MegaWizard output, but **treated as source of truth**. Change `defparam` values deliberately; do not reformat |
-| `gui/src/DomesdayDuplicator/qcustomplot.{cpp,h}` | Vendored third-party library |
+| `fpga/common/IPpllGenerator.v` | Originally MegaWizard output, but **treated as source of truth**. Change `defparam` values deliberately; do not reformat |
+| `ddd-gui/src/vendor/**` | Vendored Monocypher and SHA-256. Copied byte-for-byte from pinned releases; refresh wholesale and update the digests in [ddd-gui/src/vendor/VENDOR.md](ddd-gui/src/vendor/VENDOR.md). The build keeps them out of `-Wall`, clang-format and clang-tidy so there is never a reason to touch them |
+| `fx3/firmware/src/vendor/**` | The firmware's copy of the *same pinned* SHA-256, byte-for-byte identical to the one above. Two copies because §2 forbids cross-component includes; one pin because the device and the host have to compute the same number for the same bytes. Refresh both together — [fx3/firmware/src/vendor/VENDOR.md](fx3/firmware/src/vendor/VENDOR.md) |
 | `hardware/pcb/Gerber/`, `hardware/pcb/PDF/` | Plotted from the KiCad project. Regenerate, do not edit |
 
 The root `.editorconfig` marks these paths as `unset` so a "format on save" cannot quietly
@@ -192,14 +227,18 @@ Unique to this project, and non-negotiable:
 
 ## 5. Coding standards
 
-### 5.1 C++ (`gui/`)
+### 5.1 C++ (`ddd-gui/`)
 
-- C++20. `set(CMAKE_CXX_STANDARD 20)` is already in `gui/CMakeLists.txt`.
-- Follow the style of the file you are editing. The GUI code is Qt-idiomatic: `QString` over
-  `std::string` at API boundaries, signals and slots for cross-object communication.
-- `ILogger.h`, `UsbDeviceBase` with its `UsbDeviceLibUsb`/`UsbDeviceWinUsb` subclasses, and
-  the header-only `StringUtilities` are deliberately abstract shapes. Prefer extending that
-  pattern to adding concrete cross-dependencies.
+- C++20. `set(CMAKE_CXX_STANDARD 20)` is already in `ddd-gui/CMakeLists.txt`.
+- Google style, gate-enforced: the build runs clang-format and clang-tidy against
+  `ddd-gui/.clang-format` and `ddd-gui/.clang-tidy`, with warnings as errors. Let the tools
+  format — do not hand-format against them.
+- **`src/capture/` links no Qt**, by rule, which is what lets the engine be tested without a
+  GUI, libusb or hardware. Qt idiom — `QString` at API boundaries, signals and slots for
+  cross-object communication — belongs on the `src/gui/` side of that boundary.
+- `logger.h` and `usb_device.h`, with their libusb and WinUSB implementations, are
+  deliberately abstract shapes. Prefer extending that pattern to adding concrete
+  cross-dependencies.
 - Do not reformat code you are not otherwise changing. Whitespace-only diffs bury the change.
 
 ### 5.2 C (`fx3/`)
@@ -212,16 +251,52 @@ Unique to this project, and non-negotiable:
 
 ### 5.3 Verilog (`fpga/`)
 
-- Follow the existing style: `lowerCamelCase` signal names, `always @(posedge clock)`.
-- Explicit widths on all literals.
+The style guide is the [lowRISC Verilog Coding Style Guide](https://github.com/lowRISC/style-guides/blob/master/VerilogCodingStyle.md),
+enforced by Verible from config checked in beside the sources. Its four recorded deviations
+are listed in [fpga/README.md](fpga/README.md) § Style.
+
+**Do not hand-format Verilog.** `./fpga/tests/run-format.sh` is the formatter and
+`fpga/.verible-format` is its only configuration.
+
+| Kind | Convention | Example |
+| --- | --- | --- |
+| Nets, variables, ports | `lower_snake_case` | `spi_chip_select_n`, `buffer_overflow` |
+| Active-low signals | trailing `_n` | `reset_n` |
+| `parameter` / `localparam` | `UpperCamelCase` | `BufferSize`, `StateSendPacket` |
+| Testbench constants | `ALL_CAPS` permitted | `RAMP_LENGTH` |
+| Macros / `` `define `` | `ALL_CAPS` | `GATEWARE_COMMIT_TEXT` |
+| Module instances | `lower_snake_case` | `spi_registers_0` |
+| Module and file names | left as they are | `spiRegisters`, `fx3StateMachine` |
+
+- **Top-level ports keep their board names** — `CLOCK_50`, `GPIO0`, `GPIO1`, `LED`. They are
+  the DE0-Nano's own names and each image's `.qsf` binds them across 164 lines of pin
+  assignment; a rename with a typo yields a board that programs and drives the wrong pin.
+  Waived by name, per top level, in `fpga/verible-waivers`. The same file waives the
+  parameter names of the megafunction model in `fpga/common/sim/`, which are Altera's and
+  must stay that way for the model to stand in for the part.
+- Verilog-2001, not SystemVerilog: `reg`/`wire` and `always @(posedge clock)`. The `.qsf`
+  declares every file `VERILOG_FILE` and Quartus Prime Lite's SystemVerilog support is partial.
+- Explicit widths on all literals, and on every `parameter`/`localparam` — a width
+  (`localparam [13:0] BufferSize`) or `integer` for a pure count. This one is **not** machine
+  checked: Verible's `explicit-parameter-storage-type` wants a SystemVerilog storage type and
+  is disabled with its reasoning in `fpga/.rules.verible_lint`. Review is the gate.
+- `begin`/`end` on every `if`/`else` body, however short — without it the formatter collapses
+  short bodies onto one line and the layout starts depending on signal-name length.
+- Licence headers follow §5.4; the canonical Verilog form is in the style plan, §1.3.
 - `./fpga/tests/run-lint.sh` must pass. It runs `verilator --lint-only -Wall`, so new code is
   held to the whole warning set.
+- `./fpga/tests/run-style.sh` must pass. It checks formatting and the style rules.
 - **Do not silence a lint finding without a reason.** `fpga/verilator-waivers.vlt` waives
-  nine pre-existing findings, each with a written justification and each pinned by a
+  each finding with a written justification, and the pre-existing ones are each pinned by a
   testbench. A waiver with no reason is indistinguishable from a bug someone hid.
 - Changing gateware means the bitstream has to be rebuilt *and* re-verified on hardware
   (TESTING.md §5). A change that is claimed to be behaviour-neutral can be shown to be: build
   a `.jic` before and after and compare — it is byte-identical across rebuilds.
+- **A change under `fpga/common/` or `fpga/factory/` is a re-provisioning event.** Both
+  directories are compiled into the resident factory image, which reaches a unit by JTAG
+  and never by an update, so a change to either means every fielded Duplicator carries the
+  old one until somebody opens it up with a cable. `fpga/factory/README.md` is the policy;
+  read it before editing anything it covers.
 
 ### 5.4 Licence headers
 
@@ -262,8 +337,8 @@ the shebang, where there is one):
 Rules that go with it:
 
 - **Name every substantive author**, one `SPDX-FileCopyrightText` line each, oldest first,
-  with the years that author actually worked on the file. `gui/src/DomesdayDuplicator/`'s
-  USB and logging files carry two lines for this reason. A one-line patch — a typo, a missing
+  with the years that author actually worked on the file. `ddd-gui/src/capture/`'s USB
+  files carry two lines for this reason. A one-line patch — a typo, a missing
   `#include` — is not a new copyright line.
 - **Do not add a long-form GPL notice to a new file.** 25 files still carry one; they are
   valid and the check accepts them. Convert one to SPDX when you are already editing it, not
@@ -271,6 +346,23 @@ Rules that go with it:
   stays visible.
 - **Do not touch the header of anything in the exempt list.** A vendor refresh or a tool
   regeneration overwrites it, so the change is lost and the diff is noise.
+
+### 5.5 The committed signing key
+
+`tools/keys/development.key` is a **private key, committed on purpose**, and it must stay
+that way. It is the secret half of the minisign keypair that signs development update
+bundles, and it is public because a development signature is meant to prove format validity
+and nothing else.
+
+> **Do not** delete it, move it, gitignore it, rotate it, or "fix" it by generating a fresh
+> pair. Do not treat a secret-scanning warning about it as a defect. Every development
+> bundle ever produced verifies against `tools/keys/development.pub`, and the tests carry
+> signatures made with this exact key.
+
+The key that matters is the release key, whose secret half is a CI secret and never appears
+in this repository. The two are kept apart by the manifest's `channel` field and by which
+public key a build pins: a release build accepts the release key and nothing else. The full
+model is on the *Update bundle format* documentation page.
 
 ## 6. Naming
 
@@ -281,17 +373,23 @@ Rules that go with it:
 
 ## 7. Development environment
 
-Every component builds with ordinary, distribution-packaged tools. There is also a Nix flake
-— but **Nix is not required**, and no build may be made Nix-only.
+**Nix on Linux is the only supported development and build environment.** Every toolchain
+the project needs is pinned by the single root flake, and CI builds through that same flake,
+so a build that fails under Nix is a real failure rather than an environment quirk.
+
+**Do not add a second development or build environment.** That includes alternative build
+systems, per-distribution dependency lists, and packaging whose purpose is to make a component
+build without Nix; changes doing so will not be accepted. Development on macOS or Windows is
+through a Linux virtual machine.
 
 **Run every one of these from anywhere in the working tree.** Nix walks up to find the root
 flake, so the directory you are in makes no difference; the `.#name` selects the component.
 
 ```bash
 nix develop                  # all free components in one shell
-nix develop .#gui            # or .#fx3, .#fpga, .#hardware, .#docs
+nix develop .#ddd-gui        # or .#fx3, .#fpga, .#hardware, .#docs
 nix develop .#fpga-quartus   # adds Quartus; x86_64-linux only, multi-GB first download
-nix build .#gui .#fx3-firmware .#fx3-programmer .#fx3-mkimage
+nix build .#ddd-gui .#fx3-firmware .#fx3-programmer .#fx3-mkimage
 nix flake check              # build everything and run the T1-T4 tests
 ```
 
@@ -313,9 +411,10 @@ to follow when the component flake is the entry point. The full reasoning is in 
 comment of [flake.nix](flake.nix).
 
 Quartus is unfree, x86_64-linux only and not redistributable, so the bitstream build is
-guarded by system and never runs in CI — but it still comes from the root flake, fed by a
-second import of the *same locked* nixpkgs with `allowUnfree` set. Containing an unfree
-dependency does not require a second lock file. `nix develop .#fpga` gives the *free* tools —
+guarded by system and kept out of `nix flake check` — but it still comes from the root flake,
+fed by a second import of the *same locked* nixpkgs with `allowUnfree` set. Containing an
+unfree dependency does not require a second lock file. It is built by dedicated CI workflows
+rather than by the per-commit tier (§9). `nix develop .#fpga` gives the *free* tools —
 Verilog lint, simulation and a language server — with no Quartus download at all.
 
 NixOS users get device permissions from `nixosModules.udev`:
@@ -344,8 +443,9 @@ Per-editor instructions — VS Code, Neovim, Emacs, Helix, Qt Creator, CLion, KD
 ### 7.2 Common commands
 
 ```bash
-# GUI (Qt 6 + libusb)
-cmake -B gui/build -S gui && cmake --build gui/build
+# Capture application (Qt 6 + libusb). The build runs clang-format and clang-tidy as gates; pass
+# -DDDD_ENABLE_CLANG_FORMAT=OFF -DDDD_ENABLE_CLANG_TIDY=OFF on a machine without them.
+cmake -B ddd-gui/build -S ddd-gui && cmake --build ddd-gui/build
 
 # FX3 firmware (cross-compiled). Add -DFIRMWARE_VERSION=<hash> outside a git checkout.
 cmake -B fx3/firmware/build -S fx3/firmware \
@@ -358,11 +458,18 @@ cmake --build fx3/programmer/build
 
 # FPGA bitstream (needs Quartus Prime Lite: nix develop .#fpga-quartus)
 ./fpga/build-local.sh          # or, hermetically: nix build .#bitstream
+
+# Package what is built locally as a signed development update bundle (needs minisign)
+./tools/dev-bundle.sh
+
+# Install one onto an attached device. Same engine the application's update dialog drives
+./ddd-gui/build/bin/ddd-update --dry-run build/domesday-duplicator-update-0.0.0-dev.dddfw
 ```
 
 Build directories are `build/` under each component and are gitignored. Never build in-tree.
 
-That applies with particular force to `fpga/src/`: `quartus_sh` **rewrites the `.qsf` in
+That applies with particular force to `fpga/application/` and `fpga/factory/`: `quartus_sh`
+**rewrites the `.qsf` in
 place** to record `LAST_QUARTUS_VERSION`, so compiling there dirties a tracked file on every
 build and scatters thirty-odd products beside the sources. `build-local.sh` and
 `nix build .#bitstream` both copy to a build directory first.
@@ -375,20 +482,65 @@ capture-integrity procedure that is the most important test in the project.
 
 ```bash
 nix flake check                    # everything, on a clean machine
-ctest --test-dir gui/build         # one component
+ctest --test-dir ddd-gui/build     # one component
 ```
 
-**What exists today: 78 tests across four components** — 21 in `gui/` (UTF-8 conversion, the
-10-bit/16-bit sample codec), 24 in `fx3/programmer/` (EEPROM paging arithmetic,
-secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and one
-golden test in `fx3/firmware/` (the generated USB product descriptor). `fpga/` adds three
-Verilog testbenches, a `-Wall` lint pass over five modules and a bitstream-digest test, none
-of them under CTest — there is no CMake there. `hardware/` has **no automated coverage yet**;
-`docs/` has a static check only. Across the whole tree, `licence-headers` is a T4 check with
-no component of its own (§5.4). TESTING.md §6 says what is planned and in which phase.
+**What exists today: 1,682 tests across four components** — 1,648 in `ddd-gui/` (the capture engine — sample and wire
+formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
+metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
+against each other, capture naming and provenance, the offline test-data analyser and its
+exit codes, the wait-free monitor tap, the USB transfer-layout arithmetic and
+firmware version check, hot-plug detection, and the pipeline orchestrator driven by a
+synthetic source that can be told to produce specific faults — plus theme resolution, the
+log model, the engine-to-GUI logging bridge, the About text's build provenance, the dock
+panel framework with its layout persistence, and both the monitor-mode and capture-to-disk
+GUI driven end to end against a fake USB backend, with every failure code injected and
+checked for its own specific message — plus the Qt-free display mathematics behind the
+signal panels:
+the board's front-end gain declaration, the scope's sample-to-pixel mapping, the amplitude
+history ring, an FFT checked against a directly evaluated DFT, and the spectrum scaling;
+six of those need a device attached and are labelled `hil` — plus the whole device-update
+path: SHA-256 against the published vectors, the strict manifest parser, the ustar reader
+and writer, signature verification checked against signatures minisign itself produced,
+which signing keys a build accepts and what each one proves, the install-time
+compatibility gate in both directions, the status packet's decoding, `ddd-update`'s exit
+codes, the complete update flow — stage by stage and failure by failure — driven
+against a fake device and, in the widget tests, against a real signed bundle written to
+disk — for the gateware target as well as the firmware, with both halves installed from one
+bundle, each proved to reach the half it was for, and the FPGA told to reload itself only
+when a gateware was actually installed — the recovery path that programs a device with no
+firmware at all: the FX3 boot image parsed and every malformed form of it refused, the
+prelude that hands that image to a device's boot ROM, and the wording a user meets when
+their board has never been programmed; and the second rescue state, a unit whose FPGA came
+up in its factory image, named and repaired by an ordinary update — and the JTAG path that
+reaches a board no update can: the USB-Blaster's wire protocol against a fake byte pipe, and
+the programming file's parser and TAP state machine checked cycle by cycle against a fake
+cable, including against a file Quartus itself emitted; and the bring-up flow that programs
+both halves of a board from nothing, whose ordering is a hardware-safety property and is
+tested as one — the engine refuses the FPGA until the FX3 is done, and the wizard is driven
+page by page against fakes through both its branches, its permission failures, a stopped
+programming run and a power cycle nobody performed),
+24 in `fx3/programmer/` (EEPROM paging arithmetic,
+secondary-loader path resolution, the CLI contract), 32 in `fx3/mkimage/` (boot image construction) and three
+in `fx3/firmware/` (the generated USB product descriptor, the host-testable half of the register map, and the host-testable half of the device update protocol including both media's paging arithmetic, the boot block it writes at the end of a gateware update, and the CRC-32 that block carries). `fpga/` adds nine
+Verilog testbenches — including the factory image's boot decision, driven against a model
+of the EPCS64 — a `-Wall` lint pass over thirteen modules across both images, a
+timing-constraint check per image, a bitstream-digest test and a boot-block encoder test,
+none of them under CTest — there is no CMake there. `hardware/` has **no automated coverage yet**;
+`docs/` has a static check only. Across the whole tree, `licence-headers` and
+`update-bundle` are T4 checks with no component of their own (§5.4, and the *Update bundle
+format* documentation page). TESTING.md §8 says what is planned and in which phase.
 
-`fpga/buffer.v` is deliberately uncovered: it is two Altera `dcfifo` instances, and `dcfifo`
-has no free simulation model. Do not describe the gateware as tested without that caveat.
+Both gateware top levels are deliberately uncovered by simulation: they instantiate
+Altera's `altpll`, which has no free simulation model, so the pin mapping and the clock
+generation are verified on hardware (TESTING.md §5) and nowhere else. Do not describe the
+gateware as tested without that caveat. Everything below the top levels is simulated,
+including the factory image's boot decision — `fpga/common/sim/` holds this project's own
+models of the two device primitives and of the EPCS64, so the boot path is simulated end to
+end against a flash rather than against a stub. What no simulation can cover is the
+handover itself: a simulated device cannot reconfigure, so the testbench checks that the
+right thing was asked for at the right moment and the bench checks that asking for it
+works.
 
 Do not write documentation, comments or PR descriptions implying coverage that does not
 exist. Where a change needs manual verification, state plainly what you did — which component
@@ -396,13 +548,13 @@ you built, on what, and what you observed. "Should work" is not verification.
 
 Two things that look like tests are not:
 
-- `gui/src/common/testdataanalyser.cpp` is a *product feature* that analyses captured
+- `ddd-gui/src/capture/test_data_analysis.cpp` is a *product feature* that analyses captured
   test-pattern data. It is the host half of the §4 integrity oracle, not a test of the code —
   though it does have its own unit tests, because a gate that cannot fail proves nothing.
 - `docs/TESTING.md` is a manual site-preview guide, superseded at the repository root.
 
 When adding logic, put it somewhere it can be tested. The pure parts of this codebase live in
-`gui/src/common/`, `fx3/programmer/src/fx3-paging.h` and
+`ddd-gui/src/capture/`, `fx3/programmer/src/fx3-paging.h` and
 `fx3/programmer/src/fx3-flashprog.c` precisely so they can be exercised without Qt, libusb or
 hardware — extend that pattern rather than adding logic inside an I/O loop.
 
@@ -416,7 +568,8 @@ built from the release commit** — not a rebuild of roughly that source.
 | GUI (Linux x64/ARM64, Windows x64, macOS x64/ARM64) | CI | Every commit |
 | `firmware.img` / `.elf` / `.map` | CI (`nix build .#fx3-firmware`) | Every commit |
 | `fx3-programmer` | CI (`nix build .#fx3-programmer`) | Every commit |
-| FPGA `.sof` / `.jic` | **Local build, attached by hand** | Per release |
+| FPGA `.sof` / `.jic` / `.rpd` | CI (`nix build .#bitstream`, `bitstream.yml`) | Gateware changes, dispatch, and every `fw-v*` tag |
+| `…​.dddfw` update bundle | CI (`release-firmware.yml`), signed with the release key | Every `fw-v*` tag |
 
 Two rules follow from this, and they constrain how you change build files:
 
@@ -425,14 +578,29 @@ Two rules follow from this, and they constrain how you change build files:
    Versions are *injected* — `-DFIRMWARE_VERSION=`, `-DDDD_VERSION=` — with the git lookup as
    a fallback for local developer builds only. The release workflow fails if any artefact
    reports `unknown`.
-2. **Do not remove the native build matrix in favour of Nix.** Nix cannot produce the Windows
-   binary. The two paths coexist deliberately; deleting the native jobs would silently drop a
-   supported platform from every future release.
+2. **Never leave a supported platform without a native build somewhere.** Nix cannot produce
+   the Windows binary or the macOS bundle, so those artefacts have to come from a platform
+   toolchain. Since 2026-08-15 that toolchain runs *only inside the packaging workflows*
+   (`package-windows.yml`, `package-macos.yml`), which build, install and launch what they
+   package — the standalone native build matrix was removed because Nix is the only supported
+   development environment and a build nobody installs proved less than the installer does.
+   The constraint that survives is the coverage, not the jobs: do not reduce the packaging
+   workflows to artefact assembly, because then nothing compiles this application on Windows
+   or macOS at all.
 
-The FPGA is the exception because Quartus is unfree, GB-scale and `redistributable = false`,
-so it can never come from a binary cache and every cold CI run would re-fetch it. It is
-therefore excluded from CI for now, built locally, and attached to releases with a provenance
-record and published digests.
+The FPGA used to be the exception — built locally and attached by hand — and since 2026-08-14
+it is not. Quartus is still unfree, GB-scale and `redistributable = false`, so it is still
+excluded from `nix flake check` and from the per-commit tier: a contributor must never need an
+unfree download to validate a change. It runs in dedicated workflows instead
+(`bitstream.yml`, called from `release-firmware.yml`), with its closure cached privately to
+this repository. Do not re-add it to `nix flake check`, and do not remove it from the release
+path: the two halves of that arrangement are what make "every artefact is CI-built from the
+tag" true without taxing every commit.
+
+The release key follows from the same rule. The bundle's manifest is signed in CI with the
+secret in `UPDATE_SIGNING_KEY`; the public half is committed at `tools/keys/release.pub` and
+compiled into the application, never read from disk at run time. A key an application loads
+at run time is a key an attacker can replace.
 
 A note on reproducibility, since it is easy to get wrong in both directions: Quartus *fitting*
 is deterministic — same source, same seed, same toolchain gives the same placement and
@@ -441,8 +609,9 @@ routing, regardless of the build machine. What is **not** guaranteed is byte-ide
 rebuild will hash-match the released file, and do not assume the design differs just because
 it does not.
 
-Full model: [fpga/README.md](fpga/README.md) → *Reproducibility* and *Why this is not built
-by CI*.
+Full model: [fpga/README.md](fpga/README.md) → *Reproducibility* and *How the bitstream is
+built*, and the *Release pipeline* page of the documentation site for the workflows, key
+custody and the reproducibility audit.
 
 ## 10. Licensing
 
@@ -451,7 +620,7 @@ by CI*.
 | Software | **GNU GPL v3** | [LICENSE](LICENSE) |
 | Hardware | **CC BY-SA 4.0** | [hardware/pcb/LICENSE.txt](hardware/pcb/LICENSE.txt) |
 
-These two were transposed in the README until Phase 2 of the reorganisation — the labels each
+These two were transposed in the README for a long time — the labels each
 pointed at the other one's file. If you find them stated the other way round anywhere, that is
 the old error, not a second opinion.
 
@@ -460,7 +629,10 @@ Third-party components keep their own licences:
 - `fx3/sdk/` — Cypress/Infineon proprietary; see [fx3/sdk/README.md](fx3/sdk/README.md)
 - `fx3/programmer/cyfxflashprog.img` and the code derived from `cyusb_linux` — LGPL-2.1; see
   [fx3/programmer/VENDOR.md](fx3/programmer/VENDOR.md)
-- `gui/src/DomesdayDuplicator/qcustomplot.*` — GPLv3, upstream
+- `ddd-gui/src/vendor/monocypher*` — BSD-2-Clause or CC0-1.0, at your option
+- `ddd-gui/src/vendor/sha-256.*` and `fx3/firmware/src/vendor/sha-256.*` — Unlicense or
+  0BSD, at your option; see [ddd-gui/src/vendor/VENDOR.md](ddd-gui/src/vendor/VENDOR.md)
+  and [fx3/firmware/src/vendor/VENDOR.md](fx3/firmware/src/vendor/VENDOR.md)
 
 Do not add a dependency whose licence is incompatible with GPLv3 without raising it first.
 

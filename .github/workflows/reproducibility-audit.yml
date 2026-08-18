@@ -1,0 +1,318 @@
+# Does the published release still rebuild to the same bytes?
+#
+# The release pipeline's central claim is that every artefact a user installs was built by
+# CI from the tagged commit and can be rebuilt by anyone from the same commit. This job
+# turns that claim into a monitored invariant: on a schedule, it takes the most recent
+# fw-v* release, rebuilds it from scratch, and compares what it got against what was
+# published. A failure here is loud on purpose — it means either the toolchain has drifted,
+# a published asset does not match its source, or the reproducibility this project claims
+# has quietly stopped being true.
+#
+# What is compared, and why each one is the digest it is:
+#
+#   firmware.img          byte for byte. A Nix build of the same commit is the same build.
+#   .jic / .rpd / boot block
+#                         byte for byte. Quartus fitting is deterministic and these files
+#                         carry no timestamp — measured, not assumed (fpga/README.md,
+#                         "Reproducibility").
+#   .sof / .svf           *canonical* digest only, from bitstream-provenance.txt. A .sof
+#                         embeds a compile timestamp and a per-run design hash, and an
+#                         .svf's header names the file it read and when that file was
+#                         written, so their release digests are expected to differ and
+#                         comparing them would produce a failure that means nothing.
+#   the .dddfw bundle     its manifest's payload digests, against the rebuilt payloads.
+#                         The archive itself cannot be compared byte for byte, because
+#                         re-signing it needs the release secret key and this job
+#                         deliberately does not have one. Comparing the digests is the
+#                         stronger check anyway: it asks whether the bundle carries the
+#                         bytes this source produces.
+#
+# It also verifies the published bundle's signature against the public key committed *at
+# that tag*, which is what makes key rotation auditable: an old release keeps verifying
+# against the key that was pinned when it was made.
+#
+# This job never writes to a device and never publishes anything (AGENTS.md §4).
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Reproducibility audit
+
+on:
+  schedule:
+    # Weekly, early Monday UTC. Often enough that drift is found within days of the
+    # nixpkgs or runner-image change that caused it, rarely enough that a cold Quartus
+    # closure fetch is affordable when the cache has been evicted.
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'The fw-v* tag to audit (default: the most recent one)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Choose the release to audit
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pick the tag
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ github.event.inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${REQUESTED}" ]]; then
+            tag="${REQUESTED}"
+          else
+            # From the releases API rather than from `git tag`: a tag that was pushed but
+            # whose release failed to publish has nothing to audit against, and picking it
+            # would report a failure that is really an absence.
+            tag=$(gh release list --limit 50 --json tagName \
+                    --jq '[.[] | select(.tagName | startswith("fw-v"))][0].tagName')
+          fi
+
+          if [[ -z "${tag}" || "${tag}" == "null" ]]; then
+            echo "No fw-v* release to audit yet. This is not a failure." >&2
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Auditing ${tag}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+  # The gateware half of the rebuild, through the same workflow that built it in the first
+  # place. Rebuilding it any other way would audit this workflow's idea of a bitstream
+  # rather than the release pipeline's.
+  bitstream:
+    name: Rebuild the bitstream
+    needs: resolve
+    if: needs.resolve.outputs.tag != ''
+    uses: ./.github/workflows/bitstream.yml
+    with:
+      ref: ${{ needs.resolve.outputs.tag }}
+      artifact_name: bitstream-audit
+      retention_days: 7
+
+  compare:
+    name: Rebuild and compare
+    needs: [resolve, bitstream]
+    if: needs.resolve.outputs.tag != ''
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.tag }}
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Use the Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Rebuild the firmware from the tag
+        run: nix build --print-build-logs .#fx3-firmware --out-link result-firmware
+
+      - name: Fetch the rebuilt bitstream
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bitstream-audit-*
+          path: rebuilt-bitstream
+          merge-multiple: true
+
+      - name: Download the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p published
+          gh release download "${TAG}" --dir published
+          ls -la published
+
+      - name: Compare
+        env:
+          TAG: ${{ needs.resolve.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          failures=0
+          summary=""
+
+          # One place that decides what a comparison prints, so a difference reads the same
+          # wherever it is found: what was compared, what was published, what was rebuilt.
+          compare_digest() {
+            local what="$1" published="$2" rebuilt="$3"
+            # Two absent digests are equal to each other and prove nothing. A renamed
+            # artefact would otherwise sail through this job as a row of ticks, which is
+            # the one failure mode an audit must not have.
+            if [[ -z "${published}" || -z "${rebuilt}" ]]; then
+              echo "MISSING  ${what}: published='${published}' rebuilt='${rebuilt}'" >&2
+              summary+="| ❌ | ${what} | not found on one side |"$'\n'
+              failures=$((failures + 1))
+            elif [[ "${published}" == "${rebuilt}" ]]; then
+              echo "OK       ${what}  ${rebuilt}"
+              summary+="| ✅ | ${what} | \`${rebuilt:0:16}…\` |"$'\n'
+            else
+              echo "DIFFERS  ${what}" >&2
+              echo "  published ${published:-<absent>}" >&2
+              echo "  rebuilt   ${rebuilt:-<absent>}" >&2
+              summary+="| ❌ | ${what} | published \`${published:0:16}…\` rebuilt \`${rebuilt:0:16}…\` |"$'\n'
+              failures=$((failures + 1))
+            fi
+          }
+
+          digest_of() { sha256sum "$1" | cut -d' ' -f1; }
+
+          # The digest a published SHA256SUMS records for one asset.
+          published_digest() {
+            awk -v name="$1" '$2 == name || $2 == "*" name { print $1 }' published/SHA256SUMS | head -1
+          }
+
+          # --- the artefacts that are byte-identical across rebuilds -----------------
+
+          compare_digest "firmware.img" \
+            "$(published_digest firmware.img)" \
+            "$(digest_of result-firmware/firmware.img)"
+
+          compare_digest "DomesdayDuplicatorProvisioning.jic" \
+            "$(published_digest DomesdayDuplicatorProvisioning.jic)" \
+            "$(digest_of rebuilt-bitstream/provisioning/DomesdayDuplicatorProvisioning.jic)"
+
+          compare_digest "DomesdayDuplicator_auto.rpd" \
+            "$(published_digest DomesdayDuplicator_auto.rpd)" \
+            "$(digest_of rebuilt-bitstream/application/DomesdayDuplicator_auto.rpd)"
+
+          compare_digest "boot-block.bin" \
+            "$(published_digest boot-block.bin)" \
+            "$(digest_of rebuilt-bitstream/provisioning/boot-block.bin)"
+
+          # --- the .sof files, on their canonical digests ----------------------------
+          #
+          # Read out of each provenance record rather than recomputed here: the masking
+          # that makes a .sof comparable lives in fpga/bitstream-provenance.py, and a
+          # second implementation of it in this workflow would be a second thing to keep
+          # right.
+          canonical_digest() {
+            awk -v name="$1" '
+              $1 == name { found = 1; next }
+              found && $1 == "canonical" { print $2; exit }
+            ' "$2"
+          }
+
+          # Named by the path the provenance record uses — it lists artefacts relative to
+          # the build directory, so that which image a file belongs to is not something
+          # anyone has to infer from a filename.
+          for image in application/DomesdayDuplicator.sof factory/DomesdayDuplicatorFactory.sof; do
+            compare_digest "${image} (canonical)" \
+              "$(canonical_digest "${image}" published/bitstream-provenance.txt)" \
+              "$(canonical_digest "${image}" rebuilt-bitstream/bitstream-provenance.txt)"
+          done
+
+          # The JTAG vectors, on their canonical digest for the same kind of reason: the
+          # converter's header names the .jic it read and the time that file was last
+          # written, so two conversions of identical content differ in exactly those
+          # characters. The masking lives in bitstream-provenance.py, like the .sof one.
+          # Skipped for releases predating the .svf, which is the honest reading of an
+          # artefact that was not published.
+          if grep -q "factory/DomesdayDuplicatorFactoryConfigure.svf" published/bitstream-provenance.txt; then
+            compare_digest "factory/DomesdayDuplicatorFactoryConfigure.svf (canonical)" \
+              "$(canonical_digest factory/DomesdayDuplicatorFactoryConfigure.svf published/bitstream-provenance.txt)" \
+              "$(canonical_digest factory/DomesdayDuplicatorFactoryConfigure.svf rebuilt-bitstream/bitstream-provenance.txt)"
+          fi
+
+          # --- the signed bundle ------------------------------------------------------
+          #
+          # One file, four payloads. The first two are what a working device installs over
+          # USB; the other two are what a board with no working gateware is brought up
+          # with, and they are audited here for the same reason — a release that quietly
+          # lost them would still update a working device.
+
+          manifest_digest() {
+            python3 -c "import json,sys;m=json.load(open(sys.argv[1]));c=m['components'].get(sys.argv[2]);print(c['sha256'] if c else '')" \
+              "$1" "$2"
+          }
+
+          # Extracts one bundle and verifies its signature, leaving the manifest at
+          # ${work}/manifest.json. Against the key committed at this tag, not the key at
+          # HEAD: that is what makes rotation auditable rather than something that quietly
+          # invalidates the archive of older releases.
+          open_bundle() {
+            local bundle="$1"
+            work=$(mktemp -d)
+            tar --extract --file "${bundle}" --directory "${work}"
+
+            nix shell --inputs-from . nixpkgs#minisign --command \
+              minisign -Vm "${work}/manifest.json" -p tools/keys/release.pub \
+                       -x "${work}/manifest.minisig" \
+              || { echo "${bundle} does not verify against the key pinned at ${TAG}" >&2
+                   failures=$((failures + 1)); }
+          }
+
+          bundle=$(ls published/domesday-duplicator-update-*.dddfw 2>/dev/null | head -1 || true)
+          if [[ -z "${bundle}" ]]; then
+            echo "The release has no update bundle" >&2
+            failures=$((failures + 1))
+          else
+            open_bundle "${bundle}"
+
+            compare_digest "bundle: firmware payload" \
+              "$(manifest_digest "${work}/manifest.json" firmware)" \
+              "$(digest_of result-firmware/firmware.img)"
+
+            compare_digest "bundle: gateware payload" \
+              "$(manifest_digest "${work}/manifest.json" gateware)" \
+              "$(digest_of rebuilt-bitstream/application/DomesdayDuplicator_auto.rpd)"
+
+            # The factory image, on the same terms as the application image beside it.
+            factory=$(manifest_digest "${work}/manifest.json" gateware-factory)
+            if [[ -n "${factory}" ]]; then
+              compare_digest "bundle: factory image payload" "${factory}" \
+                "$(digest_of rebuilt-bitstream/factory/DomesdayDuplicatorFactory_auto.rpd)"
+            fi
+
+            # And the vectors, against the published .svf rather than a rebuilt one, and
+            # deliberately: the SVF's header names the .sof it read and when that file was
+            # written, so two conversions of identical vectors differ in those characters.
+            # What this asks is whether the bundle carries the vectors this release
+            # published; whether those vectors are themselves reproducible is the canonical
+            # comparison above.
+            #
+            # Both are absent from releases that predate the bring-up payloads, and that is
+            # not a failure: those releases are audited as they were.
+            vectors=$(manifest_digest "${work}/manifest.json" gateware-provisioning-svf)
+            if [[ -n "${vectors}" ]]; then
+              compare_digest "bundle: vectors match the published .svf" "${vectors}" \
+                "$(digest_of published/DomesdayDuplicatorFactoryConfigure.svf)"
+            fi
+          fi
+
+          {
+            echo "## Reproducibility audit — ${TAG}"
+            echo
+            echo "| | Artefact | Digest |"
+            echo "| --- | --- | --- |"
+            printf '%s' "${summary}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "${failures}" -ne 0 ]]; then
+            echo
+            echo "${failures} artefact(s) did not reproduce. Either the published release" >&2
+            echo "does not match its source, or something in the toolchain has drifted." >&2
+            echo "fpga/README.md 'Reproducibility' says what is expected to be stable." >&2
+            exit 1
+          fi
+
+          echo "Every audited artefact reproduced from ${TAG}."

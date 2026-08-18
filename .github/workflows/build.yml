@@ -1,14 +1,17 @@
-# The build that runs on every commit (P7-1 … P7-7).
+# The build that runs on every commit.
 #
 # Replaces the three per-submodule workflows that came in with the monorepo, one of which
-# had never worked because it pointed at a directory that did not exist (D1). Those files
-# lived at fx3/.github and gui/.github, where GitHub does not look for them; they are
+# had never worked because it pointed at a directory that did not exist. Those files
+# lived at fx3/.github and ddd-gui/.github, where GitHub does not look for them; they are
 # deleted rather than left as decoration.
 #
-# Two build paths for the GUI, deliberately (P7-2): Nix for reproducibility on Linux, and
-# the native toolchains because Nix cannot produce a Windows binary and because the
-# packaging jobs need the platform toolchain anyway. The firmware has one, because nothing
-# needs it built any other way.
+# One build path per component, because Nix is the only supported development environment
+# (maintainer, 2026-08-15). The capture application is built and tested by its Nix package;
+# its two quality gates run in the development shell, so CI analyses with the same pinned
+# clang-tools a developer has. The native toolchains survive only inside the packaging
+# workflows, where they are unavoidable — Nix cannot produce an MSI or a DMG — and those
+# jobs build, install and launch what they package, which is the platform coverage the
+# deleted native jobs used to provide.
 #
 # **Every push builds and packages everything**, on every branch (maintainer, 2026-08-13).
 # An earlier revision path-filtered branch builds so that a docs-only change skipped the
@@ -23,6 +26,12 @@
 # Tags are deliberately absent from the triggers below: release-gui.yml and
 # release-firmware.yml handle those, and they call the same reusable packaging workflows.
 # Listing tags here as well would build every installer twice for each release.
+#
+# The FPGA bitstream is absent for a different reason: it needs Quartus, which is unfree and
+# GB-scale, so it is built by bitstream.yml on gateware changes rather than on every push.
+# What runs here for the gateware is the free-tool tier — lint, style, simulation,
+# constraints, version and provenance — and that is deliberate: a contributor must never
+# need an unfree download to find out whether their change is sound.
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -47,7 +56,9 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      gui: ${{ steps.decide.outputs.gui }}
+      # No dash in the name: GitHub expression syntax would read `outputs.ddd-gui` as a
+      # subtraction.
+      dddgui: ${{ steps.decide.outputs.dddgui }}
       fx3: ${{ steps.decide.outputs.fx3 }}
       fpga: ${{ steps.decide.outputs.fpga }}
       docs: ${{ steps.decide.outputs.docs }}
@@ -63,10 +74,11 @@ jobs:
               - flake.nix
               - flake.lock
               - nix/**
+              - tools/**
               - .github/workflows/**
-            gui:
+            dddgui:
               - *shared
-              - gui/**
+              - ddd-gui/**
             fx3:
               - *shared
               - fx3/**
@@ -88,7 +100,7 @@ jobs:
           if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
             echo "Pull request: building only what changed"
             {
-              echo "gui=${{ steps.filter.outputs.gui }}"
+              echo "dddgui=${{ steps.filter.outputs.dddgui }}"
               echo "fx3=${{ steps.filter.outputs.fx3 }}"
               echo "fpga=${{ steps.filter.outputs.fpga }}"
               echo "docs=${{ steps.filter.outputs.docs }}"
@@ -96,7 +108,7 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           else
             echo "Building everything for ${GITHUB_REF} (${GITHUB_EVENT_NAME})"
-            for component in gui fx3 fpga docs; do
+            for component in dddgui fx3 fpga docs; do
               echo "${component}=true" >> "$GITHUB_OUTPUT"
             done
             echo "everything=true" >> "$GITHUB_OUTPUT"
@@ -108,8 +120,8 @@ jobs:
   # on the refs where completeness is the point.
   #
   # Each package's own checkPhase runs its ctest suite, so building a component is also
-  # testing it (T1-T4). The gateware has no package CI can build, so its lint and
-  # simulation checks are named explicitly.
+  # testing it (T1-T4). The gateware has no package CI can build, so its lint, style,
+  # simulation, provenance and version checks are named explicitly.
   nix:
     name: Nix — ${{ matrix.component }}
     needs: changes
@@ -118,15 +130,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - component: gui
-            enabled: gui
-            attrs: .#gui
+          - component: ddd-gui
+            enabled: dddgui
+            attrs: .#ddd-gui
           - component: fx3
             enabled: fx3
             attrs: .#fx3-firmware .#fx3-programmer
           - component: fpga
             enabled: fpga
-            attrs: .#checks.x86_64-linux.fpga-lint .#checks.x86_64-linux.fpga-sim .#checks.x86_64-linux.fpga-provenance
+            # Every gateware check, named individually — there is no fpga package for the
+            # matrix to build, so anything absent from this line is not covered on a
+            # path-filtered pull request. Keep it in step with the `fpga-*` attributes in
+            # flake.nix.
+            attrs: .#checks.x86_64-linux.fpga-lint .#checks.x86_64-linux.fpga-style .#checks.x86_64-linux.fpga-sim .#checks.x86_64-linux.fpga-provenance .#checks.x86_64-linux.fpga-version
           - component: docs
             enabled: docs
             attrs: .#docs-site
@@ -166,16 +182,63 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           # The short SHA in the name is what makes a build from any commit fetchable
-          # without re-running CI (P7-7). This is not the release archive — GitHub expires
+          # without re-running CI. This is not the release archive — GitHub expires
           # these, which is why releases attach their own copies.
           name: fx3-artifacts-${{ github.sha }}
           path: artifacts/
           retention-days: 30
           if-no-files-found: error
 
+  # The update bundle, assembled on every commit that touches the firmware or the tooling.
+  #
+  # Two things happen here and they are not the same thing. The check proves the packaging
+  # works — entry order, signature, digests, byte-for-byte reproducibility — against a
+  # synthetic payload and with stock tar, minisign and sha256sum. The step after it then
+  # packages *this commit's real firmware* into a development bundle and uploads it, so
+  # every commit has an artefact somebody can take to bench hardware and install with the
+  # same code path a release uses.
+  #
+  # It is signed with the committed development key, which proves the bundle is well
+  # formed and proves nothing at all about where it came from. That is the whole point of
+  # the channel being in the manifest: a release build of the application refuses it.
+  # Nothing here writes to a device (AGENTS.md §4) — CI assembles a file, and installing
+  # it stays a deliberate human act.
+  update-bundle:
+    name: Update bundle
+    needs: changes
+    if: needs.changes.outputs.fx3 == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check the bundle tooling
+        run: nix build --print-build-logs .#checks.x86_64-linux.update-bundle
+
+      - name: Assemble a development bundle from this commit's firmware
+        run: |
+          set -euo pipefail
+          nix build .#fx3-firmware --out-link result-firmware
+
+          # --inputs-from . takes minisign from this flake's locked nixpkgs rather than
+          # from whatever the registry points at today, so the tool that signs in CI is
+          # pinned like everything else.
+          nix shell --inputs-from . nixpkgs#minisign --command \
+            ./tools/dev-bundle.sh \
+              --output "artifacts/domesday-duplicator-update-${GITHUB_SHA:0:8}-dev.dddfw"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-bundle-${{ github.sha }}
+          path: artifacts/
+          retention-days: 30
+          if-no-files-found: error
+
   # The whole-tree check, on the refs where a complete result matters rather than on every
   # push to every branch. It excludes `bitstream`: Quartus is unfree, GB-scale and
-  # x86_64-linux only, so it is built locally and attached by hand instead (P7-4).
+  # x86_64-linux only, so it is built by bitstream.yml instead.
   nix-flake-check:
     name: nix flake check
     needs: changes
@@ -187,109 +250,36 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: nix flake check --print-build-logs
 
-  gui-native:
-    name: GUI (${{ matrix.name }})
+  # The two quality gates, run in the development shell so that CI and a developer's
+  # machine are analysing with the *same* clang-format and clang-tidy. That is not a
+  # convenience: these gates are version-sensitive, and this project has already spent a
+  # day on a CI failure no developer could reproduce because the runner's clang-tidy knew
+  # a check the pinned one did not. A gate that can disagree with the shell it is meant to
+  # enforce is a gate that reports on the toolchain rather than on the code.
+  #
+  # It compiles the tests as well as the application, because clang-tidy only sees what is
+  # compiled and the last three findings were all in test code. It runs no tests: the Nix
+  # build above already runs the suite against the same commit.
+  quality-gates:
+    name: Quality gates
     needs: changes
-    if: needs.changes.outputs.gui == 'true'
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: linux-x64
-            runner: ubuntu-latest
-          - name: macos-arm64
-            runner: macos-latest
-          - name: windows-x64
-            runner: windows-latest
+    runs-on: ubuntu-latest
+    if: needs.changes.outputs.dddgui == 'true'
 
     steps:
       - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
+      # Both gates are attached to the build: clang-format as its own target, clang-tidy
+      # through CXX_CLANG_TIDY, so compiling is what runs them.
+      - name: clang-format and clang-tidy
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake ninja-build pkg-config libgl-dev \
-            qt6-base-dev libqt6serialport6-dev qt6-tools-dev \
-            libusb-1.0-0-dev libflac-dev libogg-dev libgtest-dev
-
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: brew install cmake ninja pkg-config qt@6 libusb flac googletest
-
-      - name: Set up MSYS2 (Windows)
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-toolchain
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-pkgconf
-            mingw-w64-ucrt-x86_64-qt6-base
-            mingw-w64-ucrt-x86_64-qt6-serialport
-            mingw-w64-ucrt-x86_64-qt6-tools
-            mingw-w64-ucrt-x86_64-libusb
-            mingw-w64-ucrt-x86_64-flac
-            mingw-w64-ucrt-x86_64-libogg
-            mingw-w64-ucrt-x86_64-gtest
-
-      - name: Configure and build (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          if [[ "${RUNNER_OS}" == "macOS" ]]; then
-            export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
-          fi
-          cmake -B build -S gui -G Ninja \
+          nix develop -c cmake -B build -S ddd-gui -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
             -DDDD_VERSION="${GITHUB_SHA:0:8}"
-          cmake --build build
-
-      - name: Configure and build (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: |
-          cmake -B build -S gui -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_TESTING=ON \
-            -DDDD_VERSION="${GITHUB_SHA:0:8}"
-          cmake --build build
-
-      # T1 and T2 on every platform. T5 never runs here: it needs a physical device, and a
-      # test that "passes" because no hardware was attached is worse than no test (P7-6).
-      - name: Test (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          export QT_QPA_PLATFORM=offscreen
-          ctest --test-dir build --output-on-failure --label-exclude 'hil'
-
-      - name: Test (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: ctest --test-dir build --output-on-failure --label-exclude 'hil'
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          # Build artefacts, not release assets: the installers built by the packaging
-          # workflows are what a release ships (P7-2).
-          name: gui-${{ matrix.name }}-${{ github.sha }}
-          # One pattern per platform layout, and only one of them matches on any given
-          # runner. The macOS entry is a directory because the target is MACOSX_BUNDLE, so
-          # CMake writes an .app there rather than a bare executable.
-          path: |
-            build/bin/DomesdayDuplicator
-            build/bin/DomesdayDuplicator.exe
-            build/bin/DomesdayDuplicator.app/**
-          retention-days: 30
-          if-no-files-found: error
+          nix develop -c cmake --build build
 
   # The installers are built on every push, on every branch, and each packaging workflow
   # installs what it built and runs it. That is the end-to-end validation: a Flatpak, a DMG
@@ -300,18 +290,18 @@ jobs:
   # already built them.
   package-flatpak:
     name: Package
-    needs: [changes, gui-native]
-    if: github.event_name != 'pull_request' && needs.changes.outputs.gui == 'true'
+    needs: [changes, quality-gates]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.dddgui == 'true'
     uses: ./.github/workflows/package-flatpak.yml
 
   package-macos:
     name: Package
-    needs: [changes, gui-native]
-    if: github.event_name != 'pull_request' && needs.changes.outputs.gui == 'true'
+    needs: [changes, quality-gates]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.dddgui == 'true'
     uses: ./.github/workflows/package-macos.yml
 
   package-windows:
     name: Package
-    needs: [changes, gui-native]
-    if: github.event_name != 'pull_request' && needs.changes.outputs.gui == 'true'
+    needs: [changes, quality-gates]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.dddgui == 'true'
     uses: ./.github/workflows/package-windows.yml

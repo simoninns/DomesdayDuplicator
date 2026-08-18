@@ -55,6 +55,7 @@ void CyFxApplicationDefine(void);
 void domDupInitialiseApplication(void);
 void domDupStartApplication(void);
 void domDupStopApplication(void);
+void domDupClearInputFlags(void);
 void domDupErrorHandler(CyU3PReturnStatus_t apiReturnStatus);
 void domDupDebugInit(void);
 

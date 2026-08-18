@@ -1,0 +1,58 @@
+# Style-lint waivers for the hand-written gateware.
+#
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Consumed as `verible-verilog-lint --waiver_files=...` by tests/run-style.sh.
+#
+# This file is for findings that are correct about the code but wrong about what the
+# code should be. A rule that is wrong *everywhere* belongs in .rules.verible_lint
+# instead, disabled once with its reason; this file is for the narrow exceptions.
+#
+# Two rules for editing it, the same two verilator-waivers.vlt sets:
+#
+#   1. Every waiver carries its reason. A waiver with no reason is indistinguishable
+#      from a bug someone hid.
+#   2. Every waiver is scoped as narrowly as the syntax allows. --regex matches the
+#      text of the offending line, so it can name the exact identifiers being excused;
+#      a bare --location would waive the whole rule for the whole file and hide the
+#      next occurrence in code nobody has looked at.
+
+# ---------------------------------------------------------------------------
+# The DE0-Nano board's own port names
+# ---------------------------------------------------------------------------
+#
+# CLOCK_50, GPIO0, GPIO1 and LED are the only signals in the design that are not
+# free to be renamed. DomesdayDuplicator.qsf binds them by name across 164 lines of
+# pin-location and I/O-standard assignment, and the .SDC creates the 50 MHz clock
+# with `[get_ports CLOCK_50]`. Renaming them means editing every one of those lines
+# in step, and a single typo yields a board that programs successfully and drives the
+# wrong pin — a failure that looks like broken hardware, not like a typo.
+#
+# They are also not this project's names to choose: they are Terasic's, printed in
+# the DE0-Nano documentation that anyone wiring the board reads alongside this
+# source.
+#
+# Scoped to the four names and to the top level, so a new ALL_CAPS signal anywhere —
+# including a new port on this same module — is still reported.
+waive --rule=signal-name-style --regex="\b(CLOCK_50|GPIO0|GPIO1|LED)\b" --location=".*DomesdayDuplicator\.v"
+waive --rule=signal-name-style --regex="\b(CLOCK_50|GPIO0|GPIO1|LED)\b" --location=".*DomesdayDuplicatorFactory\.v"
+
+# ---------------------------------------------------------------------------
+# The megafunction's own parameter names
+# ---------------------------------------------------------------------------
+#
+# common/sim/altremote_update.v is a model of an Altera megafunction, and its
+# parameter list is that megafunction's: operation_mode, in_data_width,
+# config_device_addr_width and the rest are lower case because Altera named them
+# that way, and Quartus resolves them by name when the real one is instantiated.
+#
+# Renaming them to this project's UpperCamelCase would make the model disagree
+# with the part it stands in for, which is the one thing a model may never do —
+# a design that simulated against it would fail to synthesise, and the failure
+# would name a parameter that exists in neither file.
+#
+# Scoped to that one file. A parameter anywhere else, including elsewhere in
+# common/sim, is still held to the convention.
+waive --rule=parameter-name-style --location=".*sim/altremote_update\.v"

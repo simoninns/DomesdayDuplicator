@@ -15,14 +15,14 @@ There are no submodules — a plain clone gives you the whole project.
 
 ## Getting a toolchain
 
-Two routes, and both are supported.
-
-**With Nix**, nothing needs installing: each component has a development shell carrying
-exactly what it needs, pinned by the repository's single `flake.lock`.
+**Nix on Linux is the only supported development and build environment**, and nothing needs
+installing to use it: each component has a development shell carrying exactly what it needs,
+pinned by the repository's single `flake.lock`. If you develop on macOS or Windows, use a
+Linux virtual machine.
 
 | Shell | Carries |
 | --- | --- |
-| `nix develop .#gui` | Qt 6, libusb, libFLAC, GoogleTest, CMake, Ninja, clangd |
+| `nix develop .#ddd-gui` | Qt 6, libusb, libFLAC, GoogleTest, CMake, Ninja, clangd, clang-format and clang-tidy |
 | `nix develop .#fx3` | `arm-none-eabi-gcc`, CMake, Ninja, libusb, GoogleTest |
 | `nix develop .#fpga` | verible, verilator, iverilog, gtkwave — free tools, no Quartus |
 | `nix develop .#fpga-quartus` | the above plus Quartus Prime Lite (`x86_64-linux` only, several GB) |
@@ -32,16 +32,13 @@ These work from any directory in the tree; Nix walks up to find the flake at the
 `nix develop` gives the all-components shell rather than the one for the directory you happen
 to be standing in.
 
-**Without Nix**, install the dependencies yourself — each section below lists them. Nix is a
-convenience here, never a requirement.
-
 ## Why out of tree
 
 Two of the three components have a specific reason beyond tidiness:
 
 - **Quartus rewrites the project file it is given.** `quartus_sh` records
-  `LAST_QUARTUS_VERSION` in the `.qsf` as it compiles, so building in `fpga/src` dirties a
-  tracked file every single time — and then scatters thirty-odd build products among the
+  `LAST_QUARTUS_VERSION` in the `.qsf` as it compiles, so building in `fpga/application` or
+  `fpga/factory` dirties a tracked file every single time — and then scatters thirty-odd build products among the
   Verilog sources.
 - **The FX3 build is a cross build.** Its CMake cache holds an ARM toolchain, and reusing a
   directory that once configured a host build produces confusing failures rather than clear
@@ -54,71 +51,30 @@ The GUI has no such trap, but the same habit applies for consistency.
 ## The capture application
 
 ```bash
-nix develop .#gui          # or install the dependencies below
+nix develop .#ddd-gui
 
-cmake -B build/gui -S gui -G Ninja
-cmake --build build/gui
+cmake -B build/ddd-gui -S ddd-gui -G Ninja
+cmake --build build/ddd-gui
 ```
 
-The binary lands at `build/gui/bin/DomesdayDuplicator`.
+Building it also runs its two quality gates: `clang-format` as a build target and
+`clang-tidy` through `CXX_CLANG_TIDY`, so compiling is what runs them. Both tools change their
+check sets between releases, and CI runs them from this shell — a clang-tidy of a different
+version will disagree with CI in both directions, passing what CI fails and occasionally the
+reverse, which is why the shell is pinned rather than assumed.
 
-Run the tests — the T1 unit and T2 golden tiers:
-
-```bash
-QT_QPA_PLATFORM=offscreen ctest --test-dir build/gui --output-on-failure
-```
+One consequence worth knowing: changing `.clang-tidy` does not invalidate object files, so
+an incremental build re-analyses only what you edited. After a config change, build from a
+clean tree before believing a green result.
 
 `QT_QPA_PLATFORM=offscreen` is only needed where there is no display, such as over SSH; drop
 it to run the application itself.
 
-### Dependencies without Nix
-
-**Ubuntu and Debian**
-
-```bash
-sudo apt install --no-install-recommends \
-  build-essential cmake ninja-build pkg-config libgl-dev \
-  qt6-base-dev libqt6serialport6-dev qt6-tools-dev \
-  libusb-1.0-0-dev libflac-dev libogg-dev libgtest-dev
-```
-
-**Fedora**
-
-```bash
-sudo dnf install gcc-c++ cmake ninja-build pkgconf \
-  qt6-qtbase-devel qt6-qtserialport-devel \
-  libusb1-devel flac-devel libogg-devel gtest-devel
-```
-
-**macOS**
-
-```bash
-brew install cmake ninja pkg-config qt@6 libusb flac googletest
-export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
-```
-
-**Windows (MSYS2 UCRT64)**
-
-```bash
-pacman -S --needed \
-  mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake \
-  mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf \
-  mingw-w64-ucrt-x86_64-qt6-base mingw-w64-ucrt-x86_64-qt6-serialport \
-  mingw-w64-ucrt-x86_64-qt6-tools mingw-w64-ucrt-x86_64-libusb \
-  mingw-w64-ucrt-x86_64-flac mingw-w64-ucrt-x86_64-libogg \
-  mingw-w64-ucrt-x86_64-gtest
-```
-
-libFLAC is not optional: FLAC (`.ldf`) is the capture format, so a build without it would
-produce an application that cannot do the thing it exists for. Note that `flac.pc` declares
-`Requires: ogg`, so libogg's development package must be present too — several
-distributions do not pull it in automatically.
-
 ### As a Nix package
 
 ```bash
-nix build .#gui
-./result/bin/DomesdayDuplicator --version
+nix build .#ddd-gui
+./result/bin/ddd-gui --version
 ```
 
 This builds hermetically, runs the test suite as part of the build, and checks the installed
@@ -136,7 +92,7 @@ A cross build for the ARM926EJ-S core in the FX3, so it needs a toolchain file. 
 directory.
 
 ```bash
-nix develop .#fx3          # or install arm-none-eabi-gcc yourself
+nix develop .#fx3
 
 cmake -B build/fx3-firmware -S fx3/firmware -G Ninja \
       -DCMAKE_TOOLCHAIN_FILE="$PWD/fx3/firmware/arm-none-eabi-toolchain.cmake"
@@ -173,9 +129,6 @@ cmake --build build/fx3-programmer
 ctest --test-dir build/fx3-programmer --output-on-failure
 ```
 
-`fx3-programmer` needs libusb (`libusb-1.0-0-dev` on Debian, `libusb1-devel` on Fedora,
-`brew install libusb` on macOS).
-
 ### Loading it onto a device
 
 ```bash
@@ -188,7 +141,7 @@ Reaching the device needs udev rules — see
 jumper has to be set correctly. [FX3 firmware](hardware-programming/fx3-firmware.md) covers
 the jumper, RAM versus EEPROM programming and what each mode looks like on the host.
 
-### With Nix
+### As Nix packages
 
 ```bash
 nix build .#fx3-firmware      # result/ holds firmware.img, .elf and .map
@@ -201,20 +154,28 @@ nix build .#fx3-programmer
 
 Everything except producing a bitstream is free software and needs no Quartus.
 
-### Lint and simulation
+### Lint, simulation and constraints
 
 ```bash
 nix develop .#fpga
 
 ./fpga/tests/run-lint.sh      # T4: verilator --lint-only over the hand-written modules
 ./fpga/tests/run-sim.sh       # T3: the module testbenches, under Icarus Verilog
+./fpga/tests/run-style.sh     # T4: formatting and style, via verible
+./fpga/tests/run-sdc.sh       # T4: the timing constraints parse and cover every pin
+./fpga/tests/run-version.sh   # T2: the commit-to-register version stamp generator
 ```
 
-Both already work out of tree — they build in a temporary directory and leave nothing behind.
-They are the same checks CI runs, as `nix flake check`'s `fpga-lint` and `fpga-sim`, so a
-clean run locally means a clean run there.
+They all work out of tree — they build in a temporary directory and leave nothing behind.
+They are the same checks CI runs, as `nix flake check`'s `fpga-lint`, `fpga-sim`,
+`fpga-style`, `fpga-sdc` and `fpga-version`, so a clean run locally means a clean run there.
 
-Without Nix you need `verilator` and `iverilog` from your distribution.
+`run-sdc.sh` is worth knowing about, because the timing constraints are the one gateware
+source file only Quartus consumes, and Quartus never runs in CI. It checks the two things
+that can be checked for free: that the file is valid Tcl, and that it names every pin the
+top level maps — a constraint covering fifteen of sixteen databus pins leaves the sixteenth
+unanalysed, and nothing else in the tree would notice. Whether the numbers in it are right,
+and whether the design meets them, still needs a Quartus run.
 
 ### Building the bitstream
 
@@ -298,7 +259,7 @@ what was built. Building from a tarball or inside a sandbox has no `git` to ask,
 is passed in:
 
 ```bash
-cmake -B build/gui -S gui -DDDD_VERSION=af2511a5
+cmake -B build/ddd-gui -S ddd-gui -DDDD_VERSION=af2511a5
 cmake -B build/fx3-firmware -S fx3/firmware -DFIRMWARE_VERSION=af2511a5 ...
 ```
 

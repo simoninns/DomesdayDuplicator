@@ -24,6 +24,8 @@
 // Local includes
 #include "domesday-duplicator.h"
 #include "domesday-duplicator-gpif.h"
+#include "fpga-registers.h"
+#include "update-agent.h"
 
 // Global definitions
 CyU3PThread glAppThread; // Application thread structure
@@ -31,6 +33,11 @@ CyU3PDmaMultiChannel glDmaMultiChHandle; // DMA multi-channel handle
 
 CyBool_t glIsApplnActive = CyFalse; // Application active/ready flag
 CyBool_t glForceLinkU2 = CyFalse; // Force U2 flag
+
+// Set once the USB descriptors are registered and the initial connection has been made.
+// VBus events can arrive as soon as the event callback is registered, which is before the
+// descriptors exist; acting on one then would connect the device with nothing to enumerate.
+CyBool_t glUsbInitComplete = CyFalse;
 
 volatile CyBool_t input0Flag = CyFalse; // Input 0 set flag
 volatile CyBool_t input1Flag = CyFalse; // Input 1 set flag
@@ -43,6 +50,22 @@ CyBool_t input2HandledFlag = CyFalse; // Input 2 set condition handled flag
 CyBool_t input3HandledFlag = CyFalse; // Input 3 set condition handled flag
 
 volatile CyBool_t dataCollectionFlag = CyFalse; // Flag to show if the host application is collecting data
+
+// Staging buffer for register reads on their way to the host.
+//
+// Aligned because CyU3PUsbSendEP0Data hands the buffer to the DMA engine, which needs it
+// on a 32-byte boundary. Statically allocated rather than living on the setup callback's
+// stack for the same reason - and because that stack belongs to the USB driver.
+static uint8_t glRegisterBuffer[FPGA_REGISTER_READ_MAX] __attribute__ ((aligned (32)));
+
+// Staging for the update requests' data stages, aligned for the same reason.
+//
+// One buffer for the largest UPDATE_DATA chunk and one for the fixed-size
+// UPDATE_BEGIN and UPDATE_STATUS packets. Static rather than on the setup
+// callback's stack because two kilobytes does not belong on a stack that
+// belongs to the USB driver.
+static uint8_t glUpdateChunkBuffer[UPDATE_MAX_CHUNK] __attribute__ ((aligned (32)));
+static uint8_t glUpdatePacketBuffer[UPDATE_BEGIN_LENGTH] __attribute__ ((aligned (32)));
 
 // Main application function
 int main(void)
@@ -73,9 +96,15 @@ int main(void)
     }
 
     // Initialise the IO matrix
+    //
+    // I2C is enabled because the firmware is its own flasher: the FX3 boots from an I2C
+    // EEPROM and the update agent rewrites it in place. The I2C lines are dedicated on
+    // this device - the SDK is explicit that they are not multiplexed and are available
+    // in every configuration except when claimed as GPIOs - so turning them on costs the
+    // GPIF bus and the UART nothing, and lppMode below is unchanged.
     io_cfg.isDQ32Bit = CyFalse; // Data bus is 16-bits
     io_cfg.useUart   = CyTrue;
-    io_cfg.useI2C    = CyFalse;
+    io_cfg.useI2C    = CyTrue;
     io_cfg.useI2S    = CyFalse;
     io_cfg.useSpi    = CyFalse;
     io_cfg.lppMode   = CY_U3P_IO_MATRIX_LPP_UART_ONLY; // 16-bit data bus with UART
@@ -225,85 +254,13 @@ int main(void)
 		goto handleFatalError;
 	}
 
-	// Generic output signals to FPGA (GPIO 22 (early), 23 (delayed), -------------------------------------------------
-	// 24 (delayed), 25 (delayed), 26 (delayed))
-
-	// Claim GPIO22 from the GPIF Interface (outputE0)
-	status = CyU3PDeviceGpioOverride(22, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(22, &gpioConfig);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Claim GPIO23 from the GPIF Interface (outputD0)
-	status = CyU3PDeviceGpioOverride(23, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(23, &gpioConfig);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Claim GPIO24 from the GPIF Interface (outputD1)
-	status = CyU3PDeviceGpioOverride(24, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(24, &gpioConfig);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Claim GPIO25 from the GPIF Interface (outputD2)
-	status = CyU3PDeviceGpioOverride(25, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(25, &gpioConfig);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Claim GPIO26 from the GPIF Interface (outputD3)
-	status = CyU3PDeviceGpioOverride(26, CyTrue);
-	if (status != CY_U3P_SUCCESS) {
-		goto handleFatalError;
-	}
-
-	// Drive pin low
-	CyU3PMemSet((uint8_t *)&gpioConfig, 0, sizeof(gpioConfig));
-	gpioConfig.outValue = CyFalse;
-	gpioConfig.driveLowEn = CyTrue;
-	gpioConfig.driveHighEn = CyTrue;
-	status = CyU3PGpioSetSimpleConfig(26, &gpioConfig);
+	// SPI register interface to the FPGA (GPIO 22, 23, 24 and 25), and the ---------------------------------------------
+	// one line left over from the configuration signals it replaces (GPIO 26)
+	//
+	// GPIO 22 to 26 used to be five one-bit configuration outputs, of which
+	// only test mode was ever used. They now carry a register bank instead —
+	// see fpga-registers.h and the "FPGA register interface" documentation page.
+	status = fpgaRegistersInitialise();
 	if (status != CY_U3P_SUCCESS) {
 		goto handleFatalError;
 	}
@@ -325,6 +282,16 @@ void domDupThreadInitialise(uint32_t input)
 {
     CyU3PReturnStatus_t status;
     CyU3PUsbLinkPowerMode powerState;
+    uint32_t linkRecoveryAttempts;
+
+    // What the status LEDs are currently showing, so that they are only
+    // written when the answer changes. 0x00 is not one of the patterns the
+    // firmware ever sets, so the first pass through the loop always writes.
+    uint8_t ledPattern = 0;
+    uint8_t ledPatternShown = 0;
+
+    // Loops since the last look for an FPGA that was not there at start-up
+    uint32_t fpgaRecheckCount = 0;
 
     // Initialise the debug console
     domDupDebugInit();
@@ -332,13 +299,64 @@ void domDupThreadInitialise(uint32_t input)
     CyU3PDebugPrint(1, "(c)2018 Simon Inns - https://www.domesday86.com\r\n\r\n");
     CyU3PDebugPrint(1, "domDupThreadInitialise(): Debug console initialised\r\n");
 
+    // The register interface has to be usable before the USB setup callback
+    // can answer a request that reaches it, which is any time after the
+    // application below is initialised.
+    status = fpgaRegistersStart();
+    if (status != CY_U3P_SUCCESS) {
+        CyU3PDebugPrint(4, "domDupThreadInitialise(): fpgaRegistersStart failed, Error code = %d\r\n", status);
+    }
+
+    // Look for the FPGA's register bank and report what it says it is.
+    //
+    // Deliberately before the application is initialised, so the gateware
+    // version reaches the console whether or not a host ever connects, and on
+    // the application thread rather than in a callback, because it retries
+    // for as long as the FPGA might still be loading from EPCS.
+    //
+    // This identity read is also what the gateware's remote-update watchdog will
+    // be tickled by once the factory/application split exists: the application
+    // image tickles the watchdog when its SPI register interface decodes a first
+    // valid transaction, and this read is that transaction. It happens within a
+    // second of power-up whether or not a host is attached, which is the property
+    // the watchdog policy depends on.
+    fpgaRegistersProbe(FPGA_STARTUP_PROBE_ATTEMPTS);
+
+    // Bring up the I2C block so the firmware can rewrite its own boot EEPROM.
+    //
+    // After the kernel is running, because CyU3PI2cInit() allocates. A failure
+    // here is not fatal - the device enumerates and captures normally, and the
+    // only thing lost is the ability to update itself, which the host is told
+    // about explicitly rather than by a device that answers nothing.
+    status = updateAgentStart();
+    if (status != CY_U3P_SUCCESS) {
+        CyU3PDebugPrint(4, "domDupThreadInitialise(): updateAgentStart failed, Error code = %d; "
+            "device updates unavailable\r\n", status);
+    }
+
     // Initialise the application
     domDupInitialiseApplication();
 
     // Main application thread loop
     while(1) {
-        // Try to get the USB 3.0 link back to U0
+        // The readback half of an update, handed here by UPDATE_FINISH.
+        //
+        // It runs on this thread rather than in the setup callback because it
+        // reads the whole written region back off the EEPROM, which takes tens of
+        // seconds - far longer than a control request may take to answer. The host
+        // watches it through UPDATE_STATUS, whose verified counter this advances,
+        // and nothing else in this loop runs while it does. That is deliberate:
+        // the capture path is stopped by state for the duration of an update, so
+        // there is nothing else here worth doing.
+        if (updateAgentVerifyPending()) {
+            if (fpgaRegistersPresent()) fpgaRegistersSetLeds(FPGA_LED_UPDATING);
+            updateAgentVerify();
+            ledPatternShown = 0;
+        }
+
         if (glForceLinkU2) {
+            // The host has placed the function in suspend via SET_FEATURE(FUNCTION_SUSPEND),
+            // so hold the USB 3.0 link in U2 for as long as that condition lasts.
         	status = CyU3PUsbGetLinkPowerState(&powerState);
             while ((glForceLinkU2) && (status == CY_U3P_SUCCESS) && (powerState == CyU3PUsbLPM_U0)) {
                 // Try to get to U2 state
@@ -346,16 +364,28 @@ void domDupThreadInitialise(uint32_t input)
                 CyU3PThreadSleep(5);
                 status = CyU3PUsbGetLinkPowerState(&powerState);
             }
-        } else {
-            // Try to get the USB link back to U0
-            if (CyU3PUsbGetSpeed () == CY_U3P_SUPER_SPEED) {
-            	status = CyU3PUsbGetLinkPowerState (&powerState);
-                while ((status == CY_U3P_SUCCESS) && (powerState >= CyU3PUsbLPM_U1) &&
-                	(powerState <= CyU3PUsbLPM_U3)) {
-                    CyU3PUsbSetLinkPowerState(CyU3PUsbLPM_U0);
-                    CyU3PThreadSleep(1);
-                    status = CyU3PUsbGetLinkPowerState(&powerState);
-                }
+        } else if (glIsApplnActive && (CyU3PUsbGetSpeed() == CY_U3P_SUPER_SPEED)) {
+            // Recover the link to U0 if the host has left it in U1 or U2 while the capture
+            // path is up. The DMA hardware normally does this by itself when it has a packet
+            // to send, so this is a backstop rather than the primary mechanism.
+            //
+            // U3 is deliberately excluded, and that exclusion is the point of this block.
+            // U3 is host-directed suspend, and the only way a device may leave U3 is by
+            // signalling remote wakeup - so firmware that pulls the link out of U3 wakes the
+            // host up again the instant it tries to sleep. Requesting U0 from U1/U2 is
+            // ordinary link management; requesting it from U3 is not.
+            //
+            // The attempt count bounds the loop. Without it, a link that will not leave U1 -
+            // during link training, or on a marginal cable - spins here forever and the
+            // thread never yields.
+        	status = CyU3PUsbGetLinkPowerState(&powerState);
+        	linkRecoveryAttempts = 0;
+            while ((status == CY_U3P_SUCCESS) && (linkRecoveryAttempts < 8) &&
+                ((powerState == CyU3PUsbLPM_U1) || (powerState == CyU3PUsbLPM_U2))) {
+                CyU3PUsbSetLinkPowerState(CyU3PUsbLPM_U0);
+                CyU3PThreadSleep(1);
+                status = CyU3PUsbGetLinkPowerState(&powerState);
+                linkRecoveryAttempts++;
             }
         }
 
@@ -394,6 +424,43 @@ void domDupThreadInitialise(uint32_t input)
 				CyU3PDebugPrint(4, "Main application loop: input3 pin set by the FPGA\r\n");
 			}
 		}
+
+		// Status LEDs.
+		//
+		// Driven from here rather than from the callbacks that change the state they
+		// report, so that one thread decides what the LEDs say and the register is
+		// written only when the answer has actually changed. A failed write leaves
+		// ledPatternShown alone, so the next pass tries again.
+		if (fpgaRegistersPresent()) {
+			if (updateAgentInProgress()) ledPattern = FPGA_LED_UPDATING;
+			else if (input0Flag) ledPattern = FPGA_LED_BUFFER_ERROR;
+			else if (dataCollectionFlag) ledPattern = FPGA_LED_CAPTURING;
+			else ledPattern = FPGA_LED_READY;
+
+			if (ledPattern != ledPatternShown) {
+				if (fpgaRegistersSetLeds(ledPattern)) ledPatternShown = ledPattern;
+			}
+		} else {
+			// Look again for a register bank that did not answer at start-up.
+			//
+			// The FPGA is reprogrammed over JTAG while the FX3 keeps running for the
+			// whole of gateware development, and without this the board would have to
+			// be power cycled as well before the firmware noticed. One attempt every
+			// couple of seconds costs nothing and is silent until it succeeds.
+			fpgaRecheckCount++;
+			if (fpgaRecheckCount >= FPGA_RECHECK_LOOPS) {
+				fpgaRecheckCount = 0;
+				if (fpgaRegistersProbe(1)) ledPatternShown = 0;
+			}
+		}
+
+		// Yield the CPU.
+		//
+		// Nothing in this loop is latency critical: the GPIF to USB data path is carried
+		// entirely by the DMA hardware and never passes through this thread. Without a sleep
+		// the loop spins at 100% CPU whenever the link is at U0, which is almost always, and
+		// starves the debug console and the USB driver's own housekeeping threads.
+		CyU3PThreadSleep(10);
     }
 }
 
@@ -405,6 +472,11 @@ void CyFxApplicationDefine(void)
 
     // Allocate the memory for the threads
     ptr = CyU3PMemAlloc(CY_FX_GPIFTOUSB_THREAD_STACK);
+    if (ptr == NULL) {
+    	// Could not allocate the thread stack
+    	// Application cannot start
+    	while(1);
+    }
 
     // Create the application's main thread
     returnCode = CyU3PThreadCreate(
@@ -541,7 +613,25 @@ void domDupInitialiseApplication(void)
         // Start the application
         domDupStartApplication();
     }
+
+    // VBus events may now be acted on - the descriptors are registered and the device has
+    // been presented to the host, so a disconnect/reconnect cycle has something to enumerate.
+    glUsbInitComplete = CyTrue;
+
     CyU3PDebugPrint(8, "domDupInitialiseApplication(): Application initialisation complete.\r\n");
+}
+
+// Clear the FPGA input condition flags, and the "already reported" flags that go with them
+void domDupClearInputFlags(void)
+{
+    input0Flag = CyFalse;
+    input1Flag = CyFalse;
+    input2Flag = CyFalse;
+    input3Flag = CyFalse;
+    input0HandledFlag = CyFalse;
+    input1HandledFlag = CyFalse;
+    input2HandledFlag = CyFalse;
+    input3HandledFlag = CyFalse;
 }
 
 // Function to start application once SET_CONF received from host
@@ -568,16 +658,28 @@ void domDupStartApplication(void)
         break;
 
     default:
-        CyU3PDebugPrint(4, "domDupStartApplication(): ERROR - CyU3PUsbGetSpeed returned an invalid speed!\r\n");
-        domDupErrorHandler (CY_U3P_ERROR_FAILURE);
+        size = 0;
         break;
     }
 
-    // Check that we are connected to a USB 3 host
+    // Check that we are connected to a USB 3 host.
+    //
+    // The capture path needs SuperSpeed - 40 MSa/s of 16-bit samples is far beyond what a
+    // 2.0 link can carry - so it is not started on a 2.0 connection. It is important that
+    // this is not treated as a fatal error, though: the device stays enumerated, keeps
+    // answering control requests and can be brought up properly once the port re-trains at
+    // SuperSpeed. Calling domDupErrorHandler() here, as this used to, left the firmware in
+    // an endless loop that only unplugging the device could clear - and hosts do bring a
+    // port up at high speed first, particularly when resuming from hibernate.
     if (usbSpeed != CY_U3P_SUPER_SPEED) {
-    	CyU3PDebugPrint(4, "domDupStartApplication(): ERROR - USB 2 is not supported, connect device to a USB 3 port!\r\n");
-    	domDupErrorHandler (CY_U3P_ERROR_FAILURE);
+    	CyU3PDebugPrint(4, "domDupStartApplication(): SuperSpeed link not available (speed = %d); capture path not started\r\n", usbSpeed);
+    	return;
     }
+
+    // Start from a known state: the FPGA is not collecting and no input conditions are pending
+    CyU3PGpioSetValue(19, CyFalse);
+    dataCollectionFlag = CyFalse;
+    domDupClearInputFlags();
 
     CyU3PMemSet ((uint8_t *)&epCfg, 0, sizeof (epCfg));
     epCfg.enable = CyTrue;
@@ -668,11 +770,30 @@ void domDupStopApplication(void)
     // Set the application activity flag to false
     glIsApplnActive = CyFalse;
 
-    // Disable the GPIF state-machine
+    // Tell the FPGA to stop collecting before anything is torn down. Otherwise it keeps
+    // streaming into an FX3 whose DMA channel is about to be destroyed.
+    CyU3PGpioSetValue(19, CyFalse);
+    dataCollectionFlag = CyFalse;
+    domDupClearInputFlags();
+
+    // U1/U2 entry is only suppressed for the duration of a capture, so restore the driver's
+    // own handling of it here. The SDK is explicit that LPM must be re-enabled after every
+    // CyU3PUsbLPMDisable(), or the device fails USB compliance testing.
+    CyU3PUsbLPMEnable();
+
+    // Disable the GPIF state-machine. CyTrue discards the loaded waveform, which
+    // domDupStartApplication() restores with CyU3PGpifLoad().
     CyU3PGpifDisable(CyTrue);
 
-    // Disable PIB
-    CyU3PPibDeInit();
+    // The PIB block is deliberately left running.
+    //
+    // It is initialised once, in main(), and the FPGA control signals are GPIO overrides
+    // taken from the GPIF interface on top of it. De-initialising it here powered the block
+    // down for the rest of the firmware's life, because nothing ever initialised it again -
+    // so the next domDupStartApplication() programmed the GPIF with its clocks stopped and
+    // dropped into domDupErrorHandler()'s endless loop, leaving a device that answers
+    // nothing until it is unplugged. Every stop/start cycle reaches this: a bus reset, a
+    // SET_CONFIGURATION, or a resume from host sleep.
 
     // Destroy DMA channels
     CyU3PDmaMultiChannelDestroy(&glDmaMultiChHandle);
@@ -753,6 +874,88 @@ void gpifDmaEventCB(CyU3PGpifEventType Event, uint8_t State)
 	if (Event == CYU3P_GPIF_EVT_SM_INTERRUPT) CyU3PDebugPrint(8, "gpifDmaEventCB(): Unhandled INT_CPU signal received from GPIF\r\n");
 }
 
+// Handle one of the 0xD0 to 0xD5 device-update requests.
+//
+// Split out of the setup callback because it is the whole of a second protocol and
+// reads as one. Returns whether the request was handled at all; an unhandled request
+// leaves endpoint 0 to be stalled, which is how a device tells a host that it cannot
+// do something. *sendAck is set for the requests that have no data stage of their own.
+//
+// A refusal is reported through UPDATE_STATUS rather than through a stalled endpoint,
+// and that is a deliberate asymmetry with the capture requests. The SDK completes a
+// control-OUT transfer with a positive acknowledgement as soon as the last byte of its
+// data stage has been read, so a request whose payload has been read cannot then be
+// stalled - but more to the point, "the update failed and here is which check caught
+// it" is worth far more to whoever is looking at the screen than an endpoint that
+// simply stopped answering. Only a request whose *shape* is wrong stalls, because that
+// one can be refused before its data is taken.
+static CyBool_t domDupHandleUpdateRequest(uint8_t bRequest, uint16_t wValue,
+	uint16_t wIndex, uint16_t wLength, CyBool_t *sendAck)
+{
+	CyU3PReturnStatus_t status;
+	uint16_t readCount = 0;
+
+	switch (bRequest) {
+	case UPDATE_REQUEST_STATUS:
+		// Answerable at any time, including when no update has ever been started, and
+		// it is how the host discovers the chunk size rather than assuming one.
+		if (wLength < UPDATE_STATUS_LENGTH) return CyFalse;
+		updateAgentStatus(glUpdatePacketBuffer);
+		CyU3PUsbSendEP0Data(UPDATE_STATUS_LENGTH, glUpdatePacketBuffer);
+		return CyTrue;
+
+	case UPDATE_REQUEST_BEGIN:
+		if (wLength != UPDATE_BEGIN_LENGTH) return CyFalse;
+
+		status = CyU3PUsbGetEP0Data(UPDATE_BEGIN_LENGTH, glUpdatePacketBuffer, &readCount);
+		if (status != CY_U3P_SUCCESS) return CyFalse;
+
+		updateAgentBegin((uint8_t)wIndex, glUpdatePacketBuffer, readCount,
+			dataCollectionFlag);
+		return CyTrue;
+
+	case UPDATE_REQUEST_DATA:
+		if (wLength == 0 || wLength > UPDATE_MAX_CHUNK) return CyFalse;
+
+		status = CyU3PUsbGetEP0Data(wLength, glUpdateChunkBuffer, &readCount);
+		if (status != CY_U3P_SUCCESS) return CyFalse;
+
+		updateAgentData((uint8_t)wIndex, wValue, glUpdateChunkBuffer, readCount);
+		return CyTrue;
+
+	case UPDATE_REQUEST_FINISH:
+		updateAgentFinish((uint8_t)wIndex);
+		*sendAck = CyTrue;
+		return CyTrue;
+
+	case UPDATE_REQUEST_RESET:
+		// Acknowledged before the reset, because after it there is no firmware left to
+		// answer with and the host would see the request fail on a device that did
+		// exactly what it was asked.
+		CyU3PUsbAckSetup();
+		CyU3PDebugPrint(4, "domDupHandleUpdateRequest(): host requested a device reset\r\n");
+		CyU3PThreadSleep(100);
+		updateAgentResetDevice();
+		return CyTrue;
+
+	case UPDATE_REQUEST_FPGA_RECONFIG:
+		// Refused, by stalling, when no gateware with a flash bridge is answering or
+		// while a transfer is open. Acknowledging either would tell a host that a
+		// reconfiguration it asked for had happened.
+		//
+		// The FPGA reconfigures a few milliseconds after this returns and the register
+		// link goes away with it, so the host follows this with a device reset rather
+		// than leaving the firmware holding a capture path whose clock has stopped.
+		if (!updateAgentReconfigureFpga()) return CyFalse;
+
+		*sendAck = CyTrue;
+		return CyTrue;
+
+	default:
+		return CyFalse;
+	}
+}
+
 // USB set-up request callback
 CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 {
@@ -760,7 +963,13 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
     uint8_t  bType, bTarget;
     uint16_t wValue;
     uint16_t wIndex;
+    uint16_t wLength;
     CyBool_t isHandled = CyFalse;
+
+    // Whether the request still needs acknowledging once it has been handled. 0xB7
+    // completes its own transfer by sending data, so it is handled without being
+    // acknowledged; everything else here has no data stage and needs the ACK.
+    CyBool_t sendAck = CyFalse;
 
     /* Decode the fields from the setup request. */
     bReqType = (setupData0 & CY_U3P_USB_REQUEST_TYPE_MASK);
@@ -769,29 +978,61 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
     bRequest = ((setupData0 & CY_U3P_USB_REQUEST_MASK) >> CY_U3P_USB_REQUEST_POS);
     wValue   = ((setupData0 & CY_U3P_USB_VALUE_MASK)   >> CY_U3P_USB_VALUE_POS);
     wIndex   = ((setupData1 & CY_U3P_USB_INDEX_MASK)   >> CY_U3P_USB_INDEX_POS);
+    wLength  = ((setupData1 & CY_U3P_USB_LENGTH_MASK)  >> CY_U3P_USB_LENGTH_POS);
 
     // Handle vendor specific requests from the host
     if (bType == CY_U3P_USB_VENDOR_RQT) {
+    	// The update requests are handled outside the glIsApplnActive guard below, and
+    	// that is not an oversight. glIsApplnActive is false whenever the capture path
+    	// is not up - which includes a device attached to a USB 2.0 port, where the
+    	// capture path is deliberately never started. Updating firmware needs kilobytes
+    	// per second and no isochronous guarantees at all, so a device on a 2.0 port is
+    	// a device that can perfectly well be repaired; refusing to talk to it would
+    	// leave the one case where an update is most likely to be wanted unreachable.
+    	if (bRequest >= UPDATE_REQUEST_STATUS && bRequest <= UPDATE_REQUEST_FPGA_RECONFIG) {
+    		isHandled = domDupHandleUpdateRequest(bRequest, wValue, wIndex, wLength, &sendAck);
+
+    		// ACK here and return: the block below decides on requests this one has
+    		// already answered, and 0xD0 has completed its own transfer by sending data.
+    		if (sendAck) CyU3PUsbAckSetup();
+    		return isHandled;
+    	}
+
     	if (glIsApplnActive) {
 			// Handle vendor request for collection start/stop
 			if (bRequest == 0xB5) {
+				// Capture and update are mutually exclusive by state, not by convention.
+				// The update side of that is updateBeginIsAllowed(), which refuses an
+				// UPDATE_BEGIN while a capture is running; this is the other side. A
+				// capture started part way through an EEPROM rewrite would have the FPGA
+				// streaming into a DMA path whose owning thread is busy driving I2C.
+				//
+				// The stop half of the request is deliberately not gated: stopping
+				// something that is not running is harmless, and refusing it would be a
+				// way to leave collectData asserted.
+				if (wValue == 1 && updateAgentInProgress()) {
+					CyU3PDebugPrint(4, "domDupUSBSetupCB(): START data collection refused - "
+						"a device update is in progress\r\n");
+					return CyFalse;
+				}
+
 				if (wValue == 1) {
 					// Start collection request from USB host
 					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Vendor specific command received: START data collection\r\n");
 					CyU3PGpioSetValue(19, CyTrue); // collectData GPIO high
 
 					// Clear the input flags
-					input0Flag = CyFalse;
-					input1Flag = CyFalse;
-					input2Flag = CyFalse;
-					input3Flag = CyFalse;
-					input0HandledFlag = CyFalse;
-					input1HandledFlag = CyFalse;
-					input2HandledFlag = CyFalse;
-					input3HandledFlag = CyFalse;
+					domDupClearInputFlags();
 
 					// Flag that the host is collecting data
 					dataCollectionFlag = CyTrue;
+
+					// Keep the link out of U1/U2 for the duration of the capture. U2 exit
+					// latency alone is up to 2ms (see bU2DevExitLat in the BOS descriptor),
+					// which is long enough for the FPGA's FIFO to overflow. This also
+					// suppresses LPM-L1 on a 2.0 link. It is undone on stop, and on every
+					// reset and disconnect, which the SDK requires for USB compliance.
+					CyU3PUsbLPMDisable();
 				}
 
 				if (wValue == 0) {
@@ -803,72 +1044,58 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 					dataCollectionFlag = CyFalse;
 
 					// Clear the input flags
-					input0Flag = CyFalse;
-					input1Flag = CyFalse;
-					input2Flag = CyFalse;
-					input3Flag = CyFalse;
-					input0HandledFlag = CyFalse;
-					input1HandledFlag = CyFalse;
-					input2HandledFlag = CyFalse;
-					input3HandledFlag = CyFalse;
+					domDupClearInputFlags();
+
+					// Hand U1/U2 handling back to the USB driver now that the link no
+					// longer has to sustain a capture
+					CyU3PUsbLPMEnable();
 				}
+
+				isHandled = CyTrue;
+				sendAck = CyTrue;
 			}
 
-			// Handle vendor request for configuration 0xB6
+			// Handle vendor request 0xB7 - read FPGA registers
 			//
-			// The passed wValue is interpreted as a bit flag and causes
-			// GPIOs 22 to 26 to be set according to bits 0-4 (bits 5 to 7
-			// are ignored).
-			if (bRequest == 0xB6) {
-				// Check bit 0 (GPIO 22)
-				if ((wValue & 0x01) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 0 = GPIO22 High\r\n");
-					CyU3PGpioSetValue(22, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 0 = GPIO22 Low\r\n");
-					CyU3PGpioSetValue(22, CyFalse); // GPIO Low
-				}
-
-				// Check bit 1 (GPIO 23)
-				if ((wValue & 0x02) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 1 = GPIO23 High\r\n");
-					CyU3PGpioSetValue(23, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 1 = GPIO23 Low\r\n");
-					CyU3PGpioSetValue(23, CyFalse); // GPIO Low
-				}
-
-				// Check bit 2 (GPIO 24)
-				if ((wValue & 0x04) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 2 = GPIO24 High\r\n");
-					CyU3PGpioSetValue(24, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 2 = GPIO24 Low\r\n");
-					CyU3PGpioSetValue(24, CyFalse); // GPIO Low
-				}
-
-				// Check bit 3 (GPIO 25)
-				if ((wValue & 0x08) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 3 = GPIO25 High\r\n");
-					CyU3PGpioSetValue(25, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 3 = GPIO25 Low\r\n");
-					CyU3PGpioSetValue(25, CyFalse); // GPIO Low
-				}
-
-				// Check bit 4 (GPIO 26)
-				if ((wValue & 0x10) != 0) {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 4 = GPIO26 High\r\n");
-					CyU3PGpioSetValue(26, CyTrue); // GPIO high
-				} else {
-					CyU3PDebugPrint(8, "domDupUSBSetupCB(): Command 0xB6: Bit 4 = GPIO26 Low\r\n");
-					CyU3PGpioSetValue(26, CyFalse); // GPIO Low
+			// wValue is the first register address and wLength the number of bytes; the
+			// address auto-increments in the gateware, so the identity block is one
+			// request. This replaces the old 0xB6 bit-flag command, which set five GPIO
+			// pins directly - those pins are now the SPI link that carries this.
+			if (bRequest == 0xB7) {
+				if (fpgaRegistersPresent() && fpgaReadRequestIsValid(wValue, wLength) &&
+					fpgaRegistersRead((uint8_t)wValue, glRegisterBuffer, (uint8_t)wLength)) {
+					// Sends the data and completes the transfer, so this one must not
+					// also be acknowledged below
+					CyU3PUsbSendEP0Data(wLength, glRegisterBuffer);
+					isHandled = CyTrue;
 				}
 			}
 
-			// ACK the request
-			isHandled = CyTrue;
-			CyU3PUsbAckSetup();
+			// Handle vendor request 0xB8 - write one FPGA register
+			//
+			// The register address is the high byte of wValue and the value to write is
+			// the low byte, which keeps the request to a setup packet with no data stage.
+			// Turning test mode on is wValue = 0x1001.
+			if (bRequest == 0xB8) {
+				if (fpgaRegistersPresent() && fpgaWriteRequestIsValid(wValue) &&
+					fpgaRegistersWrite((uint8_t)(wValue >> 8), (uint8_t)(wValue & 0xFF))) {
+					isHandled = CyTrue;
+					sendAck = CyTrue;
+				}
+			}
+
+			// ACK the request.
+			//
+			// Only requests this firmware actually implements are acknowledged. Anything
+			// else leaves isHandled false, and the driver stalls endpoint 0 - which is how
+			// a device is required to tell a host that a request is unsupported. ACKing
+			// every vendor request, as this used to, reports success for commands that were
+			// silently discarded.
+			//
+			// A rejected 0xB7 or 0xB8 therefore stalls, which is what the host reads as
+			// "this device cannot do that" - an FPGA that never answered, a register the
+			// host may not write, or a length that does not fit.
+			if (sendAck) CyU3PUsbAckSetup();
 		}
     }
 
@@ -916,43 +1143,47 @@ CyBool_t domDupUSBSetupCB(uint32_t setupData0, uint32_t setupData1)
 // Callback function to handle USB events
 void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
 {
+    // Note: the USB driver delivers these events one at a time on a single thread, so no two
+    // cases here can overlap. That is what makes it safe for both SETCONF and RESUME to tear
+    // the capture path down and rebuild it.
     switch (eventType) {
     case CY_U3P_USB_EVENT_CONNECT:
-		CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_CONNECT received - No action taken\r\n");
+    	// Restore the driver's own U1/U2 handling. A CyU3PUsbLPMDisable() left over from a
+    	// capture that ended in a disconnect would otherwise persist across the new
+    	// connection, and a device that never accepts U1/U2 fails USB compliance.
+    	CyU3PUsbLPMEnable();
+		CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_CONNECT received - USB %d.0 connection\r\n",
+			(eventData == 1) ? 3 : 2);
 		break;
 
     case CY_U3P_USB_EVENT_SETCONF:
-    	CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_SETCONF received - Restarting application\r\n");
+    	CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_SETCONF received - configuration %d\r\n", eventData);
+
     	// If the application is already active, stop it
         if (glIsApplnActive) {
             domDupStopApplication();
         }
 
-        // Start the application
-        domDupStartApplication();
+        // Configuration 0 is the host un-configuring the device, not selecting a
+        // configuration. Stopping is the whole of the correct response; starting the capture
+        // path again would leave endpoints enabled on a device the host considers idle.
+        if (eventData != 0) {
+            domDupStartApplication();
+        }
         break;
 
     case CY_U3P_USB_EVENT_SUSPEND:
-        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_SUSPEND received\r\n");
-        
-        // Always handle suspend properly - stop data collection if active
-        if (dataCollectionFlag) {
-            CyU3PDebugPrint(8, "domDupUSBEventCB(): Stopping active data collection for suspend\r\n");
-            CyU3PGpioSetValue(19, CyFalse); // collectData GPIO low
-            dataCollectionFlag = CyFalse;
-        }
-        
-        // Clear all input flags
-        input0Flag = CyFalse;
-        input1Flag = CyFalse;
-        input2Flag = CyFalse;
-        input3Flag = CyFalse;
-        input0HandledFlag = CyFalse;
-        input1HandledFlag = CyFalse;
-        input2HandledFlag = CyFalse;
-        input3HandledFlag = CyFalse;
-        
-        // Flush and reset DMA channel only if application is active
+        // The host is suspending the bus - typically because the machine is going to sleep.
+        // Quiesce the FPGA and park the data path, but stay enumerated: the link is in U3 and
+        // it is the host's job, not ours, to bring it back out.
+        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_SUSPEND received - quiescing capture path\r\n");
+
+        CyU3PGpioSetValue(19, CyFalse); // collectData GPIO low
+        dataCollectionFlag = CyFalse;
+        domDupClearInputFlags();
+
+        // Anything still buffered belongs to a transfer the host has abandoned, so discard it
+        // rather than delivering stale samples once the link comes back.
         if (glIsApplnActive) {
             CyU3PDmaMultiChannelReset(&glDmaMultiChHandle);
             CyU3PUsbFlushEp(CY_FX_EP_CONSUMER);
@@ -960,9 +1191,22 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
         break;
 
     case CY_U3P_USB_EVENT_RESUME:
-        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_RESUME received\r\n");
-        // Device has resumed - ready to accept new commands from host
-        // Data collection will be restarted by host via vendor command if needed
+        CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_RESUME received - rebuilding capture path\r\n");
+
+        // Rebuild rather than resume.
+        //
+        // CyU3PDmaMultiChannelReset() leaves the channel in reset until
+        // CyU3PDmaMultiChannelSetXfer() is called again, and the GPIF state machine has been
+        // running into it unattended for however long the host was asleep. Without this the
+        // device enumerates and answers control requests after a resume but never delivers
+        // another sample, which looks exactly like a device that has silently died.
+        //
+        // A resume does not necessarily bring a SET_CONFIGURATION with it, so this cannot be
+        // left to the SETCONF case.
+        if (glIsApplnActive) {
+            domDupStopApplication();
+            domDupStartApplication();
+        }
         break;
 
     case CY_U3P_USB_EVENT_RESET:
@@ -979,8 +1223,61 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
         }
 
         if (eventType == CY_U3P_USB_EVENT_RESET) {
+        	// The SDK requires LPM handling to be restored on every reset
+        	CyU3PUsbLPMEnable();
 			CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_RESET received - Application stopped\r\n");
 		}
+        break;
+
+    case CY_U3P_USB_EVENT_VBUS_REMOVED:
+        // The host has cut port power. That is what hibernating to S4 looks like from here,
+        // and also a powered-down port or a pulled cable. Take the connection down explicitly
+        // so the USB PHY is not left advertising a device on a dead bus, and wait for VBus to
+        // come back before presenting the device again.
+        //
+        // Ignored until initialisation has finished, because VBus can already be valid when
+        // the event callback is registered - which is before any descriptor exists.
+        if (glUsbInitComplete) {
+            CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_VBUS_REMOVED received - disconnecting\r\n");
+            if (glIsApplnActive) {
+                domDupStopApplication();
+            }
+            CyU3PConnectState(CyFalse, CyTrue);
+        }
+        break;
+
+    case CY_U3P_USB_EVENT_VBUS_VALID:
+        // Port power is back. Re-present the device so it enumerates cleanly, rather than
+        // relying on the host to reset a connection that was torn down under it.
+        if (glUsbInitComplete) {
+            CyU3PDebugPrint(8, "domDupUSBEventCB(): CY_U3P_USB_EVENT_VBUS_VALID received - reconnecting\r\n");
+            CyU3PConnectState(CyTrue, CyTrue);
+        }
+        break;
+
+    case CY_U3P_USB_EVENT_EP_UNDERRUN:
+        // The endpoint ran dry part way through a burst, so the host was given less data than
+        // the transfer promised. Nothing can be done about it after the fact, but it is the
+        // one event that means a capture is no longer sample accurate, so it is always
+        // reported - at a level that is on by default.
+        CyU3PDebugPrint(4, "domDupUSBEventCB(): CY_U3P_USB_EVENT_EP_UNDERRUN on endpoint 0x%x - capture data lost\r\n",
+        	eventData);
+        break;
+
+    case CY_U3P_USB_EVENT_LNK_RECOVERY:
+        // Deliberately silent. Unlike every other event here, this one is raised from
+        // interrupt context, where CyU3PDebugPrint() - which blocks on a UART DMA transfer -
+        // must not be called.
+        break;
+
+    case CY_U3P_USB_EVENT_SS_COMP_ENTRY:
+    case CY_U3P_USB_EVENT_SS_COMP_EXIT:
+    case CY_U3P_USB_EVENT_USB3_LNKFAIL:
+    case CY_U3P_USB_EVENT_LMP_EXCH_FAIL:
+        // USB 3.0 link health. None of these need action here - the driver retrains the link,
+        // and falls back to USB 2.0 by itself when SuperSpeed training fails - but a capture
+        // that drops samples for no visible reason is usually one of these, so record them.
+        CyU3PDebugPrint(4, "domDupUSBEventCB(): USB 3 link event %d (data %d)\r\n", eventType, eventData);
         break;
 
     default:
@@ -991,21 +1288,21 @@ void domDupUSBEventCB(CyU3PUsbEventType_t eventType, uint16_t eventData)
 // Callback function to handle LPM requests
 CyBool_t domDupLPMRequestCB(CyU3PUsbLinkPowerMode linkMode)
 {
-    // Handle Link Power Management requests from the USB 3.0 host
-    // linkMode: CyU3PUsbLPM_U0 = fully active, CyU3PUsbLPM_U1 = light sleep, 
-    //           CyU3PUsbLPM_U2 = deeper sleep, CyU3PUsbLPM_U3 = suspend
-    
-    // Reject U2/U3 while actively collecting data to prevent data corruption
-    // and ensure reliable high-speed streaming
-    if (dataCollectionFlag) {
-        if (linkMode >= CyU3PUsbLPM_U2) {
-            CyU3PDebugPrint(8, "domDupLPMRequestCB(): Rejecting LPM %d - data collection active\r\n", linkMode);
-            return CyFalse;  // Reject U2/U3 entry
-        }
+    // Called by the USB driver when the host asks the link to enter U1 or U2. U3 never
+    // arrives here: U3 is host-directed suspend and is reported as CY_U3P_USB_EVENT_SUSPEND.
+    //
+    // This must do nothing but decide. It runs in the driver's own context and is called as
+    // often as the host sends LGO_U1, which on an idle SuperSpeed link is thousands of times
+    // a second - so in particular it must not call CyU3PDebugPrint(), which blocks on a UART
+    // DMA transfer. A debug print here throttles the link and floods the console.
+    //
+    // The blanket rejection during a capture is a second line of defence behind
+    // CyU3PUsbLPMDisable(), which the 0xB5 start command applies. Accepting U1 mid-capture is
+    // harmless in itself; U2 is not, because its exit latency is up to 2ms.
+    if (dataCollectionFlag && (linkMode >= CyU3PUsbLPM_U2)) {
+        return CyFalse;
     }
-    
-    // Accept U1 (very brief, minimal impact on streaming)
-    // Accept all power states when idle
+
     return CyTrue;
 }
 

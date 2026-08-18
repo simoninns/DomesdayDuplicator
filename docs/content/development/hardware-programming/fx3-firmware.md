@@ -27,15 +27,33 @@ permanent.
     and there has never been an SPI code path. If you are reading documentation that mentions
     SPI flash for this board, it is out of date.
 
+!!! tip "The application can do this for you"
+
+    Everything on this page is now also available from `ddd-gui` — **Tools ▸ Firmware ▸
+    Bring up a new or legacy board…** — which programs both the FX3 and the FPGA
+    with no vendor toolchain installed at all. See [Bringing up a new or legacy
+    board](../../capture-gui/bringing-up-a-board.md).
+
+    This page remains the reference for what the wizard is doing, and the route to take
+    when something needs doing by hand.
+
 ## Before you start
 
 1. **Set up device access** — [Linux device access](linux-device-access.md). Without it
    every command below reports that no device was found.
 2. Locate the **PMODE jumper, J4**, on the FX3 board. You will be moving it.
 
-## 1. Build the firmware
+The two positions, which every step below refers to as *fitted* and *removed*:
 
-### With Nix
+<div class="grid" markdown>
+
+![Jumper J4 fitted — the USB-boot position](assets/fx3-j4-fitted.jpeg){ width="330" }
+
+![Jumper J4 removed — the EEPROM-boot position](assets/fx3-j4-removed.jpeg){ width="330" }
+
+</div>
+
+## 1. Build the firmware
 
 From anywhere in a checkout:
 
@@ -51,17 +69,8 @@ firmware.elf  firmware.img  firmware.map
 `firmware.img` is the one you program. Nothing needs installing first — the ARM cross
 compiler, the image builder and the SDK all come from the flake.
 
-### Without Nix
-
-You need `arm-none-eabi-gcc`, CMake, a host C compiler and Python 3.
-
-```bash
-cmake -B fx3/firmware/build -S fx3/firmware \
-      -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake
-cmake --build fx3/firmware/build
-```
-
-The artefacts land in `fx3/firmware/build/`. Full prerequisites and options are in
+For an editing loop rather than a one-shot build, `nix develop .#fx3` gives the same
+toolchain as a shell; the build options are in
 [`fx3/firmware/README.md`](https://github.com/simoninns/DomesdayDuplicator/blob/main/fx3/firmware/README.md).
 
 ### Check: does the build know what it is?
@@ -103,7 +112,7 @@ Found 1 FX3 device(s):
 [0] VID:PID=04b4:00f3 Bus=007 Device=013 Mode=Bootloader (FX3)
 ```
 
-If it still shows `1d50:603b` / `Mode=Application`, the jumper is not fitted or the board was
+If it still shows `1209:2347` / `Mode=Application`, the jumper is not fitted or the board was
 not actually power cycled. Note that a warm reboot of your PC may not cut USB bus power —
 unplug the cable.
 
@@ -172,14 +181,14 @@ It should now boot the programmed firmware on its own, with no host involvement.
 This is the step people skip, and it is the only one that proves anything.
 
 ```bash
-$ lsusb -d 1d50:603b
-Bus 008 Device 005: ID 1d50:603b OpenMoko, Inc. Raspiface
+$ lsusb -d 1209:2347
+Bus 008 Device 005: ID 1209:2347 Generic Domesday Duplicator (d0566b3e)
 ```
 
 Then read the descriptors:
 
 ```bash
-$ lsusb -v -d 1d50:603b | grep -iE "bcdUSB|iManufacturer|iProduct"
+$ lsusb -v -d 1209:2347 | grep -iE "bcdUSB|iManufacturer|iProduct"
   bcdUSB               3.00
   iManufacturer           1 Domesday86
   iProduct                2 Domesday Duplicator (d0566b3e)
@@ -197,7 +206,7 @@ You can also confirm the negotiated link speed:
 
 ```bash
 $ for d in /sys/bus/usb/devices/*/; do
-    [ "$(cat $d/idVendor 2>/dev/null)" = "1d50" ] && \
+    [ "$(cat $d/idVendor 2>/dev/null)" = "1209" ] && \
     echo "$(cat $d/speed) Mbps — $(cat $d/product)"
   done
 5000 Mbps — Domesday Duplicator (d0566b3e)
@@ -217,6 +226,7 @@ $ for d in /sys/bus/usb/devices/*/; do
 | `iProduct` still shows the old commit | The EEPROM write did not take, or J4 is still fitted so it booted over USB instead. Re-check step 3b and that J4 is **removed** |
 | `iProduct` shows `unknown` | The firmware was built without version information. Rebuild passing `-DFIRMWARE_VERSION=` |
 | Device enumerates at 480 Mbps | USB 2.0 fallback. Use a USB 3.0 port and a cable rated for it |
+| The **host** takes ~20 seconds to wake from sleep, with a blank screen | Not a device fault. A board left in bootloader mode across a suspend — see [below](#leaving-the-board-in-bootloader-mode-can-stall-suspend-and-resume) |
 
 ### There is no software reset
 
@@ -224,6 +234,52 @@ $ for d in /sys/bus/usb/devices/*/; do
 reset command, and the Domesday Duplicator firmware implements only its own capture control
 requests. **Changing boot mode always means a physical power cycle**, with J4 fitted or
 removed to choose where the device boots from.
+
+### Leaving the board in bootloader mode can stall suspend and resume
+
+Finish a programming session by putting the board back to application firmware, or by
+unplugging it. A board left sitting in bootloader mode is running the Cypress boot ROM, and
+the boot ROM does not survive a host suspend reliably.
+
+On Linux, waking from S3 with an `04b4:00f3` device still attached can stall the kernel's
+device-resume phase for around twenty seconds:
+
+```
+usb 7-3.3: reset high-speed USB device number 23 using xhci_hcd
+usb 7-3.3: device descriptor read/64, error -110
+```
+
+`-110` is `-ETIMEDOUT`: after resetting the port, the kernel asked the device for its
+descriptors and got no answer. All of that happens before `Restarting tasks`, so userspace —
+including whatever is drawing your screen — is still frozen for the whole stall. **The
+machine looks dead**, with a blank display and no response to input, until the kernel gives
+up on the device and lets userspace run again.
+
+It is not deterministic. The same board in the same state has resumed cleanly from a short
+suspend and stalled after a long one, so a session that ended fine yesterday is no guarantee.
+A board running application firmware (`1209:2347`) is unaffected — it resumes in the same
+fraction of a second as a machine with nothing on the port at all.
+
+The cure is to not leave it there: remove J4 and power cycle when you have finished, or
+unplug the cable. Nothing in this project can do it for you, because
+[there is no software reset](#there-is-no-software-reset) — the boot ROM has no command that
+would return the device to application firmware, and the host cannot power cycle it.
+
+If you would rather the host coped, Linux can be told to power the port down at suspend
+rather than trying to resume the device:
+
+```
+usbcore.quirks=04b4:00f3:m,04b4:4720:m
+```
+
+`m` is `USB_QUIRK_DISCONNECT_SUSPEND`, which makes `usb_suspend()` call `usb_port_disable()`
+on the way into suspend. At resume there is nothing on the port to reset, so the timeout never
+happens and the device re-enumerates normally afterwards. `4720` is the transient
+flash-programmer identity, which is the same boot-ROM-era code and worth covering too. This is
+a boot parameter, so it needs a reboot to take effect — and unrecognised flag letters are
+*silently ignored*, so check the letter against
+`Documentation/admin-guide/kernel-parameters.txt` for your own kernel rather than expecting a
+typo to report itself.
 
 ### Recovering a device that will not boot
 

@@ -1,0 +1,432 @@
+/************************************************************************
+
+    update-protocol.h
+
+    The device update protocol, and the decisions about it that need no
+    hardware
+    DomesdayDuplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+    Deliberately free of the FX3 SDK, for the same reason
+    fpga-register-map.h is: everything here is arithmetic over bytes the
+    host sent, so it compiles and runs on a build machine and is tested
+    there. The transport — I2C, EEPROM timing, SHA-256 over what came back
+    off the medium — is in update-agent.h and cannot be tested off
+    hardware.
+
+    An off-by-one in the paging arithmetic below writes past a page or a
+    slave boundary and leaves a device that will not boot, which is not
+    something to discover on a bench.
+
+    The protocol itself is specified on the "Device update mechanism" page
+    of the documentation site. This header is the firmware's copy of it,
+    not its definition.
+
+************************************************************************/
+
+#ifndef _UPDATE_PROTOCOL_H_
+#define _UPDATE_PROTOCOL_H_
+
+#include <stddef.h>
+#include <stdint.h>
+
+// Vendor requests. 0xA0 belongs to the Cypress boot ROM, 0xB0/0xBA/0xBB to
+// the Cypress flash-programmer personality and 0xB5-0xB8 to this firmware's
+// capture and register interface, so the update agent starts at 0xD0.
+#define UPDATE_REQUEST_STATUS           (0xD0u)
+#define UPDATE_REQUEST_BEGIN            (0xD1u)
+#define UPDATE_REQUEST_DATA             (0xD2u)
+#define UPDATE_REQUEST_FINISH           (0xD3u)
+#define UPDATE_REQUEST_RESET            (0xD4u)
+#define UPDATE_REQUEST_FPGA_RECONFIG    (0xD5u)
+
+// wIndex selects the target throughout. Target 0 is the FX3's own boot
+// EEPROM, written over I2C; target 1 is the FPGA's EPCS configuration
+// flash, reached through the gateware's flash bridge. Target 2 is the same
+// flash at its other address, the factory region, and is the one target
+// that is not offered to a user going about ordinary business — see
+// UPDATE_FLAG_FACTORY_WRITE. Anything else is refused with
+// UPDATE_ERROR_TARGET rather than pretending.
+#define UPDATE_TARGET_EEPROM            (0u)
+#define UPDATE_TARGET_EPCS              (1u)
+#define UPDATE_TARGET_EPCS_FACTORY      (2u)
+
+// The flag words UPDATE_BEGIN may carry. Every other value is refused by
+// updateBeginDecode(), which is the rule that was already there — the field
+// used to have no legal value but zero.
+//
+// UPDATE_FLAG_FACTORY_WRITE is what unlocks target 2, and it is a whole
+// word rather than a bit because of what it is protecting against. Writing
+// the factory region is safe when it is meant and irreversible when it is
+// not: a host that means target 1 and sends a 2 would otherwise erase the
+// image a board falls back to. Such a host sends a zero flags word, so it
+// is refused. This is a guard against a mistake and not against a
+// determined host; nothing here could be, and the reason it does not need
+// to be is that every DE0-Nano carries the USB-Blaster that reprovisions
+// it (see the bring-up plan, "Why the flags word and not something
+// stronger").
+//
+// The bytes are 'D','D','F','W' in the order they appear on the wire, so
+// the word reads as itself in a capture.
+#define UPDATE_FLAGS_NONE               (0x00000000u)
+#define UPDATE_FLAG_FACTORY_WRITE       (0x57464444u)
+
+// Sizes fixed by the protocol.
+#define UPDATE_STATUS_LENGTH            (16u)
+#define UPDATE_BEGIN_LENGTH             (40u)
+#define UPDATE_DIGEST_LENGTH            (32u)
+
+// The largest UPDATE_DATA chunk the device accepts, and what it reports in
+// the status packet. Matches the flash programmer's transfer size, which is
+// what the host tooling has always used.
+#define UPDATE_MAX_CHUNK                (2048u)
+
+// I2C EEPROM geometry. A write must be a whole number of pages and must not
+// cross a slave boundary; past 64 KiB the slave address increments.
+//
+// These are a deliberate second copy of the constants in
+// fx3/programmer/src/fx3-paging.h (AGENTS.md §2). Two programs on two
+// processors write the same EEPROM, and sharing a header between them would
+// be a cross-component include.
+#define UPDATE_EEPROM_PAGE_SIZE         (64u)
+#define UPDATE_EEPROM_SLAVE_SIZE        (65536u)
+
+// The I2C address of the first EEPROM slave. Bits 2:1 carry the 64 KiB bank,
+// so the four banks of an M24M02 are 0xA0, 0xA2, 0xA4 and 0xA6.
+#define UPDATE_EEPROM_SLAVE_BASE        (0xA0u)
+
+// The largest image the boot EEPROM can hold: 2 Mbit across four slaves.
+#define UPDATE_EEPROM_SIZE              (4u * UPDATE_EEPROM_SLAVE_SIZE)
+
+// EPCS geometry. A program must not cross a 256-byte page and an erase is
+// always a whole 64 KiB sector, which together are what decide where a
+// gateware update may start and where each of its writes may end.
+//
+// These are a deliberate second copy of the addresses in
+// fpga/make-boot-block.py and fpga/factory/bootLoader.v (AGENTS.md §2).
+// Three readers agree about this layout - the encoder that writes the boot
+// block, the fabric that reads it at power-on, and this firmware that
+// rewrites both halves - and they are three languages on three processors.
+#define UPDATE_EPCS_PAGE_SIZE           (256u)
+#define UPDATE_EPCS_SECTOR_SIZE         (65536u)
+
+// The whole of an EPCS64, which is what the DE0-Nano carries.
+#define UPDATE_EPCS_SIZE                (0x800000u)
+
+// Where the three regions live.
+//
+// The factory image at 0x000000 is written from here by exactly one path:
+// target 2, which nothing but a board bring-up ever selects and which is
+// refused without UPDATE_FLAG_FACTORY_WRITE. It used to be written
+// by no path at all, on a freeze policy (fpga/factory/README.md) that took
+// its safety from JTAG being the only way in. What changed is that the
+// vectors which were going to do that job cannot: a quartus_cpf flash .svf
+// drives Altera's serial flash loader and carries no configuration of its
+// own, so the route that works is to configure this project's own factory
+// image over JTAG and then write the flash from here, over USB. The freeze
+// therefore moved rather than lifted — from "no path" to "one path, named,
+// unlocked and never taken by an ordinary update".
+#define UPDATE_EPCS_FACTORY_ADDRESS     (0x000000u)
+#define UPDATE_EPCS_BOOT_BLOCK_ADDRESS  (0x100000u)
+#define UPDATE_EPCS_APPLICATION_ADDRESS (0x200000u)
+
+// The EPCS command set, as much of it as this firmware issues. The gateware
+// bridge knows none of these - it shifts bytes - so this is the only place
+// in the device where the flash's own protocol is written down.
+#define UPDATE_EPCS_WRITE_ENABLE        (0x06u)
+#define UPDATE_EPCS_READ_STATUS         (0x05u)
+#define UPDATE_EPCS_READ_BYTES          (0x03u)
+#define UPDATE_EPCS_PAGE_PROGRAM        (0x02u)
+#define UPDATE_EPCS_ERASE_SECTOR        (0xD8u)
+#define UPDATE_EPCS_READ_SILICON_ID     (0xABu)
+
+// Bit 0 of the status register is set while an erase or a program is in
+// progress. Bit 1 reports the write-enable latch.
+#define UPDATE_EPCS_STATUS_BUSY         (0x01u)
+#define UPDATE_EPCS_STATUS_WRITE_ENABLE (0x02u)
+
+// How many dummy bytes follow the read-silicon-identifier command before
+// the device answers.
+#define UPDATE_EPCS_ID_DUMMY_BYTES      (3u)
+
+// The silicon identifiers this firmware recognises, from the Altera serial
+// configuration device datasheet. The sanity check is not "is it exactly
+// the part we expect": it is "is there a serial flash on the far end of the
+// bridge at all, and is it big enough for what is about to be written".
+// The two readings that mean *nothing is there* - all-ones from a floating
+// line, all-zeros from one held down - are neither of these, which is the
+// whole point of checking.
+#define UPDATE_EPCS_ID_EPCS16           (0x14u)
+#define UPDATE_EPCS_ID_EPCS64           (0x16u)
+#define UPDATE_EPCS_ID_EPCS128          (0x18u)
+
+// The boot block: the twenty-four bytes at UPDATE_EPCS_BOOT_BLOCK_ADDRESS
+// that tell the factory image where the application image is and what it
+// should checksum to. Writing it is the last act of a gateware update, and
+// it is what makes an application image count.
+#define UPDATE_BOOT_BLOCK_LENGTH        (24u)
+#define UPDATE_BOOT_BLOCK_HEADER_LENGTH (20u)
+#define UPDATE_BOOT_BLOCK_LAYOUT_VERSION (1u)
+
+// "DDBB", most significant byte first, so that it reads as itself in a dump
+// of the flash - the one field anybody looks at with their eyes.
+#define UPDATE_BOOT_BLOCK_MAGIC_0       (0x44u)
+#define UPDATE_BOOT_BLOCK_MAGIC_1       (0x44u)
+#define UPDATE_BOOT_BLOCK_MAGIC_2       (0x42u)
+#define UPDATE_BOOT_BLOCK_MAGIC_3       (0x42u)
+
+// The smallest plausible gateware image. A raw EPCS byte stream carries no
+// signature to check - unlike an FX3 boot image, which starts with 'CY' -
+// so length is the only thing that can be said about it before it is
+// written, and it is said rather than nothing being said.
+#define UPDATE_GATEWARE_MINIMUM_LENGTH  (UPDATE_EPCS_PAGE_SIZE)
+
+// The first two bytes of an FX3 boot image. The boot ROM looks for these, so
+// an image that does not carry them is not a thing this device could ever
+// boot from — and is refused before a single byte is written.
+#define UPDATE_IMAGE_SIGNATURE_0        (0x43u)     // 'C'
+#define UPDATE_IMAGE_SIGNATURE_1        (0x59u)     // 'Y'
+
+// The smallest plausible boot image: the signature page plus something to
+// run. Anything shorter is a truncated download, not an image.
+#define UPDATE_IMAGE_MINIMUM_LENGTH     (128u)
+
+// Update phases, as reported at offset 0 of the status packet.
+#define UPDATE_PHASE_IDLE               (0u)
+#define UPDATE_PHASE_RECEIVING          (1u)
+#define UPDATE_PHASE_WRITING            (2u)
+#define UPDATE_PHASE_VERIFYING          (3u)
+#define UPDATE_PHASE_COMPLETE           (4u)
+#define UPDATE_PHASE_FAILED             (5u)
+
+// Why an update stopped, as reported at offset 1 of the status packet.
+//
+// The host shows these to a user, so each one names a distinct thing that
+// went wrong rather than a place in the code. Two of them are the integrity
+// chain's own links and are kept apart on purpose: "the bytes that arrived
+// are not the bytes you promised" and "the bytes on the medium are not the
+// bytes I wrote" are different faults with different remedies.
+#define UPDATE_ERROR_NONE               (0u)
+#define UPDATE_ERROR_BUSY               (1u)    // a capture is running
+#define UPDATE_ERROR_TARGET             (2u)    // no such target on this firmware
+#define UPDATE_ERROR_LENGTH             (3u)    // payload length impossible for the medium
+#define UPDATE_ERROR_SEQUENCE           (4u)    // a request in the wrong phase, or a chunk out of order
+#define UPDATE_ERROR_CHUNK              (5u)    // chunk size the medium cannot be written in
+#define UPDATE_ERROR_OVERRUN            (6u)    // more data than UPDATE_BEGIN promised
+#define UPDATE_ERROR_SHORT              (7u)    // UPDATE_FINISH before all the data arrived
+#define UPDATE_ERROR_STREAM_DIGEST      (8u)    // integrity link 5: the stream is not what was promised
+#define UPDATE_ERROR_MEDIUM_DIGEST      (9u)    // integrity link 6: the readback is not what was written
+#define UPDATE_ERROR_WRITE              (10u)   // the medium refused a write
+#define UPDATE_ERROR_READ               (11u)   // the medium refused a read
+#define UPDATE_ERROR_IMAGE              (12u)   // not an image this device could boot
+#define UPDATE_ERROR_HARDWARE           (13u)   // the I2C block did not come up
+
+// Everything the agent knows about the update in progress.
+//
+// Held as a plain struct with no pointers so that the whole of the state
+// machine below is a pure function of it. The agent adds the medium.
+typedef struct
+{
+    uint8_t phase;
+    uint8_t error;
+    uint8_t target;
+
+    // The payload length and digest UPDATE_BEGIN promised.
+    uint32_t length;
+    uint8_t digest[UPDATE_DIGEST_LENGTH];
+
+    // The three counters the status packet reports. They move at very
+    // different speeds — receiving is seconds, writing is minutes on the
+    // EPCS — so a host that drove one progress bar from one of them would
+    // be showing a still picture for most of the update.
+    uint32_t received;
+    uint32_t written;
+    uint32_t verified;
+
+    // The chunk index the next UPDATE_DATA must carry.
+    uint16_t nextChunk;
+} updateState_t;
+
+// What UPDATE_BEGIN's data stage carries.
+typedef struct
+{
+    uint32_t length;
+    uint8_t digest[UPDATE_DIGEST_LENGTH];
+    uint32_t flags;
+} updateBegin_t;
+
+// Put the state back to idle with no error. The counters are cleared, so a
+// status read after this reports an update that has not started rather than
+// the tail of the previous one.
+void updateStateReset(updateState_t *state);
+
+// Record a failure: the phase becomes failed and the error is remembered
+// until the next UPDATE_BEGIN. The counters are left alone, because how far
+// an update got before it stopped is the most useful thing about a failure.
+//
+// The first error wins. A write that fails and then cannot be read back is
+// one fault, and reporting the second would name the symptom.
+void updateStateFail(updateState_t *state, uint8_t error);
+
+// Decode UPDATE_BEGIN's data stage. Returns non-zero if the buffer is the
+// right length and the reserved flags are clear, zero otherwise.
+//
+// Reserved bits are required to be zero rather than ignored. A host that
+// sets one is asking for behaviour this firmware does not have, and the
+// only honest answer to that is a refusal.
+int updateBeginDecode(const uint8_t *data, uint16_t length, updateBegin_t *out);
+
+// Write the 16-byte status packet.
+void updateStatusEncode(const updateState_t *state, uint8_t *out);
+
+// May an UPDATE_BEGIN for this target, length and flag word be accepted
+// right now?
+//
+// Returns UPDATE_ERROR_NONE if it may, and the error to report if it may
+// not. captureRunning is the mutual exclusion the "Device update mechanism"
+// page requires: an update is refused while a capture is running, and a
+// capture is refused while an update is in progress, by state rather than
+// by convention.
+//
+// The flag word is checked against the target here rather than in
+// updateBeginDecode(), because "is this a word this firmware knows" and "is
+// this a word this target accepts" are different questions and only the
+// second one needs to know what is being written.
+uint8_t updateBeginIsAllowed(const updateState_t *state, uint8_t target,
+                             uint32_t length, uint32_t flags,
+                             int captureRunning);
+
+// May this UPDATE_DATA chunk be accepted?
+//
+// Returns UPDATE_ERROR_NONE, or the error to report. A chunk that arrives
+// out of order fails the transfer rather than being buffered: the host is a
+// program and not a network, so a gap in the sequence means something has
+// gone wrong that reordering would hide.
+uint8_t updateChunkIsAllowed(const updateState_t *state, uint8_t target,
+                             uint16_t index, uint16_t length);
+
+// May UPDATE_FINISH be accepted?
+uint8_t updateFinishIsAllowed(const updateState_t *state, uint8_t target);
+
+// Is an update in progress — that is, would starting a capture now collide
+// with one? True from UPDATE_BEGIN until the update completes or fails.
+int updateIsInProgress(const updateState_t *state);
+
+// Does this look like an image the FX3 boot ROM would accept?
+//
+// Checked against the first bytes of the payload, before anything is
+// written, so that a bundle carrying the wrong file is refused rather than
+// flashed. It is not a substitute for the digest — it proves nothing about
+// the rest of the image — but it is the one check that can be made before
+// the first page is committed.
+int updateImageIsPlausible(const uint8_t *first, uint32_t firstLength,
+                           uint32_t totalLength);
+
+// The I2C slave address covering this byte address.
+uint8_t updateEepromSlaveAddress(uint32_t address);
+
+// The byte address within that slave.
+uint16_t updateEepromSlaveOffset(uint32_t address);
+
+// The largest write that may start at this address: at most a page, and
+// never across a slave boundary. Returns 0 when nothing remains.
+//
+// A page write that crosses a page boundary wraps to the start of the same
+// page in every EEPROM this device has ever shipped with, so the caller
+// cannot be trusted to "just write less next time" — the limit has to be
+// computed, and computed here where it is tested.
+uint16_t updateEepromWriteSpan(uint32_t address, uint32_t remaining);
+
+// The largest read that may start at this address, given a buffer of
+// bufferSize bytes. Reads have no page limit, only the slave boundary.
+uint16_t updateEepromReadSpan(uint32_t address, uint32_t remaining,
+                              uint16_t bufferSize);
+
+// Round a length up to a whole number of EEPROM pages. The final page of an
+// image is zero-padded, because a page is the smallest thing that can be
+// written.
+uint32_t updateEepromPadToPage(uint32_t length);
+
+// Is this an image the EPCS could hold in this target's region?
+//
+// The counterpart of updateImageIsPlausible() for the two flash targets,
+// and weaker than it on purpose: a raw EPCS byte stream has no signature,
+// so the only thing that can be checked before the first sector is erased
+// is that the length is one such an image could have.
+int updateGatewareIsPlausible(uint8_t target, uint32_t totalLength);
+
+// Is this target one of the two that live on the EPCS?
+//
+// Written down once because the agent asks it in five places, and because
+// "the flash targets" is the distinction every one of them means — not
+// "target 1", which is what they used to say when there was only one.
+int updateTargetIsEpcs(uint8_t target);
+
+// The address this target's region starts at.
+//
+// Anything that is not the factory target answers with the application
+// address, and that default is chosen rather than arbitrary: a dispatch bug
+// that reached here with a target this function does not know would write
+// into the application region, which a later update repairs, rather than
+// over the factory image, which is the one thing a field update cannot.
+uint32_t updateEpcsTargetBase(uint8_t target);
+
+// How many bytes that region holds. The factory region ends where the boot
+// block begins; the application region runs to the end of the device.
+uint32_t updateEpcsTargetCapacity(uint8_t target);
+
+// How many bytes the device with this silicon identifier holds, or zero if
+// it is not one this firmware recognises.
+uint32_t updateEpcsCapacity(uint8_t siliconId);
+
+// Is the device that answered one this firmware may write, and large enough
+// to hold `bytes` at `address`?
+int updateEpcsDeviceIsUsable(uint8_t siliconId, uint32_t address,
+                             uint32_t bytes);
+
+// The largest program that may start at this address: at most a page, and
+// never across a page boundary. Returns 0 when nothing remains.
+//
+// A page program that runs past the end of its page wraps to the start of
+// the same page rather than continuing, exactly as the EEPROM's does, so
+// this is a hard limit and not a performance hint.
+uint16_t updateEpcsWriteSpan(uint32_t address, uint32_t remaining);
+
+// Does an erase have to happen before this address is written?
+//
+// True at each sector boundary. The update writes the application image
+// strictly in address order, so erasing the sector an address opens is both
+// necessary and sufficient - and it means an image occupying six sectors
+// costs six erases rather than erasing the whole device.
+int updateEpcsSectorStartsHere(uint32_t address);
+
+// The sector containing this address, as the address of its first byte.
+uint32_t updateEpcsSectorBase(uint32_t address);
+
+// CRC-32, the one the boot block carries.
+//
+// The ordinary reflected CRC-32 - polynomial 0xEDB88320, initial value all
+// ones, final complement - which is what zlib computes and what
+// fpga/factory/crc32.v implements in the factory image's fabric. Three
+// implementations of one checksum, because the encoder, the reader and this
+// writer are in three languages; the published check value pins all three.
+//
+// The running value is the raw register, so a caller starts at
+// UPDATE_CRC32_INITIAL, folds bytes in with updateCrc32Update() and takes
+// the result through updateCrc32Final() exactly once.
+#define UPDATE_CRC32_INITIAL            (0xFFFFFFFFu)
+
+uint32_t updateCrc32Update(uint32_t crc, const uint8_t *data, uint32_t length);
+uint32_t updateCrc32Final(uint32_t crc);
+
+// Encode the twenty-four bytes of the boot block.
+//
+// `out` is UPDATE_BOOT_BLOCK_LENGTH bytes. `imageCrc` is the finished
+// CRC-32 of the application image as read back off the flash, never as it
+// arrived over USB: the block's whole job is to describe what is on the
+// medium.
+void updateBootBlockEncode(uint8_t *out, uint32_t address, uint32_t length,
+                           uint32_t imageCrc);
+
+#endif // _UPDATE_PROTOCOL_H_

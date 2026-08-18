@@ -1,4 +1,4 @@
-# macOS DMG for the capture application (P7-15).
+# macOS DMG for the capture application.
 #
 # Unsigned and un-notarised: a Developer ID is a paid personal credential and putting one
 # in a public repository's CI needs a decision about who holds it that has not been taken.
@@ -60,21 +60,46 @@ jobs:
           # without it the configure step fails outright.
           brew install cmake ninja pkg-config qt@6 libusb flac googletest dylibbundler
 
+      - name: Fetch the pinned update bundle
+        id: bundled
+        shell: bash
+        run: |
+          set -euo pipefail
+          path="$(./tools/fetch-bundled-update.sh \
+            --output "${PWD}/build-bundled/update.dddfw")"
+          echo "path=${path}" >> "$GITHUB_OUTPUT"
+
       - name: Configure and build
         shell: bash
         run: |
+          set -euo pipefail
           export PATH="$(brew --prefix qt@6)/bin:${PATH}"
           export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
-          cmake -B build -S gui -G Ninja \
+
+          # The bundled set, when one is pinned. CMake places it inside the built bundle's
+          # Contents/Resources, which is where the application looks and where the
+          # hand-assembled bundle below takes it from.
+          #
+          # Expanded as ${bundled[@]+"${bundled[@]}"} rather than "${bundled[@]}": macOS
+          # ships bash 3.2, where an empty array under `set -u` is an unbound variable and
+          # not an empty expansion. Every other runner in this repository has bash 5, which
+          # is why this failed on macOS alone and passed everywhere else.
+          bundled=()
+          if [[ -n "${{ steps.bundled.outputs.path }}" ]]; then
+            bundled=(-DDDD_BUNDLED_UPDATE_FILE="${{ steps.bundled.outputs.path }}")
+          fi
+
+          cmake -B build -S ddd-gui -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
-            -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}"
+            -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}" \
+            ${bundled[@]+"${bundled[@]}"}
           cmake --build build
 
       - name: Run the test suite
         shell: bash
         run: |
-          # macOS is best-effort for the flake (P0-7) but not for a release asset: a DMG
+          # macOS is best-effort for the flake but not for a release asset: a DMG
           # that ships is a DMG whose tests ran.
           export QT_QPA_PLATFORM=offscreen
           ctest --test-dir build --output-on-failure --label-exclude 'hil'
@@ -93,21 +118,29 @@ jobs:
           # here rather than that bundle being shipped: the plist below is the one with the
           # release version, the bundle identifier and the icon, and a release asset should
           # not depend on what CMake happens to generate by default.
-          cp build/bin/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator \
+          cp build/bin/ddd-gui.app/Contents/MacOS/ddd-gui \
             "${APP}/Contents/MacOS/"
+
+          # The bundled update file, if this build carries one. Taken from where the
+          # build put it rather than from the download, so that the name and the place are
+          # decided once, in CMake, for every platform.
+          if [[ -f build/bin/ddd-gui.app/Contents/Resources/update.dddfw ]]; then
+            cp build/bin/ddd-gui.app/Contents/Resources/update.dddfw \
+              "${APP}/Contents/Resources/"
+          fi
 
           # An .icns built from the PNG set already in the tree, rather than a second copy
           # of the artwork maintained for macOS alone.
           ICONSET=DomesdayDuplicator.iconset
           mkdir -p "${ICONSET}"
-          SRC=gui/src/DomesdayDuplicator/Graphics/ApplicationIcon
-          cp "${SRC}/DomesdayDuplicator_16x16.png"   "${ICONSET}/icon_16x16.png"
-          cp "${SRC}/DomesdayDuplicator_32x32.png"   "${ICONSET}/icon_16x16@2x.png"
-          cp "${SRC}/DomesdayDuplicator_32x32.png"   "${ICONSET}/icon_32x32.png"
-          cp "${SRC}/DomesdayDuplicator_64x64.png"   "${ICONSET}/icon_32x32@2x.png"
-          cp "${SRC}/DomesdayDuplicator_128x128.png" "${ICONSET}/icon_128x128.png"
-          cp "${SRC}/DomesdayDuplicator_256x256.png" "${ICONSET}/icon_128x128@2x.png"
-          cp "${SRC}/DomesdayDuplicator_256x256.png" "${ICONSET}/icon_256x256.png"
+          SRC=ddd-gui/src/gui/resources
+          cp "${SRC}/icon-16.png"  "${ICONSET}/icon_16x16.png"
+          cp "${SRC}/icon-32.png"  "${ICONSET}/icon_16x16@2x.png"
+          cp "${SRC}/icon-32.png"  "${ICONSET}/icon_32x32.png"
+          cp "${SRC}/icon-64.png"  "${ICONSET}/icon_32x32@2x.png"
+          cp "${SRC}/icon-128.png" "${ICONSET}/icon_128x128.png"
+          cp "${SRC}/icon-256.png" "${ICONSET}/icon_128x128@2x.png"
+          cp "${SRC}/icon-256.png" "${ICONSET}/icon_256x256.png"
           iconutil -c icns "${ICONSET}" -o "${APP}/Contents/Resources/DomesdayDuplicator.icns"
 
           cat > "${APP}/Contents/Info.plist" <<PLIST
@@ -117,8 +150,8 @@ jobs:
           <dict>
             <key>CFBundleName</key><string>Domesday Duplicator</string>
             <key>CFBundleDisplayName</key><string>Domesday Duplicator</string>
-            <key>CFBundleExecutable</key><string>DomesdayDuplicator</string>
-            <key>CFBundleIdentifier</key><string>io.github.simoninns.DomesdayDuplicator</string>
+            <key>CFBundleExecutable</key><string>ddd-gui</string>
+            <key>CFBundleIdentifier</key><string>io.github.simoninns.DddGui</string>
             <key>CFBundleIconFile</key><string>DomesdayDuplicator.icns</string>
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>CFBundleShortVersionString</key><string>${{ steps.version.outputs.version }}</string>
@@ -140,11 +173,11 @@ jobs:
           # left as dangling references. This is the failure that builds green and then
           # fails to launch for everyone, so dylibbundler runs afterwards to catch them.
           macdeployqt dist/DomesdayDuplicator.app -verbose=1
-          dylibbundler -od -b -x dist/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator \
+          dylibbundler -od -b -x dist/DomesdayDuplicator.app/Contents/MacOS/ddd-gui \
             -d dist/DomesdayDuplicator.app/Contents/libs -p @executable_path/../libs
 
           echo "== Remaining references to Homebrew prefixes (must be none) =="
-          if otool -L dist/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator | grep -E '/opt/homebrew|/usr/local/Cellar'; then
+          if otool -L dist/DomesdayDuplicator.app/Contents/MacOS/ddd-gui | grep -E '/opt/homebrew|/usr/local/Cellar'; then
             echo "The bundle still references Homebrew paths and would not run on a user's machine" >&2
             exit 1
           fi
@@ -152,11 +185,22 @@ jobs:
       - name: Check the bundled application runs
         shell: bash
         run: |
-          reported=$(dist/DomesdayDuplicator.app/Contents/MacOS/DomesdayDuplicator --version)
+          set -euo pipefail
+          reported=$(dist/DomesdayDuplicator.app/Contents/MacOS/ddd-gui --version)
           echo "Packaged application reports: ${reported}"
           case "${reported}" in
             *unknown*) echo "The packaged application reports an unknown version" >&2; exit 1 ;;
           esac
+
+          # A pinned set that did not reach the shipped bundle would leave the offline
+          # bring-up path broken in exactly the case it exists for.
+          if [[ -n "${{ steps.bundled.outputs.path }}" ]]; then
+            if [[ ! -f dist/DomesdayDuplicator.app/Contents/Resources/update.dddfw ]]; then
+              echo "The pinned update file is not in the application bundle" >&2
+              exit 1
+            fi
+            echo "Bundled update file present"
+          fi
 
       - name: Build the DMG
         shell: bash

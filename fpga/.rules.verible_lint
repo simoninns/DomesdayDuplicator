@@ -1,0 +1,106 @@
+# Style-lint rules for the hand-written gateware.
+#
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Consumed as `verible-verilog-lint --rules_config=...` by tests/run-style.sh, and
+# found automatically by verible-verilog-ls (the language server in the .#fpga dev
+# shell), which searches upward for a file of this name — so an editor shows the same
+# diagnostics the CI check enforces.
+#
+# The base is Verible's default rule set, which encodes the lowRISC Verilog Coding
+# Style Guide. This file records only the departures from it, and **every departure
+# carries its reason**. That is the same rule verilator-waivers.vlt states for the
+# correctness linter: a waiver with no reason is indistinguishable from a bug someone
+# hid.
+#
+# This is style, not correctness. verilator --lint-only -Wall is the correctness gate
+# and it is a separate check (tests/run-lint.sh); neither replaces the other.
+
+# ---------------------------------------------------------------------------
+# Enabled beyond the default set
+# ---------------------------------------------------------------------------
+
+# Signal, variable and port names are lower_snake_case. Off by default in Verible,
+# and the rule the naming convention rests on: without it the style guide's central
+# claim is prose that nothing checks.
+#
+# Top-level ports are the one exception the guide allows — CLOCK_50, GPIO0, GPIO1 and
+# LED are the DE0-Nano board's own pin names, bound by name to 164 lines of location
+# and I/O-standard assignment in DomesdayDuplicator.qsf. They are waived by those four
+# names, on that one file, in fpga/verible-waivers, which carries the full reason.
++signal-name-style
+
+# Verible's default accepts UpperCamelCase or ALL_CAPS for a `parameter` but only
+# UpperCamelCase for a `localparam`. The style guide allows ALL_CAPS for testbench
+# constants (RAMP_LENGTH, PACKET_WORDS, HALF_BIT), and those are localparams because
+# nothing overrides them — so the two rules have to be told to agree.
+#
+# Only the localparam half is widened. A lowerCamelCase or snake_case constant is
+# still reported, which is what caught bufferSize and commitText.
++parameter-name-style=localparam_style:CamelCase|ALL_CAPS
+
+# begin/end on every if, else, always, initial, for and while body, however short.
+#
+# Not merely a matter of taste: without it verible-verilog-format collapses a short
+# body onto its condition's line whenever the result fits inside the column limit, so
+# whether two structurally identical conditionals look alike comes down to how long
+# their signal names happen to be. spiRegisters.v had exactly that — one collapsed
+# `if` directly above an identical one that stayed split because its names were
+# longer. The formatter has no flag to suppress it; begin/end is the fix.
++explicit-begin
+
+# ---------------------------------------------------------------------------
+# Disabled: SystemVerilog-only advice
+# ---------------------------------------------------------------------------
+#
+# This design is Verilog-2001. Every source entry in DomesdayDuplicator.qsf is a
+# VERILOG_FILE and Quartus Prime Lite's SystemVerilog support is partial, so
+# converting a design that has been capturing correctly since 2018 in order to gain
+# compile-time latch detection is a poor trade against the risk. This is one of the
+# deliberate deviations recorded in fpga/README.md, section Style.
+
+# Wants `always_comb` in place of `always @(*)`.
+-always-comb
+
+# Want an explicit `automatic`/`static` lifetime, which is SystemVerilog syntax.
+# Both fire only on the testbenches.
+-explicit-task-lifetime
+-explicit-function-lifetime
+
+# Wants a storage *type* on every parameter and localparam. An explicit width is not
+# enough — `localparam [13:0] BufferSize` is still flagged — and of the forms the rule
+# does accept, none is usable here:
+#
+#   logic [13:0]   SystemVerilog, which is the deviation above
+#   bit [13:0]     SystemVerilog; iverilog -g2005 rejects it outright
+#   reg [13:0]     accepted by iverilog, but not in the IEEE 1364-2001 parameter
+#                  grammar, so it is a bet on what Quartus tolerates
+#   integer        loses the width, and is 32-bit — wrong for the 64-bit CommitText
+#   signed [13:0]  legal, but makes unsigned constants signed and so changes the
+#                  comparisons they appear in
+#
+# So the rule is unsatisfiable in Verilog-2001 without either lying about a value or
+# guessing at the synthesiser. What it is a proxy for — knowing the width of every
+# constant — is kept as a project rule instead: every parameter and localparam here
+# carries an explicit width or `integer`, and AGENTS.md section 5.3 says so.
+-explicit-parameter-storage-type
+
+# Wants `reg [7:0] read_data [16]` in place of `[0:15]`. The bare-size form is
+# SystemVerilog: iverilog accepts it only with a "Use of SystemVerilog [size]
+# dimension" warning, and run-sim.sh runs with -Wall. One occurrence, in
+# tb_spiRegisters.v.
+-unpacked-dimensions-range-ordering
+
+# ---------------------------------------------------------------------------
+# Disabled: already covered, with a reason, by the correctness linter
+# ---------------------------------------------------------------------------
+
+# fx3StateMachine.v's case covers 2 of 16 states. It is preceded by
+# `sm_nextState = sm_currentState;`, so every uncovered state holds rather than
+# falling through to an undefined value. Verilator reports the same thing as
+# CASEINCOMPLETE and verilator-waivers.vlt waives it there with that justification.
+# Keeping the reasoning in one file means there is one place to revisit if the state
+# machine grows a third state.
+-case-missing-default

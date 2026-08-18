@@ -1,4 +1,4 @@
-# Windows MSI for the capture application (P7-16).
+# Windows MSI for the capture application.
 #
 # MSYS2 UCRT64 is the toolchain the project's Windows builds have always used, so the MSI
 # packages the same binary the native build produces rather than introducing a second
@@ -82,12 +82,39 @@ jobs:
           echo "msi_version=${msi_version}" >> "$GITHUB_OUTPUT"
           echo "ddd_version=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
 
+      # Git Bash rather than the MSYS2 shell this job otherwise uses, for the same reason
+      # the version step above is: it is the shell that handles $GITHUB_OUTPUT and the
+      # runner's paths without translation. The path is handed on in mixed form
+      # (D:/a/...), because the CMake that consumes it is a native Windows binary and
+      # would make nothing of an MSYS one.
+      - name: Fetch the pinned update bundle
+        id: bundled
+        shell: bash
+        run: |
+          set -euo pipefail
+          path="$(./tools/fetch-bundled-update.sh \
+            --output build-bundled/update.dddfw)"
+          if [[ -n "${path}" ]]; then
+            path="$(cygpath -m "$(realpath "${path}")")"
+          fi
+          echo "path=${path}" >> "$GITHUB_OUTPUT"
+
       - name: Configure and build
         run: |
-          cmake -B build -S gui -G Ninja \
+          set -euo pipefail
+          # The bundled set, when one is pinned. CMake places it beside the built binary
+          # under the fixed name the application searches for, so the staging step below
+          # copies it rather than knowing where it goes.
+          bundled=()
+          if [[ -n "${{ steps.bundled.outputs.path }}" ]]; then
+            bundled=(-DDDD_BUNDLED_UPDATE_FILE="${{ steps.bundled.outputs.path }}")
+          fi
+
+          cmake -B build -S ddd-gui -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
-            -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}"
+            -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}" \
+            "${bundled[@]}"
           cmake --build build
 
       - name: Run the test suite
@@ -97,8 +124,16 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf stage && mkdir -p stage
-          cp build/bin/DomesdayDuplicator.exe stage/
-          windeployqt --release --no-translations --no-system-d3d-compiler stage/DomesdayDuplicator.exe
+          cp build/bin/ddd-gui.exe stage/
+          cp build/bin/ddd-update.exe stage/
+
+          # The bundled update file, if this build carries one. It goes beside the
+          # executable, which is where the MSI's harvest puts everything in stage and is
+          # the first place the application looks.
+          if [[ -f build/bin/update.dddfw ]]; then
+            cp build/bin/update.dddfw stage/
+          fi
+          windeployqt --release --no-translations --no-system-d3d-compiler stage/ddd-gui.exe
 
           # windeployqt follows Qt only. libFLAC, libogg and libusb come from the MSYS2
           # prefix, which does not exist on a user's machine, so they are copied
@@ -148,7 +183,7 @@ jobs:
       - name: Check the staged application runs
         shell: pwsh
         run: |
-          $reported = & .\stage\DomesdayDuplicator.exe --version
+          $reported = & .\stage\ddd-gui.exe --version
           Write-Host "Packaged application reports: $reported"
           if ($reported -match 'unknown') {
             Write-Error "The packaged application reports an unknown version"
@@ -198,9 +233,9 @@ jobs:
           & candle -arch x64 `
             -dStageDir=stage `
             -dProductVersion="${{ steps.version.outputs.msi_version }}" `
-            -dIconFile="gui\src\DomesdayDuplicator\Graphics\ApplicationIcon\Application.ico" `
+            -dIconFile="ddd-gui\src\gui\resources\icon.ico" `
             -dLicenseRtf="wix-license.rtf" `
-            gui\packaging\windows\product.wxs files.wxs
+            ddd-gui\packaging\windows\product.wxs files.wxs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           & light -ext WixUIExtension -cultures:en-us `
@@ -218,7 +253,7 @@ jobs:
           $msi = Get-ChildItem dist\*.msi | Select-Object -First 1
           Start-Process msiexec.exe -ArgumentList "/i", "`"$($msi.FullName)`"", "/quiet", "/norestart", "/l*v", "install.log" -Wait -NoNewWindow
 
-          $installed = "${env:ProgramFiles}\Domesday Duplicator\DomesdayDuplicator.exe"
+          $installed = "${env:ProgramFiles}\Domesday Duplicator\ddd-gui.exe"
           if (-not (Test-Path $installed)) {
             Get-Content install.log -Tail 50
             Write-Error "The MSI did not install $installed"
@@ -228,6 +263,17 @@ jobs:
           $reported = & $installed --version
           Write-Host "Installed application reports: $reported"
           if ($reported -match 'unknown') { Write-Error "Installed application reports an unknown version"; exit 1 }
+
+          # The bundled set has to survive into the installation, or the offline bring-up
+          # this whole path exists for fails on the one machine that cannot fetch it.
+          if ("${{ steps.bundled.outputs.path }}" -ne "") {
+            $set = "${env:ProgramFiles}\Domesday Duplicator\update.dddfw"
+            if (-not (Test-Path $set)) {
+              Write-Error "The MSI did not install the pinned update file"
+              exit 1
+            }
+            Write-Host "Bundled update file present"
+          }
 
           Start-Process msiexec.exe -ArgumentList "/x", "`"$($msi.FullName)`"", "/quiet", "/norestart" -Wait -NoNewWindow
           if (Test-Path "${env:ProgramFiles}\Domesday Duplicator") {

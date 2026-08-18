@@ -2,14 +2,18 @@
 """Record what produced a bitstream, and digests that make it verifiable.
 
 Domesday Duplicator - LaserDisc RF sampler
-SPDX-FileCopyrightText: 2018-2025 Simon Inns
+SPDX-FileCopyrightText: 2018-2026 Simon Inns
 SPDX-License-Identifier: GPL-3.0-or-later
 
-The FPGA bitstream is the one release artefact CI does not build. Quartus is
-unfree, x86_64-linux only and marked non-redistributable, so it can never be
-served from a binary cache and does not go on a runner; the maintainer builds
-it locally and attaches it by hand. That makes provenance the artefact's own
-responsibility, because nothing else records it.
+The FPGA bitstream is built by its own CI workflow rather than by the
+per-commit tier: Quartus is unfree, x86_64-linux only and marked
+non-redistributable, so it can never be served from a binary cache and cannot
+be a dependency of the `nix flake check` every contributor runs. That makes
+this record the artefact's own statement of where it came from — which
+toolchain, which commit, and which digests a rebuild must agree with. The
+scheduled reproducibility audit compares a fresh build of a release tag
+against the canonical digests below, so this file is machine-read as well as
+human-read.
 
 Two kinds of digest, because they answer different questions:
 
@@ -20,7 +24,7 @@ Two kinds of digest, because they answer different questions:
                     "does a rebuild of this commit agree with it?"
 
 They are different for the .sof because Quartus stamps a compile timestamp and
-a per-run design hash into its header. Measured on this project (P6-9): two
+a per-run design hash into its header. Measured on this project: two
 compiles of the same commit on the same toolchain produce a .sof differing in
 34 of 704,015 bytes, all of it header metadata, and a .jic that is byte for
 byte identical. So the .jic needs no canonicalisation — its release digest and
@@ -103,10 +107,38 @@ def canonicalise_sof(data):
     return bytes(out)
 
 
+# The one field the SVF converter varies between runs.
+#
+# Its header comment names the file it read and the time that file was last
+# written, so two conversions of the same .jic differ in exactly those
+# characters and in nothing else — measured, by converting one .jic twice
+# (identical), then touching it and converting again (four bytes, all of them
+# in this line). The vectors themselves are a function of the .jic alone.
+SVF_DEVICE_LINE = re.compile(
+    rb"^(!Device #\d+:.*?)"
+    rb"( [A-Z][a-z]{2} [A-Z][a-z]{2} [ \d]\d \d\d:\d\d:\d\d \d{4})\s*$",
+    re.MULTILINE,
+)
+
+
+def canonicalise_svf(data):
+    """The .svf with the input file's modification time taken out of it."""
+    canonical, replaced = SVF_DEVICE_LINE.subn(rb"\1", data)
+    if replaced == 0:
+        raise ValueError(
+            "no timestamped device line in the .svf. The converter's header "
+            "has changed — re-derive the masking before trusting a canonical "
+            "digest from this Quartus version."
+        )
+    return canonical
+
+
 def canonical_digest(path):
     data = path.read_bytes()
     if path.suffix == ".sof":
         return hashlib.sha256(canonicalise_sof(data)).hexdigest()
+    if path.suffix == ".svf":
+        return hashlib.sha256(canonicalise_svf(data)).hexdigest()
     # The .jic was measured to be reproducible as-is, so canonicalising it
     # would be inventing a difference that is not there.
     return hashlib.sha256(data).hexdigest()
@@ -209,18 +241,30 @@ def main():
     parser.add_argument("--output", type=Path, default=None, help="default: stdout")
     args = parser.parse_args()
 
-    qsf = args.build_dir / "DomesdayDuplicator.qsf"
-    if not qsf.is_file():
-        sys.exit(f"no DomesdayDuplicator.qsf in {args.build_dir}")
-    assignments = qsf_assignments(qsf)
+    # Two projects, so two settings files. They are recorded separately
+    # because they are separately programmable things: a unit's factory image
+    # and its application image are provisioned together but updated apart,
+    # and a provenance record that averaged them would describe neither.
+    projects = [
+        ("application", args.build_dir / "application" / "DomesdayDuplicator.qsf"),
+        ("factory", args.build_dir / "factory" / "DomesdayDuplicatorFactory.qsf"),
+    ]
+    for name, qsf in projects:
+        if not qsf.is_file():
+            sys.exit(f"no {qsf.name} in {qsf.parent} — the {name} image was not built")
 
+    # Everything the build produces that ends up on a device, wherever it
+    # landed: the two .sof files, the provisioning .jic and the .svf carrying
+    # the same content as JTAG vectors, the raw application image an update
+    # writes, and the boot block that describes it.
     artefacts = sorted(
-        p
-        for p in args.build_dir.iterdir()
-        if p.suffix in (".sof", ".jic") and p.is_file()
+        path
+        for path in args.build_dir.rglob("*")
+        if path.is_file()
+        and path.suffix in (".sof", ".jic", ".svf", ".rpd", ".bin")
     )
     if not artefacts:
-        sys.exit(f"no .sof or .jic in {args.build_dir} — nothing to record")
+        sys.exit(f"no bitstream artefacts under {args.build_dir} — nothing to record")
 
     commit = args.commit if args.commit is not None else git_commit(args.source_dir)
     version = args.quartus_version or quartus_version()
@@ -229,15 +273,29 @@ def main():
         "Domesday Duplicator FPGA bitstream",
         "==================================",
         "",
-        "Built outside CI. See fpga/README.md, 'Why this is not built by CI', for",
-        "why, and 'Reproducibility' in the same file for how to reproduce it.",
+        "Built by the bitstream workflow, or locally by build-local.sh. See",
+        "fpga/README.md, 'How the bitstream is built', for which tier builds it,",
+        "and 'Reproducibility' in the same file for how to rebuild and compare.",
         "",
         "Source",
         "------",
         f"  commit                    {commit}",
-        f"  device                    {assignments.get('DEVICE', 'unknown')}",
-        f"  family                    {assignments.get('FAMILY', 'unknown')}",
-        f"  top level                 {assignments.get('TOP_LEVEL_ENTITY', 'unknown')}",
+        "",
+    ]
+
+    first = qsf_assignments(projects[0][1])
+    for name, qsf in projects:
+        assignments = qsf_assignments(qsf)
+        lines += [
+            f"  {name} image",
+            f"    device                  {assignments.get('DEVICE', 'unknown')}",
+            f"    family                  {assignments.get('FAMILY', 'unknown')}",
+            f"    top level               {assignments.get('TOP_LEVEL_ENTITY', 'unknown')}",
+            f"    update mode             {assignments.get('STRATIXIII_UPDATE_MODE', 'not set')}",
+        ]
+
+    assignments = first
+    lines += [
         "",
         "Toolchain",
         "---------",
@@ -268,7 +326,8 @@ def main():
         except ValueError as error:
             sys.exit(f"{artefact.name}: {error}")
 
-        lines.append(f"  {artefact.name}  ({artefact.stat().st_size} bytes)")
+        relative = artefact.relative_to(args.build_dir)
+        lines.append(f"  {relative}  ({artefact.stat().st_size} bytes)")
         lines.append(f"    release        sha256:{release}")
         lines.append(f"    canonical      sha256:{canonical}")
         lines.append("")

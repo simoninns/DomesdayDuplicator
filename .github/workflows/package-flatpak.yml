@@ -1,7 +1,11 @@
-# Linux Flatpak for the capture application (P7-14).
+# Linux Flatpak for the capture application.
 #
 # Reusable, following decode-orc: build.yml calls it on every non-PR push so the installer
 # is testable per branch, and release-gui.yml calls it again on a gui-v* tag.
+#
+# This packages ddd-gui, which ships under an application ID of its own, so a machine with
+# the Flatpak of the application it replaced installed keeps it until somebody removes it
+# deliberately.
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -35,7 +39,7 @@ jobs:
         shell: bash
         run: |
           # A tag names itself; anything else names its commit. Neither may end up as
-          # "unknown", which is what P7-9 fails a release for.
+          # "unknown", which fails the release gate.
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             version="${GITHUB_REF_NAME#gui-v}"
           else
@@ -55,7 +59,7 @@ jobs:
           # Read from the manifest rather than repeating it here. Two copies of a runtime
           # version drift, and the failure that follows is a build against a runtime nobody
           # meant to use.
-          MANIFEST=gui/packaging/flatpak/io.github.simoninns.DomesdayDuplicator.yml
+          MANIFEST=ddd-gui/packaging/flatpak/io.github.simoninns.DddGui.yml
           RUNTIME_VERSION="$(sed -n "s/^runtime-version: *'\(.*\)'/\1/p" "${MANIFEST}")"
           [[ -n "${RUNTIME_VERSION}" ]] || { echo "no runtime-version in ${MANIFEST}" >&2; exit 1; }
           echo "Installing the KDE runtime and SDK ${RUNTIME_VERSION}"
@@ -65,23 +69,55 @@ jobs:
       - name: Validate desktop and AppStream metadata
         run: |
           sudo apt-get install -y desktop-file-utils appstream
-          desktop-file-validate gui/packaging/assets/io.github.simoninns.DomesdayDuplicator.desktop
+          desktop-file-validate ddd-gui/packaging/assets/io.github.simoninns.DddGui.desktop
           # A malformed metainfo file is rejected at Flathub review rather than at build
           # time, so it is checked here where the feedback is immediate.
-          appstreamcli validate --no-net gui/packaging/assets/io.github.simoninns.DomesdayDuplicator.metainfo.xml
+          appstreamcli validate --no-net ddd-gui/packaging/assets/io.github.simoninns.DddGui.metainfo.xml
+
+      - name: Fetch the pinned update bundle
+        id: bundled
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Into the checkout, because flatpak-builder's source is this directory and the
+          # build itself has no network. An unpinned tree writes nothing and the flag is
+          # removed by the stamping step below; that is a legitimate build, not a failure.
+          #
+          # This step has to come *before* the stamping step: `${{ steps.bundled.outputs.path }}`
+          # is evaluated when the step reading it begins, so a fetch placed after it would
+          # hand the stamping step an empty string, delete the manifest's bundled-update
+          # line, and then leave the install check hunting for a file the manifest never
+          # asked to be installed.
+          path="$(./tools/fetch-bundled-update.sh \
+            --output ddd-gui/packaging/bundled/update.dddfw)"
+          echo "path=${path}" >> "$GITHUB_OUTPUT"
 
       - name: Stamp the version into the manifest and the AppStream release list
         shell: bash
         run: |
           set -euo pipefail
-          MANIFEST=gui/packaging/flatpak/io.github.simoninns.DomesdayDuplicator.yml
+          MANIFEST=ddd-gui/packaging/flatpak/io.github.simoninns.DddGui.yml
           sed -i "s/@DDD_VERSION@/${{ steps.version.outputs.ddd_version }}/" "${MANIFEST}"
           grep -q "@DDD_VERSION@" "${MANIFEST}" && { echo "version placeholder not substituted" >&2; exit 1; }
 
+          # The update bundle, if one was fetched. The path is the one the file has
+          # *inside* the sandbox: the module's source is the repository root, mounted at
+          # /run/build/ddd-gui, and subdir: ddd-gui is what the build runs in.
+          if [[ -n "${{ steps.bundled.outputs.path }}" ]]; then
+            sed -i "s|@DDD_BUNDLED_UPDATE_FILE@|/run/build/ddd-gui/${{ steps.bundled.outputs.path }}|" \
+              "${MANIFEST}"
+          else
+            sed -i "/@DDD_BUNDLED_UPDATE_FILE@/d" "${MANIFEST}"
+          fi
+          if grep -q "@DDD_BUNDLED_UPDATE_FILE@" "${MANIFEST}"; then
+            echo "bundled-update placeholder not resolved" >&2
+            exit 1
+          fi
+
           # Rewrite the <releases> list from the tag rather than maintaining it by hand,
-          # which is how a version history goes stale (P7-13).
+          # which is how a version history goes stale.
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            METAINFO=gui/packaging/assets/io.github.simoninns.DomesdayDuplicator.metainfo.xml
+            METAINFO=ddd-gui/packaging/assets/io.github.simoninns.DddGui.metainfo.xml
             python3 - "$METAINFO" "${{ steps.version.outputs.version }}" "$(date -u +%Y-%m-%d)" <<'PY'
           import re, sys
           path, version, date = sys.argv[1:4]
@@ -96,20 +132,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .flatpak-builder
-          key: flatpak-builder-${{ hashFiles('gui/packaging/flatpak/*.yml') }}
+          key: flatpak-builder-${{ hashFiles('ddd-gui/packaging/flatpak/*.yml') }}
           restore-keys: flatpak-builder-
 
       - name: Build
         run: |
           sudo flatpak-builder --disable-rofiles-fuse --repo=repo --force-clean \
-            build-dir gui/packaging/flatpak/io.github.simoninns.DomesdayDuplicator.yml
+            build-dir ddd-gui/packaging/flatpak/io.github.simoninns.DddGui.yml
 
       - name: Export a single-file bundle
         run: |
           mkdir -p dist
           sudo flatpak build-bundle repo \
             "dist/DomesdayDuplicator-${{ steps.version.outputs.version }}.flatpak" \
-            io.github.simoninns.DomesdayDuplicator
+            io.github.simoninns.DddGui
           sudo chown "$(id -u):$(id -g)" dist/*.flatpak
 
       - name: Install the bundle and check it runs
@@ -134,11 +170,24 @@ jobs:
           # same plugin the test steps use, passed with --env because the sandbox does not
           # owe the host environment anything.
           reported=$(flatpak run --env=QT_QPA_PLATFORM=offscreen \
-            --command=DomesdayDuplicator io.github.simoninns.DomesdayDuplicator --version)
+            --command=ddd-gui io.github.simoninns.DddGui --version)
           echo "Packaged application reports: ${reported}"
           case "${reported}" in
             *unknown*) echo "The packaged application reports an unknown version" >&2; exit 1 ;;
           esac
+
+          # A pinned set that did not survive into the installed application is the exact
+          # failure this whole path exists to prevent — a build that looks complete and
+          # then cannot bring a board up on the machine that has no network. Checked
+          # inside the sandbox, at the path the application searches.
+          if [[ -n "${{ steps.bundled.outputs.path }}" ]]; then
+            flatpak run --command=test io.github.simoninns.DddGui \
+              -f /app/share/io.github.simoninns.DddGui/update.dddfw || {
+              echo "The pinned update file is not in the installed application" >&2
+              exit 1
+            }
+            echo "Bundled update file present"
+          fi
 
       - name: Upload
         uses: actions/upload-artifact@v4

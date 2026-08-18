@@ -74,11 +74,18 @@ result-*
 # directory is called content/ and not site/.
 site/
 
-# Packaging outputs and scratch (gui/packaging, .github/workflows/package-*.yml).
+# Packaging outputs and scratch (ddd-gui/packaging, .github/workflows/package-*.yml).
 # *.msi is already covered by the Windows section above.
 dist/
 stage/
 repo/
+
+# The update bundle a packaging job fetches by digest from the pin in
+# ddd-gui/packaging/bundled-update.env. It lands inside the checkout because
+# flatpak-builder's source is the checkout and its build has no network — but it is a
+# release asset of another stream, and committing a copy would be a second, unsigned
+# way for one to exist.
+ddd-gui/packaging/bundled/
 .flatpak-builder/
 *.flatpak
 *.dmg
@@ -115,6 +122,12 @@ compile_commands.json
 # Visual Studio Code
 .vscode/
 
+# Its Local History extension, which writes a timestamped copy of every save into a
+# .history/ beside the file — and puts a nested .git inside it, so `git add -A` offers to
+# commit it as an embedded repository rather than as files. Anywhere in the tree, not just
+# at the root: the copies land beside whatever was being edited.
+.history/
+
 # JetBrains
 .idea/
 
@@ -146,3 +159,12 @@ compile_commands.json
 
 # direnv machine-local overrides
 .envrc.local
+
+# The release signing key's secret half, which must never be committed.
+# `minisign -G -W -p tools/keys/release.pub -s release.key` writes it into the
+# working directory, and the procedure in docs/content/development/release-pipeline.md
+# says to move it offline and delete it — this is the backstop for the run where
+# somebody types `git add -A` first. Named rather than globbed: tools/keys/development.key
+# is committed deliberately, secret half and all, and `*.key` would hide it.
+/release.key
+/tools/keys/release.key

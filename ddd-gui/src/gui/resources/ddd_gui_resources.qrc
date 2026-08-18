@@ -1,0 +1,48 @@
+<!--
+    ddd_gui_resources.qrc
+
+    The application's graphics, compiled into the binary
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+    Component-local copies of the repository's graphics, not references to
+    them (AGENTS.md §2), so the application's artwork travels with the
+    component that ships it.
+-->
+<RCC>
+    <qresource prefix="/graphics">
+        <file>logo-250.png</file>
+        <file>logo-150.png</file>
+        <file>icon-16.png</file>
+        <file>icon-24.png</file>
+        <file>icon-32.png</file>
+        <file>icon-48.png</file>
+        <file>icon-64.png</file>
+        <file>icon-128.png</file>
+        <file>icon-256.png</file>
+    </qresource>
+
+    <!--
+        The bring-up wizard's photographs.
+
+        The same three images the "Bringing up a new or legacy board" and
+        hardware-programming documentation pages carry, downscaled here to what
+        the wizard actually displays: three 550 KB originals would be a real
+        addition to every Flatpak, MSI and DMG for pixels nobody sees. The
+        full-resolution copies live beside the docs pages that show them, and
+        both copies enter the tree together so the wizard and the page cannot
+        drift apart — which is the whole reason for using photographs rather
+        than prose about pin positions.
+
+        Named for what the jumper *is* rather than for how it looks: the
+        firmware README, the documentation and the wizard all say fitted and
+        removed, so a user never has to translate between two vocabularies for
+        one jumper.
+    -->
+    <qresource prefix="/photographs">
+        <file>fx3-j4-fitted.jpg</file>
+        <file>fx3-j4-removed.jpg</file>
+        <file>fpga-usb-port.jpg</file>
+    </qresource>
+</RCC>

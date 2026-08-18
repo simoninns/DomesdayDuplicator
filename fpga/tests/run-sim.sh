@@ -3,7 +3,7 @@
 # Run the gateware testbenches (T3).
 #
 # Domesday Duplicator - LaserDisc RF sampler
-# SPDX-FileCopyrightText: 2018-2025 Simon Inns
+# SPDX-FileCopyrightText: 2018-2026 Simon Inns
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Runs from the dev shell and from the Nix check, so both take exactly the same
@@ -15,33 +15,56 @@
 # Icarus Verilog rather than Verilator: these are event-driven testbenches with
 # clock delays and no C++ harness, which is what iverilog is for.
 #
-# There is no whole-design testbench and there cannot be a free one. The top
-# level instantiates dcfifo and altpll through IPfifo/IPpllGenerator, and those
-# need Altera's altera_mf simulation library — so buffer.v, which is nothing but
-# two of those FIFOs and the logic that switches between them, is untested here.
-# What it does is covered on hardware instead, by the capture-integrity
-# procedure in TESTING.md section 5.
+# There is still no whole-design testbench, because the top level instantiates
+# altpll through IPpllGenerator and that needs Altera's altera_mf simulation
+# library. Everything below the top level is covered: buffer.v used to be
+# exempt for the same reason — it was two dcfifo instances — and replacing that
+# IP with fifo.v is what brought the capture path into this suite.
+#
+# The pin-level behaviour of the whole design is still covered on hardware, by
+# the capture-integrity procedure in TESTING.md section 5.
 
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-fpga="$(dirname "$here")"
-src="${1:-$fpga/src}"
+fpga="${1:-$(dirname "$here")}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-# testbench:module under test
+# testbench:path/to/module[,path/to/submodule...]
+#
+# A testbench compiles against its module and anything that module
+# instantiates, named rather than globbed so that a testbench cannot silently
+# start depending on a module nobody meant it to reach - and so that the
+# three trees stay visibly separate here as well as on disk.
+#
+# tb_bootLoader is the exception in size and the reason the list is explicit:
+# it builds the factory image's boot path exactly as the top level wires it,
+# down to a model of the EPCS64, because the decision it tests is the one
+# thing in this repository that a field update can never repair.
 benches=(
-    "tb_dataGenerator:dataGenerator"
-    "tb_fx3StateMachine:fx3StateMachine"
-    "tb_statusLED:statusLED"
+    "tb_buffer:application/buffer,application/fifo,application/bufferMonitor"
+    "tb_bufferMonitor:application/bufferMonitor"
+    "tb_dataGenerator:application/dataGenerator"
+    "tb_halfBandDecimator:application/halfBandDecimator"
+    "tb_fifo:application/fifo"
+    "tb_fx3StateMachine:application/fx3StateMachine"
+    "tb_spiRegisters:common/spiRegisters"
+    "tb_crc32:factory/crc32"
+    "tb_flashBridge:common/flashBridge,common/sim/epcsFlashModel"
+    "tb_bootLoader:factory/bootLoader,factory/crc32,common/flashBridge,common/asmiBlock,common/remoteUpdate,common/sim/cycloneive_asmiblock,common/sim/epcsFlashModel,common/sim/altremote_update"
 )
 
 failed=0
 
 for bench in "${benches[@]}"; do
     tb="${bench%%:*}"
-    dut="${bench##*:}"
+
+    sources=()
+    IFS=',' read -r -a duts <<<"${bench##*:}"
+    for dut in "${duts[@]}"; do
+        sources+=("$fpga/$dut.v")
+    done
 
     echo "=== $tb ==="
 
@@ -53,7 +76,7 @@ for bench in "${benches[@]}"; do
     # the benefit of a simulator. The testbenches declare it instead, and
     # iverilog warns that the DUT inherited it. That is the intended
     # arrangement, not a finding.
-    if ! iverilog -g2005 -Wall -Wno-timescale -o "$work/$tb.vvp" "$here/$tb.v" "$src/$dut.v"; then
+    if ! iverilog -g2005 -Wall -Wno-timescale -o "$work/$tb.vvp" "$here/$tb.v" "${sources[@]}"; then
         echo "$tb: compilation failed"
         failed=1
         continue

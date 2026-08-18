@@ -1,0 +1,225 @@
+# The FPGA bitstreams, built by CI.
+#
+# This workflow is the amendment to a rule this repository held until now: that the
+# bitstream stays out of CI entirely. It stays out of the **per-commit tier** — `nix flake
+# check` still builds no Quartus, so a contributor without an unfree-enabled Nix
+# configuration is untouched — and it is built here instead, on gateware changes, on manual
+# dispatch, and from the tag by release-firmware.yml, which calls this workflow rather than
+# repeating it. That is what lets every released artefact be CI-built from the tagged
+# commit with no maintainer-built binary anywhere in the chain.
+#
+# Licence position, stated here rather than left as folklore:
+#
+#   * Quartus Prime **Lite** needs no licence file. Nothing here has one, or wants one.
+#   * Installing it in CI from Altera/Intel's own installer is ordinary use of a free-of-
+#     charge tool. The nixpkgs derivation fetches from downloads.intel.com with the hash
+#     pinned, so a fetch that succeeds fetched exactly what was audited and a fetch that
+#     changed fails loudly rather than quietly.
+#   * The package is `redistributable = false`. Caching its closure so *our own* CI does
+#     not re-download it is ordinary use; publishing that cache would be redistribution.
+#     The Actions cache used below is private to this repository. If this is ever moved to
+#     a binary cache (Cachix, S3), that cache must be private for the same reason.
+#   * Third-party Docker images containing Quartus — the route the MiSTer community takes —
+#     are rejected here: they are redistribution, whoever performs it.
+#
+# Cost and the two ways it goes wrong, both visible rather than silent:
+#
+#   * A cold cache means fetching several GB from Intel's CDN, so a run takes tens of
+#     minutes rather than a few. It is slow, never wrong.
+#   * CDN link rot fails the hash-pinned fetch immediately, which is the loudest possible
+#     failure and better than a substituted download.
+#
+# Nothing here writes to a device (AGENTS.md §4): CI compiles files and uploads them, and
+# programming hardware stays a deliberate human act.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Bitstream
+
+on:
+  # Gateware changes, and the build definitions that decide what a gateware change means.
+  # Tags are deliberately absent: release-firmware.yml calls this workflow from the tag, so
+  # listing them here would compile Quartus twice for every release.
+  push:
+    branches: ['**']
+    paths:
+      - 'fpga/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.github/workflows/bitstream.yml'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or commit to build (default: this branch)'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Branch, tag or commit to build (default: the calling ref)'
+        required: false
+        type: string
+      artifact_name:
+        description: Name of the uploaded artefact bundle
+        required: false
+        type: string
+        default: bitstream
+      retention_days:
+        description: How long to keep the uploaded artefact
+        required: false
+        type: number
+        default: 30
+
+concurrency:
+  # Not cancelled in progress, unlike build.yml. A Quartus run that has paid for a cold
+  # closure fetch is worth finishing even when a newer commit has arrived, because
+  # finishing it is what leaves the cache warm for that newer commit.
+  group: bitstream-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Compile both images
+    runs-on: ubuntu-latest
+
+    steps:
+      # `ref` matters for the release path: a reusable workflow is called with the caller's
+      # ref, and a release re-run dispatched from a branch would otherwise compile that
+      # branch and attach it to a tag. Empty means "whatever triggered this", which is the
+      # right answer for a push.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      # A stock hosted runner has ~14 GB free on the root volume, and the Quartus closure
+      # plus the two compiles needs most of it. The toolchains removed here — .NET, Android,
+      # GHC, CodeQL, the preloaded Docker images — are the largest things this build will
+      # never use, and removing them is faster than being clever about the store.
+      - name: Prepare the runner disk
+        run: |
+          set -euo pipefail
+          echo "Before:"
+          df -h /
+
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost \
+                      /usr/local/.ghcup "${AGENT_TOOLSDIRECTORY:-/opt/hostedtoolcache}"/PyPy
+          sudo docker image prune --all --force >/dev/null 2>&1 || true
+
+          echo "After:"
+          df -h /
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      # The free half of the build (the flake's own evaluation, python, the provenance
+      # tooling) comes from here. The unfree half never can, which is what the step after
+      # it exists for.
+      - name: Use the Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      # Quartus is `redistributable = false`, so it is absent from cache.nixos.org by
+      # design and no public substituter will ever have it. This is the project's own
+      # private copy of the closure, keyed on the lock file that decides which Quartus
+      # this is: a flake.lock bump gets a cold run and everything else gets a warm one.
+      # A cache entry is immutable once written, so an entry that turns out to be bad is
+      # abandoned by changing the `quartus-cyclone4` prefix, not by deleting anything.
+      - name: Restore the Quartus closure
+        id: quartus-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/quartus-closure
+          key: quartus-cyclone4-${{ hashFiles('flake.lock') }}
+
+      # The restored directory is offered to Nix as a substituter rather than imported with
+      # `nix copy --all`, which was how this worked until it was first exercised warm and
+      # failed every time.
+      #
+      # `--all` enumerates a binary cache by scanning its .narinfo files, and a narinfo is
+      # named for the hash alone — so every path came back as `<hash>-x`, with its real name
+      # lost. The copy then could not match those against the full names recorded in the
+      # References fields, and stopped at the first one: `path '...-fontconfig-2.18.2-bin'
+      # is not valid`. A cold run never noticed, because the import step is skipped on a
+      # miss.
+      #
+      # As a substituter, Nix asks for the paths it needs by name and fetches only those,
+      # which also makes an incomplete or absent cache cost a slow run rather than a failed
+      # one. --no-require-sigs because this cache is ours and unsigned. The guard is there
+      # because Nix rejects a file:// substituter whose directory does not exist, which is
+      # exactly the case on a cache miss.
+      #
+      # On a hit this is a local copy of a few GB. On a miss it is the fetch from Intel's
+      # CDN, and it is a step of its own so the log says plainly which happened and what it
+      # cost.
+      - name: Realise Quartus
+        run: |
+          set -euo pipefail
+          substituter=()
+          if [[ -f "$HOME/quartus-closure/nix-cache-info" ]]; then
+            substituter=(--extra-substituters "file://$HOME/quartus-closure" --no-require-sigs)
+          else
+            echo "No usable closure cache; Quartus will be fetched from upstream."
+          fi
+
+          start=$SECONDS
+          path=$(nix build --print-build-logs --no-link --print-out-paths \
+                   "${substituter[@]}" .#quartus-prime-lite)
+          echo "Quartus: ${path}"
+          echo "Took $((SECONDS - start))s (cache hit: ${{ steps.quartus-cache.outputs.cache-hit || 'false' }})"
+
+      - name: Export the closure for the next run
+        if: steps.quartus-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          nix copy --to "file://$HOME/quartus-closure?compression=zstd" .#quartus-prime-lite
+          du -sh "$HOME/quartus-closure"
+
+      # Quartus is not a Nix-native package: it runs inside an FHS environment, which is
+      # built on bubblewrap, which needs an unprivileged user namespace. Ubuntu 24.04
+      # restricts those with an AppArmor profile, and the runner image inherits it — so
+      # the compile fails at its first line with `bwrap: setting up uid map: Permission
+      # denied` and never reaches Quartus at all.
+      #
+      # Lifted here rather than worked around in the derivation: the restriction is a
+      # property of this runner image, and an FHS environment is how every unfree
+      # toolchain of this kind is packaged. `|| true` because a future image that does
+      # not carry the knob is a fine outcome, not a failure.
+      - name: Allow the unprivileged user namespaces bubblewrap needs
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      # Both images, the provisioning .jic, the raw application image a device update
+      # writes, the boot block and the provenance record — fpga/package.nix decides all of
+      # that, and this workflow deliberately knows none of it. The derivation's own
+      # installCheckPhase fails the build if any of them is missing or if the provenance
+      # records an unknown commit.
+      - name: Build the bitstreams
+        run: nix build --print-build-logs .#bitstream --out-link result-bitstream
+
+      - name: Collect the artefacts and their digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cp -rL result-bitstream/* artifacts/
+          chmod -R u+w artifacts
+
+          cd artifacts
+          # One manifest over everything, next to the provenance record's own per-artefact
+          # release and canonical digests. The canonical ones are what the reproducibility
+          # audit compares; these are what a downloader checks.
+          find . -type f ! -name SHA256SUMS -print0 | sort -z |
+            xargs -0 sha256sum > SHA256SUMS
+
+          echo "## Bitstream" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat bitstream-provenance.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name || 'bitstream' }}-${{ github.sha }}
+          path: artifacts/
+          retention-days: ${{ inputs.retention_days || 30 }}
+          if-no-files-found: error

@@ -3,7 +3,7 @@
 # Lint the hand-written gateware (T4).
 #
 # Domesday Duplicator - LaserDisc RF sampler
-# SPDX-FileCopyrightText: 2018-2025 Simon Inns
+# SPDX-FileCopyrightText: 2018-2026 Simon Inns
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Runs from the dev shell and from the Nix check, so both take exactly the same
@@ -12,49 +12,85 @@
 #   nix develop .#fpga -c fpga/tests/run-lint.sh
 #   nix build .#checks.x86_64-linux.fpga-lint
 #
-# This is the only automated check the gateware gets in CI. Bitstream builds
-# need Quartus, which is unfree, x86_64-linux only and cannot come from a
-# binary cache, so it never runs on a runner — see fpga/README.md, "Why this is
-# not built by CI".
+# This, and the other free-tool checks beside it, are what the gateware gets in
+# the per-commit CI tier. Bitstream builds need Quartus, which is unfree,
+# x86_64-linux only and cannot come from a binary cache, so they run in a
+# dedicated workflow instead — see fpga/README.md, "How the bitstream is built".
 
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-fpga="$(dirname "$here")"
-src="${1:-$fpga/src}"
+fpga="${1:-$(dirname "$here")}"
 waivers="$fpga/verilator-waivers.vlt"
 
-# The project-authored modules. IPfifo.v and IPpllGenerator.v are deliberately
-# absent: they instantiate Altera's dcfifo and altpll, which have no free
-# simulation model, so there is nothing to lint them against. The black-box
-# declarations beside them are enough for the modules that instantiate the IP
-# to elaborate.
+# The project-authored modules, each with the directory it lives in.
+# IPpllGenerator.v is deliberately absent: it instantiates Altera's altpll,
+# which has no free simulation model, so there is nothing to lint it against.
+# The black-box declaration beside it is enough for the two top levels, which
+# are the only modules that instantiate the IP.
+#
+# The FIFO used to need the same treatment. fifo.v replaced the dcfifo it was
+# built on, so it is an ordinary module in the list below.
+#
+# The other two Altera primitives - the active serial block and the remote
+# update block - are different: common/sim holds behavioural models of them, so
+# the modules that instantiate them are linted against something rather than
+# excluded. The models are linted too, and their waivers say why.
 modules=(
-    DomesdayDuplicator
-    buffer
-    dataGenerator
-    fx3StateMachine
-    statusLED
+    "application:DomesdayDuplicator"
+    "application:buffer"
+    "application:bufferMonitor"
+    "application:dataGenerator"
+    "application:fifo"
+    "application:fx3StateMachine"
+    "application:halfBandDecimator"
+    "common:spiRegisters"
+    "common:flashBridge"
+    "common:asmiBlock"
+    "common:remoteUpdate"
+    "factory:DomesdayDuplicatorFactory"
+    "factory:bootLoader"
+    "factory:crc32"
 )
 
 blackboxes=(
-    "$src/IPfifo_bb.v"
-    "$src/IPpllGenerator_bb.v"
+    "$fpga/common/IPpllGenerator_bb.v"
 )
+
+# Every module the list above may instantiate, so a top level elaborates
+sources=(
+    "$fpga"/application/*.v
+    "$fpga"/common/*.v
+    "$fpga"/common/sim/*.v
+    "$fpga"/factory/*.v
+)
+
+# The IP itself is not linted, so it must not be compiled either: the black box
+# above is what stands in for it.
+filtered=()
+for source in "${sources[@]}"; do
+    case "$source" in
+    */IPpllGenerator.v | */IPpllGenerator_bb.v) continue ;;
+    esac
+    filtered+=("$source")
+done
 
 failed=0
 
-for module in "${modules[@]}"; do
-    printf '%-20s ' "$module"
+for entry in "${modules[@]}"; do
+    directory="${entry%%:*}"
+    module="${entry##*:}"
+
+    printf '%-28s ' "$directory/$module"
 
     # -Wall, because the default set finds almost nothing in a design this
     # small. Every warning -Wall reports on this source is either waived with a
     # reason in verilator-waivers.vlt or is a new finding that should fail.
     if output=$(verilator --lint-only -Wall \
-        -I"$src" \
+        -I"$fpga/common" \
         --top-module "$module" \
         "$waivers" \
-        "$src/$module.v" \
+        "${filtered[@]}" \
         "${blackboxes[@]}" 2>&1); then
         echo "OK"
     else

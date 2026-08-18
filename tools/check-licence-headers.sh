@@ -15,8 +15,7 @@
 #
 #   Enforced — every project-authored source file carries, in its first 40 lines, both a
 #   copyright statement and a licence statement. That is the compliance floor: a file with
-#   neither is a file nobody can lawfully redistribute with confidence, which is what D22
-#   was about.
+#   neither is a file nobody can lawfully redistribute with confidence.
 #
 #   Not enforced — that the licence statement is SPDX rather than the long-form GPL notice.
 #   AGENTS.md §5.4 adopts SPDX as the convention and converts files opportunistically as
@@ -56,12 +55,10 @@ exempt=(
     # download. Provenance and the licence position are in fx3/sdk/README.md.
     "fx3/sdk"
 
-    # Quartus megafunction wizard output for dcfifo and altpll, carrying Altera's own
-    # copyright and licence terms.
-    "fpga/src/IPfifo.v"
-    "fpga/src/IPfifo_bb.v"
-    "fpga/src/IPpllGenerator.v"
-    "fpga/src/IPpllGenerator_bb.v"
+    # Quartus megafunction wizard output for altpll, carrying Altera's own copyright
+    # and licence terms.
+    "fpga/common/IPpllGenerator.v"
+    "fpga/common/IPpllGenerator_bb.v"
 
     # Cypress SDK support code, compiled into the firmware unmodified.
     "fx3/firmware/src/cyfxtx.c"
@@ -77,9 +74,18 @@ exempt=(
     "fx3/firmware/tests/descriptor-0123abcd.h"
     "fx3/firmware/tests/descriptor-unknown.h"
 
-    # QCustomPlot, third-party GPLv3, vendored upstream and updated wholesale.
-    "gui/src/DomesdayDuplicator/qcustomplot.cpp"
-    "gui/src/DomesdayDuplicator/qcustomplot.h"
+    # Vendored cryptography — Monocypher (BSD-2-Clause or CC0-1.0) and Alain Mosnier's
+    # SHA-256 (Unlicense or 0BSD). Each file carries its own upstream licence text, and
+    # each is copied byte-for-byte from a pinned release; the versions, digests and the
+    # reasoning are in ddd-gui/src/vendor/VENDOR.md.
+    "ddd-gui/src/vendor"
+
+    # The firmware's copy of the same pinned SHA-256, byte-for-byte identical to the one
+    # above. Two copies because AGENTS.md §2 forbids cross-component includes and these
+    # are a hosted C++ application and a bare-metal ARM build; one pin because the device
+    # and the host have to compute the same number for the same bytes. See
+    # fx3/firmware/src/vendor/VENDOR.md.
+    "fx3/firmware/src/vendor"
 )
 
 is_exempt() {
@@ -91,7 +97,7 @@ is_exempt() {
 }
 
 # Only tracked sources are checked. Locally that means asking git, because a working tree
-# usually has a gui/build/ full of moc output and CMake probe files, none of which is ours
+# usually has a ddd-gui/build/ full of moc output and CMake probe files, none of which is ours
 # to header. Inside the Nix sandbox there is no git and no .git — but the flake source only
 # ever contains tracked files, so walking it gives the same set. Hence two ways in and one
 # answer.

@@ -1,0 +1,48 @@
+# Formatter settings for the hand-written gateware.
+#
+# Domesday Duplicator - LaserDisc RF sampler
+# SPDX-FileCopyrightText: 2026 Simon Inns
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# An abseil flagfile, consumed as `verible-verilog-format --flagfile=...`. It is
+# checked in so that the dev shell, the CI check and any editor integration cannot
+# disagree about what "formatted" means — the same argument .clang-format makes for
+# the C++ in ddd-gui/.
+#
+# Do not point this at fpga/src/IPpllGenerator.v or IPpllGenerator_bb.v. Those are
+# MegaWizard output treated as source of truth and AGENTS.md section 3 says not to
+# reformat them; tests/run-format.sh names the files it touches rather than globbing,
+# for exactly that reason.
+
+# Four spaces, matching .editorconfig's [*.{v,sv,svh,vh}] indent_size = 4 and the C,
+# C++, Python and shell settings across the rest of the tree. This is a deliberate
+# deviation from lowRISC's two — a tree-wide indent convention is worth more than
+# agreement with an external document on a point that carries no meaning.
+--indentation_spaces=4
+
+# The sources already fit inside 100 columns, so a limit tighter than
+# .editorconfig's max_line_length = 120 costs nothing and is worth keeping.
+--column_limit=100
+
+# Every alignment mode is set explicitly rather than left at Verible's default of
+# `infer`. `infer` guesses the intent from how the file is already laid out, which
+# makes the output depend on its own input — the non-determinism this file exists to
+# remove. The formatter owns column alignment outright.
+#
+# The accepted cost: adding one long signal name re-aligns its neighbouring group, so
+# an occasional diff touches lines the author did not edit.
+--assignment_statement_alignment=align
+--case_items_alignment=align
+--class_member_variable_alignment=align
+--distribution_items_alignment=align
+--enum_assignment_statement_alignment=align
+--formal_parameters_alignment=align
+--module_net_variable_alignment=align
+--named_parameter_alignment=align
+--named_port_alignment=align
+--port_declarations_alignment=align
+--struct_union_members_alignment=align
+
+# Re-formatting formatted output must be a no-op. On by default; written down because
+# a non-convergent formatter would make the CI check flap.
+--verify_convergence=true

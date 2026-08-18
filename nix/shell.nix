@@ -11,11 +11,11 @@
 # There is a single flake.nix at the repository root and a single flake.lock beside it —
 # components carry package.nix and shell.nix but no flakes of their own, so there is one
 # pinned nixpkgs for the whole repository however you enter it. Nix walks up to find the
-# root flake, so both `nix develop` and `nix develop .#gui` work from any subdirectory.
+# root flake, so both `nix develop` and `nix develop .#ddd-gui` work from any subdirectory.
 #
 # Use this to move between components without switching shells. It deliberately excludes
 # Quartus (unfree, multi-gigabyte, x86_64-linux only) and KiCad (large, and only needed for
-# board work) — reach for `nix develop .#fpga` plus Phase 6's Quartus shell, or
+# board work) — reach for `nix develop .#fpga` plus the `fpga-quartus` shell, or
 # `nix develop .#hardware`, when you need those.
 
 { pkgs }:
@@ -23,7 +23,7 @@
 pkgs.mkShell {
   name = "ddd";
 
-  # Same reasoning as gui/shell.nix: Qt's moc/uic/rcc warn on every invocation unless the
+  # Same reasoning as ddd-gui/shell.nix: Qt's moc/uic/rcc warn on every invocation unless the
   # locale is UTF-8, and a session exporting codeset-less region variables (GNOME's
   # LC_TIME=en_GB and friends) leaves setlocale failing back to C/ANSI_X3.4-1968. This shell
   # builds the GUI too, so it pins the same locale.
@@ -44,7 +44,7 @@ pkgs.mkShell {
       qt6.qttools
       libusb1
 
-      # The .ldf capture output. Both are needed for the same reason gui/package.nix gives:
+      # The .ldf capture output. Both are needed for the same reason ddd-gui/package.nix gives:
       # without them the GUI does not configure in this shell at all, so the one component
       # the shell exists to develop could only be built through the packaged derivation.
       flac
@@ -62,6 +62,10 @@ pkgs.mkShell {
 
       # Test
       gtest
+
+      # Signing and verifying update bundles — tools/make-update-bundle.sh and
+      # tools/dev-bundle.sh both need it, and so does the update-bundle check.
+      minisign
 
       # Gateware: lint and simulate without Quartus
       verible
@@ -88,16 +92,18 @@ pkgs.mkShell {
     echo
     echo "Component shells (run from anywhere in the working tree):"
     echo
-    echo "  nix develop .#gui         Qt 6 capture GUI and tools"
+    echo "  nix develop .#ddd-gui     Qt 6 capture application and tools"
     echo "  nix develop .#fx3         FX3 firmware and programmer"
     echo "  nix develop .#fpga        Verilog lint and simulation (no Quartus)"
     echo "  nix develop .#hardware    KiCad"
     echo "  nix develop .#docs        MkDocs documentation site"
     echo
-    echo "  nix build .#gui .#fx3-programmer .#docs-site"
+    echo "  ./tools/dev-bundle.sh     package what is built locally as an update bundle"
+    echo
+    echo "  nix build .#ddd-gui .#fx3-programmer .#docs-site"
     echo "  nix flake check           build everything and run the T1-T4 tests"
     echo
-    echo "Editor configuration: https://simoninns.github.io/domesdayduplicator/development/editor-setup/"
+    echo "Editor configuration: https://simoninns.github.io/DomesdayDuplicator/development/editor-setup/"
     echo
   '';
 }

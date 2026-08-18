@@ -65,4 +65,4 @@ This is different from the software in this repository, which is GPLv3 — see t
 ## Documentation
 
 For detailed documentation, please see the
-[main project documentation](https://simoninns.github.io/domesdayduplicator).
+[main project documentation](https://simoninns.github.io/DomesdayDuplicator).

@@ -39,8 +39,9 @@
 #define FX3_BOOTLOADER_ID   0x0080
 #define FX3_PROD_ID         0x00f3
 
-#define DOMESDAY_VENDOR_ID  0x1d50
-#define DOMESDAY_PROD_ID    0x603b
+// Registered with pid.codes for this project - see https://pid.codes/1209/2347/
+#define DOMESDAY_VENDOR_ID  0x1209
+#define DOMESDAY_PROD_ID    0x2347
 
 #define USB_TIMEOUT_MS      5000
 
@@ -52,7 +53,7 @@
 // (erase/status). They are deliberately NOT defined here, because this tool implements no
 // SPI code path: the supported hardware is a SuperSpeed Explorer Kit, which boots from an
 // I2C EEPROM and has no SPI flash. Defining them while never issuing them previously made
-// the tool look like it supported SPI, and the help text claimed it did (D24). If an FX3
+// the tool look like it supported SPI, and the help text claimed it did. If an FX3
 // board with SPI flash is ever supported, add them back with an implementation and a
 // hardware test, not before.
 

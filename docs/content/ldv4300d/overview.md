@@ -39,6 +39,14 @@ A guide to the disassembly, cleaning and reassembly of the LD-V4300D is availabl
 
 A guide to adding a RF output connector (for connection to the Domesday Duplicator) is available [here.](rf-output.md)
 
+A guide to calibrating the player after cleaning or repair is available [here](calibration.md).
+
+A guide to recapping the player's power supply is available [here](psu-recap.md).
+
+A description of the GGV1069 test disc used for calibration is available [here](ggv1069.md).
+
+A description of the RMC12010 service remote, which is needed for the calibration procedure, is available [here](rmc12010-remote.md).
+
 # Serial control adapter
 The Pioneer LD-V4300D provides access to the serial control features of the player via a 15-pin DSUB connector on the back panel of the player.  This type of connector is a non-standard output as it provides pins for both RS-232-C level (12V) signals as well as TTL (5V) level signals.  In order to connect the player to a computer using a standard USB to 9-pin DSUB connector an adapter should be made using a male 15-pin DSUB and female 9-pin DSUB with the following connections:
 

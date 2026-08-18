@@ -4,7 +4,7 @@
 # rewritten for this project. Two changes from the Cypress original:
 #
 #   1. The Domesday Duplicator's own VID:PID is matched. Once the FX3 has been programmed it
-#      re-enumerates as 1d50:603b and stops being a Cypress device, so the vendor rule alone
+#      re-enumerates as 1209:2347 and stops being a Cypress device, so the vendor rule alone
 #      left the running device root-only and the capture GUI could not open it.
 #
 #   2. The RUN+= hooks calling /usr/local/bin/cy_renumerate.sh are gone. That script signals
@@ -22,7 +22,7 @@
 #
 # A rule that sets the tag in a file sorting after 73 sets it too late: 73 has already run,
 # nothing consumes it, and no ACL is applied. This file was called 88-cyusb.rules until
-# Phase 5, where exactly that was found on a live device — the rule was installed and active,
+# exactly that was found on a live device — the rule was installed and active,
 # and `getfacl` on the device node showed no user entry. Only the MODE="0666" fallback was
 # doing any work. Anything below 73 is fine; 70- matches the convention systemd itself uses
 # for its own uaccess rules.
@@ -35,7 +35,23 @@
 # (00f0, 0080 and friends) that a partially programmed device can present.
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04b4", MODE="0666", TAG+="uaccess", TAG+="cyusb_dev"
 
+# The SuperSpeed Explorer Kit's on-board USB-UART bridge, 04b4:0007. The kit exposes the FX3's
+# debug console over it, so this is where firmware printf output comes out. The vendor rule
+# above already covers the usb_device node; a serial port is only usable through the tty node,
+# and that node matches neither SUBSYSTEM=="usb" nor ENV{DEVTYPE}=="usb_device", so it needs
+# its own rule. ATTRS (plural) walks up to the parent USB device, because the tty device itself
+# carries no idVendor/idProduct of its own.
+#
+# The bridge presents a CDC-ACM interface and binds to the cdc_acm driver, so the node is
+# /dev/ttyACM<n> — not ttyUSB, which is where the other USB serial adaptors on a typical bench
+# land. Matching on SUBSYSTEM=="tty" covers either, so the rule does not depend on which.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="0007", MODE="0666", TAG+="uaccess", TAG+="cyusb_dev"
+
 # Domesday Duplicator in application mode — this is what the capture GUI opens.
-# The VID/PID pair is set in fx3/firmware/src/usb-descriptor.c and defaulted in
-# gui/src/DomesdayDuplicator/configuration.cpp; all three must agree.
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1d50", ATTR{idProduct}=="603b", MODE="0666", TAG+="uaccess", TAG+="ddd_dev"
+# 1209:2347 is registered to this project with pid.codes (https://pid.codes/1209/2347/). It
+# replaces 1d50:603b, an OpenMoko-range ID this project never held an allocation for — usb.ids
+# lists it as someone else's device. Boards running earlier firmware still enumerate as
+# 1d50:603b and are not matched here; reprogram them.
+# The VID/PID pair is set in fx3/firmware/src/usb-descriptor.c and in
+# ddd-gui/src/capture/wire_protocol.h; all three must agree.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1209", ATTR{idProduct}=="2347", MODE="0666", TAG+="uaccess", TAG+="ddd_dev"

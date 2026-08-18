@@ -25,21 +25,21 @@ Micron M25PXX devices").
 
 ### How the programmer finds it
 
-`find_flashprog_image()` in `src/fx3-programmer.c` searches, in order:
+`fx3_find_flashprog_image()` in `src/fx3-flashprog.c` searches, in order:
 
-1. `$FX3_FLASH_PROG`, if set
-2. `cyfxflashprog.img` — relative to the working directory
-3. `../cyfxflashprog.img`
-4. three paths pointing at a sibling `cyusb_linux` checkout
+1. `$FX3_FLASH_PROG`, if set and non-empty
+2. `FLASHPROG_INSTALL_PATH`, compiled in by CMake, if defined
+3. `cyfxflashprog.img` and `../cyfxflashprog.img` — relative to the working directory
+4. four paths pointing at a sibling `cyusb_linux` checkout
 
 Placing the file at this directory's root means candidate 3 resolves when the programmer is
-run from `build/`, which is how it is normally invoked during development — so it works today
+run from `build/`, which is how it is normally invoked during development — so it works there
 with no code change.
 
-That is **not** sufficient for an installed binary, since all the candidates are
-working-directory-relative. Task **P2-10** adds a compiled-in `FLASHPROG_INSTALL_PATH` and a
-matching `install(FILES …)`, so a packaged programmer finds the loader wherever it is run
-from. Until then, installed builds need `FX3_FLASH_PROG` set explicitly.
+Candidate 3 alone would **not** be sufficient for an installed binary, since it is
+working-directory-relative. That is what candidate 2 is for: `install(FILES …)` puts the
+loader beside the binary and the compiled-in path finds it wherever the programmer is run
+from, so an installed build needs no `FX3_FLASH_PROG`.
 
 ## `LICENSE.cyusb_linux.txt`
 
@@ -51,29 +51,28 @@ Two consequences worth noting:
 
 - LGPL-2.1 permits relicensing under the GNU GPL (LGPL-2.1 §3), so the derived
   `fx3-programmer.c` sits comfortably under this project's GPLv3.
-- `src/fx3-programmer.c` carried **no copyright or licence header at all** until Phase 8,
-  despite stating in a comment that it derives from `cyusb_linux`. That was **D22**, and
-  P8-5 closed it: the file now carries SPDX copyright lines for Simon Inns and Cypress
+- `src/fx3-programmer.c` carried **no copyright or licence header at all** for a long time,
+  despite stating in a comment that it derives from `cyusb_linux`. That has since been
+  closed: the file now carries SPDX copyright lines for Simon Inns and Cypress
   Semiconductor, `SPDX-License-Identifier: GPL-3.0-or-later`, and the LGPL-2.1 §3 reasoning
   above written out in the header itself, so the relicensing basis is stated where someone
   reading the source will find it rather than only here. The
   `licence-headers` check now fails the build if any project-authored source loses its
-  header again. (An earlier revision of this file called this D20, which is a different
-  defect entirely — the MkDocs raw-`<img>` breakage closed in Phase 4.)
+  header again.
 
 `cyfxflashprog.img` itself is a compiled Cypress SDK example (`cyfxflashprog.txt` identifies
 it as such) that ships inside the LGPL-licensed `cyusb_linux` package; it is vendored here
 under the same project decision that covers the SDK — see
 [`fx3/sdk/README.md`](../sdk/README.md).
 
-## Vendored files removed in Phase 5
+## Vendored files removed
 
 Two files came across from `cyusb_linux` with the rest of `configs/` and were dead on
 arrival in this project:
 
 | File | Why it went |
 | --- | --- |
-| `configs/cy_renumerate.sh` | Signals a running `cyusb` daemon with `SIGUSR1`. This project does not ship that daemon, CMake never installed the script, and the `RUN+=` hooks that invoked it were removed from the udev rules in Phase 3 (D19) |
+| `configs/cy_renumerate.sh` | Signals a running `cyusb` daemon with `SIGUSR1`. This project does not ship that daemon, CMake never installed the script, and the `RUN+=` hooks that invoked it have been removed from the udev rules |
 | `configs/cyusb.conf` | The `cyusb` daemon's VID/PID device list. Nothing in this project reads it |
 
 `cyfxflashprog.img` and `cyfxflashprog.txt` stay: the secondary loader is required for

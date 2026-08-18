@@ -14,37 +14,29 @@ This project is based on the [Cypress cyusb_linux](https://github.com/Cypress-Se
 
 ## Table of Contents
 
-- [Prerequisites](#prerequisites)
 - [Building](#building)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Programming the FX3 with Domesday Duplicator Firmware](#programming-the-fx3-with-domesday-duplicator-firmware)
 - [Troubleshooting](#troubleshooting)
 
-## Prerequisites
-
-### Required Tools
-
-**On Ubuntu/Debian:**
-```bash
-sudo apt-get install build-essential cmake pkg-config libusb-1.0-0-dev
-```
-
-**On Fedora/RHEL:**
-```bash
-sudo dnf install cmake pkg-config libusb1-devel gcc
-```
-
 ## Building
 
-From the repository root:
+**Nix on Linux is the only supported build environment**, here as everywhere else in this
+repository. The development shell carries libusb, CMake and the compiler; do not add a
+per-distribution dependency list or a second build route.
 
 ```bash
-cd fx3/programmer
-mkdir build
-cd build
-cmake ..
-make
+nix build .#fx3-programmer          # one-shot, hermetic
+```
+
+For an editing loop, build **out of tree** from the repository root:
+
+```bash
+nix develop .#fx3
+
+cmake -B build/fx3-programmer -S fx3/programmer -G Ninja
+cmake --build build/fx3-programmer
 ```
 
 ### Build Output
@@ -57,8 +49,7 @@ The build process generates:
 To install the tool system-wide:
 
 ```bash
-cd build
-sudo make install
+sudo cmake --install build/fx3-programmer
 ```
 
 This installs:
@@ -121,7 +112,7 @@ Output example (Application mode):
 ```
 Found 1 FX3 device(s):
 
-[0] VID:PID=1d50:603b Bus=007 Device=014 Mode=Application (Domesday Duplicator)
+[0] VID:PID=1209:2347 Bus=007 Device=014 Mode=Application (Domesday Duplicator)
 ```
 
 ### Upload Firmware
@@ -136,9 +127,9 @@ fx3-programmer -u firmware.img
 fx3-programmer -d 1 -u firmware.img
 ```
 
-The firmware is loaded into RAM, parsed, and executed: the bootloader transfers control to the image's entry point once the download completes. The device then re-enumerates in application mode — for this project's firmware, as `1d50:603b`. This is not a reset; the FX3 is never rebooted.
+The firmware is loaded into RAM, parsed, and executed: the bootloader transfers control to the image's entry point once the download completes. The device then re-enumerates in application mode — for this project's firmware, as `1209:2347`. This is not a reset; the FX3 is never rebooted.
 
-After successful upload, the device may enumerate with a new VID:PID pair (e.g., 1d50:603b for Domesday Duplicator).
+After successful upload, the device may enumerate with a new VID:PID pair (e.g., 1209:2347 for Domesday Duplicator).
 
 ### Verify Firmware Upload
 
@@ -149,21 +140,32 @@ fx3-programmer -d 0 -p firmware.img -v
 `-v` is a modifier for `-p`, not a standalone operation: verification compares the EEPROM
 against a firmware file, so it needs one. Running `-v` on its own reports that.
 
-### No software reset
+### No software reset from *this* tool
 
-There is no `-r`, and there is no way to reset the FX3 from the host in this project.
+There is no `-r` here, and there will not be one.
 
 The option used to exist and did nothing: `fx3_reset_device()` printed "Device will reset
 automatically after firmware download completes", slept for two seconds and returned success
-(D25). Nothing was ever sent to the device.
+Nothing was ever sent to the device. Running `-r` now fails and says so.
 
-A real implementation is not available either. The FX3 boot ROM offers no reset vendor
-command, and this project's firmware implements only `0xB5` and `0xB6` — capture control.
-A `libusb_reset_device()` would re-enumerate the USB device without rebooting the FX3 or
-changing its boot mode, which would look like a reset while not being one.
+**That gap is closed, but not here.** The application firmware gained a reset vendor request,
+`0xD4`, as part of the device-update work — `CyU3PDeviceReset(CyFalse)`, a cold reset, so
+the FX3 re-reads its boot source and comes back running whatever is now in the EEPROM. The
+capture application uses it to restart a device after an update, and `ddd-update` does the
+same from a shell. What a host could not do in 2018 it can do now.
 
-**Changing boot mode requires a physical power cycle**, with J4 fitted or removed to choose
-where the device boots from. Running `-r` now fails and says so.
+That does not give this tool a reset, and the distinction is worth keeping straight:
+
+- `0xD4` is served by the **application firmware**. This tool talks to a device in
+  **bootloader mode**, which is running the Cypress boot ROM and answers no such request —
+  the boot ROM offers no reset vendor command at all.
+- `libusb_reset_device()` re-enumerates the USB device without rebooting the FX3 or
+  changing its boot mode, which would look like a reset while not being one.
+
+**Changing boot mode still requires a physical power cycle**, with J4 fitted or removed to
+choose where the device boots from. A device that has fallen back to the bootloader by
+itself — a blank EEPROM, or an update interrupted part way — is already in bootloader mode
+and needs no jumper to reprogram.
 
 ### Complete workflow
 
@@ -180,22 +182,27 @@ fx3-programmer -d 0 -p firmware.img -v
 
 Then remove J4 and power cycle to boot the programmed firmware.
 
+**Do that even if you are not finished.** A board left sitting in bootloader mode is running
+the Cypress boot ROM, which does not survive a host suspend reliably: on Linux, waking from
+S3 with an `04b4:00f3` device attached can hang the kernel's device-resume phase for ~20
+seconds on a `device descriptor read/64, error -110` timeout, with userspace — and therefore
+the display — frozen throughout. The machine looks dead until the kernel gives up. A board
+running application firmware is unaffected. Details and a host-side kernel quirk are in
+[FX3 firmware](../../docs/content/development/hardware-programming/fx3-firmware.md#leaving-the-board-in-bootloader-mode-can-stall-suspend-and-resume).
+
 ## Programming the FX3 with Domesday Duplicator Firmware
 
 This section describes how to program the FX3 device with firmware built from the Domesday Duplicator firmware project.
 
 ### Prerequisites
 
-1. **Build the firmware** - Follow the instructions in `../firmware/README.md` to compile the firmware:
+1. **Build the firmware** - Follow the instructions in `../firmware/README.md`, or take the
+   one-shot route from the repository root:
    ```bash
-   cd ../firmware
-   mkdir build
-   cd build
-   cmake -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake ..
-   make
+   nix build .#fx3-firmware
    ```
-   
-   This produces `firmware.img` in the build directory.
+
+   This produces `firmware.img` in `result/`.
 
 2. **Build fx3-programmer** - Follow the [Building](#building) section above.
 
@@ -214,7 +221,7 @@ The FX3 bootloader behavior depends on what firmware is already installed:
 - Device is ready to program immediately
 - Proceed to step 2
 
-**If the device shows as Application (VID:PID=1d50:603b):**
+**If the device shows as Application (VID:PID=1209:2347):**
 - The current Domesday Duplicator firmware is running
 - **Programming in this mode writes to RAM only** and will be lost on power cycle
 - To make firmware changes permanent:
@@ -247,11 +254,11 @@ or
 ```
 Found 1 FX3 device(s):
 
-[0] VID:PID=1d50:603b Bus=007 Device=014 Mode=Application (Domesday Duplicator)
+[0] VID:PID=1209:2347 Bus=007 Device=014 Mode=Application (Domesday Duplicator)
 ```
 
 - **Bootloader mode**: the only mode in which the device can be programmed at all. `-u` writes RAM, `-p` writes the I2C EEPROM. Shows as `VID:PID=04b4:00f3`.
-- **Application mode**: running firmware — the Domesday Duplicator shows as `VID:PID=1d50:603b`. **Neither `-u` nor `-p` works here.** Both rely on the FX3 boot ROM, which is no longer in control once firmware is running. Fit J4 and power cycle to get back to the bootloader.
+- **Application mode**: running firmware — the Domesday Duplicator shows as `VID:PID=1209:2347`. **Neither `-u` nor `-p` works here.** Both rely on the FX3 boot ROM, which is no longer in control once firmware is running. Fit J4 and power cycle to get back to the bootloader.
 - **Flash programmer**: a transient mode, `VID:PID=04b4:4720`, entered automatically while `-p` runs. Nothing to do with it; it goes away on the next power cycle.
 
 Note the device index (usually 0 if you have one device).
@@ -270,27 +277,25 @@ This:
 
 #### 4. Complete Workflow Example
 
+From the repository root:
+
 ```bash
-# Build the firmware
-cd ../firmware/build
-cmake -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake ..
-make
+# Build the firmware and the programmer
+nix build .#fx3-firmware -o result-firmware
+nix build .#fx3-programmer -o result-programmer
 
-# Navigate to programmer
-cd ../../programmer/build
-
-# List devices
-fx3-programmer -l
+# List devices — confirm one is in bootloader mode
+./result-programmer/bin/fx3-programmer -l
 
 # Program device
-fx3-programmer -d 0 -u ../../firmware/build/firmware.img
+./result-programmer/bin/fx3-programmer -d 0 -u result-firmware/firmware.img
 ```
 
 #### 5. Verify Firmware is Running
 
 After successful program:
 - The FX3 device should enumerate with the application's VID:PID
-- For Domesday Duplicator: VID:PID should change to `1d50:603b`
+- For Domesday Duplicator: VID:PID should change to `1209:2347`
 - Check your system logs: `dmesg | tail -20`
 - Run the list command again to see the new device state: `fx3-programmer -l`
 

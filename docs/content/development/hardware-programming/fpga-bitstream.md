@@ -12,6 +12,30 @@ boundary, and feeds them to the FX3 over the GPIF II bus.
 The board has an **onboard USB-Blaster**, so no separate programming pod is needed — the
 DE0-NANO's mini-USB connector is both its power supply and its programming interface.
 
+![The DE0-NANO's mini-USB connector, in an assembled unit](assets/fpga-usb-port.jpeg){ width="330" }
+
+!!! warning "In an assembled Duplicator, it is not the only power supply"
+
+    That description is of the board on its own. Bolted to a Duplicator PCB with the FX3 kit
+    above it, the assembly is powered through **either** USB connector, and either one alone
+    keeps the whole thing alive.
+
+    Two consequences, and the second is a trap. The board is lit whatever the mini-USB is
+    doing, so "the lights are on" says nothing at all about whether the USB-Blaster is
+    connected — a charge-only cable looks identical to a working one. And **a power cycle
+    means unplugging both cables**: pull only one and nothing reboots, while the board stays
+    lit and looks perfectly normal.
+
+!!! tip "The application can do this for you"
+
+    Writing the EPCS no longer needs Quartus: `ddd-gui` plays a CI-built SVF through the same
+    onboard USB-Blaster — **Tools ▸ Firmware ▸ Bring up a new or legacy board…**.
+    See [Bringing up a new or legacy board](../../capture-gui/bringing-up-a-board.md), and
+    [USB-Blaster and SVF programming](../usb-blaster-and-svf.md) for how it works.
+
+    This page remains the reference for building the bitstream and for programming it by
+    hand.
+
 There are two ways to program it, and you will usually want both:
 
 | | Writes to | Survives a power cycle | Use for |
@@ -52,10 +76,17 @@ ls result/
 ```
 
 ```
-DomesdayDuplicator.jic  DomesdayDuplicator_write_jic.cdf  bitstream-provenance.txt
-DomesdayDuplicator.map  DomesdayDuplicator_write_sof.cdf  reports
-DomesdayDuplicator.sof
+application/  factory/  provisioning/  reports/  bitstream-provenance.txt
 ```
+
+The gateware is **two** images that live in one flash: the capture gateware in
+`application/`, and a small resident boot loader in `factory/` that a unit falls back to if
+a gateware update is ever interrupted. `provisioning/` holds the one `.jic` that carries
+both, and that is the file a board is programmed with. The model is described on the
+[EPCS layout and boot flow](../epcs-layout-and-boot-flow.md) page.
+
+There is deliberately **no `.jic` of the capture gateware alone**: programming one would
+write it over the factory image, leaving a unit with nothing to fall back to.
 
 Quartus comes from the flake, so nothing needs installing first. **The first build is slow**:
 Quartus is not redistributable, so it can never come from a binary cache and must be fetched
@@ -70,21 +101,26 @@ Put Quartus' `bin` directory on `PATH`, then:
 ./fpga/build-local.sh
 ```
 
-That copies the project to `fpga/build/`, compiles it, converts the result to a `.jic` and
-writes the provenance record. Or drive the tools yourself — the GUI is not required for any
-step:
+That copies the sources to `fpga/build/`, compiles both images, converts them into one
+provisioning `.jic` — and into the `.svf` carrying the same content as JTAG vectors — and
+writes the provenance record. Or drive the tools yourself — the GUI
+is not required for any step:
 
 ```bash
-quartus_sh --flow compile DomesdayDuplicator     # produces the .sof
-quartus_cpf -c DomesdayDuplicator.cof            # .sof -> .jic
+cd factory      && quartus_sh --flow compile DomesdayDuplicatorFactory
+cd application  && quartus_sh --flow compile DomesdayDuplicator
+cd provisioning && quartus_cpf -c DomesdayDuplicatorProvisioning.cof   # both .sof -> one .jic
+cd provisioning && quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
+    DomesdayDuplicatorProvisioning_write_jic.cdf \
+    DomesdayDuplicatorProvisioning.svf                                # the same, as vectors
 ```
 
-!!! warning "Do not compile in `fpga/src/`"
+!!! warning "Do not compile in `fpga/application/` or `fpga/factory/`"
 
     `quartus_sh` **rewrites the `.qsf` project file in place** to record the Quartus version
     that last touched it, and scatters about thirty build products beside the sources. Both
-    routes above copy the project to a build directory first. If you compile in `src/` you
-    will find the repository has uncommitted changes you did not make.
+    routes above copy the project to a build directory first. If you compile in the source
+    directories you will find the repository has uncommitted changes you did not make.
 
 ### Check: what did you just build?
 
@@ -107,13 +143,19 @@ alone does not describe what you built. Worth noticing before you program anythi
 
 ## 2. Program the board
 
-Both `.cdf` files name their own inputs, so run them from the directory holding the
-bitstream — `result/` for a Nix build, `fpga/build/` for a local one.
+Each `.cdf` file names its own inputs, so run it from the directory holding the bitstream it
+names — under `result/` for a Nix build, `fpga/build/` for a local one.
 
 ### 2a. The `.sof` — the test path
 
 ```bash
-quartus_pgm DomesdayDuplicator_write_sof.cdf
+cd application && quartus_pgm DomesdayDuplicator_write_sof.cdf
+```
+
+or, to look at the factory image on its own:
+
+```bash
+cd factory && quartus_pgm DomesdayDuplicatorFactory_write_sof.cdf
 ```
 
 ```
@@ -131,34 +173,80 @@ talking to a different board.
 **This is volatile.** Power cycle and it is gone, replaced by whatever is in the EPCS64
 flash. That is the point: if the bitstream is broken, you have lost nothing.
 
-### 2b. The `.jic` — the production path
+### 2b. The provisioning `.jic` — the production path
 
 Do this once you are satisfied the bitstream works.
 
 ```bash
-quartus_pgm DomesdayDuplicator_write_jic.cdf
+cd provisioning && quartus_pgm DomesdayDuplicatorProvisioning_write_jic.cdf
 ```
 
+!!! tip "Or without Quartus at all"
+
+    `ddd-jtag DomesdayDuplicatorProvisioning.svf` writes the same content through the same
+    on-board cable, driving it over libusb rather than through Quartus — see
+    [USB-Blaster and SVF programming](../usb-blaster-and-svf.md). The `.svf` comes from the
+    same build as the `.jic` and describes the same flash, so the two routes are
+    interchangeable; everything on the rest of this page — the power cycle, the silicon
+    identifier, what the board comes up as — applies to both. Quartus's own `jtagd` holds
+    the cable open whenever it is running, so stop it first.
+
 This writes the EPCS64 serial configuration device, which the FPGA loads from at every
-power-up. It takes appreciably longer than the `.sof` path, because it programs the flash
+power-up, with **both** images: the factory image at address 0 and the capture gateware at
+`0x200000`. It takes appreciably longer than the `.sof` path, because it programs the flash
 through the FPGA rather than configuring the FPGA directly.
 
-Then power cycle the board. It should come up running the new gateware with no host involved.
+The programmer prints the flash's silicon identifier as it works. It must read `0x16`, the
+EPCS64's, which is the same value the firmware checks before it will write a byte.
+
+**Then power cycle the board, and treat that as part of the procedure rather than as
+housekeeping.** The programmer reaches the flash by loading a serial flash loader into the
+FPGA, and it leaves that running — so until the board is power cycled the FPGA is running
+Altera's loader and not this project's gateware at all. It answers nothing on the register
+link, and an update attempted in that state is refused with *"the FPGA is not answering"*.
+
+What it comes up as depends on what was in the flash before, because **the erase is
+page-selective and the boot block sector is outside the pages this file writes**:
+
+- a board being provisioned for the first time has no boot block, so it comes up running the
+  **factory image** — the resident boot loader rather than the capture gateware. The capture
+  application reports it as running recovery gateware. Writing the boot block is the last
+  step of a gateware update rather than part of this file, so that is the expected state;
+- a board being *re*-provisioned keeps its existing boot block, and if the application image
+  just written still matches the CRC that block records, it boots straight into the capture
+  gateware.
+
+Both are correct. The [EPCS layout and boot flow](../epcs-layout-and-boot-flow.md) page
+describes the states and what makes an application image count.
+
+**This is the last time a cable is needed.** From here the capture gateware is updated over
+the same USB cable the Duplicator already uses.
 
 ## Confirming what is running
 
 ### The LEDs
 
-The DE0-NANO's eight LEDs run a distinctive bouncing pattern — one lit LED sweeping up the
-row and back down again — whenever the gateware is running.
+The gateware generates no pattern of its own. It lights **LED 0 alone** coming out of reset
+and then leaves the row to the FX3, which drives it over the register link as a status
+display. So the LEDs answer a different question than they used to, and a more useful one:
 
-This is a better check than it looks. The LED logic is clocked from the FPGA's PLL output,
-the same clock that drives the FX3 interface, so **a moving pattern means the PLL has locked
-and the design is clocking**. A frozen or dark row means it has not.
+| What you see | What it means |
+| --- | --- |
+| Nothing lit | The FPGA is unconfigured — its pins are high-Z |
+| One LED, steady | Gateware configured and running, and the FX3 has not spoken to it yet |
+| A firmware pattern | The FX3 is talking to it. The patterns are listed on the [FPGA register interface](../fpga-register-interface.md#led-0x11) page |
+| One LED, blinking every few seconds | **Not a pattern.** The FPGA is configuring repeatedly — see below |
 
-The pattern also stops if the FPGA is held in reset, which the FX3 does — so if the LEDs
-freeze when you press reset on the FX3 board and resume afterwards, the two boards are
-talking to each other.
+The blinking case is worth knowing on sight, because it is what a broken handover looks like
+and it is easy to read as a heartbeat. Each brief flash is a configuration completing, the
+FX3 not getting far enough to write the register, and the board reverting; the lap time is a
+few seconds. A unit doing this is not running the capture gateware at all, whatever the
+cable says.
+
+The old bouncing-LED check — one lit LED sweeping up the row and back — belonged to gateware
+predating the register interface, where it doubled as a PLL-lock indicator. The equivalent
+check now is the register bank answering at all: the identity block cannot be read unless the
+design is clocked and the PLL is locked.
 
 ### The device on USB
 
@@ -166,7 +254,7 @@ The FPGA does not appear on USB itself. What it does is supply the FX3's interfa
 the check is that the FX3 still enumerates at full speed:
 
 ```bash
-$ lsusb -v -d 1d50:603b | grep -E "bcdUSB|iProduct"
+$ lsusb -v -d 1209:2347 | grep -E "bcdUSB|iProduct"
   bcdUSB               3.00
   iProduct                2 Domesday Duplicator (d0566b3e)
 ```
@@ -232,7 +320,7 @@ nix build .#bitstream
 | A different JTAG ID than `0x020F30DD` | Not a Cyclone IV EP4CE22 — check which board is plugged in |
 | LEDs dark or frozen after programming | The PLL is not locking, or the FPGA is held in reset. Check the FX3 board's reset button, and that both boards are seated in their headers |
 | Board captures nothing but garbage | The FX3 firmware and the gateware may be out of step. They share a protocol defined in both — update both across a release that changed it |
-| Quartus rewrote files in `fpga/src/` | You compiled in the source directory. See the warning in step 1 |
+| Quartus rewrote files in `fpga/application/` or `fpga/factory/` | You compiled in a source directory. See the warning in step 1 |
 
 ### You cannot brick the DE0-NANO by programming it
 

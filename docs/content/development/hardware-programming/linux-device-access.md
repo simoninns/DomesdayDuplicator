@@ -14,20 +14,32 @@ even though `lsusb` clearly shows it. If you see that, this page is the fix.
 
 ## What the rules have to cover
 
-A Domesday Duplicator presents **four different USB identities** depending on what it is
+A Domesday Duplicator presents **five different USB identities** depending on what it is
 doing, and a rule matching only one of them will appear to work until the moment it does not:
 
 | Identity | When | Needed by |
 | --- | --- | --- |
 | `04b4:00f3` | FX3 in bootloader mode, PMODE jumper fitted | `fx3-programmer` |
 | `04b4:4720` | Transient, while the EEPROM is being written | `fx3-programmer` |
-| `1d50:603b` | Running Domesday Duplicator firmware | The capture application |
+| `04b4:0007` | The SuperSpeed Explorer Kit's on-board USB-UART, whenever it is powered | A serial terminal, for firmware debug output |
+| `1209:2347` | Running Domesday Duplicator firmware | The capture application |
 | `09fb:6001` | The DE0-NANO's onboard USB-Blaster, whenever it is powered | Quartus (`quartus_pgm`, `jtagconfig`) |
 
-The first three are the FX3 and are covered by `70-domesday-duplicator.rules`: everything with
-the Cypress vendor ID `04b4`, plus `1d50:603b`.
+The first four are the FX3 board and are covered by `70-domesday-duplicator.rules`: everything
+with the Cypress vendor ID `04b4`, plus `1209:2347`. The UART needs a second rule of its own —
+the vendor rule matches only the USB device node, and a serial port is opened through the tty
+node created alongside it. The bridge is CDC-ACM, so that node is `/dev/ttyACM<n>` rather than
+the `/dev/ttyUSB<n>` most USB serial adaptors get.
 
-The fourth is the FPGA's JTAG cable and is covered by a separate file,
+`1209:2347` is this project's own ID, [registered with pid.codes](https://pid.codes/1209/2347/).
+Boards running firmware from before that registration enumerate as `1d50:603b` and are not
+matched by the current rules; reprogram them rather than adding the old pair back.
+
+The capture application recognises `1d50:603b` all the same, and deliberately never opens
+one: enumeration works without any rule, so such a board is named on screen instead of being
+reported as no device at all, and nothing is asked of firmware that could not answer.
+
+The fifth is the FPGA's JTAG cable and is covered by a separate file,
 `70-altera-usb-blaster.rules`, which also handles the other USB-Blaster and USB-Blaster II
 product IDs (`6002`, `6003`, `6010`, `6810`) for anyone using a standalone cable.
 
@@ -35,6 +47,14 @@ product IDs (`6002`, `6003`, `6010`, `6810`) for anyone using a standalone cable
 
     Neither Altera's own installer nor the nixpkgs package ships any udev rules. Without one
     the JTAG device is root-only and every Quartus programming operation fails.
+
+!!! important "Bringing a board up needs both files"
+
+    `ddd-gui`'s [bring-up wizard](../../capture-gui/bringing-up-a-board.md) programs the FX3
+    through the first rules file and the FPGA through the second, in one flow. Its
+    connectivity page opens both devices before anything is programmed, so a missing rule
+    turns up there — named, with the file to install — rather than in the middle of writing
+    a flash.
 
 ## NixOS
 
@@ -50,7 +70,7 @@ The repository provides a NixOS module. Add the flake as an input and enable it:
 }
 ```
 
-Then `sudo nixos-rebuild switch`. That one option covers all four identities — the FX3 rules
+Then `sudo nixos-rebuild switch`. That one option covers all five identities — the FX3 rules
 and the USB-Blaster rules together — and by default also installs `fx3-programmer` itself.
 Two options narrow it:
 
@@ -113,14 +133,17 @@ Plug the device in — or re-trigger udev as above — and look at the node.
 Find it first:
 
 ```bash
-$ lsusb | grep -iE "04b4|1d50"
-Bus 008 Device 005: ID 1d50:603b OpenMoko, Inc. Raspiface
+$ lsusb | grep -iE "04b4|1209"
+Bus 008 Device 005: ID 1209:2347 Generic Domesday Duplicator (d0566b3e)
 ```
 
-`OpenMoko, Inc. Raspiface` is not a mistake: `1d50:603b` is an ID from the
-[OpenMoko free USB ID pool](http://wiki.openmoko.org/wiki/USB_Product_IDs), and `usb.ids`
-labels it with a different project that shares the pool. The `iProduct` string is what
-identifies the device — see [FX3 firmware](fx3-firmware.md#confirming-what-is-running).
+`Generic` is not a mistake and not a fault: `1209` is the [pid.codes](https://pid.codes/)
+vendor ID for open-source hardware, and that is the name `usb.ids` gives the whole shared
+range. The part after it — `Domesday Duplicator (<commit>)` — is not from `usb.ids` at all.
+No entry exists there for `2347`, so `lsusb` falls back to the `iProduct` string read from
+the device itself, which is why the build's commit hash appears in a line that otherwise
+looks like a static lookup. That string is what identifies the device — see
+[FX3 firmware](fx3-firmware.md#confirming-what-is-running).
 
 Then check the permissions on that bus and device number:
 
@@ -147,7 +170,7 @@ Finally, the tool that matters:
 $ fx3-programmer -l
 Found 1 FX3 device(s):
 
-[0] VID:PID=1d50:603b Bus=008 Device=005 Mode=Application (Domesday Duplicator)
+[0] VID:PID=1209:2347 Bus=008 Device=005 Mode=Application (Domesday Duplicator)
 ```
 
 ### And for the USB-Blaster
@@ -181,6 +204,6 @@ wording is itself a permissions symptom, and it is easy to mistake for a hardwar
 | No `+` on the device node | The rule did not match, or was not reloaded. Re-run `udevadm control --reload` **and** `udevadm trigger`, or simply replug the device — rules are applied at enumeration, so a device plugged in before the rule was installed keeps its old permissions |
 | `+` present but no `user:` line for you | `uaccess` grants to the user at the **active local seat**. Over SSH, or as a second logged-in user, you will not get it. Fall back on the `MODE="0666"` the same rules set, or run as root |
 | Rule present, no ACL, no error | Check the filename sorts before `73-seat-late.rules` — see above |
-| Works for `1d50:603b` but not for programming | Your rule matches only the application identity. The bootloader is `04b4:*` |
+| Works for `1209:2347` but not for programming | Your rule matches only the application identity. The bootloader is `04b4:*` |
 | FX3 works but Quartus reports `Insufficient port permissions` | The USB-Blaster is a separate device with a separate rules file. Install `70-altera-usb-blaster.rules` too |
 | `No JTAG hardware available` | Not a permissions problem — the blaster is not enumerating at all. Check `lsusb` shows `09fb:6001`, and that the DE0-NANO's mini-USB cable carries data rather than power only |

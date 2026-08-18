@@ -30,7 +30,7 @@ command here is correct.
 
 ```bash
 nix develop                      # everything free, across all components
-cmake -B gui/build -S gui
+cmake -B ddd-gui/build -S ddd-gui
 cmake -B fx3/programmer/build -S fx3/programmer
 cmake -B fx3/firmware/build -S fx3/firmware \
       -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake
@@ -57,13 +57,13 @@ direnv allow
 
 Editors launched from inside the directory then inherit the toolchain, which matters for
 GUI editors that do not read your shell profile. To use a component shell instead, put
-`use flake .#gui` in `.envrc.local`.
+`use flake .#ddd-gui` in `.envrc.local`.
 
 ## Per-component notes
 
 | Component | Language server | Notes |
 | --- | --- | --- |
-| `gui/` | clangd | Qt's moc and uic output lands in the build tree; the compile database already includes those paths |
+| `ddd-gui/` | clangd | Qt's moc output lands in the build tree; the compile database already includes those paths |
 | `fx3/programmer/` | clangd | Nothing special — ordinary host C |
 | `fx3/firmware/` | clangd | `.clangd` sets `Compiler: arm-none-eabi-gcc`. Without it clangd probes the *host* compiler for system headers and reports hundreds of false errors, because the firmware is freestanding and never sees the host libc |
 | `fpga/` | verible-verilog-ls | `nix develop .#fpga` — free tools only, no Quartus needed to edit, lint or simulate |
@@ -87,7 +87,7 @@ over the same files and produce contradictory diagnostics:
 }
 ```
 
-Open the *component* directory (`gui/`, `fx3/firmware/`) rather than the repository root, so
+Open the *component* directory (`ddd-gui/`, `fx3/firmware/`) rather than the repository root, so
 clangd finds the right `.clangd`. If you prefer a single window, use a multi-root workspace
 with one folder per component.
 
@@ -110,8 +110,12 @@ require('lspconfig').verible.setup {
 `clangd` locates the right configuration by walking up from the file being edited, so opening
 a file anywhere in the tree works — there is no per-project setup beyond the above.
 
-For Verilog, `verible-verilog-ls` is in the `fpga` shell. Formatting is
-`verible-verilog-format --inplace`.
+For Verilog, `verible-verilog-ls` is in the `fpga` shell. Start it with
+`--rules_config_search` (as in the Neovim example below) and it finds
+`fpga/.rules.verible_lint` by walking up from the file being edited, so the diagnostics in
+your editor are the same ones the `fpga-style` CI check enforces. Formatting is
+`./fpga/tests/run-format.sh`, not a bare `verible-verilog-format` — the settings live in
+`fpga/.verible-format` and the script is what applies them.
 
 ## Emacs
 
@@ -124,7 +128,7 @@ With `eglot` (built in since Emacs 29):
 
 (with-eval-after-load 'eglot
   (add-to-list 'eglot-server-programs
-               '(verilog-mode . ("verible-verilog-ls"))))
+               '(verilog-mode . ("verible-verilog-ls" "--rules_config_search"))))
 ```
 
 `lsp-mode` works equally well; nothing in the repository depends on which you choose.
@@ -141,12 +145,13 @@ language-servers = ["verible"]
 
 [language-server.verible]
 command = "verible-verilog-ls"
+args = ["--rules_config_search"]
 ```
 
 ## Qt Creator
 
 Qt Creator opens CMake projects natively. Use *File → Open File or Project* and select
-`gui/CMakeLists.txt`.
+`ddd-gui/CMakeLists.txt`.
 
 Do **not** look for `.pro` files — the qmake project files were removed. They were a second
 build definition maintained by hand alongside the CMake one, and they drifted. Qt Creator
@@ -164,18 +169,23 @@ a terminal inside `nix develop`, or use direnv.
 
 ## Formatting
 
-There is no automatic formatter in CI, and no repository-wide reformat has been done —
-that would bury the history of every file. What exists:
+Formatting is enforced for the gateware and not for anything else, so the rules differ by
+component. What exists:
 
 - **`.editorconfig`** at the repository root, honoured by every editor listed above (VS Code
   and Emacs need a plugin; Neovim, Helix, CLion, KDevelop and Qt Creator support it natively).
   It sets indentation, line endings and trailing-whitespace behaviour per file type.
-- **`clang-format`** ships in the dev shells but there is no `.clang-format` file yet, so
-  running it would reformat against its default style. Do not run it across existing files.
-- **`verible-verilog-format`** for Verilog, likewise available but not enforced.
+- **`verible-verilog-format`** for `fpga/`, and here formatting **is** enforced — the
+  `fpga-style` check fails the build on a file that is not exactly what the formatter would
+  produce. Run `./fpga/tests/run-format.sh` rather than the tool directly; the settings are
+  in `fpga/.verible-format`. The gateware has already had its one-off reformat, so there is
+  no history left to bury.
+- **`clang-format`** ships in the dev shells. `ddd-gui/` has a `.clang-format` and gates on
+  it; `fx3/` does not, so running it there would reformat against its default style. Do not
+  run it across those files.
 
-The rule that matters: **do not reformat code you are not otherwise changing.**
-Whitespace-only diffs bury the actual change and break `git blame`.
+The rule that matters, everywhere except `fpga/`: **do not reformat code you are not
+otherwise changing.** Whitespace-only diffs bury the actual change and break `git blame`.
 
 Paths that must never be reformatted at all — vendored or generated — are listed in
 [AGENTS.md](https://github.com/simoninns/DomesdayDuplicator/blob/main/AGENTS.md) §3 and

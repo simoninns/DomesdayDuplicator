@@ -1,8 +1,11 @@
-# The GUI release stream (P7-8, P7-9, P7-10, P7-18).
+# The capture application's release stream.
 #
 # Triggered by gui-v* tags only. A firmware tag must not run this workflow and this
 # workflow must not build firmware: two streams that both rebuild everything are one
 # stream with extra steps.
+#
+# What it packages is ddd-gui. The tag prefix stays gui-v*: it names the release stream,
+# not the directory.
 #
 # What a complete gui-v* release carries:
 #
@@ -31,20 +34,47 @@ permissions:
   contents: write
 
 jobs:
+  # The packaging workflows resolve their version from the ref they are called on, not from
+  # the `tag` input above — a reusable workflow sees the caller's ref and nothing else. So a
+  # workflow_dispatch re-run has to be dispatched *on the tag*: dispatched from a branch, the
+  # three packaging jobs would stamp `git-<sha>` into every file name and the version check
+  # in `publish` would reject all of them, half an hour later. Checked first, and cheaply.
+  check-ref:
+    name: Check the ref
+    runs-on: ubuntu-latest
+    steps:
+      - name: The dispatched ref must be the tag being published
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          want="refs/tags/${{ github.event.inputs.tag }}"
+          if [[ "${GITHUB_REF}" != "${want}" ]]; then
+            echo "This run was dispatched on ${GITHUB_REF}, but asks to publish" >&2
+            echo "${{ github.event.inputs.tag }}. The installers would be built from the" >&2
+            echo "dispatched ref and stamped with its commit, not with the tag." >&2
+            echo >&2
+            echo "Re-run it with ${{ github.event.inputs.tag }} selected as the ref." >&2
+            exit 1
+          fi
+
   package-flatpak:
     name: Package
+    needs: check-ref
     uses: ./.github/workflows/package-flatpak.yml
     with:
       retention_days: 90
 
   package-macos:
     name: Package
+    needs: check-ref
     uses: ./.github/workflows/package-macos.yml
     with:
       retention_days: 90
 
   package-windows:
     name: Package
+    needs: check-ref
     uses: ./.github/workflows/package-windows.yml
     with:
       retention_days: 90
@@ -58,6 +88,33 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # Tag, version and pre-release status decided once, so the steps below and the
+      # published release cannot disagree about which of them this is.
+      - name: Resolve the release
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#gui-v}"
+
+          # A pre-release is one that says so in its version, by either of the two
+          # conventions this project uses: a 0.x version, which is what "no stable release
+          # yet" looks like, or a suffixed one such as 1.0.0-beta1. Marking it matters —
+          # an unmarked release becomes the repository's "Latest release", which is what
+          # the download links on the documentation site and GitHub's own release banner
+          # point people at.
+          if [[ "${VERSION}" == 0.* || "${VERSION}" == *-* ]]; then
+            prerelease=true
+          else
+            prerelease=false
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${TAG}: version ${VERSION}, pre-release ${prerelease}"
 
       - name: Download the packaged installers
         uses: actions/download-artifact@v4
@@ -84,7 +141,7 @@ jobs:
           done
           [[ "${missing}" -eq 0 ]] || exit 1
 
-      # P7-9: the version stamp is a release gate. The installers were checked at build
+      # The version stamp is a release gate. The installers were checked at build
       # time by their own workflows — each launches the packaged application and rejects an
       # "unknown" — and this is the second half: the file names must carry the tag, so an
       # asset built from the wrong ref cannot be attached to this release unnoticed.
@@ -92,8 +149,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          VERSION="${TAG#gui-v}"
+          VERSION="${{ steps.release.outputs.version }}"
           cd release-artifacts
 
           for asset in *; do
@@ -110,7 +166,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          TAG="${{ steps.release.outputs.tag }}"
+
+          # Read out of the manifest rather than written here. A provenance record that
+          # states the toolchain from memory is a provenance record that goes quietly wrong
+          # the first time the runtime is bumped, and this one had: it said 6.9 while the
+          # manifest pinned a later runtime.
+          MANIFEST=ddd-gui/packaging/flatpak/io.github.simoninns.DddGui.yml
+          KDE_RUNTIME="$(sed -n "s/^runtime-version: *'\(.*\)'/\1/p" "${MANIFEST}")"
+          [[ -n "${KDE_RUNTIME}" ]] || { echo "no runtime-version in ${MANIFEST}" >&2; exit 1; }
+
           cd release-artifacts
 
           sha256sum * > SHA256SUMS
@@ -126,7 +191,7 @@ jobs:
           flake.lock nixpkgs: ${NIXPKGS_REV}
 
           Toolchains
-            Flatpak:  org.kde.Platform / org.kde.Sdk 6.9 (Qt 6), flatpak-builder on ubuntu-latest
+            Flatpak:  org.kde.Platform / org.kde.Sdk ${KDE_RUNTIME} (Qt 6), flatpak-builder on ubuntu-latest
             macOS:    Homebrew qt@6, libusb, flac on macos-latest (arm64), unsigned and un-notarised
             Windows:  MSYS2 UCRT64 (Qt 6, libusb, libFLAC), WiX Toolset v3 on windows-latest, unsigned
 
@@ -144,18 +209,19 @@ jobs:
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          name: Capture application ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: Capture application ${{ steps.release.outputs.tag }}
           files: release-artifacts/*
           generate_release_notes: true
+          prerelease: ${{ steps.release.outputs.prerelease }}
           body: |
             Capture application for the Domesday Duplicator.
 
             | Platform | Download |
             | --- | --- |
-            | Linux | `.flatpak` — see [Linux installation](https://simoninns.github.io/domesdayduplicator/capture-application/install-flatpak/) |
-            | macOS | `.dmg` — see [macOS installation](https://simoninns.github.io/domesdayduplicator/capture-application/install-dmg/) |
-            | Windows | `.msi` — see [Windows installation](https://simoninns.github.io/domesdayduplicator/capture-application/install-msi/) |
+            | Linux | `.flatpak` — see [Linux installation](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-flatpak/) |
+            | macOS | `.dmg` — see [macOS installation](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-dmg/) |
+            | Windows | `.msi` — see [Windows installation](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-msi/) |
 
             Verify a download against `SHA256SUMS`; `PROVENANCE.txt` records the commit and
             the toolchains this was built with.

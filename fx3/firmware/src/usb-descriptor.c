@@ -12,17 +12,44 @@
 #include "domesday-duplicator.h"
 #include "generated_descriptor_data.h"
 
-// VID and PID definition (Domesday Duplicator 0x1D50 / 0x603B)
-#define VID_H	0x1D
-#define VID_L	0x50
-#define PID_H	0x60
-#define PID_L	0x3B
+// VID and PID definition (Domesday Duplicator 0x1209 / 0x2347)
+//
+// Registered with pid.codes, the open-source USB ID allocation service:
+// https://pid.codes/1209/2347/  The pair is reserved for this project; do not
+// reuse it for anything else and do not ship a modified device under it.
+#define VID_H	0x12
+#define VID_L	0x09
+#define PID_H	0x23
+#define PID_L	0x47
 
 // VID and PID definition (Cypress FX3 default 0x04B4 / 0x00F1 - useful for testing)
 //#define VID_H	0x04
 //#define VID_L	0xB4
 //#define PID_H	0x00
 //#define PID_L	0xF1
+
+// The vendor protocol version, carried in bcdDevice.
+//
+// This field was a dead 0x0000 until the device-update work needed somewhere to state
+// what the firmware speaks. It is the ideal place for it: the host reads bcdDevice
+// during enumeration, before opening the device and without sending a single vendor
+// request, so a device speaking a protocol the application does not understand can be
+// recognised before anything is asked of it. A vendor request could not do that, and a
+// commit hash - which is what the product string carries - identifies a build and
+// orders nothing.
+//
+// The version is the high byte and the low byte is zero, so lsusb reads it as "1.00"
+// rather than as something that looks like a mistake. The host compares the high byte
+// against the range of versions it supports.
+//
+// The bump rule, which is the whole value of the field: an additive change does not
+// bump it and a change that would break an existing host does. Adding a vendor request
+// number, a status field or a register is additive - an old host ignores what it does
+// not know about. Changing the meaning of an existing field, removing one, or changing
+// the order of a sequence is breaking. Version 1 is the protocol described on the
+// "Device update mechanism" documentation page.
+#define PROTOCOL_VERSION_L	0x00
+#define PROTOCOL_VERSION_H	0x01
 
 // Standard device descriptor for USB 3.0
 const uint8_t USB30DeviceDscr[] __attribute__ ((aligned (32))) = {
@@ -35,7 +62,7 @@ const uint8_t USB30DeviceDscr[] __attribute__ ((aligned (32))) = {
     0x09,                           // Maximum packet size for EP0 : 2^9
     VID_L,VID_H,                    // Vendor ID
     PID_L,PID_H,                    // Product ID
-    0x00,0x00,                      // Device release number
+    PROTOCOL_VERSION_L,PROTOCOL_VERSION_H, // Vendor protocol version (bcdDevice)
     0x01,                           // Manufacture string index
     0x02,                           // Product string index
     0x00,                           // Serial number string index
@@ -53,7 +80,7 @@ const uint8_t USB20DeviceDscr[] __attribute__ ((aligned (32))) = {
     0x40,                           // Maximum packet size for EP0 : 64 bytes
     VID_L,VID_H,                    // Vendor ID
     PID_L,PID_H,                    // Product ID
-    0x00,0x00,                      // Device release number
+    PROTOCOL_VERSION_L,PROTOCOL_VERSION_H, // Vendor protocol version (bcdDevice)
     0x01,                           // Manufacture string index
     0x02,                           // Product string index
     0x00,                           // Serial number string index
@@ -71,17 +98,24 @@ const uint8_t USBBOSDscr[] __attribute__ ((aligned (32))) = {
     0x07,                           // Descriptor size
     CY_U3P_DEVICE_CAPB_DESCR,       // Device capability type descriptor
     CY_U3P_USB2_EXTN_CAPB_TYPE,     // USB 2.0 extension capability type
-    0x00,0x00,0x00,0x00,            // Supported device level features: NO LPM (causing suspend crashes)
+    0x00,0x00,0x00,0x00,            // Supported device level features: LPM-L1 not supported
+
+    // The LPM bit above is clear because this device does not operate on a USB 2.0 link at
+    // all - the capture path needs SuperSpeed - so there is no 2.0 link state for the host to
+    // manage. That is a legal combination with the bcdUSB 0x0210 in the 2.0 device
+    // descriptor, which says only that the device has a BOS to read. It is not related to the
+    // suspend problems an earlier comment here attributed it to; those were the firmware's
+    // own handling of suspend, resume and stop/start, in domesday-duplicator.c.
 
     // SuperSpeed device capability
     0x0A,                           // Descriptor size
     CY_U3P_DEVICE_CAPB_DESCR,       // Device capability type descriptor
     CY_U3P_SS_USB_CAPB_TYPE,        // SuperSpeed device capability type
-    0x00,                           // Supported device level features
+    0x00,                           // Supported device level features: no LTM
     0x0E,0x00,                      // Speeds supported by the device : SS, HS and FS
-    0x03,                           // Functionality support
-    0x0A,                           // U1 Device Exit latency: 10us (proper LPM support)
-    0xFF,0x07                       // U2 Device Exit latency: 2047us (proper LPM support)
+    0x03,                           // Lowest speed with full functionality : SS
+    0x0A,                           // U1 Device Exit latency: 10us (the maximum the spec permits)
+    0xFF,0x07                       // U2 Device Exit latency: 2047us (the maximum the spec permits)
 };
 
 // Standard device qualifier descriptor
@@ -97,6 +131,13 @@ const uint8_t USBDeviceQualDscr[] __attribute__ ((aligned (32))) = {
     0x00                            // Reserved
 };
 
+// Remote wakeup is not advertised in any of the three configuration descriptors below.
+//
+// A device may only set that bit if it can actually signal remote wakeup, and this one
+// cannot: there is nothing it could usefully wake a sleeping host for, and the firmware
+// never calls CyU3PUsbDoRemoteWakeup() or requests U0 from U3. Claiming the capability made
+// hosts offer "allow this device to wake the computer" for a device that will never do so.
+
 // Standard super speed configuration descriptor
 const uint8_t USBSSConfigDscr[] __attribute__ ((aligned (32))) = {
     // Configuration descriptor
@@ -106,7 +147,7 @@ const uint8_t USBSSConfigDscr[] __attribute__ ((aligned (32))) = {
     0x01,                           // Number of interfaces
     0x01,                           // Configuration number
     0x00,                           // COnfiguration string index
-    0xA0,                           // Configuration characteristics - Bus powered, Remote Wakeup
+    0x80,                           // Configuration characteristics - bus powered, no remote wakeup
     0x32,                           // Max power consumption of device (in 8mA unit) : 400mA
 
     // Interface descriptor
@@ -145,7 +186,7 @@ const uint8_t USBHSConfigDscr[] __attribute__ ((aligned (32))) = {
     0x01,                           // Number of interfaces
     0x01,                           // Configuration number
     0x00,                           // COnfiguration string index
-    0xA0,                           // Configuration characteristics - bus powered, Remote Wakeup
+    0x80,                           // Configuration characteristics - bus powered, no remote wakeup
     0x32,                           // Max power consumption of device (in 2mA unit) : 100mA
 
     // Interface descriptor
@@ -177,7 +218,7 @@ const uint8_t USBFSConfigDscr[] __attribute__ ((aligned (32))) = {
     0x01,                           // Number of interfaces
     0x01,                           // Configuration number
     0x00,                           // COnfiguration string index
-    0xA0,                           // Configuration characteristics - bus powered, Remote Wakeup
+    0x80,                           // Configuration characteristics - bus powered, no remote wakeup
     0x32,                           // Max power consumption of device (in 2mA unit) : 100mA
 
     // Interface descriptor

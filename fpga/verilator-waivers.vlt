@@ -3,7 +3,7 @@
 // NB: in a .vlt file a comment whose first word is the linter's own name is
 // parsed as a pragma, not as a comment, so it must not start a line here.
 //
-// SPDX-FileCopyrightText: 2018-2025 Simon Inns
+// SPDX-FileCopyrightText: 2018-2026 Simon Inns
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The lint check (T4) runs with -Wall, which is the only setting that catches
@@ -29,33 +29,80 @@
 `verilator_config
 
 // ---------------------------------------------------------------------------
-// 1. The Altera black boxes
+// 1. The Altera black box
 // ---------------------------------------------------------------------------
 //
-// IPfifo_bb.v and IPpllGenerator_bb.v are port declarations with no bodies —
-// that is what a black box is. Verilator is right that nothing drives the
-// outputs and nothing reads the inputs, and it would be right about any black
-// box. They are linted rather than excluded because the top level and buffer.v
-// cannot elaborate without them, and linting the modules that instantiate the
-// IP is the point.
+// IPpllGenerator_bb.v is a port declaration with no body — that is what a black
+// box is. The linter is right that nothing drives the outputs and nothing reads
+// the inputs, and it would be right about any black box. It is linted rather
+// than excluded because the top level cannot elaborate without it, and linting
+// the module that instantiates the IP is the point.
 //
-// The real implementations, IPfifo.v and IPpllGenerator.v, instantiate dcfifo
-// and altpll from Altera's altera_mf library. Those have no free simulation
-// model, so they are not linted at all — see fpga/README.md.
+// The real implementation, IPpllGenerator.v, instantiates altpll from Altera's
+// altera_mf library, which has no free simulation model, so it is not linted at
+// all — see fpga/README.md.
+//
+// There were two of these until fifo.v replaced the dcfifo the buffer was built
+// on. One black box is left, so these are scoped to it by name rather than to
+// any file ending in _bb.v.
 
-lint_off -rule DECLFILENAME -file "*_bb.v"
-lint_off -rule UNUSEDSIGNAL -file "*_bb.v"
-lint_off -rule UNDRIVEN     -file "*_bb.v"
+lint_off -rule DECLFILENAME -file "*IPpllGenerator_bb.v"
+lint_off -rule UNUSEDSIGNAL -file "*IPpllGenerator_bb.v"
+lint_off -rule UNDRIVEN     -file "*IPpllGenerator_bb.v"
+
+// ---------------------------------------------------------------------------
+// 1b. The device primitives, and the models that stand in for them
+// ---------------------------------------------------------------------------
+//
+// remoteUpdate.v instantiates Altera's altremote_update megafunction and uses
+// six of its outputs not at all: the parameter read path (data_out), the
+// block's own flash interface (asmi_addr, asmi_rden, asmi_read) and the
+// programming report (pgmout, pof_error). Leaving a pin unconnected is how
+// Verilog says "not used"; connecting each one to a wire nothing reads would
+// trade this warning for an UNUSEDSIGNAL warning per wire and would say less.
+//
+// Scoped to this one instantiation. A missing pin anywhere else - including a
+// second instantiation of the same megafunction - is still reported, and on
+// this block a missing *input* would be a real defect, which is why the rule
+// stays on.
+lint_off -rule PINMISSING -file "*/remoteUpdate.v" -match "*altremote_update*"
+
+// common/sim/ holds behavioural models of parts this project does not
+// implement: the Cyclone IV active serial block, the remote update block and
+// the EPCS64 itself. They are test fixtures, never compiled into a bitstream,
+// and they are written the way models of external devices are written -
+// blocking assignments inside clocked processes, so that a byte shifted in on
+// one edge is visible to the process that answers on the next.
+//
+// They are linted at all because the modules that instantiate them are: a
+// model that does not elaborate would be found by a testbench, but a model
+// whose interface had drifted from the part would not. That is also why the
+// unused ports and parameters are waived rather than removed - the port list
+// is the part's, and a model is allowed to implement less of a device than the
+// device has, but it may not declare less.
+lint_off -rule BLKSEQ        -file "*/sim/*"
+lint_off -rule UNUSEDSIGNAL  -file "*/sim/*"
+lint_off -rule UNUSEDPARAM   -file "*/sim/*"
+lint_off -rule UNDRIVEN      -file "*/sim/*"
+
+// remoteUpdate.v: bits 7 to 2 of RECONFIG_CONTROL are unused.
+//
+// The register is a byte because every register in this map is a byte, and
+// this one defines two bits: tickle the watchdog, and trigger a
+// reconfiguration. The rest are reserved, and a host writing them writes
+// nothing - which is what "reserved, write as zero" means and is why they are
+// not read.
+lint_off -rule UNUSEDSIGNAL -file "*/remoteUpdate.v" -match "*window_write_data*"
 
 // ---------------------------------------------------------------------------
 // 2. Project source
 // ---------------------------------------------------------------------------
 
-// dataGenerator.v: `if (sequenceCount == (6'd63 << 16) - 1)`.
+// dataGenerator.v: `if (sequence_count == (6'd63 << 16) - 1)`.
 //
 // The linter objects that the 6-bit constant is widened by its context before
 // the shift. It is, and that is what makes the expression correct: the
-// comparison is against the 22-bit sequenceCount, so 63 is widened to 22 bits
+// comparison is against the 22-bit sequence_count, so 63 is widened to 22 bits
 // and 63 << 16 is 4128768, which fits. Had the shift been evaluated at the
 // constant's own width the result would be zero and the sequence number would
 // never advance.
@@ -67,36 +114,20 @@ lint_off -rule UNDRIVEN     -file "*_bb.v"
 // 63 sequence numbers of 65536 samples each.
 lint_off -rule WIDTHEXPAND -file "*/dataGenerator.v" -match "*SHIFTL*"
 
-// statusLED.v: `timer <= 16'd0;` where timer is 32 bits.
+// fx3StateMachine.v: `case (sm_current_state)` covers 2 of 16 states.
 //
-// A 16-bit zero zero-extends to a 32-bit zero, so the assignment is correct;
-// the constant is simply narrower than it needs to be. Left as written because
-// changing a literal in gateware that has not otherwise changed makes the
-// Phase 6 diff harder to review against the hardware gate, not easier.
-lint_off -rule WIDTHEXPAND -file "*/statusLED.v" -match "*ASSIGNDLY*"
-
-// statusLED.v: `case (position)` covers 0-7 of a 4-bit register.
-//
-// position only ever moves by one, from a reset value of 0, and reverses at 0
-// and 7 — so 8 to 15 are unreachable. If one were reached the LEDs would hold
-// their last value rather than doing anything undefined.
-// tests/tb_statusLED.v walks two full periods including both reversals.
-lint_off -rule CASEINCOMPLETE -file "*/statusLED.v"
-
-// fx3StateMachine.v: `case (sm_currentState)` covers 2 of 16 states.
-//
-// The case is preceded by `sm_nextState = sm_currentState;`, so every
+// The case is preceded by `sm_next_state = sm_current_state;`, so every
 // uncovered state holds rather than falling through to an undefined value, and
 // the register can only ever hold the two named states.
 lint_off -rule CASEINCOMPLETE -file "*/fx3StateMachine.v"
 
-// fx3StateMachine.v: wordCounter is written with blocking assignments inside a
+// fx3StateMachine.v: word_counter is written with blocking assignments inside a
 // clocked block.
 //
 // A genuine style defect, and the one waiver here that is not merely cosmetic:
 // blocking assignment in sequential logic can make simulation disagree with
 // synthesis. It does not here, because the combinational next-state block is
-// `always @(*)` and re-evaluates when wordCounter settles, so the value latched
+// `always @(*)` and re-evaluates when word_counter settles, so the value latched
 // at the following edge is the same either way.
 //
 // "Does not here" is a claim about behaviour, so it is tested rather than
@@ -105,6 +136,56 @@ lint_off -rule CASEINCOMPLETE -file "*/fx3StateMachine.v"
 // and corrupts every sample after it.
 lint_off -rule BLKSEQ -file "*/fx3StateMachine.v"
 
+// DomesdayDuplicator.v: the reset synchroniser is flopped both ways.
+//
+// Two findings, both describing the same three registers, and both correct:
+// a reset synchroniser is asynchronously reset *and* clocked, because that is
+// what it is for. fx3_reset_n arrives from the FX3 with no relationship to the
+// system clock, so it has to assert asynchronously - a reset that needed a
+// clock edge would not work when there is no clock. Releasing it on an edge is
+// the half that has to be synchronised, and the only way to write that is a
+// shift register whose own flops are asynchronously reset.
+//
+// SYNCASYNCNET fires on every correct implementation of this structure. It is
+// worth having on for the case it is really looking for - a signal used as a
+// reset in one place and as data in another by accident - so it is waived
+// here by the names of the two nets involved rather than for the file.
+//
+// GPIO1 is the same finding seen one level further back: fx3_reset_n is
+// GPIO1[07] through the control-bus mapping, and other bits of the same bus
+// carry the SPI lines and read_data, which are ordinary synchronous inputs.
+// The linter reasons about the bus, not the bit. The design cannot separate
+// them because the pin assignments are fixed by the PCB.
+lint_off -rule SYNCASYNCNET -file "*/DomesdayDuplicator.v" -match "*reset_n_sync*"
+lint_off -rule SYNCASYNCNET -file "*/DomesdayDuplicator.v" -match "*GPIO1*"
+
+// DomesdayDuplicatorFactory.v: the same two findings, for the same reasons -
+// the factory image synchronises the FX3's reset exactly as the application
+// image does, and fx3_reset_n reaches it through the same GPIO1 bus.
+lint_off -rule SYNCASYNCNET -file "*/DomesdayDuplicatorFactory.v" -match "*reset_n_sync*"
+lint_off -rule SYNCASYNCNET -file "*/DomesdayDuplicatorFactory.v" -match "*GPIO1*"
+
+// DomesdayDuplicatorFactory.v: power_on_count is clocked and then used as a
+// reset.
+//
+// It is this image's own power-on reset, and it is deliberately not the FX3's:
+// the boot decision must not be interruptible by the other chip's reset line.
+// The counter is clocked by the system clock and so are all the modules it
+// resets, so the release is synchronous to the clock that matters, and the
+// assertion happens once - at configuration, before there is anything to
+// interrupt.
+lint_off -rule SYNCASYNCNET -file "*/DomesdayDuplicatorFactory.v" -match "*power_on_count*"
+
+// DomesdayDuplicatorFactory.v: the register bank's test-mode output has no
+// consumer here.
+//
+// The bank is shared with the application image, where test mode selects the
+// data generator. This image has no capture path at all, which is the point of
+// it, so the output is connected to a wire that nothing reads rather than left
+// unconnected - a named wire says why in the source, which an empty pin
+// connection does not.
+lint_off -rule UNUSEDSIGNAL -file "*/DomesdayDuplicatorFactory.v" -match "*test_mode_unused*"
+
 // DomesdayDuplicator.v: bits 2 and 6-9 of fx3_control are unused.
 //
 // These are the FX3 CTL lines the board wires up but the design does not use —
@@ -112,3 +193,11 @@ lint_off -rule BLKSEQ -file "*/fx3StateMachine.v"
 // source names each one as unused in the signal map. They stay in the bus
 // because the pin assignments are fixed by the PCB.
 lint_off -rule UNUSEDSIGNAL -file "*/DomesdayDuplicator.v" -match "*fx3_control*"
+
+// remoteUpdate.v: the top five bits of the block's read data are unused.
+//
+// data_out is 29 bits because that is the widest thing the block returns - the
+// watchdog timeout value. The three things this design reads are narrower: two
+// bits of state mode, five of trigger condition, twenty-four of boot address.
+// Widening the reads to consume bits nothing means would be inventing a field.
+lint_off -rule UNUSEDSIGNAL -file "*/remoteUpdate.v" -match "*block_data_out*"

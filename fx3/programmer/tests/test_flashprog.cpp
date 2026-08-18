@@ -3,7 +3,7 @@
  *
  * Domesday Duplicator - FX3 programmer tests
  *
- * T1 (unit) coverage for locating cyfxflashprog.img — the site of D13.
+ * T1 (unit) coverage for locating cyfxflashprog.img.
  *
  * The defect this guards against is subtle: every candidate path used to be relative to
  * the current working directory, so the tool worked when run from its own build tree and
@@ -124,7 +124,7 @@ using OwnedPath = std::unique_ptr<char, FreeDeleter>;
 
 TEST(FlashprogPath, InstallPathIsCompiledIn)
 {
-    // This is the whole point of the D13 fix. If the build stops defining it, an installed
+    // This is the whole point of the fix. If the build stops defining it, an installed
     // binary silently goes back to only working from its own directory.
     const char *installed = fx3_flashprog_install_path();
 

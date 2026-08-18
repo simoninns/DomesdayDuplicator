@@ -1,0 +1,86 @@
+/************************************************************************
+
+    test_about_text.cpp
+
+    T1 tests for the About dialog's build provenance
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+************************************************************************/
+
+#include <gtest/gtest.h>
+
+#include <QString>
+
+#include "about_text.h"
+#include "version.h"
+
+namespace ddd::gui {
+namespace {
+
+QString VersionString() {
+  const auto version = capture::Version();
+  return QString::fromUtf8(version.data(),
+                           static_cast<qsizetype>(version.size()));
+}
+
+// The point of these tests: the About dialog is the second of two routes to the
+// build's identity, and on Windows it is the only one that works, because the
+// application is a GUI subsystem executable and --version reaches no console.
+// A user who cannot say which build produced a bad capture cannot be helped, so
+// this is a release-traceability requirement rather than a cosmetic one.
+
+TEST(AboutTextTest, CarriesTheBuildVersion) {
+  EXPECT_TRUE(AboutText().contains(VersionString()))
+      << "About text does not name the build it came from";
+}
+
+TEST(AboutTextTest, AlwaysNamesAVersionEvenWhenItIsUnknown) {
+  // A build with no version determined reports "unknown" rather than leaving
+  // the line blank or dropping it: an absent version is indistinguishable from
+  // a user who did not look, and the release gate needs the difference.
+  EXPECT_FALSE(VersionString().isEmpty());
+  EXPECT_TRUE(AboutText().contains(QStringLiteral("Build:")));
+}
+
+TEST(AboutTextTest, NamesTheApplicationAndItsLicence) {
+  const QString text = AboutText();
+  EXPECT_TRUE(text.contains(QStringLiteral("Domesday Duplicator")));
+  EXPECT_TRUE(text.contains(QStringLiteral("General Public License")));
+}
+
+TEST(AboutTextTest, NamesTheAuthorAndTheCopyright) {
+  const QString text = AboutText();
+
+  EXPECT_TRUE(text.contains(QStringLiteral("Simon Inns")))
+      << "About text does not say who wrote it";
+  EXPECT_TRUE(text.contains(QStringLiteral("©")))
+      << "About text carries no copyright notice";
+}
+
+TEST(AboutTextTest, CarriesTheNoticesTheLicenceAsksFor) {
+  // The GPL asks an interactive program to show appropriate legal notices: the
+  // copyright, the licence, and the absence of a warranty. The About dialog is
+  // where a user goes to look for them, so it is where they are.
+  const QString text = AboutText();
+
+  EXPECT_TRUE(text.contains(QStringLiteral("version 3")));
+  EXPECT_TRUE(text.contains(QStringLiteral("warranty")));
+  EXPECT_TRUE(text.contains(QStringLiteral("free software")));
+}
+
+TEST(AboutTextTest, PointsAtTheSource) {
+  // The licence entitles a user to the source. A licence notice that does not
+  // say where it is leaves them to guess.
+  EXPECT_TRUE(AboutText().contains(QStringLiteral("github.com/simoninns")));
+}
+
+TEST(AboutTextTest, IsStable) {
+  // Called once per dialog opening; nothing in it may vary between calls, or
+  // two users reading it aloud would not agree.
+  EXPECT_EQ(AboutText(), AboutText());
+}
+
+}  // namespace
+}  // namespace ddd::gui

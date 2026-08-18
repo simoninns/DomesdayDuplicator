@@ -1,0 +1,166 @@
+# Settings
+
+**File → Settings…** holds the things that are set once and left alone. Everything to do with
+an individual capture — the name, the format, the compression, the duration limit — is in the
+[Capture panel](capture-control.md) instead, where it is visible while you work.
+
+Its **Capture** tab is below, and it opens with the two that used to be on that panel:
+**Folder** and **Preferred device**. They moved here because neither changes once it is set —
+a Duplicator does not move between USB ports and captures do not move between drives — and a
+control that is set once does not earn a row on the panel you work from.
+
+Its **Player** tab — which model, which serial port, which speed, the ports never to open,
+and the one coupling between player and capture — is documented on
+[Player control](player-control.md), beside the rest of what it configures.
+
+!!! note "When each one takes effect"
+
+    The buffer and transfer settings resize things a running capture is using, so they apply
+    to the **next** capture. The front-end gain declaration only changes what a number is
+    labelled, so it applies **at once**, including to a capture already running.
+
+## Folder
+
+Where captures are written. `Browse…` picks one, or type a path.
+
+It defaults to the platform's Movies or Videos folder — a capture is tens of gigabytes of
+media, and that is the location a machine's backup rules and disk-space expectations are
+already built around.
+
+The **Free space** row on the [Capture panel](capture-control.md#free-space) is about this
+folder, and names it in its tooltip.
+
+## Preferred device
+
+Which Duplicator to use, when more than one is attached. **Whichever is attached** is the
+default and is what almost everybody leaves it at.
+
+The list names what is wrong with a device rather than hiding it — *recovery mode, no
+firmware installed* for one whose USB chip has nothing to run, *connected at insufficient
+speed* for one below SuperSpeed. Both are still offered, because both are the same physical
+port: one is a programming away from working and the other a cable.
+
+The [Capture panel's](capture-control.md) status line reports the same diagnosis for whichever
+device is actually selected, so a device that cannot capture says so without your opening this
+dialog.
+
+## Buffer queue
+
+How much sample data this machine will hold while waiting for the disk and the encoder.
+
+| Choice | Slack it buys |
+| --- | --- |
+| 64 MB | 0.8 seconds |
+| 128 MB | 1.6 seconds |
+| **256 MB** | **3.2 seconds (default)** |
+| 512 MB | 6.5 seconds |
+
+The seconds are the figure that matters — the megabytes are just how it is spent. This is
+how long a write stall can last before samples start being lost, so raising it is one of the
+three remedies for a machine that cannot keep up (the others being a faster drive and a
+lower compression level).
+
+On Linux there is a ceiling that is not the application's. The kernel's usbfs memory limit
+caps what can be queued, and a queue above it fails the capture with a specific message and
+the command to raise it. Lowering the queue size here is the remedy that needs no
+administrator rights. See [If a capture fails](if-a-capture-fails.md#the-kernels-usbfs-limit).
+
+## USB transfers
+
+**Many small transfers (recommended)** keeps several reads outstanding at once, so the
+device always has somewhere to put the next packet.
+
+**One transfer per buffer** is simpler and slightly cheaper, but leaves a gap between each
+transfer completing and the next being submitted — and the device has nowhere to put data
+during that gap.
+
+Change it only in response to a specific failure: *this machine did not keep a read request
+outstanding* is the message that points here.
+
+## Front-end gain
+
+This is the one setting worth reading about rather than just choosing.
+
+### Why you have to declare it
+
+The Duplicator's analogue front end is an amplifier whose gain is set by **SW401**, a
+four-way DIP switch on the board. The switch is mechanical and has **no electrical path** to
+the FPGA or the FX3 — nothing in the sample stream, the USB descriptors or the vendor
+requests reveals its position. The application cannot discover it and must be told.
+
+Everything else follows from that one fact:
+
+- **There is no default.** While the setting is undeclared, no display shows a voltage —
+  levels read in converter codes, 0 to 1023. A plausible default would put
+  authoritative-looking millivolt figures on screen that could be wrong by up to a factor of
+  four, with nothing to reveal it. That is worse than showing nothing.
+- **Nothing about the capture depends on it.** Samples are stored and written as the codes
+  the converter produced. This is a display calibration, applied where the numbers are
+  drawn — so getting it wrong and correcting it later re-scales every figure on screen, with
+  nothing to redo.
+- **Clipping never depends on it.** A clipped sample is one whose code reached 0 or 1023,
+  which is a property of the converter. The clip counts stay correct whether the declaration
+  is absent, right or wrong.
+
+### Reading the switches
+
+The switch block is written as it sits on the board, left to right: **`1010` is switches 1
+and 3 closed, and 2 and 4 open.** Each picture below is SW401 as it should look, with the
+closed sliders pushed towards the **ON** legend.
+
+| SW401 | Switches | Gain | Aim for (75 %) | Clips above |
+| --- | --- | --- | --- | --- |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switch 1 on and switches 2, 3 and 4 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="15" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="22" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="22" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="22" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `1000` | ×8.50 | 176 mV p-p | 235 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switch 2 on and switches 1, 3 and 4 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="22" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="15" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="22" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="22" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `0100` | ×6.00 | 250 mV p-p | 333 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switch 3 on and switches 1, 2 and 4 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="22" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="22" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="15" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="22" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `0010` | ×4.40 | 341 mV p-p | 455 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 1 and 2 on and switches 3 and 4 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="15" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="15" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="22" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="22" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `1100` | ×4.00 | 375 mV p-p | 500 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switch 4 on and switches 1, 2 and 3 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="22" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="22" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="22" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="15" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `0001` | ×3.80 | 395 mV p-p | 526 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 1 and 3 on and switches 2 and 4 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="15" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="22" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="15" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="22" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `1010` | ×3.34 | 449 mV p-p | 599 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 1 and 4 on and switches 2 and 3 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="15" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="22" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="22" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="15" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `1001` | ×3.04 | 494 mV p-p | 658 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 2 and 3 on and switches 1 and 4 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="22" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="15" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="15" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="22" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `0110` | ×3.02 | 496 mV p-p | 661 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 2 and 4 on and switches 1 and 3 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="22" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="15" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="22" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="15" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `0101` | ×2.79 | 537 mV p-p | 716 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 1, 2 and 3 on and 4 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="15" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="15" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="15" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="22" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `1110` | ×2.59 | 578 mV p-p | 771 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 3 and 4 on and switches 1 and 2 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="22" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="22" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="15" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="15" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `0011` | ×2.54 | 592 mV p-p | 789 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 1, 2 and 4 on and 3 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="15" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="15" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="22" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="15" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `1101` | ×2.45 | 613 mV p-p | 817 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 1, 3 and 4 on and 2 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="15" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="22" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="15" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="15" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `1011` | ×2.27 | 659 mV p-p | 879 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 2, 3 and 4 on and 1 off"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="22" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="15" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="15" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="15" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `0111` | ×2.17 | 690 mV p-p | 920 mV p-p |
+| <svg xmlns="http://www.w3.org/2000/svg" width="72" height="46" viewBox="0 0 72 46" role="img" aria-label="SW401 with switches 1, 2, 3 and 4 on"><text x="3" y="8" font-family="sans-serif" font-size="8" fill="currentColor">ON</text><rect x="2" y="11" width="68" height="22" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="6" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="7" y="15" width="10" height="7" fill="currentColor"/><text x="12" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">1</text><rect x="22" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="23" y="15" width="10" height="7" fill="currentColor"/><text x="28" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">2</text><rect x="38" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="39" y="15" width="10" height="7" fill="currentColor"/><text x="44" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">3</text><rect x="54" y="14" width="12" height="16" fill="none" stroke="currentColor" stroke-width="0.75" opacity="0.45"/><rect x="55" y="15" width="10" height="7" fill="currentColor"/><text x="60" y="44" font-family="sans-serif" font-size="8" text-anchor="middle" fill="currentColor">4</text></svg> | `1111` | ×2.02 | 744 mV p-p | 992 mV p-p |
+
+All four switches open is not a setting: with no feedback path the amplifier has no defined
+gain. That pattern is what carries the undeclared state.
+
+**Aim for** is the level to set a source against — 75 % of the converter's range, which is
+what the [Amplitude History](signal-analysis.md#the-nominal-bounds) strip marks. **Clips
+above** is where the converter runs out outright. The headroom between the two is what
+absorbs the moments a disc is worse than the moment you set the gain on.
+
+### Once it is declared
+
+Every level display gains a millivolt figure at the BNC: the Statistics panel's signal level
+and extremes, the waveform cursor, the amplitude summary. The declaration is also written
+into each capture file's tags, so the calibration needed to read those samples as volts
+travels with them.
+
+It is remembered between sessions. A gain switch stays where it was put, and asking again
+every session for something that has not changed is how a setting ends up ignored.
+
+## What is not here
+
+**Test mode** is in the Capture panel and is deliberately *not* remembered between sessions.
+It is a diagnostic, and an application that silently started in test mode because of
+something you did last week would produce a capture full of ramps.
+
+## Where settings are kept
+
+| Platform | Location |
+| --- | --- |
+| Linux | `~/.config/Domesday86/ddd-gui.conf` |
+| macOS | `~/Library/Preferences/com.domesday86.ddd-gui.plist` |
+| Windows | `HKEY_CURRENT_USER\Software\Domesday86\ddd-gui` |
+
+These are the application's own. The capture application this one replaced used a different
+identity, so installing this one never disturbed that one's settings.
+
+A settings file that has been edited by hand, or written by a different version, is
+**clamped** to sensible values rather than rejected — an out-of-range value produces a
+working capture rather than a refusal.

@@ -9,6 +9,7 @@ USB 3.0.
 | [firmware/gpif/](firmware/gpif/) | GPIF II Designer project for the parallel interface state machine |
 | [mkimage/](mkimage/) | `fx3-mkimage`, the host tool converting the linked ELF into the boot-loadable image |
 | [programmer/](programmer/) | `fx3-programmer`, the host-side libusb tool that loads firmware onto the device |
+| [firmware/src/vendor/](firmware/src/vendor/) | The pinned SHA-256 the update agent hashes with — see its `VENDOR.md` |
 | [sdk/](sdk/) | Vendored subset of the Cypress EZ-USB FX3 SDK 1.3.5 that the firmware links against |
 
 ## Typical workflow
@@ -30,6 +31,26 @@ cmake --build programmer/build
 
 See [firmware/README.md](firmware/README.md) and [programmer/README.md](programmer/README.md)
 for prerequisites, permanent (EEPROM) programming and troubleshooting.
+
+## The firmware is its own flasher
+
+The FX3 boots from an I2C EEPROM, and its I2C pins are dedicated — not shared with the
+16-bit GPIF bus or the UART — so the running firmware can bring up the I2C block and
+rewrite its own boot source. It does: `firmware/src/update-agent.c` is the flasher and
+`firmware/src/update-protocol.c` is the half of it that can be tested on a build machine.
+
+What that means in practice is that **the workflow above is for a new board, not for an
+update**. A unit that already has this firmware is updated over its one USB cable from the
+capture application's Firmware window, or headlessly with `ddd-update` — no jumper, no
+`fx3-programmer`, and no power cycle. The image is verified as it arrives and read back
+off the EEPROM afterwards, and the page carrying the boot ROM's `'CY'` signature is
+written last, so an update interrupted anywhere before that leaves a kit which falls back
+to the USB bootloader rather than one that half-works.
+
+`fx3-programmer` and the J4 jumper remain what they always were: how a bare board is
+provisioned for the first time, and how a unit is recovered when something has gone wrong
+enough that it cannot recover itself. The protocol is on the *Device update mechanism*
+documentation page and the developer loop is on *Developer update loop*.
 
 ## The board this runs on
 
@@ -53,15 +74,26 @@ Confirmed with the maintainer, 2026-08-12, and consistent with the schematic.
 | `J4` | Boots from | Enumerates as |
 | --- | --- | --- |
 | **Fitted** | USB — the FX3 boot ROM waits for a host to download to RAM | `04b4:00f3`, "FX3 micro-controller (DFU mode)" |
-| **Removed** | The onboard I2C EEPROM | `1d50:603b`, running this project's firmware |
+| **Removed** | The onboard I2C EEPROM | `1209:2347`, running this project's firmware |
 
 A third identity appears mid-operation: once `fx3-programmer` has pushed the Cypress
 secondary loader (`cyfxflashprog.img`) into RAM to reach the EEPROM, the device re-enumerates
 as **`04b4:4720`**. That is expected and transient.
 
+`1209:2347` is registered to this project with [pid.codes](https://pid.codes/1209/2347/), the
+open-source USB ID allocation service. It is set in `firmware/src/usb-descriptor.c`, and the
+same pair is the capture application's (`ddd-gui/src/capture/wire_protocol.h`)
+and is matched by `programmer/configs/70-domesday-duplicator.rules`. All three must agree.
+Firmware built before the registration used `1d50:603b`, which this project had no allocation
+for; a board still showing that ID needs reprogramming.
+
+The Explorer Kit also carries a USB-UART bridge, `04b4:0007`, which is where the firmware's
+debug console comes out. It is a separate USB device on the same board and appears whenever
+the kit is powered, regardless of `J4`.
+
 So the loop is: fit `J4`, power cycle, program (RAM or EEPROM), remove `J4`, power cycle to
 run from EEPROM. `fx3-programmer -r` does **not** substitute for the power cycle — it is a
-stub that resets nothing (D25).
+stub that resets nothing.
 
 ### A warning about the programmer's help text
 
@@ -69,8 +101,8 @@ stub that resets nothing (D25).
 here.** The implementation programs the I2C EEPROM and reports so, which is correct for this
 hardware and matches the project's own
 [FX3 programming guide](../docs/content/development/hardware-programming/fx3-firmware.md). The vendor commands for
-SPI (`0xC2`, `0xC4`) are defined in the source and never used. Tracked as **D24**; the help
-text is the thing that is wrong.
+SPI (`0xC2`, `0xC4`) are defined in the source and never used. This is a known defect; the
+help text is the thing that is wrong.
 
 ### Verified capacity
 

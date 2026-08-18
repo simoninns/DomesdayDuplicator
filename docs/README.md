@@ -1,7 +1,7 @@
 # Domesday Duplicator Documentation
 
 Source for the project's documentation website, published at
-**<https://simoninns.github.io/domesdayduplicator>**.
+**<https://simoninns.github.io/DomesdayDuplicator>**.
 
 Built with [MkDocs](https://www.mkdocs.org/) and
 [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/), matching the toolchain
@@ -39,9 +39,6 @@ Or build the site exactly as it is published:
 ```bash
 nix build .#docs-site
 ```
-
-Without Nix, any environment with `mkdocs`, `mkdocs-material` and `mkdocs-awesome-nav`
-installed will work.
 
 ## Adding a page
 

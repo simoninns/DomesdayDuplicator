@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="US-ASCII" standalone="yes"?>
+<!--
+    DomesdayDuplicatorProvisioning.cof
+
+    The dual-image EPCS64 provisioning file
+    Domesday Duplicator - LaserDisc RF sampler
+    SPDX-FileCopyrightText: 2026 Simon Inns
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+    Converts the two compiled images into one .jic that a JTAG programmer
+    writes over the DE0-Nano's on-board USB-Blaster. It is the only time a
+    cable is needed: from here the application image is field-updatable over
+    the single USB cable the unit already has.
+
+    The two start addresses below are the layout, and they are the reason
+    this file is written by hand rather than exported from the Quartus GUI.
+    They must agree with the EPCS layout and boot flow documentation page,
+    with BootBlockAddress in fpga/factory/bootLoader.v, and with the boot
+    block that fpga/make-boot-block.py writes:
+
+        0x000000  factory image        this file, page 0
+        0x100000  boot block           written by the update path
+        0x200000  application image    this file, page 1
+
+    Page 1 is placed at 0x200000 rather than left to follow page 0, which is
+    what makes the gap for the boot block. build-local.sh prints the memory
+    map quartus_cpf emits beside the .jic; those addresses are the check.
+-->
+<cof>
+	<eprom_name>EPCS64</eprom_name>
+	<flash_loader_device>EP4CE22</flash_loader_device>
+	<output_filename>DomesdayDuplicatorProvisioning.jic</output_filename>
+	<n_pages>2</n_pages>
+	<width>1</width>
+	<mode>7</mode>
+	<sof_data>
+		<start_address>000000</start_address>
+		<user_name>Factory</user_name>
+		<page_flags>1</page_flags>
+		<bit0>
+			<sof_filename>DomesdayDuplicatorFactory.sof<compress_bitstream>1</compress_bitstream></sof_filename>
+		</bit0>
+	</sof_data>
+	<sof_data>
+		<start_address>200000</start_address>
+		<user_name>Application</user_name>
+		<!--
+		    Bit 0 of the page flags is what marks a page as the factory
+		    one. Both images are compiled with remote update enabled, so
+		    without this the converter finds two factory pages and refuses
+		    the conversion - which is a useful thing for it to refuse.
+		-->
+		<page_flags>0</page_flags>
+		<bit0>
+			<sof_filename>DomesdayDuplicator.sof<compress_bitstream>1</compress_bitstream></sof_filename>
+		</bit0>
+	</sof_data>
+	<version>10</version>
+	<create_cvp_file>0</create_cvp_file>
+	<create_hps_iocsr>0</create_hps_iocsr>
+	<auto_create_rpd>0</auto_create_rpd>
+	<rpd_little_endian>1</rpd_little_endian>
+	<options>
+		<map_file>1</map_file>
+	</options>
+	<advanced_options>
+		<ignore_epcs_id_check>2</ignore_epcs_id_check>
+		<ignore_condone_check>2</ignore_condone_check>
+		<plc_adjustment>0</plc_adjustment>
+		<post_chain_bitstream_pad_bytes>-1</post_chain_bitstream_pad_bytes>
+		<post_device_bitstream_pad_bytes>-1</post_device_bitstream_pad_bytes>
+		<bitslice_pre_padding>1</bitslice_pre_padding>
+	</advanced_options>
+</cof>
