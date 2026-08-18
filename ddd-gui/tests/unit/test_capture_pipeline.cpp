@@ -665,6 +665,23 @@ void ExpectThePacingApplied(const SyntheticSource& source) {
          "test asked for and the figures below are measuring the machine";
 }
 
+// How far either side of the paced rate a reading may fall and still be the
+// pipeline's answer rather than the host's.
+//
+// A source that ran late does not settle for a lower rate: PaceForBytes works
+// every deadline out from the origin, so the moment the host catches up it
+// hands over the backlog as fast as it can generate it. A window holding that
+// catch-up reads high by the share of the debt repaid inside it, and a window
+// holding the slip itself reads low by the same measure, so a run that fell s
+// behind can be out by s/window in either direction with nothing wrong with
+// the figure being published. The twenty percent on top is buffer granularity:
+// a window spans about a dozen slots and can only ever count whole ones.
+double ThroughputBandFraction(const SyntheticSource& source) {
+  const double window =
+      std::chrono::duration<double>(kTestThroughputWindow).count();
+  return 0.2 + source.PacingSlipSeconds() / window;
+}
+
 TEST_F(CapturePipelineTest, ThroughputIsTheRecentRateNotTheAverageSinceStart) {
   // The figure a user reads has to say what the capture is doing now. An
   // average since the start cannot: the run begins with time in which no buffer
@@ -701,8 +718,9 @@ TEST_F(CapturePipelineTest, ThroughputIsTheRecentRateNotTheAverageSinceStart) {
 
   const double measured = stats.throughput_bytes_per_second;
   const auto paced = static_cast<double>(kTestPacedBytesPerSecond);
-  EXPECT_GT(measured, paced * 0.8);
-  EXPECT_LT(measured, paced * 1.2);
+  const double band = ThroughputBandFraction(source);
+  EXPECT_GT(measured, paced * (1.0 - band));
+  EXPECT_LT(measured, paced * (1.0 + band));
 
   // And the same snapshot's average since the start, which is what used to be
   // published. It is still there to be worked out; it is simply not the answer
@@ -764,8 +782,9 @@ TEST_F(CapturePipelineTest, AStoppedCaptureKeepsTheLastRateItMeasured) {
   ExpectThePacingApplied(source);
 
   const auto paced = static_cast<double>(kTestPacedBytesPerSecond);
-  EXPECT_GT(outcome.stats.throughput_bytes_per_second, paced * 0.8);
-  EXPECT_LT(outcome.stats.throughput_bytes_per_second, paced * 1.2);
+  const double band = ThroughputBandFraction(source);
+  EXPECT_GT(outcome.stats.throughput_bytes_per_second, paced * (1.0 - band));
+  EXPECT_LT(outcome.stats.throughput_bytes_per_second, paced * (1.0 + band));
 }
 
 // --- The monitor tap under a running pipeline -------------------------------
