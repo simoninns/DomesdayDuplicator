@@ -336,12 +336,23 @@ TEST_F(AutoCaptureControllerTest, CancellingFinishesTheFileProperly) {
   // The difference from the old application, which abandoned the run where it
   // stood: the writer is detached and the file finalised.
   EXPECT_FALSE(capture_->capturing());
-  ASSERT_EQ(WrittenFiles().size(), 1U);
+
+  // Detached is not finished. Cancelling clears `capturing` the moment the sink
+  // is detached, and the encoder is still writing out its last frames and
+  // patching the header behind that — which is the whole point of detaching
+  // rather than stopping, and is why reading the file on the strength of
+  // `capturing` alone was a race that CI lost. The sidecar is the fact to wait
+  // for: it is written when the file is closed, a statistics tick later, and
+  // after any rename the naming asks for.
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+
+  const std::vector<std::filesystem::path> files = WrittenFiles();
+  ASSERT_EQ(files.size(), 1U);
 
   capture::CaptureReader reader;
   std::string error;
-  ASSERT_TRUE(reader.Open(WrittenFiles().front(),
-                          capture::CaptureReader::Format::kFlac, error))
+  ASSERT_TRUE(
+      reader.Open(files.front(), capture::CaptureReader::Format::kFlac, error))
       << error;
 }
 

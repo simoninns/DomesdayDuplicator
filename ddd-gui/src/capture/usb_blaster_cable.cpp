@@ -50,7 +50,7 @@ constexpr uint8_t kByteShiftFlag = 0x80;
 // sending 16 KiB at a time is the difference between an afternoon and a few
 // minutes. Nothing is lost by the delay: everything that needs the cable to
 // have caught up asks for TDO, and asking for TDO flushes.
-constexpr size_t kWriteBufferBytes = 16 * 1024;
+constexpr size_t kWriteBufferBytes = size_t{16} << 10;
 
 bool BitAt(std::span<const uint8_t> bits, size_t index) {
   const size_t byte = index / 8;

@@ -701,8 +701,16 @@ TEST_F(PlayerControllerTest, EverythingReturnsImmediatelyInEveryState) {
   controller_->CancelExamine();
   controller_->SetEnabled(false);
 
+  // A second, for a sequence whose honest cost is microseconds. The bound is
+  // this loose because it is measured in wall-clock time on a machine running
+  // sixteen hundred other tests at once: CI has been seen to take 124 ms over
+  // these ten calls purely in scheduling, and a bound tight enough to call
+  // that a failure fails on load rather than on behaviour. What the test is
+  // written to catch is a method that waits for a player, and every one of
+  // those costs seconds — three, for a search of every port at every rate — so
+  // a second still catches the regression while leaving room for the runner.
   const auto elapsed = std::chrono::steady_clock::now() - start;
-  EXPECT_LT(elapsed, 100ms);
+  EXPECT_LT(elapsed, 1s);
 }
 
 }  // namespace

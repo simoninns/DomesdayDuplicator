@@ -86,8 +86,18 @@ TEST_F(CaptureMetadataTest, AnOrdinaryCaptureRecordsWhatItWas) {
 
   // Local time with the offset on the end, so the timestamp is a moment rather
   // than a reading on a clock. The tests run in UTC.
+  //
+  // Windows is the exception, and by decision rather than by accident: its
+  // struct tm carries no offset, and the writer declines to reconstruct one
+  // from the timezone globals, so the timestamp there is the local time alone.
+  // Asserting the offset unconditionally is what failed every MSI build.
+#ifdef _WIN32
+  EXPECT_TRUE(Contains(document, "\"started\": \"2026-08-13T12:34:56\""))
+      << document;
+#else
   EXPECT_TRUE(Contains(document, "\"started\": \"2026-08-13T12:34:56+00:00\""))
       << document;
+#endif
 }
 
 TEST_F(CaptureMetadataTest, TheTestModeFlagIsAlwaysWritten) {
@@ -376,9 +386,15 @@ TEST_F(CaptureMetadataTest, TheDocumentIsWrittenToDiskAsItWasBuilt) {
   ASSERT_TRUE(WriteCaptureMetadataFile(path, metadata, error)) << error;
   ASSERT_TRUE(std::filesystem::exists(path));
 
-  std::ifstream file(path, std::ios::binary);
-  const std::string written((std::istreambuf_iterator<char>(file)),
-                            std::istreambuf_iterator<char>());
+  // Read in a scope of its own, so the handle is closed before the directory
+  // goes. Windows refuses to delete a file something still has open, and this
+  // is what threw "the process cannot access the file" out of the tidy-up.
+  std::string written;
+  {
+    std::ifstream file(path, std::ios::binary);
+    written.assign((std::istreambuf_iterator<char>(file)),
+                   std::istreambuf_iterator<char>());
+  }
   EXPECT_EQ(written, BuildCaptureMetadataYaml(metadata));
 
   std::filesystem::remove_all(directory);

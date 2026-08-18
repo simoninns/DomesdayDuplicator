@@ -367,7 +367,7 @@ constexpr double kShortestEnforcedWaitSeconds = 0.001;
 // statement would be tens of thousands of calls into a user interface for
 // one flash image; a sixty-fourth of a megabyte is a few hundred updates
 // across the whole run, which is smoother than any bar can draw anyway.
-constexpr size_t kProgressStepBytes = 64 * 1024;
+constexpr size_t kProgressStepBytes = size_t{64} << 10;
 
 SvfPlayResult Player::Play(std::string_view text) {
   text_ = text;
