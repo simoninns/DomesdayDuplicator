@@ -108,8 +108,9 @@ class MainWindow : public QMainWindow {
   void BuildMenus();
   void BuildToolsMenu();
 
-  // The player's entries, added to the menu passed in — which is Tools. See the
-  // definition for why the player has no menu and no dock of its own.
+  // The player's entries, added to the menu passed in — which is Tools ▸
+  // Player. See the definition for why the player has no top-level menu and no
+  // dock of its own.
   void BuildPlayerSection(QMenu* player_menu);
 
   // Put the gateware into — or out of — test-pattern mode, through the settings
@@ -176,13 +177,14 @@ class MainWindow : public QMainWindow {
   QDockWidget* amplitude_dock_ = nullptr;
   QDockWidget* log_dock_ = nullptr;
 
-  // Tools ▸ Test data mode. Held so that a change made anywhere else can be
-  // reflected in the tick, and so the entry can be taken away while streaming.
+  // Tools ▸ Test data ▸ Test data mode. Held so that a change made anywhere
+  // else can be reflected in the tick, and so the entry can be taken away while
+  // streaming.
   QAction* test_mode_action_ = nullptr;
 
-  // Tools ▸ Player control. Held for the same reason: the remote's Connection
-  // tab and the settings dialog change the same setting, and all three have to
-  // agree.
+  // Tools ▸ Player ▸ Player control. Held for the same reason: the remote's
+  // Connection tab and the settings dialog change the same setting, and all
+  // three have to agree.
   QAction* player_enabled_action_ = nullptr;
 
   // The player's state in the status bar. A permanent widget rather than a

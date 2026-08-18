@@ -70,9 +70,9 @@ location a machine's backup rules and disk-space expectations are already built 
 The **Free space** row below stays on this panel, because it is live and it is about the
 capture you are about to take. Hover it and it names the volume it is talking about.
 
-Test mode lives on the **Tools** menu, for the same kind of reason: it is a diagnostic rather
-than part of setting up a capture. The full procedure, and how to check a test capture
-afterwards, is on [Test mode and integrity checking](test-mode.md).
+Test mode lives on the **Tools ▸ Test data** submenu, for the same kind of reason: it is a
+diagnostic rather than part of setting up a capture. The full procedure, and how to check a
+test capture afterwards, is on [Test mode and integrity checking](test-mode.md).
 
 ## What gets written
 
@@ -118,7 +118,7 @@ machine that cannot sustain the encode or when the output is going straight into
 tool. Nothing in the file says what it is, what rate it was written at or which build
 produced it — that is the format's nature, and the reason FLAC stays the default.
 
-Both are read back by **Tools → Analyse test data…** and by `--analyse-test-data`.
+Both are read back by **Tools → Test data → Analyse test data…** and by `--analyse-test-data`.
 
 ### Sample rate
 
@@ -173,8 +173,8 @@ rate down.
 
 It works in test mode too. The gateware generates its test pattern downstream of the
 decimator, so a decimated test capture is an unbroken ramp at 20 Msps and
-**Tools → Analyse test data…** checks the decimated path exactly as it checks the full-rate
-one.
+**Tools → Test data → Analyse test data…** checks the decimated path exactly as it checks the
+full-rate one.
 
 ### Compression
 

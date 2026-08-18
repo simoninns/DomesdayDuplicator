@@ -57,8 +57,8 @@ script collecting results does not end up with a message about its own arguments
 collection. On Windows the output goes wherever a caller redirects it, and the exit code
 works either way — which is what a script actually reads.
 
-This is the same analysis **Tools → Analyse test data…** performs, over the same code. See
-[Test mode](test-mode.md).
+This is the same analysis **Tools → Test data → Analyse test data…** performs, over the same
+code. See [Test mode](test-mode.md).
 
 ### `--dev-update-key`
 

@@ -67,10 +67,10 @@ anything that is not a whole side of a LaserDisc. Naming is optional; the **Nami
 is there when you want it, and can fill three of its fields
 [from the disc itself](capture-naming.md#ask-the-player).
 
-**Automatically**, when a [player is connected](player-control.md). **Tools ▸ Automatic
-capture…** walks four pages — what is in the player, what to take off it and where to put it,
-the run, and what happened — examining the disc, naming the capture from what it found,
-driving the player through the side, and stopping both at the end. **Capture another side**
+**Automatically**, when a [player is connected](player-control.md). **Tools ▸ Player ▸
+Automatic capture…** walks four pages — what is in the player, what to take off it and where
+to put it, the run, and what happened — examining the disc, naming the capture from what it
+found, driving the player through the side, and stopping both at the end. **Capture another side**
 on the last page turns the whole thing round for the other side of the disc. It is the path
 for working through a stack of them.
 

@@ -11,6 +11,7 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QLoggingCategory>
 #include <QString>
 #include <QTextStream>
 #include <memory>
@@ -31,6 +32,23 @@
 int main(int argc, char* argv[]) {
   QApplication::setHighDpiScaleFactorRoundingPolicy(
       Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+
+  // Qt's own Wayland plugin, not this application. Every popup — a menu, a
+  // submenu, a tooltip, a combo box — is a surface of its own, and when one
+  // goes away the compositor's text-input protocol sends a leave event for a
+  // surface the plugin has already forgotten, which it complains about:
+  //
+  //   qt.qpa.wayland.textinput: … Got leave event for surface 0x0 …
+  //
+  // Nothing is wrong and nothing can be done about it from here, so opening a
+  // menu would print a line of somebody else's diagnostics into a terminal a
+  // user is watching for this application's own messages. Silenced by category
+  // rather than by matching the text, so nothing else is hidden with it.
+  //
+  // Rules from QT_LOGGING_RULES are applied after these and win, so anybody
+  // debugging the plugin can still switch the category back on.
+  QLoggingCategory::setFilterRules(
+      QStringLiteral("qt.qpa.wayland.textinput=false"));
 
   QApplication app(argc, argv);
 

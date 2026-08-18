@@ -7,11 +7,11 @@ watching the address go by, and stopping both the capture and the player at the 
 It is off until you turn it on, and while it is off **no serial port on your machine is
 opened, written to, or even listed**.
 
-Everything to do with the player is on the **Tools** menu, in the section above the
-instrument entries. One player, set up once, is a tool: it does not need a panel of its own
-on screen, and the status bar says whether it is connected.
+Everything to do with the player is on the **Tools ▸ Player** submenu, above the ones for
+this machine. One player, set up once, is a tool: it does not need a panel of its own on
+screen, and the status bar says whether it is connected.
 
-| **Tools ▸** | What it is |
+| **Tools ▸ Player ▸** | What it is |
 | --- | --- |
 | **Player control** | The on/off switch. Nothing touches a serial port while it is off |
 | **Search now** | Look again straight away rather than waiting |
@@ -25,8 +25,8 @@ something you do to a player.
 
 ## Turning it on
 
-**Tools ▸ Player control**, or the *Look for a LaserDisc player* box on the **Player** tab of
-**File ▸ Settings…**.
+**Tools ▸ Player ▸ Player control**, or the *Look for a LaserDisc player* box on the
+**Player** tab of **File ▸ Settings…**.
 
 The rest of that settings page is optional and every field defaults to "work it out":
 
@@ -64,10 +64,10 @@ can add it to the exclusion list rather than having it probed every time.
 
 ## When the player is not found
 
-The status bar says that nothing is connected; the **Connection** tab of
-**Tools ▸ Remote control…** says which of these it is. That window opens whether or not a
-player is connected, and opens straight onto Connection when one is not — it is the place to
-find out *why*, so it would be a poor one to lock behind having succeeded already.
+The status bar says that nothing is connected, and what it is doing about it — searching,
+excluded, or switched off. **Tools ▸ Player ▸ Remote control…** is greyed out until a player
+answers, because there is nothing there to drive; a remote left open when the link goes stays
+open, and its **Connection** tab says what happened.
 
 In rough order of likelihood:
 
@@ -103,9 +103,10 @@ worth reporting.
 
 ## The player window
 
-**Tools ▸ Remote control…**. The status line across the top — what the player is, what it is
-doing, where it is — stays in view whatever else you are looking at, because it is the one
-thing every part of this window wants. Below it, four tabs, in the order they are wanted:
+**Tools ▸ Player ▸ Remote control…**. The status line across the top — what the player is,
+what it is doing, where it is — stays in view whatever else you are looking at, because it is
+the one thing every part of this window wants. Below it, four tabs, in the order they are
+wanted:
 
 | Tab | What is on it |
 | --- | --- |
@@ -145,8 +146,8 @@ application sends it nothing you did not ask it to. Naming is optional, and the
 **[Naming…](capture-naming.md)** dialog can fill three of its fields from the disc rather
 than from you: see [Ask the player](#ask-the-player).
 
-**Automatically.** **Tools ▸ Automatic capture…** walks four pages: what is in the player,
-what to take off it and where to put it, the run, and what happened. It examines the disc,
+**Automatically.** **Tools ▸ Player ▸ Automatic capture…** walks four pages: what is in the
+player, what to take off it and where to put it, the run, and what happened. It examines the disc,
 names the capture from what it found, drives the player through the side, and stops both at
 the end. See [Capturing a side by itself](#capturing-a-side-by-itself).
 
@@ -171,8 +172,8 @@ has already examined the disc, and the same fields arrive filled in.
 
 ## Examining a disc
 
-**Tools ▸ Examine disc…**, then **Examine**. It takes about a minute, and it spins the
-disc.
+**Tools ▸ Player ▸ Examine disc…**, then **Examine**. It takes about a minute, and it spins
+the disc.
 
 What it establishes, and how:
 
@@ -207,8 +208,8 @@ second time.
 
 ## Capturing a side by itself
 
-**Tools ▸ Automatic capture…**, or the **Automatic capture…** button on the Capture panel,
-or the button of that name on an examine report. All three open the same window, and only
+**Tools ▸ Player ▸ Automatic capture…**, or the **Automatic capture…** button on the Capture
+panel, or the button of that name on an examine report. All three open the same window, and only
 one of it exists at a time.
 
 Four pages. **Previous** and **Next** are at the bottom right; **Close** is at the bottom

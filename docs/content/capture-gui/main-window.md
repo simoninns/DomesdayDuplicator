@@ -65,29 +65,30 @@ the way of somebody taking both sides of a disc.
 | | Exit | Closes the window, saving the layout |
 | **View** | Panels | Show and hide the six panels |
 | | Theme | Auto, Light, Dark |
-| **Tools** | Player control | Look for a LaserDisc player — see [Player control](player-control.md) |
-| | Search now | Look for the player again straight away |
-| | Remote control… | The player window: transport, connection, disc codes, manual commands |
-| | Examine disc… | Find out what is in the player, and report it |
-| | Automatic capture… | Examine, name, capture a side, and see what was written |
-| | Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
-| | Analyse test data… | Check a test-mode capture off the disk |
+| **Tools** | Player ▸ Player control | Look for a LaserDisc player — see [Player control](player-control.md) |
+| | Player ▸ Search now | Look for the player again straight away |
+| | Player ▸ Remote control… | The player window: transport, connection, disc codes, manual commands |
+| | Player ▸ Examine disc… | Find out what is in the player, and report it |
+| | Player ▸ Automatic capture… | Examine, name, capture a side, and see what was written |
+| | Test data ▸ Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
+| | Test data ▸ Analyse test data… | Check a test-mode capture off the disk |
 | | Firmware ▸ Update firmware… | Which build each part of the device is running, and the Update page — see [Updating your Duplicator](updating-your-domesday-duplicator.md) |
 | | Firmware ▸ Bring up a new or legacy board… | Programs a board from nothing to fully up to date — a newly built one, one running the original firmware, or one in any state at all. See [Bringing up a new or legacy board](bringing-up-a-board.md) |
 | **Help** | About | The build this binary was made from |
 
-The player entries sit above the instrument ones, separated by a rule. They are on **Tools**
-rather than in a menu or a panel of their own because almost everybody has one player, set up
-once and never touched again: it is a tool rather than something that earns permanent screen
-space. Whether it is connected is on the status bar, which cannot be closed.
+**Tools** holds three submenus and nothing loose: **Player** for the other machine on the
+bench, then **Test data** and **Firmware** for this one. The player is there rather than in a
+menu or a panel of its own because almost everybody has one player, set up once and never
+touched again: it is a tool rather than something that earns permanent screen space. Whether
+it is connected is on the status bar, which cannot be closed.
 
 Player *settings* — model, port, speed — are on the **Player** tab of **File ▸ Settings…**
 rather than repeated here. This menu is what you do to a player; that dialog is what you set
 about one.
 
-**Remote control…** opens whether or not a player is connected, because it is the window that
-says *why* one is not. The entries that need a player to do anything — **Examine disc…** and
-**Automatic capture…** — are greyed out until there is one.
+The entries that need a player to do anything — **Remote control…**, **Examine disc…** and
+**Automatic capture…** — are greyed out until one is connected. When nothing is, the status
+bar is what says so.
 
 **Help ▸ About** carries the same version string `--version` prints, and that is deliberate
 rather than duplication: the Windows build has no console attached, so on the platform with

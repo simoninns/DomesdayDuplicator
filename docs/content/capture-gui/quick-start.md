@@ -97,8 +97,9 @@ Both should sit near zero. If either climbs and stays up, the machine is not kee
 
     That is the capture taken by hand, and it is the path to know first. Turn on
     [player control](player-control.md) and the application will do the whole of it for you
-    instead: **Tools ▸ Automatic capture…** examines the disc, names the capture from what it
-    found, plays the side, and stops both the capture and the player at the end.
+    instead: **Tools ▸ Player ▸ Automatic capture…** examines the disc, names the capture
+    from what it found, plays the side, and stops both the capture and the player at the
+    end.
 
 ## 7. Use the file
 

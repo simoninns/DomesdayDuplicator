@@ -22,10 +22,16 @@
 #include <QSettings>
 #include <QStringList>
 #include <QTest>
+#include <chrono>
+#include <memory>
+#include <thread>
+#include <utility>
+#include <vector>
 
 #include "application_logger.h"
 #include "board_bringup_wizard.h"
 #include "capture_controller.h"
+#include "fake_serial_port.h"
 #include "fake_usb_device.h"
 #include "main_window.h"
 #include "player_controller.h"
@@ -49,6 +55,22 @@ const QStringList& ExpectedDockNames() {
 
 QDockWidget* DockNamed(const MainWindow& window, const QString& object_name) {
   return window.findChild<QDockWidget*>(object_name);
+}
+
+// Runs the event loop until the condition holds, because a player connects on
+// its own thread and reports back through the queue.
+template <typename Predicate>
+bool PumpUntil(Predicate predicate,
+               std::chrono::milliseconds limit = std::chrono::seconds(5)) {
+  const auto deadline = std::chrono::steady_clock::now() + limit;
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (predicate()) {
+      return true;
+    }
+    QApplication::processEvents();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  return predicate();
 }
 
 // The View > Panels submenu.
@@ -103,6 +125,24 @@ QAction* EntryNamed(QMenu* menu, const QString& text) {
   return nullptr;
 }
 
+// The menu behind an entry that opens one, by the words on the entry.
+QMenu* SubMenuNamed(QMenu* menu, const QString& text) {
+  QAction* const entry = EntryNamed(menu, text);
+  return entry != nullptr ? entry->menu() : nullptr;
+}
+
+// Tools ▸ Player and Tools ▸ Test data. Everything on Tools is behind one of
+// its three submenus, so almost every test here starts by opening one.
+QMenu* PlayerMenu(const MainWindow& window) {
+  return SubMenuNamed(MenuNamed(window, QStringLiteral("Tools")),
+                      QStringLiteral("Player"));
+}
+
+QMenu* TestDataMenu(const MainWindow& window) {
+  return SubMenuNamed(MenuNamed(window, QStringLiteral("Tools")),
+                      QStringLiteral("Test data"));
+}
+
 // Each test gets a settings file of its own, named after the test, so none can
 // touch the developer's real settings and no two can touch each other's.
 //
@@ -140,7 +180,7 @@ class MainWindowTest : public ::testing::Test {
   // A controller that will never touch a serial port: player control is off by
   // default and Start() is never called, and the port list is empty in any
   // case. Enough to give the window a live player layer with nothing connected,
-  // which is the state the Remote entry's rule is about.
+  // which is the state the gated entries' rule is about.
   static PlayerBackend NoPortsBackend() {
     PlayerBackend backend;
     backend.list_ports = [] { return std::vector<SerialPortCandidate>{}; };
@@ -286,19 +326,47 @@ TEST_F(MainWindowTest, OffersAnAboutEntryUnderHelp) {
 // the Capture panel, among the settings of an ordinary capture, where it read
 // as one of them — it is the opposite: it replaces the signal with a ramp and
 // produces a file with no recording in it at all.
-TEST_F(MainWindowTest, TheToolsMenuHoldsBothTestDataEntries) {
+//
+// Taking a test capture and reading one back are two halves of one job, so they
+// are one submenu rather than two entries loose on Tools.
+TEST_F(MainWindowTest, TheTestDataSubMenuHoldsBothTestDataEntries) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  QMenu* const test_data = TestDataMenu(*window);
+  ASSERT_NE(test_data, nullptr) << "no Test data sub-menu under Tools";
+
+  QAction* const mode = EntryNamed(test_data, QStringLiteral("Test data mode"));
+  ASSERT_NE(mode, nullptr) << "no Test data mode entry under Tools ▸ Test data";
+  EXPECT_TRUE(mode->isCheckable())
+      << "test mode is a state, so its entry has to show whether it is on";
+
+  EXPECT_NE(EntryNamed(test_data, QStringLiteral("Analyse test data")), nullptr)
+      << "no Analyse test data entry under Tools ▸ Test data";
+}
+
+// Nothing is loose on Tools: every entry opens a submenu, so the menu reads as
+// a list of the things on the bench rather than a column of entries at two
+// different altitudes.
+TEST_F(MainWindowTest, EveryToolsEntryOpensASubMenu) {
   const std::unique_ptr<MainWindow> window = MakeWindow();
 
   QMenu* const tools = MenuNamed(*window, QStringLiteral("Tools"));
   ASSERT_NE(tools, nullptr) << "no Tools menu";
 
-  QAction* const mode = EntryNamed(tools, QStringLiteral("Test data mode"));
-  ASSERT_NE(mode, nullptr) << "no Test data mode entry under Tools";
-  EXPECT_TRUE(mode->isCheckable())
-      << "test mode is a state, so its entry has to show whether it is on";
+  for (QAction* const entry : tools->actions()) {
+    if (entry->isSeparator()) {
+      continue;
+    }
+    EXPECT_NE(entry->menu(), nullptr)
+        << "loose on Tools: " << entry->text().toStdString();
+  }
 
-  EXPECT_NE(EntryNamed(tools, QStringLiteral("Analyse test data")), nullptr)
-      << "no Analyse test data entry under Tools";
+  for (const QString& title :
+       {QStringLiteral("Player"), QStringLiteral("Test data"),
+        QStringLiteral("Firmware")}) {
+    EXPECT_NE(SubMenuNamed(tools, title), nullptr)
+        << "no " << title.toStdString() << " sub-menu under Tools";
+  }
 }
 
 // Everything to do with what the device is running lives under one entry, and
@@ -404,8 +472,8 @@ TEST_F(MainWindowTest, NeitherTestDataEntryIsLeftBehindOnTheFileMenu) {
 TEST_F(MainWindowTest, TestModeIsOfferedButDeadWithNoDeviceLayer) {
   const std::unique_ptr<MainWindow> window = MakeWindow();
 
-  QAction* const mode = EntryNamed(MenuNamed(*window, QStringLiteral("Tools")),
-                                   QStringLiteral("Test data mode"));
+  QAction* const mode =
+      EntryNamed(TestDataMenu(*window), QStringLiteral("Test data mode"));
   ASSERT_NE(mode, nullptr);
   EXPECT_FALSE(mode->isEnabled());
   EXPECT_FALSE(mode->isChecked());
@@ -419,8 +487,8 @@ TEST_F(MainWindowTest, TheToolsEntryIsTheTestModeSetting) {
   CaptureController controller(&device, nullptr);
   MainWindow window(&theme_controller_, &logger_, &controller);
 
-  QAction* const mode = EntryNamed(MenuNamed(window, QStringLiteral("Tools")),
-                                   QStringLiteral("Test data mode"));
+  QAction* const mode =
+      EntryNamed(TestDataMenu(window), QStringLiteral("Test data mode"));
   ASSERT_NE(mode, nullptr);
   ASSERT_TRUE(mode->isEnabled());
   ASSERT_FALSE(mode->isChecked());
@@ -443,7 +511,8 @@ TEST_F(MainWindowTest, TheToolsEntryIsTheTestModeSetting) {
 
 // Almost every user has one player, set up once and never touched again. It
 // does not earn permanent screen space, and everything the dock showed is
-// either in the status bar or on the remote's Connection tab.
+// either in the status bar or on the remote's Connection tab, which is where a
+// connected player's details live.
 TEST_F(MainWindowTest, ThereIsNoPlayerDock) {
   const std::unique_ptr<MainWindow> window = MakeWindow();
 
@@ -464,18 +533,18 @@ TEST_F(MainWindowTest, ThePlayerHasNoTopLevelMenuOfItsOwn) {
       << "the Player menu is back";
 }
 
-TEST_F(MainWindowTest, EveryPlayerEntryIsUnderTools) {
+TEST_F(MainWindowTest, EveryPlayerEntryIsUnderToolsPlayer) {
   const std::unique_ptr<MainWindow> window = MakeWindow();
 
-  QMenu* const tools = MenuNamed(*window, QStringLiteral("Tools"));
-  ASSERT_NE(tools, nullptr) << "no Tools menu";
+  QMenu* const player = PlayerMenu(*window);
+  ASSERT_NE(player, nullptr) << "no Player sub-menu under Tools";
 
   for (const QString& entry :
        {QStringLiteral("Player control"), QStringLiteral("Search now"),
         QStringLiteral("Remote control"), QStringLiteral("Examine disc"),
         QStringLiteral("Automatic capture")}) {
-    EXPECT_NE(EntryNamed(tools, entry), nullptr)
-        << "no " << entry.toStdString() << " entry under Tools";
+    EXPECT_NE(EntryNamed(player, entry), nullptr)
+        << "no " << entry.toStdString() << " entry under Tools ▸ Player";
   }
 
   // And no "Player settings…", which opened File ▸ Settings… on its Player
@@ -483,44 +552,85 @@ TEST_F(MainWindowTest, EveryPlayerEntryIsUnderTools) {
   // click and cost a menu entry that read as a second place to configure a
   // player. This menu is what you do to a player; the dialog is what you set
   // about one.
-  EXPECT_EQ(EntryNamed(tools, QStringLiteral("Player settings")), nullptr);
+  EXPECT_EQ(EntryNamed(player, QStringLiteral("Player settings")), nullptr);
 
   // The player's own state, so its entry has to show whether it is on.
-  QAction* const control = EntryNamed(tools, QStringLiteral("Player control"));
+  QAction* const control = EntryNamed(player, QStringLiteral("Player control"));
   ASSERT_NE(control, nullptr);
   EXPECT_TRUE(control->isCheckable());
 
-  // And the instrument entries are still there, below the player's.
-  EXPECT_NE(EntryNamed(tools, QStringLiteral("Test data mode")), nullptr);
-  EXPECT_NE(EntryNamed(tools, QStringLiteral("Firmware")), nullptr);
+  // And the instrument submenus are still there, below the player's.
+  QMenu* const tools = MenuNamed(*window, QStringLiteral("Tools"));
+  ASSERT_NE(tools, nullptr);
+  EXPECT_NE(SubMenuNamed(tools, QStringLiteral("Test data")), nullptr);
+  EXPECT_NE(SubMenuNamed(tools, QStringLiteral("Firmware")), nullptr);
 }
 
-// The one entry that is deliberately *not* gated on there being a player. The
-// remote's Connection tab is where a user finds out why nothing is connected,
-// so greying it out the moment the link goes would withhold the answer at
-// exactly the moment it is wanted — which is what the dock used to give.
-TEST_F(MainWindowTest, TheRemoteCanBeOpenedWithNoPlayerConnected) {
+// Every entry that needs a player is gated on there being one, the remote
+// included: it is a window for driving a player, and with nothing connected it
+// would open onto controls that can do nothing. The status bar is what says
+// nothing is connected.
+TEST_F(MainWindowTest, TheEntriesThatNeedAPlayerAreDeadWithoutOne) {
   PlayerController player(NoPortsBackend());
   MainWindow window(&theme_controller_, &logger_, nullptr, &player);
 
   ASSERT_FALSE(player.connection().live());
 
-  QMenu* const tools = MenuNamed(window, QStringLiteral("Tools"));
-  ASSERT_NE(tools, nullptr);
+  QMenu* const player_menu = PlayerMenu(window);
+  ASSERT_NE(player_menu, nullptr);
 
-  QAction* const remote = EntryNamed(tools, QStringLiteral("Remote control"));
-  ASSERT_NE(remote, nullptr);
-  EXPECT_TRUE(remote->isEnabled())
-      << "the remote cannot be reached with nothing connected, so neither can "
-         "the tab that says why";
-
-  // Examine is gated, and rightly: there is no disc to report on. An automatic
-  // capture begins with an examination, so it is gated on the same thing.
+  // The remote, and Examine with no disc to report on. An automatic capture
+  // begins with an examination, so it is gated on the same thing.
   for (const QString& entry :
-       {QStringLiteral("Examine disc"), QStringLiteral("Automatic capture")}) {
-    QAction* const action = EntryNamed(tools, entry);
+       {QStringLiteral("Remote control"), QStringLiteral("Examine disc"),
+        QStringLiteral("Automatic capture")}) {
+    QAction* const action = EntryNamed(player_menu, entry);
     ASSERT_NE(action, nullptr) << entry.toStdString();
     EXPECT_FALSE(action->isEnabled()) << entry.toStdString();
+  }
+}
+
+// And the other half of the rule: they come back when a player answers, without
+// the window having to be rebuilt. Driven through a fake port so that what is
+// asserted is the connection report the application actually acts on.
+TEST_F(MainWindowTest, TheEntriesThatNeedAPlayerComeBackWhenOneAnswers) {
+  player::FakeSerialPort port;
+  port.set_only_path("/dev/ttyFAKE0");
+  port.AddPioneerPlayer(9600, "P1515A1");
+
+  SerialPortCandidate candidate;
+  candidate.path = QStringLiteral("/dev/ttyFAKE0");
+  candidate.usb_adapter = true;
+
+  PlayerBackend backend;
+  backend.make_port = [&port] {
+    return std::make_unique<player::BorrowedSerialPort>(&port);
+  };
+  backend.list_ports = [candidate] {
+    return std::vector<SerialPortCandidate>{candidate};
+  };
+  backend.clock = port.clock();
+
+  PlayerController player(std::move(backend));
+  MainWindow window(&theme_controller_, &logger_, nullptr, &player);
+
+  QMenu* const player_menu = PlayerMenu(window);
+  ASSERT_NE(player_menu, nullptr);
+  QAction* const remote =
+      EntryNamed(player_menu, QStringLiteral("Remote control"));
+  ASSERT_NE(remote, nullptr);
+  ASSERT_FALSE(remote->isEnabled());
+
+  player.Start();
+  player.SetEnabled(true);
+  ASSERT_TRUE(PumpUntil([&player] { return player.connected(); }));
+
+  for (const QString& entry :
+       {QStringLiteral("Remote control"), QStringLiteral("Examine disc"),
+        QStringLiteral("Automatic capture")}) {
+    QAction* const action = EntryNamed(player_menu, entry);
+    ASSERT_NE(action, nullptr) << entry.toStdString();
+    EXPECT_TRUE(action->isEnabled()) << entry.toStdString();
   }
 }
 
@@ -578,13 +688,13 @@ TEST_F(MainWindowTest, ALayoutSavedWhenThereWasAPlayerDockStillRestores) {
 TEST_F(MainWindowTest, ThePlayerEntriesAreOfferedButDeadWithNoPlayerLayer) {
   const std::unique_ptr<MainWindow> window = MakeWindow();
 
-  QMenu* const tools = MenuNamed(*window, QStringLiteral("Tools"));
-  ASSERT_NE(tools, nullptr);
+  QMenu* const player_menu = PlayerMenu(*window);
+  ASSERT_NE(player_menu, nullptr);
 
   for (const QString& entry :
        {QStringLiteral("Player control"), QStringLiteral("Search now"),
         QStringLiteral("Remote control"), QStringLiteral("Examine disc")}) {
-    QAction* const action = EntryNamed(tools, entry);
+    QAction* const action = EntryNamed(player_menu, entry);
     ASSERT_NE(action, nullptr) << entry.toStdString();
     EXPECT_FALSE(action->isEnabled()) << entry.toStdString();
   }

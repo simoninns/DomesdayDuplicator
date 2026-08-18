@@ -14,7 +14,7 @@ in the disc.
 ## Taking a test capture
 
 1. Stop any running stream — the mode cannot be changed mid-stream.
-2. Tick **Tools → Test data mode**.
+2. Tick **Tools → Test data → Test data mode**.
 3. Press **Start capture**.
 
 The file is named `TestData_<timestamp>.ddd.flac`. That is forced rather than defaulted, and
@@ -51,8 +51,8 @@ to the point where the samples reach the processing thread.
 Reading the finished file back also covers the FLAC encoder, the filesystem and the drive —
 everything between the processing thread and the bytes that will still be there tomorrow.
 
-**Tools → Analyse test data…** opens on the capture folder, because the file somebody wants
-to check is almost always the one they have just taken. It shows progress and can be
+**Tools → Test data → Analyse test data…** opens on the capture folder, because the file
+somebody wants to check is almost always the one they have just taken. It shows progress and can be
 cancelled; the verdict is coloured so it reads across a bench.
 
 The dialog reads `.ddd.flac` and `.flac`, and uncompressed 16-bit `.ddd.s16` and `.s16` —

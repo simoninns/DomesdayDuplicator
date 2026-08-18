@@ -398,7 +398,7 @@ void MainWindow::BuildMenus() {
 }
 
 void MainWindow::BuildPlayerSection(QMenu* player_menu) {
-  // A section of Tools rather than a menu of its own, and this is where the
+  // A submenu of Tools rather than a menu of its own, and this is where the
   // whole of the player's standing interface now lives. Almost every user has
   // one player, set up once and never touched again: it does not earn a dock
   // that is always on screen, and it does not earn a top-level menu either. The
@@ -474,7 +474,7 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
           });
 
   connect(player_controller_, &PlayerController::ConnectionChanged, this,
-          [search_action, examine_action,
+          [remote_action, search_action, examine_action,
            wizard_action](const PlayerConnection& connection) {
             search_action->setEnabled(connection.state ==
                                       PlayerConnectionState::kDisconnected);
@@ -482,7 +482,10 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
             // There is nothing to examine without a player, and a disc the
             // application cannot reach is not one it can report on. An
             // automatic capture begins with an examination, so it is gated on
-            // exactly the same thing.
+            // exactly the same thing. The remote is a window for driving a
+            // player, so it goes the same way: an entry that opens onto
+            // controls that can do nothing is an entry that does nothing.
+            remote_action->setEnabled(connection.live());
             examine_action->setEnabled(connection.live());
             wizard_action->setEnabled(connection.live());
           });
@@ -490,19 +493,19 @@ void MainWindow::BuildPlayerSection(QMenu* player_menu) {
   search_action->setEnabled(player_controller_->connection().state ==
                             PlayerConnectionState::kDisconnected);
 
-  // Both starting states, not just the search's. Without this line Examine sits
-  // enabled from the moment the window opens until the first connection report
-  // arrives — and with player control switched off no report ever comes, so it
-  // stays enabled for the whole session with nothing to examine behind it.
+  // Both starting states, not just the search's. Without these lines the gated
+  // entries sit enabled from the moment the window opens until the first
+  // connection report arrives — and with player control switched off no report
+  // ever comes, so they stay enabled for the whole session with no player
+  // behind them.
+  remote_action->setEnabled(player_controller_->connection().live());
   examine_action->setEnabled(player_controller_->connection().live());
   wizard_action->setEnabled(player_controller_->connection().live());
 
-  // The remote is deliberately *not* gated on there being a player, unlike
-  // every other entry here. Its Connection tab is where a user finds out why
-  // nothing is connected, so an entry that greyed itself out the moment the
-  // link went would withhold the answer at exactly the moment it is wanted —
-  // which is what the Player dock used to be there to give. An open remote
-  // greys its own controls instead, and says what happened.
+  // What the remote's Connection tab used to be the only route to — why nothing
+  // is connected — is the status bar's job when the menu will not open it, and
+  // a remote already open when the link goes stays open and greys its own
+  // controls rather than shutting in the user's face.
 }
 
 void MainWindow::BuildToolsMenu() {
@@ -513,13 +516,19 @@ void MainWindow::BuildToolsMenu() {
   // a file with no recording in it at all.
   QMenu* tools_menu = menuBar()->addMenu(tr("&Tools"));
 
-  // The player first, and separated from what follows: the entries above the
-  // line are about the other machine on the bench, the ones below are about
-  // this one.
-  BuildPlayerSection(tools_menu);
+  // Three submenus and nothing loose, so the menu is a list of the things on
+  // the bench rather than a column of entries at two different altitudes. The
+  // player first, and separated from what follows: above the line is the other
+  // machine on the bench, below it is this one.
+  BuildPlayerSection(tools_menu->addMenu(tr("&Player")));
   tools_menu->addSeparator();
 
-  test_mode_action_ = tools_menu->addAction(tr("&Test data mode"));
+  // Making a test capture and reading one back are two halves of the same job —
+  // you take the ramp in order to look at it — so they are one submenu rather
+  // than two entries that happen to sit next to each other.
+  QMenu* const test_data_menu = tools_menu->addMenu(tr("&Test data"));
+
+  test_mode_action_ = test_data_menu->addAction(tr("&Test data mode"));
   test_mode_action_->setCheckable(true);
   test_mode_action_->setStatusTip(
       tr("Capture the gateware's test pattern instead of the RF input"));
@@ -529,11 +538,9 @@ void MainWindow::BuildToolsMenu() {
          "signal. Test captures are always named TestData_ so they cannot be "
          "mistaken for a recording."));
 
-  tools_menu->addSeparator();
-  tools_menu->addAction(tr("&Analyse test data…"), this,
-                        &MainWindow::ShowAnalysisDialog);
-
-  tools_menu->addSeparator();
+  test_data_menu->addSeparator();
+  test_data_menu->addAction(tr("&Analyse test data…"), this,
+                            &MainWindow::ShowAnalysisDialog);
 
   // Everything to do with what the device is running, in one place. The
   // ordinary update path is first and keeps its behaviour; bring-up is below
@@ -774,9 +781,9 @@ void MainWindow::ShowRemoteDialog() {
     // open is not receiving status updates four times a second.
     remote_dialog_->setAttribute(Qt::WA_DeleteOnClose);
 
-    // Opened on the tab that answers the question the user has. With a player
-    // connected that is the transport; without one it is the tab that says why
-    // there is nothing to drive.
+    // Opened on the tab that answers the question the user has. The menu entry
+    // only opens with a player connected, so that is the transport; the
+    // Connection tab is left as the answer if this is ever reached without one.
     //
     // Only on the way in. Somebody who opened the remote, left it on the manual
     // command page and came back to it through the menu meant to return to what
