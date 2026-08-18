@@ -29,6 +29,10 @@ jobs:
   package:
     name: Flatpak
     runs-on: ubuntu-latest
+    # A healthy run finishes in minutes; the default 6h job timeout only kicks in once
+    # everything else downstream (DMG, MSI, the release gate) has been waiting for hours.
+    # 30 covers a slow-but-real Flathub pull without masking a genuine stall.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -50,6 +54,10 @@ jobs:
 
       - name: Install flatpak-builder
         shell: bash
+        # OSTree pulls have no built-in timeout of their own: a connection that stalls
+        # mid-transfer (a flaky Flathub CDN edge, say) just sits forever rather than
+        # failing. Bound it here so a stall surfaces as a fast, retryable failure.
+        timeout-minutes: 15
         run: |
           set -euo pipefail
           sudo apt-get update
