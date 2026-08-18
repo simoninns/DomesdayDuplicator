@@ -9,7 +9,8 @@
 # The generated header is the *only* path by which a version reaches the device: the FX3
 # serves USB_DESC_PRODUCT_BYTES verbatim as its product string descriptor, so a wrong length
 # byte or a wrong encoding is a defect the host sees and nothing in the firmware build would
-# catch. (It is not the path D8 lived on — firmware_version_string is separate, unreferenced
+# catch. (It is not the path the earlier dead-code defect lived on — firmware_version_string
+# is separate, unreferenced
 # and discarded by --gc-sections. This test does not cover it, and cannot.)
 #
 # Two cases, because the interesting byte is computed rather than fixed:

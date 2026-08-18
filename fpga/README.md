@@ -136,9 +136,8 @@ repair.
 
 The style guide is the [lowRISC Verilog Coding Style Guide](https://github.com/lowRISC/style-guides/blob/master/VerilogCodingStyle.md),
 with four recorded deviations — four-space indent, Verilog-2001 rather than SystemVerilog,
-existing module and file names kept, and no `_i`/`_o`/`_d`/`_q` suffixes. The reasoning for
-each is in [docs-tech/fpga-verilog-style-plan.md](../docs-tech/fpga-verilog-style-plan.md);
-the convention itself is summarised in [AGENTS.md](../AGENTS.md) §5.3.
+existing module and file names kept, and no `_i`/`_o`/`_d`/`_q` suffixes. The convention
+itself is summarised in [AGENTS.md](../AGENTS.md) §5.3.
 
 **Do not hand-format Verilog.** `./tests/run-format.sh` is the formatter, and three files
 beside the sources are its only configuration:
@@ -308,7 +307,7 @@ everyone but root.
 
 ## Reproducibility
 
-**Measured, not assumed.** Earlier drafts of the reorganisation plan asserted that Quartus
+**Measured, not assumed.** It was once asserted that Quartus
 output varies between runs because "place-and-route seeds and timestamps vary". The seed part
 was wrong: the Fitter seed is a fixed project setting, and fitting is deterministic for a
 given seed and toolchain. What that leaves is a question about *files*, not about *fitting*,

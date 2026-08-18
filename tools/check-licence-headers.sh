@@ -15,8 +15,7 @@
 #
 #   Enforced — every project-authored source file carries, in its first 40 lines, both a
 #   copyright statement and a licence statement. That is the compliance floor: a file with
-#   neither is a file nobody can lawfully redistribute with confidence, which is what D22
-#   was about.
+#   neither is a file nobody can lawfully redistribute with confidence.
 #
 #   Not enforced — that the licence statement is SPDX rather than the long-form GPL notice.
 #   AGENTS.md §5.4 adopts SPDX as the convention and converts files opportunistically as

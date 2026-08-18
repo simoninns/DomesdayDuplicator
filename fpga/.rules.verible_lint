@@ -58,8 +58,8 @@
 # This design is Verilog-2001. Every source entry in DomesdayDuplicator.qsf is a
 # VERILOG_FILE and Quartus Prime Lite's SystemVerilog support is partial, so
 # converting a design that has been capturing correctly since 2018 in order to gain
-# compile-time latch detection is a poor trade against the risk. Recorded as a
-# deliberate deviation in docs-tech/fpga-verilog-style-plan.md, section 1.1.
+# compile-time latch detection is a poor trade against the risk. This is one of the
+# deliberate deviations recorded in fpga/README.md, section Style.
 
 # Wants `always_comb` in place of `always @(*)`.
 -always-comb

@@ -97,7 +97,7 @@ in
   '';
 
   # T1 — the boot block encoder. The twenty-four bytes it writes are read by
-  # the factory image in fabric and, from Phase 5, by the update path on a
+  # the factory image in fabric and by the update path on a
   # live device, so the format is asserted here by offset rather than by
   # asking the encoder what it thinks it wrote.
   boot-block = runCommand "ddd-fpga-boot-block" { nativeBuildInputs = [ python3 ]; } ''

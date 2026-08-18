@@ -53,7 +53,7 @@
 // (erase/status). They are deliberately NOT defined here, because this tool implements no
 // SPI code path: the supported hardware is a SuperSpeed Explorer Kit, which boots from an
 // I2C EEPROM and has no SPI flash. Defining them while never issuing them previously made
-// the tool look like it supported SPI, and the help text claimed it did (D24). If an FX3
+// the tool look like it supported SPI, and the help text claimed it did. If an FX3
 // board with SPI flash is ever supported, add them back with an implementation and a
 // hardware test, not before.
 

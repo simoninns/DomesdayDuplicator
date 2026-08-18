@@ -15,10 +15,10 @@ There are no submodules — a plain clone gives you the whole project.
 
 ## Getting a toolchain
 
-Two routes, and both are supported.
-
-**With Nix**, nothing needs installing: each component has a development shell carrying
-exactly what it needs, pinned by the repository's single `flake.lock`.
+**Nix on Linux is the only supported development and build environment**, and nothing needs
+installing to use it: each component has a development shell carrying exactly what it needs,
+pinned by the repository's single `flake.lock`. If you develop on macOS or Windows, use a
+Linux virtual machine.
 
 | Shell | Carries |
 | --- | --- |
@@ -31,9 +31,6 @@ exactly what it needs, pinned by the repository's single `flake.lock`.
 These work from any directory in the tree; Nix walks up to find the flake at the root. A bare
 `nix develop` gives the all-components shell rather than the one for the directory you happen
 to be standing in.
-
-**Without Nix**, install the dependencies yourself — each section below lists them. Nix is a
-convenience here, never a requirement.
 
 ## Why out of tree
 
@@ -54,18 +51,17 @@ The GUI has no such trap, but the same habit applies for consistency.
 ## The capture application
 
 ```bash
-nix develop .#ddd-gui      # or install the dependencies below
+nix develop .#ddd-gui
 
 cmake -B build/ddd-gui -S ddd-gui -G Ninja
 cmake --build build/ddd-gui
 ```
 
 Building it also runs its two quality gates: `clang-format` as a build target and
-`clang-tidy` through `CXX_CLANG_TIDY`, so compiling is what runs them. **Use the Nix shell
-for this even if you build everything else natively.** Both tools change their check sets
-between releases, and CI runs them from this shell — a locally-installed clang-tidy of a
-different version will disagree with CI in both directions, passing what CI fails and
-occasionally the reverse.
+`clang-tidy` through `CXX_CLANG_TIDY`, so compiling is what runs them. Both tools change their
+check sets between releases, and CI runs them from this shell — a clang-tidy of a different
+version will disagree with CI in both directions, passing what CI fails and occasionally the
+reverse, which is why the shell is pinned rather than assumed.
 
 One consequence worth knowing: changing `.clang-tidy` does not invalidate object files, so
 an incremental build re-analyses only what you edited. After a config change, build from a
@@ -73,49 +69,6 @@ clean tree before believing a green result.
 
 `QT_QPA_PLATFORM=offscreen` is only needed where there is no display, such as over SSH; drop
 it to run the application itself.
-
-### Dependencies without Nix
-
-**Ubuntu and Debian**
-
-```bash
-sudo apt install --no-install-recommends \
-  build-essential cmake ninja-build pkg-config libgl-dev \
-  qt6-base-dev libqt6serialport6-dev qt6-tools-dev \
-  libusb-1.0-0-dev libflac-dev libogg-dev libgtest-dev
-```
-
-**Fedora**
-
-```bash
-sudo dnf install gcc-c++ cmake ninja-build pkgconf \
-  qt6-qtbase-devel qt6-qtserialport-devel \
-  libusb1-devel flac-devel libogg-devel gtest-devel
-```
-
-**macOS**
-
-```bash
-brew install cmake ninja pkg-config qt@6 libusb flac googletest
-export CMAKE_PREFIX_PATH="$(brew --prefix qt@6)"
-```
-
-**Windows (MSYS2 UCRT64)**
-
-```bash
-pacman -S --needed \
-  mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake \
-  mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf \
-  mingw-w64-ucrt-x86_64-qt6-base mingw-w64-ucrt-x86_64-qt6-serialport \
-  mingw-w64-ucrt-x86_64-qt6-tools mingw-w64-ucrt-x86_64-libusb \
-  mingw-w64-ucrt-x86_64-flac mingw-w64-ucrt-x86_64-libogg \
-  mingw-w64-ucrt-x86_64-gtest
-```
-
-libFLAC is not optional: FLAC (`.ldf`) is the capture format, so a build without it would
-produce an application that cannot do the thing it exists for. Note that `flac.pc` declares
-`Requires: ogg`, so libogg's development package must be present too — several
-distributions do not pull it in automatically.
 
 ### As a Nix package
 
@@ -139,7 +92,7 @@ A cross build for the ARM926EJ-S core in the FX3, so it needs a toolchain file. 
 directory.
 
 ```bash
-nix develop .#fx3          # or install arm-none-eabi-gcc yourself
+nix develop .#fx3
 
 cmake -B build/fx3-firmware -S fx3/firmware -G Ninja \
       -DCMAKE_TOOLCHAIN_FILE="$PWD/fx3/firmware/arm-none-eabi-toolchain.cmake"
@@ -176,9 +129,6 @@ cmake --build build/fx3-programmer
 ctest --test-dir build/fx3-programmer --output-on-failure
 ```
 
-`fx3-programmer` needs libusb (`libusb-1.0-0-dev` on Debian, `libusb1-devel` on Fedora,
-`brew install libusb` on macOS).
-
 ### Loading it onto a device
 
 ```bash
@@ -191,7 +141,7 @@ Reaching the device needs udev rules — see
 jumper has to be set correctly. [FX3 firmware](hardware-programming/fx3-firmware.md) covers
 the jumper, RAM versus EEPROM programming and what each mode looks like on the host.
 
-### With Nix
+### As Nix packages
 
 ```bash
 nix build .#fx3-firmware      # result/ holds firmware.img, .elf and .map
@@ -226,9 +176,6 @@ that can be checked for free: that the file is valid Tcl, and that it names ever
 top level maps — a constraint covering fifteen of sixteen databus pins leaves the sixteenth
 unanalysed, and nothing else in the tree would notice. Whether the numbers in it are right,
 and whether the design meets them, still needs a Quartus run.
-
-Without Nix you need `verilator`, `iverilog`, `verible`, `tclsh` and Python from your
-distribution.
 
 ### Building the bitstream
 

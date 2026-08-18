@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           # A tag names itself; anything else names its commit. Neither may end up as
-          # "unknown", which is what P7-9 fails a release for.
+          # "unknown", which fails the release gate.
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             version="${GITHUB_REF_NAME#gui-v}"
           else
@@ -115,7 +115,7 @@ jobs:
           fi
 
           # Rewrite the <releases> list from the tag rather than maintaining it by hand,
-          # which is how a version history goes stale (P7-13).
+          # which is how a version history goes stale.
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             METAINFO=ddd-gui/packaging/assets/io.github.simoninns.DddGui.metainfo.xml
             python3 - "$METAINFO" "${{ steps.version.outputs.version }}" "$(date -u +%Y-%m-%d)" <<'PY'

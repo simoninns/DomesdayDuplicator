@@ -93,7 +93,7 @@ the kit is powered, regardless of `J4`.
 
 So the loop is: fit `J4`, power cycle, program (RAM or EEPROM), remove `J4`, power cycle to
 run from EEPROM. `fx3-programmer -r` does **not** substitute for the power cycle — it is a
-stub that resets nothing (D25).
+stub that resets nothing.
 
 ### A warning about the programmer's help text
 
@@ -101,8 +101,8 @@ stub that resets nothing (D25).
 here.** The implementation programs the I2C EEPROM and reports so, which is correct for this
 hardware and matches the project's own
 [FX3 programming guide](../docs/content/development/hardware-programming/fx3-firmware.md). The vendor commands for
-SPI (`0xC2`, `0xC4`) are defined in the source and never used. Tracked as **D24**; the help
-text is the thing that is wrong.
+SPI (`0xC2`, `0xC4`) are defined in the source and never used. This is a known defect; the
+help text is the thing that is wrong.
 
 ### Verified capacity
 

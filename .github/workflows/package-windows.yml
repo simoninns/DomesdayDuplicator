@@ -1,4 +1,4 @@
-# Windows MSI for the capture application (P7-16).
+# Windows MSI for the capture application.
 #
 # MSYS2 UCRT64 is the toolchain the project's Windows builds have always used, so the MSI
 # packages the same binary the native build produces rather than introducing a second

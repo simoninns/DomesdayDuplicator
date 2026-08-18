@@ -58,7 +58,7 @@ Sha256Digest Sha256(std::string_view text);
 //
 // The update flow never has a whole firmware image and its copy in memory at
 // once if it can avoid it: the GUI streams a payload to the device while
-// hashing it, and Phase 2's firmware does the same on its side. Streaming is
+// hashing it, and the firmware does the same on its side. Streaming is
 // therefore the shape that matters and the one-shot function above is the
 // convenience.
 class Sha256Hasher {

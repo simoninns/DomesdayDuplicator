@@ -1,4 +1,4 @@
-# macOS DMG for the capture application (P7-15).
+# macOS DMG for the capture application.
 #
 # Unsigned and un-notarised: a Developer ID is a paid personal credential and putting one
 # in a public repository's CI needs a decision about who holds it that has not been taken.
@@ -99,7 +99,7 @@ jobs:
       - name: Run the test suite
         shell: bash
         run: |
-          # macOS is best-effort for the flake (P0-7) but not for a release asset: a DMG
+          # macOS is best-effort for the flake but not for a release asset: a DMG
           # that ships is a DMG whose tests ran.
           export QT_QPA_PLATFORM=offscreen
           ctest --test-dir build --output-on-failure --label-exclude 'hil'

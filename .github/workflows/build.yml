@@ -1,7 +1,7 @@
-# The build that runs on every commit (P7-1 … P7-7).
+# The build that runs on every commit.
 #
 # Replaces the three per-submodule workflows that came in with the monorepo, one of which
-# had never worked because it pointed at a directory that did not exist (D1). Those files
+# had never worked because it pointed at a directory that did not exist. Those files
 # lived at fx3/.github and ddd-gui/.github, where GitHub does not look for them; they are
 # deleted rather than left as decoration.
 #
@@ -182,7 +182,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           # The short SHA in the name is what makes a build from any commit fetchable
-          # without re-running CI (P7-7). This is not the release archive — GitHub expires
+          # without re-running CI. This is not the release archive — GitHub expires
           # these, which is why releases attach their own copies.
           name: fx3-artifacts-${{ github.sha }}
           path: artifacts/
@@ -238,7 +238,7 @@ jobs:
 
   # The whole-tree check, on the refs where a complete result matters rather than on every
   # push to every branch. It excludes `bitstream`: Quartus is unfree, GB-scale and
-  # x86_64-linux only, so it is built locally and attached by hand instead (P7-4).
+  # x86_64-linux only, so it is built by bitstream.yml instead.
   nix-flake-check:
     name: nix flake check
     needs: changes

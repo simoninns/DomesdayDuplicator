@@ -40,9 +40,6 @@ Or build the site exactly as it is published:
 nix build .#docs-site
 ```
 
-Without Nix, any environment with `mkdocs`, `mkdocs-material` and `mkdocs-awesome-nav`
-installed will work.
-
 ## Adding a page
 
 1. Put the markdown in the section directory it belongs to.

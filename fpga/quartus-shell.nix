@@ -19,7 +19,7 @@
 # cross-platform, and enough to edit, lint and simulate the Verilog. Use that
 # one unless you are actually producing a bitstream.
 #
-# This shell is Phase 6's deliverable. `nix build .#bitstream` makes a bitstream
+# This shell is where gateware work is done. `nix build .#bitstream` makes a bitstream
 # build repeatable and gives it a provenance record, but the GUI is never
 # required for any step — compile, convert and program are all command-line
 # tools, and they are all here.

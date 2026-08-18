@@ -205,7 +205,7 @@ A release bundle is the same script with all four payloads:
     --notes "Domesday Duplicator firmware and gateware 1.4.0."
 ```
 
-`--help` lists the rest. The script needs bash, coreutils, GNU tar and minisign, all of which are in `nix develop` and all of which are ordinary distribution packages; nothing about it is Nix-only.
+`--help` lists the rest. The script needs bash, coreutils, GNU tar and minisign, all of which are in `nix develop`.
 
 Two things it does that are worth knowing about:
 

@@ -14,37 +14,29 @@ This project is based on the [Cypress cyusb_linux](https://github.com/Cypress-Se
 
 ## Table of Contents
 
-- [Prerequisites](#prerequisites)
 - [Building](#building)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Programming the FX3 with Domesday Duplicator Firmware](#programming-the-fx3-with-domesday-duplicator-firmware)
 - [Troubleshooting](#troubleshooting)
 
-## Prerequisites
-
-### Required Tools
-
-**On Ubuntu/Debian:**
-```bash
-sudo apt-get install build-essential cmake pkg-config libusb-1.0-0-dev
-```
-
-**On Fedora/RHEL:**
-```bash
-sudo dnf install cmake pkg-config libusb1-devel gcc
-```
-
 ## Building
 
-From the repository root:
+**Nix on Linux is the only supported build environment**, here as everywhere else in this
+repository. The development shell carries libusb, CMake and the compiler; do not add a
+per-distribution dependency list or a second build route.
 
 ```bash
-cd fx3/programmer
-mkdir build
-cd build
-cmake ..
-make
+nix build .#fx3-programmer          # one-shot, hermetic
+```
+
+For an editing loop, build **out of tree** from the repository root:
+
+```bash
+nix develop .#fx3
+
+cmake -B build/fx3-programmer -S fx3/programmer -G Ninja
+cmake --build build/fx3-programmer
 ```
 
 ### Build Output
@@ -57,8 +49,7 @@ The build process generates:
 To install the tool system-wide:
 
 ```bash
-cd build
-sudo make install
+sudo cmake --install build/fx3-programmer
 ```
 
 This installs:
@@ -155,9 +146,9 @@ There is no `-r` here, and there will not be one.
 
 The option used to exist and did nothing: `fx3_reset_device()` printed "Device will reset
 automatically after firmware download completes", slept for two seconds and returned success
-(D25). Nothing was ever sent to the device. Running `-r` now fails and says so.
+Nothing was ever sent to the device. Running `-r` now fails and says so.
 
-**D25 is closed, but not here.** The application firmware gained a reset vendor request,
+**That gap is closed, but not here.** The application firmware gained a reset vendor request,
 `0xD4`, as part of the device-update work — `CyU3PDeviceReset(CyFalse)`, a cold reset, so
 the FX3 re-reads its boot source and comes back running whatever is now in the EEPROM. The
 capture application uses it to restart a device after an update, and `ddd-update` does the
@@ -205,16 +196,13 @@ This section describes how to program the FX3 device with firmware built from th
 
 ### Prerequisites
 
-1. **Build the firmware** - Follow the instructions in `../firmware/README.md` to compile the firmware:
+1. **Build the firmware** - Follow the instructions in `../firmware/README.md`, or take the
+   one-shot route from the repository root:
    ```bash
-   cd ../firmware
-   mkdir build
-   cd build
-   cmake -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake ..
-   make
+   nix build .#fx3-firmware
    ```
-   
-   This produces `firmware.img` in the build directory.
+
+   This produces `firmware.img` in `result/`.
 
 2. **Build fx3-programmer** - Follow the [Building](#building) section above.
 
@@ -289,20 +277,18 @@ This:
 
 #### 4. Complete Workflow Example
 
+From the repository root:
+
 ```bash
-# Build the firmware
-cd ../firmware/build
-cmake -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake ..
-make
+# Build the firmware and the programmer
+nix build .#fx3-firmware -o result-firmware
+nix build .#fx3-programmer -o result-programmer
 
-# Navigate to programmer
-cd ../../programmer/build
-
-# List devices
-fx3-programmer -l
+# List devices — confirm one is in bootloader mode
+./result-programmer/bin/fx3-programmer -l
 
 # Program device
-fx3-programmer -d 0 -u ../../firmware/build/firmware.img
+./result-programmer/bin/fx3-programmer -d 0 -u result-firmware/firmware.img
 ```
 
 #### 5. Verify Firmware is Running

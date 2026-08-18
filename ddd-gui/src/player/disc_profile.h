@@ -46,8 +46,8 @@ enum class Provenance : uint8_t {
   // and nothing has to be asked for it.
   kInferred,
 
-  // The user said so. Nothing in Phase 4 produces this; it is for the fields a
-  // model cannot be asked about, which the capture setup collects.
+  // The user said so. Nothing in the examination produces this; it is for the
+  // fields a model cannot be asked about, which the capture setup collects.
   kDeclared,
 };
 
@@ -165,8 +165,7 @@ struct DiscProfile {
   // the side's playing time, which makes it tempting; it is not to be used,
   // because it is absent on some perfectly healthy discs, its field meanings
   // are inferred rather than documented, and reading it costs eleven seconds
-  // and the player's position. See the Phase 3 findings in the implementation
-  // plan for the five discs that settled it.
+  // and the player's position. Five discs on the bench settled it.
   UserCodeReading standard_user_code;
   UserCodeReading pioneer_user_code;
 

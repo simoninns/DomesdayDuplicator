@@ -21,10 +21,10 @@
       inherit (import ./nix/lib.nix { inherit nixpkgs; }) forAllSystems;
 
       # The commit the working tree is at, for artefacts that carry their own provenance:
-      # the FX3 firmware's USB product descriptor (D4) and the GUI's About dialog and
-      # --version (D21). A build from a tag or a tarball has no .git for CMake's fallback
+      # the FX3 firmware's USB product descriptor, and the GUI's About dialog and
+      # --version. A build from a tag or a tarball has no .git for CMake's fallback
       # to consult, so passing it explicitly is what stops a release artefact silently
-      # reporting "unknown" — which P7-9 makes a release gate.
+      # reporting "unknown" — which the release workflows gate on.
       version = self.shortRev or self.dirtyShortRev or "unknown";
 
       # Quartus is unfree, so it needs its own `pkgs` — but not its own flake, which would
@@ -129,7 +129,7 @@
         }
         // pkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.system == quartusSystem) {
           # The full toolchain: everything in `fpga` plus Quartus itself. This shell,
-          # rather than `nix build .#bitstream`, is the deliverable of Phase 6 — the
+          # rather than `nix build .#bitstream`, is the primary deliverable — the
           # bitstream build is what makes it repeatable, but the shell is where the work
           # is done.
           fpga-quartus = import ./fpga/quartus-shell.nix {

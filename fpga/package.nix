@@ -21,7 +21,7 @@
 # dev shell (`nix develop .#fpga-quartus`) remains the primary way to work on
 # the gateware.
 #
-# Reproducibility, measured rather than assumed (P6-9): two compiles of the same
+# Reproducibility, measured rather than assumed: two compiles of the same
 # commit on the same toolchain produce a byte-identical .jic and a .sof that
 # differs only in a compile timestamp, a per-run design hash and the checksum
 # covering them. bitstream-provenance.txt carries digests for both.
@@ -33,7 +33,7 @@
   python3,
   # The commit this was built from. Passed in rather than read from git,
   # because the derivation's source has no .git — the same reason the firmware
-  # and the GUI take theirs as a parameter (D4, D21).
+  # and the GUI take theirs as a parameter.
   bitstreamVersion ? "unknown",
 }:
 
@@ -211,7 +211,7 @@ stdenvNoCC.mkDerivation {
     done
 
     # An artefact that cannot be traced to a commit is the thing this whole
-    # provenance exercise exists to prevent (P7-9 makes it a release gate).
+    # provenance exercise exists to prevent; the release workflows gate on it.
     if grep -q "^  commit  *unknown\$" "$out/bitstream-provenance.txt"; then
       echo "the provenance record reports an unknown commit" >&2
       exit 1

@@ -7,9 +7,6 @@ releases. The application it replaced was removed from the repository on 2026-08
 history remains in git. The hardware capture-integrity procedure that this application is
 held to is [TESTING.md](../TESTING.md) §5.
 
-The phased plan it is being built to is
-[docs-tech/ddd-gui-implementation-plan.md](../docs-tech/ddd-gui-implementation-plan.md).
-
 ## What works today
 
 **The application shell**: a themed, panelled window with light and dark themes, dockable
@@ -274,8 +271,7 @@ than control flow for the same reason: the examine sequence hands out the next c
 takes back what the player said, so an open tray, a refused query, a link that dies halfway
 through and a cancel between any two steps are all things a test can simply state.
 `QSerialPort` implements that interface in
-`src/gui/`, where Qt already lives. The plan this is being built to is
-[docs-tech/player-control-implementation-plan.md](../docs-tech/player-control-implementation-plan.md).
+`src/gui/`, where Qt already lives.
 
 The functional tier is not part of the ordinary edit-build-test loop. `ctest -L unit`
 skips it; a bare `ctest` runs it, and so does CI. Each soak runs for a minute by default —

@@ -55,8 +55,6 @@ The two positions, which every step below refers to as *fitted* and *removed*:
 
 ## 1. Build the firmware
 
-### With Nix
-
 From anywhere in a checkout:
 
 ```bash
@@ -71,17 +69,8 @@ firmware.elf  firmware.img  firmware.map
 `firmware.img` is the one you program. Nothing needs installing first — the ARM cross
 compiler, the image builder and the SDK all come from the flake.
 
-### Without Nix
-
-You need `arm-none-eabi-gcc`, CMake, a host C compiler and Python 3.
-
-```bash
-cmake -B fx3/firmware/build -S fx3/firmware \
-      -DCMAKE_TOOLCHAIN_FILE=../arm-none-eabi-toolchain.cmake
-cmake --build fx3/firmware/build
-```
-
-The artefacts land in `fx3/firmware/build/`. Full prerequisites and options are in
+For an editing loop rather than a one-shot build, `nix develop .#fx3` gives the same
+toolchain as a shell; the build options are in
 [`fx3/firmware/README.md`](https://github.com/simoninns/DomesdayDuplicator/blob/main/fx3/firmware/README.md).
 
 ### Check: does the build know what it is?

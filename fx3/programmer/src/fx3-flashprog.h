@@ -7,7 +7,7 @@
  *
  * Split out of fx3-programmer.c so the search order can be unit tested — it is pure path
  * resolution, and getting it wrong is the difference between a working install and a tool
- * that only functions from one specific directory (D13).
+ * that only functions from one specific directory.
  *
  * Domesday Duplicator - FX3 programmer
  * SPDX-FileCopyrightText: 2026 Simon Inns

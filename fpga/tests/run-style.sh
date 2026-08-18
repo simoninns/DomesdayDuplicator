@@ -25,7 +25,7 @@
 # This is style. verilator --lint-only -Wall is correctness and lives in
 # run-lint.sh; neither check replaces the other, and both must pass.
 #
-# See docs-tech/fpga-verilog-style-plan.md for the style guide itself.
+# See fpga/README.md, section Style, for the style guide itself.
 
 set -euo pipefail
 

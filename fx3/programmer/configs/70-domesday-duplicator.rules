@@ -22,7 +22,7 @@
 #
 # A rule that sets the tag in a file sorting after 73 sets it too late: 73 has already run,
 # nothing consumes it, and no ACL is applied. This file was called 88-cyusb.rules until
-# Phase 5, where exactly that was found on a live device — the rule was installed and active,
+# exactly that was found on a live device — the rule was installed and active,
 # and `getfacl` on the device node showed no user entry. Only the MODE="0666" fallback was
 # doing any work. Anything below 73 is fine; 70- matches the convention systemd itself uses
 # for its own uaccess rules.

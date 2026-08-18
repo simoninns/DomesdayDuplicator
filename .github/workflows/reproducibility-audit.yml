@@ -1,5 +1,4 @@
-# Does the published release still rebuild to the same bytes? (Phase 6 of the
-# device-update plan.)
+# Does the published release still rebuild to the same bytes?
 #
 # The release pipeline's central claim is that every artefact a user installs was built by
 # CI from the tagged commit and can be rebuilt by anyone from the same commit. This job

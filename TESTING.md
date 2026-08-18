@@ -2,8 +2,8 @@
 
 How the Domesday Duplicator is tested, what that covers today, and what it does not.
 
-This document is deliberately honest about scope. Before Phase 3 of the repository
-reorganisation there were **no automated tests at all**. There are now 1,421 across five
+This document is deliberately honest about scope. This repository once had **no automated
+tests at all**. There are now 1,421 across five
 components, plus nine gateware testbenches, a lint pass over five Verilog modules, a static
 check on the documentation site, and a licence-header check and an update-bundle check over
 the whole tree. That is a
@@ -285,7 +285,7 @@ starting §5 worthwhile.
 | `tests/cli-contract.sh` | The command-line contract: that the help text does not promise SPI flash support the tool lacks, that it names the memory it actually writes, that removed options are neither advertised nor silently ignored, and that a bad device index is rejected rather than treated as device 0 | T2 |
 
 `cli-contract.sh` is the odd one out: it runs the built binary and asserts on its *promises*
-rather than its computations. It exists because D24 and D25 both survived for a long time —
+rather than its computations. It exists because two defects both survived for a long time —
 help text claiming SPI flash programming the tool has never implemented, and a `-r` that
 printed a message and slept. Nothing could fail while the words and the code disagreed, so
 now something does.
@@ -293,7 +293,7 @@ now something does.
 These look like tests of trivial code, and are not. An off-by-one in the paging arithmetic
 rolls the I2C slave address at the wrong offset and writes firmware bytes over the wrong
 device — which bricks the FX3, recoverable only via the PMODE jumper. The path-resolution
-tests guard the D13 fix, where every candidate path used to be relative to the working
+tests guard a fix for every candidate path having been relative to the working
 directory, so an installed binary could not find the secondary loader at all.
 
 ### 4.3 `fx3/firmware/` — three tests
@@ -343,7 +343,7 @@ a poor place to discover that.
 | --- | --- | --- |
 | `tests/test_bootimage.cpp` | FX3 boot image construction: header fields, checksum range and wrapping, vector-area trimming, 64 KiB section splitting, `.bss` zero-fill, word alignment, ELF validation and rejection, and golden byte vectors | T1, T2 |
 
-`fx3-mkimage` replaced the Cypress SDK's `elf2img` in Phase 5, and its acceptance check was a
+`fx3-mkimage` replaced the Cypress SDK's `elf2img`, and its acceptance check was a
 byte comparison against that tool on the project's own firmware — identical, 111,316 bytes.
 **That check cannot be re-run**, because the vendor tool has been deleted from the tree. This
 suite is what guards the format now, so it is deliberately more thorough than the size of the
@@ -979,12 +979,11 @@ configured instead.** The two options were —
   **The freeze is lifted for that one path**, decided on the ground that a DE0-Nano
   carries its USB-Blaster on the board, so the cable that recovers a half-written factory
   region is present on every unit and already connected during bring-up. The firmware
-  gains a third update target guarded by a magic in the begin flags; the design and its
-  rejected alternatives are recorded in
-  [docs-tech/board-bringup-plan.md](docs-tech/board-bringup-plan.md).
+  gains a third update target guarded by a magic in the begin flags.
 
 **Still to perform**: the flash write itself, its duration, and the comparison against
-`quartus_pgm` — steps 4 to 6 below, which cannot run until Phase 6's firmware exists.
+`quartus_pgm` — steps 4 to 6 below, which cannot run until the firmware carries that third
+target.
 Nothing has yet written a byte to an EPCS by this route. When they do run, steps 2 and 4
 change with the design: the file played is the factory *configure* `.svf`, and the write
 that follows is an ordinary update transfer, so what is being timed is a ~212 KB flash

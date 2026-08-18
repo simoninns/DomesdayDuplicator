@@ -40,7 +40,7 @@ What happened instead?
 ## Environment
 
 - OS and version:
-- Install method: (Flatpak / macOS DMG / Windows MSI / built natively / built with Nix)
+- Install method: (Flatpak / macOS DMG / Windows MSI / built from source with Nix)
 - Application version: (Help → About, or the release tag)
 - FX3 firmware version: (Tools → Firmware → Update firmware…)
 - FPGA gateware version: (same dialog)

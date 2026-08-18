@@ -40,12 +40,12 @@ Two rounds of pruning have already happened here. **Do not re-extract any of it*
 refreshing this directory:
 
 - The `fx3_debug/`, `fx3_profile_debug/` and `fx3_profile_release/` library variants —
-  around 45 MB, deleted in Phase 2, since `CMakeLists.txt` only ever links `fx3_release`.
+  around 45 MB, deleted, since `CMakeLists.txt` only ever links `fx3_release`.
 - Four unused archives from `fx3_release/` itself — `libcy_as0260.a`, `libcy_ov5640.a`,
   `libcyu3mipicsi.a` and `libcyu3sport.a` (image sensor, MIPI-CSI and serial port), around
-  1.8 MB, deleted in Phase 5. Removing them changed the linked firmware not at all: the
+  1.8 MB, also deleted. Removing them changed the linked firmware not at all: the
   boot image is byte-for-byte the same.
-- `util/elf2img/`, the vendor's ELF-to-boot-image tool, **replaced and deleted in Phase 5**.
+- `util/elf2img/`, the vendor's ELF-to-boot-image tool, **replaced and deleted**.
   See below.
 
 The rest of the SDK — Eclipse, the ARM GCC toolchain, `boot_lib`, `firmware` examples, `doc`,
@@ -66,7 +66,7 @@ the Nix build will fail with a `FATAL_ERROR` that a plain `cmake` build does not
 
 ## The vendor's elf2img is gone, and must not come back
 
-The SDK's `util/elf2img/` was replaced in Phase 5 by
+The SDK's `util/elf2img/` was replaced by
 [`../mkimage`](../mkimage) — `fx3-mkimage`, a from-scratch GPLv3 implementation written
 against Infineon's public application note AN76405, producing byte-identical output. The
 vendored copy has been deleted.
@@ -110,12 +110,12 @@ package.** What remains here — headers, three static archives and a linker scr
 consumed as a `lib.fileset` input to the firmware derivation, not built as a derivation of
 its own.
 
-That was not true before Phase 5. The vendored `elf2img` *was* a package, and it needed a
+That was not always true. The vendored `elf2img` *was* a package, and it needed a
 licence attribute that could describe proprietary vendor code without making
 `nix build .#fx3-firmware` fail for every user lacking `allowUnfree`. The stopgap was a named
 custom licence with `free = true` — a project decision, not a legal determination. Replacing
 the tool removed the need for it, and it is gone.
 
 The firmware derivation itself declares `gpl3Plus`, which describes the project's own sources.
-That it links against the archives here is a fact this file records; the P0-2 decision to
+That it links against the archives here is a fact this file records; the decision to
 vendor them stands unchanged.

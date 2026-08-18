@@ -6,8 +6,8 @@
 # SPDX-FileCopyrightText: 2026 Simon Inns
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This exists because of D24 and D25, and it guards a specific failure mode: help text that
-# describes something the tool does not do. Both defects survived for a long time precisely
+# This exists because of two defects, and it guards a specific failure mode: help text that
+# describes something the tool does not do. Both survived for a long time precisely
 # because nothing could fail when the words and the code disagreed --
 #
 #   * -p was documented as programming "SPI flash" in four places. It programs the I2C
@@ -46,33 +46,33 @@ else
     ok "-h exits 0"
 fi
 
-# --- D24: the tool must not claim SPI flash support it does not have
+# --- the tool must not claim SPI flash support it does not have
 if grep -qi "spi" <<<"$help_text"; then
     if grep -qiE "no SPI flash support|has no SPI" <<<"$help_text"; then
         ok "the only mention of SPI is the disclaimer"
     else
-        fail "help text mentions SPI without disclaiming support (D24)"
+        fail "help text mentions SPI without disclaiming support"
         grep -in "spi" <<<"$help_text" >&2
     fi
 else
     ok "help text makes no SPI claim"
 fi
 
-# --- D24: it must name the memory it actually writes
+# --- it must name the memory it actually writes
 if grep -qi "EEPROM" <<<"$help_text"; then
     ok "help text names the I2C EEPROM"
 else
-    fail "help text does not mention the EEPROM, which is what -p programs (D24)"
+    fail "help text does not mention the EEPROM, which is what -p programs"
 fi
 
-# --- D25: a removed option must not be advertised
+# --- a removed option must not be advertised
 if grep -qE '^\s+-r\b' <<<"$help_text"; then
-    fail "help text still advertises -r, which does not exist (D25)"
+    fail "help text still advertises -r, which does not exist"
 else
     ok "-r is not advertised"
 fi
 
-# --- D25: and using it must explain itself rather than just failing
+# --- and using it must explain itself rather than just failing
 r_out="$("$prog" -r 2>&1)"
 r_rc=$?
 if [ "$r_rc" -eq 0 ]; then

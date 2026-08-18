@@ -57,7 +57,7 @@ rest of the world's tooling agrees on: a maintainer can check a published payloa
 file.
 
 `sha-256.c` is also freestanding-friendly — `stdint.h`, `stddef.h` and `string.h`, no
-allocation, no I/O — which matters beyond this component. Phase 2 of the device-update work
+allocation, no I/O — which matters beyond this component. The device-update work
 gives the FX3 firmware the same digest, hashing the incoming stream and the EEPROM
 readback. The firmware cannot include from here (AGENTS.md §2 forbids cross-component
 includes), so it takes its own copy of the *same pinned upstream version and digest*

@@ -26,7 +26,6 @@ Briefly describe what this PR changes and why.
 Describe how you tested this change — the commands you ran and what they reported.
 
 - [ ] `nix flake check`, or the component's own tests (`ctest --test-dir <component>/build`)
-- [ ] Built natively as well as with Nix, where the change could affect either route
 - [ ] Hardware-in-the-loop check per [TESTING.md](../TESTING.md) — **required** for gateware,
       FX3 firmware, or anything on the capture path, where a green build is not sufficient
 

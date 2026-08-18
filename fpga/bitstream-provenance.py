@@ -24,7 +24,7 @@ Two kinds of digest, because they answer different questions:
                     "does a rebuild of this commit agree with it?"
 
 They are different for the .sof because Quartus stamps a compile timestamp and
-a per-run design hash into its header. Measured on this project (P6-9): two
+a per-run design hash into its header. Measured on this project: two
 compiles of the same commit on the same toolchain produce a .sof differing in
 34 of 704,015 bytes, all of it header metadata, and a .jic that is byte for
 byte identical. So the .jic needs no canonicalisation — its release digest and

@@ -267,7 +267,7 @@ _The Domesday Duplicator capture application_
 ## Development environment
 The application is C++20, built with CMake against Qt 6.5 or later (Core, Gui, Widgets and SerialPort), libusb-1.0 and libFLAC. It builds for Linux, Windows and macOS; Windows uses WinUSB in place of libusb. For instructions on how to build it please see [Building Locally](building-locally.md), which covers all of the components.
 
-The build runs `clang-format` and `clang-tidy` as gates, so compiling is what enforces the code style. Use the Nix development shell for this even if you build everything else natively — both tools change their check sets between releases, and CI runs them from that shell.
+The build runs `clang-format` and `clang-tidy` as gates, so compiling is what enforces the code style. Build from `nix develop .#ddd-gui` — both tools change their check sets between releases, and CI runs them from that shell.
 
 ## Source code modules
 

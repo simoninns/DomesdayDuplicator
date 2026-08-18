@@ -1,4 +1,4 @@
-# The capture application's release stream (P7-8, P7-9, P7-10, P7-18).
+# The capture application's release stream.
 #
 # Triggered by gui-v* tags only. A firmware tag must not run this workflow and this
 # workflow must not build firmware: two streams that both rebuild everything are one
@@ -141,7 +141,7 @@ jobs:
           done
           [[ "${missing}" -eq 0 ]] || exit 1
 
-      # P7-9: the version stamp is a release gate. The installers were checked at build
+      # The version stamp is a release gate. The installers were checked at build
       # time by their own workflows — each launches the packaged application and rejects an
       # "unknown" — and this is the second half: the file names must carry the tag, so an
       # asset built from the wrong ref cannot be attached to this release unnoticed.

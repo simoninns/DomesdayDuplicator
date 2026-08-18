@@ -1,4 +1,4 @@
-# The FPGA bitstreams, built by CI (Phase 6 of the device-update plan).
+# The FPGA bitstreams, built by CI.
 #
 # This workflow is the amendment to a rule this repository held until now: that the
 # bitstream stays out of CI entirely. It stays out of the **per-commit tier** — `nix flake

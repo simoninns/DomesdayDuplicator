@@ -8,7 +8,7 @@
 #
 #   $out/firmware.img   the boot-loadable image fx3-programmer writes to the device
 #   $out/firmware.elf   the linked ELF, for debugging
-#   $out/firmware.map   the linker map, which is how D8's dead-code claim was settled
+#   $out/firmware.map   the linker map, which is how a dead-code claim was settled
 #
 # so `nix build .#fx3-firmware && ls result/` is the whole story and CI can upload the
 # directory as-is. The CMake project installs to `bin/` by default for non-Nix builders;
@@ -23,8 +23,8 @@
   fx3-mkimage,
   # The commit this firmware was built from. It reaches the USB product descriptor, so
   # `lsusb -v` on a running device reports it — that is the whole traceability story for
-  # the firmware (D4). The flake passes self.shortRev; a release build that let this fall
-  # back to "unknown" would be untraceable, which P7-9 makes a release gate.
+  # the firmware. The flake passes self.shortRev; a release build that let this fall
+  # back to "unknown" would be untraceable, which the release workflow gates on.
   firmwareVersion ? "unknown",
   doCheck ? true,
 }:

@@ -76,9 +76,7 @@ gateware, firmware, host software and documentation.
 
 Five toolchains, four target architectures. Assume nothing transfers between them.
 
-`ddd-gui/` is the capture application. It is built to
-[docs-tech/ddd-gui-implementation-plan.md](docs-tech/ddd-gui-implementation-plan.md), and it
-is what CI builds, tests, packages and releases — every Flatpak, DMG and MSI carries it,
+`ddd-gui/` is the capture application. It is what CI builds, tests, packages and releases — every Flatpak, DMG and MSI carries it,
 under an application ID of its own so that an install of the application it replaced is
 never silently overwritten.
 
@@ -254,9 +252,8 @@ Unique to this project, and non-negotiable:
 ### 5.3 Verilog (`fpga/`)
 
 The style guide is the [lowRISC Verilog Coding Style Guide](https://github.com/lowRISC/style-guides/blob/master/VerilogCodingStyle.md),
-enforced by Verible from config checked in beside the sources. Its four recorded deviations,
-and the reasoning behind the whole thing, are in
-[docs-tech/fpga-verilog-style-plan.md](docs-tech/fpga-verilog-style-plan.md).
+enforced by Verible from config checked in beside the sources. Its four recorded deviations
+are listed in [fpga/README.md](fpga/README.md) § Style.
 
 **Do not hand-format Verilog.** `./fpga/tests/run-format.sh` is the formatter and
 `fpga/.verible-format` is its only configuration.
@@ -376,8 +373,14 @@ model is on the *Update bundle format* documentation page.
 
 ## 7. Development environment
 
-Every component builds with ordinary, distribution-packaged tools. There is also a Nix flake
-— but **Nix is not required**, and no build may be made Nix-only.
+**Nix on Linux is the only supported development and build environment.** Every toolchain
+the project needs is pinned by the single root flake, and CI builds through that same flake,
+so a build that fails under Nix is a real failure rather than an environment quirk.
+
+**Do not add a second development or build environment.** That includes alternative build
+systems, per-distribution dependency lists, and packaging whose purpose is to make a component
+build without Nix; changes doing so will not be accepted. Development on macOS or Windows is
+through a Linux virtual machine.
 
 **Run every one of these from anywhere in the working tree.** Nix walks up to find the root
 flake, so the directory you are in makes no difference; the `.#name` selects the component.
@@ -617,7 +620,7 @@ custody and the reproducibility audit.
 | Software | **GNU GPL v3** | [LICENSE](LICENSE) |
 | Hardware | **CC BY-SA 4.0** | [hardware/pcb/LICENSE.txt](hardware/pcb/LICENSE.txt) |
 
-These two were transposed in the README until Phase 2 of the reorganisation — the labels each
+These two were transposed in the README for a long time — the labels each
 pointed at the other one's file. If you find them stated the other way round anywhere, that is
 the old error, not a second opinion.
 

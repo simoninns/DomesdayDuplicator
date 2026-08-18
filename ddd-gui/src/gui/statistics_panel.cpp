@@ -41,7 +41,7 @@ QString BackPressureTip() {
 StatisticsPanel::StatisticsPanel(CaptureController* controller, QWidget* parent)
     : QWidget(parent), controller_(controller) {
   // Inside a scroll area, because this panel is a list that grows: it went from
-  // seven rows to twelve with Phase 4 and will gain three more when there is a
+  // seven rows to twelve, and will gain three more when there is a
   // writer to describe. Without one its minimum height is the height of every
   // row, which it then demands from the dock column it shares — and the
   // separators above and below it stop moving.

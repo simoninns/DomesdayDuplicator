@@ -15,7 +15,7 @@
 #
 # Use this to move between components without switching shells. It deliberately excludes
 # Quartus (unfree, multi-gigabyte, x86_64-linux only) and KiCad (large, and only needed for
-# board work) — reach for `nix develop .#fpga` plus Phase 6's Quartus shell, or
+# board work) — reach for `nix develop .#fpga` plus the `fpga-quartus` shell, or
 # `nix develop .#hardware`, when you need those.
 
 { pkgs }:

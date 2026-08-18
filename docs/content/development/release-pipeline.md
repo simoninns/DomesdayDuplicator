@@ -2,7 +2,7 @@
 
 Every artefact a user installs is built by CI from a tagged commit. Nothing in a release is built on a maintainer's machine, and nothing is attached by hand.
 
-That is a change from how this project worked until Phase 6 of the device-update plan: the FPGA bitstream used to be built locally and attached to a draft release, because Quartus is unfree, multi-gigabyte and cannot be served from a binary cache. Those facts have not changed — what changed is where the cost is paid. Quartus stays out of the per-commit tier that every contributor runs, and runs in dedicated workflows instead.
+That is a change from how this project used to work: the FPGA bitstream used to be built locally and attached to a draft release, because Quartus is unfree, multi-gigabyte and cannot be served from a binary cache. Those facts have not changed — what changed is where the cost is paid. Quartus stays out of the per-commit tier that every contributor runs, and runs in dedicated workflows instead.
 
 **The maintainer's release act is: tag.**
 
@@ -350,7 +350,7 @@ published and what the source produces surfaces within days rather than at the n
 
 ## What this replaces
 
-If you have worked on this repository before Phase 6, three things are no longer true:
+If you have worked on this repository before the bitstream moved into CI, three things are no longer true:
 
 - ~~the bitstream is not built by CI~~ — it is, in its own workflow;
 - ~~firmware releases are published as drafts so the bitstream can be attached by hand~~ — they publish directly, with the gateware already in them;

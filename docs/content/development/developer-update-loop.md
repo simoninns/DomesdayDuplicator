@@ -65,7 +65,7 @@ They are only the same thing when everything was just rebuilt, and taking the tr
 
 So packaging an artefact older than the tree is legitimate — it is what happens whenever the gateware is left alone while the firmware is worked on — and the script prints a note saying which commit each half really came from. What it will not do is guess: an artefact it cannot read an identity out of is refused, with the rebuild command to run.
 
-It works natively and under `nix develop`. Outside Nix you need `minisign` and GNU `tar` on `PATH`; both are ordinary distribution packages.
+It runs in `nix develop`, which puts `minisign` and GNU `tar` on `PATH`.
 
 The bundle is stamped `"channel": "development"`, version `0.0.0` — a version no release will ever carry, so it cannot be mistaken for one at a glance — and the commit of your working tree, marked `-dirty` if it is.
 
@@ -125,7 +125,7 @@ The exit codes are distinct on purpose: a script driving a bench procedure wants
 
 !!! note "Both halves install"
 
-    Both targets install, and `ddd-update` drives them without being told which is which. The firmware half has worked since Phase 2; the gateware half was first performed on hardware on 2026-08-15 (TESTING.md §6). Expect the gateware target to take minutes rather than seconds, and to end in a reconfiguration rather than a device reset.
+    Both targets install, and `ddd-update` drives them without being told which is which. The firmware half has worked the longest; the gateware half was first performed on hardware on 2026-08-15 (TESTING.md §6). Expect the gateware target to take minutes rather than seconds, and to end in a reconfiguration rather than a device reset.
 
     The one prerequisite is that the unit has been **provisioned** with the dual-image flash over JTAG, once, before any of this works — a unit whose FPGA carries a single old image has nothing behind the capture gateware to be updated *by*, and the firmware says so rather than trying. That procedure is on the [EPCS layout and boot flow](epcs-layout-and-boot-flow.md#provisioning-a-unit) page.
 

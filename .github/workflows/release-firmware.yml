@@ -1,5 +1,4 @@
-# The firmware and gateware release stream (P7-8 … P7-11, P7-18; Phase 6 of the
-# device-update plan).
+# The firmware and gateware release stream.
 #
 # Triggered by fw-v* tags only, and it builds no GUI installers — the capture application
 # releases separately under gui-v*.
@@ -162,8 +161,8 @@ jobs:
           chmod +w release-artifacts/*
           ls -la release-artifacts
 
-      # P7-9: an artefact that reports "unknown" is untraceable, which is the whole reason
-      # this gate exists. The version reaches the USB product descriptor (D4), so it is in
+      # An artefact that reports "unknown" is untraceable, which is the whole reason
+      # this gate exists. The version reaches the USB product descriptor, so it is in
       # the image itself and can be checked without a device.
       #
       # Seven characters, not eight: a Nix build stamps `self.shortRev`, which is git's
