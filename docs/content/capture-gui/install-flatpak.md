@@ -54,6 +54,31 @@ On NixOS, use the module the repository ships instead:
 Details, including how to check the rules took effect, are in
 [Linux device access](../development/hardware-programming/linux-device-access.md).
 
+## Why it asks for network access
+
+It does not use the network. The application makes no network connections at all — it does
+not check for updates, report anything, or fetch anything.
+
+The permission is there for one reason: a Flatpak without it is put in a network namespace
+of its own, and the kernel does not deliver device-attach events into one. Those events are
+how the application learns that a Duplicator has been plugged in. Without the permission it
+finds a device that was already attached when it started and never notices one attached
+afterwards — and, during an update, never notices the device coming back after it restarts
+itself.
+
+If you would rather not grant it, you can take it away:
+
+```bash
+flatpak override --user --unshare=network io.github.simoninns.DddGui
+```
+
+The application is built to cope. It compares what the kernel says is attached against what
+its USB library believes, and where the two differ it restarts its USB connection to catch
+up — so a Duplicator plugged in afterwards is still found, a fraction of a second later than
+it otherwise would be. The permission is what makes that fallback unnecessary rather than
+what makes the application work, and the same fallback is what keeps it working inside a
+plain container.
+
 ## What player control needs
 
 [Player control](player-control.md) drives a LaserDisc player over a serial cable, and that

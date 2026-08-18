@@ -67,6 +67,7 @@ add_library(ddd_capture STATIC
     sample_metrics.cpp
     sample_sink.cpp
     sequence_validator.cpp
+    sysfs_device_list.cpp
     svf_player.cpp
     synthetic_source.cpp
     test_data_analysis.cpp

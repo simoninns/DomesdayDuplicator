@@ -60,6 +60,7 @@ ddd_add_test(ddd_capture_tests "unit"
     unit/test_fpga_telemetry.cpp
     unit/test_usb_device.cpp
     unit/test_device_monitor.cpp
+    unit/test_sysfs_device_list.cpp
     unit/test_capture_naming.cpp
     unit/test_capture_provenance.cpp
     unit/test_capture_metadata.cpp

@@ -15,13 +15,18 @@
 #include <libusb.h>
 
 #include <array>
+#include <atomic>
 #include <cstring>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "libusb_source.h"
 #include "logger.h"
+#include "sysfs_device_list.h"
 #include "wire_protocol.h"
 
 namespace ddd::capture {
@@ -158,9 +163,16 @@ class ScopedDeviceList {
 // one and this does.
 class LibUsbControlChannel : public IUsbControlChannel {
  public:
+  // The lease is kept for the same reason LibUsbSource keeps one: this handle
+  // belongs to a context the backend may otherwise recycle, and an update
+  // holds this channel open for minutes while the device monitor carries on
+  // enumerating.
   LibUsbControlChannel(libusb_device_handle* handle, bool claimed,
-                       ILogger* logger)
-      : handle_(handle), claimed_(claimed), logger_(logger) {}
+                       std::shared_ptr<const void> lease, ILogger* logger)
+      : handle_(handle),
+        claimed_(claimed),
+        lease_(std::move(lease)),
+        logger_(logger) {}
 
   ~LibUsbControlChannel() override {
     if (claimed_) {
@@ -191,6 +203,7 @@ class LibUsbControlChannel : public IUsbControlChannel {
  private:
   libusb_device_handle* handle_ = nullptr;
   bool claimed_ = false;
+  std::shared_ptr<const void> lease_;
   ILogger* logger_ = nullptr;
 };
 
@@ -204,30 +217,95 @@ class LibUsbDevice : public IUsbDevice {
     }
   }
 
+  // A context, and a token saying it is being used.
+  //
+  // Everything that touches libusb goes through one of these. The token is
+  // opaque and is never read; its existence is the message. See
+  // RecycleContext.
+  struct Lease {
+    libusb_context* context = nullptr;
+    std::shared_ptr<const void> token;
+  };
+
+  Lease Borrow() {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return Lease{context_, lease_};
+  }
+
   bool Initialise() {
-#if defined(LIBUSB_API_VERSION) && LIBUSB_API_VERSION >= 0x0100010A
-    const int started = libusb_init_context(&context_, nullptr, 0);
-#else
-    const int started = libusb_init(&context_);
-#endif
-    if (started != 0) {
-      context_ = nullptr;
-      if (logger_ != nullptr) {
-        logger_->Error(std::string("libusb could not be started: ") +
-                       libusb_error_name(started));
-      }
+    context_ = StartContext();
+    if (context_ == nullptr) {
       return false;
     }
+    lease_ = std::make_shared<const char>('\0');
     return true;
   }
 
   const char* Name() const override { return "libusb"; }
 
+  // Called from more than one thread: the device monitor polls here five times
+  // a second, and the update path enumerates from its own worker while waiting
+  // for a device to come back. Two of them deciding to recycle at once is
+  // harmless — the second finds the first's lease outstanding, or restarts a
+  // context that was already fresh — so nothing here is serialised beyond what
+  // the lease itself needs.
   bool Enumerate(std::vector<DeviceInfo>& devices) override {
+    Lease lease = Borrow();
+
+    std::vector<UsbIdentity> seen;
+    if (!EnumerateFrom(lease.context, devices, seen)) {
+      return false;
+    }
+
+    // The second opinion, and what to do when it differs. Nothing at all on a
+    // platform that cannot give one, which is how macOS gets the behaviour it
+    // has always had without a conditional saying so.
+    const std::optional<std::vector<UsbIdentity>> kernel =
+        ReadSysfsDeviceIdentities();
+    if (!kernel.has_value() || !DeviceViewsDisagree(*kernel, seen)) {
+      rescan_is_futile_.store(false);
+      return true;
+    }
+    if (rescan_is_futile_.load()) {
+      return true;
+    }
+
+    // Our own borrow is the one thing certain to be in the way, so it goes
+    // first. Anything else still holding one — a capture, an update's control
+    // channel — means the list stands as it is until that has finished, which
+    // is right: a device list a fifth of a second out of date is not worth
+    // closing a stream over.
+    lease.token.reset();
+    if (!RecycleContext()) {
+      return true;
+    }
+
+    lease = Borrow();
+    seen.clear();
+    if (!EnumerateFrom(lease.context, devices, seen)) {
+      return false;
+    }
+
+    // A disagreement that survives the rescan is not a stale cache, and
+    // rescanning five times a second for ever would be a poor way to find that
+    // out. Said once and then left alone until the two agree again.
+    if (DeviceViewsDisagree(*kernel, seen)) {
+      rescan_is_futile_.store(true);
+      if (logger_ != nullptr) {
+        logger_->Debug(
+            "The kernel and libusb still disagree about what is attached "
+            "after a rescan; leaving libusb's list alone");
+      }
+    }
+    return true;
+  }
+
+  bool EnumerateFrom(libusb_context* context, std::vector<DeviceInfo>& devices,
+                     std::vector<UsbIdentity>& identities) {
     devices.clear();
 
     ScopedDeviceList list;
-    const ssize_t count = list.Acquire(context_);
+    const ssize_t count = list.Acquire(context);
     if (count < 0) {
       if (logger_ != nullptr) {
         logger_->Error(std::string("Listing USB devices failed: ") +
@@ -248,6 +326,13 @@ class LibUsbDevice : public IUsbDevice {
       if (!personality.has_value()) {
         continue;
       }
+
+      // Recorded here rather than below, which is the whole point: this is
+      // what libusb *saw*, and the comparison against the kernel has to be
+      // made on that rather than on what survives the probe. See
+      // DeviceViewsDisagree.
+      identities.push_back(
+          UsbIdentity{descriptor.idVendor, descriptor.idProduct});
 
       // The flash programmer's identifier is a hint and the 0xB0 probe is the
       // confirmation. A Cypress board that happens to share the identifier but
@@ -296,8 +381,11 @@ class LibUsbDevice : public IUsbDevice {
 
   bool WriteRegister(const std::string& path, uint8_t address,
                      uint8_t value) override {
+    const Lease lease = Borrow();
+
     libusb_device_handle* handle = nullptr;
-    if (!Open(path, DeviceSelection::kCaptureCapable, handle, nullptr)) {
+    if (!Open(lease.context, path, DeviceSelection::kCaptureCapable, handle,
+              nullptr)) {
       return false;
     }
 
@@ -328,8 +416,11 @@ class LibUsbDevice : public IUsbDevice {
       return false;
     }
 
+    const Lease lease = Borrow();
+
     libusb_device_handle* handle = nullptr;
-    if (!Open(path, DeviceSelection::kCaptureCapable, handle, nullptr)) {
+    if (!Open(lease.context, path, DeviceSelection::kCaptureCapable, handle,
+              nullptr)) {
       return false;
     }
 
@@ -362,9 +453,12 @@ class LibUsbDevice : public IUsbDevice {
                                             TransferResult& result) override {
     result = TransferResult::kConnectionFailure;
 
+    Lease lease = Borrow();
+
     libusb_device_handle* handle = nullptr;
     DeviceInfo info;
-    if (!Open(path, DeviceSelection::kCaptureCapable, handle, &info)) {
+    if (!Open(lease.context, path, DeviceSelection::kCaptureCapable, handle,
+              &info)) {
       return nullptr;
     }
 
@@ -412,16 +506,19 @@ class LibUsbDevice : public IUsbDevice {
     }
 
     result = TransferResult::kSuccess;
-    return std::make_unique<LibUsbSource>(context_, handle, endpoint,
-                                          max_packet_bytes, options, logger_);
+    return std::make_unique<LibUsbSource>(lease.context, std::move(lease.token),
+                                          handle, endpoint, max_packet_bytes,
+                                          options, logger_);
   }
 
   std::unique_ptr<IUsbControlChannel> OpenControlChannel(
       const std::string& path) override {
+    Lease lease = Borrow();
+
     libusb_device_handle* handle = nullptr;
     // Any personality: this is the channel the update and recovery paths
     // use, and a device in recovery is precisely the one they open.
-    if (!Open(path, DeviceSelection::kAny, handle, nullptr)) {
+    if (!Open(lease.context, path, DeviceSelection::kAny, handle, nullptr)) {
       return nullptr;
     }
 
@@ -432,7 +529,8 @@ class LibUsbDevice : public IUsbDevice {
     // gets into when a previous attempt left something behind.
     const bool claimed = libusb_claim_interface(handle, kInterfaceNumber) == 0;
 
-    return std::make_unique<LibUsbControlChannel>(handle, claimed, logger_);
+    return std::make_unique<LibUsbControlChannel>(
+        handle, claimed, std::move(lease.token), logger_);
   }
 
  private:
@@ -490,12 +588,13 @@ class LibUsbDevice : public IUsbDevice {
 
   // Open the preferred device, or the first acceptable one attached if it is
   // not there.
-  bool Open(const std::string& preferred_path, DeviceSelection selection,
-            libusb_device_handle*& handle, DeviceInfo* chosen) {
+  bool Open(libusb_context* context, const std::string& preferred_path,
+            DeviceSelection selection, libusb_device_handle*& handle,
+            DeviceInfo* chosen) {
     handle = nullptr;
 
     ScopedDeviceList list;
-    const ssize_t count = list.Acquire(context_);
+    const ssize_t count = list.Acquire(context);
     if (count < 0) {
       return false;
     }
@@ -600,8 +699,84 @@ class LibUsbDevice : public IUsbDevice {
     return found;
   }
 
+  // Start a libusb context, or report why not.
+  libusb_context* StartContext() {
+    libusb_context* context = nullptr;
+#if defined(LIBUSB_API_VERSION) && LIBUSB_API_VERSION >= 0x0100010A
+    const int started = libusb_init_context(&context, nullptr, 0);
+#else
+    const int started = libusb_init(&context);
+#endif
+    if (started != 0) {
+      if (logger_ != nullptr) {
+        logger_->Error(std::string("libusb could not be started: ") +
+                       libusb_error_name(started));
+      }
+      return nullptr;
+    }
+    return context;
+  }
+
+  // Take the context out of use and start a fresh one in its place.
+  //
+  // The only way to make libusb re-read the bus. There is no rescan call: the
+  // Linux backend's device list is seeded by one sysfs scan inside
+  // libusb_init and maintained after that by hot-plug events alone, so where
+  // those events do not arrive a new context is the only thing that produces
+  // an up-to-date list. See sysfs_device_list.h.
+  //
+  // Refused while anything else holds a lease, and that check is the whole
+  // safety argument. Every handle this backend hands out belongs to the
+  // context it was opened on, so recycling underneath one would close a
+  // capture's endpoint or an update's control channel from another thread.
+  // Leases are only ever copied by Borrow(), which takes the same lock as
+  // this, so a use count of one under the lock means no other copy exists and
+  // none can appear before the swap is done.
+  bool RecycleContext() {
+    const std::lock_guard<std::mutex> guard(mutex_);
+
+    if (lease_.use_count() != 1) {
+      return false;
+    }
+
+    // The replacement first. A failed start then costs nothing: the old
+    // context is still there and still works, which is a stale device list
+    // rather than no device list at all.
+    libusb_context* const replacement = StartContext();
+    if (replacement == nullptr) {
+      return false;
+    }
+
+    libusb_exit(context_);
+    context_ = replacement;
+    lease_ = std::make_shared<const char>('\0');
+
+    if (logger_ != nullptr) {
+      logger_->Info(
+          "The kernel listed a device libusb had not been told about; the USB "
+          "context was restarted to pick it up");
+    }
+    return true;
+  }
+
   ILogger* logger_ = nullptr;
+
+  // The context, the token that says it is in use, and the lock that keeps
+  // the two in step. Held while borrowing and while recycling, and never
+  // across a transfer: a control request to a device that has stopped
+  // answering must not be able to stall the device monitor.
+  mutable std::mutex mutex_;
   libusb_context* context_ = nullptr;
+  std::shared_ptr<const void> lease_;
+
+  // Set when a rescan did not resolve the disagreement, so that a permanent
+  // one costs a restarted context once rather than five times a second.
+  //
+  // Atomic because Enumerate has more than one caller and more than one
+  // thread, and this is the one piece of state it keeps between calls. A race
+  // on it would cost an extra rescan or delay one, which is why it is a plain
+  // flag rather than something taking the lock.
+  std::atomic<bool> rescan_is_futile_{false};
 };
 
 }  // namespace
