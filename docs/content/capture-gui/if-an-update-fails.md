@@ -70,9 +70,11 @@ Two cases, and the window says which:
 
 ## A brand-new Duplicator
 
-A Duplicator you have just built arrives in recovery mode, and the steps above are how you bring it to life. You need the USB cable and a release update file; no programming tools, no jumpers, and nothing to install.
+**Use [Bringing up a new or legacy board](bringing-up-a-board.md) instead of this page.** A board you have just built needs its FPGA programmed as well as its FX3, and that wizard does both in one flow, ending with a unit that captures.
 
-The FPGA is a separate matter. A board whose FPGA has never been programmed needs its two images written once over the DE0-Nano's own USB connector — which the application now does, in **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy board…** ([Bringing up a new or legacy board](bringing-up-a-board.md)); the by-hand procedure is in the [hardware programming](../development/hardware-programming/index.md) pages. A board freshly set up that way arrives in **recovery gateware** — the resident image is there and the capture gateware is not yet — so the reinstall above is the last step of building a board as well as the repair for an interrupted update.
+The steps above would do only half of it. A newly built FX3 does arrive in recovery mode and this window will happily program it — but the FPGA has never been written, so the result is a board that enumerates and cannot capture, and you would then need the bring-up wizard anyway. Going straight there is one pass instead of two.
+
+What is on this page is the repair for an **interrupted update** on a board that was already working, which is a different thing that happens to look the same on the bus.
 
 ## Two states that look alike but are not
 

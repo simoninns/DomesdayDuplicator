@@ -196,22 +196,53 @@ class UpdateOrchestrator {
   //
   // The image a board falls back to, and the one thing an ordinary update
   // never touches — so this is a separate entry point rather than another
-  // branch of Run(), called by the bring-up wizard and by the rollback
-  // wizard and by nothing else. The firmware refuses it too, unless the
-  // request carries the factory-write word, so this being reachable in the
-  // code is not what makes it reachable on a device.
+  // branch of Run(), called by the bring-up path and by nothing else. The
+  // firmware refuses it too, unless the request carries the factory-write
+  // word, so this being reachable in the code is not what makes it reachable
+  // on a device.
   //
   // Two conditions the caller owns, because this class cannot check either:
-  // the FPGA must be running gateware with a flash bridge (bring-up has just
-  // configured one over JTAG; rollback is talking to a working unit), and the
-  // power cycle afterwards is what makes the written image the running one.
-  // No reset and no reconfiguration happen here — reconfiguring would reload
-  // the *application* image, which is not what has just been written.
-  //
-  // Firmware that predates the factory target refuses it before a byte moves,
-  // and says so: the outcome then carries the device's own refusal, which is
-  // "no such target on this firmware".
+  // the FPGA must be running gateware with a flash bridge, which bring-up has
+  // just configured over JTAG, and the power cycle afterwards is what makes
+  // the written image the running one. No reset and no reconfiguration happen
+  // here — reconfiguring would reload the *application* image, which is not
+  // what has just been written.
   UpdateOutcome InstallFactoryGateware(const UpdateBundle& bundle);
+
+  // Write everything a board being brought up needs, in the one order that
+  // leaves every interruption recoverable.
+  //
+  // **The order is the whole reason this is not Run().** Three writes, and
+  // each one is chosen by what a board looks like if the power goes out
+  // immediately afterwards:
+  //
+  //   1. the EEPROM, so that every state from here on boots the new firmware
+  //      rather than the legacy firmware this may be replacing — which is what
+  //      keeps the interconnect out of the pairing where two outputs share a
+  //      net (see bringup_orchestrator.h);
+  //   2. the factory image, so that the board always has something valid to
+  //      fall back to before anything is written to the region it falls back
+  //      *from*. Interrupted here, the board comes up in its factory image
+  //      with a flash bridge, which is the state the ordinary update path
+  //      repairs;
+  //   3. the application image and its boot block, which is an ordinary
+  //      gateware update and the one write whose absence is harmless.
+  //
+  // Written the other way round — application before factory — an interrupted
+  // run would leave a board with a valid application image and no factory
+  // image to load it, which on a bare board is an FPGA that configures from
+  // nothing and looks dead.
+  //
+  // Nothing is restarted, reconfigured or confirmed: the caller owns the power
+  // cycle, which is what makes all three images the running ones at once, and
+  // the check afterwards. The outcome reports succeeded with identity_confirmed
+  // false, exactly as a deferred Run() does.
+  //
+  // Every payload must be present. Checked here as well as by the caller,
+  // because a run that got two writes into three and then found nothing to do
+  // the third with would have stopped in the one place this ordering exists to
+  // avoid stopping.
+  UpdateOutcome RunBringUp(const UpdateBundle& bundle);
 
  private:
   bool InstallComponent(UpdateTarget target, const UpdateComponent& component,

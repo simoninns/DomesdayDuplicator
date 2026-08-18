@@ -82,14 +82,16 @@ inline constexpr std::string_view kManifestJson =
 }
 )";
 
-// A provisioning set: a real FX3 boot image beside the JTAG vectors that bring
-// a board's FPGA up. Signed the same way and by the same key, because the whole
-// point of the format extension is that a provisioning set is an ordinary
-// bundle — one verifier, one key policy, one reader.
+// A complete release bundle: a real FX3 boot image, the application gateware,
+// the JTAG vectors that configure a board's FPGA, and the factory image those
+// vectors make writable. Signed the same way and by the same key, because that
+// is the whole point of the format — one file serves both consumers, the
+// update window installing the two components it knows and the bring-up wizard
+// requiring all four.
 //
 // The firmware payload here is MakeBootImage() from boot_image_fixture.h rather
 // than the line of text the update-bundle fixtures carry, and it has to be:
-// this set is played through the recovery path, which parses the image and
+// this file is played through the recovery path, which parses the image and
 // hands its sections to a boot ROM. A payload that is not an image is refused
 // before anything is programmed — correctly, and uselessly for a test of what
 // happens next.
@@ -99,21 +101,21 @@ inline constexpr std::string_view kProvisioningPayload =
     "SIR 10 TDI (203);\n"
     "RUNTEST 4096 TCK;\n";
 
-// And the image those vectors make it possible to write. A real set carries
+// And the image those vectors make it possible to write. A real bundle carries
 // the factory gateware as raw EPCS bytes beside the vectors that configure it,
 // because the vectors write nothing: they give the board a flash bridge, and
 // the firmware writes these bytes through it.
 inline constexpr std::string_view kFactoryGatewarePayload =
     "! A factory image, for the tests only. Not a real one.\n";
 
-inline constexpr std::string_view kProvisioningManifestJson =
+inline constexpr std::string_view kBringUpManifestJson =
     R"({
   "manifest_version": 1,
   "channel": "development",
   "version": "1.4.0",
   "commit": "0123abcd",
-  "created": "2026-08-17T10:00:00Z",
-  "release_notes": "Test provisioning set for the bring-up unit tests.",
+  "created": "2026-08-18T10:00:00Z",
+  "release_notes": "Test bring-up bundle for the bring-up unit tests.",
   "components": {
     "firmware": {
       "file": "firmware.img",
@@ -121,6 +123,13 @@ inline constexpr std::string_view kProvisioningManifestJson =
       "sha256": "32cb502b8af350df558e825e7d96699aac0db3c23414c7baee175e07fd2a0af6",
       "identity": "0123abcd",
       "interface_version": 1
+    },
+    "gateware": {
+      "file": "gateware-app.rpd",
+      "length": 55,
+      "sha256": "73af12c40cb9f02c03d84162217a841544fb5cb7d2dda9fdd00fff8e9d117c2a",
+      "identity": "0123abcd",
+      "interface_version": 2
     },
     "gateware-provisioning-svf": {
       "file": "gateware-provisioning.svf",
@@ -145,64 +154,14 @@ inline constexpr std::string_view kProvisioningManifestJson =
 }
 )";
 
-inline constexpr std::string_view kProvisioningManifestSignature =
-    "untrusted comment: Domesday Duplicator provisioning set 1.4.0\n"
-    "RUR82Ay8IQPniW6+huWG2VUfRTwqI8nCorYu950wFjSRlQJ22u7IWxRW+TR+UJQESRbQHv2Jd"
-    "xL/4FsiZNf9osz+40vJq/Dd5gc=\n"
-    "trusted comment: domesday-duplicator-provisioning-1.4.0.dddfw version "
-    "1.4.0 channel development\n"
-    "42XwJpIHzxx9acx+hBM5FQQ4yJ3G6iO10kqYH6J/KP/6dy/ndLuWGihXyjjZX4/s1iY0V0rD"
-    "WgnJ9+qUIEdkBw==\n";
-
-// A legacy rollback set: the original firmware and the original gateware, the
-// second of which goes to the factory region because that is where an EPCS
-// boots from. Signed by the same key as everything else here — a rollback file
-// is an ordinary signed bundle and there is no second set of rules for it.
-//
-// What makes it a rollback is the one field: "purpose". Without it this would
-// be an ordinary update carrying old software, which is exactly the thing the
-// compatibility gate exists to refuse.
-inline constexpr std::string_view kRollbackManifestJson =
-    R"({
-  "manifest_version": 1,
-  "channel": "development",
-  "purpose": "rollback",
-  "version": "1.4.0",
-  "commit": "bb65470",
-  "created": "2026-08-17T10:00:00Z",
-  "release_notes": "Test rollback set for the rollback unit tests.",
-  "components": {
-    "firmware": {
-      "file": "firmware.img",
-      "length": 352,
-      "sha256": "32cb502b8af350df558e825e7d96699aac0db3c23414c7baee175e07fd2a0af6",
-      "identity": "bb65470",
-      "interface_version": 1
-    },
-    "gateware-factory": {
-      "file": "gateware-factory.rpd",
-      "length": 55,
-      "sha256": "8002f8434e1185db6d1f770defa824bb0cc1a93581bbc70d4bfbf087aab586aa",
-      "identity": "bb65470",
-      "interface_version": 1
-    }
-  },
-  "compatibility": {
-    "minimum_application_version": "1.4.0",
-    "minimum_register_map_version": 2,
-    "epcs_layout_version": 1
-  }
-}
-)";
-
-inline constexpr std::string_view kRollbackManifestSignature =
-    "untrusted comment: Domesday Duplicator legacy rollback set 1.4.0\n"
-    "RUR82Ay8IQPniYJG6vEo0SRCfGuRhItYLHCLSG4e+7ahA0VL1wzrNfGT/OfwaHJIgrHPezn7V"
-    "PbeePKDi40zT8SRoWQ3X6u94gE=\n"
-    "trusted comment: domesday-duplicator-legacy-rollback-1.4.0.dddfw version "
-    "1.4.0 channel development\n"
-    "vCcl33cCgnC12p+CeGp1lHKE9fbrTOrrQOvqFL4z6rKTF9IigvuRAGuFzBqnJxnarpXKYGpx"
-    "Qd6w2GUcEnU2Bw==\n";
+inline constexpr std::string_view kBringUpManifestSignature =
+    "untrusted comment: Domesday Duplicator bring-up bundle 1.4.0\n"
+    "RUR82Ay8IQPniSSUX3V/y47APyb760XJMClw5JR4vpjFJZ8W/AM35l3MdrkNFuqY8/PndZioa"
+    "XNPRUGwK3cbUQ86Apn2RU0rAwY=\n"
+    "trusted comment: domesday-duplicator-update-1.4.0.dddfw version 1.4.0 "
+    "channel development\n"
+    "qdH+U9ATGC7xQIf0FwAnj1N1j6pgB5b70exkKPyoRk1pCO+UnlPnhgxgxY/Hof9b7GD4bLQt9"
+    "SzFEgA155gPAQ==\n";
 
 // tools/keys/development.pub, verbatim.
 inline constexpr std::string_view kDevelopmentPublicKey =

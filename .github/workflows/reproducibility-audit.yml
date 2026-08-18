@@ -21,9 +21,8 @@
 #                         .svf's header names the file it read and when that file was
 #                         written, so their release digests are expected to differ and
 #                         comparing them would produce a failure that means nothing.
-#   the .dddfw bundles    their manifests' payload digests, against the rebuilt payloads —
-#                         both of them, the update bundle and the provisioning set. The
-#                         archive itself cannot be compared byte for byte, because
+#   the .dddfw bundle     its manifest's payload digests, against the rebuilt payloads.
+#                         The archive itself cannot be compared byte for byte, because
 #                         re-signing it needs the release secret key and this job
 #                         deliberately does not have one. Comparing the digests is the
 #                         stronger check anyway: it asks whether the bundle carries the
@@ -229,18 +228,18 @@ jobs:
           # characters. The masking lives in bitstream-provenance.py, like the .sof one.
           # Skipped for releases predating the .svf, which is the honest reading of an
           # artefact that was not published.
-          if grep -q "provisioning/DomesdayDuplicatorProvisioning.svf" published/bitstream-provenance.txt; then
-            compare_digest "provisioning/DomesdayDuplicatorProvisioning.svf (canonical)" \
-              "$(canonical_digest provisioning/DomesdayDuplicatorProvisioning.svf published/bitstream-provenance.txt)" \
-              "$(canonical_digest provisioning/DomesdayDuplicatorProvisioning.svf rebuilt-bitstream/bitstream-provenance.txt)"
+          if grep -q "factory/DomesdayDuplicatorFactoryConfigure.svf" published/bitstream-provenance.txt; then
+            compare_digest "factory/DomesdayDuplicatorFactoryConfigure.svf (canonical)" \
+              "$(canonical_digest factory/DomesdayDuplicatorFactoryConfigure.svf published/bitstream-provenance.txt)" \
+              "$(canonical_digest factory/DomesdayDuplicatorFactoryConfigure.svf rebuilt-bitstream/bitstream-provenance.txt)"
           fi
 
-          # --- the signed bundles -----------------------------------------------------
+          # --- the signed bundle ------------------------------------------------------
           #
-          # Two of them since the bring-up wizard existed: the update bundle a working
-          # device installs over USB, and the provisioning set a board with no working
-          # gateware is brought up with. Each is named explicitly rather than globbed —
-          # a glob would audit whichever sorted first and report a tick for the other.
+          # One file, four payloads. The first two are what a working device installs over
+          # USB; the other two are what a board with no working gateware is brought up
+          # with, and they are audited here for the same reason — a release that quietly
+          # lost them would still update a working device.
 
           manifest_digest() {
             python3 -c "import json,sys;m=json.load(open(sys.argv[1]));c=m['components'].get(sys.argv[2]);print(c['sha256'] if c else '')" \
@@ -277,26 +276,28 @@ jobs:
             compare_digest "bundle: gateware payload" \
               "$(manifest_digest "${work}/manifest.json" gateware)" \
               "$(digest_of rebuilt-bitstream/application/DomesdayDuplicator_auto.rpd)"
-          fi
 
-          # The provisioning set, from the first release that published one. Absent is not
-          # a failure: releases predating it are audited as they were.
-          set=$(ls published/domesday-duplicator-provisioning-*.dddfw 2>/dev/null | head -1 || true)
-          if [[ -n "${set}" ]]; then
-            open_bundle "${set}"
+            # The factory image, on the same terms as the application image beside it.
+            factory=$(manifest_digest "${work}/manifest.json" gateware-factory)
+            if [[ -n "${factory}" ]]; then
+              compare_digest "bundle: factory image payload" "${factory}" \
+                "$(digest_of rebuilt-bitstream/factory/DomesdayDuplicatorFactory_auto.rpd)"
+            fi
 
-            compare_digest "provisioning set: firmware payload" \
-              "$(manifest_digest "${work}/manifest.json" firmware)" \
-              "$(digest_of result-firmware/firmware.img)"
-
-            # Against the published .svf rather than a rebuilt one, and deliberately: the
-            # SVF's header names the .jic it read and when that file was written, so two
-            # conversions of identical vectors differ in those characters. What this asks
-            # is whether the set carries the vectors this release published; whether those
-            # vectors are themselves reproducible is the canonical comparison above.
-            compare_digest "provisioning set: vectors match the published .svf" \
-              "$(manifest_digest "${work}/manifest.json" gateware-provisioning-svf)" \
-              "$(digest_of published/DomesdayDuplicatorProvisioning.svf)"
+            # And the vectors, against the published .svf rather than a rebuilt one, and
+            # deliberately: the SVF's header names the .sof it read and when that file was
+            # written, so two conversions of identical vectors differ in those characters.
+            # What this asks is whether the bundle carries the vectors this release
+            # published; whether those vectors are themselves reproducible is the canonical
+            # comparison above.
+            #
+            # Both are absent from releases that predate the bring-up payloads, and that is
+            # not a failure: those releases are audited as they were.
+            vectors=$(manifest_digest "${work}/manifest.json" gateware-provisioning-svf)
+            if [[ -n "${vectors}" ]]; then
+              compare_digest "bundle: vectors match the published .svf" "${vectors}" \
+                "$(digest_of published/DomesdayDuplicatorFactoryConfigure.svf)"
+            fi
           fi
 
           {

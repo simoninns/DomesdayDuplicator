@@ -381,6 +381,64 @@ UpdateOutcome UpdateOrchestrator::InstallFactoryGateware(
   return outcome;
 }
 
+UpdateOutcome UpdateOrchestrator::RunBringUp(const UpdateBundle& bundle) {
+  UpdateOutcome outcome;
+  outcome.stage = UpdateStage::kChecking;
+
+  Report(UpdateStage::kChecking, UpdateTarget::kFirmware, 0, 0,
+         "Checking what is about to be written.");
+
+  // All three, before the first one. See the header: a run that stopped
+  // between two of these writes because the third was missing would stop in
+  // exactly the state the ordering exists to avoid.
+  if (!bundle.manifest.firmware.has_value() || bundle.firmware.empty() ||
+      !bundle.manifest.factory_gateware.has_value() ||
+      bundle.factory_gateware.empty() ||
+      !bundle.manifest.gateware.has_value() || bundle.gateware.empty()) {
+    outcome.stage = UpdateStage::kFailed;
+    outcome.problem =
+        "This file cannot bring a board up: it needs the firmware, the factory "
+        "image and the gateware, and it does not carry all three.";
+    return outcome;
+  }
+
+  if (!InstallComponent(UpdateTarget::kFirmware, *bundle.manifest.firmware,
+                        bundle.firmware, outcome)) {
+    return outcome;
+  }
+
+  if (!InstallComponent(UpdateTarget::kEpcsFactory,
+                        *bundle.manifest.factory_gateware,
+                        bundle.factory_gateware, outcome)) {
+    return outcome;
+  }
+
+  if (!InstallComponent(UpdateTarget::kGateware, *bundle.manifest.gateware,
+                        bundle.gateware, outcome)) {
+    return outcome;
+  }
+
+  // No ReconfigureFpga: what the FPGA is running came from a JTAG cable rather
+  // than from flash, and reloading it now would replace a working
+  // configuration with one whose fate the power cycle decides anyway. No reset
+  // either — the jumper may still be fitted, which would land the FX3 back in
+  // its boot ROM.
+  outcome.succeeded = true;
+  outcome.stage = UpdateStage::kComplete;
+  outcome.identity_confirmed = false;
+
+  if (logger_ != nullptr) {
+    logger_->Info(
+        "Bring-up writes complete: firmware, factory image and gateware all "
+        "written and read back. The restart and the confirmation are the "
+        "caller's.");
+  }
+
+  Report(UpdateStage::kComplete, UpdateTarget::kGateware, 0, 0,
+         "Written and checked. The board has not been restarted yet.");
+  return outcome;
+}
+
 UpdateOutcome UpdateOrchestrator::Run(const UpdateBundle& bundle) {
   UpdateOutcome outcome;
   outcome.stage = UpdateStage::kChecking;

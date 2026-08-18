@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Fetch the pinned provisioning set for a packaging job.
+# Fetch the pinned update bundle for a packaging job.
 #
 # Domesday Duplicator - LaserDisc RF sampler
 # SPDX-FileCopyrightText: 2026 Simon Inns
@@ -10,11 +10,11 @@
 # way, and a fetch-and-verify repeated three times is three places for a digest check to
 # be omitted from. So it is here, once.
 #
-#   ./tools/fetch-bundled-provisioning.sh --output build/provisioning.dddfw
+#   ./tools/fetch-bundled-update.sh --output build/update.dddfw
 #
 # What it does, and what it deliberately does not:
 #
-#   - reads ddd-gui/packaging/bundled-provisioning.env, which pins one published release
+#   - reads ddd-gui/packaging/bundled-update.env, which pins one published release
 #     asset by URL and SHA-256;
 #   - downloads it and refuses it if the digest differs — the packaging step has no
 #     signing key and nobody watching, so the digest is the whole of what makes an
@@ -23,7 +23,7 @@
 #     download that succeeded and returned an error page;
 #   - prints the path it wrote, so the caller can pass it to CMake.
 #
-# It does NOT build a provisioning set. Firmware and the capture application are separate
+# It does NOT build an update bundle. Firmware and the capture application are separate
 # release streams (AGENTS.md §9): a gui-v* packaging job assembling a firmware artefact
 # would be a second, unsigned way for one to come into existence.
 #
@@ -37,16 +37,16 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(dirname "$here")"
 
-pin="$root/ddd-gui/packaging/bundled-provisioning.env"
+pin="$root/ddd-gui/packaging/bundled-update.env"
 output=""
 check_only=""
 
 usage() {
     cat >&2 <<'EOF'
-Usage: fetch-bundled-provisioning.sh --output FILE [--pin FILE]
-       fetch-bundled-provisioning.sh --check [--pin FILE]
+Usage: fetch-bundled-update.sh --output FILE [--pin FILE]
+       fetch-bundled-update.sh --check [--pin FILE]
 
-Writes the pinned provisioning set to FILE and prints that path. With no set pinned it
+Writes the pinned update bundle to FILE and prints that path. With nothing pinned it
 writes nothing, prints nothing, and exits 0.
 
   --check  read the pin and say whether it is well formed, without downloading anything.
@@ -67,48 +67,48 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-die() { echo "fetch-bundled-provisioning: $*" >&2; exit 1; }
+die() { echo "fetch-bundled-update: $*" >&2; exit 1; }
 
 [[ -n "$output" || -n "$check_only" ]] || die "--output is required"
 [[ -f "$pin" ]] || die "no pin file at $pin"
 
-BUNDLED_PROVISIONING_TAG=""
-BUNDLED_PROVISIONING_URL=""
-BUNDLED_PROVISIONING_SHA256=""
+BUNDLED_UPDATE_TAG=""
+BUNDLED_UPDATE_URL=""
+BUNDLED_UPDATE_SHA256=""
 # shellcheck source=/dev/null
 source "$pin"
 
-if [[ -z "$BUNDLED_PROVISIONING_URL" && -z "$BUNDLED_PROVISIONING_SHA256" ]]; then
-    echo "No provisioning set is pinned; this build will bundle none." >&2
+if [[ -z "$BUNDLED_UPDATE_URL" && -z "$BUNDLED_UPDATE_SHA256" ]]; then
+    echo "No update bundle is pinned; this build will bundle none." >&2
     exit 0
 fi
 
 if [[ -n "$check_only" ]]; then
     # Everything below the fetch, and nothing else: the shape of the pin is what a
     # per-commit check can know without a network.
-    [[ -n "$BUNDLED_PROVISIONING_URL" ]] ||
+    [[ -n "$BUNDLED_UPDATE_URL" ]] ||
         die "the pin gives a SHA-256 but no URL. A digest with nothing to check is not a pin."
-    [[ -n "$BUNDLED_PROVISIONING_SHA256" ]] ||
+    [[ -n "$BUNDLED_UPDATE_SHA256" ]] ||
         die "the pin gives a URL but no SHA-256. An unverified download is not a pin."
-    [[ "$BUNDLED_PROVISIONING_SHA256" =~ ^[0-9a-f]{64}$ ]] ||
-        die "the pinned SHA-256 is not 64 lowercase hex characters: $BUNDLED_PROVISIONING_SHA256"
-    [[ -n "$BUNDLED_PROVISIONING_TAG" ]] ||
+    [[ "$BUNDLED_UPDATE_SHA256" =~ ^[0-9a-f]{64}$ ]] ||
+        die "the pinned SHA-256 is not 64 lowercase hex characters: $BUNDLED_UPDATE_SHA256"
+    [[ -n "$BUNDLED_UPDATE_TAG" ]] ||
         die "the pin names no release tag. A packaged build has to be traceable to one."
 
-    echo "Pinned to ${BUNDLED_PROVISIONING_TAG}: ${BUNDLED_PROVISIONING_URL}" >&2
+    echo "Pinned to ${BUNDLED_UPDATE_TAG}: ${BUNDLED_UPDATE_URL}" >&2
     exit 0
 fi
 
 # Half a pin is the dangerous state: a URL with no digest is an unverified download, and a
 # digest with no URL is a check that will never run. Both are a mistake in the commit that
 # made them rather than a state to work around.
-[[ -n "$BUNDLED_PROVISIONING_URL" ]] ||
+[[ -n "$BUNDLED_UPDATE_URL" ]] ||
     die "the pin gives a SHA-256 but no URL. A digest with nothing to check is not a pin."
-[[ -n "$BUNDLED_PROVISIONING_SHA256" ]] ||
+[[ -n "$BUNDLED_UPDATE_SHA256" ]] ||
     die "the pin gives a URL but no SHA-256. An unverified download is not a pin."
 
-[[ "$BUNDLED_PROVISIONING_SHA256" =~ ^[0-9a-f]{64}$ ]] ||
-    die "the pinned SHA-256 is not 64 lowercase hex characters: $BUNDLED_PROVISIONING_SHA256"
+[[ "$BUNDLED_UPDATE_SHA256" =~ ^[0-9a-f]{64}$ ]] ||
+    die "the pinned SHA-256 is not 64 lowercase hex characters: $BUNDLED_UPDATE_SHA256"
 
 for tool in curl sha256sum; do
     command -v "$tool" >/dev/null 2>&1 || die "$tool is not on PATH"
@@ -116,21 +116,21 @@ done
 
 mkdir -p "$(dirname "$output")"
 
-echo "Fetching the provisioning set pinned to ${BUNDLED_PROVISIONING_TAG:-an unnamed release}" >&2
-echo "  ${BUNDLED_PROVISIONING_URL}" >&2
+echo "Fetching the update bundle pinned to ${BUNDLED_UPDATE_TAG:-an unnamed release}" >&2
+echo "  ${BUNDLED_UPDATE_URL}" >&2
 
 # --fail so an HTTP error is an error here rather than a file full of HTML two steps
 # later; retries because a packaging job should not fail on one bad minute at a CDN.
 curl --location --fail --silent --show-error \
      --retry 3 --retry-delay 5 \
      --output "$output" \
-     "$BUNDLED_PROVISIONING_URL"
+     "$BUNDLED_UPDATE_URL"
 
 actual="$(sha256sum "$output" | cut -d' ' -f1)"
-if [[ "$actual" != "$BUNDLED_PROVISIONING_SHA256" ]]; then
+if [[ "$actual" != "$BUNDLED_UPDATE_SHA256" ]]; then
     rm -f "$output"
     die "the fetched file is not the pinned one.
-  expected  $BUNDLED_PROVISIONING_SHA256
+  expected  $BUNDLED_UPDATE_SHA256
   got       $actual
 Either the pin is stale or the asset changed under it; neither is a thing to package."
 fi

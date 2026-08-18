@@ -34,26 +34,6 @@ namespace ddd::capture {
 // the documentation site. This header is the reader's half of it and says why
 // each field exists; the page says what a producer must write.
 
-// What the bundle is for.
-//
-// Kept apart from the channel below, which answers a different question: the
-// channel says which key signed a file and the purpose says what installing
-// it does to a device. A rollback bundle is release-signed like any other,
-// and conflating the two would have made "an authentic rollback" unsayable.
-enum class UpdatePurpose : uint8_t {
-  // Moves a device forward, or leaves it where it is. Every bundle that
-  // predates the field, which is why it is the default rather than a value a
-  // producer has to remember to write.
-  kUpdate,
-
-  // Takes a device *back* to the original Duplicator firmware and gateware —
-  // deliberately older than the application installing it, which is the one
-  // thing the compatibility gate otherwise exists to refuse. The gate is
-  // satisfied by this value rather than bypassed for it, so the refusal of an
-  // ordinary too-old bundle is unchanged.
-  kRollback,
-};
-
 // Which key signed the bundle, and therefore what the signature proves.
 enum class UpdateChannel : uint8_t {
   // Signed with the release key. Authentic.
@@ -130,12 +110,6 @@ struct UpdateManifest {
   int64_t manifest_version = 0;
 
   UpdateChannel channel = UpdateChannel::kDevelopment;
-
-  // Absent in every bundle written before rollback existed, and absent means
-  // an ordinary update — which is what those bundles are. An unknown value is
-  // refused rather than defaulted, on the same rule as the channel: a purpose
-  // this build does not know is a promise about the device it cannot keep.
-  UpdatePurpose purpose = UpdatePurpose::kUpdate;
 
   // The release this bundle belongs to, as a dotted numeric version, and the
   // commit every payload was built from.
@@ -218,11 +192,6 @@ inline constexpr std::string_view kProvisioningComponentName =
     "gateware-provisioning-svf";
 inline constexpr std::string_view kFactoryGatewareComponentName =
     "gateware-factory";
-
-// The purposes, as the manifest names them. "update" is written by producers
-// that know about the field and assumed of those that do not.
-inline constexpr std::string_view kUpdatePurposeName = "update";
-inline constexpr std::string_view kRollbackPurposeName = "rollback";
 
 // Read a manifest from its JSON text.
 //

@@ -1,6 +1,6 @@
 /************************************************************************
 
-    test_provisioning_orchestrator.cpp
+    test_bringup_orchestrator.cpp
 
     T1 unit test for the bring-up ordering and the two halves it sequences
     Domesday Duplicator - LaserDisc RF sampler
@@ -18,11 +18,11 @@
 #include <vector>
 
 #include "boot_image_fixture.h"
+#include "bringup_orchestrator.h"
 #include "digest.h"
 #include "fake_device_programmer.h"
 #include "fake_device_updater.h"
 #include "fake_jtag_cable.h"
-#include "provisioning_orchestrator.h"
 #include "svf_fixtures.h"
 #include "update_fixtures.h"
 
@@ -98,14 +98,15 @@ class BorrowedCable : public IJtagCable {
   FakeJtagCable* fake_ = nullptr;
 };
 
-// A provisioning set built in memory. UpdateBundle is what OpenUpdateBundle
-// produces *after* the signature and every digest have passed, so building one
-// directly starts where the checks finished — which is where the orchestrator
-// starts.
+// A complete update bundle built in memory. UpdateBundle is what
+// OpenUpdateBundle produces *after* the signature and every digest have passed,
+// so building one directly starts where the checks finished — which is where
+// the orchestrator starts.
 struct Fixture {
   std::vector<uint8_t> firmware = test::MakeBootImage();
   std::vector<uint8_t> vectors;
   std::vector<uint8_t> factory_image;
+  std::vector<uint8_t> application_image;
   UpdateBundle bundle;
 
   FakeDeviceProgrammer programmer;
@@ -156,10 +157,27 @@ struct Fixture {
     factory.interface_version = 2;
     bundle.manifest.factory_gateware = factory;
     bundle.factory_gateware = factory_image;
+
+    // And the image the board actually captures with. Bring-up finishes the
+    // job rather than handing over to an ordinary update, so this is as
+    // required as the other three.
+    application_image.assign(
+        reinterpret_cast<const uint8_t*>(test::kGatewarePayload.data()),
+        reinterpret_cast<const uint8_t*>(test::kGatewarePayload.data()) +
+            test::kGatewarePayload.size());
+
+    UpdateComponent application;
+    application.file = std::string(kGatewareEntryName);
+    application.length = application_image.size();
+    application.sha256 = Sha256(application_image);
+    application.identity = "0123abcd";
+    application.interface_version = 2;
+    bundle.manifest.gateware = application;
+    bundle.gateware = application_image;
   }
 
-  ProvisioningAccess Access() {
-    ProvisioningAccess access;
+  BringUpAccess Access() {
+    BringUpAccess access;
     access.fx3.open_programmer = [this] {
       return std::make_unique<BorrowedProgrammer>(&programmer);
     };
@@ -181,7 +199,7 @@ struct Fixture {
   }
 
   // The whole flow in milliseconds rather than in minutes.
-  void Configure(ProvisioningOrchestrator& orchestrator) {
+  void Configure(BringUpOrchestrator& orchestrator) {
     DeviceRecoveryTimings timings;
     timings.return_timeout = std::chrono::milliseconds(50);
     orchestrator.SetTimings(timings);
@@ -198,218 +216,226 @@ struct Fixture {
 //
 // The one property in this file that protects hardware rather than data. The
 // FX3 and the FPGA share a net that the legacy firmware drives and the modern
-// gateware drives, so the FX3 must become modern first — and that is checked
-// here rather than left to the order a wizard happens to lay its pages out in.
+// gateware drives, and what keeps a board out of that pairing is where the FX3
+// is while the FPGA changes: in its boot ROM, with every shared pin idle. So
+// the configure comes first, and that is checked here rather than left to the
+// order a wizard happens to lay its pages out in.
 
-TEST(ProvisioningOrchestrator, RefusesTheFpgaBeforeTheFx3) {
+TEST(BringUpOrchestrator, RefusesToWriteBeforeTheFpgaIsConfigured) {
   Fixture fixture;
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
   fixture.Configure(orchestrator);
 
-  const ProvisioningGatewareOutcome outcome =
-      orchestrator.ProgramGateware(fixture.bundle);
+  const UpdateOutcome outcome = orchestrator.ProgramDevice(fixture.bundle);
 
   EXPECT_FALSE(outcome.succeeded);
-  EXPECT_NE(outcome.problem.find("FX3"), std::string::npos) << outcome.problem;
-
-  // And nothing was reached for: the refusal happens before the cable is
-  // opened, so a wrongly wired caller does not so much as claim the cable.
-  EXPECT_EQ(fixture.cable_opens, 0);
-  EXPECT_EQ(fixture.cable.clocks(), 0u);
-}
-
-TEST(ProvisioningOrchestrator, RefusesTheFpgaWhenTheFx3StepFailed) {
-  Fixture fixture;
-  fixture.programmer.SetFault(FakeDeviceProgrammer::Fault::kRefuseStart);
-
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
-  fixture.Configure(orchestrator);
-
-  EXPECT_FALSE(orchestrator.InstallFirmware(fixture.bundle).succeeded);
-  EXPECT_FALSE(orchestrator.firmware_installed());
-  EXPECT_FALSE(orchestrator.ProgramGateware(fixture.bundle).succeeded);
-  EXPECT_EQ(fixture.cable_opens, 0);
-}
-
-TEST(ProvisioningOrchestrator, ProgramsBothHalvesInOrder) {
-  Fixture fixture;
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
-  fixture.Configure(orchestrator);
-
-  const UpdateOutcome firmware = orchestrator.InstallFirmware(fixture.bundle);
-  ASSERT_TRUE(firmware.succeeded) << firmware.problem;
-  EXPECT_TRUE(orchestrator.firmware_installed());
-
-  const ProvisioningGatewareOutcome gateware =
-      orchestrator.ProgramGateware(fixture.bundle);
-  ASSERT_TRUE(gateware.succeeded) << gateware.problem;
-
-  // Two transfers, not one: the firmware into the EEPROM, and then the factory
-  // image into the flash the configured FPGA has just made reachable.
-  EXPECT_EQ(fixture.updater.begin_count(), 2u);
-  EXPECT_EQ(fixture.updater.target(), UpdateTarget::kEpcsFactory);
-  EXPECT_EQ(fixture.cable_opens, 1);
-  EXPECT_GT(gateware.play.statements, 0u);
-  EXPECT_GT(fixture.cable.clocks(), 0u);
-  EXPECT_TRUE(gateware.configured);
-}
-
-// The two halves of the FPGA step fail differently, and a page that could not
-// tell them apart would send the user to check a cable that is working.
-TEST(ProvisioningOrchestrator, AFlashFailureIsNotACableFailure) {
-  Fixture fixture;
-  fixture.updater.RefuseTarget(UpdateTarget::kEpcsFactory);
-
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
-  fixture.Configure(orchestrator);
-
-  ASSERT_TRUE(orchestrator.InstallFirmware(fixture.bundle).succeeded);
-
-  const ProvisioningGatewareOutcome outcome =
-      orchestrator.ProgramGateware(fixture.bundle);
-
-  EXPECT_FALSE(outcome.succeeded);
-  EXPECT_TRUE(outcome.configured) << "the cable was blamed for a flash failure";
-  EXPECT_FALSE(outcome.problem.empty());
-}
-
-// A set that could configure the FPGA but not write its flash is refused
-// before the cable is opened. Such a set would leave a board looking
-// provisioned until the next power cycle, which is the most confusing state
-// this flow could stop in.
-TEST(ProvisioningOrchestrator, RefusesASetThatCarriesNoFactoryImage) {
-  Fixture fixture;
-  fixture.bundle.manifest.factory_gateware.reset();
-  fixture.bundle.factory_gateware = {};
-
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
-  fixture.Configure(orchestrator);
-
-  ASSERT_TRUE(orchestrator.InstallFirmware(fixture.bundle).succeeded);
-
-  const ProvisioningGatewareOutcome outcome =
-      orchestrator.ProgramGateware(fixture.bundle);
-
-  EXPECT_FALSE(outcome.succeeded);
-  EXPECT_NE(outcome.problem.find("factory image"), std::string::npos)
+  EXPECT_NE(outcome.problem.find("configured"), std::string::npos)
       << outcome.problem;
-  EXPECT_EQ(fixture.cable_opens, 0);
+
+  // And nothing was reached for: the refusal happens before the boot ROM is
+  // opened, so a wrongly wired caller does not so much as wake the device.
+  EXPECT_EQ(fixture.programmer.sections_written(), 0u);
+  EXPECT_EQ(fixture.updater.begin_count(), 0u);
 }
 
-// --- the FX3 half ---------------------------------------------------------
-
-// The jumper is still fitted, so the device must not be reset: it would come
-// back in its boot ROM rather than in the firmware just written. The wizard
-// owns the power cycle and the check afterwards.
-TEST(ProvisioningOrchestrator, TheFx3StepDefersTheRestart) {
+TEST(BringUpOrchestrator, RefusesToWriteWhenTheConfigureFailed) {
   Fixture fixture;
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.cable_available = false;
+
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
   fixture.Configure(orchestrator);
 
-  const UpdateOutcome outcome = orchestrator.InstallFirmware(fixture.bundle);
+  EXPECT_FALSE(orchestrator.ConfigureFpga(fixture.bundle).succeeded);
+  EXPECT_FALSE(orchestrator.fpga_configured());
+  EXPECT_FALSE(orchestrator.ProgramDevice(fixture.bundle).succeeded);
+  EXPECT_EQ(fixture.updater.begin_count(), 0u);
+}
+
+TEST(BringUpOrchestrator, ConfiguresThenWritesEverything) {
+  Fixture fixture;
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+
+  const BringUpConfigureOutcome configured =
+      orchestrator.ConfigureFpga(fixture.bundle);
+  ASSERT_TRUE(configured.succeeded) << configured.problem;
+  EXPECT_TRUE(orchestrator.fpga_configured());
+  EXPECT_EQ(fixture.cable_opens, 1);
+  EXPECT_GT(configured.play.statements, 0u);
+  EXPECT_GT(fixture.cable.clocks(), 0u);
+
+  const UpdateOutcome written = orchestrator.ProgramDevice(fixture.bundle);
+  ASSERT_TRUE(written.succeeded) << written.problem;
+
+  // Three transfers: the EEPROM, the factory image and the application image.
+  EXPECT_EQ(fixture.updater.begin_count(), 3u);
+
+  // And the cable was not reopened for any of them. Everything after the
+  // configure goes over the USB 3.0 link, through the firmware's own agent.
+  EXPECT_EQ(fixture.cable_opens, 1);
+}
+
+// **The order of the three writes**, which is chosen by what a board looks
+// like if the power goes out immediately after each one. The EEPROM first, so
+// every state from here on boots the new firmware; then the factory image, so
+// the board always has something valid to fall back to before the region it
+// falls back *from* is touched; the application image last, because it is the
+// one whose absence is harmless.
+//
+// Written the other way round, an interrupted run would leave a bare board
+// with a valid application image and no factory image to load it — an FPGA
+// that configures from nothing and looks dead.
+TEST(BringUpOrchestrator, WritesTheEepromThenTheFactoryThenTheApplication) {
+  Fixture fixture;
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+
+  ASSERT_TRUE(orchestrator.ConfigureFpga(fixture.bundle).succeeded);
+  ASSERT_TRUE(orchestrator.ProgramDevice(fixture.bundle).succeeded);
+
+  EXPECT_EQ(fixture.updater.begun_targets(),
+            (std::vector<UpdateTarget>{UpdateTarget::kFirmware,
+                                       UpdateTarget::kEpcsFactory,
+                                       UpdateTarget::kGateware}));
+}
+
+// The jumper may still be fitted and the FPGA is running a configuration it is
+// about to lose, so nothing is restarted: the wizard's one power cycle is what
+// makes all three images the running ones, together or not at all.
+TEST(BringUpOrchestrator, DefersTheRestart) {
+  Fixture fixture;
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+
+  ASSERT_TRUE(orchestrator.ConfigureFpga(fixture.bundle).succeeded);
+  const UpdateOutcome outcome = orchestrator.ProgramDevice(fixture.bundle);
 
   ASSERT_TRUE(outcome.succeeded) << outcome.problem;
   EXPECT_EQ(fixture.updater.reset_count(), 0u);
+  EXPECT_EQ(fixture.updater.reconfigure_count(), 0u);
   EXPECT_FALSE(outcome.identity_confirmed);
 }
 
-TEST(ProvisioningOrchestrator, RefusesASetThatCarriesNoFirmware) {
+// --- what a file has to carry ---------------------------------------------
+//
+// All four payloads, checked before the first write rather than discovered
+// between two of them. A run that stopped part way through this ordering
+// because the next payload was missing would stop in exactly the state the
+// ordering exists to avoid.
+
+TEST(BringUpOrchestrator, RefusesAFileThatCarriesNoFirmware) {
   Fixture fixture;
   fixture.bundle.manifest.firmware.reset();
   fixture.bundle.firmware = {};
 
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
   fixture.Configure(orchestrator);
+  ASSERT_TRUE(orchestrator.ConfigureFpga(fixture.bundle).succeeded);
 
-  const UpdateOutcome outcome = orchestrator.InstallFirmware(fixture.bundle);
+  const UpdateOutcome outcome = orchestrator.ProgramDevice(fixture.bundle);
   EXPECT_FALSE(outcome.succeeded);
   EXPECT_NE(outcome.problem.find("no firmware"), std::string::npos)
       << outcome.problem;
+  EXPECT_EQ(fixture.programmer.sections_written(), 0u);
 }
 
-// --- the FPGA half --------------------------------------------------------
+TEST(BringUpOrchestrator, RefusesAFileThatCarriesNoFactoryImage) {
+  Fixture fixture;
+  fixture.bundle.manifest.factory_gateware.reset();
+  fixture.bundle.factory_gateware = {};
 
-TEST(ProvisioningOrchestrator, RefusesASetThatCarriesNoVectors) {
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+  ASSERT_TRUE(orchestrator.ConfigureFpga(fixture.bundle).succeeded);
+
+  const UpdateOutcome outcome = orchestrator.ProgramDevice(fixture.bundle);
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_NE(outcome.problem.find("factory image"), std::string::npos)
+      << outcome.problem;
+  EXPECT_EQ(fixture.updater.begin_count(), 0u)
+      << "the EEPROM was written for a run that could not finish";
+}
+
+TEST(BringUpOrchestrator, RefusesAFileThatCarriesNoApplicationGateware) {
+  Fixture fixture;
+  fixture.bundle.manifest.gateware.reset();
+  fixture.bundle.gateware = {};
+
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+  ASSERT_TRUE(orchestrator.ConfigureFpga(fixture.bundle).succeeded);
+
+  const UpdateOutcome outcome = orchestrator.ProgramDevice(fixture.bundle);
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_EQ(fixture.updater.begin_count(), 0u);
+}
+
+TEST(BringUpOrchestrator, RefusesAFileThatCarriesNoVectors) {
   Fixture fixture;
   fixture.bundle.manifest.provisioning.reset();
   fixture.bundle.provisioning = {};
 
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
   fixture.Configure(orchestrator);
 
-  ASSERT_TRUE(orchestrator.InstallFirmware(fixture.bundle).succeeded);
-
-  const ProvisioningGatewareOutcome outcome =
-      orchestrator.ProgramGateware(fixture.bundle);
+  const BringUpConfigureOutcome outcome =
+      orchestrator.ConfigureFpga(fixture.bundle);
   EXPECT_FALSE(outcome.succeeded);
   EXPECT_EQ(fixture.cable_opens, 0);
 }
 
+// --- the configure --------------------------------------------------------
+
 // The cable's own sentence, carried through rather than replaced. It is the
 // one that says which of "not attached", "attached but not permitted" and
 // "that is a USB-Blaster II" happened.
-TEST(ProvisioningOrchestrator, SaysWhyTheCableCouldNotBeOpened) {
+TEST(BringUpOrchestrator, SaysWhyTheCableCouldNotBeOpened) {
   Fixture fixture;
   fixture.cable_available = false;
 
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
   fixture.Configure(orchestrator);
-  ASSERT_TRUE(orchestrator.InstallFirmware(fixture.bundle).succeeded);
 
-  const ProvisioningGatewareOutcome outcome =
-      orchestrator.ProgramGateware(fixture.bundle);
+  const BringUpConfigureOutcome outcome =
+      orchestrator.ConfigureFpga(fixture.bundle);
   EXPECT_FALSE(outcome.succeeded);
   EXPECT_EQ(outcome.problem, "No USB-Blaster is attached.");
 }
 
-TEST(ProvisioningOrchestrator, AStoppedPlayIsNotAFailure) {
+TEST(BringUpOrchestrator, AStoppedPlayIsNotAFailure) {
   Fixture fixture(kQuartusOpeningSvf);
   fixture.cable.AnswerWith(QuartusOpeningAnswers());
 
-  // Asked for only once the FX3 half is done, which is what the wizard's Stop
-  // button does: the FPGA half is the one that runs for minutes.
-  bool stop = false;
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
   fixture.Configure(orchestrator);
-  orchestrator.SetCancelCallback([&stop] { return stop; });
+  orchestrator.SetCancelCallback([] { return true; });
 
-  ASSERT_TRUE(orchestrator.InstallFirmware(fixture.bundle).succeeded);
-  stop = true;
-
-  const ProvisioningGatewareOutcome outcome =
-      orchestrator.ProgramGateware(fixture.bundle);
+  const BringUpConfigureOutcome outcome =
+      orchestrator.ConfigureFpga(fixture.bundle);
   EXPECT_FALSE(outcome.succeeded);
   EXPECT_TRUE(outcome.stopped);
+  EXPECT_FALSE(orchestrator.fpga_configured());
 }
 
 // The bar the wizard shows is fed in the same shape the update page already
 // consumes, so there is one description of progress in the application rather
 // than two that have to be kept in step.
-TEST(ProvisioningOrchestrator, ReportsProgressAsTheUpdateFlowDoes) {
+TEST(BringUpOrchestrator, ReportsProgressAsTheUpdateFlowDoes) {
   Fixture fixture(kQuartusOpeningSvf);
   fixture.cable.AnswerWith(QuartusOpeningAnswers());
 
   std::vector<UpdateProgress> reports;
-  ProvisioningOrchestrator orchestrator(fixture.Access(), nullptr);
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
   fixture.Configure(orchestrator);
   orchestrator.SetProgressCallback(
       [&reports](const UpdateProgress& report) { reports.push_back(report); });
 
-  ASSERT_TRUE(orchestrator.InstallFirmware(fixture.bundle).succeeded);
-  reports.clear();
-  ASSERT_TRUE(orchestrator.ProgramGateware(fixture.bundle).succeeded);
+  ASSERT_TRUE(orchestrator.ConfigureFpga(fixture.bundle).succeeded);
 
   ASSERT_FALSE(reports.empty());
-
-  // Both halves report against the factory target, because both are that one
-  // thing: the vectors that make the flash reachable and the write that
-  // reaches it.
-  EXPECT_EQ(reports.front().target, UpdateTarget::kEpcsFactory);
-  EXPECT_EQ(reports.back().target, UpdateTarget::kEpcsFactory);
   EXPECT_FALSE(reports.back().message.empty());
 
-  // The configuration counts bytes of the file it is playing, and it happens
-  // first.
+  // The configuration counts bytes of the file it is playing.
   const auto configuring = std::find_if(
       reports.begin(), reports.end(), [&fixture](const UpdateProgress& report) {
         return report.total == fixture.vectors.size();
@@ -417,7 +443,11 @@ TEST(ProvisioningOrchestrator, ReportsProgressAsTheUpdateFlowDoes) {
   EXPECT_NE(configuring, reports.end())
       << "no report counted the vectors being played";
 
-  // And the write counts bytes of the image, which is a different number.
+  reports.clear();
+  ASSERT_TRUE(orchestrator.ProgramDevice(fixture.bundle).succeeded);
+  ASSERT_FALSE(reports.empty());
+
+  // And the writes count bytes of each image, which are different numbers.
   const auto writing = std::find_if(
       reports.begin(), reports.end(), [&fixture](const UpdateProgress& report) {
         return report.total == fixture.factory_image.size();
@@ -428,15 +458,14 @@ TEST(ProvisioningOrchestrator, ReportsProgressAsTheUpdateFlowDoes) {
 
 // --- the estimate ---------------------------------------------------------
 
-TEST(ProvisioningEstimate, GrowsWithTheFileAndIsSecondsForARealOne) {
-  EXPECT_LT(EstimateProvisioningSeconds(1000),
-            EstimateProvisioningSeconds(1000000));
+TEST(ConfigureEstimate, GrowsWithTheFileAndIsSecondsForARealOne) {
+  EXPECT_LT(EstimateConfigureSeconds(1000), EstimateConfigureSeconds(1000000));
 
   // This project's own configuration file is 1,450,426 bytes and took 2.6
   // seconds on the bench (B-V1). The estimate must be of that order and never
   // shorter than the measurement — an estimate a user beats is one they stop
   // believing.
-  const int seconds = EstimateProvisioningSeconds(1450426);
+  const int seconds = EstimateConfigureSeconds(1450426);
   EXPECT_GE(seconds, 3);
   EXPECT_LT(seconds, 30);
 

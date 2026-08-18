@@ -62,10 +62,10 @@ UpdateGateInput MakeInput() {
   return input;
 }
 
-// A provisioning set chosen in the update window. It is a real file with a
-// real purpose and this is not the window for it, so the refusal names the one
-// that is rather than calling the file empty.
-TEST(UpdateGate, RefusesAProvisioningSetAndSaysWhereItBelongs) {
+// A file carrying only the bring-up payloads chosen in the update window. It
+// is a real file with a real use and this is not the window for it, so the
+// refusal names the one that is rather than calling the file empty.
+TEST(UpdateGate, RefusesABringUpOnlyFileAndSaysWhereItBelongs) {
   UpdateManifest manifest = MakeManifest();
   manifest.firmware.reset();
 
@@ -171,8 +171,9 @@ TEST(UpdateGate, RefusesGatewareUsingANewerRegisterMap) {
   EXPECT_EQ(result.verdict, UpdateGateVerdict::kApplicationTooOld);
 }
 
-// Rollback is a feature, and a downgrade passes through the same gate as an
-// upgrade rather than through a second, more forgiving one.
+// Installing an older release is a legitimate thing to want, and a downgrade
+// passes through the same gate as an upgrade rather than through a second,
+// more forgiving one.
 TEST(UpdateGate, AllowsADowngradeThatIsStillWithinRange) {
   UpdateManifest manifest = MakeManifest();
   manifest.version = "1.1.0";

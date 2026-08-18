@@ -51,7 +51,7 @@ and the update mechanism that would replace it, so there is nothing on the board
 an update — which is why the Firmware window names the state and offers nothing.
 
 Bringing such a board up to current firmware and gateware means programming both directly,
-and this application does it: **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy
+and this application does it: **Tools ▸ Firmware ▸ Bring up a new or legacy
 board…**. See [Bringing up a new or legacy board](bringing-up-a-board.md), which is the
 same procedure a newly built board needs.
 

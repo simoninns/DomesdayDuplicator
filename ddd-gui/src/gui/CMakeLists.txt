@@ -21,11 +21,8 @@ add_library(ddd_gui_lib STATIC
     application_logger.cpp
     board_bringup_wizard.cpp
     bringup_text.cpp
-    rollback_text.cpp
-    rollback_worker.cpp
-    legacy_rollback_wizard.cpp
     bringup_worker.cpp
-    bundled_provisioning.cpp
+    bundled_update.cpp
     capture_controller.cpp
     capture_naming_dialog.cpp
     capture_naming_form.cpp
@@ -70,7 +67,7 @@ set_target_properties(ddd_gui_lib PROPERTIES AUTOMOC ON AUTORCC ON)
 
 target_include_directories(ddd_gui_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-# The application ID, as a string the code can use. bundled_provisioning.cpp searches the
+# The application ID, as a string the code can use. bundled_update.cpp searches the
 # data directory named after it, and the install rule below writes into that same
 # directory — one definition, so the search and the install cannot disagree.
 target_compile_definitions(ddd_gui_lib PUBLIC DDD_APP_ID="${DDD_APP_ID}")
@@ -112,43 +109,43 @@ install(TARGETS ddd-gui
 )
 
 # The bundled provisioning set, when this build carries one. Installed under the fixed
-# name bundled_provisioning.cpp searches for, so the file the wizard preselects is found
+# name bundled_update.cpp searches for, so the file the wizard preselects is found
 # by its layout rather than by a path recorded at build time — which would be wrong the
 # moment anything relocated the installation.
 #
 # Copied beside the built binary as well as installed, because the offline case is worth
 # being able to try without installing anything: a build configured with this flag finds
 # its own set when it is run out of the build directory.
-if(DDD_BUNDLED_PROVISIONING_FILE)
+if(DDD_BUNDLED_UPDATE_FILE)
     if(APPLE)
-        set(ddd_bundled_provisioning_dir
+        set(ddd_bundled_update_dir
             "$<TARGET_FILE_DIR:ddd-gui>/../Resources")
     else()
-        set(ddd_bundled_provisioning_dir "$<TARGET_FILE_DIR:ddd-gui>")
+        set(ddd_bundled_update_dir "$<TARGET_FILE_DIR:ddd-gui>")
     endif()
 
     add_custom_command(TARGET ddd-gui POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory
-                "${ddd_bundled_provisioning_dir}"
+                "${ddd_bundled_update_dir}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${DDD_BUNDLED_PROVISIONING_FILE}"
-                "${ddd_bundled_provisioning_dir}/provisioning.dddfw"
+                "${DDD_BUNDLED_UPDATE_FILE}"
+                "${ddd_bundled_update_dir}/update.dddfw"
         COMMENT "Placing the bundled provisioning set beside the application"
         VERBATIM
     )
 
     if(APPLE)
-        install(FILES "${DDD_BUNDLED_PROVISIONING_FILE}"
+        install(FILES "${DDD_BUNDLED_UPDATE_FILE}"
                 DESTINATION "ddd-gui.app/Contents/Resources"
-                RENAME "provisioning.dddfw")
+                RENAME "update.dddfw")
     elseif(WIN32)
-        install(FILES "${DDD_BUNDLED_PROVISIONING_FILE}"
+        install(FILES "${DDD_BUNDLED_UPDATE_FILE}"
                 DESTINATION "${CMAKE_INSTALL_BINDIR}"
-                RENAME "provisioning.dddfw")
+                RENAME "update.dddfw")
     else()
-        install(FILES "${DDD_BUNDLED_PROVISIONING_FILE}"
+        install(FILES "${DDD_BUNDLED_UPDATE_FILE}"
                 DESTINATION "${CMAKE_INSTALL_DATADIR}/${DDD_APP_ID}"
-                RENAME "provisioning.dddfw")
+                RENAME "update.dddfw")
     endif()
 endif()
 

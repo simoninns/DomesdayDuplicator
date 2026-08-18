@@ -157,15 +157,15 @@ endif()
 # follows.
 #
 # The packaging workflows pass this, having fetched the file by the digest pinned in
-# ddd-gui/packaging/bundled-provisioning.env. A local build can pass one produced by
-# ./tools/dev-bundle.sh --kind provisioning.
-set(DDD_BUNDLED_PROVISIONING_FILE "" CACHE FILEPATH
+# ddd-gui/packaging/bundled-update.env. A local build can pass one produced by
+# ./tools/dev-bundle.sh.
+set(DDD_BUNDLED_UPDATE_FILE "" CACHE FILEPATH
     "provisioning set (.dddfw) to install beside the application for offline bring-up")
 
-if(DDD_BUNDLED_PROVISIONING_FILE)
-    if(NOT EXISTS "${DDD_BUNDLED_PROVISIONING_FILE}")
+if(DDD_BUNDLED_UPDATE_FILE)
+    if(NOT EXISTS "${DDD_BUNDLED_UPDATE_FILE}")
         message(FATAL_ERROR
-            "DDD_BUNDLED_PROVISIONING_FILE points at ${DDD_BUNDLED_PROVISIONING_FILE}, "
+            "DDD_BUNDLED_UPDATE_FILE points at ${DDD_BUNDLED_UPDATE_FILE}, "
             "which does not exist. A packaging job whose fetch had silently failed would "
             "otherwise ship an installer that looks complete and brings nothing up.")
     endif()
@@ -177,15 +177,15 @@ if(DDD_BUNDLED_PROVISIONING_FILE)
     #
     # Compared as hex because file(READ) in its text mode does not give back exactly the
     # bytes it read — it is reading a tar header, which is not text.
-    file(READ "${DDD_BUNDLED_PROVISIONING_FILE}" DDD_BUNDLED_PROVISIONING_HEAD
+    file(READ "${DDD_BUNDLED_UPDATE_FILE}" DDD_BUNDLED_UPDATE_HEAD
          LIMIT 13 HEX)
-    if(NOT DDD_BUNDLED_PROVISIONING_HEAD STREQUAL "6d616e69666573742e6a736f6e")
+    if(NOT DDD_BUNDLED_UPDATE_HEAD STREQUAL "6d616e69666573742e6a736f6e")
         message(FATAL_ERROR
-            "${DDD_BUNDLED_PROVISIONING_FILE} is not an update bundle: its first archive "
+            "${DDD_BUNDLED_UPDATE_FILE} is not an update bundle: its first archive "
             "member is not manifest.json.")
     endif()
 
-    message(STATUS "Bundled provisioning set: ${DDD_BUNDLED_PROVISIONING_FILE}")
+    message(STATUS "Bundled provisioning set: ${DDD_BUNDLED_UPDATE_FILE}")
 else()
     message(STATUS "Bundled provisioning set: none — the bring-up wizard picks a file")
 endif()

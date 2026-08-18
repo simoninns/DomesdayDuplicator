@@ -47,31 +47,35 @@ using capture::FakeJtagCable;
 // charge-only cable and a power cycle nobody performed cannot all be arranged
 // on one bench, and several of them cannot be arranged at all.
 
-// A signed provisioning set on disk. Built from the same fixtures the engine
-// tests use, because a wizard that only ever met a file its own test wrote
-// would meet the real format for the first time on somebody's bench.
-class ProvisioningFile {
+// A signed release bundle on disk, carrying all four payloads. Built from the
+// same fixtures the engine tests use, because a wizard that only ever met a
+// file its own test wrote would meet the real format for the first time on
+// somebody's bench.
+class BringUpFile {
  public:
-  ProvisioningFile() {
+  BringUpFile() {
     capture::UstarWriter writer;
-    writer.AddFile(
-        capture::kManifestEntryName,
-        capture::test::Bytes(capture::test::kProvisioningManifestJson));
+    writer.AddFile(capture::kManifestEntryName,
+                   capture::test::Bytes(capture::test::kBringUpManifestJson));
     writer.AddFile(
         capture::kSignatureEntryName,
-        capture::test::Bytes(capture::test::kProvisioningManifestSignature));
+        capture::test::Bytes(capture::test::kBringUpManifestSignature));
     writer.AddFile(capture::kFirmwareEntryName, capture::test::MakeBootImage());
+    writer.AddFile(capture::kGatewareEntryName,
+                   capture::test::Bytes(capture::test::kGatewarePayload));
     writer.AddFile(capture::kProvisioningEntryName,
                    capture::test::Bytes(capture::test::kProvisioningPayload));
     writer.AddFile(
         capture::kFactoryGatewareEntryName,
         capture::test::Bytes(capture::test::kFactoryGatewarePayload));
-    Write(writer.Finish(), QStringLiteral("provisioning.dddfw"));
+    Write(writer.Finish(), QStringLiteral("update.dddfw"));
   }
 
-  // An ordinary update file, which is the wrong file for this window and is
-  // the mistake somebody is most likely to make.
-  static QString UpdateBundlePath(QTemporaryDir& directory) {
+  // A release bundle from before the bring-up payloads existed: firmware and
+  // application gateware only. It updates a working device perfectly well and
+  // cannot bring a board up, and it is the mistake somebody is most likely to
+  // make here.
+  static QString UpdateOnlyPath(QTemporaryDir& directory) {
     capture::UstarWriter writer;
     writer.AddFile(capture::kManifestEntryName,
                    capture::test::Bytes(capture::test::kManifestJson));
@@ -83,7 +87,8 @@ class ProvisioningFile {
                    capture::test::Bytes(capture::test::kGatewarePayload));
 
     const std::vector<uint8_t> archive = writer.Finish();
-    const QString path = directory.filePath(QStringLiteral("update.dddfw"));
+    const QString path =
+        directory.filePath(QStringLiteral("update-only.dddfw"));
     QFile file(path);
     if (file.open(QIODevice::WriteOnly)) {
       file.write(reinterpret_cast<const char*>(archive.data()),
@@ -192,6 +197,22 @@ capture::DeviceInfo Device(capture::DevicePersonality personality) {
   return info;
 }
 
+// What a finished board reports: its own firmware, and an FPGA that has loaded
+// the *application* image out of its own flash.
+//
+// The image role is what separates a board that has restarted from one that
+// never lost power: the gateware step puts the factory image into the FPGA
+// over JTAG, and only a power cycle replaces it with this.
+capture::DeviceIdentity BroughtUpIdentity() {
+  capture::DeviceIdentity identity;
+  identity.product_string = "Domesday Duplicator (0123abcd)";
+  identity.protocol_version = 1;
+  identity.gateware_present = true;
+  identity.register_map_version = capture::kRegisterMapVersionWithImageRole;
+  identity.image_role = capture::kImageRoleApplication;
+  return identity;
+}
+
 // The bench, as a struct: what is on the bus, whether the cable opens, and the
 // fakes behind both.
 struct WizardUnderTest {
@@ -204,7 +225,7 @@ struct WizardUnderTest {
   FakeDeviceUpdater updater;
   FakeJtagCable cable;
 
-  ProvisioningFile file;
+  BringUpFile file;
   std::unique_ptr<BoardBringUpWizard> wizard;
 
   // What this "build" was packaged with, if anything. Empty is the ordinary
@@ -244,11 +265,11 @@ struct WizardUnderTest {
       return std::make_unique<BorrowedUpdater>(&updater);
     };
 
-    access.bundled_set = [bundled] { return bundled; };
+    access.bundled_file = [bundled] { return bundled; };
 
     wizard = std::make_unique<BoardBringUpWizard>(std::move(access));
 
-    // The fixture set is signed with the development key, and whether the
+    // The fixture file is signed with the development key, and whether the
     // default policy accepts one depends on how the build was configured
     // rather than on the flow under test.
     capture::UpdateKeyPolicy policy;
@@ -266,12 +287,12 @@ struct WizardUnderTest {
     return wizard->findChild<QProgressBar*>(QLatin1String(name));
   }
 
-  // Walk forward to a page, choosing the provisioning set on the way.
+  // Walk forward to a page, choosing the update file on the way.
   void AdvanceTo(BringUpPage page) {
     for (int guard = 0; guard < 12 && wizard->page() != page; ++guard) {
       if (wizard->page() == BringUpPage::kImage &&
           !Button(BoardBringUpWizard::kNextButtonName)->isEnabled()) {
-        wizard->LoadProvisioningSet(file.path());
+        wizard->LoadUpdateFile(file.path());
       }
       wizard->Poll();
       if (!Button(BoardBringUpWizard::kNextButtonName)->isEnabled()) {
@@ -292,14 +313,18 @@ struct WizardUnderTest {
 // --- the ordering ---------------------------------------------------------
 //
 // The one test in this file that is about the hardware rather than about a user
-// interface. Bring-up must never touch the FPGA before the FX3: the original
-// firmware and the current gateware both drive `CTL_07`, so a board running the
-// first under the second has two drivers on one net — current-limited by the
-// Explorer Kit's 22 Ω series resistor, and still well out of specification for
-// both dies.
+// interface. The original firmware and the current gateware both drive
+// `CTL_07`, so a board running the first under the second has two drivers on
+// one net — current-limited by the Explorer Kit's 22 Ω series resistor, and
+// still well out of specification for both dies.
+//
+// What keeps a board out of that pairing is where the FX3 is while the FPGA
+// changes: in its boot ROM, with every shared pin idle. So the jumper page
+// comes before the configure page, and the configure page before anything is
+// written.
 
-TEST(BoardBringUpWizardTest, TheFpgaIsNeverProgrammedBeforeTheFx3) {
-  const WizardUnderTest test;
+TEST(BoardBringUpWizardTest, TheFpgaIsOnlyConfiguredOnceTheFx3IsInItsBootRom) {
+  WizardUnderTest test(capture::DevicePersonality::kLegacy);
 
   const std::vector<BringUpPage> steps = test.wizard->Steps();
 
@@ -308,12 +333,15 @@ TEST(BoardBringUpWizardTest, TheFpgaIsNeverProgrammedBeforeTheFx3) {
                          std::find(steps.begin(), steps.end(), page));
   };
 
-  EXPECT_LT(position(BringUpPage::kFirmware), position(BringUpPage::kGateware));
+  EXPECT_LT(position(BringUpPage::kJumper), position(BringUpPage::kConfigure));
+  EXPECT_LT(position(BringUpPage::kConfigure), position(BringUpPage::kProgram));
 
   // And everything else about the order, stated once: the physical steps
-  // bracket the programming ones, and the power cycle is after both.
+  // bracket the programming ones, and the power cycle is after all of them.
   EXPECT_LT(position(BringUpPage::kConnect), position(BringUpPage::kImage));
-  EXPECT_LT(position(BringUpPage::kGateware),
+  EXPECT_LT(position(BringUpPage::kProgram),
+            position(BringUpPage::kRemoveJumper));
+  EXPECT_LT(position(BringUpPage::kRemoveJumper),
             position(BringUpPage::kPowerCycle));
   EXPECT_LT(position(BringUpPage::kPowerCycle), position(BringUpPage::kVerify));
 }
@@ -323,13 +351,13 @@ TEST(BoardBringUpWizardTest, TheFpgaIsNeverProgrammedBeforeTheFx3) {
 //
 // What a board is *running* only changes at a power cycle: the FPGA reloads
 // from flash and the FX3 re-reads its boot source, both at that moment and not
-// before. So as long as every power cycle this flow asks for happens either
-// before anything has been programmed or after both halves have, the two change
-// together and there is no window in between — whatever order the pages are in.
+// before. So no power cycle may be asked for in the middle of the writing —
+// every one has to fall before anything has been written or after all of it
+// has, and then the three images become the running ones together.
 //
 // Asked of both branches, because the branch that fits a jumper is the one that
 // asks for an extra power cycle, and it is the one this could go wrong on.
-TEST(BoardBringUpWizardTest, NoPowerCycleIsAskedForBetweenTheTwoHalves) {
+TEST(BoardBringUpWizardTest, NoPowerCycleIsAskedForInTheMiddleOfTheWriting) {
   for (capture::DevicePersonality personality :
        {capture::DevicePersonality::kRecovery,
         capture::DevicePersonality::kLegacy}) {
@@ -352,17 +380,18 @@ TEST(BoardBringUpWizardTest, NoPowerCycleIsAskedForBetweenTheTwoHalves) {
     }
 
     for (BringUpPage page : replugs) {
-      const bool before_any_programming =
-          position(page) < position(BringUpPage::kFirmware);
-      const bool after_both = position(page) > position(BringUpPage::kGateware);
-      EXPECT_TRUE(before_any_programming || after_both)
-          << "a power cycle is asked for between programming the FX3 and "
-             "programming the FPGA, which is the one window in which a board "
-             "could come up running the original firmware over current "
-             "gateware";
+      const bool before_any_writing =
+          position(page) < position(BringUpPage::kProgram);
+      const bool after_all_writing =
+          position(page) > position(BringUpPage::kProgram);
+      EXPECT_TRUE(before_any_writing || after_all_writing)
+          << "a power cycle is asked for in the middle of the writing, which "
+             "is the one window in which a board could come up with some of "
+             "its images changed and some not";
     }
 
-    // And the page that does sit between them says so in as many words.
+    // And the page that sits between the writing and the power cycle says so
+    // in as many words.
     EXPECT_TRUE(test.Label(BoardBringUpWizard::kRemoveJumperTextName)
                     ->text()
                     .contains("Do not unplug"));
@@ -371,23 +400,24 @@ TEST(BoardBringUpWizardTest, NoPowerCycleIsAskedForBetweenTheTwoHalves) {
 
 // The engine refuses out of order whatever the interface does, so a page wired
 // up wrongly is a refused operation rather than a damaged board.
-TEST(BoardBringUpWizardTest, TheFpgaButtonIsRefusedUntilTheFx3IsDone) {
+TEST(BoardBringUpWizardTest,
+     TheProgramButtonIsRefusedUntilTheFpgaIsConfigured) {
   WizardUnderTest test;
-  test.AdvanceTo(BringUpPage::kFirmware);
+  test.AdvanceTo(BringUpPage::kConfigure);
 
-  // The wizard will not even walk past the FX3 page until that half is done,
+  // The wizard will not even walk past the configure page until it is done,
   // which is the first of the two guards.
-  ASSERT_EQ(test.wizard->page(), BringUpPage::kFirmware);
+  ASSERT_EQ(test.wizard->page(), BringUpPage::kConfigure);
   EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
 
   // And the button that would do it is off, wherever the user is.
   EXPECT_FALSE(
-      test.Button(BoardBringUpWizard::kGatewareStartButtonName)->isEnabled());
+      test.Button(BoardBringUpWizard::kProgramStartButtonName)->isEnabled());
 
   // And pressing it anyway does nothing at all.
-  test.wizard->StartGateware();
+  test.wizard->StartProgram();
   EXPECT_FALSE(test.wizard->busy());
-  EXPECT_EQ(test.cable.clocks(), 0u);
+  EXPECT_EQ(test.programmer.sections_written(), 0u);
 }
 
 // --- the two branches -----------------------------------------------------
@@ -397,10 +427,10 @@ TEST(BoardBringUpWizardTest, TheFpgaButtonIsRefusedUntilTheFx3IsDone) {
 // wizard could ask them to take it off again.
 TEST(BoardBringUpWizardTest, ABoardInItsBootRomSkipsBothJumperPages) {
   WizardUnderTest test(capture::DevicePersonality::kRecovery);
-  test.AdvanceTo(BringUpPage::kFirmware);
+  test.AdvanceTo(BringUpPage::kConfigure);
 
   EXPECT_FALSE(test.wizard->jumper_needed());
-  EXPECT_EQ(test.wizard->page(), BringUpPage::kFirmware);
+  EXPECT_EQ(test.wizard->page(), BringUpPage::kConfigure);
 
   const std::vector<BringUpPage> steps = test.wizard->Steps();
   EXPECT_EQ(std::count(steps.begin(), steps.end(), BringUpPage::kJumper), 0);
@@ -480,25 +510,29 @@ TEST(BoardBringUpWizardTest, TheKitsDebugPortSaysThePowerIsOn) {
 
 // --- the image page -------------------------------------------------------
 
-TEST(BoardBringUpWizardTest, AnOrdinaryUpdateFileIsRefusedWithAReason) {
+TEST(BoardBringUpWizardTest, AnUpdateOnlyFileIsRefusedWithAReason) {
   WizardUnderTest test;
   test.AdvanceTo(BringUpPage::kImage);
   ASSERT_EQ(test.wizard->page(), BringUpPage::kImage);
 
-  test.wizard->LoadProvisioningSet(
-      ProvisioningFile::UpdateBundlePath(test.file.directory()));
+  test.wizard->LoadUpdateFile(
+      BringUpFile::UpdateOnlyPath(test.file.directory()));
 
   EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
+
+  // Named rather than dismissed: this is a real release bundle that updates a
+  // working device perfectly well, so the page says which payloads bring-up
+  // needs that it does not have.
   EXPECT_TRUE(test.Label(BoardBringUpWizard::kImageLabelName)
                   ->text()
-                  .contains("provisioning", Qt::CaseInsensitive));
+                  .contains("vectors", Qt::CaseInsensitive));
 }
 
-TEST(BoardBringUpWizardTest, AProvisioningSetIsAcceptedAndSaysWhatItCarries) {
+TEST(BoardBringUpWizardTest, ACompleteFileIsAcceptedAndSaysWhatItCarries) {
   WizardUnderTest test;
   test.AdvanceTo(BringUpPage::kImage);
 
-  test.wizard->LoadProvisioningSet(test.file.path());
+  test.wizard->LoadUpdateFile(test.file.path());
 
   EXPECT_TRUE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
   EXPECT_TRUE(test.Label(BoardBringUpWizard::kImageLabelName)
@@ -522,7 +556,7 @@ TEST(BoardBringUpWizardTest, AFileThatIsNotABundleIsRefusedRatherThanCrashing) {
   file.write("not a bundle");
   file.close();
 
-  test.wizard->LoadProvisioningSet(path);
+  test.wizard->LoadUpdateFile(path);
   EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
 }
 
@@ -570,32 +604,31 @@ TEST(BoardBringUpWizardTest, TheStatusMarksAreTheCharactersTheyLookLike) {
   }
 }
 
-// --- the set a packaged build carries -------------------------------------
+// --- the file a packaged build carries ------------------------------------
 //
 // A board being brought up cannot be updated over USB — that is what the whole
 // wizard is for — so the machine beside it may be one that has just been built
-// and has no network. A packaged build therefore installs a provisioning set
-// beside itself, and these are the four states that produces.
+// and has no network. A packaged build therefore installs an update file beside
+// itself, and these are the four states that produces.
 
-TEST(BoardBringUpWizardTest, ABundledSetIsChosenForYouAndSaysWhereItCameFrom) {
-  ProvisioningFile packaged;
+TEST(BoardBringUpWizardTest, ABundledFileIsChosenForYouAndSaysWhereItCameFrom) {
+  BringUpFile packaged;
   WizardUnderTest test(capture::DevicePersonality::kRecovery, packaged.path());
 
   test.AdvanceTo(BringUpPage::kImage);
   ASSERT_EQ(test.wizard->page(), BringUpPage::kImage);
 
-  EXPECT_TRUE(test.wizard->using_bundled_set());
+  EXPECT_TRUE(test.wizard->using_bundled_file());
   EXPECT_TRUE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
   EXPECT_TRUE(test.Label(BoardBringUpWizard::kImageLabelName)
                   ->text()
                   .contains("1.4.0"));
 
-  // And says so, rather than a set simply appearing in a file field. The
-  // sentence that matters is the one about it being checked anyway.
+  // And says so, rather than a file simply appearing in a field. The sentence
+  // that matters is the one about it being checked anyway.
   const QString source =
       test.Label(BoardBringUpWizard::kImageSourceName)->text();
-  EXPECT_TRUE(
-      source.contains("carries a provisioning set", Qt::CaseInsensitive))
+  EXPECT_TRUE(source.contains("carries an update file", Qt::CaseInsensitive))
       << source.toStdString();
   EXPECT_TRUE(source.contains("signature", Qt::CaseInsensitive))
       << source.toStdString();
@@ -605,13 +638,13 @@ TEST(BoardBringUpWizardTest, ABundledSetIsChosenForYouAndSaysWhereItCameFrom) {
       test.Button(BoardBringUpWizard::kUseBundledButtonName)->isHidden());
 }
 
-TEST(BoardBringUpWizardTest, ABundledSetIsVerifiedLikeAnyOtherFile) {
+TEST(BoardBringUpWizardTest, ABundledFileIsVerifiedLikeAnyOther) {
   // The property the whole design turns on: arriving with the application is
   // not a reason to trust a file. A truncated install, or a file somebody
   // replaced, is refused exactly as a downloaded one would be.
-  ProvisioningFile packaged;
+  BringUpFile packaged;
   const QString broken =
-      packaged.directory().filePath(QStringLiteral("provisioning.dddfw"));
+      packaged.directory().filePath(QStringLiteral("update.dddfw"));
 
   QFile file(broken);
   ASSERT_TRUE(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
@@ -627,28 +660,28 @@ TEST(BoardBringUpWizardTest, ABundledSetIsVerifiedLikeAnyOtherFile) {
                   .contains("could not be used", Qt::CaseInsensitive));
 }
 
-TEST(BoardBringUpWizardTest, AChosenFileReplacesTheBundledSetAndCanBeUndone) {
-  ProvisioningFile packaged;
+TEST(BoardBringUpWizardTest, AChosenFileReplacesTheBundledOneAndCanBeUndone) {
+  BringUpFile packaged;
   WizardUnderTest test(capture::DevicePersonality::kRecovery, packaged.path());
   test.AdvanceTo(BringUpPage::kImage);
 
-  // An ordinary update file, which is the wrong file for this window: the
-  // bundled one being good does not make a chosen one acceptable.
-  test.wizard->LoadProvisioningSet(
-      ProvisioningFile::UpdateBundlePath(test.file.directory()));
+  // A file that cannot bring a board up: the bundled one being good does not
+  // make a chosen one acceptable.
+  test.wizard->LoadUpdateFile(
+      BringUpFile::UpdateOnlyPath(test.file.directory()));
 
-  EXPECT_FALSE(test.wizard->using_bundled_set());
+  EXPECT_FALSE(test.wizard->using_bundled_file());
   EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
   EXPECT_FALSE(
       test.Button(BoardBringUpWizard::kUseBundledButtonName)->isHidden());
 
   test.Button(BoardBringUpWizard::kUseBundledButtonName)->click();
 
-  EXPECT_TRUE(test.wizard->using_bundled_set());
+  EXPECT_TRUE(test.wizard->using_bundled_file());
   EXPECT_TRUE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
 }
 
-TEST(BoardBringUpWizardTest, ABuildWithNoBundledSetSaysWhereToGetOne) {
+TEST(BoardBringUpWizardTest, ABuildWithNoBundledFileSaysWhereToGetOne) {
   // What a build from source looks like, and what a build whose packaging
   // pinned nothing looks like. The honest state: the file picker, and the name
   // of the file to fetch.
@@ -656,13 +689,13 @@ TEST(BoardBringUpWizardTest, ABuildWithNoBundledSetSaysWhereToGetOne) {
   test.AdvanceTo(BringUpPage::kImage);
 
   EXPECT_TRUE(test.wizard->bundled_path().isEmpty());
-  EXPECT_FALSE(test.wizard->using_bundled_set());
+  EXPECT_FALSE(test.wizard->using_bundled_file());
 
   const QString source =
       test.Label(BoardBringUpWizard::kImageSourceName)->text();
-  EXPECT_TRUE(source.contains("no provisioning set", Qt::CaseInsensitive))
+  EXPECT_TRUE(source.contains("no update file", Qt::CaseInsensitive))
       << source.toStdString();
-  EXPECT_TRUE(source.contains("domesday-duplicator-provisioning"))
+  EXPECT_TRUE(source.contains("domesday-duplicator-update"))
       << source.toStdString();
 
   EXPECT_TRUE(
@@ -671,34 +704,43 @@ TEST(BoardBringUpWizardTest, ABuildWithNoBundledSetSaysWhereToGetOne) {
 
 // --- programming ----------------------------------------------------------
 
-TEST(BoardBringUpWizardTest, ItProgramsBothHalvesAndVerifiesAtTheEnd) {
+TEST(BoardBringUpWizardTest, ItConfiguresThenProgramsAndVerifiesAtTheEnd) {
   WizardUnderTest test;
   test.cable.AnswerWith(capture::QuartusOpeningAnswers());
-  test.AdvanceTo(BringUpPage::kFirmware);
-  ASSERT_EQ(test.wizard->page(), BringUpPage::kFirmware);
+  test.AdvanceTo(BringUpPage::kConfigure);
+  ASSERT_EQ(test.wizard->page(), BringUpPage::kConfigure);
 
   QSignalSpy busy(test.wizard.get(), &BoardBringUpWizard::BusyChanged);
 
-  test.Button(BoardBringUpWizard::kFirmwareStartButtonName)->click();
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
   ASSERT_TRUE(test.RunToCompletion());
 
-  // The jumper is still fitted on a board that needed one, so the device is
-  // deliberately not restarted here.
-  EXPECT_EQ(test.updater.reset_count(), 0u);
-  EXPECT_TRUE(test.Label(BoardBringUpWizard::kFirmwareStatusName)
-                  ->text()
-                  .contains("written and checked"));
-  EXPECT_EQ(test.Progress(BoardBringUpWizard::kFirmwareProgressName)->value(),
+  // Vectors played, and not a byte written: this step is what makes the flash
+  // reachable, not what fills it.
+  EXPECT_GT(test.cable.clocks(), 0u);
+  EXPECT_EQ(test.updater.begin_count(), 0u);
+  EXPECT_EQ(test.Progress(BoardBringUpWizard::kConfigureProgressName)->value(),
             100);
 
   test.wizard->GoNext();
-  ASSERT_EQ(test.wizard->page(), BringUpPage::kGateware);
+  ASSERT_EQ(test.wizard->page(), BringUpPage::kProgram);
 
-  test.Button(BoardBringUpWizard::kGatewareStartButtonName)->click();
+  test.Button(BoardBringUpWizard::kProgramStartButtonName)->click();
   ASSERT_TRUE(test.RunToCompletion());
 
-  EXPECT_GT(test.cable.clocks(), 0u);
-  EXPECT_EQ(test.Progress(BoardBringUpWizard::kGatewareProgressName)->value(),
+  // All three images, in the order that makes every interruption recoverable.
+  EXPECT_EQ(
+      test.updater.begun_targets(),
+      (std::vector<capture::UpdateTarget>{capture::UpdateTarget::kFirmware,
+                                          capture::UpdateTarget::kEpcsFactory,
+                                          capture::UpdateTarget::kGateware}));
+
+  // And nothing restarted: the power cycle two pages on is what starts them.
+  EXPECT_EQ(test.updater.reset_count(), 0u);
+  EXPECT_TRUE(test.Label(BoardBringUpWizard::kProgramStatusName)
+                  ->text()
+                  .contains("written and checked"));
+  EXPECT_EQ(test.Progress(BoardBringUpWizard::kProgramProgressName)->value(),
             100);
 
   // The window told the rest of the application to keep out of the way while
@@ -710,16 +752,17 @@ TEST(BoardBringUpWizardTest, ItProgramsBothHalvesAndVerifiesAtTheEnd) {
   ASSERT_EQ(test.wizard->page(), BringUpPage::kPowerCycle);
   EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
 
+  // The cables coming out, which is the observation the page is actually
+  // waiting for. A test that skipped it would be asserting that a device
+  // sitting on the bus is proof of a power cycle, which is the bug.
+  test.bus.clear();
+  test.wizard->Poll();
+  EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
+
+  // The application image, which is what a finished board comes up on: the
+  // factory image validates it at power-on and hands over.
   test.bus = {Device(capture::DevicePersonality::kApplication)};
-  test.updater.SetIdentity([] {
-    capture::DeviceIdentity identity;
-    identity.product_string = "Domesday Duplicator (0123abcd)";
-    identity.protocol_version = 1;
-    identity.gateware_present = true;
-    identity.register_map_version = capture::kRegisterMapVersionWithImageRole;
-    identity.image_role = capture::kImageRoleFactory;
-    return identity;
-  }());
+  test.updater.SetIdentity(BroughtUpIdentity());
   test.wizard->Poll();
 
   ASSERT_TRUE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
@@ -731,19 +774,150 @@ TEST(BoardBringUpWizardTest, ItProgramsBothHalvesAndVerifiesAtTheEnd) {
                   .contains("Bring-up complete"));
 }
 
+// --- the power cycle ------------------------------------------------------
+//
+// The page that cannot go by what is on the bus. Reported from a bench: it
+// announced that both cables had been pulled and reinserted the instant it was
+// reached, with nothing touched.
+//
+// The cause is the step before it. Programming hands the firmware to the FX3's
+// boot ROM and runs it out of RAM, so a fully working Duplicator is
+// enumerating by the time this page appears — and "is a Duplicator attached?"
+// was the whole of what the page asked.
+
+// The bench report, as a test.
+TEST(BoardBringUpWizardTest, ThePowerCycleIsNotReportedBeforeItHappens) {
+  WizardUnderTest test;
+  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
+  test.updater.SetIdentity(BroughtUpIdentity());
+  test.AdvanceTo(BringUpPage::kConfigure);
+
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+  test.wizard->GoNext();
+  test.Button(BoardBringUpWizard::kProgramStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+
+  // What the bench looks like at this exact moment: the FX3 is running the
+  // firmware it was just handed, out of RAM, and enumerates as a Duplicator.
+  test.bus = {Device(capture::DevicePersonality::kApplication)};
+  test.wizard->GoNext();
+  ASSERT_EQ(test.wizard->page(), BringUpPage::kPowerCycle);
+
+  for (int poll = 0; poll < 5; ++poll) {
+    test.wizard->Poll();
+  }
+
+  EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled())
+      << "the page reported a power cycle that had not happened";
+
+  const QString waiting =
+      test.Label(BoardBringUpWizard::kPowerCycleStatusName)->text();
+  EXPECT_FALSE(waiting.contains("All done")) << waiting.toStdString();
+  EXPECT_TRUE(waiting.contains("Waiting for", Qt::CaseInsensitive));
+
+  // Gone, and then back on its own flash, which is the real thing.
+  test.bus.clear();
+  test.wizard->Poll();
+  EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
+
+  test.bus = {Device(capture::DevicePersonality::kApplication)};
+  test.wizard->Poll();
+
+  EXPECT_TRUE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
+  EXPECT_TRUE(test.Label(BoardBringUpWizard::kPowerCycleStatusName)
+                  ->text()
+                  .contains("All done"));
+}
+
+// The failure this page has always warned about, now caught rather than
+// guessed at. Pulling the USB 3.0 cable alone makes the device vanish and come
+// back while the mini-USB keeps the board alive — so the firmware in RAM and
+// the gateware in the FPGA both survive, and every outward sign is of a power
+// cycle that worked.
+//
+// What gives it away is the image role: the gateware step put the *factory*
+// image into the FPGA over JTAG, and only a real power cycle replaces it with
+// the application image out of flash.
+TEST(BoardBringUpWizardTest, APartialPowerCycleIsCaughtByTheImageRole) {
+  WizardUnderTest test;
+  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
+  test.AdvanceTo(BringUpPage::kConfigure);
+
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+  test.wizard->GoNext();
+  test.Button(BoardBringUpWizard::kProgramStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+  test.wizard->GoNext();
+  ASSERT_EQ(test.wizard->page(), BringUpPage::kPowerCycle);
+
+  // The board never restarted, so the FPGA still holds what JTAG put there.
+  capture::DeviceIdentity jtag_loaded = BroughtUpIdentity();
+  jtag_loaded.image_role = capture::kImageRoleFactory;
+  test.updater.SetIdentity(jtag_loaded);
+
+  test.bus.clear();
+  test.wizard->Poll();
+  test.bus = {Device(capture::DevicePersonality::kApplication)};
+  test.wizard->Poll();
+
+  EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled())
+      << "a board that never lost power was accepted as power-cycled";
+
+  const QString status =
+      test.Label(BoardBringUpWizard::kPowerCycleStatusName)->text();
+  EXPECT_TRUE(status.contains("did not lose power", Qt::CaseInsensitive))
+      << status.toStdString();
+  EXPECT_TRUE(status.contains("both", Qt::CaseInsensitive));
+}
+
+// A board that comes back in its boot ROM says exactly one thing, and nothing
+// else puts it there — so it is a diagnosis rather than a timeout.
+TEST(BoardBringUpWizardTest, ABoardThatComesBackInItsBootRomNamesTheJumper) {
+  WizardUnderTest test(capture::DevicePersonality::kLegacy);
+  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
+  test.updater.SetIdentity(BroughtUpIdentity());
+  test.AdvanceTo(BringUpPage::kJumper);
+
+  test.bus = {Device(capture::DevicePersonality::kRecovery)};
+  test.AdvanceTo(BringUpPage::kConfigure);
+
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+  test.wizard->GoNext();
+  test.Button(BoardBringUpWizard::kProgramStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+  test.wizard->GoNext();
+  ASSERT_EQ(test.wizard->page(), BringUpPage::kRemoveJumper);
+  test.wizard->GoNext();
+  ASSERT_EQ(test.wizard->page(), BringUpPage::kPowerCycle);
+
+  // Cables out, cables in — and it comes back where the jumper puts it.
+  test.bus.clear();
+  test.wizard->Poll();
+  test.bus = {Device(capture::DevicePersonality::kRecovery)};
+  test.wizard->Poll();
+
+  EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
+  EXPECT_TRUE(test.Label(BoardBringUpWizard::kPowerCycleStatusName)
+                  ->text()
+                  .contains("J4"));
+}
+
 // The device did not come back. The first thing said is the partial power
 // cycle, because it is the commonest cause and the one whose symptom is that
 // everything looks correct.
 TEST(BoardBringUpWizardTest, APowerCycleThatNeverHappenedAsksAboutBothCables) {
   WizardUnderTest test;
-  test.AdvanceTo(BringUpPage::kFirmware);
+  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
+  test.AdvanceTo(BringUpPage::kConfigure);
 
-  test.Button(BoardBringUpWizard::kFirmwareStartButtonName)->click();
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
   ASSERT_TRUE(test.RunToCompletion());
   test.wizard->GoNext();
 
-  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
-  test.Button(BoardBringUpWizard::kGatewareStartButtonName)->click();
+  test.Button(BoardBringUpWizard::kProgramStartButtonName)->click();
   ASSERT_TRUE(test.RunToCompletion());
   test.wizard->GoNext();
 
@@ -760,41 +934,155 @@ TEST(BoardBringUpWizardTest, APowerCycleThatNeverHappenedAsksAboutBothCables) {
 
 // A failure at either half is safe and says so. This one cannot be arranged on
 // a bench at all: it is a boot ROM that takes an image and will not run it.
-TEST(BoardBringUpWizardTest, AFailedFx3StepSaysNothingIsBroken) {
+TEST(BoardBringUpWizardTest, AFailedProgramStepSaysNothingIsBroken) {
   WizardUnderTest test;
+  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
   test.programmer.SetFault(FakeDeviceProgrammer::Fault::kRefuseStart);
-  test.AdvanceTo(BringUpPage::kFirmware);
+  test.AdvanceTo(BringUpPage::kConfigure);
 
-  test.Button(BoardBringUpWizard::kFirmwareStartButtonName)->click();
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+  test.wizard->GoNext();
+
+  test.Button(BoardBringUpWizard::kProgramStartButtonName)->click();
   ASSERT_TRUE(test.RunToCompletion());
 
   const QString status =
-      test.Label(BoardBringUpWizard::kFirmwareStatusName)->text();
+      test.Label(BoardBringUpWizard::kProgramStatusName)->text();
   EXPECT_TRUE(status.contains("J4"));
   EXPECT_FALSE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
 
   // And offered again, because every step of this can simply be run again.
   EXPECT_TRUE(
-      test.Button(BoardBringUpWizard::kFirmwareStartButtonName)->isEnabled());
+      test.Button(BoardBringUpWizard::kProgramStartButtonName)->isEnabled());
 }
 
-TEST(BoardBringUpWizardTest, AStoppedGatewarePlayIsNotReportedAsAFailure) {
+TEST(BoardBringUpWizardTest, AStoppedConfigureIsNotReportedAsAFailure) {
   WizardUnderTest test;
   test.cable.AnswerWith(capture::QuartusOpeningAnswers());
-  test.AdvanceTo(BringUpPage::kFirmware);
+  test.AdvanceTo(BringUpPage::kConfigure);
 
-  test.Button(BoardBringUpWizard::kFirmwareStartButtonName)->click();
-  ASSERT_TRUE(test.RunToCompletion());
-  test.wizard->GoNext();
-
-  test.Button(BoardBringUpWizard::kGatewareStartButtonName)->click();
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
   test.wizard->Stop();
   ASSERT_TRUE(test.RunToCompletion());
 
   const QString status =
-      test.Label(BoardBringUpWizard::kGatewareStatusName)->text();
+      test.Label(BoardBringUpWizard::kConfigureStatusName)->text();
   EXPECT_TRUE(status.contains("Stopped"));
   EXPECT_FALSE(status.contains("failed", Qt::CaseInsensitive));
+}
+
+// --- what each step says about itself --------------------------------------
+
+// A finished step has to be finished in every way the page can show it: the
+// button that did the work is dead *and* relabelled, and the line under it
+// leads with All done and names what to press next. Greyed out on its own
+// reads as "not yet"; greyed out and relabelled reads as "already".
+TEST(BoardBringUpWizardTest, AFinishedStepDisablesItsButtonAndSaysAllDone) {
+  WizardUnderTest test;
+  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
+  test.AdvanceTo(BringUpPage::kConfigure);
+
+  QPushButton* const start =
+      test.Button(BoardBringUpWizard::kConfigureStartButtonName);
+  QLabel* const status = test.Label(BoardBringUpWizard::kConfigureStatusName);
+
+  // Before: offered, and saying what it is waiting for rather than nothing.
+  ASSERT_TRUE(start->isEnabled());
+  const QString before = start->text();
+  EXPECT_TRUE(status->text().contains("Waiting for", Qt::CaseInsensitive))
+      << status->text().toStdString();
+
+  start->click();
+  ASSERT_TRUE(test.RunToCompletion());
+
+  EXPECT_FALSE(start->isEnabled());
+  EXPECT_NE(start->text(), before)
+      << "a button that had already been pressed still offered to do the work";
+  EXPECT_TRUE(status->text().contains("All done"))
+      << status->text().toStdString();
+  EXPECT_TRUE(status->text().contains("Next"));
+
+  // And the same for the step that writes, which is the one somebody is most
+  // anxious to know has finished.
+  test.wizard->GoNext();
+  QPushButton* const program =
+      test.Button(BoardBringUpWizard::kProgramStartButtonName);
+  program->click();
+  ASSERT_TRUE(test.RunToCompletion());
+
+  EXPECT_FALSE(program->isEnabled());
+  EXPECT_TRUE(test.Label(BoardBringUpWizard::kProgramStatusName)
+                  ->text()
+                  .contains("All done"));
+}
+
+// A page that is not finished says what it is waiting for, rather than leaving
+// a dead Next button as the only sign that something is outstanding.
+TEST(BoardBringUpWizardTest, APageThatIsNotFinishedSaysWhatItIsWaitingFor) {
+  WizardUnderTest stuck;
+  stuck.bus.clear();
+  stuck.cable_opens = false;
+  stuck.cable_presence = capture::UsbPresence::kAbsent;
+  stuck.wizard->GoNext();
+  stuck.wizard->Poll();
+
+  ASSERT_EQ(stuck.wizard->page(), BringUpPage::kConnect);
+  EXPECT_TRUE(stuck.Label(BoardBringUpWizard::kConnectStatusName)
+                  ->text()
+                  .contains("Waiting for", Qt::CaseInsensitive));
+
+  // And the same page, satisfied, says so in the same place — so the two are
+  // never both on screen and never both absent.
+  WizardUnderTest ready;
+  ready.AdvanceTo(BringUpPage::kConnect);
+  ready.wizard->Poll();
+
+  ASSERT_EQ(ready.wizard->page(), BringUpPage::kConnect);
+  EXPECT_TRUE(ready.Label(BoardBringUpWizard::kConnectStatusName)
+                  ->text()
+                  .contains("All done"));
+
+  // The file page, which is waiting for something a user has to go and find.
+  ready.wizard->GoNext();
+  ASSERT_EQ(ready.wizard->page(), BringUpPage::kImage);
+  EXPECT_TRUE(ready.Label(BoardBringUpWizard::kImageStatusName)
+                  ->text()
+                  .contains("Waiting for", Qt::CaseInsensitive));
+
+  ready.wizard->LoadUpdateFile(ready.file.path());
+  EXPECT_TRUE(ready.Label(BoardBringUpWizard::kImageStatusName)
+                  ->text()
+                  .contains("All done"));
+}
+
+// A run that failed leaves its own sentence on the page. The status line is
+// otherwise derived from the state in hand, and that state — nothing written,
+// button offered again — is indistinguishable from never having started.
+TEST(BoardBringUpWizardTest, AFailureIsNotReplacedByTheWaitingLine) {
+  WizardUnderTest test;
+  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
+  test.programmer.SetFault(FakeDeviceProgrammer::Fault::kRefuseStart);
+  test.AdvanceTo(BringUpPage::kConfigure);
+
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+  test.wizard->GoNext();
+
+  test.Button(BoardBringUpWizard::kProgramStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+
+  // Several polls later, and after navigating away and back, the page still
+  // says what happened.
+  test.wizard->Poll();
+  test.wizard->GoPrevious();
+  test.wizard->GoNext();
+
+  const QString status =
+      test.Label(BoardBringUpWizard::kProgramStatusName)->text();
+  EXPECT_TRUE(status.contains("J4")) << status.toStdString();
+  EXPECT_FALSE(status.contains("Waiting for", Qt::CaseInsensitive))
+      << "a failed run was quietly replaced by an invitation to start one";
 }
 
 // --- navigation and leaving ------------------------------------------------
@@ -818,26 +1106,32 @@ TEST(BoardBringUpWizardTest, EveryPageIsBuiltAndNamed) {
        {BoardBringUpWizard::kOverviewTextName, BoardBringUpWizard::kFx3RowName,
         BoardBringUpWizard::kFpgaRowName,
         BoardBringUpWizard::kConnectLegendName,
+        BoardBringUpWizard::kConnectStatusName,
         BoardBringUpWizard::kImageLabelName,
+        BoardBringUpWizard::kImageStatusName,
         BoardBringUpWizard::kJumperTextName,
-        BoardBringUpWizard::kFirmwareTextName,
+        BoardBringUpWizard::kJumperStatusName,
+        BoardBringUpWizard::kConfigureTextName,
+        BoardBringUpWizard::kConfigureStatusName,
+        BoardBringUpWizard::kProgramTextName,
+        BoardBringUpWizard::kProgramStatusName,
         BoardBringUpWizard::kRemoveJumperTextName,
-        BoardBringUpWizard::kGatewareTextName,
+        BoardBringUpWizard::kRemoveJumperStatusName,
         BoardBringUpWizard::kPowerCycleTextName,
+        BoardBringUpWizard::kPowerCycleStatusName,
         BoardBringUpWizard::kVerifyTextName}) {
     EXPECT_NE(test.Label(name), nullptr) << name;
   }
 }
 
-TEST(BoardBringUpWizardTest, TheLastPageOffersTheUpdateDialog) {
-  WizardUnderTest test;
-  QSignalSpy asked(test.wizard.get(), &BoardBringUpWizard::OpenUpdateRequested);
+// Nothing follows a bring-up, so the last page offers nothing to press. The
+// flow used to hand over to the update dialog, and a button that still did
+// would send somebody to repeat the work they had just finished.
+TEST(BoardBringUpWizardTest, TheLastPageHandsOverToNothing) {
+  const WizardUnderTest test;
 
-  // The button is on the last page and nothing else reaches it, so what is
-  // asserted here is only that pressing it asks the window that owns both — the
-  // programming that gets somebody to that page is covered above.
-  test.Button(BoardBringUpWizard::kUpdateNowButtonName)->click();
-  EXPECT_EQ(asked.count(), 1);
+  EXPECT_EQ(test.Button("bringup_update_now"), nullptr);
+  EXPECT_TRUE(test.Label(BoardBringUpWizard::kVerifyTextName) != nullptr);
 }
 
 }  // namespace

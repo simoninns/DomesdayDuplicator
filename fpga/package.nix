@@ -106,8 +106,8 @@ stdenvNoCC.mkDerivation {
 
     (cd application && quartus_cpf -c DomesdayDuplicator.cof && rm -f DomesdayDuplicator.jic)
 
-    # And the same for the factory image, whose raw bytes a bring-up or a
-    # rollback writes to address 0 through the firmware's flash bridge. Its
+    # And the same for the factory image, whose raw bytes a bring-up writes to
+    # address 0 through the firmware's flash bridge. Its
     # .jic is deleted for the mirror-image reason the application's is: it
     # would write a factory image with no application image and no boot block
     # beside it, which is what the provisioning .jic above does properly.

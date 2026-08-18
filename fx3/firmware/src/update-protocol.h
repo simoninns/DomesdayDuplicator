@@ -117,8 +117,8 @@
 // Where the three regions live.
 //
 // The factory image at 0x000000 is written from here by exactly one path:
-// target 2, which nothing but a bring-up or a rollback ever selects and
-// which is refused without UPDATE_FLAG_FACTORY_WRITE. It used to be written
+// target 2, which nothing but a board bring-up ever selects and which is
+// refused without UPDATE_FLAG_FACTORY_WRITE. It used to be written
 // by no path at all, on a freeze policy (fpga/factory/README.md) that took
 // its safety from JTAG being the only way in. What changed is that the
 // vectors which were going to do that job cannot: a quartus_cpf flash .svf

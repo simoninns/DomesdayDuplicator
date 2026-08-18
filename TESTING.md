@@ -198,18 +198,18 @@ LaserDisc player protocol.
 | `tests/unit/test_json_value.cpp` | The manifest parser's strictness stated as tests: duplicate keys, trailing content, comments, trailing commas, leading zeros, unescaped control characters, lone surrogates and runaway nesting each refused by name — plus numbers surviving a round trip as the text they arrived as | T1 |
 | `tests/unit/test_minisign_verify.cpp` | Signature verification against signatures **minisign 0.12 produced**, in both its modes: a manifest with one byte changed refused, an edited trusted comment refused because the second signature covers it, a signature from another key refused, and malformed key and signature files refused | T1 |
 | `tests/unit/test_update_manifest.cpp` | The manifest schema: the fixture read field by field and written back byte-identically, a one-component bundle accepted and an empty one refused, an unknown schema version stopping the parse rather than producing a list, every problem reported rather than only the first, dotted versions ordered while commit hashes and `unknown` are refused an ordering at all — and the provisioning component: a set read and written back under its own name, a set carrying only vectors accepted as a manifest, and a component kind this build does not know refused by name rather than silently skipped | T1 |
-| `tests/unit/test_update_bundle.cpp` | The archive: entries round-tripped through the writer and reader including the empty, exactly-one-block and one-byte-over cases; directories, paths, bad checksums, truncation and duplicate names refused; and, at bundle level, a tampered manifest, a tampered payload, a wrong length, a missing payload, a missing signature and a manifest that is not the first entry each refused with their own message — plus a signed provisioning set opened and its vectors checked against the manifest's digest like any other payload, and refused when one byte of them changes | T1 |
+| `tests/unit/test_update_bundle.cpp` | The archive: entries round-tripped through the writer and reader including the empty, exactly-one-block and one-byte-over cases; directories, paths, bad checksums, truncation and duplicate names refused; and, at bundle level, a tampered manifest, a tampered payload, a wrong length, a missing payload, a missing signature and a manifest that is not the first entry each refused with their own message — plus a signed bundle carrying all four payloads opened and its vectors checked against the manifest's digest like any other payload, and refused when one byte of them changes | T1 |
 | `tests/golden/test_stock_tar_bundle.cpp` | A bundle **as `tools/make-update-bundle.sh` really produced it** — GNU tar's bytes, minisign's signature — opened, verified and compared against what this project's own writer produces. The one test that says the reader reads what the release tooling writes rather than only what this code writes | T1, T2 |
 | `tests/unit/test_update_key.cpp` | Which signatures a build accepts: a development bundle accepted with the explicit opt-in and refused without it, a bundle whose claimed channel and signing key disagree refused, the compiled-in development key checked against the one in `tools/keys/`, and the default policy proved able to open something at all | T1 |
 | `tests/unit/test_boot_image.cpp` | The FX3 boot image, read from the host's side: a well-formed image parsed into its sections with the offsets landing on the right bytes, and every malformed case refused with a sentence — a missing signature, an image that is not executable code, a type the boot ROM would not run, a checksum that does not match, a truncated file, bytes after the checksum, an image with nothing in it, and a section length that would wrap when multiplied into a byte count | T1 |
 | `tests/unit/test_device_recovery.cpp` | Programming a device that has no firmware to be programmed with: the prelude downloading each section and starting it, the downloaded bytes proved to be the image's own, the updater opened at the path the device *came back* at rather than the one it left, and then the ordinary update running unchanged — plus every way the prelude can fail, all of which are things that happen to a device nobody is holding: a bundle with no firmware in it, a payload that is not an image, a download stopping part way, a device that will not start what it was given, one that never comes back, and a cancellation, each proved to leave nothing written | T1 |
 | `tests/unit/test_device_updater.cpp` | The status packet: every field decoded at its offset, the three counters proved not interchangeable, the wrong length refused, a phase or error code this build does not know refused rather than narrated — and that every error code has its own sentence, none of them repeating another's | T1 |
-| `tests/unit/test_update_gate.cpp` | The install-time gate: a bundle needing a newer application refused with that verdict rather than a generic one, an unknown manifest schema refused, firmware or gateware speaking a version outside this build's range refused in both directions, a downgrade inside the range allowed, a build that cannot order its own version saying so rather than assuming, the gateware floor not applied to a device whose FPGA never answered, a device with no firmware passing the checks that need an identity while being refused a bundle that carries no firmware to give it, and a provisioning set refused by the update window with a sentence naming the window that does want it | T1 |
+| `tests/unit/test_update_gate.cpp` | The install-time gate: a bundle needing a newer application refused with that verdict rather than a generic one, an unknown manifest schema refused, firmware or gateware speaking a version outside this build's range refused in both directions, a downgrade inside the range allowed, a build that cannot order its own version saying so rather than assuming, the gateware floor not applied to a device whose FPGA never answered, a device with no firmware passing the checks that need an identity while being refused a bundle that carries no firmware to give it, and a file carrying only the bring-up payloads refused by the update window with a sentence naming the window that does want it | T1 |
 | `tests/unit/test_update_orchestrator.cpp` | The whole flow against a fake device: an install proved by reading the identity back, every chunk but the last page-aligned, the chunk size taken from the device and rounded down to whole pages, the stages reported in order, transfer progress monotonic and reaching its total — and each failure branch by name: no update agent, a capture running, a payload that is not firmware, a stream digest mismatch, a readback mismatch, a device that stops answering, one that never returns, one that comes back running the wrong build, and a cancellation proved to leave nothing committed — plus the deferred restart the bring-up flow uses, where the write and the readback happen and the reset, the FPGA reload and the confirmation deliberately do not, and the ordinary path proved to still do all three | T1 |
 | `tests/unit/test_update_cli.cpp` | `ddd-update`'s command line and its exit codes: each option parsed, `--device` with nothing after it refused, two bundles refused, and a missing file reported as a bundle error before any device is touched | T1 |
 | `tests/unit/test_usb_blaster_cable.cpp` | The USB-Blaster's wire protocol, against a fake byte pipe: a TCK cycle as the same pin state twice with the clock raised, TDO asked for on the half of the cycle before the edge, eight TMS-low cycles collapsing into one byte-shift command, the last bit of a scan dropping back to bit-bang because it raises TMS, a long run split at the largest command, a wait clocked as whole bytes with the remainder bit-banged and nothing ever asked back, commands held until something needs the cable to have caught up, the two status bytes on every packet dropped rather than read as data, and a cable that only ever answers status given up on rather than waited for | T1 |
 | `tests/unit/test_svf_player.cpp` | The programming file and the TAP state machine it walks: the run forced to a known state, a scan's whole cycle stream — the walk there, TMS raised on the last bit and nowhere else, the walk to the state the file says scans end in — answers compared under their mask and a mismatch naming the line and both values, what a statement remembers and what it deliberately does not, waits counted and left where their end state says, a wait taking at least as long as the count stands for at the rate the file declares, and the files this player refuses rather than half-understands: a chain with more than one device on it, a drive of a reset line the cable does not have, a value wider than its scan, a statement it does not know. Fixtures include a real Quartus-emitted file played against a device that agrees with it and one that does not | T1 |
-| `tests/unit/test_provisioning_orchestrator.cpp` | Bringing a board up, and the one property here that protects hardware rather than data: **the FPGA is refused until the FX3 has been programmed** — before the cable is so much as opened — whatever calls it and in whatever order, including after an FX3 step that failed. Plus both halves run in order against fakes, the deferred restart the fitted jumper requires, a set with no firmware and a set with no vectors each refused, the cable driver's own sentence carried through rather than replaced, a stopped play reported as stopped rather than failed, and progress reported in the shape the update page already consumes | T1 |
+| `tests/unit/test_bringup_orchestrator.cpp` | Bringing a board up, and the one property here that protects hardware rather than data: **the FPGA is refused until the FX3 has been programmed** — before the cable is so much as opened — whatever calls it and in whatever order, including after an FX3 step that failed. Plus both halves run in order against fakes, the deferred restart the fitted jumper requires, a set with no firmware and a set with no vectors each refused, the cable driver's own sentence carried through rather than replaced, a stopped play reported as stopped rather than failed, and progress reported in the shape the update page already consumes | T1 |
 | `tests/unit/test_jtag_cli.cpp` | `ddd-jtag`'s command line and its exit codes: each option parsed, two files refused, a missing file reported before any cable is opened, and a dry run reading a whole programming file and reporting what it would have clocked out, with nothing attached and nothing written | T1 |
 | `tests/analysis/test_front_end_gain.cpp` | The board's SW401 gain switch: all fifteen switch patterns against the gain and full-scale input on the hardware calculations sheet, that closing a second switch *lowers* the gain because the resistors are in parallel, all-switches-open treated as no declaration rather than as unity, and an undeclared gain converting nothing at all | T1 |
 | `tests/analysis/test_waveform_mapping.cpp` | The scope's arithmetic: sample and code to pixel and back, span and offset, a cursor clamped to the window, column decimation keeping the extremes of what it covers while leaving genuinely empty columns empty, and that every span the panel offers fits inside a snapshot rather than being silently clamped to less time than its label claims | T1 |
@@ -249,8 +249,8 @@ LaserDisc player protocol.
 | `tests/gui/unit/test_capture_faults.cpp` | Fault injection through the controller: each failure reaching the user as its own message and carrying nobody else's remedy, a capture that fails mid-write leaving a finalised and readable partial file, and the message naming where that file is | T1 |
 | `tests/gui/unit/test_capture_failure_presenter.cpp` | The error taxonomy as a user meets it: no two failures sharing a summary or a remedy, every failure naming something to do, the title carrying the code, and the usbfs remedy carrying the exact command to paste | T1 |
 | `tests/gui/unit/test_analysis_cli.cpp` | `--analyse-test-data`'s exit codes: 0 for an intact ramp, 1 for a break, 2 for a file that could not be analysed — with the verdict on stdout and "I could not read this" on stderr | T1 |
-| `tests/gui/unit/test_bringup_text.cpp` | What the bring-up wizard says: every page numbered and titled, the overview naming every physical act in advance, **every power-cycle instruction asking for *both* cables**, the timeout leading with the partial power cycle rather than mentioning it third, one vocabulary for the jumper (fitted and removed, never open and closed), the charge-only cable named ahead of the not-connected case, an attached-but-unopenable cable given the remedy that fits it, the kit's debug port separating an unpowered board from an unanswering one, each firmware a board can be running named as itself — current firmware with its commit and a pointer at the ordinary update path, firmware predating the update agent, and the original `1d50:603b` — the legend explaining the three marks in the colours the rows actually use, an ordinary update file refused with the reason, and the closing checks — four for a finished board, one for a device that is not there, and none at all for a claim the set did not make | T1 |
-| `tests/gui/unit/test_bundled_provisioning.cpp` | Where an installed build looks for the provisioning set it was packaged with — three layouts, no two of which exist on the same computer: beside the executable for an MSI, `Contents/Resources` for a `.app`, and the XDG data path under the application ID for a Flatpak or a prefix install. One name everywhere, the data directories kept in QStandardPaths' order so a user's own copy wins, nothing offered at all when the application does not know where it is, and a build that bundles nothing finding nothing | T1 |
+| `tests/gui/unit/test_bringup_text.cpp` | What the bring-up wizard says: every page numbered and titled, the overview naming every physical act in advance, **every power-cycle instruction asking for *both* cables**, the timeout leading with the partial power cycle rather than mentioning it third, one vocabulary for the jumper (fitted and removed, never open and closed), the charge-only cable named ahead of the not-connected case, an attached-but-unopenable cable given the remedy that fits it, the kit's debug port separating an unpowered board from an unanswering one, each firmware a board can be running named as itself — current firmware with its commit and a pointer at the ordinary update path, a protocol this build does not know, and the original `1d50:603b` — the legend explaining the three marks in the colours the rows actually use, an ordinary update file refused with the reason, the closing checks — four for a finished board, one for a device that is not there, and none at all for a claim the set did not make — and the two lines every page ends in: a finished step leading with **All done** and naming the button to press rather than burying success mid-paragraph, an unfinished one saying what it is waiting for, the working pages opening by naming the button rather than closing with it, and the two physical pages given as numbered instructions | T1 |
+| `tests/gui/unit/test_bundled_update.cpp` | Where an installed build looks for the update bundle it was packaged with — three layouts, no two of which exist on the same computer: beside the executable for an MSI, `Contents/Resources` for a `.app`, and the XDG data path under the application ID for a Flatpak or a prefix install. One name everywhere, the data directories kept in QStandardPaths' order so a user's own copy wins, nothing offered at all when the application does not know where it is, and a build that bundles nothing finding nothing | T1 |
 | `tests/gui/widget/test_about_dialog.cpp` | That the logo and the application icon are compiled into the binary and load — the failure a static library's dropped resource initialiser causes, which appears only in the real application because the test binaries link it differently — and that the dialog is wider than the text it has to lay out, cuts no line off at the right-hand edge, can still be scrolled to text that does not fit, carries the logo and the notices, and has a link that can be followed | T1 |
 | `tests/gui/widget/test_main_window_panels.cpp` | The dock panel framework: every panel present, floatable, toggled from the View menu, a layout that survives a restart, that no panel demands so much height that the column it shares stops being resizable, and that the separator above the bottom panel can actually be dragged in both directions — the failure a zero-height central widget causes, which resizes fine when asked in code and not at all with the mouse | T1 |
 | `tests/gui/widget/test_settings_dialog.cpp` | The settings dialog and its tabs: the two halves grouped rather than run together, the dialog opening on the tab the menu entry was about, each half round-tripping without touching the other — two controllers apply them, so a page that overwrote the other's values would be a way to lose a setting by opening a window — a chosen port that is not there staying chosen, an exclusion surviving its adapter being unplugged, and a remembered port forgotten when it is excluded or overridden | T1 |
@@ -260,7 +260,7 @@ LaserDisc player protocol.
 | `tests/gui/widget/test_guided_capture_dialog.cpp` | The guided capture setup: built from a profile rather than from nothing, so a CAV disc gets frame entry and a CLV disc gets time entry and neither is offered the other's — absent rather than merely disabled — the three shapes offered with the entry fields each of them needs, a plan that cannot be made saying which of the reasons it is and leaving **Start** unavailable, the estimate following what is typed, a suggested name that is already taken said so before anything is written, and a run's progress and its estimated time remaining shown while it goes | T1 |
 | `tests/gui/widget/test_capture_panel.cpp` | The capture controls: the device list, a USB 2 device named as such and refused, each button reading as the next thing that will happen and turning green while monitoring and red while capturing without changing size — the layout shift a stylesheet on a button causes, because the size the stylesheet path computes is not the one the platform style chose — device and test mode locked while streaming, the destination fixed once the file is open while the duration and low-space settings stay live, test mode taking the name field away, and free space shown as how much capture it holds rather than as a size | T1 |
 | `tests/gui/widget/test_update_page.cpp` | The whole update flow as a widget, driven against fakes with nothing plugged in — including branches a bench cannot be asked for. A verified bundle enabling the install and saying so, a development bundle bannered, a file that is not a bundle and one that is not there each refused with a reason, a bundle needing a newer application disabling the button, a successful install reporting what the device now runs, and each failure by name: a capture in progress, a corrupted transfer caught before anything is committed, a device that never comes back, and the wrong build coming back not being called a success. Plus a device with no firmware: named as being in recovery mode with both ways it gets there stated, offered **Program this device** rather than a repair, its version rows reading "None installed" and "Cannot be read", and a payload that is not firmware proved never to reach the device's memory | T1 |
-| `tests/gui/widget/test_board_bringup_wizard.cpp` | The bring-up flow driven end to end with nothing plugged in: the step order asserted as data — the FPGA page after the FX3 page, the power cycle after both — and the FPGA button refused until the FX3 is done; both branches, where a board in its boot ROM skips two pages and a legacy board is held at the jumper until it comes back; the connectivity page's three failures; an ordinary update file refused and a provisioning set accepted with its development banner; both halves programmed with the restart deferred; a stopped play; a power cycle nobody performed; and an FX3 step that failed offered again with the sentence saying nothing is broken; the status marks asserted as characters rather than as words, because a UTF-8 tick read a byte at a time is mojibake that every wording test passes over; and the four states a packaged build's own provisioning set produces — preselected and named as such, refused when it does not verify, replaced by a chosen file and put back again, and a build carrying none saying which file to download | T1 |
+| `tests/gui/widget/test_board_bringup_wizard.cpp` | The bring-up flow driven end to end with nothing plugged in: the step order asserted as data — the jumper page before the configure page, the configure page before anything is written, no power cycle in the middle of the writing — and the programming button refused until the FPGA is configured; both branches, where a board in its boot ROM skips two pages and a legacy board is held at the jumper until it comes back; the connectivity page's three failures; a release bundle that predates the bring-up payloads refused by name and a complete one accepted with its development banner; the configure writing nothing, then all three images written in order with the restart deferred; a stopped play; a power cycle nobody performed; and a programming step that failed offered again with the sentence saying nothing is broken; the status marks asserted as characters rather than as words, because a UTF-8 tick read a byte at a time is mojibake that every wording test passes over; the four states a packaged build's own bundle produces — preselected and named as such, refused when it does not verify, replaced by a chosen file and put back again, and a build carrying none saying which file to download; a finished step disabling and relabelling its own button while the line under it says **All done**, and a failed run's sentence surviving the polls and navigation that would otherwise replace it with an invitation to start; and **the power-cycle page refusing to report a cycle that has not happened** — the step before it leaves the FX3 running the bundle's firmware out of RAM, so a working Duplicator is already enumerating, and the page requires the device to go away and come back on the *application* image, with a partial cycle caught by the image role and a board back in its boot ROM told that J4 is still fitted | T1 |
 | `tests/gui/widget/test_analysis_dialog.cpp` | The analysis dialog: pass and fail reported with the break's offset, pass and fail coloured differently through the theme tokens, an unreadable file distinguished from a failed one, the cancel button becoming the close button, and a dialog destroyed mid-analysis joining its worker rather than leaving a thread running into a destroyed object | T1 |
 | `tests/gui/widget/test_statistics_panel.cpp` | That the figures reach the right labels: the four integrity states reading differently, a new run clearing the last one's numbers, a finished run leaving them up, the three capture-only rows blank while monitoring and filled in once a writer is attached, and the back-pressure bar — showing a working capture's buffer as half used rather than as nothing, carrying the reading's figures in its tooltip, and saying nothing at all rather than a confident zero when the gateware cannot report | T1 |
 | `tests/gui/widget/test_waveform_panel.cpp` | The scope panel: the span choices reaching the plot, persistence off until asked for, the cursor reading in codes alone until a gain is declared, the plot painting empty, full and in persistence mode, and — counted in pixels a person could actually see — persistence leaving earlier sweeps on screen while its absence leaves only the latest | T1 |
@@ -609,16 +609,18 @@ Everything below writes the FX3's boot EEPROM. **Nothing automated does this** (
 deliberate human act every time.
 
 You need a Duplicator and a USB 3 port. One step — provisioning a unit running firmware
-from before the update agent existed (U0) — needs the J4 jumper and `fx3-programmer`.
+that has no update agent to receive one (U0) — needs the J4 jumper and
+`fx3-programmer`.
 Everything else is done from the application, which is the whole point of the mechanism,
 and that now includes recovering a unit whose update was interrupted (U5) and bringing up
 a kit that has never been programmed at all (U6).
 
-The B-series items go further and write the **FPGA's** configuration flash as well, through
-the DE0-Nano's own USB-Blaster. Those need both cables and the case off. The order the two
-halves are programmed in is enforced in the engine rather than left to the procedure, and
-the one power cycle each flow has comes after both halves — so B-V0 checks the mixed state
-the flows deliberately sit in, rather than gating them.
+The B-series items go further and write the **FPGA's** configuration flash as well, using
+the DE0-Nano's own USB-Blaster to configure it first. Those need both cables and the case
+off. The order is enforced in the engine rather than left to the procedure: the FX3 reaches
+its boot ROM before the FPGA is touched and only ever runs the new firmware afterwards, so
+the pairing that would put two drivers on one net is unreachable rather than merely
+avoided.
 
 ### What to have ready before you start
 
@@ -649,10 +651,16 @@ FX3_FLASH_PROG=fx3/programmer/cyfxflashprog.img \
 Then remove J4 and power-cycle again. `$FX3_FLASH_PROG` is first in the resolution order,
 ahead of both the relative candidates and the installed copy under `/usr/local/share`.
 
-### U0 — provisioning a device that cannot yet update itself
+### U0 — programming a device that cannot yet update itself
 
-A unit running firmware from before the update agent has no `0xD0` to answer, so the
-application will say so rather than pretending. It needs the jumper once, and only once.
+A unit with no update agent has no `0xD0` to answer, so the application says so rather
+than pretending. It needs the jumper once, and only once.
+
+In the field that means the **original** firmware, which is what `main` still carries and
+what every unit is running today: no version of the current firmware has been released, so
+there is no intermediate generation to meet. This is the bench route; the application does
+the same job from **Tools ▸ Firmware ▸ Bring up a new or legacy board…** (B1), and that is
+what a user is told to use.
 
 1. Fit J4, power-cycle, confirm `04b4:00f3`.
 2. Run the command above.
@@ -880,14 +888,10 @@ Use a SuperSpeed Explorer Kit that has never been programmed, or erase one delib
 - B-V1 after any change to `svf_player.cpp` or `usb_blaster_cable.cpp`, and after any
   change to the `quartus_cpf` invocation that emits the `.svf` — the declared frequency in
   particular, which is what every wait in the file is counted in.
-- B-V0 once the wizards meet real hardware, and again if either interconnect ever changes
-  direction. It measures the mixed state both flows sit in; it does not gate the other bench
-  items, because the ordering that keeps a board out of the bad pairing is enforced in
-  `provisioning_orchestrator.cpp` and pinned by tests.
-- B0 and B1 before any release that changes `provisioning_orchestrator.cpp` or the bring-up
-  wizard, and once per release that changes what a provisioning set contains.
-- B2 whenever `ddd-gui/packaging/bundled-provisioning.env` changes, and after any change to
-  the packaging workflows or to `bundled_provisioning.cpp` — every part of that path is a
+- B0 and B1 before any release that changes `bringup_orchestrator.cpp` or the bring-up
+  wizard, and once per release that changes what the bundle contains.
+- B2 whenever `ddd-gui/packaging/bundled-update.env` changes, and after any change to
+  the packaging workflows or to `bundled_update.cpp` — every part of that path is a
   claim about a machine other than the one it was built on.
 
 ### G0 — provisioning a unit with the dual-image flash
@@ -972,7 +976,7 @@ node it finds, which is the quickest way to tell the two apart.
 **Decided 2026-08-17: the loader is not used, and this project's own factory image is
 configured instead.** The two options were —
 
-- **The loader is Altera's.** Putting it in a provisioning set means redistributing an
+- **The loader is Altera's.** Putting it in the update bundle means redistributing an
   Altera artefact, which is the same question the Quartus caching position answers for the
   toolchain (see the licence position in *Release pipeline*). Rejected: the second option
   works and needs no answer to it.
@@ -1079,38 +1083,31 @@ The three things only this can settle:
 If the run is absurdly slow, the recorded fallback is the `.jbc` interpreter — more code,
 the same seams, and a file a third of the size. Verify first, build second.
 
-### B-V0 — the tolerated mixed state, on the bench
+### The interconnect direction, and why it is not a bench item
 
-**Not yet performed.** A check on the state both flows deliberately spend minutes in — not
-on the state they are built never to reach.
+**Recorded, not performed.** This was once a gating oscilloscope measurement (B-V0),
+protecting against contention on `CTL_07`. It is not one any more, and the reason is worth
+keeping: the bad pairing became unreachable rather than merely avoided.
 
-Earlier drafts of this item were written the other way round, as a gating oscilloscope
-measurement protecting against contention on `CTL_07`. That was the wrong shape, for two
-reasons that between them make the bad pairing unreachable rather than merely avoided.
+**The FX3 is in its boot ROM while the FPGA changes.** Bring-up reaches the boot ROM first,
+by jumper, and in the boot ROM every GPIF and GPIO pin is unconfigured and undriven — so
+the gateware can become current underneath an FX3 that is driving nothing at all.
+`BringUpOrchestrator::ProgramDevice` refuses until `ConfigureFpga` has succeeded, before
+the boot ROM is so much as opened, and a unit test and a widget test hold it.
 
-**The ordering is enforced in code.** `ProvisioningOrchestrator::ProgramGateware` refuses
-until `InstallFirmware` has succeeded, before the cable is so much as opened. A unit test
-and a widget test hold it.
-
-**And the running combination only changes at a power cycle.** Gateware takes effect when
-the FPGA reloads from flash; firmware takes effect when the FX3 re-reads its boot source.
-Both flows have exactly **one** power cycle and it comes after both halves are programmed,
-so the two change together. Reaching the bad pairing would need the wrong order *and* an
-intermediate power cycle, and the flows have neither:
+**And the original firmware never runs again afterwards.** By the time any firmware
+executes it is the firmware out of the bundle, and there is no flow that puts the original
+back — so no sequence of pages, stops or reruns can produce the pairing:
 
 | | What the FX3 is running | What the FPGA is running |
 | --- | --- | --- |
-| Bring-up, while the FX3 is written | boot ROM, J4 fitted — **drives nothing** | original gateware |
-| Bring-up, while the FPGA is written | boot ROM, J4 fitted — **drives nothing** | original gateware, still |
-| Bring-up, after the one power cycle | current firmware | current gateware |
-| Rollback, while the FPGA is written | current firmware | becoming original |
-| Rollback, while the FX3 is written | current firmware (its own flasher) | original gateware |
-| Rollback, after the one power cycle | original firmware | original gateware |
+| Before the jumper page | whatever it was | whatever it was — a shipped pairing |
+| While the FPGA is configured | boot ROM, J4 fitted — **drives nothing** | becoming current |
+| While the three images are written | firmware from the bundle | current gateware |
+| After the one power cycle | current firmware | current gateware |
 
-So the only mixture either flow ever *runs* is **current firmware over original gateware**,
-and that is the one worth measuring — it lasts minutes, every time, on every board.
-
-The directions the design assumes:
+The one mixture the flow ever *runs* is **current firmware over current gateware**, which
+is what a working unit is. The directions the reading rests on:
 
 | | `CTL_07` / `GPIO_24` |
 | --- | --- |
@@ -1119,56 +1116,60 @@ The directions the design assumes:
 | Current gateware (`fpga/application/DomesdayDuplicator.v:90,177`) | FPGA **output** — this is `spi_miso` |
 | Current firmware | FX3 **input** — it reads MISO |
 
-Current firmware over original gateware therefore leaves the net driven by nobody: a
-floating input, which reads as noise, which is exactly the diagnosis the application wants
-("this gateware has no register interface"). What this item checks is that this is true in
-fact and not only in the source.
+Original firmware over current gateware is the pairing that must not happen: two output
+stages on one net, bounded by the Explorer Kit's 22 Ω series resistors to roughly forty
+milliamps — past the per-pin DC maximum of both dies, and sustained rather than transient,
+because the original firmware claims the pin and holds it. Current firmware over original
+gateware is the safe mixture: the net is driven by nobody, which reads as noise, which is
+exactly the diagnosis the application wants ("this gateware has no register interface").
 
-The procedure, on a unit in that state — which is any board part way through a bring-up, and
-any board that has had a rollback's FPGA half and not yet its FX3 half:
+**If anyone ever puts a probe on it**, three things are worth measuring while it is there,
+and none of them gates anything:
 
-1. Probe `CTL_07` at the FX3 connector. It should float: a 10 kΩ pull to either rail should
-   move it freely. If either end is driving, the source reading is wrong somewhere.
-2. On a unit running **current firmware over current gateware**, the same pull should not
-   move it — the FPGA is driving MISO.
-3. Read the original GPIF II configuration as well as the GPIO overrides above. The GPIF
-   state machine drives `CTL` lines of its own, outside the overrides, and that is the half
-   of this a source reading is most likely to have missed.
-4. While the probe is there, measure the ringing on `FPGA_SCLK` during an ordinary register
-   read. The *FPGA register interface* page used to list series termination as a remedy
-   needing a hardware change; the Explorer Kit already provides 22 Ω on every `CTL` line, so
-   what is left to try if ringing is ever a problem is a shorter list than that page said.
+1. that `CTL_07` floats on a unit running current firmware over original gateware — any
+   board part way through a bring-up — and does not on a finished one, where the FPGA
+   drives MISO;
+2. the original GPIF II configuration as well as the GPIO overrides above. The GPIF state
+   machine drives `CTL` lines of its own, outside the overrides, and that is the half of
+   this a source reading is most likely to have missed;
+3. the ringing on `FPGA_SCLK` during an ordinary register read. The *FPGA register
+   interface* page used to list series termination as a remedy needing a hardware change;
+   the Explorer Kit already provides 22 Ω on every `CTL` line, so what is left to try if
+   ringing is ever a problem is a shorter list than that page said.
 
-**Pass** = step 1 floats, step 2 does not, and the GPIF configuration adds no driver to
-`CTL_07`.
-
-If it does **not** pass, the orderings do not change — they are the right way round
-regardless, and they cost nothing — but the wizard's diagnosis of an unresponsive register
-interface would need re-reading, and the mixed state would want a second look before either
-flow is left sitting in it.
+Should the reading turn out wrong, the ordering does not change — it is the right way round
+regardless, and it costs nothing — but the wizard's diagnosis of an unresponsive register
+interface would need re-reading.
 
 ### B0 — bringing up a bare pair from the application
 
 **Not yet performed.** Needs B-V1 settled first, and a never-programmed FX3 kit with a
 DE0-Nano carrying Terasic's demo bitstream.
 
-1. Build a provisioning set: `nix build .#fx3-firmware .#bitstream`, then
-   `tools/make-update-bundle.sh --firmware … --provisioning
-   result-bitstream/provisioning/DomesdayDuplicatorProvisioning.svf --provisioning-identity
-   … --channel development --secret-key tools/keys/development.key`.
-2. Open **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy board…** with both cables
-   connected and the unit out of its case.
+1. Build a bundle: `nix build .#fx3-firmware .#bitstream`, then `./tools/dev-bundle.sh`,
+   which collects all four payloads and signs them with the development key. It prints
+   which ones it found; a run that names a missing factory pair cannot do this item.
+2. Open **Tools ▸ Firmware ▸ Bring up a new or legacy board…** with both cables connected
+   and the unit out of its case.
 3. Work the wizard through. On this board the connectivity page should report the FX3
    *waiting in its boot ROM* and skip both jumper pages — **7 of 9 steps, not 9**.
-4. Record the wall-clock duration of the FPGA step and compare it against the estimate the
-   page printed. The estimate is deliberately pessimistic; a page that promised five minutes
-   and took twelve is a defect in the estimate, not in the run.
-5. At the end, the verification page must show all four ticks, with the gateware line
-   reading the **factory** image.
-6. Then an ordinary update from **Tools ▸ Firmware ▸ Update firmware…**, and then T5.
+4. Record the wall-clock duration of the configure step and of the programming step
+   separately, and compare each against the estimate its page printed. Both estimates are
+   deliberately pessimistic; a page that promised five minutes and took twelve is a defect
+   in the estimate, not in the run.
+5. On the **power cycle** page, confirm it does *not* report success before you touch
+   anything. The step before it hands the firmware to the FX3's boot ROM and runs it out
+   of memory, so a fully working Duplicator is enumerating at that moment — a page that
+   ticked here would be reporting a power cycle that had not happened, which is exactly
+   what it used to do.
+6. At the end, the verification page must show all four ticks, with the gateware line
+   reading the **application** image — the factory image validated it at power-on and
+   handed over. A board that comes back on the factory image is a failed run, not a
+   partial success.
+7. Then T5, with no update in between: there is nothing left to install.
 
-**Pass** = the wizard reaches its last page with every check ticked, the ordinary update
-that follows succeeds, and the unit passes the capture-integrity procedure.
+**Pass** = the wizard reaches its last page with every check ticked, and the unit passes
+the capture-integrity procedure without anything else being installed on it.
 
 ### B1 — bringing up a legacy unit
 
@@ -1182,16 +1183,19 @@ The differences from B0, and they are the point of running it separately:
    jumper.
 3. After fitting J4 and pulling **both** cables, the jumper page must notice the boot ROM
    appear by itself.
-4. Deliberately pull only *one* cable first and confirm nothing happens — the board stays
-   lit, the page keeps waiting, and after ten seconds it asks *"Did both cables come out?"*.
-   This is the failure the whole flow is worded around, and it is worth provoking once.
+4. On the **power cycle** page, deliberately pull only the USB 3.0 cable first. The board
+   stays lit from the mini-USB and comes straight back as a working Duplicator — and the
+   page must **refuse it**, saying *the board did not lose power*, because the FPGA is
+   still holding the image JTAG put there rather than one loaded from flash. Then pull
+   both and confirm it completes. This is the failure the whole flow is worded around, and
+   it is the one worth provoking.
 
 **Pass** = as B0, plus the wording checks above.
 
 ### B2 — the offline bring-up, from an installed release build
 
-**Not yet performed.** What the bundled provisioning set exists for, and the only way to
-find out whether it works: every part of it — the packaging pin, the fetch by digest, the
+**Not yet performed.** What the bundled update file exists for, and the only way to find
+out whether it works: every part of it — the packaging pin, the fetch by digest, the
 install layout, the search — is a claim about a machine that is not the one it was built
 on.
 
@@ -1202,20 +1206,21 @@ B0 uses.
 1. Install the packaged application on a machine with **no network at all** — unplugged or
    with the interface down, not merely "not used". A path that quietly fetches something
    would otherwise pass here and fail in the field.
-2. Open **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy board…** and go to the image
-   page. It must arrive with a set **already chosen**, naming the version and commit the
-   pin points at, and saying it was checked.
+2. Open **Tools ▸ Firmware ▸ Bring up a new or legacy board…** and go to the image page.
+   It must arrive with a file **already chosen**, naming the version and commit the pin
+   points at, and saying it was checked.
 3. Confirm the page names the same version the pin does. A stale pin is the likeliest
    failure here and it is invisible from inside the application.
-4. Work the wizard through as in B0, and finish with the ordinary update — which does need
-   the update bundle, so this is where the network comes back.
+4. Work the wizard through as in B0. **The network stays down for all of it** — that is
+   the whole item, and it is stronger than it used to be: bring-up now finishes the job,
+   so there is no ordinary update afterwards to bring the network back for.
 
-**Pass** = the wizard preselects the bundled set on a machine that has never downloaded
-anything, and the bring-up completes from it.
+**Pass** = the wizard preselects the bundled file on a machine that has never downloaded
+anything, and the board is fully current at the end of it, offline throughout.
 
-**Also worth doing once**: rename or delete the installed set and reopen the wizard. It must
-say this build carries none and name the file to download — not offer a set it cannot read,
-and not fail silently.
+**Also worth doing once**: rename or delete the installed file and reopen the wizard. It
+must say this build carries none and name the file to download — not offer a file it cannot
+read, and not fail silently.
 
 ### G1 — the gateware update, and the handover it ends in
 

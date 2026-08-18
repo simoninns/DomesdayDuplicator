@@ -57,7 +57,6 @@ provisioning_interface_version="2"
 factory=""
 factory_identity=""
 factory_interface_version="2"
-purpose="update"
 minimum_application_version=""
 minimum_register_map_version="1"
 epcs_layout_version="1"
@@ -77,38 +76,33 @@ Usage: make-update-bundle.sh --output FILE --version X.Y.Z --commit HASH
                              [--factory-gateware FILE
                               --factory-gateware-identity HASH
                               --factory-gateware-interface-version N]
-                             [--purpose update|rollback]
                              [--minimum-application-version X.Y.Z]
                              [--minimum-register-map-version N]
                              [--epcs-layout-version N]
 
 At least one payload is required; a firmware-only bundle is a complete bundle and is
-what the development loop produces.
+what the development loop produces. A release bundle carries all four, because one file
+serves both consumers: the update window installs the two it knows and ignores the rest,
+and the bring-up wizard requires every one of them.
 
   --firmware-interface-version   the USB protocol version this firmware advertises in
                                  bcdDevice once installed
   --gateware-interface-version   the register-map version this gateware reports at
                                  register 0x01 once installed
-  --provisioning                 the provisioning gateware as JTAG vectors
-                                 (DomesdayDuplicatorProvisioning.svf), played through a
-                                 USB-Blaster by the bring-up wizard rather than installed
-                                 over USB. A set carrying this and firmware is what a
-                                 board with no working gateware is brought up with
+  --provisioning                 the factory image as JTAG vectors
+                                 (DomesdayDuplicatorFactoryConfigure.svf), played through
+                                 a USB-Blaster by the bring-up wizard rather than
+                                 installed over USB. Volatile: it configures the FPGA so
+                                 that the flash bridge exists, and writes nothing
   --provisioning-interface-version
-                                 the register-map version the provisioned gateware
+                                 the register-map version the configured gateware
                                  reports at register 0x01
   --factory-gateware             the factory image as raw EPCS bytes
                                  (DomesdayDuplicatorFactory_auto.rpd), written to
                                  address 0 by the device itself once the vectors above
                                  have given it a flash bridge. The two go together: a
-                                 provisioning set with only one of them cannot bring a
-                                 board up
+                                 bundle with only one of them cannot bring a board up
   --factory-gateware-identity    the commit that image reports once it is running
-  --purpose                      update (the default) or rollback. A rollback bundle
-                                 carries the legacy firmware and the legacy gateware,
-                                 and is the one file that installs software older than
-                                 the application installing it — so the update window
-                                 refuses it by name and the rollback wizard requires it
   --minimum-application-version  the oldest ddd-gui that may install this bundle;
                                  defaults to --version, which is the safe reading
   --public-key                   the matching public key, for the self-check at the end.
@@ -140,7 +134,6 @@ while [[ $# -gt 0 ]]; do
         --factory-gateware) factory="$2"; shift 2 ;;
         --factory-gateware-identity) factory_identity="$2"; shift 2 ;;
         --factory-gateware-interface-version) factory_interface_version="$2"; shift 2 ;;
-        --purpose) purpose="$2"; shift 2 ;;
         --minimum-application-version) minimum_application_version="$2"; shift 2 ;;
         --minimum-register-map-version) minimum_register_map_version="$2"; shift 2 ;;
         --epcs-layout-version) epcs_layout_version="$2"; shift 2 ;;
@@ -157,19 +150,6 @@ die() { echo "make-update-bundle: $*" >&2; exit 1; }
 [[ -n "$secret_key" ]] || die "--secret-key is required"
 [[ -n "$firmware" || -n "$gateware" || -n "$provisioning" || -n "$factory" ]] ||
     die "nothing to bundle: pass --firmware, --gateware, --provisioning, --factory-gateware or several"
-
-[[ "$purpose" == "update" || "$purpose" == "rollback" ]] ||
-    die "--purpose must be update or rollback"
-
-# A rollback takes a device back to the original firmware and gateware, and it is the one
-# file that installs software older than the application installing it. Both halves are
-# required, because a rollback that installed only the legacy firmware would leave it
-# driving the modern gateware — the one pairing the bring-up plan's ordering exists to
-# avoid.
-if [[ "$purpose" == "rollback" ]]; then
-    [[ -n "$firmware" && -n "$factory" ]] ||
-        die "a rollback bundle needs both --firmware and --factory-gateware"
-fi
 
 case "$channel" in
     release|development) ;;
@@ -268,12 +248,6 @@ fi
     printf '{\n'
     printf '  "manifest_version": 1,\n'
     printf '  "channel": "%s",\n' "$(json_escape "$channel")"
-    # Written only when it says something. An ordinary update carries no purpose field,
-    # which is what every bundle written before rollback existed looks like — and the
-    # reader defaults to exactly that.
-    if [[ "$purpose" != "update" ]]; then
-        printf '  "purpose": "%s",\n' "$(json_escape "$purpose")"
-    fi
     printf '  "version": "%s",\n' "$(json_escape "$version")"
     printf '  "commit": "%s",\n' "$(json_escape "$commit")"
     printf '  "created": "%s",\n' "$(json_escape "$created")"
@@ -408,9 +382,6 @@ check_payload() {
 
 echo "$output"
 echo "  channel   $channel"
-if [[ "$purpose" != "update" ]]; then
-    echo "  purpose   $purpose"
-fi
 echo "  version   $version ($commit)"
 if [[ -n "$firmware" ]]; then
     check_payload firmware.img

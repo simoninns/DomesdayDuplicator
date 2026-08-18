@@ -167,14 +167,15 @@ TEST(UpdateManifest, ReportsEveryProblemItFinds) {
   EXPECT_GE(errors.size(), 2u);
 }
 
-// --- the provisioning component ----------------------------------------
+// --- the bring-up components -------------------------------------------
 
-// The bring-up wizard's input: firmware beside the JTAG vectors that program
-// an FPGA which has nothing on it to be reached through.
-TEST(UpdateManifest, ReadsAProvisioningSet) {
+// The bring-up wizard's input: one release bundle carrying all four payloads.
+// The update window installs the two it knows and ignores the rest; the wizard
+// needs every one of them.
+TEST(UpdateManifest, ReadsABundleCarryingEveryComponent) {
   std::vector<std::string> errors;
   const std::optional<UpdateManifest> parsed =
-      ParseUpdateManifest(test::kProvisioningManifestJson, &errors);
+      ParseUpdateManifest(test::kBringUpManifestJson, &errors);
   for (const std::string& message : errors) {
     ADD_FAILURE() << message;
   }
@@ -187,16 +188,17 @@ TEST(UpdateManifest, ReadsAProvisioningSet) {
   EXPECT_EQ(provisioning.file, "gateware-provisioning.svf");
   EXPECT_EQ(provisioning.length, test::kProvisioningPayload.size());
 
-  // Firmware beside it, and no ordinary gateware: the vectors are what the
-  // FPGA half of a bring-up uses, and the flash-bridge route the gateware
-  // component takes is exactly what a board being brought up does not have.
+  // And the other three beside it, because one file serves both consumers:
+  // the vectors and the factory image are what a bring-up needs on top of the
+  // firmware and application gateware an ordinary update installs.
   EXPECT_TRUE(manifest.firmware.has_value());
-  EXPECT_FALSE(manifest.gateware.has_value());
+  EXPECT_TRUE(manifest.gateware.has_value());
+  EXPECT_TRUE(manifest.factory_gateware.has_value());
 }
 
 TEST(UpdateManifest, WritesAProvisioningComponentBackUnderItsOwnName) {
   const std::optional<UpdateManifest> parsed =
-      ParseUpdateManifest(test::kProvisioningManifestJson, nullptr);
+      ParseUpdateManifest(test::kBringUpManifestJson, nullptr);
   ASSERT_TRUE(parsed.has_value());
 
   const std::string written = SerialiseUpdateManifest(test::Checked(parsed));
@@ -212,11 +214,11 @@ TEST(UpdateManifest, WritesAProvisioningComponentBackUnderItsOwnName) {
   EXPECT_TRUE(test::Checked(again).provisioning.has_value());
 }
 
-// A set carrying nothing but the vectors is a legal manifest. Whether it may
-// be *installed* is the gate's business, and the gate says no — it is the
-// wizard's input, not an update.
-TEST(UpdateManifest, AcceptsAManifestCarryingOnlyProvisioning) {
-  std::string text(test::kProvisioningManifestJson);
+// A manifest carrying nothing but the vectors is legal. Whether it may be
+// *installed* is the gate's business, and the gate says no — vectors are
+// played through a cable rather than sent to a running device.
+TEST(UpdateManifest, AcceptsAManifestCarryingOnlyTheBringUpPayloads) {
+  std::string text(test::kBringUpManifestJson);
   const size_t start = text.find(R"(    "firmware": {)");
   const size_t end = text.find(R"(    "gateware-provisioning-svf")");
   ASSERT_NE(start, std::string::npos);

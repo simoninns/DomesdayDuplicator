@@ -29,7 +29,7 @@ DE0-NANO's mini-USB connector is both its power supply and its programming inter
 !!! tip "The application can do this for you"
 
     Writing the EPCS no longer needs Quartus: `ddd-gui` plays a CI-built SVF through the same
-    onboard USB-Blaster — **Tools ▸ Firmware ▸ Legacy ▸ Bring up a new or legacy board…**.
+    onboard USB-Blaster — **Tools ▸ Firmware ▸ Bring up a new or legacy board…**.
     See [Bringing up a new or legacy board](../../capture-gui/bringing-up-a-board.md), and
     [USB-Blaster and SVF programming](../usb-blaster-and-svf.md) for how it works.
 

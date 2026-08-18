@@ -50,7 +50,9 @@ Six requests, all on endpoint 0. Existing codes are untouched: `0xA0` belongs to
 
 `wIndex` selects the target throughout: **0** is the FX3 boot EEPROM, **1** is the FPGA EPCS application image, **2** is the same flash at the factory image's address. A request naming any other target stalls.
 
-Target 2 is the one a user never reaches. It is written by a board bring-up and by a rollback, both of which replace the image a board falls back to, and it is refused unless `UPDATE_BEGIN` carries the factory-write word below. Adding it was an **additive** change and deliberately did not bump the protocol version — no existing field changed meaning, and firmware that predates it answers `UPDATE_ERROR_TARGET`, which is how a host discovers what it is talking to.
+Target 2 is the one a user never reaches. It is written by a board bring-up and by nothing else — that is the one flow which replaces the image a board falls back to — and it is refused unless `UPDATE_BEGIN` carries the factory-write word below. Adding it was an **additive** change and deliberately did not bump the protocol version: no existing field changed meaning.
+
+There is no firmware in the field without it. The first release of this firmware carries all three targets, and everything published before it is the original firmware, which has no update agent at all and is recognised on the bus rather than asked. So this page describes no fallback for a device that speaks the protocol but lacks target 2 — that combination exists only as an intermediate build inside this repository, and designing a recovery path around it would be documenting the development process rather than the product.
 
 | Request | `bmRequestType` | Direction | Data stage | Purpose |
 | --- | --- | --- | --- | --- |
@@ -219,7 +221,7 @@ The commit-prefix comparison the firmware dialog already does stays exactly as i
 
 ### Downgrades
 
-Permitted, deliberately. Rollback is a feature and the archive of release bundles on GitHub is the rollback source. A downgrade passes through the same two gates as an upgrade, so a bundle whose `minimum_application_version` is newer than the running application is refused whichever direction it is going.
+Permitted, deliberately. Installing an older release is a legitimate thing to want, and the archive of release bundles on GitHub is where one comes from. A downgrade passes through the same two gates as an upgrade, so a bundle whose `minimum_application_version` is newer than the running application is refused whichever direction it is going.
 
 ## The integrity chain
 

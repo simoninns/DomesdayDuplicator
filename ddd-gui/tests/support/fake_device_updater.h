@@ -124,6 +124,7 @@ class FakeDeviceUpdater : public IDeviceUpdater {
   bool Begin(UpdateTarget target, uint64_t length,
              const Sha256Digest& digest) override {
     ++begin_count_;
+    begun_targets_.push_back(target);
 
     // Firmware that does not have this target, which is how a device older
     // than the target answers: a refusal before a byte moves, naming the
@@ -299,6 +300,14 @@ class FakeDeviceUpdater : public IDeviceUpdater {
   void RefuseTarget(UpdateTarget target) { refused_target_ = target; }
 
   uint64_t begin_count() const { return begin_count_; }
+
+  // Every target Begin was called with, in order. What a test asserts a write
+  // *ordering* against — bring-up's three writes are ordered by what a board
+  // looks like if the power goes out between two of them, which is a property
+  // of the sequence rather than of any one write.
+  const std::vector<UpdateTarget>& begun_targets() const {
+    return begun_targets_;
+  }
   uint64_t chunk_count() const { return chunk_count_; }
   uint64_t reset_count() const { return reset_count_; }
   uint64_t reconfigure_count() const { return reconfigure_count_; }
@@ -353,6 +362,7 @@ class FakeDeviceUpdater : public IDeviceUpdater {
 
   std::optional<UpdateTarget> refused_target_;
   uint64_t begin_count_ = 0;
+  std::vector<UpdateTarget> begun_targets_;
   uint64_t chunk_count_ = 0;
   uint64_t reset_count_ = 0;
   uint64_t reconfigure_count_ = 0;

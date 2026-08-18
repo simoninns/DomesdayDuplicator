@@ -87,13 +87,13 @@ jobs:
       # runner's paths without translation. The path is handed on in mixed form
       # (D:/a/...), because the CMake that consumes it is a native Windows binary and
       # would make nothing of an MSYS one.
-      - name: Fetch the pinned provisioning set
-        id: provisioning
+      - name: Fetch the pinned update bundle
+        id: bundled
         shell: bash
         run: |
           set -euo pipefail
-          path="$(./tools/fetch-bundled-provisioning.sh \
-            --output build-provisioning/provisioning.dddfw)"
+          path="$(./tools/fetch-bundled-update.sh \
+            --output build-bundled/update.dddfw)"
           if [[ -n "${path}" ]]; then
             path="$(cygpath -m "$(realpath "${path}")")"
           fi
@@ -105,16 +105,16 @@ jobs:
           # The bundled set, when one is pinned. CMake places it beside the built binary
           # under the fixed name the application searches for, so the staging step below
           # copies it rather than knowing where it goes.
-          provisioning=()
-          if [[ -n "${{ steps.provisioning.outputs.path }}" ]]; then
-            provisioning=(-DDDD_BUNDLED_PROVISIONING_FILE="${{ steps.provisioning.outputs.path }}")
+          bundled=()
+          if [[ -n "${{ steps.bundled.outputs.path }}" ]]; then
+            bundled=(-DDDD_BUNDLED_UPDATE_FILE="${{ steps.bundled.outputs.path }}")
           fi
 
           cmake -B build -S ddd-gui -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
             -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}" \
-            "${provisioning[@]}"
+            "${bundled[@]}"
           cmake --build build
 
       - name: Run the test suite
@@ -127,11 +127,11 @@ jobs:
           cp build/bin/ddd-gui.exe stage/
           cp build/bin/ddd-update.exe stage/
 
-          # The bundled provisioning set, if this build carries one. It goes beside the
+          # The bundled update file, if this build carries one. It goes beside the
           # executable, which is where the MSI's harvest puts everything in stage and is
           # the first place the application looks.
-          if [[ -f build/bin/provisioning.dddfw ]]; then
-            cp build/bin/provisioning.dddfw stage/
+          if [[ -f build/bin/update.dddfw ]]; then
+            cp build/bin/update.dddfw stage/
           fi
           windeployqt --release --no-translations --no-system-d3d-compiler stage/ddd-gui.exe
 
@@ -266,13 +266,13 @@ jobs:
 
           # The bundled set has to survive into the installation, or the offline bring-up
           # this whole path exists for fails on the one machine that cannot fetch it.
-          if ("${{ steps.provisioning.outputs.path }}" -ne "") {
-            $set = "${env:ProgramFiles}\Domesday Duplicator\provisioning.dddfw"
+          if ("${{ steps.bundled.outputs.path }}" -ne "") {
+            $set = "${env:ProgramFiles}\Domesday Duplicator\update.dddfw"
             if (-not (Test-Path $set)) {
-              Write-Error "The MSI did not install the pinned provisioning set"
+              Write-Error "The MSI did not install the pinned update file"
               exit 1
             }
-            Write-Host "Bundled provisioning set present"
+            Write-Host "Bundled update file present"
           }
 
           Start-Process msiexec.exe -ArgumentList "/x", "`"$($msi.FullName)`"", "/quiet", "/norestart" -Wait -NoNewWindow

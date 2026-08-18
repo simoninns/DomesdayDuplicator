@@ -29,9 +29,9 @@ using capture::UsbPresence;
 TEST(BringUpText, EveryPageIsNumberedAndTitled) {
   for (BringUpPage page :
        {BringUpPage::kOverview, BringUpPage::kConnect, BringUpPage::kImage,
-        BringUpPage::kJumper, BringUpPage::kFirmware,
-        BringUpPage::kRemoveJumper, BringUpPage::kGateware,
-        BringUpPage::kPowerCycle, BringUpPage::kVerify}) {
+        BringUpPage::kJumper, BringUpPage::kConfigure, BringUpPage::kProgram,
+        BringUpPage::kRemoveJumper, BringUpPage::kPowerCycle,
+        BringUpPage::kVerify}) {
     EXPECT_FALSE(BringUpPageTitle(page).isEmpty());
     EXPECT_FALSE(BringUpPageHeading(page).isEmpty());
   }
@@ -50,9 +50,85 @@ TEST(BringUpText, TheOverviewNamesEveryPhysicalThingInAdvance) {
   EXPECT_TRUE(text.contains("both cables", Qt::CaseInsensitive));
   EXPECT_TRUE(text.contains("jumper", Qt::CaseInsensitive));
 
-  // And the end state, honestly: a working device that cannot capture yet is
-  // a surprise unless it was promised.
-  EXPECT_TRUE(text.contains("recovery gateware", Qt::CaseInsensitive));
+  // And the end state: a finished board, with nothing to follow.
+  EXPECT_TRUE(text.contains("ready to capture", Qt::CaseInsensitive));
+}
+
+// The fact that lets somebody with an unknown board start. The jumper reaches
+// the FX3's boot ROM from any state, so this flow never diagnoses a board —
+// and that has to be said on the page where somebody decides whether they are
+// in the right place at all.
+TEST(BringUpText, TheOverviewSaysTheBoardsCurrentStateDoesNotMatter) {
+  const QString text = BringUpOverviewText();
+
+  EXPECT_TRUE(text.contains("does not matter what the board is running",
+                            Qt::CaseInsensitive));
+  EXPECT_TRUE(text.contains("twice", Qt::CaseInsensitive));
+}
+
+// --- what every page says about its own state ------------------------------
+//
+// Two lines, used on every page that has anything to wait for. They are the
+// answer to the one question somebody has after doing something physical or
+// pressing a button: did that work, and what now?
+
+// A finished step must not bury the good news. Success used to be a clause in
+// the middle of the paragraph that explained the step — the one part of a page
+// nobody re-reads after pressing a button.
+TEST(BringUpText, AFinishedStepLeadsWithAllDoneAndNamesTheButtonToPressNext) {
+  const QString done =
+      BringUpStepDoneText(QStringLiteral("The FPGA is running the gateware."));
+
+  EXPECT_LT(done.indexOf("All done"), done.indexOf("gateware"));
+  EXPECT_TRUE(done.contains("Next"));
+
+  // In the same green the rows tick in, from the same place.
+  EXPECT_TRUE(done.contains(BringUpMark(BringUpRowState::kReady)));
+  EXPECT_TRUE(done.contains(BringUpMarkColour(BringUpRowState::kReady)));
+}
+
+// And a step that has not finished says what it is waiting for. "Waiting for
+// you to press Load the gateware" and "waiting for the board to come back"
+// are different situations that look identical from the outside: in both,
+// nothing is happening.
+TEST(BringUpText, AnUnfinishedStepSaysWhatItIsWaitingFor) {
+  const QString waiting =
+      BringUpWaitingText(QStringLiteral("you to press <b>Load it</b>."));
+
+  EXPECT_TRUE(waiting.contains("Waiting for", Qt::CaseInsensitive));
+  EXPECT_TRUE(waiting.contains("you to press"));
+  EXPECT_TRUE(waiting.contains(BringUpMark(BringUpRowState::kWaiting)));
+
+  // And cannot be mistaken for the finished line at a glance, which is what
+  // the mark in front of it is for.
+  EXPECT_FALSE(waiting.contains("All done"));
+  EXPECT_NE(BringUpMark(BringUpRowState::kWaiting),
+            BringUpMark(BringUpRowState::kReady));
+}
+
+// --- instructions before explanation ---------------------------------------
+
+// What to do is the first thing on the page, not the conclusion of three
+// paragraphs about why. Somebody reading these has a board in one hand.
+TEST(BringUpText, TheWorkingPagesOpenByNamingTheButtonToPress) {
+  const QString configure = BringUpConfigureText(3);
+  EXPECT_LT(configure.indexOf("Load the gateware"),
+            configure.indexOf("Nothing is written"));
+
+  const QString program = BringUpProgramText(240);
+  EXPECT_LT(program.indexOf("Program the board"), program.indexOf("EEPROM"));
+}
+
+// The two pages that ask for something physical do it as a numbered list. Both
+// are sequences where doing step one without steps two and three achieves
+// nothing at all while looking exactly as though it worked.
+TEST(BringUpText, ThePhysicalPagesAreNumberedInstructions) {
+  for (const QString& text :
+       {BringUpFitJumperText(), BringUpPowerCycleText()}) {
+    for (const char* step : {"1.", "2.", "3."}) {
+      EXPECT_TRUE(text.contains(QLatin1String(step))) << text.toStdString();
+    }
+  }
 }
 
 // --- the sentence that matters most ---------------------------------------
@@ -105,7 +181,8 @@ TEST(BringUpText, EveryPhotographPageHasAPictureAndACaption) {
   }
 
   // And no others claim one.
-  EXPECT_TRUE(BringUpPhotographPath(BringUpPage::kGateware).isEmpty());
+  EXPECT_TRUE(BringUpPhotographPath(BringUpPage::kConfigure).isEmpty());
+  EXPECT_TRUE(BringUpPhotographPath(BringUpPage::kProgram).isEmpty());
 }
 
 // --- the connectivity rows ------------------------------------------------
@@ -170,24 +247,27 @@ TEST(BringUpTextFx3Row,
   EXPECT_TRUE(row.detail.contains("jumper"));
 }
 
-TEST(BringUpTextFx3Row,
-     FirmwareThatCannotUpdateItselfIsDistinguishedFromCurrent) {
-  // The U0 case: the current identifiers, and firmware from before the update
-  // agent existed. Indistinguishable from a working board by VID/PID alone,
-  // and the opposite thing to tell somebody.
-  const BringUpStatusRow old_firmware = BringUpFx3Row(
+// A protocol this build does not know, which is indistinguishable from a
+// working board by VID/PID alone and is the opposite thing to tell somebody.
+//
+// The reachable direction is **newer**: an application older than the firmware
+// in front of it is an ordinary thing to have. Firmware older than the update
+// agent under these identifiers was never released, so the row does not claim
+// to have met one.
+TEST(BringUpTextFx3Row, AnUnknownProtocolIsDistinguishedFromCurrent) {
+  const BringUpStatusRow unknown = BringUpFx3Row(
       Board(DevicePersonality::kApplication, 0), UsbPresence::kAbsent);
 
-  EXPECT_EQ(old_firmware.state, BringUpRowState::kWaiting);
-  EXPECT_TRUE(old_firmware.detail.contains("predates", Qt::CaseInsensitive));
-  EXPECT_TRUE(
-      old_firmware.detail.contains("update itself", Qt::CaseInsensitive));
+  EXPECT_EQ(unknown.state, BringUpRowState::kWaiting);
+  EXPECT_TRUE(unknown.detail.contains("does not know", Qt::CaseInsensitive));
+  EXPECT_FALSE(unknown.detail.contains("predates", Qt::CaseInsensitive))
+      << "the row named a generation of firmware that was never released";
 
   const BringUpStatusRow current = BringUpFx3Row(
       Board(DevicePersonality::kApplication, 1), UsbPresence::kAbsent);
-  EXPECT_NE(old_firmware.detail, current.detail)
-      << "firmware that can update itself and firmware that cannot were "
-         "described the same way";
+  EXPECT_NE(unknown.detail, current.detail)
+      << "a protocol this build knows and one it does not were described the "
+         "same way";
 }
 
 TEST(BringUpTextFx3Row, ABoardThatNamesNoCommitIsNotGivenAnEmptyOne) {
@@ -284,7 +364,9 @@ TEST(BringUpTextFpgaRow, TheCableDriversOwnSentenceIsCarriedThrough) {
 
 // --- the image page -------------------------------------------------------
 
-capture::UpdateManifest MakeSet(bool firmware, bool provisioning) {
+// A bundle carrying whichever payloads a test is about.
+capture::UpdateManifest MakeFile(bool firmware, bool provisioning, bool factory,
+                                 bool gateware) {
   capture::UpdateManifest manifest;
   manifest.manifest_version = capture::kUpdateManifestVersion;
   manifest.version = "1.4.0";
@@ -300,51 +382,82 @@ capture::UpdateManifest MakeSet(bool firmware, bool provisioning) {
   if (provisioning) {
     manifest.provisioning = component;
   }
+  if (factory) {
+    manifest.factory_gateware = component;
+  }
+  if (gateware) {
+    manifest.gateware = component;
+  }
   return manifest;
 }
 
-TEST(BringUpTextImage, ACompleteSetHasNoProblemAndSaysWhatItCarries) {
-  const capture::UpdateManifest manifest = MakeSet(true, true);
+TEST(BringUpTextImage, ACompleteFileHasNoProblemAndSaysWhatItCarries) {
+  const capture::UpdateManifest manifest = MakeFile(true, true, true, true);
 
   EXPECT_TRUE(BringUpImageProblem(manifest).isEmpty());
 
   const QString summary = BringUpImageSummary(manifest);
   EXPECT_TRUE(summary.contains("1.4.0"));
   EXPECT_TRUE(summary.contains("firmware", Qt::CaseInsensitive));
-  EXPECT_TRUE(summary.contains("provisioning", Qt::CaseInsensitive));
+  EXPECT_TRUE(summary.contains("vectors", Qt::CaseInsensitive));
+  EXPECT_TRUE(summary.contains("factory image", Qt::CaseInsensitive));
+  EXPECT_TRUE(summary.contains("application gateware", Qt::CaseInsensitive));
 }
 
-TEST(BringUpTextImage, AnOrdinaryUpdateFileIsRefusedAndNamed) {
-  const QString problem = BringUpImageProblem(MakeSet(true, false));
+// The likeliest wrong file, and the one that has to be named rather than
+// dismissed: a real release bundle from before the bring-up payloads existed.
+// It updates a working device perfectly well and cannot bring one up.
+TEST(BringUpTextImage, AnUpdateOnlyFileNamesExactlyWhatItIsMissing) {
+  const QString problem =
+      BringUpImageProblem(MakeFile(true, false, false, true));
   EXPECT_FALSE(problem.isEmpty());
-  EXPECT_TRUE(problem.contains("provisioning", Qt::CaseInsensitive));
+  EXPECT_TRUE(problem.contains("vectors", Qt::CaseInsensitive));
+  EXPECT_TRUE(problem.contains("factory image", Qt::CaseInsensitive));
 }
 
-// A set with no firmware is refused for a reason worth stating: the FX3 has to
-// become modern first, so there is no order in which such a set could be used.
-TEST(BringUpTextImage, ASetWithNoFirmwareIsRefusedForTheOrderingReason) {
-  const QString problem = BringUpImageProblem(MakeSet(false, true));
-  EXPECT_FALSE(problem.isEmpty());
-  EXPECT_TRUE(problem.contains("FX3 first", Qt::CaseInsensitive));
+TEST(BringUpTextImage, EachMissingPayloadIsNamedOnItsOwn) {
+  EXPECT_TRUE(BringUpImageProblem(MakeFile(false, true, true, true))
+                  .contains("firmware", Qt::CaseInsensitive));
+  EXPECT_TRUE(BringUpImageProblem(MakeFile(true, true, true, false))
+                  .contains("application gateware", Qt::CaseInsensitive));
+  EXPECT_TRUE(BringUpImageProblem(MakeFile(true, true, false, true))
+                  .contains("factory image", Qt::CaseInsensitive));
 }
 
 // Seconds rather than minutes, and that is a measurement rather than a
 // wording preference: the step used to play an 18.4 MB flash-writing file that
 // could not in fact be played at all, and what it does now is a 2.6-second
-// configuration followed by a flash write of about seventeen (TESTING.md
-// B-V1).
-TEST(BringUpTextGateware, TheEstimateIsShownInSeconds) {
-  EXPECT_TRUE(BringUpGatewareText(20).contains("20 seconds"));
-  EXPECT_TRUE(BringUpGatewareText(20).contains("factory image"));
+// configuration (TESTING.md B-V1).
+TEST(BringUpTextConfigure, TheEstimateIsShownInSeconds) {
+  EXPECT_TRUE(BringUpConfigureText(3).contains("3 seconds"));
 }
 
-// And the page says both halves happen, because a user who was told only about
-// the flash write would not understand why a JTAG cable is still needed — nor
-// why the first half writes nothing at all.
-TEST(BringUpTextGateware, TheTextSaysTheLoadWritesNothing) {
-  const QString text = BringUpGatewareText(20);
+// The one step in this application that talks to a board through a second
+// cable. Somebody watching a bar labelled with an FPGA has every reason to
+// assume it is being programmed, so the page says otherwise in as many words.
+TEST(BringUpTextConfigure, TheTextSaysTheLoadWritesNothing) {
+  const QString text = BringUpConfigureText(3);
   EXPECT_TRUE(text.contains("USB-Blaster"));
-  EXPECT_TRUE(text.contains("nothing is written", Qt::CaseInsensitive));
+  EXPECT_TRUE(text.contains("Nothing is written", Qt::CaseInsensitive));
+
+  // And why it happens before the firmware rather than after it, which is the
+  // hardware-safety property this page carries.
+  EXPECT_TRUE(text.contains("boot ROM", Qt::CaseInsensitive));
+}
+
+// The page that writes names all three images and the order they go in, since
+// the order is what makes every interruption recoverable.
+TEST(BringUpTextProgram, TheTextNamesAllThreeWritesAndTheEstimate) {
+  const QString text = BringUpProgramText(240);
+
+  EXPECT_TRUE(text.contains("240 seconds"));
+  EXPECT_TRUE(text.contains("EEPROM"));
+  EXPECT_TRUE(text.contains("factory image", Qt::CaseInsensitive));
+  EXPECT_TRUE(text.contains("application image", Qt::CaseInsensitive));
+
+  // And that nothing restarts here, because a user watching the device stay
+  // put would otherwise wonder whether the step finished.
+  EXPECT_TRUE(text.contains("power cycle", Qt::CaseInsensitive));
 }
 
 // --- the verification -----------------------------------------------------
@@ -355,7 +468,7 @@ capture::DeviceIdentity BroughtUpDevice() {
   identity.protocol_version = 1;
   identity.gateware_present = true;
   identity.register_map_version = capture::kRegisterMapVersionWithImageRole;
-  identity.image_role = capture::kImageRoleFactory;
+  identity.image_role = capture::kImageRoleApplication;
   return identity;
 }
 
@@ -370,11 +483,13 @@ TEST(BringUpVerify, EveryCheckPassesForAFinishedBoard) {
   }
 }
 
-// The state bring-up actually leaves a board in, and the one a reader has to
-// be told is correct: the factory image is what the wizard writes.
-TEST(BringUpVerify, TheApplicationImageIsNotWhatBringUpLeavesBehind) {
+// A board that comes back on its factory image is a board whose application
+// image did not take: everything works and nothing is damaged, but it cannot
+// capture. That is the difference between brought up and *most* of the way up,
+// so it is a failed check rather than a pass.
+TEST(BringUpVerify, ABoardLeftOnItsFactoryImageIsNotFinished) {
   capture::DeviceIdentity identity = BroughtUpDevice();
-  identity.image_role = capture::kImageRoleApplication;
+  identity.image_role = capture::kImageRoleFactory;
 
   const std::vector<BringUpCheck> checks = BringUpVerification(
       true, DevicePersonality::kApplication, identity, QString());
@@ -402,32 +517,32 @@ TEST(BringUpVerify, ASetThatNamesNoCommitIsNotCheckedAgainstOne) {
 
   EXPECT_EQ(checks.size(), 3u);
   for (const BringUpCheck& check : checks) {
-    EXPECT_FALSE(check.description.contains("build this set carries"));
+    EXPECT_FALSE(check.description.contains("build this file carries"));
   }
 }
 
-// --- where the set came from ----------------------------------------------
+// --- where the file came from ---------------------------------------------
 //
-// A packaged build carries a provisioning set, because a board being brought
-// up cannot be updated over USB and the machine beside it may have no network
-// at all. What these three sentences must never let happen is "it came with
-// the application" reading as "so it was not checked".
+// A packaged build carries an update file, because a board being brought up
+// cannot be updated over USB and the machine beside it may have no network at
+// all. What these three sentences must never let happen is "it came with the
+// application" reading as "so it was not checked".
 
-TEST(BringUpText, ABundledSetSaysItWasCheckedAnyway) {
-  const QString text = BringUpBundledSetText();
+TEST(BringUpText, ABundledFileSaysItWasCheckedAnyway) {
+  const QString text = BringUpBundledFileText();
 
   EXPECT_TRUE(text.contains("signature", Qt::CaseInsensitive));
   EXPECT_TRUE(text.contains("digest", Qt::CaseInsensitive));
 
-  // And that a different file can still be chosen, since a set newer than the
-  // application is an ordinary thing to have.
+  // And that a different file can still be chosen, since a release newer than
+  // the application is an ordinary thing to have.
   EXPECT_TRUE(text.contains("Choose", Qt::CaseInsensitive));
 }
 
-TEST(BringUpText, ABuildWithNoSetNamesTheFileToDownload) {
-  const QString text = BringUpNoBundledSetText();
+TEST(BringUpText, ABuildWithNoFileNamesTheFileToDownload) {
+  const QString text = BringUpNoBundledFileText();
 
-  EXPECT_TRUE(text.contains("domesday-duplicator-provisioning"));
+  EXPECT_TRUE(text.contains("domesday-duplicator-update"));
 
   // The one page of this procedure that needs another machine, said as such:
   // somebody in front of a computer with no network needs to know that a file
@@ -435,29 +550,33 @@ TEST(BringUpText, ABuildWithNoSetNamesTheFileToDownload) {
   EXPECT_TRUE(text.contains("network", Qt::CaseInsensitive));
 }
 
-TEST(BringUpText, AnUnusableBundledSetPointsSomewhereElse) {
-  const QString text = BringUpBundledSetUnusableText();
+TEST(BringUpText, AnUnusableBundledFilePointsSomewhereElse) {
+  const QString text = BringUpBundledFileUnusableText();
 
   // Nothing here can repair it, and the page does not pretend otherwise.
   EXPECT_TRUE(text.contains("could not be used", Qt::CaseInsensitive));
-  EXPECT_TRUE(text.contains("domesday-duplicator-provisioning"));
+  EXPECT_TRUE(text.contains("domesday-duplicator-update"));
 }
 
 TEST(BringUpText, TheThreeSourceSentencesAreDifferentFromEachOther) {
   // They are shown in the same place, one at a time, so two that read alike
   // would be a page that changed and said nothing.
-  EXPECT_NE(BringUpBundledSetText(), BringUpChosenSetText());
-  EXPECT_NE(BringUpBundledSetText(), BringUpNoBundledSetText());
-  EXPECT_NE(BringUpChosenSetText(), BringUpNoBundledSetText());
-  EXPECT_TRUE(BringUpChosenSetText().contains("bundled", Qt::CaseInsensitive));
+  EXPECT_NE(BringUpBundledFileText(), BringUpChosenFileText());
+  EXPECT_NE(BringUpBundledFileText(), BringUpNoBundledFileText());
+  EXPECT_NE(BringUpChosenFileText(), BringUpNoBundledFileText());
+  EXPECT_TRUE(BringUpChosenFileText().contains("bundled", Qt::CaseInsensitive));
 }
 
 // --- the endings ----------------------------------------------------------
 
-TEST(BringUpText, TheHandOverNamesTheNextStepAndTheCase) {
+// Nothing follows a bring-up, and the last page has to say so: the flow used
+// to hand over to the update dialog, and a page that still pointed at one
+// would send somebody to repeat what they had just done.
+TEST(BringUpText, TheEndSaysThereIsNothingLeftToDoAndTheCaseCanGoOn) {
   const QString text = BringUpCompleteText();
 
-  EXPECT_TRUE(text.contains("Update firmware"));
+  EXPECT_TRUE(text.contains("nothing else to do", Qt::CaseInsensitive));
+  EXPECT_TRUE(text.contains("ready to capture", Qt::CaseInsensitive));
   EXPECT_TRUE(text.contains("case", Qt::CaseInsensitive));
 }
 

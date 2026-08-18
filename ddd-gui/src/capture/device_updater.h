@@ -40,15 +40,16 @@ enum class UpdateTarget : uint8_t {
   // falls back to when the application image is missing or fails its
   // checksum.
   //
-  // Written by bring-up and by rollback, and by nothing else. The ordinary
-  // update path cannot reach it: the update dialog offers targets 0 and 1,
+  // Written by bring-up and by nothing else. The ordinary update path cannot
+  // reach it: the update dialog offers targets 0 and 1,
   // and the firmware refuses this one unless the request carries
   // kUpdateFactoryWriteFlag, so a host that means kGateware and sends this
   // by mistake is refused rather than obeyed.
   //
-  // Firmware that predates this target answers UPDATE_ERROR_TARGET, which is
-  // how a host discovers it is talking to something older — the change is
-  // additive and deliberately does not bump the protocol version.
+  // Adding this target was additive and deliberately did not bump the
+  // protocol version. Nothing depends on a fallback for firmware without it:
+  // the first release carries all three targets, and everything older is the
+  // original firmware, which has no update agent to ask.
   kEpcsFactory = 2,
 };
 

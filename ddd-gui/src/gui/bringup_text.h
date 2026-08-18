@@ -30,7 +30,16 @@ namespace ddd::gui {
 // update_text.h is — so that what it says can be checked without a window, a
 // device or a screwdriver.
 //
-// Two things this file says over and over, and both are deliberate:
+// **Instructions first, explanation second, and only as much explanation as
+// changes what somebody does.** A page of this wizard is read by somebody with
+// a board in one hand, and what they need out of it is the action: fit this,
+// unplug both, press that. So each page opens with what to do, in the
+// imperative, and keeps the reasoning to the sentences that stop a plausible
+// mistake — that either cable alone keeps the unit powered, that the configure
+// step writes nothing. Everything else about how this works belongs in the
+// documentation, where somebody can read it without a screwdriver in the way.
+//
+// Three things this file says over and over, and all three are deliberate:
 //
 //   - **both cables**, in those words, every time a power cycle is asked for.
 //     The assembled unit is powered through either one alone, so pulling the
@@ -41,10 +50,23 @@ namespace ddd::gui {
 //     documentation, the firmware README and this wizard all use one pair of
 //     words, so nobody has to translate between two vocabularies for one
 //     jumper.
+//   - **it does not matter what the board is running now.** The jumper reaches
+//     the FX3's boot ROM from any state whatever, so this flow never diagnoses
+//     a board and never branches on what it finds. Somebody arriving with a
+//     unit they know nothing about should be told that in the first paragraph,
+//     because it is the fact that lets them start.
 
 // The nine pages, in the order they are worked through. Here rather than
 // inside the wizard so that the wording functions can be asked about a page
 // without a window existing.
+//
+// **The order carries a hardware-safety property**, and the enumeration is
+// where it is written down. The FX3 reaches its boot ROM before the FPGA is
+// touched, and only ever runs the new firmware afterwards — so the gateware
+// can change underneath an FX3 whose pins are all undriven, and the pairing
+// where the original firmware drives CTL_07 into gateware driving the same net
+// is unreachable rather than merely avoided. See bringup_orchestrator.h, which
+// refuses the writes until the configure has happened.
 enum class BringUpPage {
   // What this does, and everything physical it will ask for — listed before
   // anything starts, because this is the page that decides whether the job is
@@ -54,26 +76,32 @@ enum class BringUpPage {
   // Live status for both boards, each opened rather than merely enumerated.
   kConnect,
 
-  // The provisioning set: signature, digests, channel.
+  // The update file: signature, digests, channel, and whether it carries
+  // everything a bring-up needs.
   kImage,
 
   // Fit the jumper and power-cycle, to reach the FX3's boot ROM. Skipped when
-  // the FX3 is already there.
+  // the FX3 is already there. The one page that cares what the board was
+  // doing, and it only cares enough to skip itself.
   kJumper,
 
-  // Write the FX3's EEPROM.
-  kFirmware,
+  // Play the vectors into the FPGA over the USB-Blaster. Volatile: it writes
+  // nothing, and it is what gives the firmware a flash bridge to write
+  // through.
+  kConfigure,
+
+  // Everything permanent: the EEPROM, the factory image and the application
+  // image, in that order.
+  kProgram,
 
   // Take the jumper off again. Skipped when kJumper was.
   kRemoveJumper,
 
-  // Play the provisioning vectors into the FPGA's configuration flash.
-  kGateware,
-
-  // The one power cycle that discharges both obligations.
+  // The one power cycle, which makes every image written above the running
+  // one.
   kPowerCycle,
 
-  // What the wizard can prove, and what to do next.
+  // What the wizard can prove, and the fact that there is nothing left to do.
   kVerify,
 };
 
@@ -84,9 +112,30 @@ enum class BringUpPage {
 QString BringUpPageTitle(BringUpPage page);
 QString BringUpPageHeading(BringUpPage page);
 
-// The overview: what will happen, what it will ask for, and — stated plainly,
-// because it is the thing that surprises people — what state the unit is in at
-// the end.
+// --- what every page says about its own state ------------------------------
+//
+// Every page that has anything to wait for ends in one of these two lines, and
+// that they are the same two lines everywhere is the point of them being here.
+//
+// A user who has just fitted a jumper, or pressed a button and watched a bar,
+// needs one question answered: has this step finished or not? So a finished
+// step says **All done** first, in green, in its own line under the control
+// that did the work — not as a clause somewhere inside the paragraph that
+// explains the step, which is the one part of the page nobody re-reads.
+//
+// And a page that is not finished says what it is waiting for, in those words.
+// "Waiting for you to press Load the gateware" and "waiting for the board to
+// come back in its boot ROM" are different situations that look identical from
+// the outside: in both, nothing is happening.
+QString BringUpWaitingText(const QString& what);
+QString BringUpStepDoneText(const QString& what);
+
+// The overview, as three lists rather than three paragraphs: what this does,
+// what to have ready, and what it will ask for. The point of the page is that
+// somebody reads it once and then does the physical job once — so it is a
+// checklist, and the only prose on it is the sentence that says the state the
+// board is in now does not matter, which is what lets somebody with an unknown
+// board start at all.
 QString BringUpOverviewText();
 
 // How long the whole thing takes, honestly and coarsely.
@@ -134,11 +183,16 @@ QString BringUpConnectLegend();
 //
 // Takes the device itself rather than its personality alone, because the
 // personality does not say enough: a board enumerating under the current
-// identifiers may be running this project's current firmware or firmware that
-// predates the update agent entirely, and those two want completely different
-// sentences. The commit the device reports is named when it reports one, so
-// that "running the Duplicator's firmware" cannot be read as "running some
-// Duplicator firmware or other".
+// identifiers may be speaking a protocol this build knows or one it does not,
+// and those two want different sentences. The commit the device reports is
+// named when it reports one, so that "running the Duplicator's firmware"
+// cannot be read as "running some Duplicator firmware or other".
+//
+// **This row informs and decides nothing.** Every personality below is a
+// personality the wizard can bring up, because the jumper reaches the boot ROM
+// from all of them; what the row is for is telling somebody what they have in
+// front of them, and — for a board that already works — that they may be in
+// the wrong window.
 //
 // `debug_bridge` is whether the kit's on-board USB-UART answered, which is the
 // one thing that distinguishes an unpowered kit from a powered one whose USB
@@ -164,21 +218,45 @@ BringUpStatusRow BringUpFpgaRow(bool opened, capture::UsbPresence presence,
 
 // --- the physical pages ---------------------------------------------------
 
-// Fit the jumper, then pull both cables. Two instructions on one page because
-// the first does nothing until the second happens.
+// Fit the jumper, then pull both cables, then put them back — numbered, in
+// that order, because the first does nothing until the other two happen and a
+// jumper fitted without a reboot is the commonest way to be stuck on this
+// page while everything looks correct.
 QString BringUpFitJumperText();
 
-// Take it off again. No power cycle here: there is one at the end and it
-// serves both halves.
+// Take it off again, and touch nothing else. No power cycle here: there is one
+// on the next page and it serves everything, and somebody who pulls the cables
+// twice has done the physical work twice.
 QString BringUpRemoveJumperText();
 
-// Unplug both cables, wait, plug them back in. Says why, not just what.
+// Unplug both cables, wait, plug them back in. Numbered like the jumper page,
+// and for the same reason.
 QString BringUpPowerCycleText();
 
-// Shown when the device has not come back. Leads with the partial power cycle,
-// because it is by far the likeliest cause and the only one that leaves
-// everything looking correct.
+// Shown when nothing has changed on the bus at all. Leads with the partial
+// power cycle, because it is by far the likeliest cause and the only one that
+// leaves everything looking correct.
 QString BringUpPowerCycleTimeoutText();
+
+// The device went away and has not come back. A different situation from the
+// one above and it gets different advice: the cables are known to have come
+// out, so what is left is one of them not being back in.
+QString BringUpDeviceNotBackText();
+
+// It came back in its boot ROM, which says exactly one thing: jumper J4 is
+// still fitted. Worth a sentence of its own rather than a timeout, because it
+// is a diagnosis rather than a guess — nothing else puts a board there.
+QString BringUpStillInBootRomText();
+
+// It came back running its firmware, and the FPGA is still holding the image
+// JTAG put into it — so the board never lost power.
+//
+// **This is the partial power cycle, caught rather than guessed at.** Pulling
+// the USB 3.0 cable alone makes the device vanish from the bus and return,
+// while the mini-USB keeps the board alive throughout: the firmware in RAM
+// survives, the gateware in the FPGA survives, and every outward sign is of a
+// power cycle that worked. The image role is what gives it away.
+QString BringUpNotReloadedText();
 
 // The photographs, by resource path, and the words that go under them. Alt
 // text and caption say fitted and removed, like everything else.
@@ -187,44 +265,57 @@ QString BringUpPhotographCaption(BringUpPage page);
 
 // --- the working pages ----------------------------------------------------
 
-// What the FX3 step is about to do, and the one instruction that matters.
-QString BringUpFirmwareText();
+// The JTAG step. Opens by naming the button to press and how long it takes,
+// because that is the whole of what this page asks for.
+//
+// That it writes nothing is the one piece of explanation kept. It is the only
+// step in this application that talks to a board through a second cable, and
+// somebody watching a progress bar labelled with an FPGA has every reason to
+// assume it is being programmed — so the page says, in as many words, that
+// nothing is being written and that the board is unchanged if this is stopped.
+QString BringUpConfigureText(int seconds);
 
-// The same for the FPGA step, including how long it is expected to take.
-QString BringUpGatewareText(int seconds);
+// The step that writes. Names the button, then the three images in the order
+// they go in, then how long it takes and what not to touch while it does.
+QString BringUpProgramText(int seconds);
 
-// Where the set on the image page came from, which is three different
+// Where the file on the image page came from, which is three different
 // sentences and never a silent difference.
 //
-// A packaged build carries a provisioning set, so that a board can be brought
-// up on a machine with no network — which is the ordinary case, since a board
+// A packaged build carries an update bundle, so that a board can be brought up
+// on a machine with no network — which is the ordinary case, since a board
 // being brought up is by definition one that cannot be updated over USB. What
 // the page must not do is let "it came with the application" read as "so it
 // was not checked": it is verified exactly as a downloaded one is, signature
 // first and then every digest, and the wording says so.
-QString BringUpBundledSetText();
+QString BringUpBundledFileText();
 
-// The same page when a file has been chosen over a bundled set, saying that
+// The same page when a file has been chosen over a bundled one, saying that
 // the bundled one is still there.
-QString BringUpChosenSetText();
+QString BringUpChosenFileText();
 
 // And when the bundled one did not verify. A rare state and a real one — a
 // truncated install, a file somebody replaced — and the remedy is not one the
-// user can apply to the bundled copy, so it says to download a set instead of
+// user can apply to the bundled copy, so it says to download a file instead of
 // suggesting anything can be repaired here.
-QString BringUpBundledSetUnusableText();
+QString BringUpBundledFileUnusableText();
 
 // And when this build carries none at all, which is what a build from source
 // looks like unless it was told otherwise. Names the file to download.
-QString BringUpNoBundledSetText();
+QString BringUpNoBundledFileText();
 
-// The chosen provisioning set: version, commit, and what it carries. Empty
-// when nothing has been chosen.
+// The chosen file: version, commit, and what it carries. Empty when nothing
+// has been chosen.
 QString BringUpImageSummary(const capture::UpdateManifest& manifest);
 
-// Why the chosen file cannot be used, or empty when it can. A provisioning set
-// needs both halves — the firmware and the vectors — because a bring-up does
-// both and the order it does them in is what keeps the hardware safe.
+// Why the chosen file cannot be used, or empty when it can.
+//
+// Bring-up needs **all four** payloads, and that is stricter than the update
+// window is on purpose: an update installs what it can and leaves the rest, and
+// a bring-up that installed what it could would leave a board half programmed
+// in a state nobody planned for. So the completeness is checked here, on the
+// page where a different file can still be chosen, rather than discovered
+// three writes in.
 QString BringUpImageProblem(const capture::UpdateManifest& manifest);
 
 // --- the end --------------------------------------------------------------
@@ -239,15 +330,14 @@ struct BringUpCheck {
 // the device rather than assumed from what was written.
 //
 // `expected_commit` is the firmware commit the manifest said the device would
-// report. An empty one is not a failed check — it is a set that did not say,
+// report. An empty one is not a failed check — it is a file that did not say,
 // and a check that cannot be made is not reported as one that passed.
 std::vector<BringUpCheck> BringUpVerification(
     bool attached, capture::DevicePersonality personality,
     const capture::DeviceIdentity& identity, const QString& expected_commit);
 
-// The hand-over: what has been done, what state the unit is in, and the one
-// remaining step. Says that the case can go back on, because nothing after
-// this point is physical.
+// The end: what has been done, and that there is nothing left to do. Says that
+// the case can go back on, because nothing after this point is physical.
 QString BringUpCompleteText();
 
 // The same when one of the checks did not pass. Calm, like the update page's:

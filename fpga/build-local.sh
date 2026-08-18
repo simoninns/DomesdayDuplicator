@@ -94,22 +94,29 @@ cp "$build/factory/DomesdayDuplicatorFactory.sof" "$build/application/DomesdayDu
 
 echo
 echo "=== Programming vectors for the on-board USB-Blaster ==="
-# The same provisioning content again, as the JTAG vectors that write it.
+# The vectors that configure the factory image into the FPGA, so that a board
+# with nothing usable in its flash can be given a flash bridge over the
+# DE0-Nano's on-board USB-Blaster, on a machine that has never had Quartus
+# installed. Volatile: this writes nothing, and the write that follows it is
+# an ordinary update transfer over USB.
 #
-# quartus_pgm reads the .jic through Quartus; ddd-jtag reads this through
-# libusb, so a board can be provisioned on a machine that has never had
-# Quartus installed. It is the same conversion either way and the device
-# knowledge stays here, at build time, in the tool that has it.
+# This replaces a conversion of the provisioning .jic that used to be emitted
+# here, and the reason it had to is worth keeping: a flash-writing .svf from
+# this converter is only half a job. It speaks Altera's Virtual JTAG protocol
+# to Altera's serial flash loader — a soft design that has to be configured
+# into the FPGA first — and carries no configuration of its own, so nothing
+# outside Quartus can play it. quartus_pgm supplies the loader from its own
+# installation. See TESTING.md, B-V1.
 #
 # The frequency matters more than it looks: the converter turns every wait in
-# the sequence into a count of TCK cycles at the rate named here, so the same
-# file emitted at 6 MHz has a third more cycles in it and exactly the same
-# hundred-second erase. The player restores the intended durations from this
-# declaration, so what the number costs is cycles to clock, not correctness.
-(cd "$build/provisioning" &&
+# the sequence into a count of TCK cycles at the rate named here, so the file
+# says how long its waits are meant to last only in combination with this
+# number. The player reads it back out of the file and holds them open for
+# that long whatever the cable's own clock does.
+(cd "$build/factory" &&
     quartus_cpf -c -q 4.5MHz -g 3.3 -n p \
-        DomesdayDuplicatorProvisioning_write_jic.cdf \
-        DomesdayDuplicatorProvisioning.svf)
+        DomesdayDuplicatorFactory_write_sof.cdf \
+        DomesdayDuplicatorFactoryConfigure.svf)
 
 echo
 echo "=== Application image bytes, and the boot block that describes them ==="
@@ -121,6 +128,15 @@ echo "=== Application image bytes, and the boot block that describes them ==="
 # the factory image — so it is removed here rather than left lying about for
 # somebody to program by mistake.
 (cd "$build/application" && quartus_cpf -c DomesdayDuplicator.cof && rm -f DomesdayDuplicator.jic)
+
+# And the same for the factory image, whose raw bytes a bring-up writes to
+# address 0 through the firmware's flash bridge once the vectors above have
+# given it one. Its .jic is deleted for the mirror-image reason the
+# application's is: it would write a factory image with no application image
+# and no boot block beside it, which is what the provisioning .jic does
+# properly.
+(cd "$build/factory" && quartus_cpf -c DomesdayDuplicatorFactory.cof &&
+    rm -f DomesdayDuplicatorFactory.jic)
 
 "$here/make-boot-block.py" \
     --image "$build/application/DomesdayDuplicator_auto.rpd" \
@@ -142,7 +158,11 @@ sed -n '1,6p' "$build/provisioning/DomesdayDuplicatorProvisioning.map"
 echo
 echo "Provision a board from $build/provisioning:"
 echo "  quartus_pgm DomesdayDuplicatorProvisioning_write_jic.cdf   permanent (EPCS64), both images"
-echo "  ddd-jtag DomesdayDuplicatorProvisioning.svf                the same, with no Quartus"
+echo
+echo "Or bring one up with no Quartus at all — the capture application does both"
+echo "steps, and ./tools/dev-bundle.sh packages what this build just produced:"
+echo "  $build/factory/DomesdayDuplicatorFactoryConfigure.svf   configures, writes nothing"
+echo "  $build/factory/DomesdayDuplicatorFactory_auto.rpd       what the firmware then writes"
 echo
 echo "Load one image volatilely over JTAG, for development:"
 echo "  quartus_pgm $build/application/DomesdayDuplicator_write_sof.cdf"

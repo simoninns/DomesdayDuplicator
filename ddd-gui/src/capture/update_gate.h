@@ -36,10 +36,11 @@ namespace ddd::capture {
 // must follow — application, then device — is the only ordering the
 // interface permits rather than something the release notes ask for.
 //
-// Downgrades are permitted deliberately: rollback is a feature and the
-// archive of release bundles is the rollback source. They pass through this
-// same gate, so a downgrade below what this build supports is refused for
-// exactly the reason an overreaching upgrade is.
+// Downgrades are permitted deliberately: installing an older release is a
+// legitimate thing to want, and the archive of release bundles is where one
+// comes from. They pass through this same gate, so a downgrade below what
+// this build supports is refused for exactly the reason an overreaching
+// upgrade is.
 //
 // Nothing here compares commit strings. A commit identifies a build exactly
 // and orders nothing: "a1b2c3d4" is neither newer nor older than "e5f6a7b8",
@@ -102,25 +103,6 @@ struct UpdateGateInput {
 // Decide whether this bundle may be installed.
 UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
                                  const UpdateGateInput& input);
-
-// The same question for a rollback, which is a different question.
-//
-// A rollback bundle installs software deliberately older than the application
-// installing it — that is what it is for — so the age comparisons above would
-// refuse every valid one. They are **satisfied by the manifest's purpose
-// rather than skipped for it**, and the distinction is the whole point: the
-// rule "a user cannot flash a device past this application's understanding"
-// still holds, because a rollback does not go past it. It goes back to a
-// state this application knows exactly, recognises on the bus, and can undo.
-//
-// What replaces them is stricter than what it replaces, because a rollback
-// has exactly one starting state that works: a device running this
-// application's own firmware over gateware with a flash bridge. It is the
-// firmware that does the writing and the bridge that carries it, so a device
-// missing either cannot be rolled back from — and, unlike an update, there is
-// no half of the job that could still be done.
-UpdateGateResult CheckRollbackGate(const UpdateManifest& manifest,
-                                   const UpdateGateInput& input);
 
 // Whether a device's advertised protocol version is one this build speaks.
 //

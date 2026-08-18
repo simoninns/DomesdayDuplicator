@@ -73,8 +73,7 @@ the way of somebody taking both sides of a disc.
 | | Test data mode | Capture the gateware's test pattern instead of the RF input — see [Test mode](test-mode.md) |
 | | Analyse test data… | Check a test-mode capture off the disk |
 | | Firmware ▸ Update firmware… | Which build each part of the device is running, and the Update page — see [Updating your Duplicator](updating-your-domesday-duplicator.md) |
-| | Firmware ▸ Legacy ▸ Bring up a new or legacy board… | Programs both halves of a board from nothing — a newly built one, or one running the original firmware. See [Bringing up a new or legacy board](bringing-up-a-board.md) |
-| | Firmware ▸ Legacy ▸ Roll back to legacy firmware… | Puts the original Duplicator firmware and gateware back on a working unit. See [Rolling back to legacy firmware](rolling-back-to-legacy-firmware.md) |
+| | Firmware ▸ Bring up a new or legacy board… | Programs a board from nothing to fully up to date — a newly built one, one running the original firmware, or one in any state at all. See [Bringing up a new or legacy board](bringing-up-a-board.md) |
 | **Help** | About | The build this binary was made from |
 
 The player entries sit above the instrument ones, separated by a rule. They are on **Tools**

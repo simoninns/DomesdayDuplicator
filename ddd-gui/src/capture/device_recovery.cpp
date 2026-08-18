@@ -147,26 +147,38 @@ std::optional<std::string> RecoveryInstaller::Wake(const UpdateBundle& bundle,
   return path;
 }
 
-UpdateOutcome RecoveryInstaller::Run(const UpdateBundle& bundle) {
-  UpdateOutcome outcome;
-
+std::unique_ptr<IDeviceUpdater> RecoveryInstaller::WakeAndOpen(
+    const UpdateBundle& bundle, UpdateOutcome& outcome) {
   device_path_.clear();
 
   const std::optional<std::string> path = Wake(bundle, outcome);
   if (!path.has_value()) {
-    return outcome;
+    return nullptr;
   }
   device_path_ = *path;
 
   if (!access_.open_updater) {
-    return Failure("This device cannot be reached for updating.");
+    outcome = Failure("This device cannot be reached for updating.");
+    return nullptr;
   }
 
   std::unique_ptr<IDeviceUpdater> updater = access_.open_updater(*path);
   if (updater == nullptr) {
-    return Failure(
+    outcome = Failure(
         "The device came back but could not be opened. Unplug it, plug it "
         "back in, and try again.");
+    return nullptr;
+  }
+
+  return updater;
+}
+
+UpdateOutcome RecoveryInstaller::Run(const UpdateBundle& bundle) {
+  UpdateOutcome outcome;
+
+  const std::unique_ptr<IDeviceUpdater> updater = WakeAndOpen(bundle, outcome);
+  if (updater == nullptr) {
+    return outcome;
   }
 
   // From here it is an ordinary update, and deliberately so: the firmware now
@@ -186,6 +198,26 @@ UpdateOutcome RecoveryInstaller::Run(const UpdateBundle& bundle) {
   }
 
   return orchestrator.Run(bundle);
+}
+
+UpdateOutcome RecoveryInstaller::RunBringUp(const UpdateBundle& bundle) {
+  UpdateOutcome outcome;
+
+  const std::unique_ptr<IDeviceUpdater> updater = WakeAndOpen(bundle, outcome);
+  if (updater == nullptr) {
+    return outcome;
+  }
+
+  UpdateOrchestrator orchestrator(*updater, logger_);
+  orchestrator.SetTimings(update_timings_);
+  if (progress_) {
+    orchestrator.SetProgressCallback(progress_);
+  }
+  if (cancel_) {
+    orchestrator.SetCancelCallback(cancel_);
+  }
+
+  return orchestrator.RunBringUp(bundle);
 }
 
 }  // namespace ddd::capture

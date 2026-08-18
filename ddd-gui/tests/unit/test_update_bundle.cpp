@@ -72,16 +72,17 @@ std::vector<uint8_t> MakeBundle() {
   return writer.Finish();
 }
 
-// A provisioning set: firmware beside the JTAG vectors, signed by the same key
-// and read by the same reader. One format, whatever it carries.
+// A complete bundle: firmware, application gateware, the JTAG vectors and the
+// factory image, signed by the same key and read by the same reader. One
+// format, whatever it carries — and one file, whichever consumer opens it.
 std::vector<uint8_t> MakeProvisioningBundle() {
   const std::vector<uint8_t> firmware = test::MakeBootImage();
 
   UstarWriter writer;
-  writer.AddFile(kManifestEntryName, Bytes(test::kProvisioningManifestJson));
-  writer.AddFile(kSignatureEntryName,
-                 Bytes(test::kProvisioningManifestSignature));
+  writer.AddFile(kManifestEntryName, Bytes(test::kBringUpManifestJson));
+  writer.AddFile(kSignatureEntryName, Bytes(test::kBringUpManifestSignature));
   writer.AddFile(kFirmwareEntryName, firmware);
+  writer.AddFile(kGatewareEntryName, Bytes(test::kGatewarePayload));
   writer.AddFile(kProvisioningEntryName, Bytes(test::kProvisioningPayload));
   writer.AddFile(kFactoryGatewareEntryName,
                  Bytes(test::kFactoryGatewarePayload));
@@ -253,17 +254,19 @@ TEST(UpdateBundle, OpensASignedProvisioningSet) {
             Checked(bundle.manifest.provisioning).sha256);
 }
 
-TEST(UpdateBundle, RefusesAProvisioningSetWhoseVectorsHaveBeenChanged) {
+TEST(UpdateBundle, RefusesABundleWhoseVectorsHaveBeenChanged) {
   std::string vectors(test::kProvisioningPayload);
   vectors[vectors.size() - 2] = '7';
 
   const std::vector<uint8_t> firmware = test::MakeBootImage();
 
   UstarWriter writer;
-  writer.AddFile(kManifestEntryName, Bytes(test::kProvisioningManifestJson));
-  writer.AddFile(kSignatureEntryName,
-                 Bytes(test::kProvisioningManifestSignature));
+  writer.AddFile(kManifestEntryName, Bytes(test::kBringUpManifestJson));
+  writer.AddFile(kSignatureEntryName, Bytes(test::kBringUpManifestSignature));
   writer.AddFile(kFirmwareEntryName, firmware);
+  writer.AddFile(kGatewareEntryName, Bytes(test::kGatewarePayload));
+  writer.AddFile(kFactoryGatewareEntryName,
+                 Bytes(test::kFactoryGatewarePayload));
   writer.AddFile(kProvisioningEntryName, Bytes(vectors));
 
   const std::string error = ErrorFrom(writer.Finish());

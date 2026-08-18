@@ -114,8 +114,8 @@ architectures.
 │   ├── check-licence-headers.sh
 │   ├── make-update-bundle.sh  # assemble and sign a .dddfw device update bundle
 │   ├── dev-bundle.sh          # the developer loop's wrapper around it
-│   ├── fetch-bundled-provisioning.sh  # the packaging jobs' fetch-by-digest of the
-│   │                          # provisioning set an installer carries
+│   ├── fetch-bundled-update.sh  # the packaging jobs' fetch-by-digest of the
+│   │                          # update bundle an installer carries
 │   ├── keys/                  # the development signing keypair — the secret half is
 │   │                          # committed deliberately, see §5.5. release.pub joins it
 │   │                          # when a release key is generated; the secret never does
@@ -173,8 +173,8 @@ architectures.
 │   ├── CMakeLists.txt         # build definition, and the clang-format/clang-tidy gates
 │   ├── .clang-format          # BasedOnStyle: Google
 │   ├── .clang-tidy            # google-*, bugprone-*, warnings as errors
-│   ├── packaging/             # the installers, and bundled-provisioning.env: which
-│   │                          # published provisioning set a packaged build carries
+│   ├── packaging/             # the installers, and bundled-update.env: which
+│   │                          # published update bundle a packaged build carries
 │   ├── src/
 │   │   ├── capture/           # ddd::capture — the engine. Qt-free, by rule
 │   │   ├── vendor/            # the only third-party sources here: SHA-256 and Ed25519

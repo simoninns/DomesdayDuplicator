@@ -111,9 +111,9 @@ class RecoveryInstaller {
   }
 
   // Passed through to the update that follows the prelude. See
-  // UpdateOrchestrator::SetDeferRestart — the bring-up wizard sets it because
-  // the PMODE jumper is still fitted, so a reset would land back in the boot
-  // ROM rather than in the firmware that has just been written.
+  // UpdateOrchestrator::SetDeferRestart — a caller sets it when the PMODE
+  // jumper is still fitted, so that a reset does not land back in the boot ROM
+  // rather than in the firmware that has just been written.
   void SetDeferRestart(bool defer) { defer_restart_ = defer; }
 
   // Wake the device, then install.
@@ -122,6 +122,15 @@ class RecoveryInstaller {
   // device, because there is nothing running on it to write gateware with.
   // That is refused with a sentence rather than attempted.
   UpdateOutcome Run(const UpdateBundle& bundle);
+
+  // Wake the device, then write everything a board being brought up needs.
+  //
+  // The same prelude and a different install: UpdateOrchestrator::RunBringUp
+  // rather than Run(), which is where the three-write ordering lives and why
+  // that ordering matters. Always deferred, whatever SetDeferRestart says —
+  // bring-up's power cycle is not optional, because it is what a volatile JTAG
+  // configuration has to survive.
+  UpdateOutcome RunBringUp(const UpdateBundle& bundle);
 
   // Where the device appeared once it was running the firmware it was given,
   // and empty until it has.
@@ -138,6 +147,11 @@ class RecoveryInstaller {
   // device appeared at, or nothing with `outcome` filled in.
   std::optional<std::string> Wake(const UpdateBundle& bundle,
                                   UpdateOutcome& outcome);
+
+  // The prelude and the device it produced, ready to be installed onto.
+  // Returns null with `outcome` filled in when anything went wrong.
+  std::unique_ptr<IDeviceUpdater> WakeAndOpen(const UpdateBundle& bundle,
+                                              UpdateOutcome& outcome);
 
   void Report(uint64_t done, uint64_t total, std::string message);
 

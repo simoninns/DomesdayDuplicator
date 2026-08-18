@@ -39,6 +39,14 @@ QString BothCables() {
       "perfectly normal.");
 }
 
+// One mark, in its colour. The rows, the legend, the verification list and
+// both status lines all draw their marks through here, so a tick can never
+// mean one thing in one place and another somewhere else.
+QString Marked(BringUpRowState state) {
+  return QStringLiteral("<span style=\"color:%1\"><b>%2</b></span>")
+      .arg(BringUpMarkColour(state), BringUpMark(state));
+}
+
 }  // namespace
 
 QString BringUpPageTitle(BringUpPage page) {
@@ -51,11 +59,11 @@ QString BringUpPageTitle(BringUpPage page) {
       return Translate("3 of 9");
     case BringUpPage::kJumper:
       return Translate("4 of 9");
-    case BringUpPage::kFirmware:
+    case BringUpPage::kConfigure:
       return Translate("5 of 9");
-    case BringUpPage::kRemoveJumper:
+    case BringUpPage::kProgram:
       return Translate("6 of 9");
-    case BringUpPage::kGateware:
+    case BringUpPage::kRemoveJumper:
       return Translate("7 of 9");
     case BringUpPage::kPowerCycle:
       return Translate("8 of 9");
@@ -72,15 +80,15 @@ QString BringUpPageHeading(BringUpPage page) {
     case BringUpPage::kConnect:
       return Translate("Both boards, connected");
     case BringUpPage::kImage:
-      return Translate("The provisioning set");
+      return Translate("The update file");
     case BringUpPage::kJumper:
       return Translate("Fit jumper J4");
-    case BringUpPage::kFirmware:
-      return Translate("Program the FX3");
+    case BringUpPage::kConfigure:
+      return Translate("Load the gateware into the FPGA");
+    case BringUpPage::kProgram:
+      return Translate("Program the board");
     case BringUpPage::kRemoveJumper:
       return Translate("Remove jumper J4");
-    case BringUpPage::kGateware:
-      return Translate("Program the FPGA");
     case BringUpPage::kPowerCycle:
       return Translate("Power cycle");
     case BringUpPage::kVerify:
@@ -91,41 +99,56 @@ QString BringUpPageHeading(BringUpPage page) {
 
 QString BringUpOverviewText() {
   return Translate(
-      "<p>This programs both halves of a Domesday Duplicator from nothing: "
-      "the FX3's firmware and the FPGA's configuration flash. It is what a "
-      "newly built board needs, and what a board running the original "
-      "Duplicator firmware needs before it can be updated from this "
-      "application at all.</p>"
+      "<p>This programs a Domesday Duplicator completely — the FX3's firmware, "
+      "and both images in the FPGA's configuration flash. At the end the board "
+      "is ready to capture, and there is nothing to do afterwards.</p>"
 
-      "<p><b>Everything physical, before anything starts.</b> Doing the whole "
-      "list now means doing it once:</p>"
+      "<p><b>Have these ready before you start:</b></p>"
 
       "<ul>"
-      "<li><b>Take the unit out of its enclosure.</b> The DE0-Nano's mini-USB "
-      "connector cannot be reached with the case on, and the FPGA half of this "
-      "cannot be done without it.</li>"
-      "<li><b>Connect both cables</b> — the kit's USB 3.0 cable and the "
-      "DE0-Nano's mini-USB — and leave both connected throughout.</li>"
-      "<li>Expect to <b>fit and then remove a jumper</b>, and to <b>unplug "
-      "both cables twice</b> along the way. Once, for a board that is already "
-      "waiting in its boot ROM.</li>"
+      "<li>the unit <b>out of its enclosure</b> — the DE0-Nano's mini-USB "
+      "connector cannot be reached with the case on;</li>"
+      "<li><b>both cables connected</b>, the kit's USB 3.0 cable and the "
+      "DE0-Nano's mini-USB, and left connected throughout;</li>"
+      "<li>a <b>jumper</b> for the FX3's two-pin PMODE header, unless the "
+      "board has never been programmed;</li>"
+      "<li>an <b>update file</b> — this application normally carries one, and "
+      "step 3 says so if it does not.</li>"
       "</ul>"
 
-      "<p>Both halves are always done. A board whose firmware is out of date "
-      "almost always has gateware of the same age — they are built and "
-      "released together — so this does not offer to skip the FPGA on the "
-      "strength of a guess and then send you back for a screwdriver.</p>"
+      "<p><b>You will be asked to:</b> fit a jumper, unplug both cables and "
+      "reconnect them, press two buttons, remove the jumper, and unplug both "
+      "cables once more. Nothing physical is asked for twice.</p>"
 
-      "<p><b>Where this leaves you.</b> Your Duplicator will be running "
-      "current firmware with the recovery gateware: working, enumerating, and "
-      "not yet able to capture. One ordinary firmware update finishes the job, "
-      "and it needs no cables moved and no case opened.</p>");
+      "<p><b>It does not matter what the board is running now</b>, and running "
+      "this twice is harmless.</p>");
 }
 
 QString BringUpDurationText() {
   return Translate(
-      "About five minutes, most of it spent writing and checking the FX3's "
-      "firmware.");
+      "About five minutes, most of it spent writing and checking the three "
+      "images.");
+}
+
+QString BringUpWaitingText(const QString& what) {
+  return QStringLiteral("<p>%1 <b>%2</b> %3</p>")
+      .arg(Marked(BringUpRowState::kWaiting), Translate("Waiting for"), what);
+}
+
+QString BringUpStepDoneText(const QString& what) {
+  // **All done** first, and the button to press last. Everything a user
+  // wants off a finished step is at the two ends of one short line: whether it
+  // worked, and what to do about it. What actually happened goes in the
+  // middle, where it can be read by somebody who wants it and skipped by
+  // somebody who does not.
+  QString text =
+      QStringLiteral("<p>%1 <b>%2</b>")
+          .arg(Marked(BringUpRowState::kReady), Translate("All done."));
+  if (!what.isEmpty()) {
+    text += QStringLiteral(" ") + what;
+  }
+  return text + QStringLiteral(" <b>") +
+         Translate("Click “Next ›” to continue.") + QStringLiteral("</b></p>");
 }
 
 // --- the connectivity page ------------------------------------------------
@@ -159,24 +182,14 @@ QString BringUpConnectLegend() {
   // green reads as a fault, and here it usually is not: it means this board is
   // in a state the wizard already expects and will deal with a few pages
   // further on.
-  const QString mark = [](BringUpRowState state) {
-    return QStringLiteral("<span style=\"color:%1\"><b>%2</b></span>")
-        .arg(BringUpMarkColour(state), BringUpMark(state));
-  }(BringUpRowState::kReady);
-
   return Translate(
              "<p>%1 means that board is ready as it is. %2 means the wizard "
              "will ask you to do something to it further on — fit a jumper, or "
              "pull both cables — and <b>not</b> that anything is wrong with "
              "it. "
              "%3 is something to put right before going on.</p>")
-      .arg(mark,
-           QStringLiteral("<span style=\"color:%1\"><b>%2</b></span>")
-               .arg(BringUpMarkColour(BringUpRowState::kWaiting),
-                    BringUpMark(BringUpRowState::kWaiting)),
-           QStringLiteral("<span style=\"color:%1\"><b>%2</b></span>")
-               .arg(BringUpMarkColour(BringUpRowState::kProblem),
-                    BringUpMark(BringUpRowState::kProblem)));
+      .arg(Marked(BringUpRowState::kReady), Marked(BringUpRowState::kWaiting),
+           Marked(BringUpRowState::kProblem));
 }
 
 BringUpStatusRow BringUpFx3Row(const std::optional<capture::DeviceInfo>& fx3,
@@ -215,18 +228,25 @@ BringUpStatusRow BringUpFx3Row(const std::optional<capture::DeviceInfo>& fx3,
                   "Running this application's own firmware%1, so this board "
                   "does not need bringing up. If you only want to update it, "
                   "close this and use <b>Tools ▸ Firmware ▸ Update "
-                  "firmware…</b> instead. Carrying on here is safe and will "
-                  "reinstall both halves — it will be asked to reach its boot "
-                  "ROM, which means fitting a jumper.")
+                  "firmware…</b> instead, which needs no cables moved and no "
+                  "case opened. Carrying on here is safe and reprograms "
+                  "everything — it will be asked to reach its boot ROM, which "
+                  "means fitting a jumper.")
                   .arg(named);
         } else {
+          // Out of range in *either* direction, and the reachable direction is
+          // newer rather than older: an application can easily be older than
+          // the firmware in front of it. Firmware older than the update agent
+          // but under these identifiers was never released — it exists only as
+          // an intermediate build inside the repository — so this says what is
+          // actually known rather than naming a generation of firmware nobody
+          // has.
           row.detail =
               Translate(
-                  "Running Duplicator firmware%1 that predates this "
-                  "application's update agent: it enumerates under the current "
-                  "identifiers but has no way to update itself, which is one "
-                  "of the two boards this wizard exists for. It will be asked "
-                  "to reach its boot ROM, which means fitting a jumper.")
+                  "Running Duplicator firmware%1 whose protocol this build of "
+                  "the application does not know, most likely newer than it. "
+                  "Bring-up replaces it with the firmware from the file you "
+                  "choose, so this is safe to carry on with.")
                   .arg(named);
         }
         return row;
@@ -236,8 +256,7 @@ BringUpStatusRow BringUpFx3Row(const std::optional<capture::DeviceInfo>& fx3,
         row.detail = Translate(
             "Running the <b>original</b> Duplicator firmware — the one from "
             "before this application existed, enumerating as 1d50:603b. This "
-            "is exactly what this wizard is for: it will be asked to reach its "
-            "boot ROM, which means fitting a jumper.");
+            "is exactly what this wizard is for.");
         return row;
 
       case capture::DevicePersonality::kFlashProgrammer:
@@ -316,45 +335,39 @@ BringUpStatusRow BringUpFpgaRow(bool opened, capture::UsbPresence presence,
 
 QString BringUpFitJumperText() {
   return Translate(
-             "<p>The FX3 has to be running its boot ROM before its firmware "
-             "can be "
-             "written, and the jumper is what puts it there.</p>"
+             "<p><b>1. Fit jumper J4</b> on the FX3 board — the two-pin "
+             "<tt>PMODE</tt> header shown below.</p>"
 
-             "<p><b>Fit jumper J4</b> on the FX3 board — the two-pin "
-             "<tt>PMODE</tt> "
-             "header — as shown below. Then:</p>") +
-         QStringLiteral("<p>") + BothCables() + QStringLiteral("</p>") +
+             "<p><b>2. </b>") +
+         BothCables() + QStringLiteral("</p>") +
          Translate(
-             "<p>Reconnect them both, and this page will notice the board "
-             "come back. The jumper only takes effect on a boot, and the unit "
-             "does not boot while either cable is still feeding it.</p>");
+             "<p><b>3. Plug both back in.</b></p>"
+
+             "<p>The jumper only takes effect when the board boots, and the "
+             "unit does not boot while either cable is still feeding it — "
+             "which is why both have to come out.</p>");
 }
 
 QString BringUpRemoveJumperText() {
   return Translate(
-      "<p>The FX3's firmware is written. <b>Remove jumper J4</b>, so that the "
-      "board boots from its own EEPROM from now on rather than waiting for a "
-      "host.</p>"
+      "<p><b>Remove jumper J4</b> from the FX3 board — the same header as "
+      "before, bare this time, as shown below.</p>"
 
-      "<p>Same board, same view as the last photograph — the header is bare "
-      "this time.</p>"
-
-      "<p>Do not unplug anything yet. There is one power cycle at the end and "
-      "it serves both halves of this.</p>");
+      "<p><b>Do not unplug anything yet.</b> There is one power cycle on the "
+      "next page and it does everything.</p>");
 }
 
 QString BringUpPowerCycleText() {
-  return Translate("<p>One power cycle, and it discharges two obligations: ") +
+  return Translate("<p><b>1. </b>") + BothCables() + QStringLiteral("</p>") +
          Translate(
-             "the FX3 has to re-read where it boots from, and the FPGA has to "
-             "load the gateware from the flash that has just been written. It "
-             "is running that same gateware now, but only out of its own "
-             "memory — that is what a JTAG cable can put there, and it lasts "
-             "until the power goes off.</p>") +
-         QStringLiteral("<p>") + BothCables() + QStringLiteral("</p>") +
-         Translate(
-             "<p>Wait a couple of seconds, then reconnect them both. This page "
-             "will notice the Duplicator come back.</p>");
+             "<p><b>2. Wait a couple of seconds.</b></p>"
+
+             "<p><b>3. Plug both back in.</b></p>"
+
+             "<p>This is what makes the three images you have just written the "
+             "running ones: the FX3 re-reads where it boots from, and the FPGA "
+             "loads the factory image, which hands over to the application "
+             "image beside it.</p>");
 }
 
 QString BringUpPowerCycleTimeoutText() {
@@ -369,6 +382,41 @@ QString BringUpPowerCycleTimeoutText() {
       "<p>If it still does not come back: the jumper may still be fitted, "
       "which would leave the FX3 waiting in its boot ROM. Nothing here is "
       "damaged, and this wizard can simply be run again.</p>");
+}
+
+QString BringUpDeviceNotBackText() {
+  return Translate(
+      "<p><b>The board went away and has not come back.</b> Both cables came "
+      "out — that much was seen — so what is left is one of them not being "
+      "back in.</p>"
+
+      "<p><b>Plug both cables in again</b>, and check the USB 3.0 one is "
+      "properly seated and in a USB 3.0 socket. Nothing here is damaged.</p>");
+}
+
+QString BringUpStillInBootRomText() {
+  return Translate(
+      "<p><b>The board has come back in its boot ROM</b> rather than running "
+      "its own firmware, and there is only one thing that does that: "
+      "<b>jumper J4 is still fitted</b>.</p>"
+
+      "<p>Go back a page, take it off, then unplug both cables and reconnect "
+      "them. Nothing is wrong with what has been written.</p>");
+}
+
+QString BringUpNotReloadedText() {
+  return Translate(
+      "<p><b>The board did not lose power.</b> It is running its new firmware, "
+      "but its FPGA is still holding the gateware that was loaded over the "
+      "mini-USB cable earlier — which only happens if the board stayed alive "
+      "throughout.</p>"
+
+      "<p><b>Almost certainly only one cable came out.</b> Either one on its "
+      "own keeps the unit powered, so pulling just the USB 3.0 cable makes the "
+      "board disappear and come back while never restarting.</p>"
+
+      "<p>Unplug <b>both</b> — the kit's USB 3.0 cable and the DE0-Nano's "
+      "mini-USB — count to three, and reconnect them.</p>");
 }
 
 QString BringUpPhotographPath(BringUpPage page) {
@@ -401,74 +449,77 @@ QString BringUpPhotographCaption(BringUpPage page) {
 
 // --- the working pages ----------------------------------------------------
 
-QString BringUpFirmwareText() {
+QString BringUpConfigureText(int seconds) {
   return Translate(
-      "<p>The FX3's boot ROM is handed the firmware, runs it from memory, and "
-      "that firmware then writes and checks its own EEPROM — the same "
-      "mechanism, the same digests and the same readback an ordinary update "
-      "uses.</p>"
+             "<p><b>Press “Load the gateware” below.</b> It plays the gateware "
+             "into the FPGA through the DE0-Nano's own USB-Blaster, and takes "
+             "about %1 seconds.</p>"
 
-      "<p>The device is <b>not</b> restarted at the end of this step, because "
-      "the jumper is still fitted and a restart would land it back in its boot "
-      "ROM. The restart comes later, once the jumper is off.</p>"
+             "<p><b>Nothing is written to the board by this step.</b> The FPGA "
+             "holds the gateware in memory only. It is what gives the next "
+             "step a way to reach the flash.</p>"
 
-      "<p><b>Leave both cables connected.</b> A minute or so.</p>");
+             "<p>Leave both cables connected, and leave the jumper alone. The "
+             "FX3 stays in its boot ROM throughout, which is why this comes "
+             "before the firmware rather than after it.</p>")
+      .arg(seconds);
 }
 
-QString BringUpGatewareText(int seconds) {
+QString BringUpProgramText(int seconds) {
   return Translate(
-             "<p>Two things, and the first makes the second possible. The "
-             "<b>factory image</b> is loaded into the FPGA through the "
-             "DE0-Nano's own USB-Blaster — the only route to a board with no "
-             "working gateware — and nothing is written to the board by "
-             "that.</p>"
+             "<p><b>Press “Program the board” below.</b> It writes three "
+             "things, in this order:</p>"
 
-             "<p>The Duplicator can then reach the FPGA's flash for itself, so "
-             "it writes that same image into it, exactly as it writes an "
-             "ordinary gateware update. The factory image is the one the board "
-             "falls back to, and the one that makes those updates possible "
-             "from then on.</p>") +
-         Translate("<p><b>Expect this to take about %1 seconds.</b> ")
-             .arg(seconds) +
-         Translate(
-             "The flash write pauses every few seconds while a block is "
-             "erased, which is the flash doing its job rather than anything "
-             "being stuck. Leave both cables connected throughout.</p>");
+             "<ul>"
+             "<li>the FX3's own <b>EEPROM</b>;</li>"
+             "<li>the FPGA's <b>factory image</b>, which is what the board "
+             "falls back to;</li>"
+             "<li>the FPGA's <b>application image</b>, which is what it "
+             "captures with.</li>"
+             "</ul>"
+
+             "<p><b>About %1 seconds.</b> Leave both cables connected and "
+             "leave the jumper alone. The writing pauses every few seconds "
+             "while a block of flash is erased, which is normal.</p>"
+
+             "<p>Nothing restarts at the end — the power cycle two pages from "
+             "now is what starts all three images at once.</p>")
+      .arg(seconds);
 }
 
-QString BringUpBundledSetText() {
+QString BringUpBundledFileText() {
   return Translate(
-      "<p><b>This application carries a provisioning set</b>, published with "
-      "the firmware release it was built beside, and it has been chosen for "
+      "<p><b>This application carries an update file</b>, published with the "
+      "firmware release it was built beside, and it has been chosen for "
       "you.</p>"
-      "<p>It is checked here exactly as a downloaded one would be — the "
-      "signature first, then every payload's digest — because arriving with "
-      "the application is not a reason to trust a file. Choose a different one "
-      "below if you have a newer set.</p>");
+      "<p>Its signature and every payload's digest have been checked here, "
+      "exactly as a downloaded one would be — arriving with the application is "
+      "not a reason to trust a file. Choose a different one below only if you "
+      "have a newer release.</p>");
 }
 
-QString BringUpChosenSetText() {
+QString BringUpChosenFileText() {
   return Translate(
-      "<p>Using the file you chose. The set that came with this application is "
-      "still there — <b>Use the bundled set</b> goes back to it.</p>");
+      "<p>Using the file you chose. The one that came with this application is "
+      "still there — <b>Use the bundled file</b> goes back to it.</p>");
 }
 
-QString BringUpBundledSetUnusableText() {
+QString BringUpBundledFileUnusableText() {
   return Translate(
-      "<p><b>The provisioning set that came with this application could not be "
+      "<p><b>The update file that came with this application could not be "
       "used</b>, and what is wrong with it is below.</p>"
-      "<p>Nothing here can repair it — a set is either intact and signed or it "
-      "is not. Download "
-      "<code>domesday-duplicator-provisioning-&lt;version&gt;.dddfw</code> "
-      "from the firmware release page and choose it below.</p>");
+      "<p>Nothing here can repair it — a file is either intact and signed or "
+      "it is not. Download "
+      "<code>domesday-duplicator-update-&lt;version&gt;.dddfw</code> from the "
+      "firmware release page and choose it below.</p>");
 }
 
-QString BringUpNoBundledSetText() {
+QString BringUpNoBundledFileText() {
   return Translate(
-      "<p><b>This build carries no provisioning set</b>, so there is one thing "
-      "to fetch before starting: download "
-      "<code>domesday-duplicator-provisioning-&lt;version&gt;.dddfw</code> "
-      "from the firmware release page and choose it below.</p>"
+      "<p><b>This build carries no update file</b>, so there is one thing to "
+      "fetch before starting: download "
+      "<code>domesday-duplicator-update-&lt;version&gt;.dddfw</code> from the "
+      "firmware release page and choose it below.</p>"
       "<p>Do that on a machine with a network if this one has none — the file "
       "is all that is needed, and nothing else in this procedure goes near "
       "the internet.</p>");
@@ -484,7 +535,13 @@ QString BringUpImageSummary(const capture::UpdateManifest& manifest) {
     carries << Translate("FX3 firmware");
   }
   if (manifest.provisioning.has_value()) {
-    carries << Translate("FPGA provisioning gateware");
+    carries << Translate("FPGA gateware as JTAG vectors");
+  }
+  if (manifest.factory_gateware.has_value()) {
+    carries << Translate("factory image");
+  }
+  if (manifest.gateware.has_value()) {
+    carries << Translate("application gateware");
   }
   if (!carries.isEmpty()) {
     text += QStringLiteral("<br>") +
@@ -499,29 +556,32 @@ QString BringUpImageSummary(const capture::UpdateManifest& manifest) {
 }
 
 QString BringUpImageProblem(const capture::UpdateManifest& manifest) {
-  const bool has_firmware = manifest.firmware.has_value();
-  const bool has_vectors = manifest.provisioning.has_value();
+  QStringList missing;
+  if (!manifest.firmware.has_value()) {
+    missing << Translate("the FX3 firmware");
+  }
+  if (!manifest.provisioning.has_value()) {
+    missing << Translate("the gateware as JTAG vectors");
+  }
+  if (!manifest.factory_gateware.has_value()) {
+    missing << Translate("the factory image");
+  }
+  if (!manifest.gateware.has_value()) {
+    missing << Translate("the application gateware");
+  }
 
-  if (has_firmware && has_vectors) {
+  if (missing.isEmpty()) {
     return QString();
   }
 
-  if (!has_firmware && !has_vectors) {
-    return Translate(
-        "This is an ordinary update file. Bringing a board up needs a "
-        "provisioning set, which carries the FPGA's gateware as JTAG vectors "
-        "as well as the firmware.");
-  }
-  if (!has_vectors) {
-    return Translate(
-        "This file carries firmware but no provisioning gateware, so it cannot "
-        "bring up the FPGA. Choose a provisioning set.");
-  }
+  // Named one by one rather than reported as "incomplete". The likeliest file
+  // to be chosen here by mistake is a real release bundle built before the
+  // bring-up payloads existed, and "this file has no JTAG vectors" is a
+  // sentence somebody can act on where "this file is unsuitable" is not.
   return Translate(
-      "This file carries provisioning gateware but no firmware. Bring-up "
-      "programs the FX3 first — always, because the original firmware must "
-      "never be running underneath the new gateware — so a set without "
-      "firmware cannot be used.");
+             "This file cannot bring a board up: it is missing %1. An update "
+             "file from the firmware release page carries all four.")
+      .arg(missing.join(Translate(", ")));
 }
 
 // --- the end --------------------------------------------------------------
@@ -554,7 +614,7 @@ std::vector<BringUpCheck> BringUpVerification(
   if (!expected_commit.isEmpty()) {
     BringUpCheck commit;
     commit.description =
-        Translate("Its firmware is the build this set carries (%1)")
+        Translate("Its firmware is the build this file carries (%1)")
             .arg(expected_commit);
     commit.passed = capture::CommitsMatch(
         capture::ParseFirmwareCommit(identity.product_string)
@@ -563,13 +623,17 @@ std::vector<BringUpCheck> BringUpVerification(
     checks.push_back(commit);
   }
 
+  // The application image, not the factory one. A board that comes back on its
+  // factory image is a board whose application image did not take — everything
+  // still works and nothing is damaged, but it cannot capture, so this is the
+  // check that separates "brought up" from "brought most of the way up".
   BringUpCheck gateware;
   gateware.description =
-      Translate("Its FPGA is answering, on the recovery gateware");
+      Translate("Its FPGA is answering, on the application gateware");
   gateware.passed = identity.gateware_present &&
                     identity.register_map_version >=
                         capture::kRegisterMapVersionWithImageRole &&
-                    identity.image_role == capture::kImageRoleFactory;
+                    identity.image_role == capture::kImageRoleApplication;
   checks.push_back(gateware);
 
   return checks;
@@ -577,24 +641,25 @@ std::vector<BringUpCheck> BringUpVerification(
 
 QString BringUpCompleteText() {
   return Translate(
-      "<p><b>Bring-up complete.</b> The device is running current firmware and "
-      "its recovery gateware — working and enumerating, and not yet able to "
-      "capture.</p>"
+      "<p><b>All done. Bring-up complete.</b> The device is running the "
+      "firmware and gateware from the file you chose, and it is ready to "
+      "capture. There is nothing else to do.</p>"
 
-      "<p>One ordinary update finishes it: <b>Tools ▸ Firmware ▸ Update "
-      "firmware…</b>, with the current release bundle. Nothing after this "
-      "point is physical, so <b>the case can go back on first</b>.</p>");
+      "<p><b>Put the case back on and click Close.</b> Nothing after this "
+      "point is physical, and from now on this board updates itself: "
+      "<b>Tools ▸ Firmware ▸ Update firmware…</b>, with no cables moved and no "
+      "case opened.</p>");
 }
 
 QString BringUpIncompleteText() {
   return Translate(
       "<p>The programming steps finished, but not everything could be "
       "confirmed by reading the device back. Nothing is damaged, and nothing "
-      "is half-written: both halves were written and checked before this "
+      "is half-written: every image was written and checked before this "
       "page.</p>"
 
-      "<p>Unplug both USB cables, reconnect them, and run this wizard again — "
-      "it is safe to run as many times as you like.</p>");
+      "<p><b>Unplug both USB cables, reconnect them, and run this wizard "
+      "again.</b> It is safe to run as many times as you like.</p>");
 }
 
 QString BringUpFailureText(const QString& problem) {
@@ -603,9 +668,8 @@ QString BringUpFailureText(const QString& problem) {
          Translate(
              "<p><b>Nothing here can be broken by stopping part way.</b> The "
              "FX3 can always be reached again by fitting jumper J4, and the "
-             "FPGA's flash can always be reached again through the "
-             "USB-Blaster. Every step of this can simply be run again from the "
-             "beginning.</p>");
+             "FPGA can always be reached again through the USB-Blaster. Every "
+             "step of this can simply be run again from the beginning.</p>");
 }
 
 QString BringUpStoppedText() {

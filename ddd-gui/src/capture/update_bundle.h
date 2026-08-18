@@ -106,9 +106,9 @@ struct UpdateBundle {
   std::span<const uint8_t> provisioning;
 
   // The factory image as raw EPCS bytes: what the vectors above make it
-  // possible to write, and what a bring-up or a rollback actually puts in the
-  // flash at address 0. The two travel together in a provisioning set — one
-  // gives the board a flash bridge, the other is written through it.
+  // possible to write, and what a bring-up actually puts in the flash at
+  // address 0. The two travel together — one gives the board a flash bridge,
+  // the other is written through it.
   std::span<const uint8_t> factory_gateware;
 };
 

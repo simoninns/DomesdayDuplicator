@@ -42,7 +42,7 @@ unpacks:
   [fpga/README.md](../fpga/README.md)
 - Bench procedures: [TESTING.md](../TESTING.md) §6 (U5, U6, G0, G1, B-V1)
 - The implemented machinery this revision reshapes: `board_bringup_wizard.*`,
-  `bringup_worker.*`, `provisioning_orchestrator.*`, `device_recovery.*`,
+  `bringup_worker.*`, `bringup_orchestrator.*`, `device_recovery.*`,
   `update_orchestrator.*`, `jtag_cable.*`, `svf_player.*`
 
 ## Why the starting state does not matter
@@ -262,9 +262,19 @@ bring-up on a working board, whose factory image hands over to the application).
 **No protocol version bump**, on the firmware's own rule stated where the field is
 defined (`usb-descriptor.c:45`): an additive change does not bump it, and a new target is
 additive — no existing field changes meaning and an old host never asks for target 2.
-Firmware that predates the target answers `UPDATE_ERROR_TARGET`, which is what that code
-is for; bring-up RAM-loads the firmware out of the bundle it just verified, so it always
-talks to firmware that has the target.
+
+**And there is no compatibility case to design for.** No version of this firmware has been
+released: `main` still carries the original firmware, which enumerates as `1d50:603b` and
+has no update agent at all. The first release will carry all three targets from its first
+day, so a device that speaks the protocol but lacks target 2 exists only as an intermediate
+build inside this repository. Earlier drafts of this plan promised that such firmware would
+answer `UPDATE_ERROR_TARGET` and let a host discover what it was talking to; that promise
+was both unnecessary and **false** — firmware older than the flags word fails in
+`updateBeginDecode()` before the target is examined and reports `UPDATE_ERROR_LENGTH`,
+which the host renders as *"the device refused the update's size"* (met on the bench,
+2026-08-18, from a stale development build). Nothing is designed around it: bring-up
+RAM-loads the firmware out of the bundle it just verified, so it always talks to firmware
+that has the target.
 
 ## One bundle
 
@@ -295,7 +305,7 @@ Packaging follows, all simpler than what it replaces:
   separately for `ddd-jtag` and the bench.
 - **The GUI bundles the update bundle** — the pin file, fetch-by-digest script, CMake
   install for the three platform layouts, and run-time search built in Phase 4 all
-  survive with one retargeting rename (`bundled-provisioning` → `bundled-update`
+  survive with one retargeting rename (`bundled-update` → `bundled-update`
   throughout), and the bundled file now serves offline bring-up and offline update
   alike. The wizard still verifies the bundled copy identically to a picked one. B2 (the
   offline bench item) stays, with the stronger exit state.
@@ -398,9 +408,11 @@ Remove:
 - `CheckRollbackGate()` and the update path's rollback-bundle refusal; `UpdatePurpose`
   and the `purpose` field from `update_manifest.*` and `update_bundle.*`; `--purpose`
   from `make-update-bundle.sh`; `--kind` from `dev-bundle.sh`.
-- The `legacy/` directory (untracked; never enters history) and the release workflow's
-  rollback packaging and legacy digest verification; the workflow's separate provisioning
-  set.
+- The `legacy/` directory, the release workflow's rollback packaging and its legacy digest
+  verification, and the workflow's separate provisioning set. The frozen images were
+  committed at `3446894` before this revision was written, so they are removed from the
+  tree rather than never added to it — recoverable from that commit if the decision is ever
+  revisited, which is the whole reason *What was withdrawn* records why it was taken.
 - The docs rollback page and nav entry.
 
 Change:
@@ -408,12 +420,12 @@ Change:
 - The bring-up wizard and its worker: page order (boot ROM → configure → program
   everything), the EEPROM-before-flash write ordering, the four-payload bundle check,
   wording, the verify page's application-image expectation, and the order test.
-- The bring-up sequencing in the engine (`provisioning_orchestrator.*`, renamed to match
+- The bring-up sequencing in the engine (`bringup_orchestrator.*`, renamed to match
   its one caller if that reads better): configure over JTAG, release the cable, RAM-load,
   then one deferred-restart install of targets 0, 2, 1 in that order through the ordinary
   orchestrator.
 - The release workflow: one bundle carrying four payloads; the gate checks it.
-- The bundled-file machinery: `bundled-provisioning` → `bundled-update` renames across
+- The bundled-file machinery: `bundled-update` → `bundled-update` renames across
   the pin file, fetch script, CMake variable and `src/gui` locator.
 - The documentation set listed above.
 

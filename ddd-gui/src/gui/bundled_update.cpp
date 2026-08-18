@@ -1,6 +1,6 @@
 /************************************************************************
 
-    bundled_provisioning.cpp
+    bundled_update.cpp
 
     Finding the provisioning set a packaged build carries
     Domesday Duplicator - LaserDisc RF sampler
@@ -9,7 +9,7 @@
 
 ************************************************************************/
 
-#include "bundled_provisioning.h"
+#include "bundled_update.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -33,9 +33,9 @@ QString Joined(const QString& directory, const QString& tail) {
 
 }  // namespace
 
-QStringList BundledProvisioningSearchPaths(
-    const QString& application_dir, const QStringList& generic_data_dirs) {
-  const QString name = QLatin1String(kBundledProvisioningName);
+QStringList BundledUpdateSearchPaths(const QString& application_dir,
+                                     const QStringList& generic_data_dirs) {
+  const QString name = QLatin1String(kBundledUpdateName);
   const QString app_id = QLatin1String(DDD_APP_ID);
 
   QStringList candidates;
@@ -74,12 +74,12 @@ QStringList BundledProvisioningSearchPaths(
   return candidates;
 }
 
-QString BundledProvisioningPath() {
+QString BundledUpdatePath() {
   const QString application_dir = QCoreApplication::instance() != nullptr
                                       ? QCoreApplication::applicationDirPath()
                                       : QString();
 
-  const QStringList candidates = BundledProvisioningSearchPaths(
+  const QStringList candidates = BundledUpdateSearchPaths(
       application_dir,
       QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation));
 

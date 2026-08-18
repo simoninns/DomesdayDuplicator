@@ -19,7 +19,7 @@
 
 namespace ddd::gui {
 
-BringUpWorker::BringUpWorker(capture::ProvisioningOrchestrator* orchestrator,
+BringUpWorker::BringUpWorker(capture::BringUpOrchestrator* orchestrator,
                              Task task, std::vector<uint8_t> archive,
                              capture::UpdateKeyPolicy policy, QObject* parent)
     : QObject(parent),
@@ -53,22 +53,21 @@ void BringUpWorker::Run() {
                   step.done, step.total, QString::fromStdString(step.message));
   });
 
-  if (task_ == Task::kFirmware) {
-    const capture::UpdateOutcome outcome =
-        orchestrator_->InstallFirmware(*bundle);
-
-    // The update path has no "stopped" of its own — a cancellation arrives as
-    // a failure with a sentence about it — so the one thing this side knows
-    // that the outcome does not is asked here: was a stop requested? A user
-    // who pressed Stop is not shown a failure.
-    emit Finished(outcome.succeeded, !outcome.succeeded && cancelled_.load(),
+  if (task_ == Task::kConfigure) {
+    const capture::BringUpConfigureOutcome outcome =
+        orchestrator_->ConfigureFpga(*bundle);
+    emit Finished(outcome.succeeded, outcome.stopped,
                   QString::fromStdString(outcome.problem));
     return;
   }
 
-  const capture::ProvisioningGatewareOutcome outcome =
-      orchestrator_->ProgramGateware(*bundle);
-  emit Finished(outcome.succeeded, outcome.stopped,
+  const capture::UpdateOutcome outcome = orchestrator_->ProgramDevice(*bundle);
+
+  // The update path has no "stopped" of its own — a cancellation arrives as a
+  // failure with a sentence about it — so the one thing this side knows that
+  // the outcome does not is asked here: was a stop requested? A user who
+  // pressed Stop is not shown a failure.
+  emit Finished(outcome.succeeded, !outcome.succeeded && cancelled_.load(),
                 QString::fromStdString(outcome.problem));
 }
 

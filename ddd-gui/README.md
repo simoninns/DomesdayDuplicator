@@ -47,12 +47,13 @@ libusb cable driver and a player for the JTAG vectors the bitstream build emits 
 file with nothing attached. The knowledge of what a Cyclone IV and an EPCS64 want stays in
 Quartus, at build time; see *USB-Blaster and SVF programming*.
 
-**Bringing a board up.** Tools → Firmware → Legacy → Bring up a new or legacy board… puts
-both halves of that together: a nine-page flow that programs a newly built kit, or one
-running the firmware from before this application existed, from nothing. Its order is not a
-presentation choice — the original firmware and the current gateware drive the same
-interconnect line, so the FX3 must become current first, and `ProvisioningOrchestrator`
-refuses the FPGA until it has. See *Bringing up a new or legacy board*.
+**Bringing a board up.** Tools → Firmware → Bring up a new or legacy board… puts both
+halves of that together: a nine-page flow that takes a board from any state at all to
+fully up to date, ending on the application gateware with nothing left to install. Its
+order is not a presentation choice — the original firmware and the current gateware drive
+the same interconnect line, so the FX3 reaches its boot ROM (where it drives nothing)
+before the FPGA is touched, and `BringUpOrchestrator` refuses to write anything until the
+FPGA has been configured. See *Bringing up a new or legacy board*.
 
 The engine half of all that is Qt-free, so `ddd-update` drives the identical code path
 from a shell — `dev-bundle.sh && ddd-update` is the whole edit-to-running-device loop, and
@@ -195,7 +196,7 @@ Two build inputs a packaged build passes and an ordinary one does not need:
 | | |
 | --- | --- |
 | `-DDDD_RELEASE_UPDATE_KEY_FILE` | which minisign public key this build accepts release bundles from. Defaults to `tools/keys/release.pub` when the source tree carries it; a build with none can verify no release bundle and says so |
-| `-DDDD_BUNDLED_PROVISIONING_FILE` | a provisioning set to install beside the application, so a board can be brought up with no network. Placed under one fixed name in the platform's data location and preselected by the bring-up wizard — and verified there exactly as a downloaded file is. A build with none opens that page with its file picker. `./tools/dev-bundle.sh --kind provisioning` produces one locally |
+| `-DDDD_BUNDLED_UPDATE_FILE` | an update bundle to install beside the application, so a board can be brought up with no network. Placed under one fixed name in the platform's data location and preselected by the bring-up wizard — and verified there exactly as a downloaded file is. A build with none opens that page with its file picker. `./tools/dev-bundle.sh` produces one locally |
 
 ### Quality gates
 

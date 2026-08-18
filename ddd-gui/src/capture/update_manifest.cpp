@@ -237,28 +237,6 @@ std::optional<UpdateManifest> ParseUpdateManifest(
     complete = false;
   }
 
-  // Optional, unlike the channel: a bundle written before rollback existed
-  // carries no purpose and is an update, which is what it always was. A
-  // value this build does not know is refused rather than defaulted, because
-  // a purpose is a statement about what installing the file does.
-  if (const JsonValue* purpose = document->Find("purpose");
-      purpose != nullptr) {
-    std::string text;
-    if (ReadString(*document, "purpose", "manifest", &text, errors)) {
-      if (text == kUpdatePurposeName) {
-        manifest.purpose = UpdatePurpose::kUpdate;
-      } else if (text == kRollbackPurposeName) {
-        manifest.purpose = UpdatePurpose::kRollback;
-      } else {
-        Report(errors,
-               "manifest: \"purpose\" is neither \"update\" nor \"rollback\"");
-        complete = false;
-      }
-    } else {
-      complete = false;
-    }
-  }
-
   complete &=
       ReadString(*document, "version", "manifest", &manifest.version, errors);
   complete &=
@@ -391,19 +369,6 @@ std::string SerialiseUpdateManifest(const UpdateManifest& manifest) {
       {"components", JsonValue::Object(std::move(components))},
       {"compatibility", JsonValue::Object(std::move(compatibility))},
   };
-
-  // The purpose is written only when it says something. An ordinary update
-  // carries no purpose field — which is exactly what every bundle written
-  // before rollback existed looks like — so a manifest that goes through the
-  // reader and back out comes out byte for byte as it went in, and the
-  // signature over it still verifies. Writing a field whose only value is its
-  // own default would have invalidated every signature ever made over one of
-  // these files, for no information.
-  if (manifest.purpose == UpdatePurpose::kRollback) {
-    members.insert(
-        members.begin() + 2,
-        {"purpose", JsonValue::String(std::string(kRollbackPurposeName))});
-  }
 
   return SerialiseJson(JsonValue::Object(std::move(members)));
 }

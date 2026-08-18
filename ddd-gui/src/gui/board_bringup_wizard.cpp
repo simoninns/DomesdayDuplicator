@@ -2,7 +2,7 @@
 
     board_bringup_wizard.cpp
 
-    Programming both halves of a board from nothing, in nine pages
+    Programming a board from nothing to fully up to date, in nine pages
     Domesday Duplicator - LaserDisc RF sampler
     SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
@@ -159,9 +159,9 @@ BoardBringUpWizard::BoardBringUpWizard(Access access, QWidget* parent)
   pages_->addWidget(BuildConnectPage());
   pages_->addWidget(BuildImagePage());
   pages_->addWidget(BuildJumperPage());
-  pages_->addWidget(BuildFirmwarePage());
+  pages_->addWidget(BuildConfigurePage());
+  pages_->addWidget(BuildProgramPage());
   pages_->addWidget(BuildRemoveJumperPage());
-  pages_->addWidget(BuildGatewarePage());
   pages_->addWidget(BuildPowerCyclePage());
   pages_->addWidget(BuildVerifyPage());
   layout->addWidget(pages_, 1);
@@ -201,18 +201,18 @@ BoardBringUpWizard::BoardBringUpWizard(Access access, QWidget* parent)
 
   ReadDevices();
 
-  // Where this build's own provisioning set is, asked for once. A packaged
-  // build carries one so that a board can be brought up on a machine with no
-  // network — the ordinary case, since a board being brought up is one that
-  // cannot be updated over USB.
+  // Where this build's own update file is, asked for once. A packaged build
+  // carries one so that a board can be brought up on a machine with no network
+  // — the ordinary case, since a board being brought up is one that cannot be
+  // updated over USB.
   //
   // Only *where*, here. Reading and verifying it waits until the image page,
   // because the key policy this window judges signatures by is set after it is
-  // constructed, and a set checked against the default policy and then never
+  // constructed, and a file checked against the default policy and then never
   // rechecked would be judged by rules the application had not finished
   // choosing.
-  if (access_.bundled_set) {
-    bundled_path_ = access_.bundled_set();
+  if (access_.bundled_file) {
+    bundled_path_ = access_.bundled_file();
   }
 
   ShowPage(BringUpPage::kOverview);
@@ -281,11 +281,11 @@ QWidget* BoardBringUpWizard::BuildConnectPage() {
 
   layout->addWidget(MakeBody(
       page,
-      tr("<p>Both boards have to be connected and reachable before anything "
-         "starts. Each is <b>opened</b> here rather than merely noticed, so "
-         "that a permissions problem turns up now — while there is still "
-         "nothing half-programmed — rather than in the middle of writing a "
-         "flash.</p>")));
+      tr("<p><b>Connect both boards now</b> — the kit's USB 3.0 cable and the "
+         "DE0-Nano's mini-USB — and leave both connected until the end.</p>"
+         "<p>Each is <b>opened</b> here rather than merely noticed, so that a "
+         "permissions problem turns up now rather than in the middle of "
+         "writing a flash.</p>")));
 
   fx3_row_ = MakeBody(page);
   fx3_row_->setObjectName(QLatin1String(kFx3RowName));
@@ -315,6 +315,10 @@ QWidget* BoardBringUpWizard::BuildConnectPage() {
   row->addStretch(1);
   layout->addLayout(row);
 
+  connect_status_ = MakeBody(page);
+  connect_status_->setObjectName(QLatin1String(kConnectStatusName));
+  layout->addWidget(connect_status_);
+
   layout->addStretch(1);
   return scroll;
 }
@@ -326,12 +330,13 @@ QWidget* BoardBringUpWizard::BuildImagePage() {
 
   layout->addWidget(MakeBody(
       page,
-      tr("<p>A <b>provisioning set</b> carries the FX3's firmware and the "
-         "FPGA's gateware as JTAG vectors. It is an ordinary signed update "
-         "file — the same format, the same signature check and the same "
-         "digests — and it is published beside the release it belongs to.</p>"
-         "<p>Its signature and every digest are checked here, before anything "
-         "is programmed.</p>")));
+      tr("<p><b>Choose the update file to program the board with.</b> It is "
+         "the same signed file <b>Tools ▸ Firmware ▸ Update firmware…</b> "
+         "installs, published with the release it belongs to.</p>"
+         "<p>Bringing a board up needs all four of its payloads, rather than "
+         "the two a working device takes, so a file that can update but not "
+         "bring up is refused here and named below. Its signature and every "
+         "digest are checked before anything is programmed.</p>")));
 
   // Which of the three states the page is in — bundled, chosen over a bundled
   // one, or nothing bundled at all — said in words above the set itself.
@@ -339,7 +344,7 @@ QWidget* BoardBringUpWizard::BuildImagePage() {
   image_source_->setObjectName(QLatin1String(kImageSourceName));
   layout->addWidget(image_source_);
 
-  image_ = MakeBody(page, tr("No provisioning set chosen."));
+  image_ = MakeBody(page, tr("No update file chosen."));
   image_->setObjectName(QLatin1String(kImageLabelName));
   layout->addWidget(image_);
 
@@ -352,25 +357,25 @@ QWidget* BoardBringUpWizard::BuildImagePage() {
   choose->setObjectName(QLatin1String(kChooseButtonName));
   connect(choose, &QPushButton::clicked, this, [this] {
     const QString path = QFileDialog::getOpenFileName(
-        this, tr("Choose a provisioning set"), QString(),
+        this, tr("Choose an update file"), QString(),
         tr("Domesday Duplicator update files (*%1);;All files (*)")
             .arg(QString::fromUtf8(
                 capture::kUpdateBundleExtension.data(),
                 static_cast<qsizetype>(
                     capture::kUpdateBundleExtension.size()))));
     if (!path.isEmpty()) {
-      LoadProvisioningSet(path);
+      LoadUpdateFile(path);
     }
   });
 
   // Only ever shown when there is one to go back to, so it is never an offer
   // to do something this build cannot do.
-  use_bundled_ = new QPushButton(tr("Use the bundled set"), page);
+  use_bundled_ = new QPushButton(tr("Use the bundled file"), page);
   use_bundled_->setObjectName(QLatin1String(kUseBundledButtonName));
   use_bundled_->hide();
   connect(use_bundled_, &QPushButton::clicked, this, [this] {
     if (!bundled_path_.isEmpty()) {
-      LoadProvisioningSet(bundled_path_);
+      LoadUpdateFile(bundled_path_);
     }
   });
 
@@ -379,6 +384,10 @@ QWidget* BoardBringUpWizard::BuildImagePage() {
   row->addWidget(use_bundled_);
   row->addStretch(1);
   layout->addLayout(row);
+
+  image_status_ = MakeBody(page);
+  image_status_->setObjectName(QLatin1String(kImageStatusName));
+  layout->addWidget(image_status_);
 
   layout->addStretch(1);
   return scroll;
@@ -393,46 +402,59 @@ QWidget* BoardBringUpWizard::BuildJumperPage() {
   text->setObjectName(QLatin1String(kJumperTextName));
   layout->addWidget(text);
 
-  layout->addWidget(MakePhotograph(
-      page, BringUpPhotographPath(BringUpPage::kJumper),
-      BringUpPhotographCaption(BringUpPage::kJumper), kJumperPhotographName));
-
+  // Above the photograph rather than below it. The picture is portrait and
+  // fills the page, so a status line under it is a status line somebody has to
+  // scroll to find — on the one page where what they are waiting for is a
+  // board that has just been unplugged and plugged back in.
   jumper_status_ = MakeBody(page);
   jumper_status_->setObjectName(QLatin1String(kJumperStatusName));
   layout->addWidget(jumper_status_);
+
+  layout->addWidget(MakePhotograph(
+      page, BringUpPhotographPath(BringUpPage::kJumper),
+      BringUpPhotographCaption(BringUpPage::kJumper), kJumperPhotographName));
 
   layout->addStretch(1);
   return scroll;
 }
 
-QWidget* BoardBringUpWizard::BuildFirmwarePage() {
+QWidget* BoardBringUpWizard::BuildConfigurePage() {
   QWidget* page = nullptr;
   QScrollArea* const scroll = MakeScrollingPage(this, &page);
   auto* layout = new QVBoxLayout(page);
 
-  QLabel* const text = MakeBody(page, BringUpFirmwareText());
-  text->setObjectName(QLatin1String(kFirmwareTextName));
-  layout->addWidget(text);
+  configure_text_ = MakeBody(page, BringUpConfigureText(0));
+  configure_text_->setObjectName(QLatin1String(kConfigureTextName));
+  layout->addWidget(configure_text_);
 
-  firmware_status_ = MakeBody(page);
-  firmware_status_->setObjectName(QLatin1String(kFirmwareStatusName));
-  layout->addWidget(firmware_status_);
+  configure_progress_ = new QProgressBar(page);
+  configure_progress_->setObjectName(QLatin1String(kConfigureProgressName));
+  configure_progress_->setRange(0, 100);
+  configure_progress_->setValue(0);
+  layout->addWidget(configure_progress_);
 
-  firmware_progress_ = new QProgressBar(page);
-  firmware_progress_->setObjectName(QLatin1String(kFirmwareProgressName));
-  firmware_progress_->setRange(0, 100);
-  firmware_progress_->setValue(0);
-  layout->addWidget(firmware_progress_);
+  configure_start_ = new QPushButton(tr("Load the gateware"), page);
+  configure_start_->setObjectName(QLatin1String(kConfigureStartButtonName));
+  connect(configure_start_, &QPushButton::clicked, this,
+          &BoardBringUpWizard::StartConfigure);
 
-  firmware_start_ = new QPushButton(tr("Program the FX3"), page);
-  firmware_start_->setObjectName(QLatin1String(kFirmwareStartButtonName));
-  connect(firmware_start_, &QPushButton::clicked, this,
-          &BoardBringUpWizard::StartFirmware);
+  configure_stop_ = new QPushButton(tr("Stop"), page);
+  configure_stop_->setObjectName(QLatin1String(kConfigureStopButtonName));
+  configure_stop_->setEnabled(false);
+  connect(configure_stop_, &QPushButton::clicked, this,
+          &BoardBringUpWizard::Stop);
 
   auto* row = new QHBoxLayout();
-  row->addWidget(firmware_start_);
+  row->addWidget(configure_start_);
+  row->addWidget(configure_stop_);
   row->addStretch(1);
   layout->addLayout(row);
+
+  // Under the buttons, which is where somebody is looking a moment after
+  // pressing one — and where the answer to "did that work?" belongs.
+  configure_status_ = MakeBody(page);
+  configure_status_->setObjectName(QLatin1String(kConfigureStatusName));
+  layout->addWidget(configure_status_);
 
   layout->addStretch(1);
   return scroll;
@@ -447,6 +469,17 @@ QWidget* BoardBringUpWizard::BuildRemoveJumperPage() {
   text->setObjectName(QLatin1String(kRemoveJumperTextName));
   layout->addWidget(text);
 
+  // The one page with nothing to wait for, and it says so rather than leaving
+  // a live Next button to mean either "carry on" or "the wizard has seen
+  // something". A jumper is invisible to software: there is nothing here that
+  // could confirm it, and pretending otherwise would be worse than saying so.
+  QLabel* const status = MakeBody(
+      page, BringUpWaitingText(
+                tr("you to remove the jumper. Nothing here can detect it, so "
+                   "click <b>Next ›</b> once it is off.")));
+  status->setObjectName(QLatin1String(kRemoveJumperStatusName));
+  layout->addWidget(status);
+
   // The same board in the same framing as the previous photograph, so the
   // difference the user has to make is the only difference between the two
   // pictures.
@@ -459,40 +492,41 @@ QWidget* BoardBringUpWizard::BuildRemoveJumperPage() {
   return scroll;
 }
 
-QWidget* BoardBringUpWizard::BuildGatewarePage() {
+QWidget* BoardBringUpWizard::BuildProgramPage() {
   QWidget* page = nullptr;
   QScrollArea* const scroll = MakeScrollingPage(this, &page);
   auto* layout = new QVBoxLayout(page);
 
-  gateware_text_ = MakeBody(page, BringUpGatewareText(0));
-  gateware_text_->setObjectName(QLatin1String(kGatewareTextName));
-  layout->addWidget(gateware_text_);
+  program_text_ = MakeBody(page, BringUpProgramText(0));
+  program_text_->setObjectName(QLatin1String(kProgramTextName));
+  layout->addWidget(program_text_);
 
-  gateware_status_ = MakeBody(page);
-  gateware_status_->setObjectName(QLatin1String(kGatewareStatusName));
-  layout->addWidget(gateware_status_);
+  program_progress_ = new QProgressBar(page);
+  program_progress_->setObjectName(QLatin1String(kProgramProgressName));
+  program_progress_->setRange(0, 100);
+  program_progress_->setValue(0);
+  layout->addWidget(program_progress_);
 
-  gateware_progress_ = new QProgressBar(page);
-  gateware_progress_->setObjectName(QLatin1String(kGatewareProgressName));
-  gateware_progress_->setRange(0, 100);
-  gateware_progress_->setValue(0);
-  layout->addWidget(gateware_progress_);
+  program_start_ = new QPushButton(tr("Program the board"), page);
+  program_start_->setObjectName(QLatin1String(kProgramStartButtonName));
+  connect(program_start_, &QPushButton::clicked, this,
+          &BoardBringUpWizard::StartProgram);
 
-  gateware_start_ = new QPushButton(tr("Program the FPGA"), page);
-  gateware_start_->setObjectName(QLatin1String(kGatewareStartButtonName));
-  connect(gateware_start_, &QPushButton::clicked, this,
-          &BoardBringUpWizard::StartGateware);
-
-  stop_button_ = new QPushButton(tr("Stop"), page);
-  stop_button_->setObjectName(QLatin1String(kStopButtonName));
-  stop_button_->setEnabled(false);
-  connect(stop_button_, &QPushButton::clicked, this, &BoardBringUpWizard::Stop);
+  program_stop_ = new QPushButton(tr("Stop"), page);
+  program_stop_->setObjectName(QLatin1String(kProgramStopButtonName));
+  program_stop_->setEnabled(false);
+  connect(program_stop_, &QPushButton::clicked, this,
+          &BoardBringUpWizard::Stop);
 
   auto* row = new QHBoxLayout();
-  row->addWidget(gateware_start_);
-  row->addWidget(stop_button_);
+  row->addWidget(program_start_);
+  row->addWidget(program_stop_);
   row->addStretch(1);
   layout->addLayout(row);
+
+  program_status_ = MakeBody(page);
+  program_status_->setObjectName(QLatin1String(kProgramStatusName));
+  layout->addWidget(program_status_);
 
   layout->addStretch(1);
   return scroll;
@@ -528,16 +562,9 @@ QWidget* BoardBringUpWizard::BuildVerifyPage() {
   verify_summary_->setObjectName(QLatin1String(kVerifySummaryName));
   layout->addWidget(verify_summary_);
 
-  update_now_ = new QPushButton(tr("Update firmware now…"), page);
-  update_now_->setObjectName(QLatin1String(kUpdateNowButtonName));
-  connect(update_now_, &QPushButton::clicked, this,
-          &BoardBringUpWizard::OpenUpdateRequested);
-
-  auto* row = new QHBoxLayout();
-  row->addWidget(update_now_);
-  row->addStretch(1);
-  layout->addLayout(row);
-
+  // No button. There is nothing to hand over to: this page is reached with the
+  // board already running what the file carried, and offering to open the
+  // update window here would suggest one more step that does not exist.
   layout->addStretch(1);
   return scroll;
 }
@@ -548,9 +575,9 @@ std::vector<BringUpPage> BoardBringUpWizard::Steps() const {
   std::vector<BringUpPage> steps;
   for (BringUpPage page :
        {BringUpPage::kOverview, BringUpPage::kConnect, BringUpPage::kImage,
-        BringUpPage::kJumper, BringUpPage::kFirmware,
-        BringUpPage::kRemoveJumper, BringUpPage::kGateware,
-        BringUpPage::kPowerCycle, BringUpPage::kVerify}) {
+        BringUpPage::kJumper, BringUpPage::kConfigure, BringUpPage::kProgram,
+        BringUpPage::kRemoveJumper, BringUpPage::kPowerCycle,
+        BringUpPage::kVerify}) {
     const bool jumper_page =
         page == BringUpPage::kJumper || page == BringUpPage::kRemoveJumper;
     if (jumper_page && !jumper_needed_) {
@@ -636,10 +663,11 @@ void BoardBringUpWizard::ShowPage(BringUpPage page) {
   step_->setText(BringUpPageTitle(page));
 
   if (page == BringUpPage::kImage) {
-    LoadBundledSetOnce();
+    LoadBundledFileOnce();
   }
   if (page == BringUpPage::kPowerCycle) {
     power_cycle_polls_ = 0;
+    power_cycle_state_ = PowerCycleState::kStillHere;
   }
   if (page == BringUpPage::kVerify) {
     Verify();
@@ -670,17 +698,17 @@ bool BoardBringUpWizard::PageIsSatisfied(BringUpPage page) const {
              fx3->personality == capture::DevicePersonality::kRecovery;
     }
 
-    case BringUpPage::kFirmware:
-      return firmware_done_;
+    case BringUpPage::kConfigure:
+      return configured_;
+
+    case BringUpPage::kProgram:
+      return programmed_;
 
     case BringUpPage::kRemoveJumper:
-      // Nothing to detect: a jumper is invisible to software. The next page
-      // does not touch the FX3 at all, and the power cycle after it is where
-      // a jumper left on would show up — with a page that names it.
+      // Nothing to detect: a jumper is invisible to software. The power cycle
+      // on the next page is where a jumper left on shows up — with a page that
+      // names it.
       return true;
-
-    case BringUpPage::kGateware:
-      return gateware_done_;
 
     case BringUpPage::kPowerCycle:
       return returned_;
@@ -699,31 +727,46 @@ void BoardBringUpWizard::Refresh() {
                            After(page_).has_value());
   next_button_->setVisible(page_ != BringUpPage::kVerify);
 
-  if (firmware_start_ != nullptr) {
-    firmware_start_->setEnabled(!running && !firmware_done_ &&
-                                manifest_.has_value());
+  // A step that has been done takes its own button away and says what it now
+  // is. Greyed out on its own reads as "not yet"; greyed out and relabelled
+  // reads as "already", which is the difference somebody is trying to work out
+  // when they look at this page a second time.
+  if (configure_start_ != nullptr) {
+    configure_start_->setEnabled(!running && !configured_ &&
+                                 manifest_.has_value());
+    configure_start_->setText(configured_ ? tr("Gateware loaded")
+                                          : tr("Load the gateware"));
   }
-  if (gateware_start_ != nullptr) {
-    gateware_start_->setEnabled(!running && !gateware_done_ && firmware_done_ &&
-                                manifest_.has_value());
+
+  // The ordering rule, in the one place a user meets it: the button that
+  // writes is dead until the FPGA has been configured. The orchestrator
+  // refuses it too — this is the half that stops it being offered.
+  if (program_start_ != nullptr) {
+    program_start_->setEnabled(!running && !programmed_ && configured_ &&
+                               manifest_.has_value());
+    program_start_->setText(programmed_ ? tr("Board programmed")
+                                        : tr("Program the board"));
   }
-  if (stop_button_ != nullptr) {
-    stop_button_->setEnabled(running);
+  if (configure_stop_ != nullptr) {
+    configure_stop_->setEnabled(running);
+  }
+  if (program_stop_ != nullptr) {
+    program_stop_->setEnabled(running);
   }
 
   if (image_source_ != nullptr) {
     if (bundled_path_.isEmpty()) {
-      image_source_->setText(BringUpNoBundledSetText());
-    } else if (using_bundled_set()) {
+      image_source_->setText(BringUpNoBundledFileText());
+    } else if (using_bundled_file()) {
       image_source_->setText(manifest_.has_value()
-                                 ? BringUpBundledSetText()
-                                 : BringUpBundledSetUnusableText());
+                                 ? BringUpBundledFileText()
+                                 : BringUpBundledFileUnusableText());
     } else {
-      image_source_->setText(BringUpChosenSetText());
+      image_source_->setText(BringUpChosenFileText());
     }
   }
   if (use_bundled_ != nullptr) {
-    use_bundled_->setVisible(!bundled_path_.isEmpty() && !using_bundled_set());
+    use_bundled_->setVisible(!bundled_path_.isEmpty() && !using_bundled_file());
   }
 
   // --- what each waiting page is showing ---------------------------------
@@ -748,22 +791,107 @@ void BoardBringUpWizard::Refresh() {
         BringUpFpgaRow(cable_opened_, cable_presence_, cable_problem_)));
   }
 
+  if (connect_status_ != nullptr) {
+    connect_status_->setText(
+        PageIsSatisfied(BringUpPage::kConnect)
+            ? BringUpStepDoneText(tr("Both boards were found and opened."))
+            // Named as the red cross rather than "whatever is marked": an
+            // amber mark above is a board the wizard is happy with and will
+            // come back to, and telling somebody to put it right would send
+            // them looking for a fault that is not there.
+            : BringUpWaitingText(
+                  tr("both boards to be found and opened. Put right anything "
+                     "marked with a red cross above, then press <b>Check "
+                     "again</b>.")));
+  }
+
+  if (image_status_ != nullptr) {
+    image_status_->setText(
+        PageIsSatisfied(BringUpPage::kImage)
+            ? BringUpStepDoneText(
+                  tr("The file is signed, intact, and carries everything a "
+                     "bring-up needs."))
+            : BringUpWaitingText(
+                  tr("an update file that can bring a board up. Press "
+                     "<b>Choose file…</b> below.")));
+  }
+
   if (jumper_status_ != nullptr) {
     jumper_status_->setText(
         PageIsSatisfied(BringUpPage::kJumper)
-            ? tr("<p><b>The FX3 is in its boot ROM.</b> Ready for the next "
-                 "step.</p>")
-            : tr("<p>Waiting for the board to come back in its boot ROM…</p>"));
+            ? BringUpStepDoneText(tr("The FX3 is in its boot ROM."))
+            : BringUpWaitingText(
+                  tr("the board to come back in its boot ROM, once the jumper "
+                     "is fitted and both cables have been out and back in.")));
   }
 
+  // The two working pages. Refresh() owns everything on them except the
+  // sentence a failed or stopped run leaves behind, which it would otherwise
+  // replace with a perfectly true "waiting for you to press this" a fraction
+  // of a second after somebody watched the run stop.
+  if (configure_status_ != nullptr && !running) {
+    if (configured_) {
+      configure_status_->setText(BringUpStepDoneText(
+          tr("The FPGA is running the gateware — held in memory only, and "
+             "nothing has been written to the board yet.")));
+    } else if (!configure_reported_) {
+      configure_status_->setText(BringUpWaitingText(
+          tr("you to press <b>Load the gateware</b> below.")));
+    }
+  }
+
+  if (program_status_ != nullptr && !running) {
+    if (programmed_) {
+      program_status_->setText(BringUpStepDoneText(
+          tr("The firmware, the factory image and the application image are "
+             "all written and checked. Nothing has been restarted.")));
+    } else if (!program_reported_) {
+      program_status_->setText(BringUpWaitingText(
+          configured_
+              ? tr("you to press <b>Program the board</b> below.")
+              : tr("the gateware to be loaded on the previous page, which is "
+                   "what gives this step a way to reach the flash.")));
+    }
+  }
+
+  // Five states, and none of them is "a Duplicator is attached". Two of them
+  // are diagnoses rather than guesses, so they are shown as soon as they are
+  // read rather than after the page has run out of patience.
   if (power_cycle_status_ != nullptr) {
-    if (returned_) {
-      power_cycle_status_->setText(
-          tr("<p><b>The Duplicator is back.</b> Ready for the last step.</p>"));
-    } else if (power_cycle_polls_ > kPowerCyclePatiencePolls) {
-      power_cycle_status_->setText(BringUpPowerCycleTimeoutText());
-    } else {
-      power_cycle_status_->setText(tr("<p>Waiting for it to come back…</p>"));
+    const bool waited_long_enough =
+        power_cycle_polls_ > kPowerCyclePatiencePolls;
+    switch (power_cycle_state_) {
+      case PowerCycleState::kBack:
+        power_cycle_status_->setText(BringUpStepDoneText(
+            tr("The Duplicator has restarted and is running from its own "
+               "flash.")));
+        break;
+
+      case PowerCycleState::kBootRom:
+        power_cycle_status_->setText(BringUpStillInBootRomText());
+        break;
+
+      case PowerCycleState::kNotReloaded:
+        power_cycle_status_->setText(BringUpNotReloadedText());
+        break;
+
+      case PowerCycleState::kGone:
+        power_cycle_status_->setText(
+            waited_long_enough
+                ? BringUpDeviceNotBackText()
+                : BringUpWaitingText(
+                      tr("the Duplicator to come back. Plug both cables in "
+                         "again.")));
+        break;
+
+      case PowerCycleState::kStillHere:
+        power_cycle_status_->setText(
+            waited_long_enough
+                ? BringUpPowerCycleTimeoutText()
+                : BringUpWaitingText(
+                      tr("both cables to come out. The board is still on the "
+                         "bus, so nothing has happened yet.")));
+        break;
     }
   }
 }
@@ -821,6 +949,36 @@ void BoardBringUpWizard::ProbeCable(bool force) {
   // anything else on the bench — locked out for no reason.
 }
 
+bool BoardBringUpWizard::ReturnedOnItsOwnFlash() {
+  const std::optional<capture::DeviceInfo> fx3 = Fx3();
+  if (!fx3.has_value() || !access_.open_updater) {
+    return true;
+  }
+
+  const std::unique_ptr<capture::IDeviceUpdater> updater =
+      access_.open_updater(fx3->path);
+  if (updater == nullptr) {
+    return true;
+  }
+
+  const std::optional<capture::DeviceIdentity> identity =
+      updater->ReadIdentity();
+  if (!identity.has_value()) {
+    return true;
+  }
+
+  // The factory image, positively read, is the only thing that means "the
+  // board did not lose power" — because the factory image is what the gateware
+  // step put into the FPGA over JTAG, and only a power cycle replaces it with
+  // the application image out of flash.
+  const bool still_on_the_jtag_image =
+      identity->gateware_present &&
+      identity->register_map_version >=
+          capture::kRegisterMapVersionWithImageRole &&
+      identity->image_role == capture::kImageRoleFactory;
+  return !still_on_the_jtag_image;
+}
+
 void BoardBringUpWizard::Poll() {
   if (busy()) {
     // The device is being written to. Enumerating it in the middle of that is
@@ -834,13 +992,37 @@ void BoardBringUpWizard::Poll() {
     ProbeCable(false);
   }
 
-  if (page_ == BringUpPage::kPowerCycle) {
+  if (page_ == BringUpPage::kPowerCycle && !returned_) {
     ++power_cycle_polls_;
+
     const std::optional<capture::DeviceInfo> fx3 = Fx3();
-    if (fx3.has_value() &&
-        fx3->personality == capture::DevicePersonality::kApplication) {
-      returned_ = true;
+    if (!fx3.has_value()) {
+      // The one observation that proves a cable came out. Everything after
+      // this is about a device that has come back.
+      power_cycle_state_ = PowerCycleState::kGone;
+    } else if (power_cycle_state_ == PowerCycleState::kGone ||
+               power_cycle_state_ == PowerCycleState::kBootRom) {
+      switch (fx3->personality) {
+        case capture::DevicePersonality::kRecovery:
+          power_cycle_state_ = PowerCycleState::kBootRom;
+          break;
+        case capture::DevicePersonality::kApplication:
+          // Read once per return rather than every poll: leaving kNotReloaded
+          // needs another power cycle, and that is another disappearance.
+          power_cycle_state_ = ReturnedOnItsOwnFlash()
+                                   ? PowerCycleState::kBack
+                                   : PowerCycleState::kNotReloaded;
+          break;
+        case capture::DevicePersonality::kLegacy:
+        case capture::DevicePersonality::kFlashProgrammer:
+          // Neither is reachable from here — the EEPROM has just been written
+          // and read back — and neither is evidence of anything, so the page
+          // goes on waiting rather than inventing a diagnosis.
+          break;
+      }
     }
+
+    returned_ = power_cycle_state_ == PowerCycleState::kBack;
   }
 
   Refresh();
@@ -848,18 +1030,18 @@ void BoardBringUpWizard::Poll() {
 
 // --- the two halves -------------------------------------------------------
 
-void BoardBringUpWizard::StartFirmware() {
-  if (busy() || firmware_done_ || !manifest_.has_value()) {
+void BoardBringUpWizard::StartConfigure() {
+  if (busy() || configured_ || !manifest_.has_value()) {
     return;
   }
-  StartTask(static_cast<int>(BringUpWorker::Task::kFirmware));
+  StartTask(static_cast<int>(BringUpWorker::Task::kConfigure));
 }
 
-void BoardBringUpWizard::StartGateware() {
-  if (busy() || gateware_done_ || !firmware_done_ || !manifest_.has_value()) {
+void BoardBringUpWizard::StartProgram() {
+  if (busy() || programmed_ || !configured_ || !manifest_.has_value()) {
     return;
   }
-  StartTask(static_cast<int>(BringUpWorker::Task::kGateware));
+  StartTask(static_cast<int>(BringUpWorker::Task::kProgram));
 }
 
 void BoardBringUpWizard::StartTask(int task) {
@@ -868,12 +1050,11 @@ void BoardBringUpWizard::StartTask(int task) {
 
   if (orchestrator_ == nullptr) {
     // Built once, at the moment the first half starts, and kept: it is what
-    // carries the ordering rule across the page on which the user takes the
-    // jumper off.
+    // carries the ordering rule across the page between the two halves.
     const std::optional<capture::DeviceInfo> fx3 = Fx3();
     const std::string path = fx3.has_value() ? fx3->path : std::string();
 
-    capture::ProvisioningAccess access;
+    capture::BringUpAccess access;
     if (access_.open_programmer) {
       access.fx3.open_programmer = [this, path] {
         return access_.open_programmer(path);
@@ -889,16 +1070,25 @@ void BoardBringUpWizard::StartTask(int task) {
     }
     access.open_cable = access_.open_cable;
 
-    orchestrator_ = std::make_unique<capture::ProvisioningOrchestrator>(
+    orchestrator_ = std::make_unique<capture::BringUpOrchestrator>(
         std::move(access), nullptr);
   }
 
-  QLabel* const status = kind == BringUpWorker::Task::kFirmware
-                             ? firmware_status_
-                             : gateware_status_;
-  QProgressBar* const bar = kind == BringUpWorker::Task::kFirmware
-                                ? firmware_progress_
-                                : gateware_progress_;
+  QLabel* const status = kind == BringUpWorker::Task::kConfigure
+                             ? configure_status_
+                             : program_status_;
+  QProgressBar* const bar = kind == BringUpWorker::Task::kConfigure
+                                ? configure_progress_
+                                : program_progress_;
+
+  // Whatever the last run of this half left on the page goes now: a failure
+  // somebody has just pressed the button again after is not what the page
+  // should still be saying while the retry runs.
+  if (kind == BringUpWorker::Task::kConfigure) {
+    configure_reported_ = false;
+  } else {
+    program_reported_ = false;
+  }
 
   status->setText(tr("<p>Starting…</p>"));
   bar->setValue(0);
@@ -927,8 +1117,8 @@ void BoardBringUpWizard::StartTask(int task) {
 
 void BoardBringUpWizard::FinishTask(bool succeeded, bool stopped,
                                     const QString& problem) {
-  const bool firmware =
-      running_task_ == static_cast<int>(BringUpWorker::Task::kFirmware);
+  const bool configure =
+      running_task_ == static_cast<int>(BringUpWorker::Task::kConfigure);
 
   if (thread_ != nullptr) {
     thread_->quit();
@@ -939,27 +1129,28 @@ void BoardBringUpWizard::FinishTask(bool succeeded, bool stopped,
   worker_->deleteLater();
   worker_ = nullptr;
 
-  QLabel* const status = firmware ? firmware_status_ : gateware_status_;
-  QProgressBar* const bar = firmware ? firmware_progress_ : gateware_progress_;
+  QLabel* const status = configure ? configure_status_ : program_status_;
+  QProgressBar* const bar = configure ? configure_progress_ : program_progress_;
 
   if (succeeded) {
-    if (firmware) {
-      firmware_done_ = true;
-      status->setText(
-          tr("<p><b>The FX3's firmware is written and checked.</b> It has "
-             "deliberately not been restarted — the jumper is still "
-             "fitted.</p>"));
+    // What the page then says is Refresh()'s to write, out of the same
+    // function every other finished step uses. Two ways of announcing a
+    // success is one way too many, and this was the way that put the good news
+    // in the middle of a paragraph.
+    if (configure) {
+      configured_ = true;
     } else {
-      gateware_done_ = true;
-      status->setText(
-          tr("<p><b>The FPGA's flash is written.</b> It will start using it "
-             "at the next power cycle, which is the next page.</p>"));
+      programmed_ = true;
     }
     bar->setValue(100);
-  } else if (stopped) {
-    status->setText(BringUpStoppedText());
   } else {
-    status->setText(BringUpFailureText(problem));
+    status->setText(stopped ? BringUpStoppedText()
+                            : BringUpFailureText(problem));
+    if (configure) {
+      configure_reported_ = true;
+    } else {
+      program_reported_ = true;
+    }
   }
 
   Refresh();
@@ -967,9 +1158,19 @@ void BoardBringUpWizard::FinishTask(bool succeeded, bool stopped,
 }
 
 void BoardBringUpWizard::Stop() {
-  if (worker_ != nullptr) {
-    worker_->Cancel();
-    stop_button_->setEnabled(false);
+  if (worker_ == nullptr) {
+    return;
+  }
+  worker_->Cancel();
+
+  // Both, rather than whichever page is showing: the run is what was stopped,
+  // and a button that stayed live on the page nobody is looking at would offer
+  // to stop something that is already stopping.
+  if (configure_stop_ != nullptr) {
+    configure_stop_->setEnabled(false);
+  }
+  if (program_stop_ != nullptr) {
+    program_stop_->setEnabled(false);
   }
 }
 
@@ -1018,21 +1219,21 @@ void BoardBringUpWizard::Verify() {
                                       : BringUpIncompleteText());
 }
 
-// --- the provisioning set -------------------------------------------------
+// --- the update file ------------------------------------------------------
 
-void BoardBringUpWizard::LoadBundledSetOnce() {
+void BoardBringUpWizard::LoadBundledFileOnce() {
   // Once, and only when nothing has been chosen: somebody who came back to
   // this page after picking a file would not expect the choice to be taken off
-  // them, and somebody whose bundled set failed to verify does not want it
+  // them, and somebody whose bundled file failed to verify does not want it
   // tried again every time they navigate.
   if (bundled_tried_ || bundled_path_.isEmpty() || !chosen_path_.isEmpty()) {
     return;
   }
   bundled_tried_ = true;
-  LoadProvisioningSet(bundled_path_);
+  LoadUpdateFile(bundled_path_);
 }
 
-void BoardBringUpWizard::LoadProvisioningSet(const QString& path) {
+void BoardBringUpWizard::LoadUpdateFile(const QString& path) {
   archive_.clear();
   manifest_.reset();
   image_banner_->hide();
@@ -1076,19 +1277,28 @@ void BoardBringUpWizard::LoadProvisioningSet(const QString& path) {
     image_banner_->show();
   }
 
+  // Each page quotes what its own step costs, from the components that step
+  // writes — so a bar that runs for four minutes is never introduced by a page
+  // that said thirty seconds.
   if (manifest_->provisioning.has_value()) {
-    // Both halves, because the page describes both: the vectors being played
-    // and the flash write that follows them. The write is the longer of the
-    // two by roughly five to one, and quoting only the play would leave a user
-    // watching a bar for four times as long as they were told.
-    gateware_text_->setText(BringUpGatewareText(
-        capture::EstimateProvisioningSeconds(manifest_->provisioning->length) +
-        (manifest_->factory_gateware.has_value()
-             ? static_cast<int>(capture::EstimateComponentSeconds(
-                   capture::UpdateTarget::kEpcsFactory,
-                   *manifest_->factory_gateware))
-             : 0)));
+    configure_text_->setText(BringUpConfigureText(
+        capture::EstimateConfigureSeconds(manifest_->provisioning->length)));
   }
+
+  double programming = 0.0;
+  if (manifest_->firmware.has_value()) {
+    programming += capture::EstimateComponentSeconds(
+        capture::UpdateTarget::kFirmware, *manifest_->firmware);
+  }
+  if (manifest_->factory_gateware.has_value()) {
+    programming += capture::EstimateComponentSeconds(
+        capture::UpdateTarget::kEpcsFactory, *manifest_->factory_gateware);
+  }
+  if (manifest_->gateware.has_value()) {
+    programming += capture::EstimateComponentSeconds(
+        capture::UpdateTarget::kGateware, *manifest_->gateware);
+  }
+  program_text_->setText(BringUpProgramText(static_cast<int>(programming) + 1));
 
   Refresh();
 }

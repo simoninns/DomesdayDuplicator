@@ -12,14 +12,15 @@ domesday-duplicator-update-<version>.dddfw     uncompressed ustar archive
   manifest.minisig   detached Ed25519 signature over manifest.json
   firmware.img       FX3 image, when the bundle carries firmware
   gateware-app.rpd   raw EPCS byte stream, when it carries gateware
-  gateware-provisioning.svf   JTAG vectors, in a provisioning set
+  gateware-provisioning.svf   JTAG vectors, for a bring-up
+  gateware-factory.rpd        the factory image as raw EPCS bytes, for a bring-up
 ```
 
 **Uncompressed tar**, because the two properties that matter are that stock `tar` can list and extract it and that reading it takes a couple of hundred lines of dependency-free code. Both payloads are already compressed by the toolchains that produced them, so a compressed container would trade both properties for nothing measurable.
 
 **The manifest is signed, not the archive.** The manifest carries the SHA-256 of every payload, so signing that one small file authenticates the whole bundle — and nothing has to sign a file that would then have to contain its own signature. It also means the offline file-picker path and the online download path verify by identical means, because everything they check is inside the file.
 
-**The `gateware` payload is the application image only.** The factory image and the combined provisioning `.jic` are release artefacts too, but they are not that component: it carries only what the device is permitted to write to itself. Provisioning has a component of its own, below, and it is written through a cable rather than by the device.
+**The `gateware` payload is the application image only.** The factory image and the combined provisioning `.jic` are release artefacts too, but they are not that component: it carries only what an ordinary update is permitted to write. The factory image has a component of its own, below, reachable by one flow and one target.
 
 **And it is written to the flash verbatim** — no header stripped, no bytes reordered, nothing interpreted, by the application or the firmware or the gateware. So the `.rpd` in a bundle must already be in the bit orientation the FPGA's configuration engine reads, which is decided when Quartus emits it and is not observable anywhere downstream: an image in the wrong orientation passes the signature, every digest, and the device's own readback, and then configures nothing. The [EPCS layout and boot flow](epcs-layout-and-boot-flow.md#the-bytes-in-the-flash-are-bit-reversed) page has the detail; what belongs here is that this format carries a payload no check in it can validate the meaning of.
 
@@ -27,9 +28,9 @@ domesday-duplicator-update-<version>.dddfw     uncompressed ustar archive
 
 **A component kind the reader does not know is refused**, rather than skipped. Every member of `components` names a payload that something has to write to somebody's hardware, and a reader that quietly ignored one would install a partial bundle while reporting a complete one.
 
-### The provisioning set
+### The two bring-up components
 
-A third component kind, `gateware-provisioning-svf`, carries **JTAG vectors** that configure the factory image into an FPGA, and a fourth, `gateware-factory`, carries that image as raw EPCS bytes. A bundle carrying both of them and firmware is a *provisioning set*: what a board with no working gateware is brought up with.
+A third component kind, `gateware-provisioning-svf`, carries **JTAG vectors** that configure the gateware into an FPGA, and a fourth, `gateware-factory`, carries the factory image as raw EPCS bytes. A bundle carrying all four components is what a board with no working gateware is brought up with — and it is the same file an ordinary update installs from.
 
 The two go together and neither is useful alone. The vectors write nothing — a JTAG configuration lives in the FPGA's own memory — but they give the board a gateware with a flash bridge, and the firmware then writes `gateware-factory` through that bridge at address `0x000000`, over USB. (An earlier design had the vectors write the flash directly. They cannot: a `quartus_cpf` flash `.svf` speaks Altera's Virtual JTAG protocol to Altera's serial flash loader and carries no configuration of its own, so nothing outside Quartus can play it. See TESTING.md, B-V1.)
 
@@ -37,13 +38,13 @@ The difference from the `gateware` component is not what it contains but what wr
 
 Three consequences worth stating:
 
-- the ordinary update path **never installs it**. `UpdateOrchestrator` does not look at it, and the compatibility gate does not gate on it;
-- a bundle carrying *only* provisioning vectors is refused by the update window with a sentence naming the window that does want it. It is a legal manifest and not an update;
+- the ordinary update path **never installs either**. `UpdateOrchestrator::Run` does not look at them, and the compatibility gate does not gate on them;
+- a bundle carrying *only* those two is refused by the update window with a sentence naming the window that does want it. It is a legal manifest and not an update;
 - the schema version is deliberately **not** bumped for this. A build predating the component reads the firmware beside it and offers an ordinary firmware install, which is a true description of what that build can do with the file and exactly as safe as any other firmware bundle. Bumping the version would instead have every older build refuse every bundle, for a component that changes the meaning of no other field.
 
-**It is published as its own file**, `domesday-duplicator-provisioning-<version>.dddfw`, beside the update bundle in every firmware release — rather than as a third component of the update bundle. The vectors are an order of magnitude larger than the images they stand for, and every user of the ordinary update path would carry them for nothing. One format, one key, one verifier; two files, because they are installed by different people at different times.
+**They travel in the ordinary update bundle**, and every firmware release publishes exactly one `.dddfw`. A separate provisioning file was tried and withdrawn: it meant a second packaging path, a second release asset, a second gate and a `--kind` axis through every tool, to save about 1.7 MB on a file people download once a release. The mechanism that makes one file work is the one described above — components are optional and unknown kinds are refused — so the update window installs the two it knows, ignores the two it does not, and the bring-up wizard requires all four.
 
-**Packaged builds of the application carry a copy.** A board being brought up cannot be updated over USB — that is what bring-up is for — so the machine beside it may be one that has just been built, with no network at all. The installers therefore fetch the set by digest at packaging time and install it beside the application, and the wizard preselects it. Being bundled buys the offline case and nothing else: the file is verified exactly as a downloaded one is, by the same reader with the same key policy, so it is data the signature covers and never a second trust anchor. Which set is bundled is pinned in `ddd-gui/packaging/bundled-provisioning.env`, and a build with nothing pinned bundles nothing and says so — see [Release pipeline](release-pipeline.md).
+**Packaged builds of the application carry a copy.** A board being brought up cannot be updated over USB — that is what bring-up is for — so the machine beside it may be one that has just been built, with no network at all. The installers therefore fetch the bundle by digest at packaging time and install it beside the application, and the wizard preselects it. Being bundled buys the offline case and nothing else: the file is verified exactly as a downloaded one is, by the same reader with the same key policy, so it is data the signature covers and never a second trust anchor. Which release is bundled is pinned in `ddd-gui/packaging/bundled-update.env`, and a build with nothing pinned bundles nothing and says so — see [Release pipeline](release-pipeline.md).
 
 ## Reading one by hand
 
@@ -106,7 +107,6 @@ That the last three lines work with programs this project did not write is the p
 | `created` | string | When the bundle was assembled, ISO 8601 in UTC |
 | `release_notes` | string | One line, shown before the user confirms |
 | `components` | object | At least one of `firmware`, `gateware`, `gateware-provisioning-svf` and `gateware-factory`; no other member |
-| `purpose` | string | Optional. `"update"` (the default, and what every bundle written before rollback existed means) or `"rollback"`. Any other value is refused. A rollback bundle installs software deliberately older than the application installing it, so the update path refuses it by name and the rollback wizard requires it |
 | `compatibility` | object | What a device and an application must already be |
 
 Every field is required. There are no optional top-level fields and no defaults, because a default is a decision made by whoever wrote the reader on behalf of whoever wrote the bundle, and the two are separated here by a release process and possibly by years.
@@ -188,17 +188,21 @@ Rotation is an application release that pins the new key; old bundles verify aga
     --notes "Jumper-free firmware updates."
 ```
 
-A provisioning set is the same script with one more payload:
+A release bundle is the same script with all four payloads:
 
 ```bash
 ./tools/make-update-bundle.sh \
-    --output build/domesday-duplicator-provisioning-1.4.0.dddfw \
+    --output build/domesday-duplicator-update-1.4.0.dddfw \
     --version 1.4.0 --commit "$(git rev-parse --short=8 HEAD)" \
     --channel release --secret-key "$RELEASE_KEY" \
     --firmware result-firmware/firmware.img --firmware-identity 0123abcd \
-    --provisioning result-bitstream/provisioning/DomesdayDuplicatorProvisioning.svf \
+    --gateware result-bitstream/application/DomesdayDuplicator_auto.rpd \
+        --gateware-identity 0123abcd \
+    --provisioning result-bitstream/factory/DomesdayDuplicatorFactoryConfigure.svf \
         --provisioning-identity 0123abcd \
-    --notes "Provisioning set for bringing a board up."
+    --factory-gateware result-bitstream/factory/DomesdayDuplicatorFactory_auto.rpd \
+        --factory-gateware-identity 0123abcd \
+    --notes "Domesday Duplicator firmware and gateware 1.4.0."
 ```
 
 `--help` lists the rest. The script needs bash, coreutils, GNU tar and minisign, all of which are in `nix develop` and all of which are ordinary distribution packages; nothing about it is Nix-only.
@@ -229,10 +233,10 @@ The archive reader is deliberately narrow, too. Directories, symlinks, hard link
 | File | Holds |
 | --- | --- |
 | `tools/make-update-bundle.sh` | The producer: assembly, signing and the self-check |
-| `tools/dev-bundle.sh` | The developer loop's wrapper around it, `--kind update` or `--kind provisioning` |
-| `tools/fetch-bundled-provisioning.sh` | The packaging jobs' fetch-by-digest of the pinned set |
-| `ddd-gui/packaging/bundled-provisioning.env` | Which published set the installers carry |
-| `ddd-gui/src/gui/bundled_provisioning.{h,cpp}` | Where an installed build looks for its copy |
+| `tools/dev-bundle.sh` | The developer loop's wrapper around it: finds what is built locally and packages all of it |
+| `tools/fetch-bundled-update.sh` | The packaging jobs' fetch-by-digest of the pinned bundle |
+| `ddd-gui/packaging/bundled-update.env` | Which published bundle the installers carry |
+| `ddd-gui/src/gui/bundled_update.{h,cpp}` | Where an installed build looks for its copy |
 | `tools/keys/development.pub`, `.key` | The development keypair, deliberately public |
 | `ddd-gui/src/capture/update_bundle.{h,cpp}` | The archive reader and writer, and the check order above |
 | `ddd-gui/src/capture/update_manifest.{h,cpp}` | The manifest model, its parser and the version comparison |

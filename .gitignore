@@ -80,8 +80,8 @@ dist/
 stage/
 repo/
 
-# The provisioning set a packaging job fetches by digest from the pin in
-# ddd-gui/packaging/bundled-provisioning.env. It lands inside the checkout because
+# The update bundle a packaging job fetches by digest from the pin in
+# ddd-gui/packaging/bundled-update.env. It lands inside the checkout because
 # flatpak-builder's source is the checkout and its build has no network — but it is a
 # release asset of another stream, and committing a copy would be a second, unsigned
 # way for one to exist.
@@ -121,6 +121,12 @@ compile_commands.json
 
 # Visual Studio Code
 .vscode/
+
+# Its Local History extension, which writes a timestamped copy of every save into a
+# .history/ beside the file — and puts a nested .git inside it, so `git add -A` offers to
+# commit it as an embedded repository rather than as files. Anywhere in the tree, not just
+# at the root: the copies land beside whatever was being edited.
+.history/
 
 # JetBrains
 .idea/

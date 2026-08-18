@@ -30,7 +30,7 @@ permanent.
 !!! tip "The application can do this for you"
 
     Everything on this page is now also available from `ddd-gui` — **Tools ▸ Firmware ▸
-    Legacy ▸ Bring up a new or legacy board…** — which programs both the FX3 and the FPGA
+    Bring up a new or legacy board…** — which programs both the FX3 and the FPGA
     with no vendor toolchain installed at all. See [Bringing up a new or legacy
     board](../../capture-gui/bringing-up-a-board.md).
 

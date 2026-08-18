@@ -118,40 +118,50 @@
 
         cd "$TMPDIR"
 
-        # The other set the release publishes: firmware plus the gateware as JTAG vectors,
-        # which is what a board with no working gateware is brought up with. Checked here
-        # because the release workflow assembles one on every firmware tag, and because the
-        # entry order is as much a part of this file's format as of the other's.
+        # And the same file with all four payloads, which is what every firmware release
+        # actually publishes: the two an ordinary update installs, and the two a bring-up
+        # needs on top. Checked here because the entry order is as much a part of this
+        # format as the manifest's contents are — a reader that took the first match for
+        # an entry name could verify one payload and install another.
         printf '! not a real SVF\nSTATE IDLE;\n' > gateware-provisioning.svf
+        printf 'not a real factory image\n' > gateware-factory.rpd
+        printf 'not a real application image\n' > gateware-app.rpd
+        mkdir -p complete
 
         bash ${src}/tools/make-update-bundle.sh \
-          --output provisioning/domesday-duplicator-provisioning-1.4.0.dddfw \
+          --output complete/domesday-duplicator-update-1.4.0.dddfw \
           --version 1.4.0 \
           --commit 0123abcd \
           --channel development \
           --created 2026-01-01T00:00:00Z \
-          --notes "A development provisioning set assembled by nix flake check." \
+          --notes "A development bundle assembled by nix flake check." \
           --secret-key ${src}/tools/keys/development.key \
           --public-key ${src}/tools/keys/development.pub \
           --firmware firmware.img \
           --firmware-identity 0123abcd \
+          --gateware gateware-app.rpd \
+          --gateware-identity 0123abcd \
           --provisioning gateware-provisioning.svf \
-          --provisioning-identity 0123abcd
+          --provisioning-identity 0123abcd \
+          --factory-gateware gateware-factory.rpd \
+          --factory-gateware-identity 0123abcd
 
-        listed=$(tar --list --file provisioning/domesday-duplicator-provisioning-1.4.0.dddfw |
+        listed=$(tar --list --file complete/domesday-duplicator-update-1.4.0.dddfw |
           tr '\n' ' ')
-        if [ "$listed" != "manifest.json manifest.minisig firmware.img gateware-provisioning.svf " ]; then
-          echo "the provisioning set's entries came out as '$listed'" >&2
+        expected="manifest.json manifest.minisig firmware.img gateware-app.rpd "
+        expected="$expected"'gateware-provisioning.svf gateware-factory.rpd '
+        if [ "$listed" != "$expected" ]; then
+          echo "the bundle's entries came out as '$listed'" >&2
           exit 1
         fi
 
-        # The pin that decides which published set a packaged build carries. Its shape
+        # The pin that decides which published bundle a packaged build carries. Its shape
         # only — fetching would need a network this sandbox does not have, and should
         # not. What this catches is a half-filled pin: a URL with no digest is an
         # unverified download and a digest with no URL is a check that never runs, and
         # both should fail on the commit that made them.
-        bash ${src}/tools/fetch-bundled-provisioning.sh \
-          --check --pin ${src}/ddd-gui/packaging/bundled-provisioning.env
+        bash ${src}/tools/fetch-bundled-update.sh \
+          --check --pin ${src}/ddd-gui/packaging/bundled-update.env
 
         touch $out
       '';

@@ -32,7 +32,7 @@
 #include "auto_capture_controller.h"
 #include "auto_capture_wizard.h"
 #include "board_bringup_wizard.h"
-#include "bundled_provisioning.h"
+#include "bundled_update.h"
 #include "capture_controller.h"
 #include "capture_naming_dialog.h"
 #include "capture_panel.h"
@@ -40,7 +40,6 @@
 #include "device_updater.h"
 #include "examine_dialog.h"
 #include "firmware_dialog.h"
-#include "legacy_rollback_wizard.h"
 #include "log_message_model.h"
 #include "log_panel.h"
 #include "player_controller.h"
@@ -537,30 +536,21 @@ void MainWindow::BuildToolsMenu() {
   tools_menu->addSeparator();
 
   // Everything to do with what the device is running, in one place. The
-  // ordinary update path is first and keeps its behaviour; the legacy flows
-  // are behind a sub-menu of their own, because they are what somebody reaches
-  // for once in the life of a board and the update path is what they reach for
-  // every release.
+  // ordinary update path is first and keeps its behaviour; bring-up is below
+  // the separator because it is what somebody reaches for once in the life of
+  // a board and the update path is what they reach for every release.
   QMenu* const firmware_menu = tools_menu->addMenu(tr("&Firmware"));
   firmware_menu->addAction(tr("&Update firmware…"), this,
                            &MainWindow::ShowFirmwareDialog);
 
   firmware_menu->addSeparator();
 
-  QMenu* const legacy_menu = firmware_menu->addMenu(tr("&Legacy"));
   QAction* const bringup_action =
-      legacy_menu->addAction(tr("&Bring up a new or legacy board…"), this,
-                             &MainWindow::ShowBringUpWizard);
+      firmware_menu->addAction(tr("&Bring up a new or legacy board…"), this,
+                               &MainWindow::ShowBringUpWizard);
   bringup_action->setStatusTip(
-      tr("Program both halves of a board from nothing — a newly built one, or "
-         "one running the original Duplicator firmware"));
-
-  QAction* const rollback_action =
-      legacy_menu->addAction(tr("&Roll back to legacy firmware…"), this,
-                             &MainWindow::ShowRollbackWizard);
-  rollback_action->setStatusTip(
-      tr("Put the original Duplicator firmware and gateware back on a working "
-         "unit — a deliberate act, and the bring-up entry above undoes it"));
+      tr("Program a board from nothing to fully up to date — a newly built "
+         "one, or one running the original Duplicator firmware"));
 
   if (capture_controller_ == nullptr) {
     // Nothing to put the device into test mode with. Shown rather than hidden
@@ -892,7 +882,7 @@ void MainWindow::ShowBringUpWizard() {
 
     // What this build was packaged with, if anything. Verified by the wizard
     // like any other file — this only says where to look.
-    access.bundled_set = [] { return BundledProvisioningPath(); };
+    access.bundled_file = [] { return BundledUpdatePath(); };
 
     bringup_wizard_ = new BoardBringUpWizard(std::move(access), this);
     bringup_wizard_->setAttribute(Qt::WA_DeleteOnClose);
@@ -908,62 +898,11 @@ void MainWindow::ShowBringUpWizard() {
                 capture_controller_->SetDeviceMonitorSuspended(busy);
               }
             });
-
-    // The last page's button. Opening the update dialog is this window's
-    // business rather than the wizard's, because this window is the one that
-    // knows how to build one.
-    connect(bringup_wizard_, &BoardBringUpWizard::OpenUpdateRequested, this,
-            &MainWindow::ShowFirmwareDialog);
   }
 
   bringup_wizard_->show();
   bringup_wizard_->raise();
   bringup_wizard_->activateWindow();
-}
-
-void MainWindow::ShowRollbackWizard() {
-  // One wizard, on the same terms as the bring-up one: two would be two things
-  // writing one device's flash.
-  if (rollback_wizard_.isNull()) {
-    capture::IUsbDevice* const usb = capture_controller_ != nullptr
-                                         ? capture_controller_->usb_device()
-                                         : nullptr;
-    auto* const logger = static_cast<capture::ILogger*>(logger_);
-
-    LegacyRollbackWizard::Access access;
-
-    access.devices = [this] {
-      return capture_controller_ != nullptr
-                 ? capture_controller_->devices()
-                 : std::vector<capture::DeviceInfo>{};
-    };
-
-    // The only route this flow has to hardware. There is no cable factory and
-    // no programmer: a unit that can be rolled back is a working unit, and it
-    // writes both images itself over the link it is already on.
-    access.open_updater = [usb, logger](const std::string& path)
-        -> std::unique_ptr<capture::IDeviceUpdater> {
-      if (usb == nullptr || path.empty()) {
-        return nullptr;
-      }
-      return capture::MakeDeviceUpdater(*usb, path, logger);
-    };
-
-    rollback_wizard_ = new LegacyRollbackWizard(std::move(access), this);
-    rollback_wizard_->setAttribute(Qt::WA_DeleteOnClose);
-    rollback_wizard_->SetKeyPolicy(update_key_policy_);
-
-    connect(rollback_wizard_, &LegacyRollbackWizard::BusyChanged, this,
-            [this](bool busy) {
-              if (capture_controller_ != nullptr) {
-                capture_controller_->SetDeviceMonitorSuspended(busy);
-              }
-            });
-  }
-
-  rollback_wizard_->show();
-  rollback_wizard_->raise();
-  rollback_wizard_->activateWindow();
 }
 
 void MainWindow::ShowAutoCaptureWizardFor(const player::DiscProfile& disc) {
@@ -1041,13 +980,12 @@ bool MainWindow::FirmwareWindowIsOpen() const {
   // deciding when a user gets told something on the strength of an event-loop
   // detail.
   //
-  // The rollback wizard counts for the same reason as the bring-up one, and
-  // more so: it makes a device disappear and come back as a *different*
-  // device, so a version-mismatch warning is not merely likely there — it is
-  // the expected consequence of the page being followed correctly.
+  // The bring-up wizard counts for a reason of its own: it makes a device
+  // disappear and come back as a *different* device, so a version-mismatch
+  // warning is not merely likely while it is open — it is the expected
+  // consequence of its pages being followed correctly.
   return firmware_dialog_open_ ||
-         (!bringup_wizard_.isNull() && bringup_wizard_->isVisible()) ||
-         (!rollback_wizard_.isNull() && rollback_wizard_->isVisible());
+         (!bringup_wizard_.isNull() && bringup_wizard_->isVisible());
 }
 
 void MainWindow::ShowFailure(const QString& title, const QString& detail) {

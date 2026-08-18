@@ -17,8 +17,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "bringup_orchestrator.h"
 #include "capture_metatypes.h"
-#include "provisioning_orchestrator.h"
 #include "update_key.h"
 
 namespace ddd::gui {
@@ -26,17 +26,16 @@ namespace ddd::gui {
 // One half of a bring-up, on a thread of its own.
 //
 // Off the interface thread for the reason UpdateWorker is: writing an EEPROM
-// is a minute of blocking control transfers and writing an EPCS through a
-// bit-banged cable is several minutes more, and a window that stopped
-// repainting for that long is a window somebody force-quits during the one
-// operation where force-quitting is the worst thing they could do.
+// and two flash images is minutes of blocking control transfers, and a window
+// that stopped repainting for that long is a window somebody force-quits
+// during the one operation where force-quitting is the worst thing they could
+// do.
 //
 // **The orchestrator is not owned here.** The two halves are separated by a
-// page on which the user takes a jumper off, so they are two runs of this
-// worker against one orchestrator that the wizard keeps — which is what
-// carries the ordering rule across the gap between them. The wizard guarantees
-// the orchestrator outlives every worker it starts, and that only one runs at
-// a time.
+// page, so they are two runs of this worker against one orchestrator that the
+// wizard keeps — which is what carries the ordering rule across the gap
+// between them. The wizard guarantees the orchestrator outlives every worker
+// it starts, and that only one runs at a time.
 //
 // The bundle's bytes are re-opened here rather than the wizard's already
 // opened bundle being handed over, again as UpdateWorker does: the signature
@@ -50,15 +49,16 @@ class BringUpWorker : public QObject {
 
  public:
   enum class Task {
-    // The FX3's EEPROM, through its boot ROM. Ends without a restart, because
-    // the jumper is still fitted.
-    kFirmware,
+    // The FPGA, through the USB-Blaster. Volatile: it writes nothing.
+    kConfigure,
 
-    // The FPGA's configuration flash, through the USB-Blaster.
-    kGateware,
+    // Everything permanent — the FX3's EEPROM and both images in the FPGA's
+    // flash — through the firmware the boot ROM is handed. Ends without a
+    // restart, because the wizard owns the power cycle.
+    kProgram,
   };
 
-  BringUpWorker(capture::ProvisioningOrchestrator* orchestrator, Task task,
+  BringUpWorker(capture::BringUpOrchestrator* orchestrator, Task task,
                 std::vector<uint8_t> archive, capture::UpdateKeyPolicy policy,
                 QObject* parent = nullptr);
   ~BringUpWorker() override;
@@ -85,8 +85,8 @@ class BringUpWorker : public QObject {
   void Finished(bool succeeded, bool stopped, const QString& problem);
 
  private:
-  capture::ProvisioningOrchestrator* orchestrator_ = nullptr;
-  Task task_ = Task::kFirmware;
+  capture::BringUpOrchestrator* orchestrator_ = nullptr;
+  Task task_ = Task::kConfigure;
   std::vector<uint8_t> archive_;
   capture::UpdateKeyPolicy policy_;
   std::atomic<bool> cancelled_{false};

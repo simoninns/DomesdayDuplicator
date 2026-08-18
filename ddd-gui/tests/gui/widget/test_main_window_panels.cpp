@@ -332,16 +332,9 @@ TEST_F(MainWindowTest, BringUpIsUnderFirmwareAndAlwaysAvailable) {
   ASSERT_NE(firmware, nullptr);
   ASSERT_NE(firmware->menu(), nullptr);
 
-  QAction* const legacy =
-      EntryNamed(firmware->menu(), QStringLiteral("Legacy"));
-  ASSERT_NE(legacy, nullptr) << "no Legacy sub-menu under Tools ▸ Firmware";
-  ASSERT_NE(legacy->menu(), nullptr)
-      << "Legacy opens something directly rather than a sub-menu";
-
   QAction* const bringup =
-      EntryNamed(legacy->menu(), QStringLiteral("Bring up"));
-  ASSERT_NE(bringup, nullptr)
-      << "no bring-up entry under Tools ▸ Firmware ▸ Legacy";
+      EntryNamed(firmware->menu(), QStringLiteral("Bring up"));
+  ASSERT_NE(bringup, nullptr) << "no bring-up entry under Tools ▸ Firmware";
   EXPECT_TRUE(bringup->isEnabled());
 
   // The ordinary path keeps its place at the top, above the line.
@@ -354,12 +347,12 @@ TEST_F(MainWindowTest, BringUpIsUnderFirmwareAndAlwaysAvailable) {
 // The firmware-version warning is a note, and it must never land modally on
 // top of a window whose whole job is changing what the device runs.
 //
-// Found on the bench, on the bring-up wizard's FX3 step. That step hands the
-// boot ROM a firmware image which then runs and enumerates — so a device
-// appears mid-run, the version check fires on it, and the warning covers the
-// page reporting how the write went. It is guaranteed rather than unlucky: a
-// provisioning set carries whatever firmware it carries, which has no reason
-// to be the build the application was compiled from.
+// Found on the bench, on the bring-up wizard's programming step. That step
+// hands the boot ROM a firmware image which then runs and enumerates — so a
+// device appears mid-run, the version check fires on it, and the warning
+// covers the page reporting how the write went. It is guaranteed rather than
+// unlucky: an update file carries whatever firmware it carries, which has no
+// reason to be the build the application was compiled from.
 TEST_F(MainWindowTest,
        TheVersionWarningIsSuppressedWhileTheBringUpWizardIsOpen) {
   const std::unique_ptr<MainWindow> window = MakeWindow();
@@ -371,12 +364,8 @@ TEST_F(MainWindowTest,
       MenuNamed(*window, QStringLiteral("Tools")), QStringLiteral("Firmware"));
   ASSERT_NE(firmware, nullptr);
   ASSERT_NE(firmware->menu(), nullptr);
-  QAction* const legacy =
-      EntryNamed(firmware->menu(), QStringLiteral("Legacy"));
-  ASSERT_NE(legacy, nullptr);
-  ASSERT_NE(legacy->menu(), nullptr);
   QAction* const bringup =
-      EntryNamed(legacy->menu(), QStringLiteral("Bring up"));
+      EntryNamed(firmware->menu(), QStringLiteral("Bring up"));
   ASSERT_NE(bringup, nullptr);
 
   bringup->trigger();

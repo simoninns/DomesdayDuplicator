@@ -1,6 +1,6 @@
 /************************************************************************
 
-    bundled_provisioning.h
+    bundled_update.h
 
     Finding the provisioning set a packaged build carries
     Domesday Duplicator - LaserDisc RF sampler
@@ -47,7 +47,7 @@ namespace ddd::gui {
 // The name the installed set carries, whatever platform installed it. Fixed
 // rather than versioned: a build carries one, and a name that changed with the
 // release would mean the search had to know which release it was looking for.
-inline constexpr const char* kBundledProvisioningName = "provisioning.dddfw";
+inline constexpr const char* kBundledUpdateName = "update.dddfw";
 
 // Every place a bundled set might be, in the order they are tried, as absolute
 // file paths. Pure: it looks at no filesystem and asks Qt nothing, so a test
@@ -58,12 +58,12 @@ inline constexpr const char* kBundledProvisioningName = "provisioning.dddfw";
 // — the XDG data path on Linux, which is what carries /app/share inside a
 // Flatpak. Either may be empty, and the candidates that depend on it are then
 // simply not offered.
-QStringList BundledProvisioningSearchPaths(
-    const QString& application_dir, const QStringList& generic_data_dirs);
+QStringList BundledUpdateSearchPaths(const QString& application_dir,
+                                     const QStringList& generic_data_dirs);
 
 // The first of those that exists, or an empty string when this build carries
 // no set. Needs a QCoreApplication, like anything that asks where it is
 // installed.
-QString BundledProvisioningPath();
+QString BundledUpdatePath();
 
 }  // namespace ddd::gui

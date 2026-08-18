@@ -54,12 +54,11 @@ Triggered by a `fw-v*` tag. It calls the bitstream workflow with the tag as its 
 
 | Asset | What it is for |
 | --- | --- |
-| `domesday-duplicator-update-<ver>.dddfw` | **the update bundle** — what a working device installs over USB |
-| `domesday-duplicator-provisioning-<ver>.dddfw` | **the provisioning set** — firmware plus the gateware as JTAG vectors, for a board with no working gateware to receive an update through |
+| `domesday-duplicator-update-<ver>.dddfw` | **the bundle**, and the only signed asset. Four payloads: the firmware and application gateware a working device installs over USB, plus the JTAG vectors and factory image a bring-up needs on top |
 | `firmware.img` / `.elf` / `.map` | the FX3 image and its debug companions |
 | `fx3-programmer-<ver>-linux-x64` | bench recovery over the USB bootloader |
 | `DomesdayDuplicatorProvisioning.jic` / `.map` | first provisioning of a new board over JTAG: both gateware images |
-| `DomesdayDuplicatorProvisioning.svf` | the same, as JTAG vectors — what `ddd-jtag` and the provisioning set play |
+| `DomesdayDuplicatorFactoryConfigure.svf` | the factory image as JTAG vectors — what `ddd-jtag` and the bring-up wizard play |
 | `DomesdayDuplicator_auto.rpd`, `boot-block.bin` | the raw application image and its boot block, published for inspection |
 | `DomesdayDuplicatorFactory.sof` | the factory image, for bench JTAG configuration |
 | `bitstream-provenance.txt` | Quartus version and per-artefact digests, release and canonical |
@@ -69,7 +68,7 @@ Three gates stand between the build and the published release, and each of them 
 
 1. **The firmware carries the commit.** A `.img` containing the string `unknown`, or not containing this tag's short hash, fails the release. The version reaches the USB product descriptor, so it can be checked without a device.
 2. **The bitstream was built from the tag.** Its provenance record must name the tag's commit. The build itself already refuses to produce a record with an unknown commit.
-3. **Both bundles verify against the pinned public key.** Verified independently after assembly, with stock `minisign`, against `tools/keys/release.pub` — the same bytes the application compiles in. A bundle signed with anything else is a bundle the application would refuse, so this is a failure and not a warning. The same step checks the one property that distinguishes the two files: the provisioning set carries JTAG vectors and the update bundle must not.
+3. **The bundle verifies against the pinned public key.** Verified independently after assembly, with stock `minisign`, against `tools/keys/release.pub` — the same bytes the application compiles in. A bundle signed with anything else is a bundle the application would refuse, so this is a failure and not a warning. The same step checks that all four payloads are present, because a release that quietly lost the two bring-up ones would update a working device perfectly well and stop being able to bring a board up — which nobody discovers until they are standing in front of a bare board.
 
 The manifest's compatibility fields are read out of the sources that implement them at release time — the protocol version from the FX3 descriptor, the register map version from `spiRegisters.v`, the EPCS layout version from the boot-block encoder — so a manifest cannot claim a protocol the firmware does not speak. The one field that is a *decision* rather than a fact, the minimum application version, lives in `tools/release/compatibility.env`, which the tag pins along with everything else.
 
@@ -87,26 +86,26 @@ The bundle archive itself is not compared byte for byte: re-signing it would nee
 
 A failure means one of three things, all worth knowing within days rather than at the next release: the toolchain has drifted, a published asset does not match its source, or the reproducibility this project claims has stopped being true.
 
-## The bundled provisioning set
+## The bundled update file
 
 The one place the two release streams touch, and the design is shaped by keeping that touch as small as possible.
 
-A board being brought up **cannot be updated over USB** — that is the whole reason [the bring-up wizard](../capture-gui/bringing-up-a-board.md) exists — so the machine beside it may be one that has just been built and has no network. A packaged build of the capture application therefore installs one provisioning set beside itself, and the wizard preselects it.
+A board being brought up **cannot be updated over USB** — that is the whole reason [the bring-up wizard](../capture-gui/bringing-up-a-board.md) exists — so the machine beside it may be one that has just been built and has no network. A packaged build of the capture application therefore installs one update bundle beside itself, and the wizard preselects it.
 
-That set is a firmware-stream artefact, so a `gui-v*` packaging job must not build it (§9: every artefact CI-built, and the two streams are separate). It **pins** one instead:
+That bundle is a firmware-stream artefact, so a `gui-v*` packaging job must not build it (§9: every artefact CI-built, and the two streams are separate). It **pins** one instead:
 
 ```
-ddd-gui/packaging/bundled-provisioning.env
-  BUNDLED_PROVISIONING_TAG      the fw-v* release it came from
-  BUNDLED_PROVISIONING_URL      the published asset
-  BUNDLED_PROVISIONING_SHA256   its digest
+ddd-gui/packaging/bundled-update.env
+  BUNDLED_UPDATE_TAG      the fw-v* release it came from
+  BUNDLED_UPDATE_URL      the published asset
+  BUNDLED_UPDATE_SHA256   its digest
 ```
 
-`tools/fetch-bundled-provisioning.sh` reads that pin, downloads, and refuses anything whose digest differs — one script, called by all three packaging workflows, because a fetch-and-verify written out three times is three places for the verify to go missing. CMake takes the file as `-DDDD_BUNDLED_PROVISIONING_FILE` and installs it under one fixed name in whichever place the platform keeps read-only application data; `ddd-gui/src/gui/bundled_provisioning.cpp` is the matching search.
+`tools/fetch-bundled-update.sh` reads that pin, downloads, and refuses anything whose digest differs — one script, called by all three packaging workflows, because a fetch-and-verify written out three times is three places for the verify to go missing. CMake takes the file as `-DDDD_BUNDLED_UPDATE_FILE` and installs it under one fixed name in whichever place the platform keeps read-only application data; `ddd-gui/src/gui/bundled_update.cpp` is the matching search.
 
 Three properties worth stating, because each of them is a decision:
 
-- **An empty pin is a legitimate build.** The packaging jobs skip the fetch and the wizard opens with its file picker and no preselection. An application that pretended to carry a set it did not have would fail at the one moment its user has no network to fix it with — the same reasoning as the unpinned release key.
+- **An empty pin is a legitimate build.** The packaging jobs skip the fetch and the wizard opens with its file picker and no preselection. An application that pretended to carry a file it did not have would fail at the one moment its user has no network to fix it with — the same reasoning as the unpinned release key.
 - **The pin protects packaging, not installation.** The digest is what makes an unattended download safe in a job with no key and nobody watching. The application still verifies the signature and every payload digest before it programs anything, bundled or picked. Being bundled is never a shortcut through that.
 - **Each packaging job checks its own output.** Flatpak, MSI and DMG all assert the set survived into the installed application when one was pinned — the failure this guards against is an installer that looks complete and then cannot bring a board up on the machine that cannot fetch anything.
 
@@ -161,7 +160,7 @@ That is the whole procedure. What follows from it:
 Then, before announcing it:
 
 - install the bundle onto bench hardware from the application's file-picker path, and confirm the device reports the identities the manifest names;
-- if the capture application should ship this release's provisioning set, update the pin above — it is a separate commit on the GUI stream, and nothing about tagging firmware changes what an already-packaged application carries;
+- if the capture application should ship this release's bundle, update the pin above — it is a separate commit on the GUI stream, and nothing about tagging firmware changes what an already-packaged application carries;
 - check the run summary's manifest for the versions you expected — the compatibility fields are read from the sources, so a surprise there is a real disagreement;
 - watch the next reproducibility audit, or dispatch it against the new tag directly.
 
