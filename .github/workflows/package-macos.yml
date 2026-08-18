@@ -79,6 +79,11 @@ jobs:
           # The bundled set, when one is pinned. CMake places it inside the built bundle's
           # Contents/Resources, which is where the application looks and where the
           # hand-assembled bundle below takes it from.
+          #
+          # Expanded as ${bundled[@]+"${bundled[@]}"} rather than "${bundled[@]}": macOS
+          # ships bash 3.2, where an empty array under `set -u` is an unbound variable and
+          # not an empty expansion. Every other runner in this repository has bash 5, which
+          # is why this failed on macOS alone and passed everywhere else.
           bundled=()
           if [[ -n "${{ steps.bundled.outputs.path }}" ]]; then
             bundled=(-DDDD_BUNDLED_UPDATE_FILE="${{ steps.bundled.outputs.path }}")
@@ -88,7 +93,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
             -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}" \
-            "${bundled[@]}"
+            ${bundled[@]+"${bundled[@]}"}
           cmake --build build
 
       - name: Run the test suite

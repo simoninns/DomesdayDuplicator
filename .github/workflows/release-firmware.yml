@@ -70,11 +70,36 @@ permissions:
   contents: write
 
 jobs:
+  # A workflow_dispatch re-run has to be dispatched *on the tag*. The jobs below check out
+  # the tag explicitly, but GITHUB_SHA stays the dispatched ref's commit — and that is what
+  # the "carries the commit" gates compare the firmware and the bitstream against. Dispatched
+  # from a branch, they would compare artefacts built from the tag against a branch commit
+  # and fail after Quartus had run for half an hour. Checked first, and cheaply.
+  check-ref:
+    name: Check the ref
+    runs-on: ubuntu-latest
+    steps:
+      - name: The dispatched ref must be the tag being published
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          want="refs/tags/${{ github.event.inputs.tag }}"
+          if [[ "${GITHUB_REF}" != "${want}" ]]; then
+            echo "This run was dispatched on ${GITHUB_REF}, but asks to publish" >&2
+            echo "${{ github.event.inputs.tag }}. The provenance gates compare every" >&2
+            echo "artefact against the dispatched ref's commit, not the tag's." >&2
+            echo >&2
+            echo "Re-run it with ${{ github.event.inputs.tag }} selected as the ref." >&2
+            exit 1
+          fi
+
   # Quartus, from the tag. Called rather than repeated: the caching, the disk preparation
   # and the licence position all live in bitstream.yml, and a release that built the
   # gateware its own way would be a second definition of what a bitstream is.
   bitstream:
     name: Bitstream
+    needs: check-ref
     uses: ./.github/workflows/bitstream.yml
     with:
       ref: ${{ github.event.inputs.tag || github.ref }}
@@ -387,6 +412,12 @@ jobs:
           name: Firmware and gateware ${{ github.event.inputs.tag || github.ref_name }}
           files: release-artifacts/*
           generate_release_notes: true
+          # A 0.x firmware release is a pre-release, and says so rather than becoming the
+          # repository's "Latest release". This stream's tags carry no suffix — the bundle
+          # version has to be dotted numeric, because the application compares it against
+          # the manifest's minimum_application_version — so the major version is the only
+          # signal there is, and it is enough: 0.x means there is no stable release yet.
+          prerelease: ${{ startsWith(github.event.inputs.tag || github.ref_name, 'fw-v0.') }}
           body: |
             FX3 firmware, FPGA gateware and the FX3 programmer for the Domesday Duplicator.
 

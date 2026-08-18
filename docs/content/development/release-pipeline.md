@@ -144,25 +144,209 @@ The fallback, if holding the key in CI is ever uncomfortable, is that the mainta
 
 ## Cutting a release
 
+The maintainer's release act is to push a tag. Everything below is either what to check
+before pushing it, or what to do with what comes back.
+
+### The two streams
+
+They are separate on purpose, and a tag in one never builds the other. Two streams that both
+rebuilt everything would be one stream with extra steps — and a documentation fix would
+recompile Quartus.
+
+| | Firmware and gateware | Capture application |
+| --- | --- | --- |
+| Tag | `fw-v<version>` | `gui-v<version>` |
+| Workflow | `release-firmware.yml` | `release-gui.yml` |
+| Builds | FX3 firmware, programmer, both gateware images | Flatpak, DMG, MSI |
+| Signed | yes — the `.dddfw` manifest, with the release key | no; the installers are unsigned |
+| Takes | tens of minutes, longer on a cold Quartus cache | around half an hour |
+
+The **update bundle a user installs comes only from the firmware stream**. A `gui-v*` tag
+produces installers and nothing else, so if the point of a release is to put a `.dddfw` in
+people's hands, the firmware tag is the one that does it.
+
+### Tag naming, and the two rules that bite
+
+**A `fw-v*` tag must be plain dotted numeric.** `fw-v1.4.0` is fine; `fw-v1.4.0-beta1` is
+rejected. The version goes into the bundle manifest, where the application compares it
+against `minimum_application_version` as a dotted version, so a suffix would be a version
+that cannot be ordered. The check is real and it fails the release — but it runs *after* the
+gateware has compiled, so a mistyped tag costs a Quartus run before it tells you.
+
+**A `gui-v*` tag may carry a suffix.** `gui-v1.0.0-beta1` is fine. Nothing downstream orders
+it: the MSI falls back to a `0.0.<run>.0` product version, which is deliberately lower than
+any numbered release and so cannot block a later upgrade.
+
+Both streams mark a release as a **pre-release** when its version says it is one — a `0.x`
+version in either stream, or a suffix in the GUI stream. That matters more than it looks:
+an unmarked release becomes the repository's "Latest release", which is what GitHub's
+release banner points people at. This repository still has the legacy `V2.x` releases, and
+`V2.4` currently holds that position; a pre-release will not displace it, and a `1.0.0` will.
+
+### Before you tag
+
+Tag a commit CI has already been green on. The release workflows rebuild everything from the
+tag, so a tag on an untested commit finds out the hard way, slowly.
+
+```bash
+git switch main
+git pull
+gh run list --branch main --limit 5        # the Build run must be green
+nix flake check                            # optional second opinion, locally
+```
+
+Check too that `UPDATE_SIGNING_KEY` is still set, because a firmware release without it
+fails at the signing step after everything else has succeeded:
+
+```bash
+gh secret list
+```
+
+### Releasing firmware and gateware
+
 ```bash
 git tag fw-v1.4.0
 git push origin fw-v1.4.0
+
+gh run list --workflow release-firmware.yml --limit 1
+gh run watch <run-id>
 ```
 
-That is the whole procedure. What follows from it:
+What runs, in order: the gateware compiles from the tag; the firmware and programmer build
+from the same tag; the `.dddfw` is assembled and signed; and the three gates described above
+run before anything is published. There is no draft stage — a release either appears
+complete or does not appear.
 
-1. `bitstream.yml` compiles both gateware images from the tag.
-2. `release-firmware.yml` builds the firmware and the programmer from the same tag, assembles the `.dddfw`, signs it with the release key, and runs the three gates above.
-3. The release is published with every asset and its digests.
+Then check what was published, rather than assuming it:
 
-Then, before announcing it:
+```bash
+gh release view fw-v1.4.0
 
-- install the bundle onto bench hardware from the application's file-picker path, and confirm the device reports the identities the manifest names;
-- if the capture application should ship this release's bundle, update the pin above — it is a separate commit on the GUI stream, and nothing about tagging firmware changes what an already-packaged application carries;
-- check the run summary's manifest for the versions you expected — the compatibility fields are read from the sources, so a surprise there is a real disagreement;
-- watch the next reproducibility audit, or dispatch it against the new tag directly.
+mkdir -p /tmp/fw-check && cd /tmp/fw-check
+gh release download fw-v1.4.0
+sha256sum -c SHA256SUMS
 
-If the tag was wrong, delete the release and the tag and start again: nothing in this pipeline is idempotent-by-accident, and re-running the workflow against a re-created tag rebuilds everything from that commit.
+tar -xf domesday-duplicator-update-1.4.0.dddfw manifest.json manifest.minisig
+minisign -Vm manifest.json -x manifest.minisig \
+         -p ~/Coding/domesdayduplicator/tools/keys/release.pub
+```
+
+The run summary also prints the manifest. Read the compatibility fields in it: they are
+read out of the sources at release time, so a value you did not expect is a real
+disagreement between the manifest and the firmware or gateware, not a formatting quirk.
+
+Then install it onto bench hardware through the application's file-picker path, and confirm
+the device reports the identities the manifest names. Nothing in CI touches hardware.
+
+### Pinning the bundle into the application
+
+This is the one place the two streams touch, and it is a deliberate commit rather than
+anything automatic. Do it when the next application release should carry this firmware
+bundle for offline bring-up.
+
+```bash
+tag=fw-v1.4.0
+
+gh release view "$tag" --json assets \
+  -q '.assets[] | select(.name | endswith(".dddfw")) | .url'
+
+gh release download "$tag" --pattern SHA256SUMS --output - \
+  | awk '/\.dddfw$/ {print $1}'
+```
+
+Put those two values, and the tag, into `ddd-gui/packaging/bundled-update.env`, and commit
+with the firmware tag in the message. `tools/fetch-bundled-update.sh --check` will tell you
+whether the pin is well formed without downloading anything:
+
+```bash
+./tools/fetch-bundled-update.sh --check
+```
+
+Leaving the pin empty is a legitimate choice, not a postponement: the installers are smaller
+and the bring-up wizard simply opens with its file picker. What it costs is the one case the
+bundling exists for — a machine with no network, next to a board that cannot be updated over
+USB.
+
+### Releasing the capture application
+
+```bash
+git tag gui-v1.0.0-beta1
+git push origin gui-v1.0.0-beta1
+
+gh run list --workflow release-gui.yml --limit 1
+gh run watch <run-id>
+```
+
+Three packaging jobs run in parallel, each of which **installs and launches what it built** —
+the Flatpak from its own bundle, the MSI through `msiexec` and then uninstalled again, the
+DMG's bundle checked for any surviving Homebrew path. Only then does a single publish job
+attach everything, and it refuses to publish unless all three installers are present and
+every file name carries the tagged version.
+
+The installers are unsigned. macOS will show a Gatekeeper prompt and Windows a SmartScreen
+warning on first run; both installation pages document this, and it is worth saying again in
+any announcement.
+
+### A first beta, end to end
+
+The order matters, because the application can only bundle a firmware bundle that already
+exists:
+
+```bash
+# 1. firmware and gateware first — this is what produces the .dddfw
+git tag fw-v0.9.0 && git push origin fw-v0.9.0
+
+# 2. pin that release's bundle into the application, and commit it
+$EDITOR ddd-gui/packaging/bundled-update.env
+./tools/fetch-bundled-update.sh --check
+git commit -am 'Pin the fw-v0.9.0 update bundle' && git push
+
+# 3. the application, tagged on the commit that carries the pin
+git tag gui-v0.9.0 && git push origin gui-v0.9.0
+```
+
+Both are `0.x`, so both publish as pre-releases and neither becomes "Latest". Testers get a
+signed update bundle, three installers that already carry it, and a legacy `V2.4` release
+still sitting where it was for anyone who is not testing.
+
+Skipping step 2 is a reasonable shortcut for a first beta — the installers then carry no
+bundle, and testers download the `.dddfw` from the firmware release and open it by hand.
+
+### When something goes wrong
+
+**A packaging job failed.** Fix it on a branch, let the branch build prove it — `build.yml`
+runs the same three packaging workflows on every push — then delete the tag and start again.
+
+**The publish job failed but the packaging succeeded.** Re-run without re-tagging. The one
+thing that matters is that the dispatch happens **on the tag**: the packaging workflows read
+their version from the ref they are called on, not from the input, so a dispatch from a
+branch would stamp `git-<sha>` into every file name. The workflows now check this and stop in
+seconds rather than half an hour, but the correct invocation is:
+
+```bash
+gh workflow run release-gui.yml --ref gui-v1.0.0-beta1 -f tag=gui-v1.0.0-beta1
+```
+
+**The tag was wrong.** Delete the release and the tag, and start again. Nothing in this
+pipeline is idempotent by accident, and re-running against a re-created tag rebuilds
+everything from that commit:
+
+```bash
+gh release delete gui-v1.0.0-beta1 --yes
+git push --delete origin gui-v1.0.0-beta1
+git tag -d gui-v1.0.0-beta1
+```
+
+**A gate rejected an artefact.** Do not work around it. Each of the three firmware gates
+exists because the failure it names has happened: an artefact reporting `unknown`, a
+bitstream built from something other than the tag, a bundle signed with the wrong key. A
+gate firing means the release would have been wrong.
+
+### After announcing
+
+Watch the next reproducibility audit, or dispatch it against the new tag directly. It
+rebuilds the release from scratch and compares digests, so a drift between what was
+published and what the source produces surfaces within days rather than at the next release.
 
 ## What this replaces
 

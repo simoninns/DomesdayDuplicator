@@ -74,6 +74,24 @@ jobs:
           # time, so it is checked here where the feedback is immediate.
           appstreamcli validate --no-net ddd-gui/packaging/assets/io.github.simoninns.DddGui.metainfo.xml
 
+      - name: Fetch the pinned update bundle
+        id: bundled
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Into the checkout, because flatpak-builder's source is this directory and the
+          # build itself has no network. An unpinned tree writes nothing and the flag is
+          # removed by the stamping step below; that is a legitimate build, not a failure.
+          #
+          # This step has to come *before* the stamping step: `${{ steps.bundled.outputs.path }}`
+          # is evaluated when the step reading it begins, so a fetch placed after it would
+          # hand the stamping step an empty string, delete the manifest's bundled-update
+          # line, and then leave the install check hunting for a file the manifest never
+          # asked to be installed.
+          path="$(./tools/fetch-bundled-update.sh \
+            --output ddd-gui/packaging/bundled/update.dddfw)"
+          echo "path=${path}" >> "$GITHUB_OUTPUT"
+
       - name: Stamp the version into the manifest and the AppStream release list
         shell: bash
         run: |
@@ -109,18 +127,6 @@ jobs:
           open(path, "w", encoding="utf-8").write(text)
           PY
           fi
-
-      - name: Fetch the pinned update bundle
-        id: bundled
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Into the checkout, because flatpak-builder's source is this directory and the
-          # build itself has no network. An unpinned tree writes nothing and the flag is
-          # removed below; that is a legitimate build, not a failure.
-          path="$(./tools/fetch-bundled-update.sh \
-            --output ddd-gui/packaging/bundled/update.dddfw)"
-          echo "path=${path}" >> "$GITHUB_OUTPUT"
 
       - name: Cache flatpak-builder state
         uses: actions/cache@v4
