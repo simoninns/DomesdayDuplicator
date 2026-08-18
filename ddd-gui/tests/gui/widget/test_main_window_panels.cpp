@@ -22,8 +22,13 @@
 #include <QSettings>
 #include <QStringList>
 #include <QTest>
+#include <QTimer>
 #include <chrono>
+#include <cstdio>
+#include <filesystem>
+#include <iostream>
 #include <memory>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -33,10 +38,12 @@
 #include "capture_controller.h"
 #include "fake_serial_port.h"
 #include "fake_usb_device.h"
+#include "firmware_version.h"
 #include "main_window.h"
 #include "player_controller.h"
 #include "serial_port_scanner.h"
 #include "theme_controller.h"
+#include "version.h"
 
 namespace ddd::gui {
 namespace {
@@ -141,6 +148,29 @@ QMenu* PlayerMenu(const MainWindow& window) {
 QMenu* TestDataMenu(const MainWindow& window) {
   return SubMenuNamed(MenuNamed(window, QStringLiteral("Tools")),
                       QStringLiteral("Test data"));
+}
+
+QMenu* FirmwareMenu(const MainWindow& window) {
+  return SubMenuNamed(MenuNamed(window, QStringLiteral("Tools")),
+                      QStringLiteral("Firmware"));
+}
+
+// A USB product string this build will not warn about.
+//
+// The version-mismatch warning is a modal message box raised from the device
+// monitor's report, so a fake device whose firmware this build cannot
+// recognise stops a widget test dead the moment the monitor finds one. Every
+// test below is about the menu rather than about that warning, so the fake is
+// given this build's own commit and the warning has nothing to say.
+//
+// A build that cannot name its own commit — one made outside a checkout — is
+// safe either way: the check refuses to judge a firmware when it cannot say
+// what it would be judging it against.
+std::string UnremarkableProductString() {
+  const std::optional<std::string> commit =
+      capture::NormaliseCommit(capture::Version());
+  return "Domesday Duplicator (" + commit.value_or(std::string("unknown")) +
+         ")";
 }
 
 // Each test gets a settings file of its own, named after the test, so none can
@@ -829,6 +859,139 @@ TEST_F(MainWindowTest, PanelsGetMoreThanTheirMinimumHeightWhenThereIsRoom) {
     EXPECT_GT(dock->height(), dock->minimumSizeHint().height())
         << name.toStdString() << " is pinned at its minimum height";
   }
+}
+
+// --- The firmware entries and the capture pipeline --------------------------
+//
+// Both entries lead somewhere that resets the device, rewrites its flash or
+// reconfigures its FPGA. A capture is a bulk transfer from the same device and
+// monitoring is the same stream with no file on the end of it, so neither can
+// be left running underneath one — but they are not the same case and are not
+// handled the same way.
+
+// A capture may be hours old, so it is not stopped: the entries are taken away
+// until the user stops it themselves.
+TEST_F(MainWindowTest, TheFirmwareEntriesGoAwayWhileACaptureIsRunning) {
+  capture::FakeUsbDevice device;
+  CaptureController controller(&device, nullptr);
+
+  const std::filesystem::path directory =
+      std::filesystem::temp_directory_path() / "ddd-main-window-firmware-gate";
+  std::filesystem::remove_all(directory);
+  std::filesystem::create_directories(directory);
+
+  CaptureSettings settings = controller.settings();
+  settings.capture_directory = QString::fromStdString(directory.string());
+  settings.compression_level = 0;
+  settings.queue_size_bytes = capture::DiskBufferRing::kMinimumQueueSizeBytes;
+  controller.SetSettings(settings);
+
+  MainWindow window(&theme_controller_, &logger_, &controller);
+
+  QAction* const update =
+      EntryNamed(FirmwareMenu(window), QStringLiteral("Update firmware"));
+  QAction* const bringup =
+      EntryNamed(FirmwareMenu(window), QStringLiteral("Bring up"));
+  ASSERT_NE(update, nullptr);
+  ASSERT_NE(bringup, nullptr);
+  EXPECT_TRUE(update->isEnabled());
+  EXPECT_TRUE(bringup->isEnabled());
+
+  device.SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
+                         UnremarkableProductString());
+  controller.Start();
+  ASSERT_TRUE(PumpUntil([&] { return !controller.devices().empty(); }));
+
+  controller.StartCapture();
+  ASSERT_TRUE(PumpUntil([&] { return controller.capturing(); }));
+
+  EXPECT_FALSE(update->isEnabled())
+      << "the update dialog was offered during a capture";
+  EXPECT_FALSE(bringup->isEnabled())
+      << "the bring-up wizard was offered during a capture";
+
+  controller.StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return !controller.capturing(); }));
+
+  EXPECT_TRUE(update->isEnabled());
+  EXPECT_TRUE(bringup->isEnabled());
+
+  controller.StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller.monitoring(); }));
+  std::filesystem::remove_all(directory);
+}
+
+// Monitoring writes nothing and costs nothing to restart, so it is put down
+// rather than refused — and picked up again afterwards, because somebody who
+// opened the window only to read the versions off it did not ask for their
+// monitoring session to end.
+//
+// Driven through the bring-up wizard because it is modeless: the update dialog
+// runs its own event loop, which a widget test cannot enter and return from
+// without a harness for closing modal windows. Both entries call the same two
+// methods.
+TEST_F(MainWindowTest, OpeningTheBringUpWizardPutsMonitoringDownAndBackUp) {
+  capture::FakeUsbDevice device;
+  CaptureController controller(&device, nullptr);
+  MainWindow window(&theme_controller_, &logger_, &controller);
+
+  device.SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
+                         UnremarkableProductString());
+  controller.Start();
+  ASSERT_TRUE(PumpUntil([&] { return !controller.devices().empty(); }));
+
+  controller.StartMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return controller.monitoring(); }));
+
+  EntryNamed(FirmwareMenu(window), QStringLiteral("Bring up"))->trigger();
+
+  BoardBringUpWizard* const wizard = window.findChild<BoardBringUpWizard*>();
+  ASSERT_NE(wizard, nullptr) << "the wizard did not open";
+  EXPECT_TRUE(PumpUntil([&] { return !controller.monitoring(); }))
+      << "the stream was still running with a wizard open that programs it";
+
+  wizard->close();
+  EXPECT_TRUE(PumpUntil([&] { return controller.monitoring(); }))
+      << "monitoring was not picked up again after the wizard closed";
+
+  controller.StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller.monitoring(); }));
+}
+
+// The other half of the same rule. StartMonitoring configures the device and
+// reports a failure modally when it cannot, so a device that has gone — or has
+// not finished restarting after an update — must not be opened again on the
+// way out. Nothing to restart is a state, not an error.
+TEST_F(MainWindowTest, MonitoringIsNotPickedUpAgainWithNoDeviceToOpen) {
+  capture::FakeUsbDevice device;
+  CaptureController controller(&device, nullptr);
+  MainWindow window(&theme_controller_, &logger_, &controller);
+
+  device.SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
+                         UnremarkableProductString());
+  controller.Start();
+  ASSERT_TRUE(PumpUntil([&] { return !controller.devices().empty(); }));
+
+  controller.StartMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return controller.monitoring(); }));
+
+  EntryNamed(FirmwareMenu(window), QStringLiteral("Bring up"))->trigger();
+  BoardBringUpWizard* const wizard = window.findChild<BoardBringUpWizard*>();
+  ASSERT_NE(wizard, nullptr);
+  ASSERT_TRUE(PumpUntil([&] { return !controller.monitoring(); }));
+
+  // The device goes while the wizard is up, which is what programming one
+  // looks like from here.
+  device.SetDevices({});
+  ASSERT_TRUE(PumpUntil([&] { return controller.devices().empty(); }));
+
+  wizard->close();
+  QApplication::processEvents();
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  QApplication::processEvents();
+
+  EXPECT_FALSE(controller.monitoring())
+      << "a stream was opened on a device that is not there";
 }
 
 }  // namespace

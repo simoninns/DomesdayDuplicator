@@ -32,7 +32,7 @@ Download one and put it somewhere you can find it again.
 
 ## Installing it
 
-1. Plug the Duplicator in. If a capture is running, stop it — the device will not update while it is capturing, and it will say so.
+1. Plug the Duplicator in. If a capture is running, stop it: the menu entry below is greyed out until you do, because the device will not update while it is capturing. Monitoring needs nothing from you — opening the window stops it, and closing the window starts it again.
 2. Open **Tools → Firmware → Update firmware…** and choose the **Update** tab.
 3. Press **Choose update file…** and pick the `.dddfw` file you downloaded.
 
@@ -98,7 +98,7 @@ Two things, and both matter more than they sound:
 - **Leave the device plugged in and powered.** Pulling the cable part way through is the one thing that makes this take longer than it needs to. It cannot break the unit — see below — but you will have to repair it before you can use it.
 - **Do not close the window.** If you try, it will explain why not and tell you when it will be safe. If you do want to stop, use the **Stop** button: that ends the update at a point where nothing has been committed, and your device carries on with the software it already had.
 
-Captures cannot run while an update is in progress, and an update cannot start while a capture is running. The two are kept apart by the device itself, not by the window asking you nicely.
+Captures cannot run while an update is in progress, and an update cannot start while a capture is running. The two are kept apart by the device itself, not by the window asking you nicely: the firmware refuses a start-capture request during an update, and refuses to begin an update while it is streaming. The window works with that rather than against it — it will not offer this entry during a capture, and it puts monitoring down while it is open.
 
 ### The lights on the board
 
