@@ -38,6 +38,8 @@ These components are described in more detail in the following sections:
 
 [Domesday Duplicator Software Guide](../development/software-guide.md) 
 
+Background on why a LaserDisc is captured as RF rather than as video is given in [Why not just use video capture?](digital-media-preservation.md), and a description of how a LaserDisc player works is given in [LaserDisc player description](laserdisc-player.md). 
+
 The reference laserdisc player for the Domesday Duplicator project is the Pioneer LD-V4300D (**note**: this is the **reference player** (for development and testing) used by the project - the Domesday Duplicator works with any LaserDisc player that has an available service manual).  Information about the reference player is available from the following link:
 
 [Pioneer LD-V4300D Overview](https://www.domesday86.com/?page_id=1176) 

@@ -21,8 +21,10 @@
 #include <QSettings>
 #include <QString>
 #include <QTabWidget>
+#include <QtTest/QTest>
 #include <algorithm>
 #include <chrono>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -274,6 +276,71 @@ TEST_F(PlayerRemoteDialogTest, ASeekSendsTheAddressThatWasTypedIn) {
   Find<QPushButton>(PlayerRemoteDialog::kSearchButtonName)->click();
 
   EXPECT_TRUE(Wrote("CH7SE\r"));
+}
+
+TEST_F(PlayerRemoteDialogTest, PressingEnterInAFieldDoesNotAlsoClickAButton) {
+  // The regression this exists for: a QLineEdit does not consume Return, so the
+  // key travelled on to the dialog, which clicked its default button. Nothing
+  // here is marked default, so Qt took the first autoDefault button in the
+  // focus chain — "Open tray". Pressing enter on a frame number sent the seek
+  // and then ejected the disc it had just gone looking for.
+  //
+  // Shown rather than merely built, because the default button is chosen when
+  // the dialog becomes visible; and driven with a real key event rather than by
+  // emitting returnPressed(), because the signal is not where the bug was.
+  ASSERT_TRUE(BuildConnected());
+  dialog_->show();
+  ASSERT_TRUE(PumpUntil([this] { return dialog_->isVisible(); }));
+
+  for (QPushButton* const button : dialog_->findChildren<QPushButton*>()) {
+    EXPECT_FALSE(button->isDefault()) << button->objectName().toStdString();
+    EXPECT_FALSE(button->autoDefault()) << button->objectName().toStdString();
+  }
+
+  auto* mode = Find<QComboBox>(PlayerRemoteDialog::kAddressModeComboName);
+  auto* address = Find<QLineEdit>(PlayerRemoteDialog::kAddressEditName);
+  ASSERT_NE(mode, nullptr);
+  ASSERT_NE(address, nullptr);
+
+  const int frame =
+      mode->findData(static_cast<int>(player::PlayerCommand::kSeekFrame));
+  ASSERT_GE(frame, 0);
+  mode->setCurrentIndex(frame);
+  address->setFocus();
+  address->setText(QStringLiteral("20000"));
+
+  QTest::keyClick(address, Qt::Key_Return);
+  ASSERT_TRUE(Wrote("FR20000SE\r"));
+
+  // The tray commands, by name, because those are the two that move a disc
+  // nobody asked to have moved. Read after the seek has been seen, so the
+  // exchange being asserted about has actually happened.
+  for (const std::string& sent : port_.writes()) {
+    EXPECT_NE(sent, "OP") << "pressing enter on a frame number opened the tray";
+    EXPECT_NE(sent, "RJ")
+        << "pressing enter on a frame number rejected the disc";
+  }
+}
+
+TEST_F(PlayerRemoteDialogTest, PressingEnterInTheManualFieldSendsOnlyThat) {
+  // The same hazard on the other typed-into field, and the reason the fix is
+  // applied to every button rather than to the tray's.
+  ASSERT_TRUE(BuildConnected());
+  dialog_->show();
+  ASSERT_TRUE(PumpUntil([this] { return dialog_->isVisible(); }));
+
+  auto* manual = Find<QLineEdit>(PlayerRemoteDialog::kManualEditName);
+  ASSERT_NE(manual, nullptr);
+  manual->setFocus();
+  manual->setText(QStringLiteral("?F"));
+
+  QTest::keyClick(manual, Qt::Key_Return);
+  ASSERT_TRUE(Wrote("?F\r"));
+
+  for (const std::string& sent : port_.writes()) {
+    EXPECT_NE(sent, "OP");
+    EXPECT_NE(sent, "RJ");
+  }
 }
 
 TEST_F(PlayerRemoteDialogTest, AnEntryThatIsNotAnAddressIsNotSentAtAll) {

@@ -125,6 +125,29 @@ PlayerRemoteDialog::PlayerRemoteDialog(PlayerController* controller,
   connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::close);
   layout->addWidget(buttons);
 
+  // Every push button in this window gives up Qt's autoDefault, and that is a
+  // safety property rather than a cosmetic one.
+  //
+  // A QLineEdit does not consume Return. It emits returnPressed() and lets the
+  // key carry on to the dialog, which clicks whichever button it holds as its
+  // default — and with nothing marked default, Qt takes the first autoDefault
+  // button in the focus chain, which here is the first one built: "Open tray".
+  // So pressing Return in the "Go to" field sent the seek *and* opened the
+  // tray. A user who typed a frame number and pressed enter had their disc
+  // ejected out from under the search they had just asked for.
+  //
+  // Nothing in this application opens a tray on its own initiative — see the
+  // note on PlayerCommand::kTrayOpen, which is the whole reason that button
+  // exists only here, where a person presses it. A stray key press is not a
+  // person pressing it. Done over every button rather than that one because
+  // the next button added to this window must not reintroduce it, and because
+  // "Reject" — the button after next in the chain — spins somebody's disc down
+  // and is no better a thing to do by accident.
+  for (QPushButton* const button : findChildren<QPushButton*>()) {
+    button->setAutoDefault(false);
+    button->setDefault(false);
+  }
+
   if (controller_ != nullptr) {
     connect(controller_, &PlayerController::ConnectionChanged, this,
             &PlayerRemoteDialog::SetConnection);

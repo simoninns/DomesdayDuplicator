@@ -4,6 +4,10 @@ The window is a frame around six panels. There is no fixed layout: every panel c
 moved, resized, closed, or dragged out into a window of its own, and where you leave them is
 where they are next time.
 
+![The main window in its default arrangement: Capture and Statistics on the left, Waveform,
+Spectrum and Amplitude History on the right, and the Log panel shown at the
+bottom](assets/main-window.png)
+
 ## The panels
 
 | Panel | What it is for | Where it starts |

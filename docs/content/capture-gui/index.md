@@ -42,6 +42,18 @@ what each one is for.
 | [Updating your Duplicator](updating-your-domesday-duplicator.md) | Installing firmware and gateware into the device |
 | [Command line](command-line.md) | The options the application accepts, and the scriptable analysis |
 
+## Getting the device programmed, and what to do when something is wrong
+
+The application also installs the software that runs inside the Duplicator, and names every
+failure it can see rather than leaving you to guess.
+
+| | When you want it |
+| --- | --- |
+| [Updating your Duplicator](updating-your-domesday-duplicator.md) | The routine case: a newer firmware or gateware release onto a board that already works. One file, one button, no case opened |
+| [Bringing up a new or legacy board](bringing-up-a-board.md) | A newly built board, or one running firmware from before this application existed. Needs the case off and a second cable |
+| [If an update fails](if-an-update-fails.md) | An update that stopped part way. The device is not damaged, and the repair is a single button |
+| [If a capture fails](if-a-capture-fails.md) | A capture that stopped for a reason, and the cases where nothing failed but nothing works either |
+
 ## Monitoring and capturing are different things
 
 This is the one idea worth knowing before anything else.

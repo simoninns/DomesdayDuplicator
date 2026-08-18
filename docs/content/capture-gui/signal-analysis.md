@@ -199,6 +199,9 @@ the strongest one.
 The same measurement over time: frequency up the side, time running left to right over a
 fixed window labelled in seconds, level as colour.
 
+![The Spectrum panel in spectrogram mode, a minute of signal running right to left with
+frequency up the side and level as colour](assets/main-window-spectrogram.png)
+
 This is what makes a **drifting carrier** or an **intermittent interferer** visible at all —
 neither is distinguishable from ordinary noise on a live trace, because by the time you have
 looked away and back the trace has moved on.

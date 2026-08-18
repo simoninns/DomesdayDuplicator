@@ -108,6 +108,9 @@ what it is doing, where it is — stays in view whatever else you are looking at
 the one thing every part of this window wants. Below it, four tabs, in the order they are
 wanted:
 
+![The player window on its Control tab: the status line across the top, then Transport, Go
+to, and Display and audio](assets/player-window.png)
+
 | Tab | What is on it |
 | --- | --- |
 | **Control** | Transport, go to, display and audio, and the front-panel key lock. The remote you actually use |
@@ -222,6 +225,9 @@ forty-minute capture that is an expensive slip.
 The examination starts by itself when you arrive here, because choosing an automatic capture
 has already said what should happen first. It reports what it found, and **Examine again** is
 there for when you have changed the disc.
+
+![The first page of the Automatic capture window: the examination report, the capture name,
+and the naming fields prefilled from what was found](assets/automatic-capture.png)
 
 Below the report, two blocks. **What it will be called** is the capture name, prefilled and
 resolved against the folder you are writing to, so the suggestion is never a name the file
