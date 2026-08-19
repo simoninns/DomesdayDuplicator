@@ -108,6 +108,8 @@ design the FX3 ↔ FPGA and USB protocols for `ddd-gui/` alone.
 │   ├── dev-bundle.sh          # the developer loop's wrapper around it
 │   ├── fetch-bundled-update.sh  # the packaging jobs' fetch-by-digest of the
 │   │                          # update bundle an installer carries
+│   ├── blank-board.sh         # erase a bench board's EEPROM and configuration
+│   │                          # flash, for the bring-up items of TESTING.md §6
 │   ├── keys/                  # the development signing keypair — the secret half is
 │   │                          # committed deliberately, see §5.5. release.pub joins it
 │   │                          # when a release key is generated; the secret never does
