@@ -138,6 +138,13 @@ offer, and its answers are what a new model definition gets written from.
     the Pioneer code is not a query. The player searches to the lead-in to answer it, which
     on an LD-V4300D takes about eleven seconds and leaves the disc parked at the start.
 
+!!! warning "The disc must be playing to read either code"
+    A stopped player refuses both user-code requests, and it refuses them in the same words
+    it uses for a disc that carries no code at all — so a refusal on a parked disc reads
+    like a finding about the disc, and is not one. Play the disc and ask again before
+    concluding that a code is absent. The [examination](#examining-a-disc)
+    spins the disc up first for this reason; the buttons in the player window do not.
+
 ## Two ways to take a capture
 
 A connected player does not change how a capture is taken; it adds a second way of taking

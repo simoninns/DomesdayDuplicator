@@ -677,6 +677,49 @@ QString FormatByteDump(const QByteArray& bytes, qsizetype first_offset) {
   return dump;
 }
 
+namespace {
+
+// Whether a reply to a user-code query is a refusal rather than a reading.
+//
+// Two shapes, because the players produce both: on some models the error code
+// arrives as an ordinary text reply — a user code may contain an 'E', so text
+// replies are deliberately not put through the error convention — and on
+// others as a refusal.
+bool IsUserCodeRefusal(const PlayerReply& reply) {
+  if (reply.status == player::ReplyStatus::kRefused) {
+    return true;
+  }
+  return reply.ok() && player::IsErrorCode(reply.text.toStdString());
+}
+
+// What a refused user-code query means, which is not only what the manuals say
+// it means.
+//
+// Both readings are worth giving, because both have been seen on this project's
+// bench with the same command: a disc spinning at frame one that simply has no
+// user code, and a disc whose codes read perfectly while it is playing but
+// which answers this way with the player stopped. Given only "the player
+// refused", somebody has no way to tell those apart, and the wrong one of them
+// is a conclusion about the disc.
+QString UserCodeRefusalNote(bool pioneer) {
+  if (pioneer) {
+    return QObject::tr(
+        "The disc must be playing for this to work. Pioneer documents this "
+        "answer as meaning the disc carries no Pioneer User's Code, but a "
+        "player that cannot reach the lead-in from where it is — one that is "
+        "stopped rather than spinning — answers the same way, so try again "
+        "with the disc playing before concluding the disc has none.");
+  }
+
+  return QObject::tr(
+      "The disc must be playing for this to work. This answer is documented as "
+      "meaning the disc carries no user code, but a stopped player answers the "
+      "same way whatever the disc carries, so try again with the disc playing "
+      "before concluding the disc has none.");
+}
+
+}  // namespace
+
 QString PioneerUserCodeReport(const PlayerReply& reply) {
   QStringList lines;
   lines.append(PlayerReplyText(reply));
@@ -685,19 +728,9 @@ QString PioneerUserCodeReport(const PlayerReply& reply) {
 
   // An error code is not a short user code, and splitting one into three
   // regions would be inventing a reading of it.
-  if (player::IsErrorCode(reply.text.toStdString())) {
+  if (IsUserCodeRefusal(reply)) {
     lines.append(QString());
-
-    // Both readings are worth giving, because both have been seen on this
-    // project's bench with the same command: a CAV disc spinning at frame one
-    // that simply has no user code, and a disc that reads perfectly when
-    // spinning but answers this way when parked.
-    lines.append(QObject::tr(
-        "Pioneer documents this as meaning the disc carries no Pioneer User's "
-        "Code. A player that cannot reach the lead-in from where it is — one "
-        "that is stopped rather than spinning — answers the same way, so it is "
-        "worth trying again with the disc playing before concluding the disc "
-        "has none."));
+    lines.append(UserCodeRefusalNote(true));
     return lines.join(QLatin1Char('\n'));
   }
 
@@ -798,6 +831,17 @@ QString PlayerReplyReport(const PlayerReply& reply) {
 
   QStringList lines;
   lines.append(PlayerReplyText(reply));
+
+  // The standard code is read off the disc just as the Pioneer one is, and a
+  // stopped player refuses it for the same reason — so a bare "the player
+  // refused" would be read as "this disc has no user code" here too.
+  if (reply.request.kind == PlayerRequest::Kind::kCommand &&
+      reply.request.command == player::PlayerCommand::kQueryStandardUserCode &&
+      IsUserCodeRefusal(reply)) {
+    lines.append(QString());
+    lines.append(UserCodeRefusalNote(false));
+    return lines.join(QLatin1Char('\n'));
+  }
 
   // Latin-1 throughout: this is what the worker decoded the payload with, and
   // it round-trips every byte the player sent.

@@ -536,6 +536,51 @@ TEST(PlayerTextTest, ARefusedUserCodeIsNotDressedUpAsAReading) {
   EXPECT_TRUE(
       report.contains(QStringLiteral("carries no Pioneer User's Code")));
   EXPECT_TRUE(report.contains(QStringLiteral("with the disc playing")));
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("disc must be playing for this to work")));
+}
+
+TEST(PlayerTextTest, ARefusedStandardUserCodeSaysTheDiscMustBePlaying) {
+  // The same finding as above, on the other code: a stopped player refuses this
+  // one too, and the reading somebody takes from a bare "refused" is that the
+  // disc has no code — which on this project's bench was wrong, because both
+  // codes read once the disc was playing.
+  PlayerReply reply;
+  reply.request = CommandRequest(player::PlayerCommand::kQueryStandardUserCode);
+  reply.sent = QStringLiteral("$Y");
+  reply.status = player::ReplyStatus::kOk;
+  reply.text = QStringLiteral("E04");
+
+  const QString report = PlayerReplyReport(reply);
+  EXPECT_TRUE(report.contains(QStringLiteral("refused")));
+  EXPECT_TRUE(
+      report.contains(QStringLiteral("disc must be playing for this to work")));
+  EXPECT_TRUE(report.contains(QStringLiteral("with the disc playing")));
+}
+
+TEST(PlayerTextTest, AUserCodeRefusedOutrightIsNotedTheSameWay) {
+  // A refusal that arrives as a refusal rather than as an error code in a text
+  // reply. Both shapes have been seen, and the reading to correct is the same
+  // either way.
+  PlayerReply pioneer;
+  pioneer.request =
+      CommandRequest(player::PlayerCommand::kQueryPioneerUserCode);
+  pioneer.sent = QStringLiteral("?U");
+  pioneer.status = player::ReplyStatus::kRefused;
+  pioneer.error_code = QStringLiteral("E04");
+
+  EXPECT_TRUE(PlayerReplyReport(pioneer).contains(
+      QStringLiteral("disc must be playing for this to work")));
+
+  PlayerReply standard;
+  standard.request =
+      CommandRequest(player::PlayerCommand::kQueryStandardUserCode);
+  standard.sent = QStringLiteral("$Y");
+  standard.status = player::ReplyStatus::kRefused;
+  standard.error_code = QStringLiteral("E04");
+
+  EXPECT_TRUE(PlayerReplyReport(standard).contains(
+      QStringLiteral("disc must be playing for this to work")));
 }
 
 TEST(PlayerTextTest, TheUnreadableCharacterIsSaidToBeThePlayersAndNotOurs) {
