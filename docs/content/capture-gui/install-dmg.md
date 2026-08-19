@@ -3,8 +3,10 @@
 The macOS package is a disk image containing the application bundle, with Qt, libFLAC and
 libusb bundled inside it.
 
-Built for Apple Silicon (arm64). Intel Macs are not covered by a released package; build
-[from source](../development/building-locally.md) instead.
+**Apple Silicon (arm64) only.** Intel Macs are not supported, and no package is built for
+them. The application is built and tested against Apple Silicon alone; on an Intel Mac you
+would have to build [from source](../development/building-locally.md), and nothing about
+that path is tested.
 
 ## Install
 

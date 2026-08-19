@@ -41,9 +41,10 @@ device access. That step is the one that catches people out, and it is different
 platform:
 
 - **Linux** — [Flatpak](install-flatpak.md), plus **udev rules on the host**
-- **macOS** — [DMG](install-dmg.md); nothing else to do, macOS lets the application claim
-  the device on its own
-- **Windows** — [MSI](install-msi.md), plus **binding the WinUSB driver with Zadig**
+- **macOS (Apple Silicon)** — [DMG](install-dmg.md); nothing else to do, macOS lets the
+  application claim the device on its own. Intel Macs are not supported
+- **Windows 11** — [MSI](install-msi.md), plus **binding the WinUSB driver with Zadig**.
+  Windows 10 and earlier are not supported
 
 ## 2. Plug the Duplicator in
 

@@ -3,6 +3,11 @@
 The Windows package is a standard MSI installer carrying the application, the Qt runtime,
 libFLAC and libusb.
 
+**Windows 11 (64-bit) only.** Windows 10 and earlier — including Windows 8, 7 and XP — are
+not supported, and no package is built for them. The application is built and tested against
+Windows 11 alone; an older release may install, but nothing about it is tested and problems
+on it are not something the project can act on.
+
 ## Install
 
 Download `DomesdayDuplicator-<version>-windows-x64.msi` from the
