@@ -50,17 +50,30 @@ Stated plainly, because a workflow that downloads an unfree toolchain should not
 
 Triggered by a `fw-v*` tag. It calls the bitstream workflow with the tag as its ref — rather than repeating it — builds the firmware and the programmer from the same tag, and then assembles the release:
 
+**Four assets, not fifteen.** A release page whose first screen is a dozen files nobody needs is a release page that hides the one file everybody does.
+
 | Asset | What it is for |
 | --- | --- |
-| `domesday-duplicator-update-<ver>.dddfw` | **the bundle**, and the only signed asset. Four payloads: the firmware and application gateware a working device installs over USB, plus the JTAG vectors and factory image a bring-up needs on top |
+| `domesday-duplicator-update-<ver>.dddfw` | **the bundle**, the only signed asset, and the only file needed to use a Duplicator. Four payloads: the firmware and application gateware a working device installs over USB, plus the JTAG vectors and factory image a bring-up needs on top |
+| `SHA256SUMS` | one digest per file, including every file inside the zip |
+| `PROVENANCE.txt` | what built this release, and with which toolchains |
+| `bench-material-<ver>.zip` | everything below, for JTAG work and inspection |
+
+Inside the zip:
+
+| File | What it is for |
+| --- | --- |
 | `firmware.img` / `.elf` / `.map` | the FX3 image and its debug companions |
 | `fx3-programmer-<ver>-linux-x64` | bench recovery over the USB bootloader |
 | `DomesdayDuplicatorProvisioning.jic` / `.map` | first provisioning of a new board over JTAG: both gateware images |
 | `DomesdayDuplicatorFactoryConfigure.svf` | the factory image as JTAG vectors — what `ddd-jtag` and the bring-up wizard play |
 | `DomesdayDuplicator_auto.rpd`, `boot-block.bin` | the raw application image and its boot block, published for inspection |
-| `DomesdayDuplicatorFactory.sof` | the factory image, for bench JTAG configuration |
+| `DomesdayDuplicatorFactory.sof` / `DomesdayDuplicatorFactory_auto.rpd` | the factory image, for bench JTAG configuration and for inspection |
 | `bitstream-provenance.txt` | Quartus version and per-artefact digests, release and canonical |
-| `SHA256SUMS`, `PROVENANCE.txt` | one manifest over every asset, and what built them |
+
+**The bundle stays loose and the bench material is zipped**, and the asymmetry is deliberate. An unsigned wrapper around material nothing trusts costs nothing; an unsigned wrapper around the one *signed* artefact would put unauthenticated metadata beside it, and put a zip parser in front of a signature check. The `.dddfw` is one click, as it was.
+
+Two ordering constraints follow, and both are load-bearing rather than tidy: `SHA256SUMS` must be generated over the individual files **before** the zip is made, because the reproducibility audit looks digests up by asset name; and `PROVENANCE.txt` reads `bitstream-provenance.txt`, so it must be written before that file moves inside. Get either backwards and the audit compares empty strings.
 
 Three gates stand between the build and the published release, and each of them has failed for real reasons in this project's history:
 
@@ -227,6 +240,7 @@ gh release view fw-v1.4.0
 
 mkdir -p /tmp/fw-check && cd /tmp/fw-check
 gh release download fw-v1.4.0
+unzip -o bench-material-*.zip     # SHA256SUMS names what is inside it
 sha256sum -c SHA256SUMS
 
 tar -xf domesday-duplicator-update-1.4.0.dddfw manifest.json manifest.minisig

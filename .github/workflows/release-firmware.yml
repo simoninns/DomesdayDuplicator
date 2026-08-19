@@ -10,36 +10,36 @@
 # tag, this workflow assembles and signs the update bundle from those exact bytes, and the
 # maintainer's release act is: tag.
 #
-# What a complete fw-v* release carries:
+# What a complete fw-v* release carries — four assets, not fifteen:
 #
-#   domesday-duplicator-update-<ver>.dddfw          CI — the signed bundle, and the only
-#                                                   file the application installs from.
-#                                                   Four payloads: the firmware and the
-#                                                   application gateware an ordinary update
-#                                                   writes, plus the JTAG vectors and the
-#                                                   factory image a bring-up needs on top
-#   firmware.img / firmware.elf / firmware.map      CI (nix build .#fx3-firmware)
-#   fx3-programmer-<ver>-linux-x64                  CI (nix build .#fx3-programmer)
-#   DomesdayDuplicatorProvisioning.jic              CI (nix build .#bitstream) — bench
-#                                                   provisioning of a new board, both images
-#   DomesdayDuplicatorProvisioning.svf              CI — the same, as JTAG vectors: what
-#                                                   ddd-jtag and the bring-up set play
-#   DomesdayDuplicator_auto.rpd                     CI — the raw application image; also
-#                                                   inside the bundle, published for
-#                                                   inspection
-#   DomesdayDuplicatorFactory.sof / .map / boot-block.bin
-#                                                   CI — the rest of the bench material
-#   bitstream-provenance.txt                        CI — Quartus version, digests, both
-#                                                   release and canonical
-#   SHA256SUMS / PROVENANCE.txt                     CI
+#   domesday-duplicator-update-<ver>.dddfw          the signed bundle, and the only file
+#                                                   anybody needs to use a Duplicator
+#   SHA256SUMS                                      digests, of the zip's contents as well
+#   PROVENANCE.txt                                  how this release was built
+#   bench-material-<ver>.zip                        everything else, for JTAG and inspection
+#
+# The zip holds what used to be twelve separate assets: firmware.img / .elf / .map,
+# fx3-programmer-<ver>-linux-x64, DomesdayDuplicatorProvisioning.jic / .map,
+# boot-block.bin, DomesdayDuplicator_auto.rpd, DomesdayDuplicatorFactory.sof /
+# DomesdayDuplicatorFactory_auto.rpd, DomesdayDuplicatorFactoryConfigure.svf, and
+# bitstream-provenance.txt.
 #
 # **One .dddfw**, and it is the only asset the application installs from and the only signed
 # one: the manifest carries every payload's SHA-256 and is signed with the release key, so
 # the application can prove what it is about to write before it writes it. One file serves
 # both consumers — the update window installs the two components it knows and ignores the
 # rest, and the bring-up wizard requires all four — which is why there is no second bundle
-# kind to keep in step. The other assets are for bench work and for inspection, and
-# SHA256SUMS covers them.
+# kind to keep in step. The other assets are for bench work and for inspection.
+#
+# The bundle stays loose and the bench material is zipped, and the asymmetry is the point.
+# An unsigned wrapper around material nothing trusts costs nothing. An unsigned wrapper
+# around the one signed artefact would put unauthenticated metadata beside it and invite
+# something to read that metadata before the signature had been checked. The .dddfw is
+# first on the page and one click away.
+#
+# SHA256SUMS still names every file inside the zip individually, and that is load-bearing
+# rather than incidental: reproducibility-audit.yml looks digests up by asset name. See the
+# ordering note on the packing step below.
 #
 # Key custody: the release secret key is the repository secret UPDATE_SIGNING_KEY, generated
 # with `minisign -G -W` (no passphrase, because a passphrase in a second secret protects
@@ -368,6 +368,16 @@ jobs:
           cat "${work}/manifest.json" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
+      # Before anything is zipped, and that ordering is load-bearing in two directions.
+      #
+      # SHA256SUMS has to name every bench file individually, because the weekly
+      # reproducibility audit looks digests up by asset name — published_digest() in
+      # reproducibility-audit.yml greps this file for "firmware.img" and the rest. Pack
+      # first and every one of those lookups returns an empty string, which the audit does
+      # report as a failure, but only after the comparison has stopped meaning anything.
+      #
+      # PROVENANCE.txt reads bitstream-provenance.txt to name the Quartus version, so it
+      # needs that file loose as well.
       - name: Generate SHA256SUMS and PROVENANCE.txt
         shell: bash
         run: |
@@ -420,12 +430,65 @@ jobs:
             fails loudly if a digest has drifted. The .sof files carry a compile timestamp,
             which is why they have a canonical digest as well as a release one.
 
+          What is published
+            domesday-duplicator-update-${TAG#fw-v}.dddfw is the only file needed to use a
+            Duplicator. bench-material-${TAG#fw-v}.zip holds everything else — the FX3 image
+            and its debug companions, the FX3 programmer, the JTAG provisioning images and
+            vectors, the raw gateware images, and bitstream-provenance.txt. SHA256SUMS names
+            every one of those files individually, so unzipping and running sha256sum -c
+            against it checks the lot.
+
           Notes
             This release contains firmware and gateware only. The capture application is
             released separately under gui-v* tags.
           EOF
 
           cat PROVENANCE.txt
+
+      # Twelve assets become one, and the release page becomes readable. Everything here is
+      # bench and inspection material: nothing in docs/content/ tells a user to download any
+      # of it, and a bring-up does not either — bringing-up-a-board.md says a packaged
+      # install already carries the bundle it needs and that "nothing about this procedure
+      # needs a network".
+      #
+      # Runs after SHA256SUMS and PROVENANCE.txt for the reasons on that step.
+      - name: Pack the bench material
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#fw-v}"
+          cd release-artifacts
+
+          ZIP="bench-material-${VERSION}.zip"
+
+          # Named by exclusion rather than by a list: a new bench artefact then joins the
+          # zip by existing, rather than by somebody remembering to add it here. The three
+          # exclusions are the files that stay loose, and each is loose for its own reason —
+          # the bundle because it is what people come for, SHA256SUMS and PROVENANCE.txt
+          # because they describe the release and are useless inside it.
+          BENCH=()
+          for file in *; do
+            case "${file}" in
+              *.dddfw | SHA256SUMS | PROVENANCE.txt | "${ZIP}") continue ;;
+            esac
+            BENCH+=("${file}")
+          done
+          if [[ "${#BENCH[@]}" -eq 0 ]]; then
+            echo "No bench material to pack — the collection step produced nothing" >&2
+            exit 1
+          fi
+          printf 'packing %s\n' "${BENCH[@]}"
+
+          zip -X -9 "${ZIP}" "${BENCH[@]}"
+          rm -- "${BENCH[@]}"
+
+          # Appended rather than regenerated: the lines already in SHA256SUMS name the files
+          # that are now inside this zip, and those are the ones the audit reads.
+          sha256sum "${ZIP}" >> SHA256SUMS
+
+          echo "== Published assets =="
+          ls -la
 
       - name: Publish
         uses: softprops/action-gh-release@v2
@@ -443,6 +506,10 @@ jobs:
           body: |
             FX3 firmware, FPGA gateware and the FX3 programmer for the Domesday Duplicator.
 
+            **The `.dddfw` is the only file you need.** The zip is bench material — JTAG
+            images, debug companions and provenance records — and you can ignore it unless
+            you are programming a bare board or inspecting a build.
+
             **Updating an existing Duplicator**: download the
             `domesday-duplicator-update-*.dddfw` file and open it from the capture
             application — *Tools ▸ Firmware ▸ Update firmware…*.
@@ -452,11 +519,11 @@ jobs:
             already carry a copy, so downloading it is only needed when yours does not or
             when this release is newer than the one it carries.
 
-            Everything else attached here is for bench work or for inspection.
-
-            Every asset was built by CI from this tag. `SHA256SUMS` covers all of them,
-            `PROVENANCE.txt` records the toolchains, and `bitstream-provenance.txt` carries
-            the gateware digests in both release and canonical form so a rebuild can be
-            compared against them.
+            Every asset was built by CI from this tag. `SHA256SUMS` names every file
+            individually, including the ones inside the zip, so unzipping and running
+            `sha256sum -c SHA256SUMS` checks the lot. `PROVENANCE.txt` records the
+            toolchains, and `bitstream-provenance.txt` inside the zip carries the gateware
+            digests in both release and canonical form so a rebuild can be compared against
+            them.
 
             **The capture application releases separately**, under `gui-v*` tags.
