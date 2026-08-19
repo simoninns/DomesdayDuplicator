@@ -117,7 +117,18 @@ TEST_F(SysfsFixture, EveryPersonalityIsRecognisedAndNothingElseIs) {
 // identifier files is not a device as far as this is concerned.
 TEST_F(SysfsFixture, EntriesThatAreNotDevicesAreSkipped) {
   AddDevice("1-1", Hex(kVendorId), Hex(kProductId));
+
+  // The kernel names interfaces "1-1:1.0", and that is the name used where
+  // the filesystem allows it. Windows reserves the colon for alternate data
+  // streams, so creating that directory throws there and failed every MSI
+  // build; the stand-in below is the same thing to the code under test, which
+  // only ever asks whether the identifier files can be read.
+#ifdef _WIN32
+  AddInterface("1-1_1.0");
+#else
   AddInterface("1-1:1.0");
+#endif
+
   Write(root_ / "usb1", "not a directory at all");
 
   const std::optional<std::vector<UsbIdentity>> found =
