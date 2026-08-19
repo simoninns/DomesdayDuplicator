@@ -107,10 +107,10 @@ And the FPGA row:
 | Row says | Meaning | Mark |
 | --- | --- | --- |
 | *Found and opened* | The USB-Blaster is reachable | Green |
-| *Nothing found* | Nearly always a charge-only cable. On Linux, check `70-altera-usb-blaster.rules` is installed — see [Linux device access](../development/hardware-programming/linux-device-access.md) | Red |
+| *Nothing found* | Nearly always a charge-only cable. On Linux, check `70-domesday-duplicator.rules` is installed — see [Linux device access](../development/hardware-programming/linux-device-access.md) | Red |
 | *attached but could not be opened* | Something else has it. Quartus's own `jtagd` holds the cable open whenever it is running; on Windows it is the driver binding | Red |
 
-**Bring-up needs both device rules files installed on Linux** — the Duplicator's and the USB-Blaster's.
+**Bring-up needs the device rules installed on Linux.** One file, `70-domesday-duplicator.rules`, covers both the Duplicator and the USB-Blaster.
 
 ### 3 · The update file
 

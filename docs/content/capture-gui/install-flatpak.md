@@ -34,13 +34,25 @@ device simply not being found.
 Install the rules once, on the host:
 
 ```bash
-sudo curl -o /etc/udev/rules.d/99-domesdayduplicator.rules \
+sudo curl -o /etc/udev/rules.d/70-domesday-duplicator.rules \
   https://raw.githubusercontent.com/simoninns/DomesdayDuplicator/main/fx3/programmer/configs/70-domesday-duplicator.rules
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
 Then unplug and replug the device.
+
+!!! warning "Keep the `70-` filename"
+
+    It sorts before `73-seat-late.rules`, which is the file that acts on the `uaccess` tag
+    the rules set. Save it under a name sorting after that and the tag is set with nothing
+    left to read it, leaving only the rules' `MODE="0666"` fallback doing any work.
+
+One file is all you need. It covers the capture device, the FX3 in its recovery identities,
+the debug UART, **and the FPGA's USB-Blaster** — the JTAG cable used to reprogram a board
+that an update has left unresponsive. You almost certainly will not need that last one, but
+the day you do you will not want to be diagnosing a permissions failure first, so it is
+included here rather than in a separate step you would have skipped.
 
 On NixOS, use the module the repository ships instead:
 
@@ -126,7 +138,7 @@ flatpak uninstall --user io.github.simoninns.DddGui
 ```
 
 The udev rules are separate and stay behind; remove
-`/etc/udev/rules.d/99-domesdayduplicator.rules` if you want them gone too.
+`/etc/udev/rules.d/70-domesday-duplicator.rules` if you want them gone too.
 
 ## First time through
 

@@ -101,7 +101,7 @@ If the Firmware window does not list your device on Windows even though it is pl
 3. Pick the device shown as `WestBridge` with the identifiers `04B4` and `00F3`.
 4. Choose **WinUSB** as the driver and press **Install Driver**.
 
-That is a once-per-machine step, and it is the same thing Windows does automatically for a working Duplicator. Linux and macOS need nothing: on Linux the project's udev rules already cover the recovery identifiers, and macOS binds nothing at all.
+That is a once-per-machine step, and it is the same thing Windows does automatically for a working Duplicator. Linux and macOS need nothing: on Linux the project's udev rules already cover the recovery identifiers — and the USB-Blaster, so the JTAG route out of this is open too — and macOS binds nothing at all.
 
 ## If none of this reaches it
 

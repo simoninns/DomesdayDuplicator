@@ -332,6 +332,6 @@ USB-Blaster talks to the FPGA directly. If a bad image reaches the flash, progra
 ## Related
 
 - [FX3 firmware](fx3-firmware.md) — the other half, and it must be kept in step with this one
-- [Linux device access](linux-device-access.md) — the USB-Blaster needs a udev rule, the same
-  as the FX3 does
+- [Linux device access](linux-device-access.md) — the USB-Blaster needs a udev rule, and it is
+  in the same file as the FX3's
 - [Software guide](../software-guide.md) — what each Verilog module does

@@ -171,8 +171,9 @@ linking it into a GPLv3 application is fine.
 
 On Linux the device needs a udev rule before a non-root user can open it — without one,
 enumeration finds the device but opening it fails. See
-the rule shipped with the FX3 programmer,
+the rules shipped with the FX3 programmer,
 [`fx3/programmer/configs/70-domesday-duplicator.rules`](../fx3/programmer/configs/70-domesday-duplicator.rules).
+That one file also covers the FPGA's USB-Blaster, which the bring-up wizard drives.
 
 The **serial port** for player control is a separate permission and has no rule shipped with
 it: a USB serial adapter is third-party hardware, so on Linux this is group membership

@@ -309,9 +309,9 @@ BringUpStatusRow BringUpFpgaRow(bool opened, capture::UsbPresence presence,
             ? Translate(
                   "A USB-Blaster is attached but could not be opened. On Linux "
                   "this is the udev rules "
-                  "(fpga/configs/70-altera-usb-blaster.rules); on Windows it "
-                  "is the driver binding. Quartus's own jtagd holds the cable "
-                  "open whenever it is running.")
+                  "(fx3/programmer/configs/70-domesday-duplicator.rules); on "
+                  "Windows it is the driver binding. Quartus's own jtagd holds "
+                  "the cable open whenever it is running.")
             : problem;
     return row;
   }

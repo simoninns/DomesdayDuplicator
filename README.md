@@ -144,8 +144,8 @@ in the gateware's project directories in particular, Quartus rewrites the tracke
 every compile.
 
 On NixOS, device permissions come from the flake's module — set
-`hardware.domesdayDuplicator.enable = true;` (and `.usbBlaster = true;` for on-board JTAG
-programming). Elsewhere, see
+`hardware.domesdayDuplicator.enable = true;`, which covers the Duplicator, the FX3 and the
+on-board USB-Blaster together. Elsewhere, see
 [Linux device access](https://simoninns.github.io/DomesdayDuplicator/development/hardware-programming/linux-device-access/).
 
 [AGENTS.md](AGENTS.md) records the project conventions and [TESTING.md](TESTING.md) the test

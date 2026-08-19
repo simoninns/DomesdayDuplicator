@@ -205,8 +205,9 @@ quartus_pgm DomesdayDuplicator_write_sof.cdf     # volatile, lost on power cycle
 quartus_pgm DomesdayDuplicator_write_jic.cdf     # permanent, writes EPCS64 flash
 ```
 
-The USB-Blaster needs its own udev rules; [FPGA bitstream](hardware-programming/fpga-bitstream.md)
-covers those and the programming procedure in full.
+The USB-Blaster needs udev rules — the same `70-domesday-duplicator.rules` that covers the
+Duplicator itself; [FPGA bitstream](hardware-programming/fpga-bitstream.md) covers those and
+the programming procedure in full.
 
 For a release build rather than an iteration, use the derivation instead — it pins the
 toolchain and builds in a sandbox:

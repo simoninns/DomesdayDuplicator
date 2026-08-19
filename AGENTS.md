@@ -130,7 +130,6 @@ design the FX3 ↔ FPGA and USB protocols for `ddd-gui/` alone.
 │   │                          # device primitives the free tools cannot simulate
 │   ├── provisioning/          # the conversion that puts both images in one .jic
 │   ├── tests/                 # testbenches, lint, style, simulation and SDC runners
-│   ├── configs/               # USB-Blaster udev rules
 │   ├── verilator-waivers.vlt  # lint waivers, each with its reason
 │   ├── bitstream-provenance.py
 │   ├── make-boot-block.py     # the boot block the factory image reads at power-on
@@ -153,6 +152,7 @@ design the FX3 ↔ FPGA and USB protocols for `ddd-gui/` alone.
 │   │   ├── src/
 │   │   └── tests/
 │   ├── programmer/
+│   │   ├── configs/           # the udev rules: Duplicator, FX3 and USB-Blaster
 │   │   └── src/
 │   └── sdk/                   # vendored Cypress FX3 SDK 1.3.5
 ├── graphics/                  # logos and screenshots used by READMEs
