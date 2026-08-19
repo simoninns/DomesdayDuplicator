@@ -410,6 +410,37 @@ class LibUsbDevice : public IUsbDevice {
     return true;
   }
 
+  bool SetCollecting(const std::string& path, bool collecting) override {
+    const Lease lease = Borrow();
+
+    libusb_device_handle* handle = nullptr;
+    if (!Open(lease.context, path, DeviceSelection::kCaptureCapable, handle,
+              nullptr)) {
+      return false;
+    }
+
+    bool claimed = libusb_claim_interface(handle, kInterfaceNumber) == 0;
+    const int sent =
+        libusb_control_transfer(handle, kVendorRequestType, kCollectionRequest,
+                                collecting ? kCollectionStart : kCollectionStop,
+                                0, nullptr, 0, kControlTimeoutMilliseconds);
+
+    if (claimed) {
+      libusb_release_interface(handle, kInterfaceNumber);
+    }
+    libusb_close(handle);
+
+    if (sent < 0) {
+      if (logger_ != nullptr) {
+        logger_->Error(std::string("Telling the device a capture was ") +
+                       (collecting ? "starting" : "stopping") +
+                       " failed: " + libusb_error_name(sent));
+      }
+      return false;
+    }
+    return true;
+  }
+
   bool ReadRegisters(const std::string& path, uint8_t address, uint8_t length,
                      std::vector<uint8_t>& data) override {
     if (length == 0) {

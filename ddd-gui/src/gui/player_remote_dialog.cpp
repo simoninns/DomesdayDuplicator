@@ -481,7 +481,9 @@ QWidget* PlayerRemoteDialog::BuildDiscCodePage() {
   auto* explanation = new QLabel(
       tr("The codes the disc carries about itself. They are read from the disc "
          "rather than worked out, and nothing in this application derives a "
-         "length, a start or an end from one."),
+         "length, a start or an end from one.\n\nThe disc must be playing for "
+         "either of these to work. A stopped player refuses both, in the same "
+         "words it uses for a disc that carries no code at all."),
       page);
   explanation->setWordWrap(true);
   layout->addWidget(explanation);
@@ -490,13 +492,16 @@ QWidget* PlayerRemoteDialog::BuildDiscCodePage() {
   QPushButton* const standard =
       AddCommandButton(page, row, kStandardUserCodeButtonName, tr("Standard"),
                        player::PlayerCommand::kQueryStandardUserCode,
-                       tr("Read the disc's standard user code."));
+                       tr("Read the disc's standard user code. Play the disc "
+                          "first: a stopped player refuses this."));
   QPushButton* const pioneer = AddCommandButton(
       page, row, kPioneerUserCodeButtonName, tr("Pioneer"),
       player::PlayerCommand::kQueryPioneerUserCode,
-      tr("Read the disc's Pioneer user code. This one moves the player: it "
-         "searches to the lead-in to read it, so the disc will not be where "
-         "you left it afterwards, and it takes up to ten seconds."));
+      tr("Read the disc's Pioneer user code. Play the disc first: the player "
+         "cannot reach the lead-in from a stop, and refuses. This one moves "
+         "the player: it searches to the lead-in to read it, so the disc will "
+         "not be where you left it afterwards, and it takes up to ten "
+         "seconds."));
   row->addStretch(1);
   layout->addLayout(row);
 

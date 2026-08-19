@@ -16,6 +16,8 @@
 #include "boot_image.h"
 #include "logger.h"
 #include "update_bundle.h"
+#include "usb_presence.h"
+#include "wire_protocol.h"
 
 namespace ddd::capture {
 namespace {
@@ -55,6 +57,13 @@ void RecoveryInstaller::Report(uint64_t done, uint64_t total,
   step.total = total;
   step.message = std::move(message);
   progress_(step);
+}
+
+UsbPresence RecoveryInstaller::ApplicationPresent() const {
+  if (presence_) {
+    return presence_();
+  }
+  return UsbDeviceAttached(kVendorId, kProductId);
 }
 
 std::optional<std::string> RecoveryInstaller::Wake(const UpdateBundle& bundle,
@@ -133,6 +142,29 @@ std::optional<std::string> RecoveryInstaller::Wake(const UpdateBundle& bundle,
   const std::optional<std::string> path =
       programmer->WaitForApplication(timings_.return_timeout);
   if (!path.has_value()) {
+    // Two quite different failures, and the wait cannot tell them apart:
+    // everything up to here reaches a device by opening it, and a device that
+    // never restarted looks exactly like one that restarted and may not be
+    // opened. Asking the bus separates them, and the second is much the more
+    // likely of the two on a Windows machine that has never had a working
+    // Duplicator plugged into it — the identifier the board has just started
+    // presenting is one nothing is bound to yet.
+    //
+    // Worth the sentence rather than an unqualified "it did not come back",
+    // which sends a user to check cables on a board that is sitting on the bus
+    // doing exactly what it was told to.
+    if (ApplicationPresent() == UsbPresence::kPresent) {
+      outcome = Failure(
+          "The device restarted with the firmware it was given and is "
+          "attached as a Duplicator (1209:2347), but this application cannot "
+          "open it under that identifier. On Windows that is the driver "
+          "binding: bind 1209:2347 to WinUSB with Zadig — the device is on the "
+          "bus now, which is what Zadig needs — and run this again. Nothing "
+          "has been written; the firmware it is running is in memory and goes "
+          "when the power does.");
+      return std::nullopt;
+    }
+
     outcome = Failure(
         "The device did not come back after being given its firmware. Unplug "
         "it, plug it back in, and try again.");

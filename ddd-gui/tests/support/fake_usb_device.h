@@ -42,10 +42,29 @@ namespace ddd::capture {
 // update agent in its firmware does.
 class SilentControlChannel : public IUsbControlChannel {
  public:
+  SilentControlChannel() = default;
+
+  // Told where to say it has gone, so a fake can model a backend on which
+  // holding a device open changes what enumerating one sees.
+  explicit SilentControlChannel(int* outstanding) : outstanding_(outstanding) {
+    if (outstanding_ != nullptr) {
+      ++*outstanding_;
+    }
+  }
+
+  ~SilentControlChannel() override {
+    if (outstanding_ != nullptr) {
+      --*outstanding_;
+    }
+  }
+
   int Transfer(uint8_t, uint8_t, uint16_t, uint16_t, std::span<uint8_t>,
                unsigned int) override {
     return -1;
   }
+
+ private:
+  int* outstanding_ = nullptr;
 };
 
 class FakeUsbDevice : public IUsbDevice {
@@ -60,6 +79,17 @@ class FakeUsbDevice : public IUsbDevice {
     if (enumeration_fails_) {
       return false;
     }
+
+    // The WinUSB backend, modelled. Listing devices there means opening each
+    // one to read its descriptor, so a device this process already holds open
+    // is not listed at all — an absence rather than an error, which is what
+    // made the real thing so quiet. Off unless a test asks for it; the libusb
+    // backend reads descriptors without opening anything and always lists it.
+    if (hidden_while_open_ && channels_outstanding_ > 0) {
+      devices.clear();
+      return true;
+    }
+
     devices = devices_;
     return true;
   }
@@ -76,6 +106,14 @@ class FakeUsbDevice : public IUsbDevice {
     // device now writes more than one register and a test asking what test
     // mode was set to must not be answered with whatever was written after it.
     written_registers_[address] = value;
+    return !configuration_fails_;
+  }
+
+  bool SetCollecting(const std::string& path, bool collecting) override {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    configured_path_ = path;
+    collecting_ = collecting;
+    ++collection_change_count_;
     return !configuration_fails_;
   }
 
@@ -133,7 +171,7 @@ class FakeUsbDevice : public IUsbDevice {
 
     for (const DeviceInfo& info : devices_) {
       if (info.path == path) {
-        return std::make_unique<SilentControlChannel>();
+        return std::make_unique<SilentControlChannel>(&channels_outstanding_);
       }
     }
     return nullptr;
@@ -159,6 +197,13 @@ class FakeUsbDevice : public IUsbDevice {
   void SetEnumerationFails(bool fails) {
     const std::lock_guard<std::mutex> guard(mutex_);
     enumeration_fails_ = fails;
+  }
+
+  // Enumerate nothing while a control channel this fake handed out is still
+  // open. See Enumerate for which backend behaves this way and why.
+  void SetHiddenWhileChannelOpen(bool hidden) {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    hidden_while_open_ = hidden;
   }
 
   void SetConfigurationFails(bool fails) {
@@ -221,6 +266,18 @@ class FakeUsbDevice : public IUsbDevice {
     const std::lock_guard<std::mutex> guard(mutex_);
     return open_count_;
   }
+  // Whether the device was last told a capture was running, and how many
+  // times it has been told either way.
+  bool collecting() const {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return collecting_;
+  }
+
+  uint64_t collection_change_count() const {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return collection_change_count_;
+  }
+
   uint64_t configuration_count() const {
     const std::lock_guard<std::mutex> guard(mutex_);
     return configuration_count_;
@@ -273,7 +330,16 @@ class FakeUsbDevice : public IUsbDevice {
 
   std::vector<DeviceInfo> devices_;
   bool enumeration_fails_ = false;
+  bool hidden_while_open_ = false;
+  int channels_outstanding_ = 0;
   bool configuration_fails_ = false;
+
+  // Whether the device has been told a capture is running, and how many times
+  // it has been told. Both, because "it was started" and "it was started once
+  // and stopped once" are different claims and the second is the one a
+  // stop-path test is making.
+  bool collecting_ = false;
+  uint64_t collection_change_count_ = 0;
   bool open_fails_ = false;
   TransferResult open_failure_ = TransferResult::kConnectionFailure;
 

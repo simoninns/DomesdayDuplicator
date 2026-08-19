@@ -109,9 +109,13 @@ Altera never published this protocol, but it has been described and independentl
 
 ### Platforms
 
-The cable is reached over libusb, so it is available on Linux and macOS. The Windows build talks to USB through WinUSB and has no byte pipe for the cable yet; it says so in those words rather than reporting "no cable found". Everything above the pipe — the protocol, the player, every test either has — is built there already.
+The cable is available on all three platforms. Only the byte pipe under it differs: `usb_blaster_libusb.cpp` on Linux and macOS, `usb_blaster_winusb.cpp` on Windows, chosen at configure time by `src/capture/CMakeLists.txt` exactly as the capture backend is. Everything above the pipe — the protocol, the player, every test either has — is one implementation everywhere.
 
 On Linux the cable needs `fx3/programmer/configs/70-domesday-duplicator.rules` installed ([Linux device access](hardware-programming/linux-device-access.md)) — the one file covers the cable as well as the Duplicator itself — and Quartus's own `jtagd` will hold the cable open whenever it is running.
+
+On Windows the cable needs **WinUSB bound to `09FB:6001`**, once per machine, with [Zadig](https://zadig.akeo.ie/) — see [Windows — MSI](../capture-gui/install-msi.md). Windows binds drivers by USB identifier, and a Quartus install puts Altera's own USB-Blaster driver on that identifier; only one driver can hold the cable, so binding WinUSB takes it away from Quartus until it is put back in Device Manager. A cable that is attached and bound to something else is reported as exactly that rather than as absent: the driver can see it on the bus through `CM_Get_Device_Interface_List` whatever it is bound to, and only opening it needs WinUSB.
+
+macOS binds nothing and needs no setup.
 
 ## The shell tool
 

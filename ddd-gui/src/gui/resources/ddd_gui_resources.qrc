@@ -35,14 +35,23 @@
         drift apart — which is the whole reason for using photographs rather
         than prose about pin positions.
 
+        PNG, not the JPEG the docs copies use, because Qt decodes PNG in QtGui
+        itself and decodes JPEG only through an image-format plugin. A plugin
+        is a file a packaging step can fail to ship, and when it does the
+        failure is silent: QPixmap returns nothing, the wizard shows an empty
+        box, and the application is otherwise perfectly well. That happened on
+        Windows. A format that cannot go missing is worth more here than the
+        smaller file, so these are quantised to a 256-colour palette to pay for
+        it — indistinguishable at the size the wizard draws them.
+
         Named for what the jumper *is* rather than for how it looks: the
         firmware README, the documentation and the wizard all say fitted and
         removed, so a user never has to translate between two vocabularies for
         one jumper.
     -->
     <qresource prefix="/photographs">
-        <file>fx3-j4-fitted.jpg</file>
-        <file>fx3-j4-removed.jpg</file>
-        <file>fpga-usb-port.jpg</file>
+        <file>fx3-j4-fitted.png</file>
+        <file>fx3-j4-removed.png</file>
+        <file>fpga-usb-port.png</file>
     </qresource>
 </RCC>

@@ -47,6 +47,25 @@ QString Marked(BringUpRowState state) {
       .arg(BringUpMarkColour(state), BringUpMark(state));
 }
 
+// How long a step takes, said the way somebody deciding whether to wait would
+// say it. The estimates arrive as a number of seconds, and under a couple of
+// minutes that is exactly what a user wants — "about 40 seconds" is a wait to
+// sit through. Past that it stops being readable: "about 236 seconds" asks
+// the reader to do the division themselves before they know whether they have
+// time to make a cup of tea, so anything longer is rounded to the nearest
+// minute and said in minutes.
+//
+// The rounding is deliberately coarse. These are estimates from a bytes-per-
+// second rate, not measurements, and a figure quoted to the second invites a
+// user to treat a bar that runs ten seconds over as something having gone
+// wrong.
+QString DurationPhrase(int seconds) {
+  if (seconds < 120) {
+    return Translate("%1 seconds").arg(seconds);
+  }
+  return Translate("%1 minutes").arg((seconds + 30) / 60);
+}
+
 }  // namespace
 
 QString BringUpPageTitle(BringUpPage page) {
@@ -439,11 +458,11 @@ QString BringUpNotReloadedText() {
 QString BringUpPhotographPath(BringUpPage page) {
   switch (page) {
     case BringUpPage::kOverview:
-      return QStringLiteral(":/photographs/fpga-usb-port.jpg");
+      return QStringLiteral(":/photographs/fpga-usb-port.png");
     case BringUpPage::kJumper:
-      return QStringLiteral(":/photographs/fx3-j4-fitted.jpg");
+      return QStringLiteral(":/photographs/fx3-j4-fitted.png");
     case BringUpPage::kRemoveJumper:
-      return QStringLiteral(":/photographs/fx3-j4-removed.jpg");
+      return QStringLiteral(":/photographs/fx3-j4-removed.png");
     default:
       return QString();
   }
@@ -469,8 +488,8 @@ QString BringUpPhotographCaption(BringUpPage page) {
 QString BringUpConfigureText(int seconds) {
   return Translate(
              "<p><b>Press “Load the gateware” below.</b> It plays the gateware "
-             "into the FPGA through the DE0-Nano's own USB-Blaster, and takes "
-             "about %1 seconds.</p>"
+             "into the FPGA through the DE0-Nano's own USB-Blaster. Expect it "
+             "to take about %1.</p>"
 
              "<p><b>Nothing is written to the board by this step.</b> The FPGA "
              "holds the gateware in memory only. It is what gives the next "
@@ -479,7 +498,7 @@ QString BringUpConfigureText(int seconds) {
              "<p>Leave both cables connected, and leave the jumper alone. The "
              "FX3 stays in its boot ROM throughout, which is why this comes "
              "before the firmware rather than after it.</p>")
-      .arg(seconds);
+      .arg(DurationPhrase(seconds));
 }
 
 QString BringUpProgramText(int seconds) {
@@ -495,13 +514,14 @@ QString BringUpProgramText(int seconds) {
              "captures with.</li>"
              "</ul>"
 
-             "<p><b>About %1 seconds.</b> Leave both cables connected and "
-             "leave the jumper alone. The writing pauses every few seconds "
-             "while a block of flash is erased, which is normal.</p>"
+             "<p><b>Expect the programming to take about %1.</b> Leave both "
+             "cables connected and leave the jumper alone. The writing pauses "
+             "every few seconds while a block of flash is erased, which is "
+             "normal.</p>"
 
              "<p>Nothing restarts at the end — the power cycle two pages from "
              "now is what starts all three images at once.</p>")
-      .arg(seconds);
+      .arg(DurationPhrase(seconds));
 }
 
 QString BringUpBundledFileText() {

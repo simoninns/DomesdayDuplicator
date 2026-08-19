@@ -269,7 +269,9 @@ QString BringUpPhotographCaption(BringUpPage page);
 // --- the working pages ----------------------------------------------------
 
 // The JTAG step. Opens by naming the button to press and how long it takes,
-// because that is the whole of what this page asks for.
+// because that is the whole of what this page asks for. Both this page and the
+// one that writes take the estimate in seconds and say it in whichever unit a
+// person would use — seconds under two minutes, whole minutes past that.
 //
 // That it writes nothing is the one piece of explanation kept. It is the only
 // step in this application that talks to a board through a second cable, and

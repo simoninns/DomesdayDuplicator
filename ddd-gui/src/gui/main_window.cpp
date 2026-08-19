@@ -16,6 +16,7 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDockWidget>
+#include <QKeySequence>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
@@ -354,13 +355,25 @@ void MainWindow::ShowLogPanel() {
 
 void MainWindow::BuildMenus() {
   QMenu* file_menu = menuBar()->addMenu(tr("&File"));
+  // Spelled out rather than taken from QKeySequence::Preferences and
+  // QKeySequence::Quit, which are wrong on Windows. Qt's standard-key table
+  // holds two kinds of binding — keyboard chords and the dedicated hardware
+  // keys a media keyboard has — and it registers a chord for these two only
+  // under the Mac, KDE, GNOME and X11 keyboard schemes. Windows falls back to
+  // the default scheme, where the only binding left for either is the hardware
+  // key, so QKeySequence picks Qt::Key_Settings and Qt::Key_Exit. Those render
+  // as the words "Settings" and "Exit", and the menu reads "Settings… Settings"
+  // and "Exit Exit" with no shortcut anybody can actually press. Ctrl here is
+  // Command on macOS, so one pair of sequences is right on all three platforms.
+  //
   // Through a lambda rather than the member directly: the member takes which
   // tab to open on, and a default argument is not something a signal can
   // supply.
-  file_menu->addAction(tr("&Settings…"), QKeySequence::Preferences, this,
-                       [this] { ShowSettingsDialog(); });
+  file_menu->addAction(tr("&Settings…"), QKeySequence(Qt::CTRL | Qt::Key_Comma),
+                       this, [this] { ShowSettingsDialog(); });
   file_menu->addSeparator();
-  file_menu->addAction(tr("E&xit"), QKeySequence::Quit, this, &QWidget::close);
+  file_menu->addAction(tr("E&xit"), QKeySequence(Qt::CTRL | Qt::Key_Q), this,
+                       &QWidget::close);
 
   QMenu* view_menu = menuBar()->addMenu(tr("&View"));
 

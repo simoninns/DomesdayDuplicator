@@ -18,8 +18,8 @@ If you have just plugged a Duplicator in for the first time, go to the
 | Platform | Package | Notes |
 | --- | --- | --- |
 | Linux | [Flatpak](install-flatpak.md) | Also needs udev rules installed on the host — a Flatpak cannot do that for you |
-| macOS | [DMG](install-dmg.md) | Unsigned, so the first launch needs a Gatekeeper step |
-| Windows | [MSI](install-msi.md) | The device also needs the WinUSB driver bound with Zadig |
+| macOS | [DMG](install-dmg.md) | Apple Silicon only; unsigned, so the first launch needs a Gatekeeper step |
+| Windows | [MSI](install-msi.md) | Windows 11 only; the device also needs the WinUSB driver bound with Zadig |
 
 Every release also carries a `SHA256SUMS` file so a download can be verified, and a
 `PROVENANCE.txt` recording the commit and the toolchains it was built with.

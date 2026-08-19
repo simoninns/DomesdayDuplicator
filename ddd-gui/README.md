@@ -39,8 +39,8 @@ checks as a routine update, with no jumper and no shell.
 **Programming an FPGA that no update can reach.** A board whose flash has never been
 written cannot be updated over USB — the route to it runs through gateware that is not
 there yet — so the engine also drives the DE0-Nano's on-board USB-Blaster directly: a
-libusb cable driver and a player for the JTAG vectors the bitstream build emits beside its
-`.jic`. `ddd-jtag` is the shell half of it, and `ddd-jtag --dry-run` checks a programming
+cable driver — over libusb on Linux and macOS, over WinUSB on Windows — and a player for
+the JTAG vectors the bitstream build emits beside its `.jic`. `ddd-jtag` is the shell half of it, and `ddd-jtag --dry-run` checks a programming
 file with nothing attached. The knowledge of what a Cyclone IV and an EPCS64 want stays in
 Quartus, at build time; see *USB-Blaster and SVF programming*.
 

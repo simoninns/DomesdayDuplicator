@@ -36,8 +36,8 @@ and follow the installation page for your platform:
 | Platform | Package | Installation |
 | --- | --- | --- |
 | Linux | `DomesdayDuplicator-<version>.flatpak` | [Linux (Flatpak)](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-flatpak/) |
-| macOS | `DomesdayDuplicator-<version>-macos-arm64.dmg` | [macOS (DMG)](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-dmg/) |
-| Windows | `DomesdayDuplicator-<version>-windows-x64.msi` | [Windows (MSI)](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-msi/) |
+| macOS (Apple Silicon) | `DomesdayDuplicator-<version>-macos-arm64.dmg` | [macOS (DMG)](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-dmg/) |
+| Windows 11 | `DomesdayDuplicator-<version>-windows-x64.msi` | [Windows (MSI)](https://simoninns.github.io/DomesdayDuplicator/capture-gui/install-msi/) |
 
 Every release also carries `SHA256SUMS` and a `PROVENANCE.txt` recording the commit each
 asset was built from. Verify your download against `SHA256SUMS`.

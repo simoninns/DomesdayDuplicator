@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "device_updater.h"
+#include "fake_usb_device.h"
 #include "update_fixtures.h"
 #include "wire_protocol.h"
 
@@ -181,6 +182,49 @@ TEST(DeviceIdentityGateware, AnFpgaThatDidNotAnswerHasNoRoleToBelieve) {
   identity.image_role = kImageRoleFactory;
 
   EXPECT_FALSE(identity.GatewareIsRecovery());
+}
+
+// --- Reading a device back while holding it open ---------------------------
+
+// The product string and the protocol version are descriptor fields, and the
+// updater reports them while it has the device open for writing. Where they
+// are *read* therefore matters: on the WinUSB backend, listing devices means
+// opening each one, so an enumeration made from inside the updater asks
+// Windows for a second handle to a device this process already holds — and the
+// device is quietly missing from the list that comes back.
+//
+// It read as a board that had not been programmed. The bring-up wizard's last
+// page ticked "the Duplicator's own firmware is running", which it takes from
+// the device list it polls with nothing open, and then crossed the protocol,
+// the firmware commit and the gateware — every row that comes from the
+// identity — on a board that was in fact correctly programmed (bench, Windows,
+// 2026-08-19).
+TEST(DeviceUpdaterIdentity, ItReadsTheDescriptorsBeforeItHoldsTheDeviceOpen) {
+  FakeUsbDevice usb;
+  usb.SetSingleDevice("device", DeviceSpeed::kSuper,
+                      "Domesday Duplicator (4d23a25)");
+  usb.SetHiddenWhileChannelOpen(true);
+
+  const std::unique_ptr<IDeviceUpdater> updater =
+      MakeDeviceUpdater(usb, "device", nullptr);
+  ASSERT_NE(updater, nullptr);
+
+  const std::optional<DeviceIdentity> identity = updater->ReadIdentity();
+  ASSERT_TRUE(identity.has_value());
+  EXPECT_EQ(identity.value_or(DeviceIdentity{}).product_string,
+            "Domesday Duplicator (4d23a25)");
+}
+
+// And the same backend behaviour must not stop a device being opened for
+// updating in the first place, which is the other thing the enumeration was
+// sitting in front of.
+TEST(DeviceUpdaterIdentity,
+     ADeviceIsStillOpenedWhenTheBackendHidesItAfterwards) {
+  FakeUsbDevice usb;
+  usb.SetSingleDevice("device", DeviceSpeed::kSuper, "Domesday Duplicator");
+  usb.SetHiddenWhileChannelOpen(true);
+
+  EXPECT_NE(MakeDeviceUpdater(usb, "device", nullptr), nullptr);
 }
 
 }  // namespace

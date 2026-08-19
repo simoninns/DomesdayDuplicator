@@ -177,6 +177,14 @@ TEST(BringUpText, EveryPhotographPageHasAPictureAndACaption) {
   for (BringUpPage page : {BringUpPage::kOverview, BringUpPage::kJumper,
                            BringUpPage::kRemoveJumper}) {
     EXPECT_TRUE(BringUpPhotographPath(page).startsWith(":/photographs/"));
+
+    // PNG, and it matters which: Qt decodes PNG in QtGui itself and decodes
+    // JPEG only through an image-format plugin that a packaging step can fail
+    // to ship — which is how the Windows installer once shipped a wizard whose
+    // three pictures were empty boxes. A photograph reintroduced as a JPEG
+    // would build, run and look right on the machine that added it.
+    EXPECT_TRUE(BringUpPhotographPath(page).endsWith(".png"));
+
     EXPECT_FALSE(BringUpPhotographCaption(page).isEmpty());
   }
 
@@ -455,7 +463,7 @@ TEST(BringUpTextConfigure, TheTextSaysTheLoadWritesNothing) {
 TEST(BringUpTextProgram, TheTextNamesAllThreeWritesAndTheEstimate) {
   const QString text = BringUpProgramText(240);
 
-  EXPECT_TRUE(text.contains("240 seconds"));
+  EXPECT_TRUE(text.contains("4 minutes"));
   EXPECT_TRUE(text.contains("EEPROM"));
   EXPECT_TRUE(text.contains("factory image", Qt::CaseInsensitive));
   EXPECT_TRUE(text.contains("application image", Qt::CaseInsensitive));
@@ -463,6 +471,21 @@ TEST(BringUpTextProgram, TheTextNamesAllThreeWritesAndTheEstimate) {
   // And that nothing restarts here, because a user watching the device stay
   // put would otherwise wonder whether the step finished.
   EXPECT_TRUE(text.contains("power cycle", Qt::CaseInsensitive));
+}
+
+// The estimate is phrased the way somebody deciding whether to wait would
+// phrase it. A four-minute wait quoted as "236 seconds" makes the reader do
+// the division before they know whether they have time to go and do something
+// else, so past a couple of minutes it is said in minutes.
+TEST(BringUpTextProgram, TheEstimateIsSaidInMinutesOnceItIsLong) {
+  EXPECT_TRUE(BringUpProgramText(236).contains("4 minutes"));
+  EXPECT_TRUE(BringUpProgramText(119).contains("119 seconds"));
+
+  // Rounded to the nearest minute rather than truncated: these come from a
+  // bytes-per-second rate, and a figure quoted to the second invites a user to
+  // read a bar that runs ten seconds over as a fault.
+  EXPECT_TRUE(BringUpProgramText(150).contains("3 minutes"));
+  EXPECT_TRUE(BringUpProgramText(149).contains("2 minutes"));
 }
 
 // --- the verification -----------------------------------------------------

@@ -15,11 +15,10 @@ if(WIN32)
         winusb_device.cpp
         winusb_source.cpp
 
-        # The USB-Blaster is reached over libusb, so this platform gets the stub that
-        # says so. See usb_blaster_unsupported.cpp: the protocol, the player and
-        # everything else above the byte pipe are built here, and only the pipe is
-        # missing.
-        usb_blaster_unsupported.cpp
+        # The USB-Blaster's byte pipe, over WinUSB's bulk pipes rather than libusb's.
+        # Only the pipe differs between the platforms: the FT245's wire protocol, the
+        # SVF player above it and every test either has are built the same everywhere.
+        usb_blaster_winusb.cpp
 
         # Presence is asked without opening anything, so it has a backend of its own
         # rather than riding on IUsbDevice: the WinUSB backend can only see devices

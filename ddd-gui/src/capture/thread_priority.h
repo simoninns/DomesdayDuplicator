@@ -25,11 +25,30 @@ namespace ddd::capture {
 // recovered. SCHED_RR on POSIX and THREAD_PRIORITY_TIME_CRITICAL on Windows are
 // how that is asked for.
 //
+// The deadline that actually matters on the transfer thread is much shorter
+// than the queue depth suggests, though: the device's own capture buffer is a
+// few tens of kilobytes, worth a few hundred microseconds at 80 MB/s, and the
+// host-side ring's seconds of slack cover a slow disk, not a scheduling gap
+// that big. THREAD_PRIORITY_TIME_CRITICAL alone does not close that: it is a
+// dynamic priority within the process's own priority class, still liable to
+// lose the CPU to a DPC storm or another process's real-time thread for longer
+// than the device can absorb. On Windows this also registers the thread with
+// the Multimedia Class Scheduler Service under the "Pro Audio" task, which is
+// the mechanism Windows offers for exactly this — a thread with a short,
+// glitch-sensitive deadline sharing the machine with everything else — and
+// which pro-audio and video-capture drivers use for the same reason this one
+// needs it. Registration is attempted with LoadLibrary/GetProcAddress rather
+// than linked, in keeping with the rest of the Windows backend (see
+// winusb_device.cpp on GUID_DEVINTERFACE_DDD_USB_DEVICE): avrt.dll is present
+// on every Windows version this application supports, but a missing import
+// library on some toolchain must not be a build break for a refinement this
+// deep.
+//
 // Failure is expected and is not an error. An unprivileged process cannot
-// obtain a real-time scheduling policy on most Linux systems, and a capture at
-// ordinary priority usually works — it is more exposed to a busy machine, not
-// broken. So this reports what it achieved and the caller logs it; nothing
-// refuses to capture because of it.
+// obtain a real-time scheduling policy on most Linux systems, MMCSS may not be
+// running, and a capture at ordinary priority usually works — it is more
+// exposed to a busy machine, not broken. So this reports what it achieved and
+// the caller logs it; nothing refuses to capture because of it.
 //
 // Thread-safety: an instance belongs to the thread that constructed it, which
 // is the thread whose priority it changes. It must be destroyed on that same

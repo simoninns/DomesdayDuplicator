@@ -283,6 +283,38 @@ TEST_F(CaptureControllerTest, MonitoringOpensTheDeviceAndPublishesStatistics) {
   ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
 }
 
+// The device has to be told a capture is running, and told again when it
+// stops. Not a formality: the firmware holds the USB link out of U1/U2 for
+// exactly as long as this says a capture is running, and a link that drops
+// into U2 mid-capture loses samples inside a transfer the host still sees as
+// complete. The gateware ignores the matching GPIO, so nothing about the
+// stream itself fails without this - it just quietly stops being bit-perfect
+// on any host whose USB 3 stack enables link power management.
+TEST_F(CaptureControllerTest, MonitoringTellsTheDeviceACaptureIsRunning) {
+  UseSmallQueue();
+
+  QSignalSpy stats(controller_.get(), &CaptureController::StatsUpdated);
+  controller_->StartMonitoring();
+
+  ASSERT_TRUE(controller_->monitoring());
+  EXPECT_TRUE(device_->collecting())
+      << "the device should be told before the stream is opened";
+  EXPECT_EQ(device_->collection_change_count(), 1U);
+
+  ASSERT_TRUE(PumpUntil([&] {
+    return stats.count() > 0 &&
+           qvariant_cast<ddd::capture::CaptureStats>(stats.back().at(0))
+                   .buffers_processed > 0;
+  }));
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+
+  EXPECT_FALSE(device_->collecting())
+      << "a run that has ended has to hand U1/U2 back to the driver";
+  EXPECT_EQ(device_->collection_change_count(), 2U);
+}
+
 // Monitor mode writes nothing anywhere. That is the whole distinction between
 // it and a capture, and the thing a user relies on when they leave it running
 // while they set up a disc.

@@ -498,6 +498,26 @@ TEST(BoardBringUpWizardTest, GoingBackToTheJumperPageDoesNotAskForItAgain) {
   EXPECT_TRUE(test.Button(BoardBringUpWizard::kNextButtonName)->isEnabled());
 }
 
+// Every photograph page really draws a photograph.
+//
+// The failure this guards against is silent and was shipped once: the wizard
+// tolerates a pixmap that will not load, so a picture that is missing from the
+// resource, renamed out from under the path, or in a format the running Qt
+// cannot decode leaves an empty box and an application that is otherwise
+// perfectly well. Asserting the pixmap rather than the label catches all three.
+TEST(BoardBringUpWizardTest, EveryPhotographPageDrawsItsPhotograph) {
+  WizardUnderTest test;
+
+  for (const char* name : {BoardBringUpWizard::kOverviewPhotographName,
+                           BoardBringUpWizard::kJumperPhotographName,
+                           BoardBringUpWizard::kRemoveJumperPhotographName}) {
+    QLabel* const label = test.Label(name);
+    ASSERT_NE(label, nullptr) << name;
+    ASSERT_FALSE(label->pixmap().isNull()) << name;
+    EXPECT_GT(label->pixmap().width(), 0) << name;
+  }
+}
+
 // --- the connectivity page ------------------------------------------------
 
 TEST(BoardBringUpWizardTest, ItWillNotStartWithNothingAttached) {

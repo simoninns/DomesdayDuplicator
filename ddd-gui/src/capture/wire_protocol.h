@@ -91,6 +91,29 @@ inline constexpr uint8_t kInterfaceNumber = 0;
 // The full contract is the "FPGA register interface" page of the
 // documentation site.
 
+// Start and stop data collection. wValue is 1 to start and 0 to stop.
+//
+// The gateware streams whether or not this is sent - collect_data is marked
+// unused in DomesdayDuplicator.v - so it is tempting to read this as a
+// vestige of the old engine and drop it. It is not. Setting it is what puts
+// the firmware into its capturing state, and the firmware spends that state
+// holding the USB link out of U1 and U2: CyU3PUsbLPMDisable() while it is
+// set, and a blanket refusal of U2 in the LPM callback behind that. U2 exit
+// latency is up to 2 ms, which is several times the depth of the FPGA's
+// capture FIFO, so a link allowed into U2 mid-capture loses samples - and it
+// loses them inside a transfer the host still sees as complete, which is why
+// the damage surfaces as a sequence-counter break rather than a short read.
+//
+// It is also what makes the front-panel LED show a capture, and what lets the
+// player-control inputs be reported at all.
+//
+// Windows is where this bites: its USB 3 stack enables U1/U2 by default,
+// where Linux xHCI leaves them off. A capture path that never sends this
+// works on Linux and loses samples on Windows.
+inline constexpr uint8_t kCollectionRequest = 0xB5;
+inline constexpr uint16_t kCollectionStop = 0;
+inline constexpr uint16_t kCollectionStart = 1;
+
 // Read registers. wValue is the first address, wLength the byte count; the
 // address auto-increments, so the identity block is one transfer.
 inline constexpr uint8_t kRegisterReadRequest = 0xB7;

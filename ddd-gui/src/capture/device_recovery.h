@@ -20,6 +20,7 @@
 #include "device_programmer.h"
 #include "device_updater.h"
 #include "update_orchestrator.h"
+#include "usb_presence.h"
 
 namespace ddd::capture {
 
@@ -110,6 +111,23 @@ class RecoveryInstaller {
     cancel_ = std::move(cancel);
   }
 
+  // How to ask whether the device is on the bus under its application
+  // identifiers, for the one failure that cannot be told apart any other way.
+  //
+  // The prelude ends by waiting for a device it has just restarted to be
+  // enumerated *and opened*, and on Windows those are two different things: a
+  // board that has never been programmed on this machine comes back as
+  // 1209:2347 for the first time, nothing is bound to that identifier, and the
+  // wait times out on a device that is plainly there. "It did not come back"
+  // is then the wrong sentence, and it sends a user to look at cables.
+  //
+  // Defaulted to the real bus, so the application needs to set nothing; a test
+  // sets it so that whatever is plugged into the machine running the tests
+  // cannot decide which sentence it gets.
+  void SetPresenceProbe(std::function<UsbPresence()> probe) {
+    presence_ = std::move(probe);
+  }
+
   // Passed through to the update that follows the prelude. See
   // UpdateOrchestrator::SetDeferRestart — a caller sets it when the PMODE
   // jumper is still fitted, so that a reset does not land back in the boot ROM
@@ -155,6 +173,10 @@ class RecoveryInstaller {
 
   void Report(uint64_t done, uint64_t total, std::string message);
 
+  // Whether anything is attached under the application's own identifiers,
+  // through the probe a test may have supplied and the real bus otherwise.
+  UsbPresence ApplicationPresent() const;
+
   bool Cancelled() const { return cancel_ && cancel_(); }
 
   DeviceAccess access_;
@@ -164,6 +186,7 @@ class RecoveryInstaller {
   UpdateTimings update_timings_;
   UpdateProgressCallback progress_;
   std::function<bool()> cancel_;
+  std::function<UsbPresence()> presence_;
   bool defer_restart_ = false;
 };
 
