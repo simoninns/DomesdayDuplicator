@@ -177,7 +177,7 @@ void CaptureController::CheckFirmware(
   // interrupt anybody over.
   if (logger_ != nullptr && firmware.NamesCommit()) {
     logger_->Info("Device firmware commit " + firmware.commit +
-                  ", application " + capture::BuildStamp());
+                  ", application " + std::string(capture::Commit()));
   }
 
   if (logger_ != nullptr && fpga_version_.present) {
@@ -393,7 +393,7 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
 
     capture::CaptureProvenance provenance;
     provenance.title = path.filename().string();
-    provenance.application_version = capture::BuildStamp();
+    provenance.application_version = std::string(capture::Commit());
     provenance.firmware_version = build.firmware_version;
     provenance.gateware_version = build.gateware_version;
     provenance.test_mode = settings_.test_mode;
@@ -436,7 +436,7 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
   // encoder has finished writing this file.
   pending_metadata_ = capture::CaptureMetadata{};
   pending_metadata_.capture_file_name = path.filename().string();
-  pending_metadata_.application_version = capture::BuildStamp();
+  pending_metadata_.application_version = std::string(capture::Commit());
   pending_metadata_.format =
       settings_.output_format == capture::CaptureOutputFormat::kSigned16Bit
           ? "signed 16-bit"

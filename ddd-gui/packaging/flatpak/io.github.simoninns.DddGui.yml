@@ -88,12 +88,9 @@ modules:
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DBUILD_TESTING=OFF
-      # Passed in by the packaging workflow. Two stamps, because the application reports
-      # two things: which release it is, and which commit it was built from. Only a build
-      # from a gui-v* tag has the first, and every build has the second — but there is no
-      # .git inside a flatpak-builder sandbox, so CMake cannot find the commit for itself
-      # and would report "unknown", which is what the release gate fails a build for.
-      - -DDDD_VERSION=@DDD_VERSION@
+      # Passed in by the packaging workflow. There is no .git inside a flatpak-builder
+      # sandbox, so CMake cannot find the commit for itself and would report "unknown",
+      # which is what the release gate fails a build for.
       - -DDDD_COMMIT=@DDD_COMMIT@
       # The release signing key, whose public half is committed. The source below is the
       # repository root rather than ddd-gui/ alone, so tools/keys/ is inside the sandbox

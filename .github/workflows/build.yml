@@ -278,7 +278,7 @@ jobs:
           nix develop -c cmake -B build -S ddd-gui -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
-            -DDDD_VERSION="${GITHUB_SHA:0:8}"
+            -DDDD_COMMIT="${GITHUB_SHA:0:8}"
           nix develop -c cmake --build build
 
   # The installers are built on every push, on every branch, and each packaging workflow

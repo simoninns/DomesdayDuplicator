@@ -22,9 +22,14 @@ namespace ddd::capture {
 //
 //     "Domesday Duplicator (a1b2c3d4)"
 //
-// The firmware and the gateware are a matched pair — one commit, one signed
-// bundle, one fw-v* tag — so a difference between *those two* is worth
-// mentioning. The application is not part of that set and never was.
+// A commit and no release version, which is the whole of what a device can
+// usefully say about itself. The firmware and the gateware are installed
+// together, from one signed bundle, built from one commit — so the two of them
+// reporting the same hash is what "this device is consistent" means, and a
+// difference between *those two* is worth mentioning. Which release that commit
+// belongs to is in the bundle's signed manifest, which is verified before it is
+// read; nothing needs the device to say it. The application is not part of that
+// set and never was.
 //
 // This used to compare the device's commit against the application's, on the
 // stated premise that one commit built all three. That premise has been false
@@ -44,25 +49,12 @@ namespace ddd::capture {
 // string is not in the expected form, which includes the case of a device
 // running firmware old enough to predate the embedded hash entirely.
 //
-// Two forms are accepted, because two exist in the field:
+//     "Domesday Duplicator (a1b2c3d4)"
 //
-//     "Domesday Duplicator (a1b2c3d4)"           any build
-//     "Domesday Duplicator 1.5.0 (a1b2c3d4)"     a build from an fw-v* tag
-//
-// The commit is in brackets at the end of both, which is why the release
-// version was put in front of them rather than inside: a host that only knows
-// the older shape goes on reading the newer one.
+// The commit is the last bracketed group, which is deliberate rather than
+// incidental: a device that ever names anything before the bracket goes on
+// being read correctly by an application built today.
 std::optional<std::string> ParseFirmwareCommit(std::string_view product_string);
-
-// Pull the release version out of a USB product string, where it names one.
-//
-// Nothing for the older form, which is the honest answer: a firmware that was
-// not built from a tag belongs to no release, and there is nothing to report.
-// Nothing, too, for anything between the name and the bracket that is not a
-// dotted numeric version — a string this code does not understand must not be
-// presented to a user as a version.
-std::optional<std::string> ParseFirmwareRelease(
-    std::string_view product_string);
 
 // Reduce a build stamp to the commit hash it names, or nothing if it does not
 // name one.

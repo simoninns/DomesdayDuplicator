@@ -320,11 +320,14 @@ the rule enforceable: if the engine ever grows a Qt dependency, that binary stop
 
 ## Versioning
 
-`--version` reports the commit the binary was built from. Builds outside a git checkout
-must pass it, since there is no `.git` for CMake's fallback to consult:
+`--version` reports the commit the binary was built from, and nothing else — the same stamp
+the FX3 firmware puts in its USB product string and the FPGA gateware puts in its identity
+register, so a bug report quotes three hashes that can be set beside one another. Builds
+outside a git checkout must pass it, since there is no `.git` for CMake's fallback to
+consult:
 
 ```bash
-cmake -B build -S . -DDDD_VERSION=abcd1234
+cmake -B build -S . -DDDD_COMMIT=abcd1234
 ```
 
 A release artefact reporting `unknown` fails the release gate ([AGENTS.md](../AGENTS.md)

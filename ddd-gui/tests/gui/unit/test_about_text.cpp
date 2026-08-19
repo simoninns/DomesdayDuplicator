@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <QString>
+#include <string>
 
 #include "about_text.h"
 #include "version.h"
@@ -19,10 +20,9 @@
 namespace ddd::gui {
 namespace {
 
-// Both stamps as the About box shows them: "1.2.0 (a1b2c3d4)", or the commit
-// alone on a build that is not a numbered release.
-QString VersionString() {
-  return QString::fromStdString(capture::BuildStamp());
+// The stamp as the About box shows it: the commit this build was made from.
+QString CommitString() {
+  return QString::fromStdString(std::string(capture::Commit()));
 }
 
 // The point of these tests: the About dialog is the second of two routes to the
@@ -31,31 +31,29 @@ QString VersionString() {
 // A user who cannot say which build produced a bad capture cannot be helped, so
 // this is a release-traceability requirement rather than a cosmetic one.
 
-TEST(AboutTextTest, CarriesTheBuildVersion) {
-  EXPECT_TRUE(AboutText().contains(VersionString()))
+TEST(AboutTextTest, CarriesTheBuildCommit) {
+  EXPECT_TRUE(AboutText().contains(CommitString()))
       << "About text does not name the build it came from";
 }
 
-TEST(AboutTextTest, AlwaysNamesAVersionEvenWhenItIsUnknown) {
-  // A build with no version determined reports "unknown" rather than leaving
-  // the line blank or dropping it: an absent version is indistinguishable from
-  // a user who did not look, and the release gate needs the difference.
-  EXPECT_FALSE(VersionString().isEmpty());
+TEST(AboutTextTest, AlwaysNamesAStampEvenWhenItIsUnknown) {
+  // A build with no commit determined reports "unknown" rather than leaving
+  // the line blank or dropping it: an absent stamp is indistinguishable from a
+  // user who did not look, and the release gate needs the difference.
+  EXPECT_FALSE(CommitString().isEmpty());
   EXPECT_TRUE(AboutText().contains(QStringLiteral("Build:")));
 }
 
-// A developer build has no release version, and must not put the word
-// "unknown" on screen when it can name the commit perfectly well. The release
-// gate greps this same stamp for "unknown", so the two requirements are one.
-TEST(AboutTextTest, TheCommitAloneIsShownWhenThereIsNoReleaseVersion) {
-  const QString stamp = VersionString();
-
-  if (capture::Version() == "unknown" && capture::Commit() != "unknown") {
-    EXPECT_FALSE(stamp.contains(QStringLiteral("unknown")))
-        << stamp.toStdString();
-    EXPECT_EQ(stamp, QString::fromUtf8(
-                         capture::Commit().data(),
-                         static_cast<qsizetype>(capture::Commit().size())));
+// The one stamp and nothing else. There used to be a release version in front
+// of the commit, and a rule about which to show when; the About box now shows
+// what the FX3 firmware and the FPGA gateware show, so a bug report quotes
+// three hashes of the same kind.
+TEST(AboutTextTest, TheStampIsTheCommitAndNothingElse) {
+  if (capture::Commit() != "unknown") {
+    EXPECT_EQ(
+        CommitString(),
+        QString::fromUtf8(capture::Commit().data(),
+                          static_cast<qsizetype>(capture::Commit().size())));
   }
 }
 

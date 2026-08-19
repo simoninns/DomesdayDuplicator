@@ -50,7 +50,6 @@ UpdateComponent GatewareComponent() {
 
 UpdateGateInput MakeInput() {
   UpdateGateInput input;
-  input.application_version = "1.4.0";
   input.device_attached = true;
   input.device.protocol_version = 1;
   input.device.gateware_present = true;
@@ -116,21 +115,23 @@ TEST(UpdateGate, RefusesWhenNoDeviceIsAttached) {
   ASSERT_EQ(result.reasons.size(), 1u);
 }
 
-// The rule the whole gate exists for: a user cannot use this application to
-// flash the device past this application's own understanding. The verdict is
-// distinct from plain incompatibility because it is the one with a next
-// step — update the application — and the interface routes on that.
-TEST(UpdateGate, RefusesABundleThatNeedsANewerApplication) {
+// The manifest's minimum application version is not read, and this pins that
+// it is not: the application stamps a commit rather than a dotted version, and
+// a commit orders nothing. The field stays in the manifest because the schema
+// requires it and bundles in the field carry it — it is simply not a gate any
+// more, and a bundle naming an impossible floor installs regardless.
+//
+// What still stops a user flashing a device past what this application
+// understands is the protocol and register map range, tested below. Those are
+// what carry the kApplicationTooOld verdict now.
+TEST(UpdateGate, DoesNotOrderTheApplicationAgainstTheManifestsFloor) {
   UpdateManifest manifest = MakeManifest();
   manifest.compatibility.minimum_application_version = "9.0.0";
 
   const UpdateGateResult result = CheckUpdateGate(manifest, MakeInput());
 
-  EXPECT_FALSE(result.allowed());
-  EXPECT_EQ(result.verdict, UpdateGateVerdict::kApplicationTooOld);
-  ASSERT_FALSE(result.reasons.empty());
-  EXPECT_NE(result.reasons.front().find("Update the application first"),
-            std::string::npos);
+  EXPECT_TRUE(result.allowed());
+  EXPECT_TRUE(result.reasons.empty());
 }
 
 TEST(UpdateGate, RefusesAManifestSchemaItDoesNotKnow) {
@@ -194,20 +195,17 @@ TEST(UpdateGate, RefusesADowngradeBelowWhatThisBuildSupports) {
   EXPECT_EQ(result.verdict, UpdateGateVerdict::kIncompatible);
 }
 
-// A developer build cannot say how old it is, so it says that rather than
-// asserting an ordering that was never computed. Saying "new enough" on the
-// strength of a comparison that could not be made is exactly the silent
-// failure the mechanism exists to prevent.
-TEST(UpdateGate, SaysSoWhenTheApplicationVersionCannotBeOrdered) {
-  UpdateGateInput input = MakeInput();
-  input.application_version = "0123abcd-dirty";
-
-  const UpdateGateResult result = CheckUpdateGate(MakeManifest(), input);
+// An allowed verdict now carries no reasons at all, and that is worth pinning
+// rather than leaving as an accident. The gate used to push a caveat here — "so
+// its age could not be checked" — on every build that was not a numbered
+// release, which is every build there now is. A line shown on every install for
+// every user is the kind of warning that gets dismissed unread, and it would
+// have taken the real refusals down with it.
+TEST(UpdateGate, AnAllowedVerdictSaysNothing) {
+  const UpdateGateResult result = CheckUpdateGate(MakeManifest(), MakeInput());
 
   EXPECT_TRUE(result.allowed());
-  ASSERT_EQ(result.reasons.size(), 1u);
-  EXPECT_NE(result.reasons.front().find("not a numbered release"),
-            std::string::npos);
+  EXPECT_TRUE(result.reasons.empty());
 }
 
 TEST(UpdateGate, RefusesABundleWithNothingInIt) {

@@ -38,7 +38,6 @@
 #include "player_controller.h"
 #include "serial_port_scanner.h"
 #include "synthetic_source.h"
-#include "version.h"
 
 namespace ddd::gui {
 namespace {
@@ -145,10 +144,11 @@ class AutoCaptureControllerTest : public ::testing::Test {
     QSettings().clear();
   }
 
+  // A product string in the shape the firmware reports, so the device the
+  // controller sees names a build. Any commit will do: nothing compares it
+  // against the application's, which is released separately.
   static std::string MatchingProductString() {
-    const std::optional<std::string> commit =
-        capture::NormaliseCommit(capture::Version());
-    return "Domesday Duplicator (" + commit.value_or("a1b2c3d4") + ")";
+    return "Domesday Duplicator (a1b2c3d4)";
   }
 
   // What the player answers the address query with, in order. The last answer

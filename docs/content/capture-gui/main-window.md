@@ -94,10 +94,11 @@ The entries that need a player to do anything — **Remote control…**, **Exami
 **Automatic capture…** — are greyed out until one is connected. When nothing is, the status
 bar is what says so.
 
-**Help ▸ About** carries the same version string `--version` prints, and that is deliberate
-rather than duplication: the Windows build has no console attached, so on the platform with
-the most installations the dialog is the only way to identify a binary. If you are reporting
-a problem, that is the string to quote.
+**Help ▸ About** carries the same commit `--version` prints, and that is deliberate rather
+than duplication: the Windows build has no console attached, so on the platform with the
+most installations the dialog is the only way to identify a binary. If you are reporting a
+problem, that is the string to quote — along with the device's two, from **Tools ▸ Firmware
+▸ Update firmware…**.
 
 ## The Log panel
 

@@ -27,33 +27,6 @@ namespace {
 // than no warning, because it is dismissed unread.
 constexpr size_t kMinimumCommitLength = 7;
 
-// A dotted numeric version and nothing else: "1", "1.5", "1.5.0".
-//
-// Strict on purpose. Anything else between the name and the bracket is a word
-// this code does not understand, and showing it to a user as a version would
-// be presenting an unparsed fragment of a device's descriptor as a fact.
-bool IsDottedVersion(std::string_view text) {
-  if (text.empty() || text.front() == '.' || text.back() == '.') {
-    return false;
-  }
-
-  bool previous_was_dot = false;
-  for (const char character : text) {
-    if (character == '.') {
-      if (previous_was_dot) {
-        return false;
-      }
-      previous_was_dot = true;
-      continue;
-    }
-    if (character < '0' || character > '9') {
-      return false;
-    }
-    previous_was_dot = false;
-  }
-  return true;
-}
-
 bool IsHexDigit(char character) {
   const unsigned char value = static_cast<unsigned char>(character);
   return std::isxdigit(value) != 0;
@@ -89,34 +62,6 @@ std::optional<std::string> ParseFirmwareCommit(
   // that as unparseable would make every development device raise the "did not
   // report which firmware build it is running" warning.
   return NormaliseCommit(product_string.substr(open + 1, close - open - 1));
-}
-
-std::optional<std::string> ParseFirmwareRelease(
-    std::string_view product_string) {
-  const size_t open = product_string.rfind('(');
-  if (open == std::string_view::npos || open == 0) {
-    return std::nullopt;
-  }
-
-  // Between the fixed name and the bracket, which is where the release version
-  // sits when there is one. The name itself is not matched on: this has to
-  // keep working if the product string is ever renamed, and what identifies
-  // the field is its position rather than what precedes it.
-  std::string_view middle = product_string.substr(0, open);
-  while (!middle.empty() && middle.back() == ' ') {
-    middle.remove_suffix(1);
-  }
-
-  const size_t space = middle.rfind(' ');
-  if (space == std::string_view::npos) {
-    return std::nullopt;
-  }
-  const std::string_view candidate = middle.substr(space + 1);
-
-  if (!IsDottedVersion(candidate)) {
-    return std::nullopt;
-  }
-  return std::string(candidate);
 }
 
 std::optional<std::string> NormaliseCommit(std::string_view version) {

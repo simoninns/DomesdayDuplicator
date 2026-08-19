@@ -9,28 +9,20 @@
 OUTPUT_DIR="$1"
 COMMIT="${2:-unknown}"
 
-# The release this firmware belongs to, where it belongs to one.
-#
-# Only a build from an fw-v* tag has a release version; every other build is a commit and
-# nothing more, and the string then has exactly the shape it always had. This is why the
-# argument is optional rather than defaulted to something: there is no sensible stand-in
-# for "which release is this", and inventing one would put a number in a descriptor that
-# no release ever carried.
-RELEASE="${3:-}"
-
 # Create Python script to generate UTF-16LE bytes
 python3 -c "
 commit = '$COMMIT'
-release = '$RELEASE'
 
-# 'Domesday Duplicator 1.5.0 (a1b2c3d4)', or 'Domesday Duplicator (a1b2c3d4)' where there
-# is no release to name. The commit stays in brackets at the end in both forms, which is
-# what lets a host that only knows the older shape go on reading it — see
-# ParseFirmwareCommit in ddd-gui/src/capture/firmware_version.cpp.
-base = 'Domesday Duplicator '
-if release:
-    base = base + release + ' '
-full_string = base + '(' + commit + ')'
+# 'Domesday Duplicator (a1b2c3d4)'. The commit is the whole of what the device says about
+# which build it is running, and no release version is stamped into it: the firmware and
+# the gateware are installed together from one signed bundle built from one commit, so the
+# two of them reporting the same hash is what 'good' means. Which release that commit
+# belongs to is in the bundle's signed manifest, which is verified before it is read.
+#
+# The commit sits in brackets at the end — see ParseFirmwareCommit in
+# ddd-gui/src/capture/firmware_version.cpp, which finds the last bracketed group, so a
+# host built today keeps working if anything is ever named before it.
+full_string = 'Domesday Duplicator (' + commit + ')'
 
 # Generate UTF-16LE bytes
 bytes_list = []

@@ -25,7 +25,6 @@
 #include "update_orchestrator.h"
 #include "usb_device.h"
 #include "usb_device_info.h"
-#include "version.h"
 
 namespace ddd::capture {
 namespace {
@@ -277,17 +276,16 @@ int RunUpdateCli(const std::vector<std::string>& args, std::ostream& out,
   }
 
   UpdateGateInput gate_input;
-  gate_input.application_version = std::string(Version());
   gate_input.device_attached = true;
   gate_input.device = identity;
   gate_input.device_personality = selected->personality;
 
   const UpdateGateResult gate = CheckUpdateGate(bundle->manifest, gate_input);
+  // On the error stream rather than on stdout: these are the refusals, and a
+  // script redirecting stdout to capture the result should still see why it
+  // was told no. The loop rather than a single line because a bundle can be
+  // wrong about a device in more than one way at once.
   for (const std::string& reason : gate.reasons) {
-    // Reported on the error stream even when the gate allows the install,
-    // because the reasons that survive an allowed verdict are the ones a
-    // script's operator ought to see — "this build is not a numbered release,
-    // so its age could not be checked" is a caveat, not a passing remark.
     error << reason << "\n";
   }
   if (!gate.allowed()) {

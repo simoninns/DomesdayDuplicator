@@ -108,7 +108,7 @@ TEST_F(HardwareTest, TheFirmwareSaysWhichBuildItIsRunning) {
   const FirmwareIdentity firmware = DescribeFirmware(attached_.product_string);
 
   std::cout << "[          ] firmware commit \"" << firmware.commit
-            << "\", application " << BuildStamp() << "\n";
+            << "\", application " << Commit() << "\n";
 
   // Nothing here compares the two. They come from separate release streams —
   // gui-v* and fw-v* — so a development machine routinely has one newer than

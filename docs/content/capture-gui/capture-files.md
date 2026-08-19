@@ -78,7 +78,7 @@ later travel with it rather than in somebody's notes:
 | `TITLE` | The name the capture was given |
 | `DATE` | When it started, ISO 8601 |
 | `ENCODER` | What wrote it |
-| `DDD_VERSION` | The build of the application that produced it |
+| `DDD_VERSION` | The commit of the application that produced it. The name is fixed by the file format and is not changing |
 | `DDD_FIRMWARE_VERSION` | The commit the Duplicator's FX3 firmware was built from — only when the device said |
 | `DDD_GATEWARE_VERSION` | The commit its FPGA gateware was built from, on the same terms |
 | `DDD_SAMPLE_RATE_HZ` | `40000000` — the real rate, which the FLAC header cannot express |

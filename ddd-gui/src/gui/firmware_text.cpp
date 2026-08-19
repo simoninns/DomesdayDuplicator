@@ -69,20 +69,7 @@ Commits CollectCommits(const FirmwareVersions& versions) {
   return commits;
 }
 
-// A release version and a commit read as "1.5.0 (a1b2c3d4)"; a commit on its
-// own reads as itself. The same rule the application's own stamp follows, so
-// the three rows of this table are written the same way.
-QString Stamped(const std::optional<std::string>& release,
-                const std::string& commit) {
-  const QString hash = FromStdString(commit);
-  if (!release.has_value()) {
-    return hash;
-  }
-  return QStringLiteral("%1 (%2)").arg(FromStdString(*release), hash);
-}
-
-QString GatewareValue(const FirmwareVersions& versions,
-                      const Commits& commits) {
+QString GatewareValue(const FirmwareVersions& versions) {
   if (!versions.gateware.present) {
     return Translate("Not reported");
   }
@@ -90,27 +77,7 @@ QString GatewareValue(const FirmwareVersions& versions,
     return Translate("Unknown");
   }
 
-  // The gateware cannot name its own release, and it is not going to be able
-  // to. Its identity block is eight bytes of ASCII that must be seven or eight
-  // hex digits, frozen across every register map version so that a host which
-  // does not recognise the version can still read who it is talking to — and
-  // the module that serves it lives in fpga/common/, which is compiled into
-  // the resident factory image. Changing it is a re-provisioning event
-  // (AGENTS.md §5.3): every fielded board would keep the old one until
-  // somebody opened it up with a JTAG cable.
-  //
-  // It does not have to. The firmware and the gateware are installed together,
-  // from one signed bundle, built from one commit — so when the two report the
-  // same commit, the firmware's release version names the gateware's release
-  // as well, on the firmware's word. When they differ the set is mixed, and
-  // then the honest thing is the bare commit and the note below saying so.
-  const std::optional<std::string> release =
-      commits.firmware.has_value() &&
-              capture::CommitsMatch(*commits.firmware, versions.gateware.commit)
-          ? capture::ParseFirmwareRelease(versions.product_string.toStdString())
-          : std::nullopt;
-
-  QString value = Stamped(release, versions.gateware.commit);
+  QString value = FromStdString(versions.gateware.commit);
   if (versions.gateware.dirty) {
     value += Translate(" (modified)");
   }
@@ -163,14 +130,11 @@ QString GatewareNote(const FirmwareVersions& versions) {
   return {};
 }
 
-QString FirmwareValue(const FirmwareVersions& versions,
-                      const Commits& commits) {
+QString FirmwareValue(const Commits& commits) {
   if (!commits.firmware.has_value()) {
     return Translate("Not reported");
   }
-  return Stamped(
-      capture::ParseFirmwareRelease(versions.product_string.toStdString()),
-      *commits.firmware);
+  return FromStdString(*commits.firmware);
 }
 
 QString FirmwareNote(const FirmwareVersions& versions, const Commits& commits) {
@@ -274,21 +238,23 @@ QString FirmwareText(const FirmwareVersions& versions) {
   table += Row(Translate("Application"), versions.application, {});
   table += Row(Translate("FX3 firmware"),
                !versions.device_attached ? unattached
-               : reports_versions        ? FirmwareValue(versions, commits)
+               : reports_versions        ? FirmwareValue(commits)
                                          : Translate("None installed"),
                FirmwareNote(versions, commits));
   table += Row(Translate("FPGA gateware"),
                !versions.device_attached ? unattached
-               : reports_versions        ? GatewareValue(versions, commits)
+               : reports_versions        ? GatewareValue(versions)
                                          : Translate("Cannot be read"),
                GatewareNote(versions));
   table += QStringLiteral("</table>");
 
   return QStringLiteral("<h3>%1</h3><p>%2</p>%3<p>%4</p>")
       .arg(Translate("Firmware versions"),
-           Translate("The FX3 firmware and the FPGA gateware are installed "
-                     "together and come from one commit. The application is "
-                     "released separately and has a version of its own."),
+           Translate("All three are the commit each was built from. The FX3 "
+                     "firmware and the FPGA gateware are installed together "
+                     "and come from one commit, so they match on a consistent "
+                     "device. The application is released separately and is "
+                     "not expected to match them."),
            table, Verdict(versions, commits));
 }
 

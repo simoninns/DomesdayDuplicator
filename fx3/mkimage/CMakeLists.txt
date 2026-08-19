@@ -9,24 +9,24 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 include(GNUInstallDirs)
 
-# Version stamp, same shape as the firmware and the GUI: callers building
-# outside a git checkout pass -DDDD_VERSION=<hash>, and only when they have not
+# Commit stamp, same shape as the firmware and the GUI: callers building
+# outside a git checkout pass -DDDD_COMMIT=<hash>, and only when they have not
 # does the build ask git. See AGENTS.md section 9.
-if(NOT DEFINED DDD_VERSION OR DDD_VERSION STREQUAL "")
+if(NOT DEFINED DDD_COMMIT OR DDD_COMMIT STREQUAL "")
     execute_process(
         COMMAND git rev-parse --short=8 HEAD
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE DDD_VERSION
+        OUTPUT_VARIABLE DDD_COMMIT
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET
     )
 endif()
 
-if(NOT DDD_VERSION)
-    set(DDD_VERSION "unknown")
+if(NOT DDD_COMMIT)
+    set(DDD_COMMIT "unknown")
 endif()
 
-message(STATUS "fx3-mkimage version: ${DDD_VERSION}")
+message(STATUS "fx3-mkimage commit: ${DDD_COMMIT}")
 
 # The pure half — ELF parsing and image construction — is a library so the test
 # suite can link it without main().
@@ -37,7 +37,7 @@ target_compile_options(fx3-bootimage PRIVATE -Wall -Wextra)
 add_executable(fx3-mkimage src/main.c)
 target_link_libraries(fx3-mkimage PRIVATE fx3-bootimage)
 target_compile_options(fx3-mkimage PRIVATE -Wall -Wextra)
-target_compile_definitions(fx3-mkimage PRIVATE FX3_MKIMAGE_VERSION="${DDD_VERSION}")
+target_compile_definitions(fx3-mkimage PRIVATE FX3_MKIMAGE_VERSION="${DDD_COMMIT}")
 
 install(TARGETS fx3-mkimage RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

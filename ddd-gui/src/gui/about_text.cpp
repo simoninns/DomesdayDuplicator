@@ -36,10 +36,12 @@ namespace {
 constexpr const char* kProjectUrl =
     "https://github.com/simoninns/DomesdayDuplicator";
 
-// The release and the commit together, which is what "Build:" means here: a
-// user reporting a problem needs to say which release they have, and a
-// developer reading the report needs the commit.
-QString Version() { return QString::fromStdString(capture::BuildStamp()); }
+// The commit, which is what "Build:" means here. It is the same kind of stamp
+// the FX3 firmware and the FPGA gateware report, so a bug report quotes three
+// hashes that can be set beside one another — see capture/version.h.
+QString BuildCommit() {
+  return QString::fromStdString(std::string(capture::Commit()));
+}
 
 }  // namespace
 
@@ -62,7 +64,7 @@ QString AboutText() {
              "warranty of merchantability or fitness for a particular "
              "purpose. See the GNU General Public License for the details.</p>"
              "<p><a href=\"%2\">%2</a></p>")
-      .arg(Version(), QString::fromUtf8(kProjectUrl));
+      .arg(BuildCommit(), QString::fromUtf8(kProjectUrl));
 }
 
 QPixmap AboutLogo() {

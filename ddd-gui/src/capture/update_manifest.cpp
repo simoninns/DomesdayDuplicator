@@ -373,27 +373,4 @@ std::string SerialiseUpdateManifest(const UpdateManifest& manifest) {
   return SerialiseJson(JsonValue::Object(std::move(members)));
 }
 
-std::optional<int> CompareDottedVersions(std::string_view left,
-                                         std::string_view right) {
-  const std::optional<std::vector<int64_t>> left_parts =
-      SplitDottedVersion(left);
-  const std::optional<std::vector<int64_t>> right_parts =
-      SplitDottedVersion(right);
-  if (!left_parts || !right_parts) {
-    return std::nullopt;
-  }
-
-  const size_t count = std::max(left_parts->size(), right_parts->size());
-  for (size_t index = 0; index < count; ++index) {
-    const int64_t left_part =
-        index < left_parts->size() ? (*left_parts)[index] : 0;
-    const int64_t right_part =
-        index < right_parts->size() ? (*right_parts)[index] : 0;
-    if (left_part != right_part) {
-      return left_part < right_part ? -1 : 1;
-    }
-  }
-  return 0;
-}
-
 }  // namespace ddd::capture

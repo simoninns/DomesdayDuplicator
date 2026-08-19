@@ -26,7 +26,7 @@
   # is the only way a released artefact can be traced back to its source. There is no .git
   # in a Nix sandbox, so CMake's own git fallback cannot fire and this must be passed — the
   # flake passes self.shortRev. A build that reports "unknown" fails the release gate.
-  dddVersion ? "unknown",
+  dddCommit ? "unknown",
   # The minisign public key whose signatures this build accepts as releases. The source
   # fileset below closes over ddd-gui/ alone, so the repository's tools/keys/release.pub is
   # not visible to CMake's in-tree default and the flake passes the path in. Null gives a
@@ -80,7 +80,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   cmakeFlags = [
     (lib.cmakeBool "BUILD_TESTING" finalAttrs.doCheck)
-    (lib.cmakeFeature "DDD_VERSION" dddVersion)
+    (lib.cmakeFeature "DDD_COMMIT" dddCommit)
 
     # Both quality gates are development and CI checks, and both are wrong here. The
     # sandbox's clang-format is an unrelated version whose output differs, so a style
@@ -128,9 +128,9 @@ stdenv.mkDerivation (finalAttrs: {
     reported=$("$out/bin/ddd-gui" --version)
     echo "ddd-gui: $reported"
     case "$reported" in
-      *"${dddVersion}"*) ;;
+      *"${dddCommit}"*) ;;
       *)
-        echo "ddd-gui reports '$reported', which does not carry the build version '${dddVersion}'" >&2
+        echo "ddd-gui reports '$reported', which does not carry the build commit '${dddCommit}'" >&2
         exit 1
         ;;
     esac

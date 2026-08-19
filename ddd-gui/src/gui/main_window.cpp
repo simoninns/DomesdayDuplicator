@@ -676,7 +676,7 @@ void MainWindow::ShowAboutDialog() {
 void MainWindow::ShowFirmwareDialog() {
   FirmwareVersions versions;
 
-  versions.application = QString::fromStdString(capture::BuildStamp());
+  versions.application = QString::fromStdString(std::string(capture::Commit()));
 
   // Everything about the device comes from what the controller already knows,
   // so opening this reads nothing and cannot block. It also means the dialog

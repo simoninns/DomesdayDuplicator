@@ -62,11 +62,11 @@ int main(int argc, char* argv[]) {
   QApplication::setWindowIcon(ddd::gui::ApplicationIcon());
   QApplication::setApplicationName(QStringLiteral("ddd-gui"));
 
-  // Both stamps, as one line: "1.2.0 (a1b2c3d4)". The packaging workflows run
-  // this and reject an artefact that reports "unknown", which BuildStamp only
-  // says when the build can name neither.
-  const std::string version = ddd::capture::BuildStamp();
-  QApplication::setApplicationVersion(QString::fromStdString(version));
+  // The commit this build was made from. The packaging workflows run --version
+  // and reject an artefact that reports "unknown", which is what a build with
+  // no commit to name says.
+  const std::string commit(ddd::capture::Commit());
+  QApplication::setApplicationVersion(QString::fromStdString(commit));
 
   QCommandLineParser parser;
   parser.setApplicationDescription(

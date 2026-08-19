@@ -71,7 +71,7 @@
           # The capture application, and what every packaging and release workflow
           # builds.
           ddd-gui = pkgs.qt6Packages.callPackage ./ddd-gui/package.nix {
-            dddVersion = version;
+            dddCommit = version;
             # Present from the commit that publishes a release key and absent before it,
             # so this is the one place the flake asks whether the file exists rather than
             # asserting that it does. The alternative — a path that must exist — would
@@ -85,7 +85,7 @@
           # fx3-mkimage is exposed rather than hidden inside the firmware derivation
           # because a contributor building the firmware outside Nix needs it on PATH too —
           # without it CMakeLists.txt falls back to compiling it from source each time.
-          fx3-mkimage = pkgs.callPackage ./fx3/mkimage/package.nix { dddVersion = version; };
+          fx3-mkimage = pkgs.callPackage ./fx3/mkimage/package.nix { dddCommit = version; };
           fx3-firmware = pkgs.callPackage ./fx3/firmware/package.nix {
             inherit fx3-mkimage;
             firmwareVersion = version;
@@ -191,7 +191,7 @@
         final: _prev:
         {
           domesday-duplicator-ddd-gui = final.qt6Packages.callPackage ./ddd-gui/package.nix {
-            dddVersion = version;
+            dddCommit = version;
             releaseUpdateKeyFile =
               if builtins.pathExists ./tools/keys/release.pub then ./tools/keys/release.pub else null;
           };

@@ -75,50 +75,19 @@ TEST(FirmwareVersionTest, AnUnknownVersionNamesNoCommit) {
   EXPECT_FALSE(NormaliseCommit("").has_value());
 }
 
-// --- The release version a tagged firmware carries -------------------------
+// --- Tolerance to anything named before the bracket ------------------------
 
-// Both forms are read, because both are in the field. The commit stays in
-// brackets at the end of each, which is what lets a host that only knows the
-// older shape go on reading the newer one.
+// The descriptor names a commit and nothing else, so only the first of these
+// is a string the firmware produces. The second is kept deliberately: the
+// commit is the *last* bracketed group, so an application built today goes on
+// reading a device that ever names something in front of it. That tolerance is
+// inherent to the parser rather than an added feature, and it costs nothing to
+// have a test saying so.
 TEST(FirmwareVersionTest, TheCommitIsReadOutOfEitherFormOfTheString) {
   EXPECT_EQ(ParseFirmwareCommit("Domesday Duplicator (a1b2c3d4)"),
             std::optional<std::string>("a1b2c3d4"));
   EXPECT_EQ(ParseFirmwareCommit("Domesday Duplicator 1.5.0 (a1b2c3d4)"),
             std::optional<std::string>("a1b2c3d4"));
-}
-
-TEST(FirmwareVersionTest, TheReleaseVersionIsReadWhereThereIsOne) {
-  EXPECT_EQ(ParseFirmwareRelease("Domesday Duplicator 1.5.0 (a1b2c3d4)"),
-            std::optional<std::string>("1.5.0"));
-  EXPECT_EQ(ParseFirmwareRelease("Domesday Duplicator 2 (a1b2c3d4)"),
-            std::optional<std::string>("2"));
-  EXPECT_EQ(ParseFirmwareRelease("Domesday Duplicator 10.0.2 (a1b2c3d4)"),
-            std::optional<std::string>("10.0.2"));
-}
-
-// A firmware built from anything but a tag belongs to no release, and saying
-// so is the honest answer rather than a gap to be filled.
-TEST(FirmwareVersionTest, TheOlderFormNamesNoRelease) {
-  EXPECT_FALSE(
-      ParseFirmwareRelease("Domesday Duplicator (a1b2c3d4)").has_value());
-  EXPECT_FALSE(ParseFirmwareRelease("Domesday Duplicator").has_value());
-  EXPECT_FALSE(ParseFirmwareRelease("").has_value());
-}
-
-// Anything between the name and the bracket that is not a dotted number is a
-// word this code does not understand, and must never be shown to a user as a
-// version.
-TEST(FirmwareVersionTest, SomethingThatIsNotADottedNumberIsNotAVersion) {
-  EXPECT_FALSE(
-      ParseFirmwareRelease("Domesday Duplicator beta (a1b2c3d4)").has_value());
-  EXPECT_FALSE(ParseFirmwareRelease("Domesday Duplicator 1.5.0-rc1 (a1b2c3d4)")
-                   .has_value());
-  EXPECT_FALSE(
-      ParseFirmwareRelease("Domesday Duplicator 1..5 (a1b2c3d4)").has_value());
-  EXPECT_FALSE(
-      ParseFirmwareRelease("Domesday Duplicator 1.5. (a1b2c3d4)").has_value());
-  EXPECT_FALSE(
-      ParseFirmwareRelease("Domesday Duplicator .5 (a1b2c3d4)").has_value());
 }
 
 // The comparison this file used to make, and why it is gone.

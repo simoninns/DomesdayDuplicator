@@ -46,23 +46,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-# Two stamps, so a released binary can say both what release it is and what source it
-# was built from. See src/capture/version.h for why they are separate: one orders and
-# one identifies, and the update gate can only compare the first.
+# One stamp: the commit this binary was built from. See src/capture/version.h for why
+# there is no release version beside it — the same rule the FX3 firmware and the FPGA
+# gateware follow, so all three parts of a Duplicator report the same kind of thing and a
+# bug report can quote three hashes.
 #
-# DDD_VERSION is the release version and is never derived here. There is no way to work
-# out from a working tree which release it is going to become, and guessing would put a
-# number on a binary that no release ever carried. Only a release workflow building from
-# a gui-v* tag knows the answer, and it passes it in; every other build is honestly not
-# a numbered release.
-if(NOT DEFINED DDD_VERSION OR DDD_VERSION STREQUAL "")
-    set(DDD_VERSION "unknown")
-endif()
-
-# DDD_COMMIT is the commit, and this one the build can work out for itself. Mirrors
-# fx3/firmware/CMakeLists.txt: callers building outside a git checkout — Nix, release
-# tarballs, a shallow CI clone — pass -DDDD_COMMIT=<hash>, and only when they have not
-# does the build ask git. An artefact that can name neither stamp reports "unknown" and
+# Mirrors fx3/firmware/CMakeLists.txt: callers building outside a git checkout — Nix,
+# release tarballs, a shallow CI clone — pass -DDDD_COMMIT=<hash>, and only when they have not
+# does the build ask git. An artefact that cannot name a commit reports "unknown" and
 # fails the release gate (AGENTS.md §9).
 if(NOT DEFINED DDD_COMMIT OR DDD_COMMIT STREQUAL "")
     execute_process(
@@ -93,7 +84,7 @@ if(NOT DDD_COMMIT)
     set(DDD_COMMIT "unknown")
 endif()
 
-message(STATUS "Application version: ${DDD_VERSION}, commit ${DDD_COMMIT}")
+message(STATUS "Application commit: ${DDD_COMMIT}")
 
 # Which update signing key this build trusts.
 #

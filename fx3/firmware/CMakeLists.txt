@@ -40,20 +40,17 @@ if(NOT FIRMWARE_VERSION)
     set(FIRMWARE_VERSION "unknown")
 endif()
 
-# The release this firmware belongs to, where it belongs to one. Only the release
-# workflow building from an fw-v* tag knows it, and it passes it in; every other build
-# leaves it empty and the product string keeps the shape it has always had. There is
-# deliberately no fallback: nothing else can work out which release a tree is going to
-# become, and a guess would put a number in a USB descriptor that no release carries.
-if(NOT DEFINED FIRMWARE_RELEASE_VERSION)
-    set(FIRMWARE_RELEASE_VERSION "")
-endif()
-
-message(STATUS "Firmware version: ${FIRMWARE_VERSION}, release '${FIRMWARE_RELEASE_VERSION}'")
+# The commit is the whole of what the device says about itself. No release version is
+# stamped in: the firmware and the gateware are installed together from one signed bundle
+# built from one commit, so the two of them reporting the same hash is what "good" means,
+# and which release that commit belongs to is in the bundle's signed manifest. A release
+# version could not have reached the gateware in any case — its identity block is frozen
+# across register map versions and lives in the resident factory image.
+message(STATUS "Firmware commit: ${FIRMWARE_VERSION}")
 
 # Generate USB descriptor with embedded git commit at build time
 execute_process(
-    COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/generate-descriptor.sh" "${CMAKE_CURRENT_BINARY_DIR}" "${FIRMWARE_VERSION}" "${FIRMWARE_RELEASE_VERSION}"
+    COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/generate-descriptor.sh" "${CMAKE_CURRENT_BINARY_DIR}" "${FIRMWARE_VERSION}"
     OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/generated_descriptor_data.h"
     RESULT_VARIABLE desc_result
 )

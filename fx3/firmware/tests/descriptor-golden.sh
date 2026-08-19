@@ -13,18 +13,16 @@
 # is separate, unreferenced
 # and discarded by --gc-sections. This test does not cover it, and cannot.)
 #
-# Three cases, because the interesting byte is computed rather than fixed:
+# Two cases, because the interesting byte is computed rather than fixed:
 #
 #   0123abcd          a realistic 8-character short hash
 #   unknown           the fallback, one character shorter, so the size byte must differ
-#   1.5.0 0123abcd    a release build, which names its version before the bracket
 #
-# The third case is also the compatibility check. A firmware built from a tag says
-# "Domesday Duplicator 1.5.0 (0123abcd)" and one built from anything else says
-# "Domesday Duplicator (0123abcd)" — the commit stays in brackets at the end either way,
-# which is what lets a host that only knows the older shape go on reading it. The first
-# two goldens are unchanged from before the version was added, and that they still match
-# byte for byte is the point of keeping them.
+# The descriptor names a commit and nothing else. There was briefly a third case for a
+# release version stamped before the bracket; it was removed along with the mechanism,
+# because the gateware could never have carried one and the firmware alone naming a
+# release would have been half an answer. What identifies a device is that its two halves
+# report the same commit.
 #
 # Usage: descriptor-golden.sh <generate-descriptor.sh> <golden-dir>
 
@@ -38,22 +36,16 @@ trap 'rm -rf "$workdir"' EXIT
 
 status=0
 
-# name:commit:release, with an empty release for the two forms that carry none.
-for case in "0123abcd:0123abcd:" "unknown:unknown:" "1.5.0-0123abcd:0123abcd:1.5.0"; do
-    name="${case%%:*}"
-    rest="${case#*:}"
-    commit="${rest%%:*}"
-    release="${rest#*:}"
+for commit in "0123abcd" "unknown"; do
+    golden="$golden_dir/descriptor-$commit.h"
+    actual="$workdir/descriptor-$commit.h"
 
-    golden="$golden_dir/descriptor-$name.h"
-    actual="$workdir/descriptor-$name.h"
-
-    bash "$generator" "$workdir" "$commit" "$release" > "$actual"
+    bash "$generator" "$workdir" "$commit" > "$actual"
 
     if diff -u "$golden" "$actual"; then
-        echo "ok: descriptor for '$name' matches $golden"
+        echo "ok: descriptor for '$commit' matches $golden"
     else
-        echo "FAIL: descriptor for '$name' differs from $golden" >&2
+        echo "FAIL: descriptor for '$commit' differs from $golden" >&2
         status=1
     fi
 done

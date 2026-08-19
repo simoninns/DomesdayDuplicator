@@ -179,10 +179,11 @@ jobs:
       # in the manifest matches an eight-character one on a device and the other way round
       # — hence a prefix match on the descriptor rather than an equality test.
       #
-      # The grep is anchored on the name and a space rather than on the opening bracket,
-      # because a firmware built from a tag names its release before the bracket:
-      # "Domesday Duplicator 1.5.0 (0123abc)". The commit stays in brackets at the end of
-      # both forms, so the checks below read either.
+      # The grep is anchored on the name and a space rather than on the opening bracket.
+      # The descriptor names a commit and nothing else, so an anchor on "(" would work
+      # today — but anchoring on the name is strictly more tolerant and gives up nothing,
+      # and the checks below look for the commit in brackets at the end, which is where it
+      # stays whatever is ever put in front of it.
       - name: Check the firmware carries the commit
         shell: bash
         run: |

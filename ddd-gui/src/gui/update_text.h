@@ -48,12 +48,13 @@ struct UpdateVersionRow {
 // The comparison table's rows: the application, the firmware, and the
 // gateware.
 //
-// The application is in the list even though this dialog cannot update it,
-// because leaving it out would answer two thirds of "am I up to date". Where
-// it is out of date the update page says so and routes to the platform's own
-// channel rather than pretending it can self-update.
+// All three are the commit each was built from. The application is in the list
+// even though this dialog cannot update it, because leaving it out would answer
+// two thirds of "am I up to date" — but it is there to be read rather than
+// compared: it is released separately from the device's two halves and nothing
+// in a firmware bundle orders it.
 std::vector<UpdateVersionRow> UpdateVersionRows(
-    const QString& application_version, const capture::DeviceIdentity& device,
+    const QString& application_commit, const capture::DeviceIdentity& device,
     bool device_attached, const capture::UpdateManifest* bundle,
     capture::DevicePersonality personality =
         capture::DevicePersonality::kApplication);

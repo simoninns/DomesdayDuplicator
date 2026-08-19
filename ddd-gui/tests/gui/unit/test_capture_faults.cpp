@@ -29,7 +29,6 @@
 #include "fake_usb_device.h"
 #include "firmware_version.h"
 #include "synthetic_source.h"
-#include "version.h"
 
 namespace ddd::gui {
 namespace {
@@ -120,10 +119,11 @@ class CaptureFaultTest : public ::testing::Test {
     QSettings().clear();
   }
 
+  // A product string in the shape the firmware reports, so the device the
+  // controller sees names a build. Any commit will do: nothing compares it
+  // against the application's, which is released separately.
   static std::string MatchingProductString() {
-    const std::optional<std::string> commit =
-        capture::NormaliseCommit(capture::Version());
-    return "Domesday Duplicator (" + commit.value_or("a1b2c3d4") + ")";
+    return "Domesday Duplicator (a1b2c3d4)";
   }
 
   void InjectFault(capture::SyntheticSource::Fault fault,

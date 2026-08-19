@@ -52,8 +52,8 @@ capture::UpdateManifest MakeManifest(const std::string& firmware_identity,
 // it, because leaving it out would answer two thirds of "am I up to date".
 TEST(UpdateTextTest, TheComparisonCoversAllThreeVersions) {
   const capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
-  const std::vector<UpdateVersionRow> rows =
-      UpdateVersionRows(QStringLiteral("1.4.0"), MakeDevice(), true, &manifest);
+  const std::vector<UpdateVersionRow> rows = UpdateVersionRows(
+      QStringLiteral("0123abcd"), MakeDevice(), true, &manifest);
 
   ASSERT_EQ(rows.size(), 3u);
   EXPECT_EQ(rows[0].name, QStringLiteral("Application"));
@@ -63,61 +63,37 @@ TEST(UpdateTextTest, TheComparisonCoversAllThreeVersions) {
 
 TEST(UpdateTextTest, ItMarksWhatTheUpdateWouldChange) {
   const capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
-  const std::vector<UpdateVersionRow> rows =
-      UpdateVersionRows(QStringLiteral("1.4.0"), MakeDevice(), true, &manifest);
+  const std::vector<UpdateVersionRow> rows = UpdateVersionRows(
+      QStringLiteral("0123abcd"), MakeDevice(), true, &manifest);
 
   EXPECT_TRUE(rows[1].changes) << "different firmware is not marked";
   EXPECT_TRUE(rows[2].changes) << "different gateware is not marked";
 }
 
-// The comparison this row used to make, and must not make again.
+// The comparisons this row used to make, and must not make again.
 //
-// It put the bundle's own version in the application's "available" column and
-// marked the application as out of date when its number was lower. Those are
-// two independent release streams: an application at 1.4.0 beside a firmware
-// release at 1.5.0 is not behind, it is a different thing that counts
-// separately. The bug was invisible only for as long as the application
-// reported a commit hash, which CompareDottedVersions refused to order at all.
-TEST(UpdateTextTest, TheApplicationIsNotComparedAgainstTheBundlesOwnVersion) {
-  const capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
-  ASSERT_EQ(manifest.version, "1.5.0");
-
-  const std::vector<UpdateVersionRow> rows =
-      UpdateVersionRows(QStringLiteral("1.4.0"), MakeDevice(), true, &manifest);
-
-  EXPECT_FALSE(rows[0].changes)
-      << "an application from another release stream was marked out of date";
-  EXPECT_FALSE(rows[0].available.contains(QStringLiteral("1.5.0")))
-      << "a firmware release number was offered as an application version";
-}
-
-// What the bundle does say about the application stream, and the only thing it
-// says: the oldest application allowed to install it. That is a statement
-// about gui-v* versions and is worth showing, because the gate will refuse the
-// install on it.
-TEST(UpdateTextTest, AnApplicationTooOldForTheBundleIsMarked) {
+// First it put the bundle's own version in the application's "available"
+// column and marked the application out of date when its number was lower.
+// Those are two independent release streams: an application beside a firmware
+// release at 1.5.0 is not behind it, it is a different thing that counts
+// separately.
+//
+// Then it carried the bundle's minimum application version, which at least was
+// a statement about the gui-v* stream — but the floor has always been 0.0.0
+// and the application now stamps a commit, so there is nothing to order. The
+// row is here to be read, and its "available" column stays empty whatever the
+// bundle says.
+TEST(UpdateTextTest, TheApplicationRowOffersNothingToCompareAgainst) {
   capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
+  ASSERT_EQ(manifest.version, "1.5.0");
   manifest.compatibility.minimum_application_version = "2.0.0";
 
-  const std::vector<UpdateVersionRow> rows =
-      UpdateVersionRows(QStringLiteral("1.4.0"), MakeDevice(), true, &manifest);
+  const std::vector<UpdateVersionRow> rows = UpdateVersionRows(
+      QStringLiteral("0123abcd"), MakeDevice(), true, &manifest);
 
-  EXPECT_TRUE(rows[0].changes)
-      << "an application too old to install is not marked";
-  EXPECT_TRUE(rows[0].available.contains(QStringLiteral("2.0.0")))
-      << rows[0].available.toStdString();
-}
-
-// And a bundle any application may install has nothing to tell that row.
-// Printing its floor there would read as a version to upgrade to.
-TEST(UpdateTextTest, AFloorThisApplicationClearsIsNotMentioned) {
-  capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
-  manifest.compatibility.minimum_application_version = "0.0.0";
-
-  const std::vector<UpdateVersionRow> rows =
-      UpdateVersionRows(QStringLiteral("1.4.0"), MakeDevice(), true, &manifest);
-
-  EXPECT_FALSE(rows[0].changes);
+  EXPECT_EQ(rows[0].installed, QStringLiteral("0123abcd"));
+  EXPECT_FALSE(rows[0].changes)
+      << "an application from another release stream was marked out of date";
   EXPECT_TRUE(rows[0].available.isEmpty()) << rows[0].available.toStdString();
 }
 
@@ -147,7 +123,7 @@ TEST(UpdateTextTest, CommitsOfDifferentLengthsAreTheSameBuild) {
 
 TEST(UpdateTextTest, WithNoDeviceTheRowsSaySoRatherThanBeingBlank) {
   const std::vector<UpdateVersionRow> rows = UpdateVersionRows(
-      QStringLiteral("1.4.0"), capture::DeviceIdentity{}, false, nullptr);
+      QStringLiteral("0123abcd"), capture::DeviceIdentity{}, false, nullptr);
 
   EXPECT_FALSE(rows[1].installed.isEmpty());
   EXPECT_FALSE(rows[2].installed.isEmpty());
@@ -160,7 +136,7 @@ TEST(UpdateTextTest, AGatewareThatNeverAnsweredIsReportedAsSuch) {
   device.gateware_commit.clear();
 
   const std::vector<UpdateVersionRow> rows =
-      UpdateVersionRows(QStringLiteral("1.4.0"), device, true, nullptr);
+      UpdateVersionRows(QStringLiteral("0123abcd"), device, true, nullptr);
 
   EXPECT_EQ(rows[2].installed, QStringLiteral("Not reported"));
 }
@@ -168,7 +144,7 @@ TEST(UpdateTextTest, AGatewareThatNeverAnsweredIsReportedAsSuch) {
 TEST(UpdateTextTest, TheTableShowsEveryRow) {
   const capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
   const QString html = UpdateVersionTable(UpdateVersionRows(
-      QStringLiteral("1.4.0"), MakeDevice(), true, &manifest));
+      QStringLiteral("0123abcd"), MakeDevice(), true, &manifest));
 
   EXPECT_TRUE(html.contains(QStringLiteral("Application")));
   EXPECT_TRUE(html.contains(QStringLiteral("0123abcd")));
@@ -335,7 +311,7 @@ TEST(UpdateTextTest, TheActionIsProgrammingRatherThanRepairing) {
 
 TEST(UpdateTextTest, ARecoveryDeviceReportsNoVersionsRatherThanUnknownOnes) {
   const std::vector<UpdateVersionRow> rows =
-      UpdateVersionRows(QStringLiteral("1.4.0"), capture::DeviceIdentity{},
+      UpdateVersionRows(QStringLiteral("0123abcd"), capture::DeviceIdentity{},
                         true, nullptr, capture::DevicePersonality::kRecovery);
 
   ASSERT_EQ(rows.size(), 3u);
@@ -353,7 +329,7 @@ TEST(UpdateTextTest, EverythingInTheBundleChangesOnADeviceWithNoFirmware) {
   const capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
 
   const std::vector<UpdateVersionRow> rows =
-      UpdateVersionRows(QStringLiteral("1.4.0"), capture::DeviceIdentity{},
+      UpdateVersionRows(QStringLiteral("0123abcd"), capture::DeviceIdentity{},
                         true, &manifest, capture::DevicePersonality::kRecovery);
 
   ASSERT_EQ(rows.size(), 3u);
@@ -447,8 +423,9 @@ TEST(UpdateTextTest, TheActionForGatewareRecoveryIsAReinstall) {
 TEST(UpdateTextTest, TheGatewareRowNamesTheRecoveryImageRatherThanItsCommit) {
   const capture::UpdateManifest manifest = MakeManifest("0123abcd", "0123abcd");
 
-  const std::vector<UpdateVersionRow> rows = UpdateVersionRows(
-      QStringLiteral("1.4.0"), MakeGatewareRecoveryDevice(), true, &manifest);
+  const std::vector<UpdateVersionRow> rows =
+      UpdateVersionRows(QStringLiteral("0123abcd"),
+                        MakeGatewareRecoveryDevice(), true, &manifest);
 
   ASSERT_EQ(rows.size(), 3u);
   EXPECT_EQ(rows[2].installed, QStringLiteral("Recovery gateware"));

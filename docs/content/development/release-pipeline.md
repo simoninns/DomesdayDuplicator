@@ -68,7 +68,9 @@ Three gates stand between the build and the published release, and each of them 
 2. **The bitstream was built from the tag.** Its provenance record must name the tag's commit. The build itself already refuses to produce a record with an unknown commit.
 3. **The bundle verifies against the pinned public key.** Verified independently after assembly, with stock `minisign`, against `tools/keys/release.pub` — the same bytes the application compiles in. A bundle signed with anything else is a bundle the application would refuse, so this is a failure and not a warning. The same step checks that all four payloads are present, because a release that quietly lost the two bring-up ones would update a working device perfectly well and stop being able to bring a board up — which nobody discovers until they are standing in front of a bare board.
 
-The manifest's compatibility fields are read out of the sources that implement them at release time — the protocol version from the FX3 descriptor, the register map version from `spiRegisters.v`, the EPCS layout version from the boot-block encoder — so a manifest cannot claim a protocol the firmware does not speak. The one field that is a *decision* rather than a fact, the minimum application version, lives in `tools/release/compatibility.env`, which the tag pins along with everything else.
+The manifest's compatibility fields are read out of the sources that implement them at release time — the protocol version from the FX3 descriptor, the register map version from `spiRegisters.v`, the EPCS layout version from the boot-block encoder — so a manifest cannot claim a protocol the firmware does not speak.
+
+The manifest also carries a minimum application version, from `tools/release/compatibility.env`, and it is no longer read by the application. It was compared against the application's own dotted release version, which no longer exists: every part of a Duplicator now stamps the commit it was built from, and a commit orders nothing. The field stays because the manifest schema requires it and every application already in the field parses it. **A bundle that needs a newer application should say so by advertising a protocol version or register map version outside the range the old application knows** — that refusal is still enforced, it is derived from the sources rather than decided, and it describes what the old application actually cannot do rather than how old it is.
 
 ### Reproducibility audit
 
@@ -168,10 +170,11 @@ people's hands, the firmware tag is the one that does it.
 ### Tag naming, and the two rules that bite
 
 **A `fw-v*` tag must be plain dotted numeric.** `fw-v1.4.0` is fine; `fw-v1.4.0-beta1` is
-rejected. The version goes into the bundle manifest, where the application compares it
-against `minimum_application_version` as a dotted version, so a suffix would be a version
-that cannot be ordered. The check is real and it fails the release — but it runs *after* the
-gateware has compiled, so a mistyped tag costs a Quartus run before it tells you.
+rejected. The version goes into the bundle manifest, and the manifest reader refuses a
+`version` that is not a dotted sequence of decimal numbers — so a suffixed tag would produce
+a bundle no application could open. The check is real and it fails the release — but it runs
+*after* the gateware has compiled, so a mistyped tag costs a Quartus run before it tells
+you.
 
 **A `gui-v*` tag may carry a suffix.** `gui-v1.0.0-beta1` is fine. Nothing downstream orders
 it: the MSI falls back to a `0.0.<run>.0` product version, which is deliberately lower than
