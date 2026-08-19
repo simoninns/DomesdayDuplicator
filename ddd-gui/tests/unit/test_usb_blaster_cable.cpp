@@ -13,9 +13,13 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "fake_ftdi_transport.h"
+#include "logger.h"
 #include "usb_blaster_cable.h"
 
 namespace ddd::capture {
@@ -54,14 +58,35 @@ std::string Unpacked(const std::vector<uint8_t>& packed, size_t bit_count) {
 
 class UsbBlasterCableTest : public ::testing::Test {
  protected:
+  UsbBlasterCableTest()
+      : logger_(
+            [this](LogLevel level, const std::string& message) {
+              log_.emplace_back(level, message);
+            },
+            LogLevel::kDebug),
+        cable_(MakeUsbBlasterCableOver(transport_, &logger_)) {}
+
   bool Shift(const std::string& tms, const std::string& tdi,
              std::vector<uint8_t>* tdo = nullptr) {
     return cable_->Shift(Packed(tms), Packed(tdi), tms.size(), tdo);
   }
 
+  // The most severe level anything was logged at, which is what the two
+  // refusals below are distinguished by.
+  std::optional<LogLevel> HighestLevelLogged() const {
+    std::optional<LogLevel> highest;
+    for (const auto& [level, message] : log_) {
+      if (!highest.has_value() || level > *highest) {
+        highest = level;
+      }
+    }
+    return highest;
+  }
+
   FakeFtdiTransport transport_;
-  std::unique_ptr<IJtagCable> cable_ =
-      MakeUsbBlasterCableOver(transport_, nullptr);
+  std::vector<std::pair<LogLevel, std::string>> log_;
+  CallbackLogger logger_;
+  std::unique_ptr<IJtagCable> cable_;
 };
 
 // --- Bit-bang --------------------------------------------------------------
@@ -277,6 +302,7 @@ TEST_F(UsbBlasterCableTest, ACableThatOnlySendsStatusIsGivenUpOn) {
 
   std::vector<uint8_t> tdo;
   EXPECT_FALSE(Shift("1", "0", &tdo));
+  EXPECT_EQ(HighestLevelLogged(), LogLevel::kError);
 }
 
 // And a cable that answers with *more* than it was asked for is refused too,
@@ -293,6 +319,21 @@ TEST_F(UsbBlasterCableTest, ACableThatSaysMoreThanItWasAskedForIsRefused) {
 
   std::vector<uint8_t> tdo;
   EXPECT_FALSE(Shift("1", "0", &tdo));
+}
+
+// Refused, but said as a warning rather than an error. The read fails either
+// way; what a warning withholds is the claim that a user has to do something,
+// which this layer is not in a position to make. The only caller that reads
+// TDO plays the file a second time with the cable re-opened, and re-opening
+// empties the buffers the surplus byte came from — so the usual end of this is
+// a bring-up that succeeds, and an ERROR standing alone in the log of a run
+// that worked is what this replaces (TESTING.md, B-V1, 2026-08-19).
+TEST_F(UsbBlasterCableTest, ASurplusByteIsSaidAsAWarningNotAnError) {
+  transport_.AnswerWith({0x01, 0x00});
+
+  std::vector<uint8_t> tdo;
+  ASSERT_FALSE(Shift("1", "0", &tdo));
+  EXPECT_EQ(HighestLevelLogged(), LogLevel::kWarning);
 }
 
 }  // namespace

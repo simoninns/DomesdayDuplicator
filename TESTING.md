@@ -933,7 +933,7 @@ Performed first on 2026-08-15. Needs the USB-Blaster and `nix build .#bitstream`
 **Partly performed, 2026-08-17 — and it found a defect the whole tier exists to find.**
 The gating item for the board bring-up work: it is what decides whether the application
 can provision a board itself, and it is the only thing about that path a bench can settle.
-Everything else is covered at T1 with nothing attached (`ctest -R jtag`, 61 tests), and no
+Everything else is covered at T1 with nothing attached (`ctest -R jtag`, 67 tests), and no
 test could have answered the question below.
 
 **What the first cable session established.** The cable was pointed at a DE0-Nano for the
@@ -1046,7 +1046,8 @@ Three changes came out of it, all covered at T1:
   outstanding at a time, so a byte nothing asked for means the answers are out of step
   with the cycles they belong to; dropping it produced a scan that read back plausible
   rubbish and failed somewhere unrelated. Given this cable's unexplained read behaviour
-  above, that is worth naming rather than absorbing.
+  above, that is worth naming rather than absorbing. **Said as a warning, not an
+  error** — see the sighting below.
 - **The failure message carries the window, the scan width, the line and the statement.**
 
 **Still to check on the bench**: whether the retry is ever taken in practice, and if it is,
@@ -1054,6 +1055,26 @@ how often. One occurrence in one session is not a rate. The warning it logs —
 *"Loading the gateware failed and is being tried once more"* — is what to grep for, and a
 run that needs the second attempt more than occasionally is a different problem from the
 one this closes.
+
+**A fourth finding, 2026-08-19 — the retry is taken, and the surplus-byte check is what
+takes it.** A bring-up that succeeded logged *"The USB-Blaster sent more than it was asked
+for"* once, part way through, and finished normally: the first configure attempt was
+abandoned on the surplus byte, the cable was re-opened — which resets the FT245 and
+empties the buffer the byte came from — and the second attempt played clean. So both
+halves of the previous entry are now bench-confirmed working, and the two known ways into
+the retry are a readback comparison and a surplus byte. Still one occurrence, still not a
+rate.
+
+What was wrong with it is the same defect as before, one layer down: the message was
+logged at ERROR, so it stood alone in the log panel of a run that had worked, saying that
+something had gone wrong and nothing at all about the consequence. **It is now a warning,
+and it says that the play was stopped rather than continued on answers that cannot be
+trusted.** It stops there deliberately: that nothing was written is true of a configure
+and not of the cable, which plays whatever file `ddd-jtag` hands it. The error, if there
+is to be one, is the orchestrator's when the second attempt fails too — which is the only
+point at which anyone has to act. Covered at T1
+(`UsbBlasterCableTest.ASurplusByteIsSaidAsAWarningNotAnError`), which asserts the level
+rather than only the refusal.
 
 **Still to perform**: the flash write itself, its duration, and the comparison against
 `quartus_pgm` — steps 4 to 6 below, which cannot run until the firmware carries that third
