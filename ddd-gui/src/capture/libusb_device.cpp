@@ -420,10 +420,10 @@ class LibUsbDevice : public IUsbDevice {
     }
 
     bool claimed = libusb_claim_interface(handle, kInterfaceNumber) == 0;
-    const int sent = libusb_control_transfer(
-        handle, kVendorRequestType, kCollectionRequest,
-        collecting ? kCollectionStart : kCollectionStop, 0, nullptr, 0,
-        kControlTimeoutMilliseconds);
+    const int sent =
+        libusb_control_transfer(handle, kVendorRequestType, kCollectionRequest,
+                                collecting ? kCollectionStart : kCollectionStop,
+                                0, nullptr, 0, kControlTimeoutMilliseconds);
 
     if (claimed) {
       libusb_release_interface(handle, kInterfaceNumber);
@@ -433,8 +433,8 @@ class LibUsbDevice : public IUsbDevice {
     if (sent < 0) {
       if (logger_ != nullptr) {
         logger_->Error(std::string("Telling the device a capture was ") +
-                       (collecting ? "starting" : "stopping") + " failed: " +
-                       libusb_error_name(sent));
+                       (collecting ? "starting" : "stopping") +
+                       " failed: " + libusb_error_name(sent));
       }
       return false;
     }

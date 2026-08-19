@@ -509,8 +509,7 @@ void CapturePipeline::ProcessingThread() {
           " samples into buffer " + std::to_string(buffers_processed_.load()) +
           ": expected " + std::to_string(outcome.expected_counter) + ", got " +
           std::to_string(outcome.actual_counter) + ". The counter advanced " +
-          std::to_string(outcome.samples_expected_remaining) +
-          " samples early";
+          std::to_string(outcome.samples_expected_remaining) + " samples early";
       if (outcome.synchronised_here) {
         detail += ", and the validator locked on at sample " +
                   std::to_string(outcome.synchronisation_sample_index) +
