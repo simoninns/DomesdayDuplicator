@@ -134,6 +134,8 @@ Press **Load the gateware**. It plays the gateware into the FPGA through the DE0
 
 **Nothing is written to the board by this step.** A JTAG configuration lives in the FPGA's own memory and would be lost the moment the power went off. What it buys is the next page: a Duplicator that can reach its own flash, so that everything after this is written by the device itself over the USB 3.0 cable.
 
+Because nothing is written, an attempt that does not take can simply be made again — and the page does that for you, once, before reporting anything. Nearly six million bits go down a bit-banged cable, the check at the end of the file exists to catch a configuration that did not arrive intact, and the answer to one that it catches is another three seconds rather than a message. If you see the bar go back to the beginning, that is what happened, and the page says so while it runs. A second failure is reported, with the line of the file it stopped at.
+
 The FX3 is sitting in its boot ROM while this happens, with every shared pin idle. That is why this comes before the firmware rather than after it — see *Why this order* below.
 
 ### 6 · Program the board

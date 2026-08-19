@@ -287,7 +287,23 @@ class UsbBlasterCable : public IJtagCable {
       }
     }
 
-    payload.resize(wanted);
+    // More than was asked for means the cable sent a byte nothing requested,
+    // and there is exactly one read outstanding at a time — so the stream is
+    // out of step and every answer from here on would be one byte early.
+    //
+    // Said rather than silently dropped, which is what this used to do. A
+    // dropped byte turns into a scan that reads back plausible rubbish,
+    // fails a TDO comparison somewhere unrelated, and clears on the next
+    // run: the hardest possible shape of bug to find from a screenshot, and
+    // one this cable's unexplained read behaviour makes worth naming
+    // (TESTING.md, B-V1).
+    if (payload.size() > wanted) {
+      Fail(
+          "The USB-Blaster sent more than it was asked for, so its answers "
+          "are no longer in step with the cycles they belong to.");
+      return false;
+    }
+
     return true;
   }
 

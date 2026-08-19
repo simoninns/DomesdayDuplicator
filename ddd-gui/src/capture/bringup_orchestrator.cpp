@@ -24,6 +24,13 @@ namespace {
 // 1,450,426 bytes in 2.6 seconds, measured, rounded down.
 constexpr double kConfigureBytesPerSecond = 500000.0;
 
+// How many times the vectors are played before a failure is a failure.
+//
+// Two rather than more: one retry covers the transient that a bench has
+// actually seen, and a third would only postpone telling a user about a cable
+// or a board that is genuinely wrong.
+constexpr int kConfigureAttempts = 2;
+
 }  // namespace
 
 int EstimateConfigureSeconds(uint64_t svf_bytes) {
@@ -45,6 +52,87 @@ BringUpConfigureOutcome BringUpOrchestrator::ConfigureFailure(
   return outcome;
 }
 
+BringUpConfigureOutcome BringUpOrchestrator::PlayVectors(std::string_view text,
+                                                         int attempt,
+                                                         bool& cable_opened) {
+  BringUpConfigureOutcome outcome;
+  cable_opened = false;
+
+  // Opened per attempt rather than per call, because re-opening is half of
+  // what a second attempt is worth: it resets the FT245 and empties both its
+  // buffers, so an attempt that failed because the cable's answers had got
+  // out of step does not hand that state to the next one.
+  std::string problem;
+  const std::unique_ptr<IJtagCable> cable = access_.open_cable(&problem);
+  if (cable == nullptr) {
+    outcome.problem = problem.empty()
+                          ? std::string("The USB-Blaster could not be opened.")
+                          : problem;
+    return outcome;
+  }
+  cable_opened = true;
+
+  SvfPlayer player(*cable, logger_);
+
+  // Bytes of the file, straight through to the caller's bar. The player counts
+  // in the one unit that is known before the run starts, so the proportion is
+  // honest from the first update rather than after a guess.
+  //
+  // A second attempt says that it is one. The bar counts bytes of the file,
+  // so starting it over sends it back to nothing, and a bar that rewinds
+  // without a word about why reads as something going wrong rather than as
+  // the step doing what a user would otherwise have done by hand.
+  const std::string message =
+      attempt > 1
+          ? std::string(
+                "Loading the gateware into the FPGA through the USB-Blaster, "
+                "on a second attempt after the first did not take. Nothing is "
+                "written to the board by this step.")
+          : std::string(
+                "Loading the gateware into the FPGA through the USB-Blaster. "
+                "Nothing is written to the board by this step.");
+
+  if (progress_) {
+    player.SetProgressCallback([this, message](size_t done, size_t total) {
+      UpdateProgress progress;
+      progress.stage = UpdateStage::kWriting;
+      progress.target = UpdateTarget::kEpcsFactory;
+      progress.done = done;
+      progress.total = total;
+      progress.message = message;
+      progress_(progress);
+    });
+  }
+  if (cancel_) {
+    player.SetStopCallback(cancel_);
+  }
+
+  outcome.play = player.Play(text);
+  outcome.succeeded = outcome.play.succeeded;
+  outcome.stopped = outcome.play.stopped;
+
+  if (!outcome.succeeded) {
+    // The player's own words, which name both values on a mismatch, and after
+    // them where in the file to look. The sentence is not wrapped or
+    // rephrased: it was written for a user, and the place it stopped is the
+    // one thing it cannot know about itself.
+    outcome.problem = outcome.play.problem;
+    if (outcome.play.line > 0 && !outcome.stopped) {
+      // Written as a label rather than as prose, because no article reads
+      // right in front of every SVF keyword there is — "an SDR" and "a
+      // STATE" — and because this half is what gets copied into a report.
+      outcome.problem +=
+          " (Programming file line " + std::to_string(outcome.play.line);
+      if (!outcome.play.statement_keyword.empty()) {
+        outcome.problem += ", " + outcome.play.statement_keyword;
+      }
+      outcome.problem += ".)";
+    }
+  }
+
+  return outcome;
+}
+
 BringUpConfigureOutcome BringUpOrchestrator::ConfigureFpga(
     const UpdateBundle& bundle) {
   fpga_configured_ = false;
@@ -60,51 +148,52 @@ BringUpConfigureOutcome BringUpOrchestrator::ConfigureFpga(
     return ConfigureFailure("No JTAG cable is available in this build.");
   }
 
-  std::string problem;
-  const std::unique_ptr<IJtagCable> cable = access_.open_cable(&problem);
-  if (cable == nullptr) {
-    return ConfigureFailure(problem.empty()
-                                ? std::string("The USB-Blaster could not be "
-                                              "opened.")
-                                : problem);
-  }
-
-  SvfPlayer player(*cable, logger_);
-
-  // Bytes of the file, straight through to the caller's bar. The player counts
-  // in the one unit that is known before the run starts, so the proportion is
-  // honest from the first update rather than after a guess.
-  if (progress_) {
-    player.SetProgressCallback([this](size_t done, size_t total) {
-      UpdateProgress progress;
-      progress.stage = UpdateStage::kWriting;
-      progress.target = UpdateTarget::kEpcsFactory;
-      progress.done = done;
-      progress.total = total;
-      progress.message =
-          "Loading the gateware into the FPGA through the USB-Blaster. "
-          "Nothing is written to the board by this step.";
-      progress_(progress);
-    });
-  }
-  if (cancel_) {
-    player.SetStopCallback(cancel_);
-  }
-
   const std::string_view text(
       reinterpret_cast<const char*>(bundle.provisioning.data()),
       bundle.provisioning.size());
 
+  // Played again if the first attempt fails, and this is the one step of a
+  // bring-up where that is allowed.
+  //
+  // What makes it safe is what makes this half different from every other:
+  // nothing is written. The vectors put the factory image into the FPGA's
+  // configuration memory and stop, so an attempt that fails part way leaves
+  // the board exactly as it was, and playing the file again from the
+  // beginning is what the wizard already tells a user to do by hand. It takes
+  // about three seconds.
+  //
+  // Why it is worth doing for them: 5.7 Mbit go through a full-speed
+  // bit-banged link, and the comparison at the end of the file is there to
+  // catch a configuration that did not take. A single caught one is not a
+  // fault to report — it is the check working, and the answer to it is
+  // another attempt (TESTING.md, B-V1, 2026-08-19).
   BringUpConfigureOutcome outcome;
-  outcome.play = player.Play(text);
-  outcome.succeeded = outcome.play.succeeded;
-  outcome.stopped = outcome.play.stopped;
+  for (int attempt = 1; attempt <= kConfigureAttempts; ++attempt) {
+    bool cable_opened = false;
+    outcome = PlayVectors(text, attempt, cable_opened);
+    outcome.attempts = attempt;
+
+    if (outcome.succeeded || outcome.stopped) {
+      break;
+    }
+
+    // A cable that could not be opened is not a transient. Trying again would
+    // only say the same sentence twice as slowly, and the sentence — no
+    // cable, the wrong cable, jtagd holding it — is already the one a user
+    // has to act on.
+    if (!cable_opened) {
+      break;
+    }
+
+    if (attempt < kConfigureAttempts && logger_ != nullptr) {
+      logger_->Warning(
+          "Loading the gateware failed and is being tried once more; nothing "
+          "has been written to the board. The attempt that failed said: " +
+          outcome.problem);
+    }
+  }
 
   if (!outcome.succeeded) {
-    // The player's own words, which name the line and both values on a
-    // mismatch. Prefixed with nothing: it has already written a sentence for a
-    // user, and wrapping it would only bury the part that matters.
-    outcome.problem = outcome.play.problem;
     if (logger_ != nullptr) {
       logger_->Error(outcome.problem);
     }

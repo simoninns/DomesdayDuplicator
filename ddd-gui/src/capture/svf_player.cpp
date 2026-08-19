@@ -238,12 +238,53 @@ bool HexToBits(std::string_view hex, size_t bit_count,
   return true;
 }
 
-// SVF's own way round, for messages: one big number, most significant first.
-std::string BitsToHex(const std::vector<uint8_t>& bits, size_t bit_count,
-                      size_t maximum_digits) {
+// A window onto a scan value, in SVF's own way round: one big number, most
+// significant first.
+//
+// A window rather than the whole value because a scan can be hundreds of bits
+// wide and only one of them is ever the reason a run stopped. Printing the
+// most significant digits and stopping there — which is what this used to do
+// — is truthful and useless: the status check that ends a Cyclone IV
+// configure is 732 bits, so the text showed bits 731 down to 604 while the
+// bit that disagreed was at 286. The bit that matters has to be *in* the
+// window, so the window is placed around it and the range is named.
+struct HexWindow {
   std::string text;
+
+  // The range the text covers, inclusive, in the file's own bit numbering.
+  size_t lowest_bit = 0;
+  size_t highest_bit = 0;
+};
+
+HexWindow BitsToHexAround(const std::vector<uint8_t>& bits, size_t bit_count,
+                          size_t around, size_t maximum_digits) {
+  // Nothing to show, and the arithmetic below would run off the bottom of
+  // size_t working that out. The only caller has already refused a scan of no
+  // bits; this is here so that the next one does not have to.
+  if (bit_count == 0) {
+    return {};
+  }
+
   const size_t digits = (bit_count + 3) / 4;
-  for (size_t nibble = digits; nibble > 0; --nibble) {
+
+  // One past the highest nibble shown, so that a value no wider than the
+  // window is shown whole and nothing is elided that did not need to be.
+  size_t top = digits;
+  if (digits > maximum_digits) {
+    const size_t centre = around / 4;
+    top = std::min(digits, centre + (maximum_digits + 1) / 2);
+    top = std::max(top, maximum_digits);
+  }
+  const size_t bottom = top > maximum_digits ? top - maximum_digits : 0;
+
+  HexWindow window;
+  window.lowest_bit = bottom * 4;
+  window.highest_bit = std::min(top * 4, bit_count) - 1;
+
+  if (top < digits) {
+    window.text += "…";
+  }
+  for (size_t nibble = top; nibble > bottom; --nibble) {
     int value = 0;
     for (int offset = 0; offset < 4; ++offset) {
       const size_t index = (nibble - 1) * 4 + static_cast<size_t>(offset);
@@ -251,13 +292,12 @@ std::string BitsToHex(const std::vector<uint8_t>& bits, size_t bit_count,
         value |= 1 << offset;
       }
     }
-    text.push_back("0123456789ABCDEF"[value]);
-    if (text.size() >= maximum_digits && nibble > 1) {
-      text += "…";
-      break;
-    }
+    window.text.push_back("0123456789ABCDEF"[value]);
   }
-  return text;
+  if (bottom > 0) {
+    window.text += "…";
+  }
+  return window;
 }
 
 // --- The file --------------------------------------------------------------
@@ -343,6 +383,8 @@ class Player {
   size_t line_ = 1;
   size_t reported_position_ = 0;
 
+  std::string statement_keyword_;
+
   TapState current_ = TapState::kReset;
   TapState end_dr_ = TapState::kIdle;
   TapState end_ir_ = TapState::kIdle;
@@ -362,6 +404,11 @@ class Player {
 // means writing a device that has not finished doing the last thing it was
 // told to.
 constexpr double kShortestEnforcedWaitSeconds = 0.001;
+
+// How many hexadecimal digits of a scan a failure message carries. Wide
+// enough that the bits either side of the one that disagreed are there to be
+// compared, narrow enough to sit in a wizard's message box.
+constexpr size_t kMessageHexDigits = 32;
 
 // How much of the file to get through before saying so again. Every
 // statement would be tens of thousands of calls into a user interface for
@@ -439,6 +486,11 @@ SvfPlayResult Player::Play(std::string_view text) {
 bool Player::NextStatement(Statement& statement) {
   statement.tokens.clear();
   statement.line = line_;
+
+  // Cleared here rather than left standing: a failure while *reading* the
+  // next statement is not a failure in the last one that ran, and naming
+  // that one would send a reader to the wrong line.
+  statement_keyword_.clear();
 
   std::string word;
 
@@ -558,6 +610,11 @@ bool Player::NextStatement(Statement& statement) {
 
 bool Player::Execute(const Statement& statement) {
   const std::string& command = statement.tokens.front().text;
+
+  // Noted before anything is done with it, so that a failure inside any of
+  // the calls below can say which kind of statement it was in without every
+  // one of them having to be told.
+  statement_keyword_ = command;
 
   if (command == "SDR") {
     return DoScan(statement, false);
@@ -704,12 +761,21 @@ bool Player::DoScan(const Statement& statement, bool instruction) {
       // file being wrong, so it is worth every detail it can carry: an
       // erase that did not take, a device that is not the one the file was
       // built for, and a cable reading a bit late all land here.
+      //
+      // Both windows cover the same range by construction, so the range is
+      // named once. Without it the two values cannot be lined up against the
+      // bit number, and a report of one of these is unreadable.
+      const HexWindow said =
+          BitsToHexAround(received, bit_count, index, kMessageHexDigits);
+      const HexWindow wanted =
+          BitsToHexAround(expected, bit_count, index, kMessageHexDigits);
       return FailAt(
           statement.line,
           "The device did not answer as the programming file expected at bit " +
-              std::to_string(index) + ": it said " +
-              BitsToHex(received, bit_count, 32) + " where " +
-              BitsToHex(expected, bit_count, 32) + " was expected.");
+              std::to_string(index) + " of a " + std::to_string(bit_count) +
+              "-bit scan: across bits " + std::to_string(said.highest_bit) +
+              " to " + std::to_string(said.lowest_bit) + " it said " +
+              said.text + " where " + wanted.text + " was expected.");
     }
   }
 
@@ -961,6 +1027,7 @@ bool Player::FailAt(size_t line, const std::string& problem) {
   if (result_.problem.empty()) {
     result_.problem = problem;
     result_.line = line;
+    result_.statement_keyword = statement_keyword_;
     if (logger_ != nullptr) {
       logger_->Error("JTAG programming failed at line " + std::to_string(line) +
                      ": " + problem);

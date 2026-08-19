@@ -98,6 +98,15 @@ class BorrowedCable : public IJtagCable {
   FakeJtagCable* fake_ = nullptr;
 };
 
+// Two statements and one comparison, for the tests about playing the file
+// more than once. Small deliberately: what they are about is how many times
+// it is played, and a file with a real wait in it would spend a second of
+// each run proving nothing.
+inline constexpr char kRetrySvf[] = R"(
+STATE IDLE;
+SDR 4 TDI (0) TDO (A) MASK (F);
+)";
+
 // A complete update bundle built in memory. UpdateBundle is what
 // OpenUpdateBundle produces *after* the signature and every digest have passed,
 // so building one directly starts where the checks finished — which is where
@@ -400,6 +409,90 @@ TEST(BringUpOrchestrator, SaysWhyTheCableCouldNotBeOpened) {
       orchestrator.ConfigureFpga(fixture.bundle);
   EXPECT_FALSE(outcome.succeeded);
   EXPECT_EQ(outcome.problem, "No USB-Blaster is attached.");
+}
+
+// A configure that fails is played again, once.
+//
+// The whole half writes nothing, so a failed attempt leaves the board as it
+// was and the file can simply be played from the beginning — which is what
+// the wizard already tells a user to do by hand after a failure like the one
+// this exists for (TESTING.md, B-V1, 2026-08-19).
+TEST(BringUpOrchestrator, AConfigureThatFailsOnceIsPlayedAgain) {
+  Fixture fixture(kRetrySvf);
+
+  // The first answer disagrees with the file and the second does not, and the
+  // cable serves them in the order they are asked for — so attempt one fails
+  // on the comparison and attempt two gets through it.
+  fixture.cable.AnswerWith({true, true, false, true, false, true, false, true});
+
+  std::vector<UpdateProgress> reports;
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+  orchestrator.SetProgressCallback(
+      [&reports](const UpdateProgress& report) { reports.push_back(report); });
+
+  const BringUpConfigureOutcome outcome =
+      orchestrator.ConfigureFpga(fixture.bundle);
+
+  EXPECT_TRUE(outcome.succeeded) << outcome.problem;
+  EXPECT_EQ(outcome.attempts, 2);
+
+  // The bar counts bytes of the file, so a second attempt sends it back to
+  // nothing. It says why, because a bar that rewinds silently reads as a
+  // fault rather than as the step doing what a user would have done by hand.
+  const auto again = std::find_if(
+      reports.begin(), reports.end(), [](const UpdateProgress& report) {
+        return report.message.find("second attempt") != std::string::npos;
+      });
+  EXPECT_NE(again, reports.end())
+      << "nothing on the bar said the file was being played again";
+  EXPECT_TRUE(outcome.problem.empty());
+  EXPECT_TRUE(orchestrator.fpga_configured());
+
+  // Re-opened rather than reused, which is half of what the second attempt is
+  // worth: opening resets the cable and empties its buffers.
+  EXPECT_EQ(fixture.cable_opens, 2);
+}
+
+// Twice and no more. A board or a cable that is genuinely wrong should be
+// reported, not retried until a user gives up on it.
+TEST(BringUpOrchestrator, AConfigureThatKeepsFailingIsReported) {
+  Fixture fixture(kRetrySvf);
+  fixture.cable.AnswerWith({true, true, false, true, true, true, false, true});
+
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+
+  const BringUpConfigureOutcome outcome =
+      orchestrator.ConfigureFpga(fixture.bundle);
+
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_EQ(outcome.attempts, 2);
+  EXPECT_EQ(fixture.cable_opens, 2);
+  EXPECT_FALSE(orchestrator.fpga_configured());
+
+  // The player's own sentence, and after it where in the file to look.
+  EXPECT_NE(outcome.problem.find("did not answer"), std::string::npos)
+      << outcome.problem;
+  EXPECT_NE(outcome.problem.find("(Programming file line 3, SDR.)"),
+            std::string::npos)
+      << outcome.problem;
+}
+
+// A cable that is not there is not a transient, and trying again would only
+// say the same sentence twice as slowly.
+TEST(BringUpOrchestrator, ACableThatCannotBeOpenedIsNotTriedTwice) {
+  Fixture fixture;
+  fixture.cable_available = false;
+
+  BringUpOrchestrator orchestrator(fixture.Access(), nullptr);
+  fixture.Configure(orchestrator);
+
+  const BringUpConfigureOutcome outcome =
+      orchestrator.ConfigureFpga(fixture.bundle);
+
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_EQ(fixture.cable_opens, 1);
 }
 
 TEST(BringUpOrchestrator, AStoppedPlayIsNotAFailure) {

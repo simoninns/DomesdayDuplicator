@@ -83,6 +83,12 @@ struct SvfPlayResult {
   // Where in the file it stopped, 1-based, or 0 if nothing was being read.
   size_t line = 0;
 
+  // The keyword of the statement it stopped on ("SDR", "RUNTEST"), or empty
+  // if it stopped outside one. Together with the line above this is what
+  // turns a report of a failure into something that can be looked up in the
+  // file that produced it.
+  std::string statement_keyword;
+
   uint64_t statements = 0;
   uint64_t shifted_bits = 0;
   uint64_t run_clocks = 0;

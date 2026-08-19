@@ -279,5 +279,21 @@ TEST_F(UsbBlasterCableTest, ACableThatOnlySendsStatusIsGivenUpOn) {
   EXPECT_FALSE(Shift("1", "0", &tdo));
 }
 
+// And a cable that answers with *more* than it was asked for is refused too,
+// which is the less obvious half of the same rule.
+//
+// One read is outstanding at a time, so a surplus byte is one nothing asked
+// for and the stream is out of step: every answer after it belongs to the
+// cycle before. Dropping the surplus — which is what this used to do — turns
+// that into a scan that reads back plausible rubbish and fails a comparison
+// somewhere unrelated, clears on the next run, and cannot be diagnosed from
+// the message it produces.
+TEST_F(UsbBlasterCableTest, ACableThatSaysMoreThanItWasAskedForIsRefused) {
+  transport_.AnswerWith({0x01, 0x00});
+
+  std::vector<uint8_t> tdo;
+  EXPECT_FALSE(Shift("1", "0", &tdo));
+}
+
 }  // namespace
 }  // namespace ddd::capture

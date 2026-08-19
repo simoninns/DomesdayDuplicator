@@ -1014,6 +1014,47 @@ configured instead.** The two options were —
   region is present on every unit and already connected during bring-up. The firmware
   gains a third update target guarded by a magic in the begin flags.
 
+**A third finding, 2026-08-19: the configure fails intermittently, and the message it
+produced could not say why.** A bring-up of a blank board through the Flatpak stopped at
+the last comparison in the factory configure `.svf` — the status readback, at 99% of the
+file — reporting `did not answer as the programming file expected at bit 286`. **Playing
+it again immediately succeeded, with nothing else changed.**
+
+Two readings of that, and the message as it stood could not tell them apart. Either the
+configuration was fine and the readback was misread, or 5.7 Mbit went through a
+full-speed bit-banged link and one of them did not arrive — in which case the comparison
+is the check working, and it is there precisely to catch that. The second is the more
+likely of the two, and neither is a reason to stop a bring-up.
+
+What was wrong with the message is a defect on its own. It printed the most significant
+32 hexadecimal digits of both values and stopped, so for a 732-bit scan it showed bits
+731 down to 604 — a window that **cannot contain** the bit it names. Both numbers were
+truthful and neither was usable. `BitsToHexAround` now places the window around the bit
+that disagreed and names the range it covers, and the message says how wide the scan was;
+`ConfigureFpga` appends the line in the file and the keyword of the statement, as
+*"(Programming file line 37141, SDR.)"*.
+
+Three changes came out of it, all covered at T1:
+
+- **The configure is played twice before it is a failure.** It is the one step of a
+  bring-up where a retry is safe, because it is the one that writes nothing: a failed
+  attempt leaves the board as it was, and the wizard already tells a user to run it again
+  by hand. The cable is re-opened between attempts, which resets the FT245 and empties its
+  buffers. Two attempts and no more — a board or a cable that is genuinely wrong should be
+  reported rather than retried at.
+- **A surplus read byte is now a failure rather than a silent discard.** One read is
+  outstanding at a time, so a byte nothing asked for means the answers are out of step
+  with the cycles they belong to; dropping it produced a scan that read back plausible
+  rubbish and failed somewhere unrelated. Given this cable's unexplained read behaviour
+  above, that is worth naming rather than absorbing.
+- **The failure message carries the window, the scan width, the line and the statement.**
+
+**Still to check on the bench**: whether the retry is ever taken in practice, and if it is,
+how often. One occurrence in one session is not a rate. The warning it logs —
+*"Loading the gateware failed and is being tried once more"* — is what to grep for, and a
+run that needs the second attempt more than occasionally is a different problem from the
+one this closes.
+
 **Still to perform**: the flash write itself, its duration, and the comparison against
 `quartus_pgm` — steps 4 to 6 below, which cannot run until the firmware carries that third
 target.
