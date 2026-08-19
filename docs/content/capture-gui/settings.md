@@ -38,7 +38,8 @@ default and is what almost everybody leaves it at.
 The list names what is wrong with a device rather than hiding it — *recovery mode, no
 firmware installed* for one whose USB chip has nothing to run, *connected at insufficient
 speed* for one below SuperSpeed. Both are still offered, because both are the same physical
-port: one is a programming away from working and the other a cable.
+port: one is a programming away from working — see [If an update fails](if-an-update-fails.md) for which of the two
+kinds of programming — and the other a cable.
 
 The [Capture panel's](capture-control.md) status line reports the same diagnosis for whichever
 device is actually selected, so a device that cannot capture says so without your opening this

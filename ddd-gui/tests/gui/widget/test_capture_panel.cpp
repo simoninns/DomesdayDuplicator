@@ -287,6 +287,14 @@ TEST_F(CapturePanelTest, ADeviceWithNoFirmwareIsSaidSoRatherThanIgnored) {
     return StatusLabel()->text().contains(QStringLiteral("no firmware"));
   })) << StatusLabel()->text().toStdString();
 
+  // And sent to the wizard that is correct whatever the board turns out to
+  // be. Nothing can ask an FX3 with no firmware whether the FPGA holds any
+  // gateware, so naming the update window alone would be advice that works
+  // for half the boards that reach this state.
+  EXPECT_TRUE(StatusLabel()->text().contains(
+      QStringLiteral("Bring up a new or legacy board")))
+      << StatusLabel()->text().toStdString();
+
   EXPECT_FALSE(MonitorButton()->isEnabled());
 }
 

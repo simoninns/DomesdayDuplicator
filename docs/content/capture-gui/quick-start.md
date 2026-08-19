@@ -56,7 +56,7 @@ Start the application and read the **Status** line at the bottom of the **Captur
 | --- | --- |
 | *Ready* | Found, and it can capture |
 | *connected at insufficient speed* | It is on a USB 2 port. Move it |
-| *recovery mode, no firmware installed* | The device needs programming — go to [Updating your Duplicator](updating-your-domesday-duplicator.md), which does first-time programming too |
+| *recovery mode, no firmware installed* | The device needs programming. A board you have just built needs [Bringing up a new or legacy board](bringing-up-a-board.md); a board that was working before this happened is repaired by [If an update fails](if-an-update-fails.md) |
 | *original Duplicator firmware* | The board was programmed before this application existed. It works, but nothing here can talk to it — see [Bringing up a new or legacy board](bringing-up-a-board.md) |
 | *No capture device attached* | Nothing was found. On Linux that is almost always the udev rules; on Windows, the WinUSB binding |
 

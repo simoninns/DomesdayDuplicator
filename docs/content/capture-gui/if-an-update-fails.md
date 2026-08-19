@@ -2,33 +2,45 @@
 
 **Your Duplicator is not damaged.** That is the first thing to say, and it is true of every way an update can go wrong: a pulled cable, a power cut, a closed laptop, a machine that crashed part way through.
 
-This page is what to do about it, and it is also the page to read if you have just built a Duplicator and are wondering why it does not appear as one.
+This page is what to do about it. If you have just *built* a Duplicator and are wondering why it does not appear as one, nothing has gone wrong either — but the page you want is [Bringing up a new or legacy board](bringing-up-a-board.md), for the reason set out under [Recovery mode](#recovery-mode) below.
 
 There are two things inside a Duplicator that an update can replace, and an interrupted update leaves one of two clearly named states behind:
 
 | What you see | What it means | What to do |
 | --- | --- | --- |
-| The Duplicator does not appear as one at all | **Recovery mode** — the firmware did not finish being written, or has never been written | [Repairing it](#repairing-it), below |
+| The Duplicator does not appear as one at all | **Recovery mode** — the firmware did not finish being written, or has never been written | [Repairing it](#repairing-it), below — or, for a board that has never been programmed, [bringing it up](bringing-up-a-board.md) |
 | The Duplicator appears normally but cannot capture | **Recovery gateware** — the gateware did not finish being written | [Reinstalling it](#reinstalling-it), below |
 
-Neither is a fault to diagnose. Both are states the Duplicator falls back to *on purpose*, so that an update that stops part way leaves somewhere to start again from — and in both cases one button in the Firmware window finishes the job.
+Neither is a fault to diagnose. Both are states the Duplicator falls back to *on purpose*, so that an update that stops part way leaves somewhere to start again from — and for a Duplicator that was working before, one button in the Firmware window finishes the job either way.
 
 ## Recovery mode
 
 If the update did not finish, or if the Duplicator has never had its firmware installed, it starts up in **recovery mode**.
 
-You will see it named that way in three places: the status bar says *Device attached with no firmware*, the Capture panel's **Status** line says the device has no firmware installed and points at Tools ▸ Firmware ▸ Update firmware…, and **Tools → Firmware → Update firmware…** opens on a message that says the same thing. The **Preferred device** list in **File ▸ Settings…** names it *recovery mode, no firmware installed* as well.
+You will see it named that way in three places: the status bar says *Device attached with no firmware*, the Capture panel's **Status** line says the device has no firmware installed, and **Tools → Firmware → Update firmware…** opens on a message that says the same thing. The **Preferred device** list in **File ▸ Settings…** names it *recovery mode, no firmware installed* as well.
 
 Recovery mode is not a fault. It is the state the USB chip falls back to when it cannot find software it is willing to run, and it exists precisely so that a half-written update leaves you somewhere you can start again from. The chip refuses to run anything it has not fully checked, so it is never running half an update.
 
+### Which of the two you have
+
+Recovery mode covers two boards that look identical over the cable, and they do not need the same thing.
+
+**A Duplicator that was working before** — an update that stopped part way, a pulled cable, a power cut. Its FPGA still holds the gateware it has always held; only the firmware is missing. [Repairing it](#repairing-it) below is the whole job: one file, one button, no cables moved and no case opened.
+
+**A Duplicator that has never been programmed** — a board you have just built. Its FPGA has probably never been programmed either, and that is what the Update window cannot fix. The route to the FPGA's memory runs *through* the FPGA's own gateware, and reaching it at all needs firmware to be running on the USB chip. A board with neither has no route in from this end, and it has to be programmed through a JTAG cable instead. That is [Bringing up a new or legacy board](bringing-up-a-board.md), and it does both halves in one pass.
+
+**And nothing in the application can tell you which you have.** With no firmware running, there is nothing to ask the FPGA a question with, so whether it holds gateware at all is genuinely unknown to the software — which is why the Firmware window names both routes rather than promising one. If you are not sure, or if a repair from the Update window finishes and the Duplicator still cannot capture, bring the board up; it is correct in both cases, and running it on a board that did not need it is harmless.
+
 ### Repairing it
+
+For a Duplicator that was working before this happened.
 
 1. Plug the Duplicator in, on its own if you have more than one.
 2. Open **Tools → Firmware → Update firmware…**.
 3. Press **Choose update file…** and pick a `.dddfw` update file — the same kind of file an ordinary update uses. If you still have the one you were installing, use that.
 4. Press **Program this device**.
 
-That is the whole procedure. It is the same file, the same window and the same checks as a normal update; the only difference is that it starts by handing the Duplicator the firmware to run, instead of asking firmware that is already running to update itself.
+That is the whole procedure. It is the same file, the same window and the same checks as a normal update; the only difference is that it starts by handing the Duplicator the firmware to run, instead of asking firmware that is already running to update itself. It relies on the FPGA already holding gateware — which it does, on a board that has been working — so if this leaves the Duplicator enumerating normally but unable to capture, [bring the board up](bringing-up-a-board.md).
 
 It takes a minute or two, and — as always — **leave the device plugged in and powered** while it runs.
 
@@ -36,7 +48,7 @@ It takes a minute or two, and — as always — **leave the device plugged in an
 
 Because the Duplicator cannot tell the difference, and neither can the application.
 
-A chip that has never been programmed and a chip whose update was interrupted look exactly the same over the cable: in both cases the chip finds nothing it will run and waits for a host. So the window offers one action that is correct for both. If you have just built a board, nothing has gone wrong and there is nothing to repair — this is simply how a new board is set up.
+A chip that has never been programmed and a chip whose update was interrupted look exactly the same over the cable: in both cases the chip finds nothing it will run and waits for a host. So the button has one word that is true of both, rather than a guess between them. If you have just built a board, nothing has gone wrong and there is nothing to repair — but see [Which of the two you have](#which-of-the-two-you-have) above, because that board most likely wants the bring-up wizard rather than this button.
 
 ## Recovery gateware
 

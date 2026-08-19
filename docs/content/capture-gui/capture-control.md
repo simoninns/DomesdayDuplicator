@@ -54,7 +54,7 @@ rather than hiding it:
 | Entry | What it means |
 | --- | --- |
 | A bare path | A capture device, ready |
-| *— recovery mode, no firmware installed* | The device's USB chip has no firmware it will run. It cannot capture, and [Tools ▸ Firmware ▸ Update firmware…](if-an-update-fails.md) can program it |
+| *— recovery mode, no firmware installed* | The device's USB chip has no firmware it will run. It cannot capture. [Tools ▸ Firmware ▸ Bring up a new or legacy board…](bringing-up-a-board.md) programs it whatever state it is in; [Update firmware…](if-an-update-fails.md) repairs it if it was working before |
 | *— original firmware, too old for this application* | The device is running the firmware it had before this application existed. It works, but nothing here can talk to it — see [Bringing up a new or legacy board](bringing-up-a-board.md) |
 | *— connected at insufficient speed* | It enumerated below SuperSpeed. It is on a USB 2 port or through a hub that is, and cannot carry 80 MB/s |
 

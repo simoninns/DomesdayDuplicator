@@ -529,9 +529,16 @@ void CapturePanel::OnDevicesChanged(
            "this application cannot use. Its firmware and gateware have to be "
            "programmed directly before it can capture."));
   } else if (!shown->is_application()) {
+    // Bring-up rather than the update window, because an FX3 with no firmware
+    // is an FX3 that cannot be asked whether the FPGA holds any gateware.
+    // Bring-up programs both halves and is right either way; the update
+    // window is right only for a board that was working before this happened,
+    // and that half of the cases is named second rather than assumed.
     status_label_->setText(
-        tr("This device has no firmware installed, so it cannot capture "
-           "yet. Open Tools ▸ Firmware ▸ Update firmware… to program it."));
+        tr("This device has no firmware installed, so it cannot capture yet. "
+           "Open Tools ▸ Firmware ▸ Bring up a new or legacy board… to "
+           "program it. If this board was working before, Tools ▸ Firmware ▸ "
+           "Update firmware… will repair it."));
   } else if (!shown->CanCarryCapture()) {
     status_label_->setText(
         tr("Connected at insufficient speed. This device is on a USB 2 port "

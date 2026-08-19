@@ -799,7 +799,10 @@ from a device left in bootloader mode by U3.
    attached with no firmware**, and the Capture panel's device list names the port with
    *recovery mode, no firmware installed*. Monitoring and capture are both unavailable.
 2. Open **Tools → Firmware → Update firmware…**. The page says the device is in recovery
-   mode, that its firmware is missing, and that it is not damaged. The firmware row reads
+   mode, that its firmware is missing, and that it is not damaged. It must also say that
+   nothing here can tell whether the board was ever programmed, and name **Bring up a new
+   or legacy board…** for the case where it was not — this device has gateware and can be
+   repaired from here, but nothing on the wire says so. The firmware row reads
    **None installed** and the gateware row **Cannot be read**.
 3. The button reads **Program this device**, not "Update" and not "Repair".
 4. Choose the bundle from U1 and press it. The stages must run:

@@ -252,6 +252,24 @@ TEST(UpdateTextTest, RecoveryModeNamesBothWaysADeviceGetsThere) {
   EXPECT_TRUE(text.contains(QStringLiteral("not damaged")));
 }
 
+// The two cases need different things, and this window can only do one of
+// them. An FX3 with no firmware cannot be asked anything about the FPGA, so a
+// board that has never been programmed may have no gateware either — and no
+// amount of installing from here would give it any. The paragraph that offers
+// the repair has to name the wizard that covers the other case, or somebody
+// with a newly built board is sent round this window until they give up.
+TEST(UpdateTextTest, RecoveryModeSendsAnUnprogrammedBoardToTheBringUpWizard) {
+  const QString text =
+      DevicePersonalityText(capture::DevicePersonality::kRecovery);
+
+  EXPECT_TRUE(text.contains(QStringLiteral("Bring up a new or legacy board")))
+      << "the only route that programs a board with no gateware is not "
+         "offered: "
+      << text.toStdString();
+  EXPECT_TRUE(text.contains(QStringLiteral("working before")))
+      << "the repair is promised without the condition it depends on";
+}
+
 TEST(UpdateTextTest, AWorkingDeviceHasNothingToExplain) {
   EXPECT_TRUE(DevicePersonalityText(capture::DevicePersonality::kApplication)
                   .isEmpty());

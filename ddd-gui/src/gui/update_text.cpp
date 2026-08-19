@@ -318,11 +318,23 @@ QString DevicePersonalityText(capture::DevicePersonality personality) {
       return {};
 
     case capture::DevicePersonality::kRecovery:
+      // Two cases behind one appearance, and — unlike the button label, which
+      // has one word for both — this paragraph has room to say that they need
+      // different things. Nothing here can see whether the FPGA holds any
+      // gateware: reaching it goes through firmware that is not running. So a
+      // board that was working before can be repaired from this window, and a
+      // board that has never been programmed cannot: its FPGA has to be
+      // configured through a JTAG cable first, which is what the bring-up
+      // wizard is for. Promising the repair to both is how somebody with a
+      // newly built board is sent round this window twice.
       return Translate(
           "<b>This device is in recovery mode.</b> Its firmware is missing, "
           "which means either that it has never been programmed or that an "
-          "update did not finish. Either way it is not damaged, and choosing "
-          "an update file below will program it.");
+          "update did not finish. Either way it is not damaged. Nothing here "
+          "can tell which, because reaching the FPGA needs firmware that is "
+          "not running: if this board was working before, choosing an update "
+          "file below will repair it; if it is new, or you are not sure, use "
+          "Tools ▸ Firmware ▸ Bring up a new or legacy board… instead.");
 
     case capture::DevicePersonality::kFlashProgrammer:
       return Translate(

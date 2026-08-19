@@ -134,7 +134,7 @@ The step list stays on screen with a ✕ against the step it stopped on, and the
 
 If the message asks you to unplug the device and plug it back in, do that, then reopen **Tools → Firmware → Update firmware…** and look at what it reports. If the update did not take, the versions will be the ones you started with and you can simply try again.
 
-If the device comes back saying **recovery mode**, that is the state described above and the repair is a single button. [If an update fails](if-an-update-fails.md) is the page for it — and the same page covers bringing a Duplicator you have just built to life for the first time, which is the same procedure.
+If the device comes back saying **recovery mode**, that is the state described above and the repair is a single button, because this Duplicator was working a moment ago and its FPGA still holds its gateware. [If an update fails](if-an-update-fails.md) is the page for it. A Duplicator you have just built reaches the same state by a different road and needs a different procedure — [Bringing up a new or legacy board](bringing-up-a-board.md) — because nothing here can reach an FPGA that has never been programmed.
 
 ## For the curious
 
