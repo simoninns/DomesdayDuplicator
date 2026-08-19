@@ -139,6 +139,22 @@ jobs:
           set -euo pipefail
           mkdir -p published
           gh release download "${TAG}" --dir published
+
+          # Releases publish the bench material as one zip, and everything below reads those
+          # files by the paths they had when each was a separate asset:
+          # bitstream-provenance.txt for the canonical digests, and the published .svf for
+          # the bundle's vectors. Expanding the zip in place keeps both working, and keeps
+          # this job's own logic untouched.
+          #
+          # Conditional because older releases published every file loose, and this audit
+          # runs against whichever fw-v* tag is most recent — including, after a rollback,
+          # one from before the zip existed. Those are audited exactly as they were.
+          bench=(published/bench-material-*.zip)
+          if [[ -f "${bench[0]}" ]]; then
+            echo "Expanding ${bench[0]}"
+            unzip -o -q "${bench[0]}" -d published
+          fi
+
           ls -la published
 
       - name: Compare

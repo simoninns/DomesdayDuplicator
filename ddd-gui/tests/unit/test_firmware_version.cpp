@@ -19,8 +19,6 @@
 namespace ddd::capture {
 namespace {
 
-using Status = FirmwareVersionCheck::Status;
-
 TEST(FirmwareVersionTest, TheCommitIsReadOutOfTheProductString) {
   // The exact string the FX3 firmware builds — see
   // fx3/firmware/src/usb-descriptor.c.
@@ -57,10 +55,8 @@ TEST(FirmwareVersionTest, ADirtyFirmwareBuildStillNamesItsCommit) {
   EXPECT_EQ(ParseFirmwareCommit("Domesday Duplicator (bb65470-dirty)"),
             std::optional<std::string>("bb65470"));
 
-  const FirmwareVersionCheck check =
-      CheckFirmwareVersion("Domesday Duplicator (bb65470-dirty)", "bb65470");
-  EXPECT_EQ(check.status, Status::kMatch);
-  EXPECT_FALSE(check.ShouldWarn());
+  EXPECT_FALSE(
+      DescribeFirmware("Domesday Duplicator (bb65470-dirty)").ShouldWarn());
 }
 
 TEST(FirmwareVersionTest, AShortStringIsNotACommit) {
@@ -79,84 +75,87 @@ TEST(FirmwareVersionTest, AnUnknownVersionNamesNoCommit) {
   EXPECT_FALSE(NormaliseCommit("").has_value());
 }
 
-TEST(FirmwareVersionTest, MatchingBuildsSayNothing) {
-  const FirmwareVersionCheck check =
-      CheckFirmwareVersion("Domesday Duplicator (a1b2c3d4)", "a1b2c3d4");
+// --- Tolerance to anything named before the bracket ------------------------
 
-  EXPECT_EQ(check.status, Status::kMatch);
-  EXPECT_FALSE(check.ShouldWarn());
-  EXPECT_TRUE(check.message.empty());
+// The descriptor names a commit and nothing else, so only the first of these
+// is a string the firmware produces. The second is kept deliberately: the
+// commit is the *last* bracketed group, so an application built today goes on
+// reading a device that ever names something in front of it. That tolerance is
+// inherent to the parser rather than an added feature, and it costs nothing to
+// have a test saying so.
+TEST(FirmwareVersionTest, TheCommitIsReadOutOfEitherFormOfTheString) {
+  EXPECT_EQ(ParseFirmwareCommit("Domesday Duplicator (a1b2c3d4)"),
+            std::optional<std::string>("a1b2c3d4"));
+  EXPECT_EQ(ParseFirmwareCommit("Domesday Duplicator 1.5.0 (a1b2c3d4)"),
+            std::optional<std::string>("a1b2c3d4"));
 }
 
-// The failure this test exists to prevent, and the reason the comparison is on
-// a prefix rather than the whole string.
+// The comparison this file used to make, and why it is gone.
 //
-// The firmware asks git for eight characters. The application's stamp comes
-// from whatever built it, and Nix supplies seven. Comparing the strings whole
-// would report a mismatch between two artefacts of the same commit — a warning
-// that fires when nothing is wrong, which is worse than no warning at all,
-// because it teaches the user to dismiss the dialog unread.
-TEST(FirmwareVersionTest, StampsOfDifferentLengthsFromOneCommitStillMatch) {
-  const FirmwareVersionCheck check =
-      CheckFirmwareVersion("Domesday Duplicator (a1b2c3d4)", "a1b2c3d");
+// It compared the device's firmware commit against the application's own, on
+// the premise that one commit built both. Two release streams — gui-v* for the
+// application, fw-v* for the firmware and gateware — make that false, so the
+// warning fired on a correctly updated Duplicator. There is no application
+// commit in this API any more, and these tests exist to keep it that way.
+TEST(FirmwareVersionTest, AFirmwareThatNamesItsBuildIsNotWarnedAbout) {
+  const FirmwareIdentity identity =
+      DescribeFirmware("Domesday Duplicator (a1b2c3d4)");
 
-  EXPECT_EQ(check.status, Status::kMatch);
-  EXPECT_FALSE(check.ShouldWarn());
+  EXPECT_EQ(identity.commit, "a1b2c3d4");
+  EXPECT_TRUE(identity.NamesCommit());
+  EXPECT_FALSE(identity.ShouldWarn());
+  EXPECT_TRUE(identity.message.empty());
 }
 
-TEST(FirmwareVersionTest, DifferentBuildsWarnAndNameBoth) {
-  const FirmwareVersionCheck check =
-      CheckFirmwareVersion("Domesday Duplicator (a1b2c3d4)", "99887766");
+TEST(FirmwareVersionTest, ADirtyFirmwareIsStillAFirmwareThatNamedItsBuild) {
+  const FirmwareIdentity identity =
+      DescribeFirmware("Domesday Duplicator (bb65470-dirty)");
 
-  EXPECT_EQ(check.status, Status::kMismatch);
-  EXPECT_TRUE(check.ShouldWarn());
-  EXPECT_EQ(check.device_commit, "a1b2c3d4");
-  EXPECT_EQ(check.application_commit, "99887766");
-
-  // A user reading this has to be able to tell which is which without going
-  // looking, so both hashes have to be in it.
-  EXPECT_NE(check.message.find("a1b2c3d4"), std::string::npos);
-  EXPECT_NE(check.message.find("99887766"), std::string::npos);
+  EXPECT_EQ(identity.commit, "bb65470");
+  EXPECT_FALSE(identity.ShouldWarn());
 }
 
-TEST(FirmwareVersionTest, TheWarningDoesNotTellTheUserToStop) {
-  const FirmwareVersionCheck check =
-      CheckFirmwareVersion("Domesday Duplicator (a1b2c3d4)", "99887766");
-
-  // The whole point of it being a warning rather than an error. Old firmware is
-  // not known to be broken, and a user in front of a working capture is better
-  // served by a note than by a refusal.
-  EXPECT_NE(check.message.find("will work normally"), std::string::npos);
-}
-
+// The one case left that is worth interrupting somebody for, and the message
+// has to name both of its causes: the likely one is a device that could not be
+// opened to be asked, not firmware old enough to predate the stamp.
 TEST(FirmwareVersionTest, FirmwareWithNoCommitWarnsRatherThanFails) {
-  const FirmwareVersionCheck check =
-      CheckFirmwareVersion("Domesday Duplicator", "a1b2c3d4");
+  const FirmwareIdentity identity = DescribeFirmware("Domesday Duplicator");
 
-  EXPECT_EQ(check.status, Status::kDeviceUnknown);
-  EXPECT_TRUE(check.ShouldWarn());
-  EXPECT_FALSE(check.message.empty());
+  EXPECT_FALSE(identity.NamesCommit());
+  EXPECT_TRUE(identity.ShouldWarn());
+  EXPECT_NE(identity.message.find("udev"), std::string::npos)
+      << identity.message;
+  EXPECT_NE(identity.message.find("older"), std::string::npos)
+      << identity.message;
 }
 
-// A developer build says nothing, and that is deliberate.
-//
-// An application that cannot name its own commit is in no position to accuse
-// the firmware of anything, and warning here would fire on every single
-// developer run.
-TEST(FirmwareVersionTest, AnApplicationThatCannotNameItsOwnCommitStaysQuiet) {
-  const FirmwareVersionCheck check =
-      CheckFirmwareVersion("Domesday Duplicator (a1b2c3d4)", "unknown");
+// A product string that could not be read at all arrives as an empty one,
+// which is the same state and gets the same answer.
+TEST(FirmwareVersionTest, AProductStringThatCouldNotBeReadIsTheSameCase) {
+  const FirmwareIdentity identity = DescribeFirmware("");
 
-  EXPECT_EQ(check.status, Status::kApplicationUnknown);
-  EXPECT_FALSE(check.ShouldWarn());
+  EXPECT_TRUE(identity.ShouldWarn());
+  EXPECT_FALSE(identity.message.empty());
 }
 
-TEST(FirmwareVersionTest, NeitherSideKnownStaysQuiet) {
-  const FirmwareVersionCheck check =
-      CheckFirmwareVersion("Domesday Duplicator", "unknown");
+// The prefix rule, which survives because the update path still uses it: a
+// bundle declares the commit its payload was built from, and the device is
+// asked afterwards whether that is what it is running. The firmware asks git
+// for eight characters and a Nix build passes seven, so two artefacts of one
+// commit must never be reported as differing.
+TEST(FirmwareVersionTest, StampsOfDifferentLengthsFromOneCommitStillMatch) {
+  EXPECT_TRUE(CommitsMatch("a1b2c3d4", "a1b2c3d"));
+  EXPECT_TRUE(CommitsMatch("a1b2c3d4-dirty", "a1b2c3d4"));
+  EXPECT_FALSE(CommitsMatch("a1b2c3d4", "99887766"));
+}
 
-  EXPECT_EQ(check.status, Status::kApplicationUnknown);
-  EXPECT_FALSE(check.ShouldWarn());
+// Nothing compares equal to a stamp that names no commit, including another
+// one that names no commit. Two devices that both failed to say what they are
+// running have not been shown to agree.
+TEST(FirmwareVersionTest, AStampThatNamesNoCommitMatchesNothing) {
+  EXPECT_FALSE(CommitsMatch("unknown", "unknown"));
+  EXPECT_FALSE(CommitsMatch("", ""));
+  EXPECT_FALSE(CommitsMatch("a1b2c3d4", "unknown"));
 }
 
 }  // namespace

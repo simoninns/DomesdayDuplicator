@@ -78,18 +78,20 @@ later travel with it rather than in somebody's notes:
 | `TITLE` | The name the capture was given |
 | `DATE` | When it started, ISO 8601 |
 | `ENCODER` | What wrote it |
-| `DDD_VERSION` | The build of the application that produced it |
+| `DDD_VERSION` | The commit of the application that produced it. The name is fixed by the file format and is not changing |
 | `DDD_FIRMWARE_VERSION` | The commit the Duplicator's FX3 firmware was built from — only when the device said |
 | `DDD_GATEWARE_VERSION` | The commit its FPGA gateware was built from, on the same terms |
 | `DDD_SAMPLE_RATE_HZ` | `40000000` — the real rate, which the FLAC header cannot express |
 | `DDD_TEST_MODE` | Whether this is signal or a test ramp |
 | `DDD_FRONT_END_GAIN` | The declared SW401 position — **only when one was actually declared** |
 
-**Three versions rather than one**, because a capture is the product of three things built
-from one commit: this application, the firmware in the Duplicator's USB chip, and the
-gateware in its FPGA. In a release they agree, so what these are for is the case where they
-do not — a device that was never updated, or a gateware built on the bench. When a capture
-turns out to have something wrong with it, "which build wrote this" is the first question,
+**Three versions rather than one**, because a capture is the product of three builds: this
+application, the firmware in the Duplicator's USB chip, and the gateware in its FPGA. The
+firmware and the gateware are installed together from one update and come from one commit,
+so those two agree unless something went wrong — a half-finished update, or a gateware
+built on the bench. The application is released separately and is not expected to match
+either of them. When a capture turns out to have something wrong with it, "which build
+wrote this" is the first question,
 and the gateware is where sample loss, decimation and the sequence markers all live.
 
 A version that is absent means the device did not say: firmware old enough to predate the

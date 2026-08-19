@@ -60,10 +60,12 @@ const char* TransferStatusName(int status) {
 }  // namespace
 
 LibUsbSource::LibUsbSource(libusb_context* context,
+                           std::shared_ptr<const void> lease,
                            libusb_device_handle* handle, uint8_t endpoint,
                            size_t endpoint_max_packet_bytes,
                            const UsbSourceOptions& options, ILogger* logger)
     : context_(context),
+      lease_(std::move(lease)),
       handle_(handle),
       endpoint_(endpoint),
       endpoint_max_packet_bytes_(endpoint_max_packet_bytes),

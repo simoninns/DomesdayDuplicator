@@ -29,6 +29,34 @@ finish-args:
   - --socket=wayland
   - --socket=x11
 
+  # Not for the network. This application makes no network connections at all — it is asked
+  # for here because it is the only way a Flatpak receives kernel device-attach events, and
+  # without them a Duplicator plugged in after the window opens is never found.
+  #
+  # The chain, measured on org.kde.Platform 6.11 rather than assumed:
+  #
+  #   1. The runtime's libusb is built against libudev and learns about devices appearing
+  #      and disappearing from a udev netlink monitor (udev_monitor_new_from_netlink in
+  #      libusb-1.0.so.0.5.0). libusb_get_device_list does not rescan; on Linux it returns
+  #      the list that monitor maintains, seeded by one sysfs scan at libusb_init.
+  #   2. Without this line the sandbox gets a network namespace of its own — measured:
+  #      net:[4026534450] against the host's net:[4026531833] — owned by the sandbox's user
+  #      namespace rather than by the initial one.
+  #   3. The netlink socket is still created and bound in there without complaint (also
+  #      measured), but the kernel does not broadcast untagged kobject uevents into a
+  #      network namespace outside the initial user namespace. So the monitor waits for
+  #      events that can never arrive, reports no error, and libusb's device list is frozen
+  #      at whatever was attached when the application started.
+  #
+  # With this line the sandbox stays in the host's own network namespace — measured:
+  # net:[4026531833], the same one — and the events arrive.
+  #
+  # This is the permission a Flathub review will ask about after --device=all, and the
+  # answer is that a capture application that opens no sockets needs to be in the host's
+  # network namespace to be told a cable was plugged in. There is no narrower Flatpak
+  # permission for kernel uevents, and no portal for them.
+  - --share=network
+
   # Raw USB access to the capture device. Flatpak has no narrower static permission for
   # USB — --device=all is the only option that grants it, and the capture path is a libusb
   # bulk transfer, so there is no portal alternative. This is the permission a Flathub
@@ -60,10 +88,10 @@ modules:
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DBUILD_TESTING=OFF
-      # Passed in by the packaging workflow. Without it CMake asks git, and there is no
-      # .git inside a flatpak-builder sandbox, so the application would report its version
-      # as "unknown" — which is what the release gate fails a build for.
-      - -DDDD_VERSION=@DDD_VERSION@
+      # Passed in by the packaging workflow. There is no .git inside a flatpak-builder
+      # sandbox, so CMake cannot find the commit for itself and would report "unknown",
+      # which is what the release gate fails a build for.
+      - -DDDD_COMMIT=@DDD_COMMIT@
       # The release signing key, whose public half is committed. The source below is the
       # repository root rather than ddd-gui/ alone, so tools/keys/ is inside the sandbox
       # and CMake's in-tree default would find it — this states it rather than relying on

@@ -65,9 +65,17 @@ QString DescribeFrontEndGain(uint8_t switch_pattern) {
     // Said as a sentence rather than shown as a dash, because a dash reads as
     // "nothing measured yet" and this is "nobody has told me". The difference
     // is the whole reason no voltage is on screen, so it is worth the words.
-    return QCoreApplication::translate("GainChoices",
-                                       "Not declared — levels shown in "
-                                       "converter codes");
+    //
+    // And the words say where to fix it, because this is the state every
+    // installation starts in and the documentation cannot reach somebody who
+    // has not read it. Naming the switch matters as much as naming the menu:
+    // the thing to be found is a four-way DIP switch on the board, and
+    // somebody who does not know that is looking for a setting rather than for
+    // a piece of hardware.
+    return QCoreApplication::translate(
+        "GainChoices",
+        "Not declared — levels shown in converter codes. Set it from SW401 on "
+        "the board: File → Settings…");
   }
 
   return QCoreApplication::translate("GainChoices",

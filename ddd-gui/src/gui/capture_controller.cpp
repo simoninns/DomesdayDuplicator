@@ -166,12 +166,18 @@ void CaptureController::CheckFirmware(
   // both land here and both capture perfectly well.
   fpga_version_ = ReadFpgaVersion(selected->path);
 
-  const capture::FirmwareVersionCheck check = capture::CheckFirmwareVersion(
-      selected->product_string, capture::Version());
+  const capture::FirmwareIdentity firmware =
+      capture::DescribeFirmware(selected->product_string);
 
-  if (logger_ != nullptr && !check.device_commit.empty()) {
-    logger_->Info("Device firmware commit " + check.device_commit +
-                  ", application commit " + check.application_commit);
+  // All three still recorded on connect, and this is where the three-way
+  // comparison went: into the log, where it is evidence in a bug report, and
+  // out of the interface, where it was an accusation. The application and the
+  // device come from separate release streams, so a difference between them is
+  // the ordinary state of an up-to-date Duplicator rather than something to
+  // interrupt anybody over.
+  if (logger_ != nullptr && firmware.NamesCommit()) {
+    logger_->Info("Device firmware commit " + firmware.commit +
+                  ", application " + std::string(capture::Commit()));
   }
 
   if (logger_ != nullptr && fpga_version_.present) {
@@ -181,8 +187,8 @@ void CaptureController::CheckFirmware(
                   (fpga_version_.dirty ? " (modified)" : ""));
   }
 
-  if (check.ShouldWarn()) {
-    emit FirmwareWarning(QString::fromStdString(check.message));
+  if (firmware.ShouldWarn()) {
+    emit FirmwareWarning(QString::fromStdString(firmware.message));
   }
 }
 
@@ -387,7 +393,7 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
 
     capture::CaptureProvenance provenance;
     provenance.title = path.filename().string();
-    provenance.application_version = std::string(capture::Version());
+    provenance.application_version = std::string(capture::Commit());
     provenance.firmware_version = build.firmware_version;
     provenance.gateware_version = build.gateware_version;
     provenance.test_mode = settings_.test_mode;
@@ -430,7 +436,7 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
   // encoder has finished writing this file.
   pending_metadata_ = capture::CaptureMetadata{};
   pending_metadata_.capture_file_name = path.filename().string();
-  pending_metadata_.application_version = std::string(capture::Version());
+  pending_metadata_.application_version = std::string(capture::Commit());
   pending_metadata_.format =
       settings_.output_format == capture::CaptureOutputFormat::kSigned16Bit
           ? "signed 16-bit"

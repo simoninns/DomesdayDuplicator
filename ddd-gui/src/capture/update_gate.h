@@ -71,14 +71,6 @@ struct UpdateGateResult {
 
 // What the gate is being asked about.
 struct UpdateGateInput {
-  // This build's version stamp, as capture::Version() reports it.
-  //
-  // May be a commit hash or "unknown" for a developer build, in which case
-  // the minimum-application-version check cannot be made at all — and is
-  // then *not* made, rather than being made charitably. A build that cannot
-  // say how old it is is a build that has to say so.
-  std::string application_version;
-
   // The device as it reports itself now.
   DeviceIdentity device;
 

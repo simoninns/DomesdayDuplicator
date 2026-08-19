@@ -841,7 +841,8 @@ EEPROM and one corrupted by an interrupted update are indistinguishable on the w
 this is a test of the *wording* as much as of the mechanism — and of the assumption that
 they really are indistinguishable.
 
-Use a SuperSpeed Explorer Kit that has never been programmed, or erase one deliberately.
+Use a SuperSpeed Explorer Kit that has never been programmed, or erase one deliberately
+with `./tools/blank-board.sh --fx3` — see *Getting a blank board* below.
 
 1. Plug it in with **no jumper fitted**. It must enumerate as `04b4:00f3`.
 2. Follow U5 from step 1. Every screen must read the same as it did there.
@@ -869,6 +870,35 @@ Use a SuperSpeed Explorer Kit that has never been programmed, or erase one delib
 - B2 whenever `ddd-gui/packaging/bundled-update.env` changes, and after any change to
   the packaging workflows or to `bundled_update.cpp` — every part of that path is a
   claim about a machine other than the one it was built on.
+
+### Getting a blank board
+
+U6, B0, B1 and B2 all need a board that has never been programmed, and B2 needs one per
+binary package the release produces. Keeping a virgin board for each is not a plan; erasing
+one is:
+
+```bash
+nix develop .#fpga-quartus --command ./tools/blank-board.sh
+```
+
+It writes `0xFF` over the whole FX3 EEPROM and erases the EPCS64, leaving the pair as an
+unprogrammed one: the FX3 falling back to its boot ROM at `04b4:00f3`, the FPGA
+unconfigured. `--fx3` and `--fpga` do one half each; the FX3 half needs no Quartus and so
+no shell. Both halves are verified by readback, and the script says what to build if it
+cannot find `fx3-programmer` or a `.jic`.
+
+**Power cycle before testing against it**, and check J4 is removed. The script leaves the
+FPGA running Altera's serial flash loader and the FX3 in the Cypress flash-programmer mode,
+and a board with J4 fitted never reads its EEPROM at all — which looks identical over USB
+and is not the same test.
+
+The one thing it cannot prove is that the boot block at `0x100000` is gone: the JTAG erase
+is page-selective by default and steps over it, so the script passes `--erase_all` and
+prints how long the erase took, a whole-device one taking tens of seconds where the
+page-selective one takes about four. Nothing can read that sector back once the firmware
+is erased. **If a board provisioned after a blanking comes up in the application image
+rather than recovery, the boot block survived** — that is the symptom, and it is the one
+thing about these items a stale board would quietly change.
 
 ### G0 — provisioning a unit with the dual-image flash
 

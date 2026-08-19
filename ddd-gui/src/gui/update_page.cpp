@@ -53,10 +53,10 @@ QLabel* MakeLabel(QWidget* parent, const char* object_name) {
 
 }  // namespace
 
-UpdatePage::UpdatePage(QString application_version, Device device,
+UpdatePage::UpdatePage(QString application_commit, Device device,
                        QWidget* parent)
     : QWidget(parent),
-      application_version_(std::move(application_version)),
+      application_commit_(std::move(application_commit)),
       device_(std::move(device)),
       policy_(capture::DefaultUpdateKeyPolicy()) {
   auto* layout = new QVBoxLayout(this);
@@ -196,8 +196,8 @@ void UpdatePage::RefreshVersions() {
       manifest_.has_value() ? &manifest_.value() : nullptr;
 
   QString text = UpdateVersionTable(
-      UpdateVersionRows(application_version_, device_.identity,
-                        device_.attached, manifest, device_.personality));
+      UpdateVersionRows(application_commit_, device_.identity, device_.attached,
+                        manifest, device_.personality));
 
   // Above the table rather than below it: what state the device is in is the
   // thing that explains why the table says what it says, and a user reading
@@ -380,7 +380,6 @@ void UpdatePage::LoadBundle(const QString& path) {
   // and its whole purpose is that a user cannot drive the device past what
   // the application driving it understands.
   capture::UpdateGateInput input;
-  input.application_version = application_version_.toStdString();
   input.device_attached = device_.attached;
   input.device = device_.identity;
   input.device_personality = device_.personality;

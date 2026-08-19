@@ -205,10 +205,11 @@ The application is built knowing the **range** of each version it supports, not 
 Before any byte is streamed to the device, the application checks the bundle's manifest against itself:
 
 - the manifest's schema version must be one this build knows. A manifest from the future may mean something different by a field of the same name, and reading the fields it recognises and ignoring the rest is how a device gets flashed with something nobody described;
-- the manifest's `minimum_application_version` must be no newer than this build. If it is, the install button is **disabled**, with "update the application first" — a user cannot use this application to flash the device past this application's own understanding;
-- each component's declared interface version must fall in the range this build supports.
+- each component's declared interface version must fall in the range this build supports. If a payload declares a protocol or register map newer than this build knows, the install button is **disabled**, with "update the application first" — a user cannot use this application to flash the device past this application's own understanding.
 
 The ordering users must follow — application first, then device — is therefore the only ordering the interface permits, rather than something the release notes ask for.
+
+The manifest's `minimum_application_version` is deliberately *not* part of this gate. It was compared against the application's own dotted release version, and that version no longer exists: every part of a Duplicator stamps the commit it was built from, and a commit orders nothing. The comparison could no longer be made, and rather than being made charitably it added a caveat to the reasons shown to the user — which, with no build having a dotted version, would have appeared on every install for every user. Nothing that was being enforced is lost: the floor has always been `0.0.0`, and the interface version range above is what carries the weight and always did.
 
 ### The connect-time gate
 
@@ -221,7 +222,7 @@ The commit-prefix comparison the firmware dialog already does stays exactly as i
 
 ### Downgrades
 
-Permitted, deliberately. Installing an older release is a legitimate thing to want, and the archive of release bundles on GitHub is where one comes from. A downgrade passes through the same two gates as an upgrade, so a bundle whose `minimum_application_version` is newer than the running application is refused whichever direction it is going.
+Permitted, deliberately. Installing an older release is a legitimate thing to want, and the archive of release bundles on GitHub is where one comes from. A downgrade passes through the same two gates as an upgrade, so a bundle declaring an interface version outside this build's range is refused whichever direction it is going.
 
 ## The integrity chain
 

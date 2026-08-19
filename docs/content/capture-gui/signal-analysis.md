@@ -40,7 +40,7 @@ Every figure on these three panels is a property of the stream, so all of them f
 | Reading | At 40 Msps | At 20 Msps |
 | --- | --- | --- |
 | Top of the frequency axis | 20 MHz | **10 MHz** |
-| Default span, in time | 1 µs | **2 µs** |
+| Default span, in time | 200 µs | **400 µs** |
 | Default resolution | 9.8 kHz bins | **4.9 kHz bins** |
 | Encoder backlog | ms of signal | the same ms, from half the samples |
 
@@ -98,15 +98,22 @@ otherwise.
 
 ### Span
 
-How much time is on screen: **0.5 µs**, **1 µs** (the default), **2**, **5**, **10**,
-**50**, **100**, **200** or **500 µs**. The choices are fixed counts of samples and the
+How much time is on screen: **0.5 µs**, **1**, **2**, **5**, **10**, **50**, **100**,
+**200 µs** (the default) or **500 µs**. The choices are fixed counts of samples and the
 labels say what each one covers, so at 20 Msps the same ladder reads 1 µs to 1 ms — the
 counts are what must stay fixed, because the longest of them is bounded by the snapshot.
 
-An 8 MHz carrier has a period of 125 ns, so one cycle is five samples and 1 µs is about
-eight cycles — the classic few-cycles-on-screen a scope is set to, and the only range at
-which the shape of the carrier can be seen at all. The ladder used to start at 10 µs, which
-is eighty cycles.
+**200 µs is about three television lines**, and that is why the panel opens there. The
+first thing worth knowing is whether the player's RF output is set sensibly, and that is a
+property of the envelope rather than of the carrier inside it: at three lines the line
+structure is on screen, so a level that is too low, too high, or clipping on sync shows in
+the shape of what is drawn rather than only in the figures beside it.
+
+The short end of the ladder answers a different question. An 8 MHz carrier has a period of
+125 ns, so one cycle is five samples and 1 µs is about eight cycles — the classic
+few-cycles-on-screen a scope is set to, and the only range at which the shape of the
+carrier can be seen at all. It is at the bottom of the ladder when you want it. The ladder
+used to start at 10 µs, which is eighty cycles.
 
 500 µs is 20,000 samples, the longest span that still shows all of the time it claims to.
 A span longer than the snapshot is silently clamped, and the time axis then labels what is
@@ -339,6 +346,12 @@ precisely so that this works.
 Draws the highest level each frequency has reached since the last reset, underneath the live
 trace. The way to catch an interferer that appears for a moment while you are looking
 somewhere else. **Reset peaks** starts it again.
+
+**Off by default.** The live trace is what a signal is set up against, and a second trace
+over it is a distraction until there is a reason for it — an interferer you suspect but
+have not seen is that reason. Switching it on starts the peaks from that moment rather than
+revealing what has been accumulating unwatched since monitoring began, so what it shows was
+measured while you were looking for it.
 
 Both belong to the live trace, and each view shows only the controls that do something in
 it: peak hold and its reset in the spectrum, the two colour-scale controls in the

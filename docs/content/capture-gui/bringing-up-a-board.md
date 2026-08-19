@@ -14,6 +14,8 @@ If your board already answers this application and you only want the current rel
 
 **Take the unit out of its enclosure.** The FX3's jumper can be reached with the case on; the DE0-Nano's mini-USB connector cannot, and part of this happens through it.
 
+**Stop any capture first.** The menu entry is greyed out while one is running, because everything behind it resets the device, rewrites its flash or reconfigures its FPGA, and a capture is a bulk transfer from that same device. Monitoring needs nothing from you — opening the wizard puts it down, and closing the wizard picks it up again.
+
 You will need:
 
 | | |

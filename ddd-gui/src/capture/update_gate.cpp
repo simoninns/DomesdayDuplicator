@@ -100,30 +100,28 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
     return result;
   }
 
-  // The minimum application version. Enforced rather than advisory: this is
-  // the check that stops a user driving the device past what the application
-  // driving it understands.
-  if (!manifest.compatibility.minimum_application_version.empty()) {
-    const std::optional<int> comparison = CompareDottedVersions(
-        input.application_version,
-        manifest.compatibility.minimum_application_version);
-
-    if (!comparison.has_value()) {
-      // One side is not a dotted version — a commit hash, "unknown", or a
-      // development build. Neither ordering is available, so neither is
-      // asserted. Saying "your application is new enough" on the strength of
-      // a comparison that could not be made is exactly the silent failure
-      // this whole mechanism exists to avoid.
-      result.reasons.push_back(
-          "This build of the application is not a numbered release, so its "
-          "age could not be checked against this update.");
-    } else if (*comparison < 0) {
-      refuse(UpdateGateVerdict::kApplicationTooOld,
-             "This update needs application version " +
-                 manifest.compatibility.minimum_application_version +
-                 " or newer. Update the application first.");
-    }
-  }
+  // The manifest's minimum_application_version is deliberately not read here.
+  //
+  // It was compared against the application's own dotted release version,
+  // which no longer exists: the application stamps the commit it was built
+  // from, the same as the firmware and the gateware, and a commit orders
+  // nothing. Against a non-dotted version the comparison could not be made,
+  // and rather than being made charitably it pushed a line into the reasons
+  // shown to the user — which, now that no build has a dotted version, would
+  // have appeared on every install for every user for ever.
+  //
+  // Nothing is lost that was being enforced. The floor has always been 0.0.0
+  // (tools/release/compatibility.env), and what stops a user driving a device
+  // past what the application understands is machine-to-machine and checked
+  // just below: the firmware's protocol version and the gateware's register
+  // map version, both against the ranges this build was compiled knowing.
+  // That is also the more accurate signal — it describes what this
+  // application cannot do rather than how old it is — and it is derived from
+  // the sources at release time rather than being a decision to remember.
+  //
+  // The field itself stays in the manifest and stays published: it is
+  // required by the schema, so a bundle without it would fail to parse in
+  // every application already in the field.
 
   // What each payload will make the device speak once it is installed. A
   // firmware whose protocol this build does not know is a device this build

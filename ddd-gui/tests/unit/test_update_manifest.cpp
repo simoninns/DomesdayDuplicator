@@ -256,25 +256,5 @@ TEST(UpdateManifest, RefusesTextThatIsNotJsonAtAll) {
   EXPECT_FALSE(ErrorsFrom("[1, 2, 3]").empty());
 }
 
-// Dotted versions are the only thing in the update chain that orders, which is
-// why the compatibility gate is specified on them and not on commit hashes.
-TEST(UpdateManifest, ComparesDottedVersions) {
-  EXPECT_EQ(CompareDottedVersions("1.4.0", "1.4.0"), 0);
-  EXPECT_EQ(CompareDottedVersions("1.4", "1.4.0"), 0);
-  EXPECT_LT(CompareDottedVersions("1.4.0", "1.4.1").value_or(0), 0);
-  EXPECT_GT(CompareDottedVersions("1.10.0", "1.9.0").value_or(0), 0);
-  EXPECT_LT(CompareDottedVersions("1.4.0", "2.0").value_or(0), 0);
-  EXPECT_GT(CompareDottedVersions("2", "1.99.99").value_or(0), 0);
-}
-
-TEST(UpdateManifest, RefusesToOrderWhatIsNotAVersion) {
-  EXPECT_FALSE(CompareDottedVersions("0123abcd", "1.4.0").has_value());
-  EXPECT_FALSE(CompareDottedVersions("unknown", "1.4.0").has_value());
-  EXPECT_FALSE(CompareDottedVersions("", "1.4.0").has_value());
-  EXPECT_FALSE(CompareDottedVersions("1.4.0-dirty", "1.4.0").has_value());
-  EXPECT_FALSE(CompareDottedVersions("1..0", "1.4.0").has_value());
-  EXPECT_FALSE(CompareDottedVersions("1.4.", "1.4.0").has_value());
-}
-
 }  // namespace
 }  // namespace ddd::capture

@@ -170,8 +170,17 @@ inline constexpr size_t kWaveformSpanChoices[] = {
 inline constexpr size_t kWaveformSpanChoiceCount =
     sizeof(kWaveformSpanChoices) / sizeof(kWaveformSpanChoices[0]);
 
-// 1 µs, about eight cycles of the carrier this instrument exists to capture.
-inline constexpr size_t kDefaultWaveformSpanIndex = 1;
+// 200 µs, which is 8,000 samples at 40 Msps and about three television lines.
+//
+// A span rather than a waveform, deliberately. 1 µs shows eight cycles of
+// carrier and answers exactly one question — is there a carrier — while the
+// first thing somebody needs to know is whether the player's RF output is set
+// sensibly, and that is a property of the envelope. At three lines the line
+// structure is on screen, so a level that is too low, too high, or clipping on
+// sync is visible in the shape of what is drawn rather than only in the
+// figures beside it. The carrier-resolving end of the ladder is still there
+// for anyone who wants it.
+inline constexpr size_t kDefaultWaveformSpanIndex = 7;
 
 // Where the trigger point sits across the plot.
 //

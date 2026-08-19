@@ -19,11 +19,16 @@
 namespace ddd::gui {
 namespace {
 
-// A device running firmware and gateware built from the same commit as this
-// hypothetical application.
+// A device whose firmware and gateware were built from one commit — which is
+// what a device update installs — beside a hypothetical application release.
+//
+// The application's stamp is deliberately unrelated to the device's commit.
+// The two come from separate release streams and are not expected to match;
+// a fixture that made them match would let a comparison between them creep
+// back in unnoticed.
 FirmwareVersions MatchedSet(const QString& commit) {
   FirmwareVersions versions;
-  versions.application = commit;
+  versions.application = QStringLiteral("1.2.0 (feedface)");
   versions.device_attached = true;
   versions.product_string =
       QStringLiteral("Domesday Duplicator (%1)").arg(commit);
@@ -46,49 +51,58 @@ TEST(FirmwareTextTest, AllThreeVersionsAreNamed) {
       << "the commit is not shown anywhere";
 }
 
-TEST(FirmwareTextTest, AMatchedSetSaysSo) {
+TEST(FirmwareTextTest, ADeviceWhoseHalvesMatchSaysSo) {
   const QString text = FirmwareText(MatchedSet(QStringLiteral("7713495d")));
 
-  EXPECT_TRUE(text.contains(QStringLiteral("same commit")))
-      << "a matched set is not reported as matching";
+  EXPECT_TRUE(text.contains(QStringLiteral("same build")))
+      << "a device installed from one update is not reported as matching";
 }
 
-TEST(FirmwareTextTest, TwoLengthsOfTheSameCommitStillMatch) {
-  // The one thing this dialog must never do. A Nix build stamps seven
-  // characters and CMake eight, so an application and a device built from one
-  // commit routinely disagree in length — and a mismatch warning that fires
-  // when nothing is wrong teaches people to ignore it.
+// The comparison this dialog used to make and must never make again. The
+// application releases under gui-v* and the device under fw-v*, so an
+// application and a firmware from different commits is what a fully up-to-date
+// Duplicator looks like. Reporting it as a mismatched set is what sent a user
+// looking for a fault that was not there.
+TEST(FirmwareTextTest, TheApplicationIsNotComparedAgainstTheDevice) {
   FirmwareVersions versions = MatchedSet(QStringLiteral("7713495d"));
-  versions.application = QStringLiteral("7713495");
+  versions.application = QStringLiteral("9.9.9 (0123abcd)");
 
   const QString text = FirmwareText(versions);
 
-  EXPECT_TRUE(text.contains(QStringLiteral("same commit")))
-      << "two lengths of one commit were reported as differing";
+  EXPECT_TRUE(text.contains(QStringLiteral("same build")))
+      << "an application from another release was counted as a mismatch";
+  EXPECT_TRUE(text.contains(QStringLiteral("released separately")))
+      << "the text does not say why the application need not match";
 }
 
-TEST(FirmwareTextTest, ADirtyApplicationBuildStillMatches) {
-  // Local edits to the application say nothing about the device.
-  FirmwareVersions versions = MatchedSet(QStringLiteral("7713495d"));
-  versions.application = QStringLiteral("7713495d-dirty");
-
-  EXPECT_TRUE(FirmwareText(versions).contains(QStringLiteral("same commit")))
-      << "a dirty application build was reported as a version mismatch";
-}
-
-TEST(FirmwareTextTest, AGenuineMismatchIsReportedWithoutAlarm) {
+// A device whose two halves disagree is a real thing to report: they are
+// installed together from one bundle, so a difference means an update that did
+// not finish or a half programmed by hand.
+TEST(FirmwareTextTest, ADeviceWhoseHalvesDifferIsReportedWithoutAlarm) {
   FirmwareVersions versions = MatchedSet(QStringLiteral("7713495d"));
   versions.gateware.commit = "0123abcd";
 
   const QString text = FirmwareText(versions);
 
-  EXPECT_TRUE(text.contains(QStringLiteral("not all built from the same")))
-      << "a real mismatch was not reported";
+  EXPECT_TRUE(text.contains(QStringLiteral("different builds")))
+      << "a half-updated device was not reported";
 
-  // Old gateware is not known to be broken, only untested with this build, and
-  // the text must not tell somebody in front of a working capture to stop.
+  // Not known to be broken, only mismatched, and the text must not tell
+  // somebody in front of a working capture to stop.
   EXPECT_TRUE(text.contains(QStringLiteral("work normally")))
       << "the mismatch text does not say that capture still works";
+}
+
+// Two lengths of one commit are one commit. A Nix build stamps seven
+// characters and CMake eight, so the device's two halves routinely disagree in
+// length — and a warning that fires when nothing is wrong teaches people to
+// ignore it.
+TEST(FirmwareTextTest, TwoLengthsOfTheSameCommitStillMatch) {
+  FirmwareVersions versions = MatchedSet(QStringLiteral("7713495d"));
+  versions.gateware.commit = "7713495";
+
+  EXPECT_TRUE(FirmwareText(versions).contains(QStringLiteral("same build")))
+      << "two lengths of one commit were reported as differing";
 }
 
 TEST(FirmwareTextTest, NoDeviceIsStatedRatherThanReportedAsMissingVersions) {
@@ -100,7 +114,7 @@ TEST(FirmwareTextTest, NoDeviceIsStatedRatherThanReportedAsMissingVersions) {
 
   EXPECT_TRUE(text.contains(QStringLiteral("No device attached")))
       << "an absent device is not named as the reason the versions are unknown";
-  EXPECT_FALSE(text.contains(QStringLiteral("not all built from the same")))
+  EXPECT_FALSE(text.contains(QStringLiteral("different builds")))
       << "an absent device was reported as a version mismatch";
 }
 
@@ -114,7 +128,7 @@ TEST(FirmwareTextTest, AGatewareThatDidNotAnswerSaysWhatToLookAt) {
       << "a silent FPGA is not reported";
   EXPECT_TRUE(text.contains(QStringLiteral("not be programmed")))
       << "the text does not suggest what a silent FPGA might mean";
-  EXPECT_FALSE(text.contains(QStringLiteral("not all built from the same")))
+  EXPECT_FALSE(text.contains(QStringLiteral("different builds")))
       << "an unknown version was reported as a mismatch";
 }
 
@@ -126,22 +140,22 @@ TEST(FirmwareTextTest, FirmwarePredatingTheVersionStampIsExplained) {
 
   EXPECT_TRUE(text.contains(QStringLiteral("older")))
       << "firmware with no version stamp is not explained";
-  EXPECT_FALSE(text.contains(QStringLiteral("not all built from the same")))
+  EXPECT_FALSE(text.contains(QStringLiteral("different builds")))
       << "an unknown version was reported as a mismatch";
 }
 
+// A build that cannot name itself says so in its own row and nothing more. It
+// has no bearing on whether the device's two halves agree, which is now the
+// only question this paragraph answers.
 TEST(FirmwareTextTest, AnApplicationThatCannotNameItsBuildAccusesNothing) {
-  // A developer build with no git available has nothing to compare against,
-  // and saying "your device is wrong" on that basis would be an accusation it
-  // is not entitled to make.
   FirmwareVersions versions = MatchedSet(QStringLiteral("7713495d"));
   versions.application = QStringLiteral("unknown");
 
   const QString text = FirmwareText(versions);
 
-  EXPECT_TRUE(text.contains(QStringLiteral("cannot name the commit")))
-      << "an unknown application build is not explained";
-  EXPECT_FALSE(text.contains(QStringLiteral("not all built from the same")))
+  EXPECT_TRUE(text.contains(QStringLiteral("same build")))
+      << "an unknown application build stopped the device being compared";
+  EXPECT_FALSE(text.contains(QStringLiteral("different builds")))
       << "an unknown application build was turned into an accusation";
 }
 

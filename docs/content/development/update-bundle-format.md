@@ -135,13 +135,13 @@ For `gateware-provisioning-svf` and `gateware-factory`, both fields describe wha
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `minimum_application_version` | string | The oldest release of the capture application that may install this bundle |
+| `minimum_application_version` | string | Required by the schema; no longer read. See below |
 | `minimum_register_map_version` | integer | The oldest gateware register map the firmware in this bundle can drive |
 | `epcs_layout_version` | integer | The EPCS layout the gateware payload assumes |
 
-`minimum_application_version` is **enforced, not advisory**: a bundle requiring a newer application disables the install and says so. The gate and the reasoning behind it are on the [device update mechanism](device-update-mechanism.md) page.
+`minimum_application_version` is **no longer read by the application**, and a bundle naming an impossible floor installs regardless. It was compared against the application's own dotted release version; that version is gone, because every part of a Duplicator now stamps the commit it was built from and a commit orders nothing. The field is still required by this schema and still published, because every application already in the field parses it and would reject a bundle without it. It must still be a dotted sequence of decimal numbers.
 
-It is dotted decimal numbers rather than a commit because this is the one question a commit cannot answer. Missing trailing components read as zero, so `1.2` and `1.2.0` are the same version, and comparison is component by component: `1.10.0` is newer than `1.9.0`. Anything that is not a dotted sequence of decimal numbers — a commit hash, `unknown`, an empty string, `1.4.0-dirty` — cannot be ordered, and the comparison says so rather than guessing.
+A bundle that needs a newer application should say so through `interface_version`: a protocol version or register map version outside the range the old application knows is refused, in both directions, and that check is derived from the sources rather than decided by hand. The reasoning is on the [device update mechanism](device-update-mechanism.md) page.
 
 `epcs_layout_version` matters more than it looks. The factory image's boot logic is frozen at provisioning time and reads exactly one layout; a bundle built against a different one must not be written, because the boot block it would leave behind is the one thing a field update cannot repair. The compatibility gate enforces it against `kEpcsBootBlockLayoutVersion` in `wire_protocol.h`, so a bundle laid out for a boot block the application cannot describe is refused before a byte moves.
 

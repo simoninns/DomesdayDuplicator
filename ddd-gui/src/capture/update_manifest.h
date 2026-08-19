@@ -209,15 +209,4 @@ std::optional<UpdateManifest> ParseUpdateManifest(
 // against; nothing in the application writes a manifest into a real bundle.
 std::string SerialiseUpdateManifest(const UpdateManifest& manifest);
 
-// Compare two dotted numeric versions — "1.2.10" against "1.3", say.
-//
-// Returns a negative number, zero or a positive number in the manner of
-// strcmp. Missing trailing components read as zero, so "1.2" and "1.2.0" are
-// the same version. Returns nothing if either side is not a dotted sequence of
-// decimal numbers: a commit hash, "unknown", or an empty string cannot be
-// ordered, and pretending otherwise is how a compatibility gate silently stops
-// gating.
-std::optional<int> CompareDottedVersions(std::string_view left,
-                                         std::string_view right);
-
 }  // namespace ddd::capture

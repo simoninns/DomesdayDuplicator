@@ -218,7 +218,7 @@ class SpectrumPlot : public QWidget {
 
   std::vector<double> magnitudes_db_;
   std::vector<double> peak_hold_db_;
-  bool peak_hold_visible_ = true;
+  bool peak_hold_visible_ = false;
 
   // Segments behind the levels above, and zero before anything has said.
   size_t segments_ = 0;

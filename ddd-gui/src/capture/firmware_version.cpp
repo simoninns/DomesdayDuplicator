@@ -2,7 +2,7 @@
 
     firmware_version.cpp
 
-    Comparing the firmware's build against the application's
+    What a device says about the build it is running
     Domesday Duplicator - LaserDisc RF sampler
     SPDX-FileCopyrightText: 2026 Simon Inns
     SPDX-License-Identifier: GPL-3.0-or-later
@@ -96,54 +96,31 @@ bool CommitsMatch(std::string_view first, std::string_view second) {
   return left->compare(0, compared, *right, 0, compared) == 0;
 }
 
-FirmwareVersionCheck CheckFirmwareVersion(
-    std::string_view product_string, std::string_view application_version) {
-  FirmwareVersionCheck check;
+FirmwareIdentity DescribeFirmware(std::string_view product_string) {
+  FirmwareIdentity identity;
 
-  const std::optional<std::string> application =
-      NormaliseCommit(application_version);
-  const std::optional<std::string> device = ParseFirmwareCommit(product_string);
-
-  if (device.has_value()) {
-    check.device_commit = *device;
-  }
-  if (application.has_value()) {
-    check.application_commit = *application;
+  const std::optional<std::string> commit = ParseFirmwareCommit(product_string);
+  if (commit.has_value()) {
+    identity.commit = *commit;
+    return identity;
   }
 
-  // Checked before the device, deliberately. A build that cannot name its own
-  // commit has nothing to compare with, and saying "your firmware is unknown"
-  // when the application is equally unknown would be an accusation it is not
-  // entitled to make.
-  if (!application.has_value()) {
-    check.status = FirmwareVersionCheck::Status::kApplicationUnknown;
-    return check;
-  }
-
-  if (!device.has_value()) {
-    check.status = FirmwareVersionCheck::Status::kDeviceUnknown;
-    check.message =
-        "The device did not report which firmware build it is running. That "
-        "usually means firmware older than the version check itself. Capture "
-        "will work normally; updating the firmware is worth doing when "
-        "convenient.";
-    return check;
-  }
-
-  if (CommitsMatch(*device, *application)) {
-    check.status = FirmwareVersionCheck::Status::kMatch;
-    return check;
-  }
-
-  check.status = FirmwareVersionCheck::Status::kMismatch;
-  check.message = "The device is running firmware built from commit " +
-                  *device + ", and this application was built from commit " +
-                  *application +
-                  ". Every release builds both from the same commit, so these "
-                  "differing means one of them was not updated. Capture will "
-                  "work normally; if something behaves oddly, matching them up "
-                  "is the first thing to try.";
-  return check;
+  // Two causes, and the message names both because the more likely one is not
+  // the one this warning was originally written for.
+  //
+  // A device wearing this application's own identifiers has always stamped its
+  // commit — the identifiers and the stamp arrived together — so firmware too
+  // old to carry one is nearly a museum piece. What does happen, and happens
+  // to almost everybody once, is that the product string could not be read at
+  // all: it is a string descriptor, reading it means opening the device, and
+  // on Linux an unopenable device is the missing udev rule that the very next
+  // thing they try will also fail on.
+  identity.message =
+      "The device did not report which firmware build it is running. On Linux "
+      "that usually means the udev rules are not installed, so the device "
+      "cannot be opened to be asked; otherwise it means firmware older than "
+      "the version stamp itself. Monitoring will show which of the two it is.";
+  return identity;
 }
 
 }  // namespace ddd::capture

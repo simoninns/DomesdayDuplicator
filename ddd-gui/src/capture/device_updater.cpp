@@ -240,13 +240,25 @@ class UsbDeviceUpdater : public IDeviceUpdater {
       std::chrono::milliseconds timeout) override {
     const auto deadline = std::chrono::steady_clock::now() + timeout;
 
+    // Counted so that the failure below can say what was actually done rather
+    // than only that it did not work. The two ways of not finding a device
+    // read identically to a user and have entirely different causes: an
+    // enumeration that kept failing is a USB subsystem in trouble, while
+    // hundreds of successful enumerations that never once listed the device
+    // is a host that is not being told the device came back — which is what a
+    // sandbox with no route for kernel uevents looks like from in here.
+    int enumerations = 0;
+    int failures = 0;
+
     while (std::chrono::steady_clock::now() < deadline) {
       std::this_thread::sleep_for(kReturnPollInterval);
 
       std::vector<DeviceInfo> devices;
       if (!usb_.Enumerate(devices)) {
+        ++failures;
         continue;
       }
+      ++enumerations;
 
       const auto found = std::find_if(
           devices.begin(), devices.end(),
@@ -271,7 +283,10 @@ class UsbDeviceUpdater : public IDeviceUpdater {
     }
 
     if (logger_ != nullptr) {
-      logger_->Error("The device did not come back after being restarted");
+      logger_->Error("The device did not come back after being restarted: " +
+                     std::to_string(enumerations) +
+                     " enumerations listed no device at " + path_ + ", and " +
+                     std::to_string(failures) + " could not be made at all");
     }
     return std::nullopt;
   }

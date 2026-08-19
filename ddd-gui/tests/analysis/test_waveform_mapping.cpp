@@ -223,19 +223,36 @@ TEST(WaveformMappingTest, TheOfferedSpansAreMicrosecondsAndAllFitInASnapshot) {
   }
 }
 
-TEST(WaveformMappingTest, TheDefaultSpanShowsAFewCyclesOfTheCarrier) {
+TEST(WaveformMappingTest, TheShortestSpanShowsAFewCyclesOfTheCarrier) {
   // The whole reason the ladder was extended downwards. An 8 MHz carrier is
-  // five samples a cycle at 40 Msps; the display has to open on a span where
-  // those cycles are individually visible rather than on one showing eighty of
-  // them, which is a band of fuzz whatever else is right about the drawing.
+  // five samples a cycle at 40 Msps; the ladder has to reach a span where those
+  // cycles are individually visible rather than stopping at one showing eighty
+  // of them, which is a band of fuzz whatever else is right about the drawing.
+  ASSERT_GT(kWaveformSpanChoiceCount, 0U);
+
+  const double cycles = static_cast<double>(kWaveformSpanChoices[0]) / 5.0;
+
+  EXPECT_GE(cycles, 2.0);
+  EXPECT_LE(cycles, 8.0) << "the shortest span shows " << cycles << " cycles";
+}
+
+TEST(WaveformMappingTest, TheDefaultSpanShowsAFewLinesOfTheEnvelope) {
+  // Where the display opens, and it is not the span above. A carrier-length
+  // sweep answers one question — is there a carrier — while the question
+  // somebody has on first use is whether the player's RF output is set
+  // sensibly, and that is a property of the envelope rather than of the
+  // carrier inside it. A television line is a little over 63 µs, so a few of
+  // them is the span at which the line structure is on screen. The span above
+  // is still on the ladder for anybody who wants it.
   ASSERT_LT(kDefaultWaveformSpanIndex, kWaveformSpanChoiceCount);
 
   const double samples =
       static_cast<double>(kWaveformSpanChoices[kDefaultWaveformSpanIndex]);
-  const double cycles = samples / 5.0;
+  const double seconds = samples / static_cast<double>(capture::kSampleRateHz);
+  const double lines = seconds / 63.56e-6;
 
-  EXPECT_GE(cycles, 4.0);
-  EXPECT_LE(cycles, 16.0) << "the default span shows " << cycles << " cycles";
+  EXPECT_GE(lines, 2.0);
+  EXPECT_LE(lines, 5.0) << "the default span shows " << lines << " lines";
 }
 
 TEST(WaveformMappingTest, TheDrawingStyleFollowsHowCrowdedThePixelsAre) {
@@ -256,11 +273,20 @@ TEST(WaveformMappingTest, TheDrawingStyleFollowsHowCrowdedThePixelsAre) {
   mapping.sample_span = 500;
   EXPECT_EQ(mapping.DrawStyle(), WaveformDrawStyle::kReconstructed);
 
-  // The default span: fifteen pixels a sample, so the samples are worth
-  // marking and the waveform between them has to be reconstructed.
-  mapping.sample_span = kWaveformSpanChoices[kDefaultWaveformSpanIndex];
+  // The shortest span the ladder offers: fifteen pixels a sample, so the
+  // samples are worth marking and the waveform between them has to be
+  // reconstructed.
+  mapping.sample_span = kWaveformSpanChoices[0];
   EXPECT_EQ(mapping.DrawStyle(), WaveformDrawStyle::kReconstructed);
   EXPECT_TRUE(mapping.ShouldMarkSamples());
+
+  // And the span the panel opens on, at the other end of the same rule: three
+  // television lines across 600 pixels is thirteen samples to a column, which
+  // is an envelope and nothing else. A polyline there would draw whichever
+  // phase of the carrier each column happened to land on.
+  mapping.sample_span = kWaveformSpanChoices[kDefaultWaveformSpanIndex];
+  EXPECT_EQ(mapping.DrawStyle(), WaveformDrawStyle::kEnvelope);
+  EXPECT_FALSE(mapping.ShouldMarkSamples());
 }
 
 TEST(WaveformMappingTest, ATriggerBetweenSamplesShiftsTheWholeWindow) {

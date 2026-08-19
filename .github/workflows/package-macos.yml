@@ -42,7 +42,14 @@ jobs:
             version="git-${GITHUB_SHA:0:8}"
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "ddd_version=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+          # The commit the binary stamps into itself, which is a different thing
+          # from the packaging version above: that one names the artefact, this
+          # one names the source it was built from. The same stamp the FX3
+          # firmware and the FPGA gateware carry — see
+          # ddd-gui/src/capture/version.h. Passed explicitly because there is no
+          # .git the build can ask in every packaging sandbox, and a build that
+          # reports "unknown" fails the release gate.
+          echo "ddd_commit=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
 
       - name: Install build dependencies
         shell: bash
@@ -92,7 +99,7 @@ jobs:
           cmake -B build -S ddd-gui -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
-            -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}" \
+            -DDDD_COMMIT="${{ steps.version.outputs.ddd_commit }}" \
             ${bundled[@]+"${bundled[@]}"}
           cmake --build build
 
@@ -189,7 +196,7 @@ jobs:
           reported=$(dist/DomesdayDuplicator.app/Contents/MacOS/ddd-gui --version)
           echo "Packaged application reports: ${reported}"
           case "${reported}" in
-            *unknown*) echo "The packaged application reports an unknown version" >&2; exit 1 ;;
+            *unknown*) echo "The packaged application reports an unknown commit" >&2; exit 1 ;;
           esac
 
           # A pinned set that did not reach the shipped bundle would leave the offline

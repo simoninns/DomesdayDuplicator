@@ -650,7 +650,7 @@ TEST(SpectrumPanelTest, AThemeChangeRecoloursTheRowsAlreadyHeld) {
       << "the spectrogram kept the old theme's colours";
 }
 
-TEST(SpectrumPanelTest, PeakHoldIsOnByDefaultAndCanBeTurnedOff) {
+TEST(SpectrumPanelTest, PeakHoldIsOffByDefaultAndCanBeTurnedOn) {
   SpectrumPanel panel(nullptr);
 
   auto* const box = Named<QCheckBox>(panel, SpectrumPanel::kPeakHoldBoxName);
@@ -658,11 +658,29 @@ TEST(SpectrumPanelTest, PeakHoldIsOnByDefaultAndCanBeTurnedOff) {
   ASSERT_NE(box, nullptr);
   ASSERT_NE(plot, nullptr);
 
-  EXPECT_TRUE(box->isChecked());
+  EXPECT_FALSE(box->isChecked());
+  EXPECT_FALSE(plot->peak_hold_visible());
+
+  box->setChecked(true);
   EXPECT_TRUE(plot->peak_hold_visible());
 
   box->setChecked(false);
   EXPECT_FALSE(plot->peak_hold_visible());
+}
+
+TEST(SpectrumPanelTest, TurningPeakHoldOnWithNoControllerBehindItIsHarmless) {
+  // Enabling it asks the analyser to start the peaks again, so that what is
+  // drawn was measured from the moment it was switched on rather than from the
+  // moment monitoring started. These tests build the panel with no controller
+  // at all — the same state the application is in when the device could not be
+  // opened — and the request has to be skipped there rather than crash.
+  SpectrumPanel panel(nullptr);
+
+  auto* const box = Named<QCheckBox>(panel, SpectrumPanel::kPeakHoldBoxName);
+  ASSERT_NE(box, nullptr);
+
+  box->setChecked(true);
+  box->setChecked(false);
 }
 
 TEST(SpectrumPanelTest, ResetPeaksIsOfferedEvenWithNoControllerBehindIt) {

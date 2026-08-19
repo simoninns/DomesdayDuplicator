@@ -128,10 +128,32 @@ class MainWindow : public QMainWindow {
 
   // Tools ▸ Firmware ▸ Bring up a new or legacy board…
   //
-  // Always available, unlike the update dialog's entry: it begins with its own
-  // connectivity checks, and a board that is not answering is exactly the
-  // board it exists to repair — so there is no device state to grey it out on.
+  // No *device* state greys this out: it begins with its own connectivity
+  // checks, and a board that is not answering is exactly the board it exists
+  // to repair. A capture in progress does, for the reason below.
   void ShowBringUpWizard();
+
+  // Put the capture pipeline down while a window that programs the device is
+  // open, and pick it up again when that window has gone.
+  //
+  // Monitoring and programming are the same cable, and the device already
+  // knows it: the firmware refuses UPDATE_BEGIN while it is streaming and
+  // refuses a start-capture request while an update is in progress. So this is
+  // not hygiene — an update attempted while monitoring is one the device turns
+  // down, and the user meets that as an update error rather than as an
+  // application that put its own stream down first.
+  //
+  // Monitoring writes nothing and costs nothing to restart, so it is stopped
+  // rather than refused — unlike a capture, which these two entries are
+  // disabled during.
+  //
+  // Restoring is conditional on there still being a device that can capture.
+  // After an update there may not be, or not yet: StartMonitoring configures
+  // the device and reports a failure modally when it cannot, and putting that
+  // box in front of somebody who has just been told their device is
+  // restarting would be the application arguing with itself.
+  void QuietenCaptureForDeviceWork();
+  void RestoreCaptureAfterDeviceWork();
 
   // The one settings dialog, opened on whichever tab the entry is about.
   void ShowSettingsDialog(
@@ -159,6 +181,11 @@ class MainWindow : public QMainWindow {
   // all over an update's own explanation of what went wrong.
   bool firmware_dialog_open_ = false;
 
+  // Whether monitoring was running when a device window opened, and so whether
+  // there is anything to restart when it closes. Held rather than re-derived
+  // because by then monitoring has been stopped and the answer is gone.
+  bool monitoring_paused_for_device_work_ = false;
+
   // What the update page verifies against, unless --dev-update-key widened it.
   capture::UpdateKeyPolicy update_key_policy_ =
       capture::DefaultUpdateKeyPolicy();
@@ -181,6 +208,11 @@ class MainWindow : public QMainWindow {
   // else can be reflected in the tick, and so the entry can be taken away while
   // streaming.
   QAction* test_mode_action_ = nullptr;
+
+  // Tools ▸ Firmware ▸ both entries. Held so they can be taken away while a
+  // capture is running: everything behind them restarts the device.
+  QAction* firmware_update_action_ = nullptr;
+  QAction* bringup_action_ = nullptr;
 
   // Tools ▸ Player ▸ Player control. Held for the same reason: the remote's
   // Connection tab and the settings dialog change the same setting, and all

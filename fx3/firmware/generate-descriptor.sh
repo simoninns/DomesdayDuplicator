@@ -12,8 +12,17 @@ COMMIT="${2:-unknown}"
 # Create Python script to generate UTF-16LE bytes
 python3 -c "
 commit = '$COMMIT'
-base = 'Domesday Duplicator ('
-full_string = base + commit + ')'
+
+# 'Domesday Duplicator (a1b2c3d4)'. The commit is the whole of what the device says about
+# which build it is running, and no release version is stamped into it: the firmware and
+# the gateware are installed together from one signed bundle built from one commit, so the
+# two of them reporting the same hash is what 'good' means. Which release that commit
+# belongs to is in the bundle's signed manifest, which is verified before it is read.
+#
+# The commit sits in brackets at the end — see ParseFirmwareCommit in
+# ddd-gui/src/capture/firmware_version.cpp, which finds the last bracketed group, so a
+# host built today keeps working if anything is ever named before it.
+full_string = 'Domesday Duplicator (' + commit + ')'
 
 # Generate UTF-16LE bytes
 bytes_list = []

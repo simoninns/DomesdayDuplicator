@@ -59,7 +59,18 @@ Run the newer MSI. It upgrades in place — there is no need to uninstall first.
 Programs. The WinUSB driver binding is separate and stays; undo it in Device Manager if you
 want the device back on its original driver.
 
-## Next
+## First time through
 
-The [Quick start](quick-start.md) takes it from here: finding the device, setting the
-front-end gain, and taking a first capture.
+In this order:
+
+1. **Bind the device to WinUSB** with Zadig, as above. Until that is done the application
+   cannot open it.
+
+2. **Tell the application what SW401 is set to.** **File → Settings…**, and set **Front-end
+   gain** to the position of the four-way DIP switch on the Duplicator board. The switch is
+   mechanical and has no electrical path to anything the application can read, so until it is
+   declared every level is shown in converter codes rather than in millivolts. Nothing about
+   the capture itself depends on it — see [Front-end gain](settings.md#front-end-gain).
+
+3. **Take a first capture.** The [Quick start](quick-start.md) walks through monitoring,
+   setting the player's RF output by what is on screen, and writing a file.

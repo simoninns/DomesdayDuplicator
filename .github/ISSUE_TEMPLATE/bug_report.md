@@ -41,11 +41,16 @@ What happened instead?
 
 - OS and version:
 - Install method: (Flatpak / macOS DMG / Windows MSI / built from source with Nix)
-- Application version: (Help → About, or the release tag)
-- FX3 firmware version: (Tools → Firmware → Update firmware…)
-- FPGA gateware version: (same dialog)
+- Application commit: (Help → About)
+- FX3 firmware commit: (Tools → Firmware → Update firmware…)
+- FPGA gateware commit: (same dialog)
 - Board revision, and DE0-NANO or other carrier:
 - ADC clock / sample rate in use, if relevant:
+
+All three are short hex hashes. The firmware and the gateware are installed together from
+one update and come from one commit, so they normally match each other; the application is
+released separately and is not expected to match them. **Please give all three even when
+two of them look the same** — whether they are identical is most of what they tell us.
 
 Leave any field blank that does not apply — a documentation or build report does not need
 the device details.

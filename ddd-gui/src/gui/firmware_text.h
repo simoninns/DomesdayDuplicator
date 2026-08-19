@@ -18,17 +18,21 @@
 
 namespace ddd::gui {
 
-// A release builds three things from one commit — this application, the FX3
-// firmware and the FPGA gateware — and each carries its own stamp. The
-// application knows its own at compile time, the firmware puts its into the USB
-// product string, and the gateware answers with its in a register.
+// Three commits — this application, the FX3 firmware and the FPGA gateware —
+// each carrying the stamp of the build it came from. The application knows its
+// own at compile time, the firmware puts its into the USB product string, and
+// the gateware answers with its in a register.
+//
+// The firmware and the gateware are installed together from one signed bundle
+// and come from one commit, so they match on a consistent device. The
+// application is released separately and is not expected to match them.
 //
 // Separated from the dialog that shows it so that what it says can be tested
 // without a device or a window, which matters because most of what it says is
 // about things that are absent.
 struct FirmwareVersions {
-  // This build's version stamp, as capture::Version() reports it. May be
-  // "unknown", or carry a "-dirty" suffix.
+  // This build's commit, as capture::Commit() reports it. May be "unknown", or
+  // carry a "-dirty" suffix.
   QString application;
 
   // Whether a device is attached. False makes the other two fields

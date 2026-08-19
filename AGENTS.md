@@ -108,6 +108,8 @@ design the FX3 ↔ FPGA and USB protocols for `ddd-gui/` alone.
 │   ├── dev-bundle.sh          # the developer loop's wrapper around it
 │   ├── fetch-bundled-update.sh  # the packaging jobs' fetch-by-digest of the
 │   │                          # update bundle an installer carries
+│   ├── blank-board.sh         # erase a bench board's EEPROM and configuration
+│   │                          # flash, for the bring-up items of TESTING.md §6
 │   ├── keys/                  # the development signing keypair — the secret half is
 │   │                          # committed deliberately, see §5.5. release.pub joins it
 │   │                          # when a release key is generated; the secret never does
@@ -573,11 +575,13 @@ built from the release commit** — not a rebuild of roughly that source.
 
 Two rules follow from this, and they constrain how you change build files:
 
-1. **Never make a version discoverable only at build time.** A Nix build from a tag has no
-   `.git`, so `git rev-parse` yields `unknown` and produces an untraceable release binary.
-   Versions are *injected* — `-DFIRMWARE_VERSION=`, `-DDDD_VERSION=` — with the git lookup as
+1. **Never make a commit stamp discoverable only at build time.** A Nix build from a tag has
+   no `.git`, so `git rev-parse` yields `unknown` and produces an untraceable release binary.
+   Stamps are *injected* — `-DFIRMWARE_VERSION=`, `-DDDD_COMMIT=` — with the git lookup as
    a fallback for local developer builds only. The release workflow fails if any artefact
-   reports `unknown`.
+   reports `unknown`. Every artefact stamps a commit and nothing else: no release version is
+   compiled into anything, because the device cannot carry one and three stamps in two
+   styles is something a user would have to be taught.
 2. **Never leave a supported platform without a native build somewhere.** Nix cannot produce
    the Windows binary or the macOS bundle, so those artefacts have to come from a platform
    toolchain. Since 2026-08-15 that toolchain runs *only inside the packaging workflows*

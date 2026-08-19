@@ -17,7 +17,7 @@
   cmake,
   gtest,
   # Stamped into --version, same convention as the firmware and the GUI.
-  dddVersion ? "unknown",
+  dddCommit ? "unknown",
   doCheck ? true,
 }:
 
@@ -40,7 +40,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   cmakeFlags = [
     (lib.cmakeBool "BUILD_TESTING" finalAttrs.doCheck)
-    (lib.cmakeFeature "DDD_VERSION" dddVersion)
+    (lib.cmakeFeature "DDD_COMMIT" dddCommit)
   ];
 
   inherit doCheck;

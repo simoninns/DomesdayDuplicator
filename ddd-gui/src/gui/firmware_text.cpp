@@ -39,17 +39,20 @@ QString Row(const QString& name, const QString& value, const QString& note) {
   return row;
 }
 
-// The commit each of the three reports, or nothing where none was reported.
+// The commit each half of the *device* reports, or nothing where none was
+// reported.
+//
+// The application is not here, and that is the change rather than an omission.
+// It releases under its own tag, from its own commit, so it has no business in
+// a comparison about whether the device's two halves match — see
+// firmware_version.h.
 struct Commits {
-  std::optional<std::string> application;
   std::optional<std::string> firmware;
   std::optional<std::string> gateware;
 };
 
 Commits CollectCommits(const FirmwareVersions& versions) {
   Commits commits;
-  commits.application =
-      capture::NormaliseCommit(versions.application.toStdString());
 
   if (!versions.device_attached ||
       versions.personality != capture::DevicePersonality::kApplication) {
@@ -128,10 +131,10 @@ QString GatewareNote(const FirmwareVersions& versions) {
 }
 
 QString FirmwareValue(const Commits& commits) {
-  if (commits.firmware.has_value()) {
-    return FromStdString(*commits.firmware);
+  if (!commits.firmware.has_value()) {
+    return Translate("Not reported");
   }
-  return Translate("Not reported");
+  return FromStdString(*commits.firmware);
 }
 
 QString FirmwareNote(const FirmwareVersions& versions, const Commits& commits) {
@@ -186,45 +189,38 @@ QString Verdict(const FirmwareVersions& versions, const Commits& commits) {
         "there.");
   }
 
-  // Checked before the device's halves, deliberately, and for the same reason
-  // firmware_version.cpp checks it first: a build that cannot name its own
-  // commit is in no position to accuse anything else of being out of date.
-  if (!commits.application.has_value()) {
-    return Translate(
-        "This application cannot name the commit it was built from, so there "
-        "is nothing to compare the device against.");
-  }
-
-  const std::string& application = *commits.application;
-
   const bool firmware_known = commits.firmware.has_value();
   const bool gateware_known = commits.gateware.has_value();
-
-  const bool firmware_matches =
-      firmware_known && capture::CommitsMatch(*commits.firmware, application);
-  const bool gateware_matches =
-      gateware_known && capture::CommitsMatch(*commits.gateware, application);
-
-  if (firmware_known && gateware_known && firmware_matches &&
-      gateware_matches) {
-    return Translate(
-        "All three were built from the same commit, which is what a release "
-        "is.");
-  }
 
   if (!firmware_known || !gateware_known) {
     return Translate(
         "Not every part of the device reported which build it is running, so "
-        "they cannot all be compared. Capture works normally either way; "
+        "the two cannot be compared. Capture works normally either way; "
         "updating the device when convenient is what makes this dialog able to "
         "answer the question.");
   }
 
+  // The one comparison worth making here, and the only one these three
+  // versions support. The firmware and the gateware are installed together,
+  // from one signed bundle, built from one commit — so a difference between
+  // them is a device that was half updated, which is a real thing to say.
+  //
+  // The application is deliberately not in it. It releases separately, under
+  // its own tag, so it shares a commit with the device only by coincidence.
+  // Comparing it here is what used to make this dialog report a correctly
+  // updated Duplicator as a mismatched set.
+  if (capture::CommitsMatch(*commits.firmware, *commits.gateware)) {
+    return Translate(
+        "The firmware and the gateware came from the same build, which is "
+        "what a device update installs. The application is released "
+        "separately and is not expected to match them.");
+  }
+
   return Translate(
-      "These were not all built from the same commit. Every release builds the "
-      "application, the firmware and the gateware together, so a difference "
-      "means one of them was not updated. Capture will work normally; if "
-      "something behaves oddly, matching them up is the first thing to try.");
+      "The firmware and the gateware came from different builds. They are "
+      "installed together from one update, so this usually means an update "
+      "that did not finish, or one half programmed by hand. Capture will work "
+      "normally; installing the latest update is what puts them back in step.");
 }
 
 }  // namespace
@@ -254,9 +250,11 @@ QString FirmwareText(const FirmwareVersions& versions) {
 
   return QStringLiteral("<h3>%1</h3><p>%2</p>%3<p>%4</p>")
       .arg(Translate("Firmware versions"),
-           Translate("Each release builds the application, the FX3 firmware "
-                     "and the FPGA gateware from one commit. Each reports the "
-                     "commit it came from."),
+           Translate("All three are the commit each was built from. The FX3 "
+                     "firmware and the FPGA gateware are installed together "
+                     "and come from one commit, so they match on a consistent "
+                     "device. The application is released separately and is "
+                     "not expected to match them."),
            table, Verdict(versions, commits));
 }
 

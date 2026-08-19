@@ -46,23 +46,27 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-# Commit stamp, so a released binary can be traced back to the source that produced it.
-# Mirrors fx3/firmware/CMakeLists.txt: callers building outside a
-# git checkout — Nix, release tarballs, a shallow CI clone — pass -DDDD_VERSION=<hash>,
-# and only when they have not does the build ask git. A release artefact reporting
-# "unknown" fails the release gate (AGENTS.md §9).
-if(NOT DEFINED DDD_VERSION OR DDD_VERSION STREQUAL "")
+# One stamp: the commit this binary was built from. See src/capture/version.h for why
+# there is no release version beside it — the same rule the FX3 firmware and the FPGA
+# gateware follow, so all three parts of a Duplicator report the same kind of thing and a
+# bug report can quote three hashes.
+#
+# Mirrors fx3/firmware/CMakeLists.txt: callers building outside a git checkout — Nix,
+# release tarballs, a shallow CI clone — pass -DDDD_COMMIT=<hash>, and only when they have not
+# does the build ask git. An artefact that cannot name a commit reports "unknown" and
+# fails the release gate (AGENTS.md §9).
+if(NOT DEFINED DDD_COMMIT OR DDD_COMMIT STREQUAL "")
     execute_process(
         COMMAND git rev-parse --short=8 HEAD
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE DDD_VERSION
+        OUTPUT_VARIABLE DDD_COMMIT
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET
     )
 
     # A bare commit hash from a dirty tree names a commit that does not contain the code
     # being built.
-    if(DDD_VERSION)
+    if(DDD_COMMIT)
         execute_process(
             COMMAND git status --porcelain
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -71,16 +75,16 @@ if(NOT DEFINED DDD_VERSION OR DDD_VERSION STREQUAL "")
             ERROR_QUIET
         )
         if(NOT DDD_GIT_STATUS STREQUAL "")
-            set(DDD_VERSION "${DDD_VERSION}-dirty")
+            set(DDD_COMMIT "${DDD_COMMIT}-dirty")
         endif()
     endif()
 endif()
 
-if(NOT DDD_VERSION)
-    set(DDD_VERSION "unknown")
+if(NOT DDD_COMMIT)
+    set(DDD_COMMIT "unknown")
 endif()
 
-message(STATUS "Application version: ${DDD_VERSION}")
+message(STATUS "Application commit: ${DDD_COMMIT}")
 
 # Which update signing key this build trusts.
 #

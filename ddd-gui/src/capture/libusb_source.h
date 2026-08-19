@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -56,8 +57,17 @@ class LibUsbSource : public ISampleSource {
  public:
   // Takes an already-open handle with interface kInterfaceNumber claimed. The
   // handle is closed by Finish(), which the pipeline always calls.
-  LibUsbSource(libusb_context* context, libusb_device_handle* handle,
-               uint8_t endpoint, size_t endpoint_max_packet_bytes,
+  //
+  // The lease is the backend's token saying this context is in use. It is
+  // opaque here and only has to be kept: the backend recycles its libusb
+  // context when the kernel and libusb disagree about what is attached, and a
+  // context recycled underneath a running capture would close this handle from
+  // another thread. Holding a copy for as long as the handle lives is what
+  // makes that impossible — see sysfs_device_list.h for why the recycling
+  // exists at all.
+  LibUsbSource(libusb_context* context, std::shared_ptr<const void> lease,
+               libusb_device_handle* handle, uint8_t endpoint,
+               size_t endpoint_max_packet_bytes,
                const UsbSourceOptions& options, ILogger* logger);
   ~LibUsbSource() override;
 
@@ -128,6 +138,9 @@ class LibUsbSource : public ISampleSource {
   bool SubmitTransfer(Transfer& entry);
 
   libusb_context* context_ = nullptr;
+
+  // Kept, never read. See the constructor.
+  std::shared_ptr<const void> lease_;
   libusb_device_handle* handle_ = nullptr;
   uint8_t endpoint_ = 0;
   size_t endpoint_max_packet_bytes_ = 0;

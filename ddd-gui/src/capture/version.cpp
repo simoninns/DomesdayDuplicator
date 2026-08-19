@@ -11,14 +11,14 @@
 
 #include "version.h"
 
-// Defined on this one translation unit by CMake, so changing the version stamp
-// rebuilds a single object file rather than the whole application.
-#ifndef DDD_VERSION
-#define DDD_VERSION "unknown"
+#include <string_view>
+
+#ifndef DDD_COMMIT
+#define DDD_COMMIT "unknown"
 #endif
 
 namespace ddd::capture {
 
-std::string_view Version() { return DDD_VERSION; }
+std::string_view Commit() { return DDD_COMMIT; }
 
 }  // namespace ddd::capture

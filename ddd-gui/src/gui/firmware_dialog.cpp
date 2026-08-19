@@ -84,7 +84,7 @@ void FirmwareDialog::Build(const FirmwareVersions& versions,
     tabs_->setObjectName(QLatin1String(kTabsName));
     tabs_->addTab(scroll, tr("Versions"));
 
-    const std::string_view application = capture::Version();
+    const std::string_view application = capture::Commit();
     update_ = new UpdatePage(
         QString::fromUtf8(application.data(),
                           static_cast<qsizetype>(application.size())),

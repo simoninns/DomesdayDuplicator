@@ -15,8 +15,14 @@
 #
 # Two cases, because the interesting byte is computed rather than fixed:
 #
-#   0123abcd   a realistic 8-character short hash
-#   unknown    the fallback, one character shorter, so the size byte must differ
+#   0123abcd          a realistic 8-character short hash
+#   unknown           the fallback, one character shorter, so the size byte must differ
+#
+# The descriptor names a commit and nothing else. There was briefly a third case for a
+# release version stamped before the bracket; it was removed along with the mechanism,
+# because the gateware could never have carried one and the firmware alone naming a
+# release would have been half an answer. What identifies a device is that its two halves
+# report the same commit.
 #
 # Usage: descriptor-golden.sh <generate-descriptor.sh> <golden-dir>
 
@@ -30,16 +36,16 @@ trap 'rm -rf "$workdir"' EXIT
 
 status=0
 
-for commit in 0123abcd unknown; do
+for commit in "0123abcd" "unknown"; do
     golden="$golden_dir/descriptor-$commit.h"
     actual="$workdir/descriptor-$commit.h"
 
     bash "$generator" "$workdir" "$commit" > "$actual"
 
     if diff -u "$golden" "$actual"; then
-        echo "ok: descriptor for commit '$commit' matches $golden"
+        echo "ok: descriptor for '$commit' matches $golden"
     else
-        echo "FAIL: descriptor for commit '$commit' differs from $golden" >&2
+        echo "FAIL: descriptor for '$commit' differs from $golden" >&2
         status=1
     fi
 done

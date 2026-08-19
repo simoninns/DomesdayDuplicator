@@ -186,7 +186,7 @@ a field that was never encoded — are written as `\x00` escapes rather than dro
 | Key | What it holds |
 | --- | --- |
 | `schema_version` | `1`. Incremented when a field changes meaning, never when one is added — a reader must keep working against a file with more in it than it knows about |
-| `application_version` | The build of the *application* that produced the capture. The device's own two builds are in `device` below |
+| `application_version` | The commit of the *application* that produced the capture. The device's own two are in `device` below. The key name is fixed by the file format |
 | `capture` | The capture itself |
 | `signal` | What the signal looked like — only when there was any |
 | `naming` | What you said the disc was |
@@ -245,11 +245,13 @@ the file name gets an abbreviation (`Analogue`, not `ANA`).
 | `gateware_register_map` | Which version of the gateware's register interface it implements |
 
 **A capture is the product of three builds, not one**: this application,
-the firmware in the Duplicator's USB chip, and the gateware in its FPGA. A release builds all
-three from one commit, so the ordinary case is three fields that agree — and the reason to
-record them is the case where they do not. When a capture turns out to have something wrong
-with it, the first question is which build produced it, and the gateware in particular is
-where sample loss, decimation and the sequence markers all live.
+the firmware in the Duplicator's USB chip, and the gateware in its FPGA. The firmware and the
+gateware are installed together from one update and come from one commit, so those two
+ordinarily agree; the application releases on its own schedule and is not expected to match
+them. All three record a commit, so they can be read side by side.
+Recording all three is what makes the odd case answerable. When a capture turns out to have
+something wrong with it, the first question is which build produced it, and the gateware in
+particular is where sample loss, decimation and the sequence markers all live.
 
 `application_version` is at the top of the document rather than in here, because the
 application is what wrote the document; these two are about the machine on the other end of
@@ -263,8 +265,8 @@ folded into it.
 
 A gateware built from a tree with uncommitted changes carries a **`-dirty`** suffix, the same
 convention `application_version` uses: a bare commit hash asserts that a published build
-produced this file, and for a modified tree that is not true. All three version fields
-therefore read the same way, so a reader has one rule rather than one per field.
+produced this file, and for a modified tree that is not true. All three fields are commits
+and read the same way, so a reader has one rule rather than one per field.
 
 ### `player`
 
@@ -333,7 +335,7 @@ examination at all.
 # blank, so everything written here was actually known.
 
 "schema_version": 1
-"application_version": "0.9.1-a1b2c3d"
+"application_version": "a1b2c3d4"
 
 "capture":
   "file": "Casper_side2_2026-08-17_14-30-00.ddd.flac"

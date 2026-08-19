@@ -50,7 +50,14 @@ jobs:
             version="git-${GITHUB_SHA:0:8}"
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "ddd_version=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+          # The commit the binary stamps into itself, which is a different thing
+          # from the packaging version above: that one names the artefact, this
+          # one names the source it was built from. The same stamp the FX3
+          # firmware and the FPGA gateware carry — see
+          # ddd-gui/src/capture/version.h. Passed explicitly because there is no
+          # .git the build can ask in every packaging sandbox, and a build that
+          # reports "unknown" fails the release gate.
+          echo "ddd_commit=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
 
       - name: Install flatpak-builder
         shell: bash
@@ -105,8 +112,8 @@ jobs:
         run: |
           set -euo pipefail
           MANIFEST=ddd-gui/packaging/flatpak/io.github.simoninns.DddGui.yml
-          sed -i "s/@DDD_VERSION@/${{ steps.version.outputs.ddd_version }}/" "${MANIFEST}"
-          grep -q "@DDD_VERSION@" "${MANIFEST}" && { echo "version placeholder not substituted" >&2; exit 1; }
+          sed -i "s/@DDD_COMMIT@/${{ steps.version.outputs.ddd_commit }}/" "${MANIFEST}"
+          grep -q "@DDD_COMMIT@" "${MANIFEST}" && { echo "commit placeholder not substituted" >&2; exit 1; }
 
           # The update bundle, if one was fetched. The path is the one the file has
           # *inside* the sandbox: the module's source is the repository root, mounted at
@@ -181,7 +188,7 @@ jobs:
             --command=ddd-gui io.github.simoninns.DddGui --version)
           echo "Packaged application reports: ${reported}"
           case "${reported}" in
-            *unknown*) echo "The packaged application reports an unknown version" >&2; exit 1 ;;
+            *unknown*) echo "The packaged application reports an unknown commit" >&2; exit 1 ;;
           esac
 
           # A pinned set that did not survive into the installed application is the exact

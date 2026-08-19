@@ -9,9 +9,13 @@ the file — a capture writes about 40 MB every second, so roughly 145 GB an hou
 !!! warning "These pages describe the August 2026 release"
 
     This documentation covers the current capture application, FX3 firmware and FPGA
-    gateware, released together in **August 2026**. The three are a matched set: the
-    application talks to the firmware and gateware of its own release, and a board
-    programmed before then is running something it does not know.
+    gateware, all as they stand in **August 2026**. The firmware and the gateware are the
+    matched set: they are built from one commit and installed together from one update, so
+    a board is running both halves of a release or neither. The application releases
+    separately and is not expected to match them — what ties it to a device is the protocol
+    the firmware speaks and the register interface the gateware presents, not the commit
+    either was built from, and a board programmed before this release speaks something this
+    application does not know.
 
     **If the application does not find your board, or finds it and reports it as running
     something else, the board needs bringing up to this release** — that is the expected

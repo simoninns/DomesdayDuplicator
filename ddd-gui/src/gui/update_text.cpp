@@ -39,7 +39,7 @@ bool SameBuild(const std::string& left, const std::string& right) {
 }  // namespace
 
 std::vector<UpdateVersionRow> UpdateVersionRows(
-    const QString& application_version, const capture::DeviceIdentity& device,
+    const QString& application_commit, const capture::DeviceIdentity& device,
     bool device_attached, const capture::UpdateManifest* bundle,
     capture::DevicePersonality personality) {
   std::vector<UpdateVersionRow> rows;
@@ -53,19 +53,23 @@ std::vector<UpdateVersionRow> UpdateVersionRows(
 
   // The application, first, and in the list even though this dialog cannot
   // update it: leaving it out would answer two thirds of "am I up to date".
+  //
+  // Nothing goes in its "available" column, and the empty column is the point.
+  // The row is here to be *read*, not compared: the application is released
+  // under its own tag, from its own commit, and there is nothing in a firmware
+  // bundle that says anything true about whether it is up to date. This row
+  // used to put bundle->version there and mark the application out of date
+  // when its number was lower, which compared a gui-v* release against a fw-v*
+  // one. It then briefly carried the bundle's minimum application version,
+  // which was at least a fact about the application stream — but the floor has
+  // always been 0.0.0, and the application now stamps a commit rather than a
+  // version, so there is nothing left to order it against. What actually stops
+  // an application installing a bundle it cannot drive is the protocol and
+  // register map version check in the gate, which needs nothing from this row.
   UpdateVersionRow application;
   application.name = Translate("Application");
   application.installed =
-      application_version.isEmpty() ? NotReported() : application_version;
-  if (bundle != nullptr && !bundle->version.empty()) {
-    application.available = FromStdString(bundle->version);
-
-    // Compared as dotted versions, because that is the one comparison a
-    // release version supports and a commit does not.
-    const std::optional<int> ordering = capture::CompareDottedVersions(
-        application_version.toStdString(), bundle->version);
-    application.changes = ordering.has_value() && *ordering < 0;
-  }
+      application_commit.isEmpty() ? NotReported() : application_commit;
   rows.push_back(application);
 
   UpdateVersionRow firmware;

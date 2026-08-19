@@ -104,19 +104,18 @@ TEST_F(HardwareTest, TheAttachedDeviceIsFoundAtAUsableSpeed) {
       << ", which cannot carry 80 MB/s — move it to a USB 3 port";
 }
 
-TEST_F(HardwareTest, TheFirmwareReportsABuildTheApplicationCanCompare) {
-  const FirmwareVersionCheck check =
-      CheckFirmwareVersion(attached_.product_string, Version());
+TEST_F(HardwareTest, TheFirmwareSaysWhichBuildItIsRunning) {
+  const FirmwareIdentity firmware = DescribeFirmware(attached_.product_string);
 
-  std::cout << "[          ] firmware commit \"" << check.device_commit
-            << "\", application commit \"" << check.application_commit
-            << "\"\n";
+  std::cout << "[          ] firmware commit \"" << firmware.commit
+            << "\", application " << Commit() << "\n";
 
-  // Whether they match is not this test's business — a development machine
-  // routinely has one newer than the other. What matters is that the device
-  // reported something the check could read, because a device that reports
-  // nothing warns on every connection.
-  EXPECT_NE(check.status, FirmwareVersionCheck::Status::kDeviceUnknown)
+  // Nothing here compares the two. They come from separate release streams —
+  // gui-v* and fw-v* — so a development machine routinely has one newer than
+  // the other and that is not a fault. What matters is that the device
+  // reported something readable, because a device that reports nothing warns
+  // on every connection.
+  EXPECT_TRUE(firmware.NamesCommit())
       << "the device's product string carried no readable commit: \""
       << attached_.product_string << "\"";
 }

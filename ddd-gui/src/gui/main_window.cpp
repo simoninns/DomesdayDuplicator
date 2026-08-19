@@ -547,17 +547,21 @@ void MainWindow::BuildToolsMenu() {
   // the separator because it is what somebody reaches for once in the life of
   // a board and the update path is what they reach for every release.
   QMenu* const firmware_menu = tools_menu->addMenu(tr("&Firmware"));
-  firmware_menu->addAction(tr("&Update firmware…"), this,
-                           &MainWindow::ShowFirmwareDialog);
+  firmware_update_action_ = firmware_menu->addAction(
+      tr("&Update firmware…"), this, &MainWindow::ShowFirmwareDialog);
+  firmware_update_action_->setStatusTip(
+      tr("Show what the device is running, and install a firmware and gateware "
+         "update onto it — not while a capture is running"));
 
   firmware_menu->addSeparator();
 
-  QAction* const bringup_action =
+  bringup_action_ =
       firmware_menu->addAction(tr("&Bring up a new or legacy board…"), this,
                                &MainWindow::ShowBringUpWizard);
-  bringup_action->setStatusTip(
+  bringup_action_->setStatusTip(
       tr("Program a board from nothing to fully up to date — a newly built "
-         "one, or one running the original Duplicator firmware"));
+         "one, or one running the original Duplicator firmware. Not while a "
+         "capture is running"));
 
   if (capture_controller_ == nullptr) {
     // Nothing to put the device into test mode with. Shown rather than hidden
@@ -588,6 +592,66 @@ void MainWindow::BuildToolsMenu() {
   connect(
       capture_controller_, &CaptureController::MonitoringChanged, this,
       [this](bool monitoring) { test_mode_action_->setEnabled(!monitoring); });
+
+  // And both firmware entries off while a capture is running. Everything
+  // behind them resets the device, rewrites its flash or reconfigures its
+  // FPGA, and a capture is a bulk transfer from that same device — so opening
+  // either one mid-capture would end the recording in progress and could leave
+  // a half-written flash behind it.
+  //
+  // Disabled rather than offered with a warning to confirm. Stopping a capture
+  // that may be hours old is a decision for the person who started it, not a
+  // side effect of opening a menu, and the status tips say what to do about it.
+  // Monitoring is the other case entirely and is handled by
+  // QuietenCaptureForDeviceWork: nothing is being written, so it is simply put
+  // down and picked up again.
+  const auto follow_capture = [this](bool capturing) {
+    firmware_update_action_->setEnabled(!capturing);
+    bringup_action_->setEnabled(!capturing);
+  };
+  follow_capture(capture_controller_->capturing());
+  connect(capture_controller_, &CaptureController::CapturingChanged, this,
+          [follow_capture](bool capturing, const QString&) {
+            follow_capture(capturing);
+          });
+}
+
+void MainWindow::QuietenCaptureForDeviceWork() {
+  if (capture_controller_ == nullptr || !capture_controller_->monitoring()) {
+    return;
+  }
+
+  monitoring_paused_for_device_work_ = true;
+  capture_controller_->StopMonitoring();
+}
+
+void MainWindow::RestoreCaptureAfterDeviceWork() {
+  if (!monitoring_paused_for_device_work_) {
+    return;
+  }
+  monitoring_paused_for_device_work_ = false;
+
+  if (capture_controller_ == nullptr) {
+    return;
+  }
+
+  // The narrow selection, which is the point of the check: a device in
+  // recovery, one running the original firmware, or one that has not finished
+  // restarting is not a device to open a stream on. The device monitor may
+  // also be a fraction of a second behind here, having just been resumed — so
+  // this is deliberately the cheap, current answer rather than a wait for a
+  // fresh one. Getting it wrong costs a press of Start monitoring; waiting for
+  // certainty would cost a window that sits there doing nothing first.
+  const std::vector<capture::DeviceInfo> devices =
+      capture_controller_->devices();
+  const std::string preferred =
+      capture_controller_->settings().preferred_device_path.toStdString();
+
+  if (capture::SelectDevice(devices, preferred) == nullptr) {
+    return;
+  }
+
+  capture_controller_->StartMonitoring();
 }
 
 void MainWindow::SetTestMode(bool enabled) {
@@ -612,9 +676,7 @@ void MainWindow::ShowAboutDialog() {
 void MainWindow::ShowFirmwareDialog() {
   FirmwareVersions versions;
 
-  const std::string_view application = capture::Version();
-  versions.application = QString::fromUtf8(
-      application.data(), static_cast<qsizetype>(application.size()));
+  versions.application = QString::fromStdString(std::string(capture::Commit()));
 
   // Everything about the device comes from what the controller already knows,
   // so opening this reads nothing and cannot block. It also means the dialog
@@ -625,6 +687,10 @@ void MainWindow::ShowFirmwareDialog() {
     dialog.exec();
     return;
   }
+
+  // Before anything is read off the device, and before the dialog can offer to
+  // write to it. See QuietenCaptureForDeviceWork.
+  QuietenCaptureForDeviceWork();
 
   const std::vector<capture::DeviceInfo> devices =
       capture_controller_->devices();
@@ -718,6 +784,8 @@ void MainWindow::ShowFirmwareDialog() {
 
   dialog.exec();
   firmware_dialog_open_ = false;
+
+  RestoreCaptureAfterDeviceWork();
 }
 
 void MainWindow::ShowSettingsDialog(SettingsDialog::Tab tab) {
@@ -905,6 +973,15 @@ void MainWindow::ShowBringUpWizard() {
                 capture_controller_->SetDeviceMonitorSuspended(busy);
               }
             });
+
+    // This wizard is modeless, so there is no exec() to put the restore after.
+    // destroyed rather than closed: it deletes itself on close, and a wizard
+    // that has been closed but not yet deleted is one whose programming run,
+    // if any, has already finished.
+    connect(bringup_wizard_, &QObject::destroyed, this,
+            [this] { RestoreCaptureAfterDeviceWork(); });
+
+    QuietenCaptureForDeviceWork();
   }
 
   bringup_wizard_->show();

@@ -253,13 +253,16 @@ Each component stamps the commit it was built from into its output: the capture 
 `--version` and About dialog, the FX3 firmware's USB product descriptor, and the bitstream's
 provenance record.
 
+A commit and nothing else — no release version anywhere, so all three parts of a Duplicator
+report the same kind of thing and a bug report can quote three hashes side by side.
+
 In a normal checkout this comes from `git` automatically, and a modified working tree is
-marked — `2.1 (af2511a5-dirty)` — because a bare commit hash would name source that is not
-what was built. Building from a tarball or inside a sandbox has no `git` to ask, so the value
-is passed in:
+marked — `af2511a5-dirty` — because a bare commit hash would name source that is not what
+was built. Building from a tarball or inside a sandbox has no `git` to ask, so the value is
+passed in:
 
 ```bash
-cmake -B build/ddd-gui -S ddd-gui -DDDD_VERSION=af2511a5
+cmake -B build/ddd-gui -S ddd-gui -DDDD_COMMIT=af2511a5
 cmake -B build/fx3-firmware -S fx3/firmware -DFIRMWARE_VERSION=af2511a5 ...
 ```
 

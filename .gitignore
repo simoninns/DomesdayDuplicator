@@ -168,3 +168,6 @@ compile_commands.json
 # is committed deliberately, secret half and all, and `*.key` would hide it.
 /release.key
 /tools/keys/release.key
+
+# Don't track local implementation plans
+docs-tech/

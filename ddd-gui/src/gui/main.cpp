@@ -15,6 +15,7 @@
 #include <QString>
 #include <QTextStream>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "about_text.h"
@@ -61,9 +62,11 @@ int main(int argc, char* argv[]) {
   QApplication::setWindowIcon(ddd::gui::ApplicationIcon());
   QApplication::setApplicationName(QStringLiteral("ddd-gui"));
 
-  const auto version = ddd::capture::Version();
-  QApplication::setApplicationVersion(QString::fromUtf8(
-      version.data(), static_cast<qsizetype>(version.size())));
+  // The commit this build was made from. The packaging workflows run --version
+  // and reject an artefact that reports "unknown", which is what a build with
+  // no commit to name says.
+  const std::string commit(ddd::capture::Commit());
+  QApplication::setApplicationVersion(QString::fromStdString(commit));
 
   QCommandLineParser parser;
   parser.setApplicationDescription(

@@ -1080,9 +1080,27 @@ SpectrumPanel::SpectrumPanel(CaptureController* controller, QWidget* parent)
 
   peak_hold_ = new QCheckBox(tr("Peak hold"), this);
   peak_hold_->setObjectName(QLatin1String(kPeakHoldBoxName));
-  peak_hold_->setChecked(true);
-  connect(peak_hold_, &QCheckBox::toggled, this,
-          [this](bool on) { plot_->SetPeakHoldVisible(on); });
+  peak_hold_->setChecked(false);
+  peak_hold_->setToolTip(
+      tr("Draw the highest level each frequency has reached, underneath the "
+         "live trace. Off to begin with, because the live trace is what a "
+         "signal is set up against and a second trace over it is a "
+         "distraction until there is a reason for it — an interferer that "
+         "appears for a moment while you are looking somewhere else is that "
+         "reason."));
+
+  // Turning it on starts the peaks again rather than revealing what has been
+  // accumulating unseen. The analyser holds peaks from the moment monitoring
+  // starts whether or not anything is drawing them, so without this a user
+  // who switches it on ten minutes in is shown ten minutes of history as
+  // though it had just been measured — and the one thing peak hold is for is
+  // knowing when what it caught was caught.
+  connect(peak_hold_, &QCheckBox::toggled, this, [this](bool on) {
+    if (on && controller_ != nullptr) {
+      controller_->analysis()->ResetPeakHold();
+    }
+    plot_->SetPeakHoldVisible(on);
+  });
   controls->addWidget(peak_hold_);
 
   reset_ = new QPushButton(tr("Reset peaks"), this);

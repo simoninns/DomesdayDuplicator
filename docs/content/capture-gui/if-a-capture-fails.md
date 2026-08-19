@@ -151,7 +151,7 @@ in transit. Check the cable and the port, then repeat the test capture. See
 
 Or any failure the application cannot name. Please report it, with the contents of the Log
 panel — start with [`--debug`](command-line.md) to record the full diagnostics, reproduce
-the fault, then copy the panel's contents into the report along with the version string from
+the fault, then copy the panel's contents into the report along with the build commit from
 **Help ▸ About**.
 
 [Submitting a bug report](../support/submitting-a-bug-report.md) says what else is useful.
@@ -191,9 +191,17 @@ threshold in the Capture panel. Raised once per capture rather than repeatedly, 
 not stop anything — the estimate is an estimate, and stopping a capture on a prediction
 would sometimes be wrong in the direction that costs a session.
 
-**Firmware version.** The device is running a build that differs from this application's.
-Worth mentioning and not known to be broken, so it does not block a capture. If you want the
-two to match, see [Updating your Duplicator](updating-your-domesday-duplicator.md).
+**The device did not report which firmware build it is running.** On Linux this nearly
+always means the udev rules are not installed, so the device cannot be opened to be asked —
+the next thing you try will fail on the same cause. Otherwise it means firmware older than
+the version stamp itself. Either way it does not block a capture, and the capture's metadata
+simply records no firmware commit.
+
+There is deliberately no warning for the application's commit differing from the device's.
+The application is released separately from the firmware and gateware, so those differing
+is the ordinary state of a fully up-to-date Duplicator. What is worth comparing is the
+device's two halves against each other, which **Tools ▸ Firmware ▸ Update firmware…**
+shows.
 
 **Throughput noticeably above 40.00 Msps.** Not an error message, but worth knowing: the
 device is clocked by a 40 MHz converter and physically cannot exceed it. A higher figure

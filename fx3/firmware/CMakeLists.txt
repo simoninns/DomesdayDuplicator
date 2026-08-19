@@ -40,7 +40,13 @@ if(NOT FIRMWARE_VERSION)
     set(FIRMWARE_VERSION "unknown")
 endif()
 
-message(STATUS "Firmware version: ${FIRMWARE_VERSION}")
+# The commit is the whole of what the device says about itself. No release version is
+# stamped in: the firmware and the gateware are installed together from one signed bundle
+# built from one commit, so the two of them reporting the same hash is what "good" means,
+# and which release that commit belongs to is in the bundle's signed manifest. A release
+# version could not have reached the gateware in any case — its identity block is frozen
+# across register map versions and lives in the resident factory image.
+message(STATUS "Firmware commit: ${FIRMWARE_VERSION}")
 
 # Generate USB descriptor with embedded git commit at build time
 execute_process(

@@ -10,7 +10,7 @@ You need the Duplicator, its USB cable, and a few minutes. No tools, no jumpers,
 
 ## What is in an update
 
-Three separate things can be out of date, and the update window shows all three so you can see at a glance which:
+Three separate things have software of their own, and the update window lists all three:
 
 | | What it is | How it is updated |
 | --- | --- | --- |
@@ -18,7 +18,9 @@ Three separate things can be out of date, and the update window shows all three 
 | **Firmware** | The program inside the Duplicator's USB chip | Here, in this window |
 | **Gateware** | The logic inside the Duplicator's programmable chip | Here, in this window, once your unit supports it |
 
-The application is in the list even though this window cannot install it, because "am I up to date" is a question about all three. If an update file needs a newer application than the one you are running, the window says **update the application first** and will not let you continue — so the order you have to do things in is the only order the window allows.
+The application is in the list even though this window cannot install it, because leaving it out would answer two thirds of "am I up to date". It is there to be **read** rather than compared: nothing appears beside it in the column saying what an update file would install, because an update file is a firmware and gateware release and has nothing true to say about whether your application is current. The two this window can act on are also the two worth comparing — the firmware and the gateware are built from one commit and installed together, so on a healthy device they agree.
+
+An update file can still refuse to install on an application too old to drive what is in it. When that happens the window says **update the application first** and will not let you continue. What decides it is the protocol the update would make the device speak and the register interface it would leave in the FPGA, rather than any comparison of version numbers — so the order you have to do things in is the only order the window allows.
 
 ## Getting an update file
 
@@ -32,7 +34,7 @@ Download one and put it somewhere you can find it again.
 
 ## Installing it
 
-1. Plug the Duplicator in. If a capture is running, stop it — the device will not update while it is capturing, and it will say so.
+1. Plug the Duplicator in. If a capture is running, stop it: the menu entry below is greyed out until you do, because the device will not update while it is capturing. Monitoring needs nothing from you — opening the window stops it, and closing the window starts it again.
 2. Open **Tools → Firmware → Update firmware…** and choose the **Update** tab.
 3. Press **Choose update file…** and pick the `.dddfw` file you downloaded.
 
@@ -98,7 +100,7 @@ Two things, and both matter more than they sound:
 - **Leave the device plugged in and powered.** Pulling the cable part way through is the one thing that makes this take longer than it needs to. It cannot break the unit — see below — but you will have to repair it before you can use it.
 - **Do not close the window.** If you try, it will explain why not and tell you when it will be safe. If you do want to stop, use the **Stop** button: that ends the update at a point where nothing has been committed, and your device carries on with the software it already had.
 
-Captures cannot run while an update is in progress, and an update cannot start while a capture is running. The two are kept apart by the device itself, not by the window asking you nicely.
+Captures cannot run while an update is in progress, and an update cannot start while a capture is running. The two are kept apart by the device itself, not by the window asking you nicely: the firmware refuses a start-capture request during an update, and refuses to begin an update while it is streaming. The window works with that rather than against it — it will not offer this entry during a capture, and it puts monitoring down while it is open.
 
 ### The lights on the board
 

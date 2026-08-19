@@ -169,7 +169,7 @@ struct PageUnderTest {
   std::unique_ptr<UpdatePage> page;
 
   explicit PageUnderTest(
-      const QString& application_version = QStringLiteral("1.4.0"),
+      const QString& application_commit = QStringLiteral("0123abcd"),
       capture::DevicePersonality personality =
           capture::DevicePersonality::kApplication,
       bool gateware_recovery = false) {
@@ -201,7 +201,7 @@ struct PageUnderTest {
       return std::make_unique<BorrowedProgrammer>(raw_programmer);
     };
 
-    page = std::make_unique<UpdatePage>(application_version, std::move(seam));
+    page = std::make_unique<UpdatePage>(application_commit, std::move(seam));
 
     // The fixture bundle is signed with the development key, and whether the
     // default policy accepts one depends on whether the build pinned a release
@@ -360,20 +360,30 @@ TEST(UpdatePageTest, AFileThatIsNotThereIsRefusedWithAReason) {
                   .contains(QStringLiteral("could not be read")));
 }
 
-// The rule the compatibility gate exists for, seen from the interface: a
-// user cannot drive the device past what the application driving it
-// understands, and the button is what enforces it.
-TEST(UpdatePageTest, ABundleNeedingANewerApplicationDisablesTheButton) {
+// The compatibility gate seen from the interface: a verdict the gate refuses
+// leaves the button disabled and puts the gate's own reason on screen, rather
+// than letting a user press install and find out.
+//
+// Driven here through a legacy device, which the gate refuses because nothing
+// this application sends it would be received. This used to be driven through
+// the manifest's minimum application version — the page passed its own dotted
+// release version to the gate, and a lower one was refused. That comparison is
+// gone: the application stamps a commit, and what stops a user driving a device
+// past what this build understands is the protocol and register map range,
+// checked in test_update_gate.cpp. The manifest here is signed, so its
+// interface versions cannot be varied to reach that path from a widget test.
+TEST(UpdatePageTest, ADeviceTheGateRefusesDisablesTheButtonAndSaysWhy) {
   const BundleFile bundle;
 
-  // The fixture manifest requires application 1.4.0.
-  PageUnderTest test(QStringLiteral("1.0.0"));
+  PageUnderTest test(QStringLiteral("0123abcd"),
+                     capture::DevicePersonality::kLegacy);
   test.page->LoadBundle(bundle.path());
 
   EXPECT_FALSE(test.Button(UpdatePage::kInstallButtonName)->isEnabled());
   EXPECT_TRUE(test.Label(UpdatePage::kBundleLabelName)
                   ->text()
-                  .contains(QStringLiteral("Update the application first")));
+                  .contains(QStringLiteral("original Duplicator firmware")))
+      << test.Label(UpdatePage::kBundleLabelName)->text().toStdString();
 }
 
 TEST(UpdatePageTest, ASuccessfulUpdateReportsWhatTheDeviceNowRuns) {

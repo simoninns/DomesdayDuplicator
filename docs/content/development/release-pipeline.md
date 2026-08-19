@@ -50,17 +50,30 @@ Stated plainly, because a workflow that downloads an unfree toolchain should not
 
 Triggered by a `fw-v*` tag. It calls the bitstream workflow with the tag as its ref — rather than repeating it — builds the firmware and the programmer from the same tag, and then assembles the release:
 
+**Four assets, not fifteen.** A release page whose first screen is a dozen files nobody needs is a release page that hides the one file everybody does.
+
 | Asset | What it is for |
 | --- | --- |
-| `domesday-duplicator-update-<ver>.dddfw` | **the bundle**, and the only signed asset. Four payloads: the firmware and application gateware a working device installs over USB, plus the JTAG vectors and factory image a bring-up needs on top |
+| `domesday-duplicator-update-<ver>.dddfw` | **the bundle**, the only signed asset, and the only file needed to use a Duplicator. Four payloads: the firmware and application gateware a working device installs over USB, plus the JTAG vectors and factory image a bring-up needs on top |
+| `SHA256SUMS` | one digest per file, including every file inside the zip |
+| `PROVENANCE.txt` | what built this release, and with which toolchains |
+| `bench-material-<ver>.zip` | everything below, for JTAG work and inspection |
+
+Inside the zip:
+
+| File | What it is for |
+| --- | --- |
 | `firmware.img` / `.elf` / `.map` | the FX3 image and its debug companions |
 | `fx3-programmer-<ver>-linux-x64` | bench recovery over the USB bootloader |
 | `DomesdayDuplicatorProvisioning.jic` / `.map` | first provisioning of a new board over JTAG: both gateware images |
 | `DomesdayDuplicatorFactoryConfigure.svf` | the factory image as JTAG vectors — what `ddd-jtag` and the bring-up wizard play |
 | `DomesdayDuplicator_auto.rpd`, `boot-block.bin` | the raw application image and its boot block, published for inspection |
-| `DomesdayDuplicatorFactory.sof` | the factory image, for bench JTAG configuration |
+| `DomesdayDuplicatorFactory.sof` / `DomesdayDuplicatorFactory_auto.rpd` | the factory image, for bench JTAG configuration and for inspection |
 | `bitstream-provenance.txt` | Quartus version and per-artefact digests, release and canonical |
-| `SHA256SUMS`, `PROVENANCE.txt` | one manifest over every asset, and what built them |
+
+**The bundle stays loose and the bench material is zipped**, and the asymmetry is deliberate. An unsigned wrapper around material nothing trusts costs nothing; an unsigned wrapper around the one *signed* artefact would put unauthenticated metadata beside it, and put a zip parser in front of a signature check. The `.dddfw` is one click, as it was.
+
+Two ordering constraints follow, and both are load-bearing rather than tidy: `SHA256SUMS` must be generated over the individual files **before** the zip is made, because the reproducibility audit looks digests up by asset name; and `PROVENANCE.txt` reads `bitstream-provenance.txt`, so it must be written before that file moves inside. Get either backwards and the audit compares empty strings.
 
 Three gates stand between the build and the published release, and each of them has failed for real reasons in this project's history:
 
@@ -68,7 +81,9 @@ Three gates stand between the build and the published release, and each of them 
 2. **The bitstream was built from the tag.** Its provenance record must name the tag's commit. The build itself already refuses to produce a record with an unknown commit.
 3. **The bundle verifies against the pinned public key.** Verified independently after assembly, with stock `minisign`, against `tools/keys/release.pub` — the same bytes the application compiles in. A bundle signed with anything else is a bundle the application would refuse, so this is a failure and not a warning. The same step checks that all four payloads are present, because a release that quietly lost the two bring-up ones would update a working device perfectly well and stop being able to bring a board up — which nobody discovers until they are standing in front of a bare board.
 
-The manifest's compatibility fields are read out of the sources that implement them at release time — the protocol version from the FX3 descriptor, the register map version from `spiRegisters.v`, the EPCS layout version from the boot-block encoder — so a manifest cannot claim a protocol the firmware does not speak. The one field that is a *decision* rather than a fact, the minimum application version, lives in `tools/release/compatibility.env`, which the tag pins along with everything else.
+The manifest's compatibility fields are read out of the sources that implement them at release time — the protocol version from the FX3 descriptor, the register map version from `spiRegisters.v`, the EPCS layout version from the boot-block encoder — so a manifest cannot claim a protocol the firmware does not speak.
+
+The manifest also carries a minimum application version, from `tools/release/compatibility.env`, and it is no longer read by the application. It was compared against the application's own dotted release version, which no longer exists: every part of a Duplicator now stamps the commit it was built from, and a commit orders nothing. The field stays because the manifest schema requires it and every application already in the field parses it. **A bundle that needs a newer application should say so by advertising a protocol version or register map version outside the range the old application knows** — that refusal is still enforced, it is derived from the sources rather than decided, and it describes what the old application actually cannot do rather than how old it is.
 
 ### Reproducibility audit
 
@@ -168,10 +183,11 @@ people's hands, the firmware tag is the one that does it.
 ### Tag naming, and the two rules that bite
 
 **A `fw-v*` tag must be plain dotted numeric.** `fw-v1.4.0` is fine; `fw-v1.4.0-beta1` is
-rejected. The version goes into the bundle manifest, where the application compares it
-against `minimum_application_version` as a dotted version, so a suffix would be a version
-that cannot be ordered. The check is real and it fails the release — but it runs *after* the
-gateware has compiled, so a mistyped tag costs a Quartus run before it tells you.
+rejected. The version goes into the bundle manifest, and the manifest reader refuses a
+`version` that is not a dotted sequence of decimal numbers — so a suffixed tag would produce
+a bundle no application could open. The check is real and it fails the release — but it runs
+*after* the gateware has compiled, so a mistyped tag costs a Quartus run before it tells
+you.
 
 **A `gui-v*` tag may carry a suffix.** `gui-v1.0.0-beta1` is fine. Nothing downstream orders
 it: the MSI falls back to a `0.0.<run>.0` product version, which is deliberately lower than
@@ -224,6 +240,7 @@ gh release view fw-v1.4.0
 
 mkdir -p /tmp/fw-check && cd /tmp/fw-check
 gh release download fw-v1.4.0
+unzip -o bench-material-*.zip     # SHA256SUMS names what is inside it
 sha256sum -c SHA256SUMS
 
 tar -xf domesday-duplicator-update-1.4.0.dddfw manifest.json manifest.minisig

@@ -105,7 +105,7 @@ class UpdatePage : public QWidget {
         capture::DevicePersonality::kApplication;
   };
 
-  UpdatePage(QString application_version, Device device,
+  UpdatePage(QString application_commit, Device device,
              QWidget* parent = nullptr);
   ~UpdatePage() override;
 
@@ -209,7 +209,7 @@ class UpdatePage : public QWidget {
                  const QString& message);
   void SetBundleState(const QString& summary, const QString& banner);
 
-  QString application_version_;
+  QString application_commit_;
   Device device_;
   capture::UpdateKeyPolicy policy_;
 
