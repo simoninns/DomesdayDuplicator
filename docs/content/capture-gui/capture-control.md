@@ -118,6 +118,20 @@ machine that cannot sustain the encode or when the output is going straight into
 tool. Nothing in the file says what it is, what rate it was written at or which build
 produced it — that is the format's nature, and the reason FLAC stays the default.
 
+An uncompressed capture can be encoded to FLAC afterwards, which is the usual thing to do
+when the format was chosen because the machine could not sustain the encoder live:
+
+```bash
+flac -8 --force-raw-format --endian=little --sign=signed \
+     --channels=1 --bps=16 --sample-rate=40000 \
+     capture.ddd.s16 -o capture.ddd.flac
+```
+
+The raw file says nothing about itself, so every one of those has to be supplied — including
+`--sample-rate=20000` in place of `40000` for a capture taken at 20 Msps. The full
+walkthrough, and what to do about the tags the conversion cannot recover, is on
+[Capture files](capture-files.md#compressing-a-raw-capture-afterwards).
+
 Both are read back by **Tools → Test data → Analyse test data…** and by `--analyse-test-data`.
 
 ### Sample rate
