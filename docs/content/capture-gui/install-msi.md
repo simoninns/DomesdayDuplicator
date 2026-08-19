@@ -126,9 +126,10 @@ the step that uses it:
    a second cable to the same assembly — connect it before running Zadig. Without this
    binding the wizard's FPGA row is a problem too.
 
-   **An unbound device is invisible to the application**, not merely unopenable, so the
-   wizard can report *no USB-Blaster is attached* about a cable that is plainly plugged in
-   and listed by Zadig. On Windows, read that as *not bound* before suspecting the cable.
+   **The wizard can see this cable whatever it is bound to**, unlike the FX3 above, so a
+   missing binding here reads as *a USB-Blaster is attached but this application cannot
+   open it* rather than as an empty row. That sentence names the binding, and it means the
+   cable and its lead are fine and Zadig is all that is left to do.
 
    A **charge-only mini-USB cable** is the commonest thing that goes wrong here: the board
    lights up either way, and nothing enumerates. If Zadig lists no `09FB` device, try

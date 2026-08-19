@@ -868,6 +868,9 @@ with `./tools/blank-board.sh --fx3` — see *Getting a blank board* below.
 - B-V1 after any change to `svf_player.cpp` or `usb_blaster_cable.cpp`, and after any
   change to the `quartus_cpf` invocation that emits the `.svf` — the declared frequency in
   particular, which is what every wait in the file is counted in.
+- B-V1's IDCODE probe on each platform after any change to a byte pipe under the cable —
+  `usb_blaster_libusb.cpp` or `usb_blaster_winusb.cpp`. Those two are the only part of
+  this path no test reaches, and neither says anything about the other.
 - B0 and B1 before any release that changes `bringup_orchestrator.cpp` or the bring-up
   wizard, and once per release that changes what the bundle contains.
 - B2 whenever `ddd-gui/packaging/bundled-update.env` changes, and after any change to
@@ -1132,6 +1135,15 @@ The procedure, on a DE0-Nano whose flash content does not matter:
 
 **Pass** = the run completes with no mismatch reported, and the board afterwards is
 indistinguishable from one provisioned by `quartus_pgm`.
+
+**On Windows, run at least step 1 again.** The byte pipe under the cable is a different
+implementation there — `usb_blaster_winusb.cpp`, over WinUSB's bulk pipes rather than
+libusb's — and nothing above it changes, so the IDCODE probe is the whole of what a bench
+has to settle: 42 bits through the Windows pipe proves the reads, the writes, the FT245
+setup and the two status bytes at once. Bind WinUSB to `09FB:6001` with Zadig first;
+without that the cable is reported as *attached but could not be opened*, which is itself
+worth confirming, because it is the state most Windows machines start in and a Quartus
+install puts Altera's own driver there. **Not yet performed.**
 
 The three things only this can settle:
 

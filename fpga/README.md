@@ -261,7 +261,7 @@ The permanent one can also be done without Quartus at all, over the same on-boar
 cd provisioning && ddd-jtag DomesdayDuplicatorProvisioning.svf                # both images, permanent
 ```
 
-`ddd-jtag` is built with the capture application and drives the USB-Blaster over libusb —
+`ddd-jtag` is built with the capture application and drives the USB-Blaster directly —
 see [USB-Blaster and SVF programming](../docs/content/development/usb-blaster-and-svf.md).
 It writes the same flash content by the same sequence, so everything below applies to it
 unchanged, the power cycle most of all. Quartus's `jtagd` holds the cable open whenever it
