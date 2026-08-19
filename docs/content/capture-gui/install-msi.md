@@ -49,11 +49,11 @@ with [Zadig](https://zadig.akeo.ie/), and they persist.
 
 | What it is | Shows in Zadig as | USB ID | Bind it when |
 | --- | --- | --- | --- |
-| A working Duplicator | `Domesday Duplicator (…)` | `1209:2347` | Always — this is what the capture window opens. Already done if this machine has ever run one |
+| A working Duplicator | `Domesday Duplicator (…)` | `1209:2347` | Always — this is what the capture window opens. Already done if this machine has ever run one; on one that has not, and where a board is about to be brought up, create it in advance as below |
 | The FX3 in its boot ROM | `WestBridge` | `04B4:00F3` | The board is new, legacy, or an update was interrupted |
 | The DE0-Nano's on-board USB-Blaster | `USB-Blaster` | `09FB:6001` | You are bringing the board up, or reprogramming its FPGA |
 
-Binding any of them is the same four steps:
+Binding a device that is plugged in is the same four steps:
 
 1. Plug the device in.
 2. Run Zadig, and choose **Options → List All Devices**.
@@ -61,14 +61,55 @@ Binding any of them is the same four steps:
    them, and it is the field to go by rather than the name.
 4. Choose **WinUSB** in the driver box and click **Replace Driver**.
 
-**Zadig can only bind an identifier the board is presenting at that moment.** A board is
-only ever one of these at a time: whatever firmware it is running is what it enumerates as.
-So a board running this project's firmware shows `1209:2347` and a board running the
-original firmware shows `1D50:603B` — and neither of them shows `04B4:00F3`, however long
-you look. To bind `04B4:00F3` you first have to put the board *into* its boot ROM by fitting
-jumper J4 and power-cycling it — see
+**A board is only ever one of these at a time**, because whatever firmware it is running is
+what it enumerates as. A board running this project's firmware shows `1209:2347` and a board
+running the original firmware shows `1D50:603B` — and neither of them shows `04B4:00F3`,
+however long you look. To bind `04B4:00F3` you first have to put the board *into* its boot
+ROM by fitting jumper J4 and power-cycling it — see
 [If the board does not show up as a Domesday Duplicator](#if-the-board-does-not-show-up-as-a-domesday-duplicator)
 below.
+
+### Binding an identifier the board is not presenting yet
+
+The four steps above need the device in front of Zadig, and one of these bindings cannot be
+done that way. A board being brought up does not present `1209:2347` until it has been
+programmed, and it cannot be programmed until the application can open what it becomes — so
+on a machine that has never had a working Duplicator plugged into it, that binding has
+nothing to attach to at the moment it is needed.
+
+**Zadig can install a driver for an identifier nothing is presenting.** Use
+**Device → Create New Device**, which writes the driver into Windows' driver store so that
+PnP matches it when a device with those identifiers eventually appears:
+
+| Field | Enter |
+| --- | --- |
+| Device name (top box) | `Domesday Duplicator` |
+| USB ID, first box | `1209` |
+| USB ID, second box | `2347` |
+| USB ID, third box (Advanced Mode only) | leave empty |
+| Driver | `WinUSB` — the left-hand box reads `(NONE)`, which is correct for a device that is not there |
+| Button | **Install Driver** |
+
+The third USB ID box is the interface number, for composite devices. The Duplicator has a
+single interface, so anything entered there produces a driver that never matches.
+
+The name is cosmetic — it becomes the device's description in Device Manager. Use the plain
+name rather than the full product string the firmware reports, which carries the build's
+commit hash: the binding outlives firmware updates and a hash in it would stop being true at
+the first one.
+
+To check it took, before there is any board to test it with:
+
+```powershell
+Get-ChildItem C:\Windows\INF\oem*.inf | Where-Object {
+  ([Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($_.FullName)) -replace "`0") -match 'VID_1209&PID_2347'
+} | Select-Object -ExpandProperty Name
+```
+
+One `oemNN.inf` back means the driver is in the store and keyed on the right identifier.
+Nothing back means the install did not take, or the identifiers were mistyped. The
+byte-for-byte read is deliberate: these files may be UTF-16, and `findstr` finds nothing in
+those without saying so, which looks exactly like a driver that was never installed.
 
 The application says so plainly when it cannot open a device it can see, so a missing
 binding looks like a clear message rather than an empty device list.
@@ -152,29 +193,28 @@ the step that uses it:
    plugged into it — this board before it was reprogrammed, or another unit entirely — the
    binding is already there and persists, and the wizard runs straight through.
 
-   It only bites on a machine that has **never** seen a working Duplicator, and there it
-   cannot be done in advance: nothing presents `1209:2347` until step 6 has programmed the
-   FX3, and Zadig can only bind a device it can see. On such a machine, the first bring-up
-   goes:
+   On a machine that has **never** seen a working Duplicator, the board presents nothing for
+   Zadig to pick until step 6 has already programmed the FX3. Create the binding in advance
+   instead, with **Device → Create New Device** — see
+   [Binding an identifier the board is not presenting yet](#binding-an-identifier-the-board-is-not-presenting-yet)
+   above. Do it in the same Zadig session as the other two, before starting the wizard, and
+   the bring-up runs straight through.
 
-   1. Bind `04B4:00F3` and `09FB:6001`, and start the wizard as normal.
-   2. Step 6 sends the firmware and the board restarts into it, appearing as `1209:2347` for
-      the first time. Windows has no driver for that identifier, so the wizard cannot open
-      it, and after thirty seconds it reports that **the device is attached as a Duplicator
-      (1209:2347) but cannot be opened under that identifier** — it looks at the bus before
-      it says so, and this is what a board that came back and may not be opened gets rather
-      than the *did not come back* sentence a board that never restarted gets.
-   3. **Leave everything plugged in.** Nothing was written permanently — the failure is
-      before the first write, with the firmware running out of memory — and the board is on
-      the bus now, which is what Zadig needs. Bind `1209:2347` to WinUSB.
-   4. Run the wizard again from the start. It assumes nothing about the board's state and
-      running it twice is harmless; this time it goes through.
+   **If you reach step 6 without having done it**, the step stops after thirty seconds and
+   says that the device is **attached as a Duplicator (1209:2347) but cannot be opened under
+   that identifier** — it looks at the bus before it speaks, so this is what a board that
+   came back and may not be opened gets, rather than the *did not come back* sentence that
+   belongs to a board which never restarted. Nothing was written permanently: the failure is
+   before the first write, with the firmware running out of memory. Leave everything plugged
+   in, bind `1209:2347` — the board is on the bus now, so the ordinary four steps work —
+   and run the wizard again from the start. It assumes nothing about the board's state and
+   running it twice is harmless.
 
    **You do not need to quit the application to do this.** Its device list is re-read five
    times a second, so a binding made while it is running is picked up as soon as Windows
    re-enumerates the device. Only the wizard is restarted, not the program — and if you have
-   Zadig already open on **Options → List All Devices**, binding it inside the thirty seconds
-   step 6 waits lets that step carry on by itself.
+   Zadig already open, binding it inside the thirty seconds step 6 waits lets that step carry
+   on by itself.
 
 The bindings survive the bring-up, so a board that later needs bringing up again — or a
 second board on the same machine — needs none of this repeated.

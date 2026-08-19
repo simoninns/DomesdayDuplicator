@@ -482,37 +482,7 @@ QString BringUpConfigureText(int seconds) {
       .arg(seconds);
 }
 
-QString BringUpProgramText(int seconds, bool windows_binding) {
-  // Last rather than first, and deliberately. What this page asks for is one
-  // button, and a warning about a driver binding placed above it would push
-  // the instruction down the page for the many machines it does not apply to
-  // — a working Duplicator has been plugged into most of them at some point,
-  // and the binding is already there. It is still on the page rather than in
-  // the documentation, because the half-minute it explains is a half-minute
-  // somebody spends watching a progress bar that has stopped.
-  const QString binding =
-      windows_binding
-          ? Translate(
-                "<p><b>On Windows, this step needs one more driver binding, "
-                "and it cannot be made in advance.</b> Part way through, the "
-                "board restarts into its new firmware and comes back as "
-                "<b>1209:2347</b> — the Duplicator it has just become. Windows "
-                "binds drivers by USB identifier, so the ones you made for the "
-                "FX3 and the USB-Blaster do not cover it, and nothing presents "
-                "1209:2347 until this step has run.</p>"
-
-                "<p>If this machine has ever had a working Duplicator plugged "
-                "into it, that binding is already there and there is nothing "
-                "to do. If it has not, this step stops after thirty seconds "
-                "with the board on the bus and unopenable, <b>having written "
-                "nothing</b>. Leave everything plugged in, bind 1209:2347 to "
-                "WinUSB with Zadig — the board is on the bus by then, which is "
-                "what Zadig needs — and run the wizard again. With Zadig "
-                "already open on <b>Options ▸ List All Devices</b>, binding it "
-                "inside those thirty seconds lets this step carry on by "
-                "itself.</p>")
-          : QString();
-
+QString BringUpProgramText(int seconds) {
   return Translate(
              "<p><b>Press “Program the board” below.</b> It writes three "
              "things, in this order:</p>"
@@ -531,8 +501,7 @@ QString BringUpProgramText(int seconds, bool windows_binding) {
 
              "<p>Nothing restarts at the end — the power cycle two pages from "
              "now is what starts all three images at once.</p>")
-             .arg(seconds) +
-         binding;
+      .arg(seconds);
 }
 
 QString BringUpBundledFileText() {
