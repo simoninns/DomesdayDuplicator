@@ -14,6 +14,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QDockWidget>
+#include <QKeySequence>
 #include <QList>
 #include <QMainWindow>
 #include <QMenu>
@@ -488,6 +489,35 @@ TEST_F(MainWindowTest, NeitherTestDataEntryIsLeftBehindOnTheFileMenu) {
   // And what File is for is still there.
   EXPECT_NE(EntryNamed(file, QStringLiteral("Settings")), nullptr);
   EXPECT_NE(EntryNamed(file, QStringLiteral("xit")), nullptr);
+}
+
+// QKeySequence::Preferences and QKeySequence::Quit carry a chord only under the
+// Mac, KDE, GNOME and X11 keyboard schemes. Windows uses the default scheme,
+// where the only binding left for either is a hardware key — Qt::Key_Settings
+// and Qt::Key_Exit — which QMenu prints in the shortcut column as the words
+// "Settings" and "Exit". The File menu read "Settings… Settings" and "Exit
+// Exit" on every Windows build, and neither entry had a shortcut that could be
+// typed. Asserting the modifier rather than the exact sequence: which chord
+// these carry is a matter of taste, but a bare unmodified key is the bug.
+TEST_F(MainWindowTest, TheFileMenuShortcutsAreChordsAndNotBareHardwareKeys) {
+  const std::unique_ptr<MainWindow> window = MakeWindow();
+
+  QMenu* const file = MenuNamed(*window, QStringLiteral("File"));
+  ASSERT_NE(file, nullptr) << "no File menu";
+
+  for (const QString& label :
+       {QStringLiteral("Settings"), QStringLiteral("xit")}) {
+    QAction* const entry = EntryNamed(file, label);
+    ASSERT_NE(entry, nullptr) << "no File entry for " << qPrintable(label);
+
+    const QKeySequence shortcut = entry->shortcut();
+    ASSERT_FALSE(shortcut.isEmpty())
+        << qPrintable(label) << " lost its shortcut";
+    EXPECT_NE(shortcut[0].keyboardModifiers(), Qt::NoModifier)
+        << qPrintable(label) << " is bound to the bare key "
+        << qPrintable(shortcut.toString())
+        << ", which QMenu prints as its own name in the shortcut column";
+  }
 }
 
 // The widget tests build a window with no controller, and there is then nothing
