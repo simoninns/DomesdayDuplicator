@@ -23,9 +23,53 @@ namespace ddd::capture {
 
 #ifdef _WIN32
 
+namespace {
+
+// avrt.dll's exports, resolved once and kept for the life of the process. Not
+// linked against directly — see the class comment in thread_priority.h — so
+// these are the only two entry points this file needs, typed by hand from the
+// avrt.h declarations rather than by including a header that may not be on
+// every toolchain's include path either.
+using AvSetMmThreadCharacteristicsWFn = HANDLE(WINAPI*)(LPCWSTR, LPDWORD);
+using AvRevertMmThreadCharacteristicsFn = BOOL(WINAPI*)(HANDLE);
+
+struct AvrtEntryPoints {
+  AvSetMmThreadCharacteristicsWFn set = nullptr;
+  AvRevertMmThreadCharacteristicsFn revert = nullptr;
+};
+
+// Loaded on first use and never freed: a DLL resolved by LoadLibrary and never
+// released simply outlives the process, which is what every other module this
+// application never calls FreeLibrary on already does.
+const AvrtEntryPoints& Avrt() {
+  static const AvrtEntryPoints entry_points = [] {
+    AvrtEntryPoints points;
+    const HMODULE module = LoadLibraryW(L"avrt.dll");
+    if (module == nullptr) {
+      return points;
+    }
+    points.set = reinterpret_cast<AvSetMmThreadCharacteristicsWFn>(
+        GetProcAddress(module, "AvSetMmThreadCharacteristicsW"));
+    points.revert = reinterpret_cast<AvRevertMmThreadCharacteristicsFn>(
+        GetProcAddress(module, "AvRevertMmThreadCharacteristics"));
+    if (points.set == nullptr || points.revert == nullptr) {
+      return AvrtEntryPoints{};
+    }
+    return points;
+  }();
+  return entry_points;
+}
+
+}  // namespace
+
 struct ScopedThreadPriority::Saved {
   int original_priority = 0;
   bool valid = false;
+
+  // The handle AvSetMmThreadCharacteristics returned, if MMCSS registration
+  // succeeded. Reverted before the thread priority is restored, on the same
+  // reasoning as the order of the two calls in the constructor.
+  HANDLE mmcss_handle = nullptr;
 };
 
 ScopedThreadPriority::ScopedThreadPriority()
@@ -50,9 +94,30 @@ ScopedThreadPriority::ScopedThreadPriority()
   raised_ = true;
   message_ = "Thread priority raised to time-critical (was " +
              std::to_string(original) + ")";
+
+  // MMCSS is what keeps that priority meaningful once the device's onboard
+  // buffer — a few hundred microseconds deep — is what has to be served,
+  // rather than the host ring's much larger margin. Registration failing (no
+  // avrt.dll, no service running, task index rejected) is ordinary and is
+  // folded into the same message rather than reported as its own error.
+  const AvrtEntryPoints& avrt = Avrt();
+  if (avrt.set != nullptr) {
+    DWORD task_index = 0;
+    const HANDLE mmcss_handle = avrt.set(L"Pro Audio", &task_index);
+    if (mmcss_handle != nullptr) {
+      saved_->mmcss_handle = mmcss_handle;
+      message_ += "; registered with MMCSS as Pro Audio";
+    } else {
+      message_ += "; MMCSS registration failed with error code " +
+                  std::to_string(GetLastError());
+    }
+  }
 }
 
 ScopedThreadPriority::~ScopedThreadPriority() {
+  if (saved_->mmcss_handle != nullptr) {
+    Avrt().revert(saved_->mmcss_handle);
+  }
   if (saved_->valid) {
     SetThreadPriority(GetCurrentThread(), saved_->original_priority);
   }
