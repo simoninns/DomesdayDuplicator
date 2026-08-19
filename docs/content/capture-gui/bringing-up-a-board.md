@@ -25,7 +25,7 @@ You will need:
 | A **jumper** (shunt) | Always, whatever the board is running. A newly built kit already reports the boot ROM the wizard needs, but it does so because its EEPROM is empty — take the jumper away and it leaves again at the first restart |
 | An **update file** | Usually nothing to do: an installed copy of this application already carries one. See *The update file* below |
 
-Both cables stay connected for the whole procedure. Allow about five minutes, most of it watching the three images being written and checked.
+Both cables stay connected for the whole procedure, and the mini-USB comes off at the very end, when the case goes back on. Allow about five minutes, most of it watching the three images being written and checked.
 
 ## The one thing that catches people
 
@@ -177,6 +177,8 @@ That second check catches the failure this page has always warned about. Pulling
 | **The board has come back in its boot ROM** | Jumper J4 is still fitted. Go back a page and take it off |
 | **✓ All done** | It restarted and is running from its own flash |
 
+**Both go back in, even though the USB 3.0 cable alone would boot the board.** It would: with both cables out the unit is dead, so the USB 3.0 cable on its own is a real cold start, and nothing on this page or the next one is read over the mini-USB. It goes back in so that the instruction is the same one every time — the half people get wrong is the *unplug* half — and so that the USB-Blaster is still there if this page sends you back a step. The mini-USB comes off at the end of step 9, when the case goes back on.
+
 ### 9 · What the device is running now
 
 Four things, read off the device rather than assumed:
@@ -188,7 +190,7 @@ Four things, read off the device rather than assumed:
 
 That last one is what separates a finished board from one that is most of the way there. A board that comes back on its factory image works and is not damaged, but it cannot capture — and the page says so rather than reporting success.
 
-Then: **put the case back on and click Close.** From now on this board updates itself.
+Then: **unplug the DE0-Nano's mini-USB cable, put the case back on and click Close.** The mini-USB was only ever the way in to a board that could not yet be reached over USB 3.0, and nothing from step 6 onwards uses it; the kit's USB 3.0 cable stays where it is, because that is the one you capture through. From now on this board updates itself.
 
 ## Why this order
 

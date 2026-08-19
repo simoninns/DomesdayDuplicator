@@ -585,6 +585,28 @@ TEST(BringUpText, TheEndSaysThereIsNothingLeftToDoAndTheCaseCanGoOn) {
   EXPECT_TRUE(text.contains("case", Qt::CaseInsensitive));
 }
 
+// The mini-USB is the one cable that is only ever a way in, and this is the
+// only page that says so. Every earlier page says "both cables", because
+// every earlier page needs both; a last page that stopped at "put the case
+// back on" would leave somebody to work out for themselves that the cable
+// under the lid has to come out first — and the USB 3.0 one must not.
+TEST(BringUpText, TheEndSaysWhichCableComesOffAndWhichStays) {
+  const QString text = BringUpCompleteText();
+
+  EXPECT_TRUE(text.contains("mini-USB", Qt::CaseInsensitive));
+  EXPECT_TRUE(text.contains("Unplug", Qt::CaseInsensitive));
+  EXPECT_TRUE(text.contains("USB 3.0", Qt::CaseInsensitive));
+}
+
+// The overview lists everything physical so that the job is done once, and
+// taking the mini-USB off at the end is part of that job.
+TEST(BringUpText, TheOverviewSaysTheMiniUsbComesOffAtTheEnd) {
+  const QString text = BringUpOverviewText();
+
+  EXPECT_TRUE(text.contains("mini-USB", Qt::CaseInsensitive));
+  EXPECT_TRUE(text.contains("at the end", Qt::CaseInsensitive));
+}
+
 // Nothing in this flow can be broken by stopping in the middle of it, and the
 // failure page says so rather than leaving somebody to wonder.
 TEST(BringUpText, AFailureSaysNothingIsBroken) {
