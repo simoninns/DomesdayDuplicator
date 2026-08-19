@@ -112,6 +112,10 @@ And the FPGA row:
 
 **Bring-up needs the device rules installed on Linux.** One file, `70-domesday-duplicator.rules`, covers both the Duplicator and the USB-Blaster.
 
+**On Windows it needs WinUSB bound to up to three USB identifiers**, and the first two are not the one a working Duplicator uses: `04B4:00F3` for the FX3 in its boot ROM, and `09FB:6001` for the DE0-Nano's on-board USB-Blaster. Windows binds drivers by USB identifier, so a board in either of those states is a *different device* as far as Windows is concerned, and an unbound one is invisible to this application rather than merely unopenable — which is why a cable you can see plugged in can be reported as absent. Do both before starting: [Windows — MSI](install-msi.md#if-the-board-does-not-show-up-as-a-domesday-duplicator) walks through it. macOS needs nothing.
+
+The third is `1209:2347`, the Duplicator the board becomes, and it is needed *part way through* — step 6 restarts the board into its new firmware and then reopens it under that identifier. On any machine that has ever had a working Duplicator plugged in it is already bound and there is nothing to do. On one that has not, it cannot be bound in advance, because nothing presents that identifier until step 6 has programmed the FX3: the step fails after thirty seconds with *the device did not come back after being given its firmware*, having written nothing permanently. Leave the board plugged in, bind `1209:2347` with Zadig — the board is on the bus by then, which is what Zadig needs — and run the wizard again. The application does not need restarting; it re-reads the device list five times a second.
+
 ### 3 · The update file
 
 The file your copy of the application carries, already chosen, with its version and what it carries written out. Signature and digests are checked here, on that one exactly as on any file you choose instead.
@@ -216,6 +220,7 @@ The commonest failures, in order:
 | The cable is attached and will not open | Quartus's `jtagd` is running, or the udev rules are not installed |
 | A page waiting for the boot ROM after fitting the jumper | The jumper is on the wrong header, or the power cycle did not happen |
 | The file is refused on page 3 | It is a release from before the bring-up payloads existed. The page names what is missing |
+| *The device did not come back after being given its firmware*, on page 6, on Windows | WinUSB has never been bound to `1209:2347` on this machine. Nothing was written; bind it with Zadig and run the wizard again — see [Both boards, connected](#2-both-boards-connected) above |
 
 ## What this replaces
 
