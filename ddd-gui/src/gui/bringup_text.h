@@ -280,7 +280,22 @@ QString BringUpConfigureText(int seconds);
 
 // The step that writes. Names the button, then the three images in the order
 // they go in, then how long it takes and what not to touch while it does.
-QString BringUpProgramText(int seconds);
+//
+// `windows_binding` adds the one warning this page cannot leave to the failure
+// that would otherwise deliver it. Part way through this step the board
+// restarts and comes back under an identifier it has never presented before —
+// 1209:2347, the Duplicator it has just become — and Windows binds drivers per
+// identifier, so the bindings made for the FX3 and the USB-Blaster before the
+// wizard started do not cover it. On a machine that has never had a working
+// Duplicator plugged into it there is nothing that can be done about that in
+// advance: nothing presents 1209:2347 until this step has run, and Zadig can
+// only bind a device it can see. So the page says what is about to happen
+// instead, which turns thirty seconds of apparently silent failure into a step
+// somebody is waiting for with Zadig already open.
+//
+// A parameter rather than a compiled-in platform test, so that both halves of
+// the sentence are readable on any machine and the page stays pure text.
+QString BringUpProgramText(int seconds, bool windows_binding);
 
 // Where the file on the image page came from, which is three different
 // sentences and never a silent difference.

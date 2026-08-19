@@ -23,6 +23,7 @@
 #include "fake_device_updater.h"
 #include "update_bundle.h"
 #include "update_fixtures.h"
+#include "usb_presence.h"
 
 namespace ddd::capture {
 namespace {
@@ -101,6 +102,12 @@ struct RecoveryFixture {
   std::string updater_path;
   int updater_opens = 0;
 
+  // What the bus is to say when the installer asks whether the device came
+  // back under its application identifiers. Stated rather than left to the
+  // real bus, because otherwise a Duplicator plugged into the machine running
+  // the tests would decide which failure sentence a test sees.
+  UsbPresence presence = UsbPresence::kAbsent;
+
   RecoveryFixture() {
     bundle.manifest.manifest_version = 1;
     bundle.manifest.version = "1.4.0";
@@ -132,6 +139,7 @@ struct RecoveryFixture {
 
   UpdateOutcome Run() {
     RecoveryInstaller installer(Access(), nullptr);
+    installer.SetPresenceProbe([this] { return presence; });
 
     // The whole flow in milliseconds rather than in seconds. Nothing here
     // waits for a real device.
@@ -278,6 +286,38 @@ TEST(DeviceRecoveryTest, ADeviceThatNeverComesBackIsReportedWithANextStep) {
   EXPECT_EQ(outcome.stage, UpdateStage::kPreparing);
   EXPECT_NE(outcome.problem.find("Unplug it"), std::string::npos)
       << outcome.problem;
+  EXPECT_EQ(fixture.updater.begin_count(), 0u);
+}
+
+// The same wait, failing for the opposite reason, and it must not produce the
+// same sentence.
+//
+// This is the Windows first-bring-up: the board restarts into the firmware it
+// was given and enumerates as 1209:2347 for the first time on that machine,
+// nothing is bound to that identifier, and every way this application has of
+// reaching a device goes through opening one. So the wait times out on a
+// device that is sitting on the bus doing exactly what it was told to, and
+// "it did not come back" would send a user to check cables. The remedy is a
+// driver binding and the sentence has to say so.
+TEST(DeviceRecoveryTest, ADeviceThatCameBackAndCannotBeOpenedSaysSo) {
+  RecoveryFixture fixture;
+  fixture.programmer.SetFault(FakeDeviceProgrammer::Fault::kNeverReturns);
+  fixture.presence = UsbPresence::kPresent;
+
+  const UpdateOutcome outcome = fixture.Run();
+
+  EXPECT_FALSE(outcome.succeeded);
+  EXPECT_EQ(outcome.stage, UpdateStage::kPreparing);
+  EXPECT_NE(outcome.problem.find("1209:2347"), std::string::npos)
+      << outcome.problem;
+  EXPECT_NE(outcome.problem.find("Zadig"), std::string::npos)
+      << outcome.problem;
+  EXPECT_EQ(outcome.problem.find("did not come back"), std::string::npos)
+      << outcome.problem;
+
+  // The distinction is only worth making if it changes nothing else: this is
+  // still a failure before the first write, on a device no worse off than it
+  // was.
   EXPECT_EQ(fixture.updater.begin_count(), 0u);
 }
 

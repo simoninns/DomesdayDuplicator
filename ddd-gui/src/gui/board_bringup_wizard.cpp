@@ -509,12 +509,33 @@ QWidget* BoardBringUpWizard::BuildRemoveJumperPage() {
   return scroll;
 }
 
+namespace {
+
+// Whether the program page has to warn about the binding the board's new
+// identifier needs.
+//
+// A compiled-in answer rather than something asked of the machine: the
+// question is "will Windows have a driver for an identifier nothing is
+// presenting yet", and there is nothing on the bus to ask. Windows is
+// therefore told about it every time, including on the majority of machines
+// where the binding is already there — which the paragraph says, rather than
+// claiming a problem the reader may not have.
+constexpr bool kWarnsAboutDriverBinding =
+#ifdef _WIN32
+    true;
+#else
+    false;
+#endif
+
+}  // namespace
+
 QWidget* BoardBringUpWizard::BuildProgramPage() {
   QWidget* page = nullptr;
   QScrollArea* const scroll = MakeScrollingPage(this, &page);
   auto* layout = new QVBoxLayout(page);
 
-  program_text_ = MakeBody(page, BringUpProgramText(0));
+  program_text_ =
+      MakeBody(page, BringUpProgramText(0, kWarnsAboutDriverBinding));
   program_text_->setObjectName(QLatin1String(kProgramTextName));
   layout->addWidget(program_text_);
 
@@ -1322,7 +1343,8 @@ void BoardBringUpWizard::LoadUpdateFile(const QString& path) {
     programming += capture::EstimateComponentSeconds(
         capture::UpdateTarget::kGateware, *manifest_->gateware);
   }
-  program_text_->setText(BringUpProgramText(static_cast<int>(programming) + 1));
+  program_text_->setText(BringUpProgramText(static_cast<int>(programming) + 1,
+                                            kWarnsAboutDriverBinding));
 
   Refresh();
 }

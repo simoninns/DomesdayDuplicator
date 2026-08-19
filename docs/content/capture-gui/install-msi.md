@@ -160,8 +160,10 @@ the step that uses it:
    1. Bind `04B4:00F3` and `09FB:6001`, and start the wizard as normal.
    2. Step 6 sends the firmware and the board restarts into it, appearing as `1209:2347` for
       the first time. Windows has no driver for that identifier, so the wizard cannot open
-      it, and after thirty seconds it reports that **the device did not come back after
-      being given its firmware**.
+      it, and after thirty seconds it reports that **the device is attached as a Duplicator
+      (1209:2347) but cannot be opened under that identifier** — it looks at the bus before
+      it says so, and this is what a board that came back and may not be opened gets rather
+      than the *did not come back* sentence a board that never restarted gets.
    3. **Leave everything plugged in.** Nothing was written permanently — the failure is
       before the first write, with the firmware running out of memory — and the board is on
       the bus now, which is what Zadig needs. Bind `1209:2347` to WinUSB.

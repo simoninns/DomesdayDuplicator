@@ -115,7 +115,7 @@ TEST(BringUpText, TheWorkingPagesOpenByNamingTheButtonToPress) {
   EXPECT_LT(configure.indexOf("Load the gateware"),
             configure.indexOf("Nothing is written"));
 
-  const QString program = BringUpProgramText(240);
+  const QString program = BringUpProgramText(240, false);
   EXPECT_LT(program.indexOf("Program the board"), program.indexOf("EEPROM"));
 }
 
@@ -461,7 +461,7 @@ TEST(BringUpTextConfigure, TheTextSaysTheLoadWritesNothing) {
 // The page that writes names all three images and the order they go in, since
 // the order is what makes every interruption recoverable.
 TEST(BringUpTextProgram, TheTextNamesAllThreeWritesAndTheEstimate) {
-  const QString text = BringUpProgramText(240);
+  const QString text = BringUpProgramText(240, false);
 
   EXPECT_TRUE(text.contains("240 seconds"));
   EXPECT_TRUE(text.contains("EEPROM"));
@@ -471,6 +471,25 @@ TEST(BringUpTextProgram, TheTextNamesAllThreeWritesAndTheEstimate) {
   // And that nothing restarts here, because a user watching the device stay
   // put would otherwise wonder whether the step finished.
   EXPECT_TRUE(text.contains("power cycle", Qt::CaseInsensitive));
+
+  // Nothing about Windows drivers on a page that is not on Windows.
+  EXPECT_FALSE(text.contains("Zadig"));
+}
+
+// The Windows half, which is the one failure of this step that a user can be
+// standing ready for rather than surprised by. It has to name the identifier
+// — that is what Zadig is picked from — say that nothing is written when it
+// happens, and say what to do.
+TEST(BringUpTextProgram, OnWindowsItWarnsAboutTheBindingTheBoardIsAboutToNeed) {
+  const QString text = BringUpProgramText(240, true);
+
+  EXPECT_TRUE(text.contains("1209:2347"));
+  EXPECT_TRUE(text.contains("Zadig"));
+  EXPECT_TRUE(text.contains("nothing", Qt::CaseInsensitive));
+
+  // Below the instruction, not above it: the button is what the page is for,
+  // and most machines have this binding already.
+  EXPECT_LT(text.indexOf("Program the board"), text.indexOf("1209:2347"));
 }
 
 // --- the verification -----------------------------------------------------
