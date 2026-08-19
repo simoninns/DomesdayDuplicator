@@ -572,20 +572,20 @@ QWidget* BoardBringUpWizard::BuildVerifyPage() {
 // --- navigation -----------------------------------------------------------
 
 std::vector<BringUpPage> BoardBringUpWizard::Steps() const {
-  std::vector<BringUpPage> steps;
-  for (BringUpPage page :
-       {BringUpPage::kOverview, BringUpPage::kConnect, BringUpPage::kImage,
-        BringUpPage::kJumper, BringUpPage::kConfigure, BringUpPage::kProgram,
-        BringUpPage::kRemoveJumper, BringUpPage::kPowerCycle,
-        BringUpPage::kVerify}) {
-    const bool jumper_page =
-        page == BringUpPage::kJumper || page == BringUpPage::kRemoveJumper;
-    if (jumper_page && !jumper_needed_) {
-      continue;
-    }
-    steps.push_back(page);
-  }
-  return steps;
+  // All nine, on every run. There used to be a courtesy here that skipped
+  // the two jumper pages for a board already sitting in its boot ROM, and it
+  // was wrong for the commonest board of all: an FX3 whose EEPROM has never
+  // been written comes up in its boot ROM *with or without* the jumper, so
+  // "already in the boot ROM" was never evidence that a jumper was fitted. A
+  // board that got there on an empty EEPROM alone leaves again at the first
+  // restart — in the middle of the writing — and the bring-up fails with
+  // nothing to point at. So the jumper is asked for whatever the board says
+  // it is doing, and the page waits for the restart that proves it.
+  return {BringUpPage::kOverview,     BringUpPage::kConnect,
+          BringUpPage::kImage,        BringUpPage::kJumper,
+          BringUpPage::kConfigure,    BringUpPage::kProgram,
+          BringUpPage::kRemoveJumper, BringUpPage::kPowerCycle,
+          BringUpPage::kVerify};
 }
 
 std::optional<BringUpPage> BoardBringUpWizard::After(BringUpPage page) const {
@@ -611,17 +611,6 @@ std::optional<BringUpPage> BoardBringUpWizard::Before(BringUpPage page) const {
 void BoardBringUpWizard::GoNext() {
   if (busy() || !PageIsSatisfied(page_)) {
     return;
-  }
-
-  // Decided here and nowhere else: a board already waiting in its boot ROM
-  // needs no jumper, and asking for one would be asking somebody to fit a
-  // jumper so that the wizard could ask them to take it off again. Decided on
-  // the way *out* of the connectivity page, because that is the last moment
-  // the answer is about a board nothing has been done to yet.
-  if (page_ == BringUpPage::kConnect) {
-    const std::optional<capture::DeviceInfo> fx3 = Fx3();
-    jumper_needed_ = !fx3.has_value() ||
-                     fx3->personality != capture::DevicePersonality::kRecovery;
   }
 
   const std::optional<BringUpPage> next = After(page_);
@@ -693,8 +682,17 @@ bool BoardBringUpWizard::PageIsSatisfied(BringUpPage page) const {
       return manifest_.has_value() && BringUpImageProblem(*manifest_).isEmpty();
 
     case BringUpPage::kJumper: {
+      // Two observations, and it takes both. The board has to have **gone
+      // away**, which is the only thing on this page that proves the cables
+      // came out — and a jumper only takes effect on a boot. And it has to be
+      // back **in its boot ROM**, which is where the jumper puts it.
+      //
+      // The first half is what a board that was already in its boot ROM needs:
+      // it satisfied the second half before anybody touched it, so on its own
+      // that half would wave the page through with the jumper still in
+      // somebody's hand.
       const std::optional<capture::DeviceInfo> fx3 = Fx3();
-      return fx3.has_value() &&
+      return jumper_restart_seen_ && fx3.has_value() &&
              fx3->personality == capture::DevicePersonality::kRecovery;
     }
 
@@ -813,13 +811,14 @@ void BoardBringUpWizard::Refresh() {
                      "bring-up needs."))
             : BringUpWaitingText(
                   tr("an update file that can bring a board up. Press "
-                     "<b>Choose file…</b> below.")));
+                     "<b>Choose file…</b> above.")));
   }
 
   if (jumper_status_ != nullptr) {
     jumper_status_->setText(
         PageIsSatisfied(BringUpPage::kJumper)
-            ? BringUpStepDoneText(tr("The FX3 is in its boot ROM."))
+            ? BringUpStepDoneText(
+                  tr("The board has restarted in its boot ROM."))
             : BringUpWaitingText(
                   tr("the board to come back in its boot ROM, once the jumper "
                      "is fitted and both cables have been out and back in.")));
@@ -836,7 +835,7 @@ void BoardBringUpWizard::Refresh() {
              "nothing has been written to the board yet.")));
     } else if (!configure_reported_) {
       configure_status_->setText(BringUpWaitingText(
-          tr("you to press <b>Load the gateware</b> below.")));
+          tr("you to press <b>Load the gateware</b> above.")));
     }
   }
 
@@ -848,7 +847,7 @@ void BoardBringUpWizard::Refresh() {
     } else if (!program_reported_) {
       program_status_->setText(BringUpWaitingText(
           configured_
-              ? tr("you to press <b>Program the board</b> below.")
+              ? tr("you to press <b>Program the board</b> above.")
               : tr("the gateware to be loaded on the previous page, which is "
                    "what gives this step a way to reach the flash.")));
     }
@@ -988,6 +987,16 @@ void BoardBringUpWizard::Poll() {
 
   if (page_ == BringUpPage::kConnect) {
     ProbeCable(false);
+  }
+
+  // Latched rather than read: the board is on its way back by the time
+  // anything asks whether the jumper page is finished, and the one moment that
+  // proves a cable came out is a poll that found nothing. Latched for the run
+  // rather than for the visit, so that stepping back to re-read the page does
+  // not ask for the power cycle a second time.
+  if (page_ == BringUpPage::kJumper && !jumper_restart_seen_ &&
+      !Fx3().has_value()) {
+    jumper_restart_seen_ = true;
   }
 
   if (page_ == BringUpPage::kPowerCycle && !returned_) {

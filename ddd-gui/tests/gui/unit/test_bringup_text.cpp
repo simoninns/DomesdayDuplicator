@@ -199,13 +199,18 @@ capture::DeviceInfo Board(DevicePersonality personality, int protocol_version,
   return info;
 }
 
-TEST(BringUpTextFx3Row, ABoardInItsBootRomIsReadyAndNeedsNoJumper) {
+// A board in its boot ROM is usable as it is and still has something asked of
+// it, which is exactly what amber means. It is the one row where a green tick
+// would mislead: an FX3 with an empty EEPROM is in its boot ROM with or
+// without a jumper, so "already there" is not "already arranged".
+TEST(BringUpTextFx3Row, ABoardInItsBootRomIsUsableAndStillNeedsTheJumper) {
   const BringUpStatusRow row = BringUpFx3Row(
       Board(DevicePersonality::kRecovery, 0), UsbPresence::kAbsent);
 
-  EXPECT_EQ(row.state, BringUpRowState::kReady);
+  EXPECT_EQ(row.state, BringUpRowState::kWaiting);
   EXPECT_TRUE(row.usable());
   EXPECT_TRUE(row.detail.contains("boot ROM"));
+  EXPECT_TRUE(row.detail.contains("jumper"));
 }
 
 // The board this wizard exists for. It is not a fault and is not reported as

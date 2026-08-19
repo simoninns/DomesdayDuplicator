@@ -6,7 +6,7 @@ Programming a Domesday Duplicator from nothing to fully up to date: the FX3's fi
 
 **It does not matter what the board is running now.** A newly built unit whose FX3 has never been programmed and whose DE0-Nano still holds whatever Terasic shipped on it; a unit running the original Duplicator firmware from before this application existed; a unit that already works; a unit left half-programmed by a run of this that was stopped. This asks for the same things and does the same work in every case, and running it twice is harmless.
 
-The reason is one physical fact: **fitting jumper J4 puts the FX3 into its boot ROM whatever it was doing**, and a JTAG configuration replaces whatever the FPGA is running whatever its flash holds. So nothing here has to diagnose your board, and nothing branches on what it finds. The one exception is a courtesy: a board already sitting in its boot ROM skips the two jumper pages.
+The reason is one physical fact: **fitting jumper J4 puts the FX3 into its boot ROM whatever it was doing**, and a JTAG configuration replaces whatever the FPGA is running whatever its flash holds. So nothing here has to diagnose your board, and nothing branches on what it finds — every board goes through the same nine pages, including one that is already sitting in its boot ROM.
 
 If your board already answers this application and you only want the current release on it, **Tools ▸ Firmware ▸ Update firmware…** does that with no cables moved and no case opened. That is [updating](updating-your-domesday-duplicator.md), and it is what you want nearly every time.
 
@@ -22,7 +22,7 @@ You will need:
 | --- | --- |
 | The kit's **USB 3.0 cable** | The one you normally capture through |
 | The DE0-Nano's **mini-USB cable** | A cable that carries **data**. A charge-only cable is the commonest thing that goes wrong here, and the board lights up either way |
-| A **jumper** (shunt) | Only if the board is running firmware already. A newly built kit is already waiting where the wizard needs it |
+| A **jumper** (shunt) | Always, whatever the board is running. A newly built kit already reports the boot ROM the wizard needs, but it does so because its EEPROM is empty — take the jumper away and it leaves again at the first restart |
 | An **update file** | Usually nothing to do: an installed copy of this application already carries one. See *The update file* below |
 
 Both cables stay connected for the whole procedure. Allow about five minutes, most of it watching the three images being written and checked.
@@ -96,7 +96,7 @@ What the FX3 row can say:
 
 | Row says | Meaning | Mark |
 | --- | --- | --- |
-| *Waiting in its boot ROM* | A newly built kit. No jumper needed; the wizard skips those pages | Green |
+| *Waiting in its boot ROM* | A newly built kit, whose EEPROM is empty. **The jumper is still needed**, and step 4 still asks for it: an empty board comes up in its boot ROM whether or not one is fitted | Amber |
 | *Running this application's own firmware (commit)* | A board that already works. **You probably want [Update firmware](updating-your-domesday-duplicator.md) instead.** Carrying on is safe and reprograms everything | Amber |
 | *Running the **original** Duplicator firmware … 1d50:603b* | The firmware from before this application existed | Amber |
 | *The kit's debug serial port is answering* | The board has power and its USB 3.0 link is not answering. Check that cable and that it is in a USB 3.0 socket | Red |
@@ -120,13 +120,13 @@ If your copy carries none, this is the one page that needs something from elsewh
 
 ### 4 · Fit jumper J4
 
-Skipped for a board already in its boot ROM.
-
 Three numbered instructions: fit the jumper across the FX3 board's two-pin `PMODE` header, unplug both cables, plug both back in. A photograph shows exactly which header. The jumper only takes effect on a boot, and the unit does not boot while either cable still feeds it — which is why all three steps are needed and why doing only the first looks exactly like success.
 
-The page waits for the board to come back in its boot ROM, and says so until it does.
+**Fit it even if step 2 reported the FX3 as already waiting in its boot ROM.** That is the state a newly built kit arrives in, and it arrives there because its EEPROM is empty rather than because anything is holding it there. Without the jumper it leaves the boot ROM again at the first restart — part way through step 6, which is where the bring-up fails with nothing obvious to point at. Nothing in software can see a jumper, so the wizard cannot tell the two cases apart and does not try to.
 
-This is the page that makes your board's previous state irrelevant, and it is the only page that cares what that state was.
+The page waits for the board to **go away and come back in its boot ROM**, and says so until it does. Going away is the half it can actually see, and it is what proves both cables came out.
+
+This is the page that makes your board's previous state irrelevant.
 
 ### 5 · Load the gateware into the FPGA
 

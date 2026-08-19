@@ -54,7 +54,10 @@ namespace ddd::gui {
 //     the FX3's boot ROM from any state whatever, so this flow never diagnoses
 //     a board and never branches on what it finds. Somebody arriving with a
 //     unit they know nothing about should be told that in the first paragraph,
-//     because it is the fact that lets them start.
+//     because it is the fact that lets them start. It cuts the other way too:
+//     a board *already* reporting its boot ROM is still asked for the jumper,
+//     because an empty EEPROM puts it there just as readily and the wizard
+//     cannot tell the two apart.
 
 // The nine pages, in the order they are worked through. Here rather than
 // inside the wizard so that the wording functions can be asked about a page
@@ -80,9 +83,10 @@ enum class BringUpPage {
   // everything a bring-up needs.
   kImage,
 
-  // Fit the jumper and power-cycle, to reach the FX3's boot ROM. Skipped when
-  // the FX3 is already there. The one page that cares what the board was
-  // doing, and it only cares enough to skip itself.
+  // Fit the jumper and power-cycle, to reach the FX3's boot ROM. Asked for on
+  // every run, including one whose FX3 is reporting the boot ROM already: a
+  // kit with an empty EEPROM comes up there with or without the jumper, and
+  // one that got there without it leaves again at the first restart.
   kJumper,
 
   // Play the vectors into the FPGA over the USB-Blaster. Volatile: it writes
@@ -94,7 +98,7 @@ enum class BringUpPage {
   // image, in that order.
   kProgram,
 
-  // Take the jumper off again. Skipped when kJumper was.
+  // Take the jumper off again.
   kRemoveJumper,
 
   // The one power cycle, which makes every image written above the running
@@ -105,10 +109,9 @@ enum class BringUpPage {
   kVerify,
 };
 
-// "3 of 9", and the page's own title. Numbered including the pages a
-// particular run skips: a wizard whose step numbers changed depending on what
-// was plugged in would make two runs of the same procedure impossible to talk
-// about.
+// "3 of 9", and the page's own title. Every run visits all nine, so the
+// numbering is the same in every telling of the procedure — which is what lets
+// two runs of it be talked about in the same words.
 QString BringUpPageTitle(BringUpPage page);
 QString BringUpPageHeading(BringUpPage page);
 
