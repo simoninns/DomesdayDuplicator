@@ -15,6 +15,7 @@
 #include <QString>
 #include <QTextStream>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "about_text.h"
@@ -61,9 +62,11 @@ int main(int argc, char* argv[]) {
   QApplication::setWindowIcon(ddd::gui::ApplicationIcon());
   QApplication::setApplicationName(QStringLiteral("ddd-gui"));
 
-  const auto version = ddd::capture::Version();
-  QApplication::setApplicationVersion(QString::fromUtf8(
-      version.data(), static_cast<qsizetype>(version.size())));
+  // Both stamps, as one line: "1.2.0 (a1b2c3d4)". The packaging workflows run
+  // this and reject an artefact that reports "unknown", which BuildStamp only
+  // says when the build can name neither.
+  const std::string version = ddd::capture::BuildStamp();
+  QApplication::setApplicationVersion(QString::fromStdString(version));
 
   QCommandLineParser parser;
   parser.setApplicationDescription(

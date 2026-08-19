@@ -46,23 +46,36 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-# Commit stamp, so a released binary can be traced back to the source that produced it.
-# Mirrors fx3/firmware/CMakeLists.txt: callers building outside a
-# git checkout — Nix, release tarballs, a shallow CI clone — pass -DDDD_VERSION=<hash>,
-# and only when they have not does the build ask git. A release artefact reporting
-# "unknown" fails the release gate (AGENTS.md §9).
+# Two stamps, so a released binary can say both what release it is and what source it
+# was built from. See src/capture/version.h for why they are separate: one orders and
+# one identifies, and the update gate can only compare the first.
+#
+# DDD_VERSION is the release version and is never derived here. There is no way to work
+# out from a working tree which release it is going to become, and guessing would put a
+# number on a binary that no release ever carried. Only a release workflow building from
+# a gui-v* tag knows the answer, and it passes it in; every other build is honestly not
+# a numbered release.
 if(NOT DEFINED DDD_VERSION OR DDD_VERSION STREQUAL "")
+    set(DDD_VERSION "unknown")
+endif()
+
+# DDD_COMMIT is the commit, and this one the build can work out for itself. Mirrors
+# fx3/firmware/CMakeLists.txt: callers building outside a git checkout — Nix, release
+# tarballs, a shallow CI clone — pass -DDDD_COMMIT=<hash>, and only when they have not
+# does the build ask git. An artefact that can name neither stamp reports "unknown" and
+# fails the release gate (AGENTS.md §9).
+if(NOT DEFINED DDD_COMMIT OR DDD_COMMIT STREQUAL "")
     execute_process(
         COMMAND git rev-parse --short=8 HEAD
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE DDD_VERSION
+        OUTPUT_VARIABLE DDD_COMMIT
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET
     )
 
     # A bare commit hash from a dirty tree names a commit that does not contain the code
     # being built.
-    if(DDD_VERSION)
+    if(DDD_COMMIT)
         execute_process(
             COMMAND git status --porcelain
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -71,16 +84,16 @@ if(NOT DEFINED DDD_VERSION OR DDD_VERSION STREQUAL "")
             ERROR_QUIET
         )
         if(NOT DDD_GIT_STATUS STREQUAL "")
-            set(DDD_VERSION "${DDD_VERSION}-dirty")
+            set(DDD_COMMIT "${DDD_COMMIT}-dirty")
         endif()
     endif()
 endif()
 
-if(NOT DDD_VERSION)
-    set(DDD_VERSION "unknown")
+if(NOT DDD_COMMIT)
+    set(DDD_COMMIT "unknown")
 endif()
 
-message(STATUS "Application version: ${DDD_VERSION}")
+message(STATUS "Application version: ${DDD_VERSION}, commit ${DDD_COMMIT}")
 
 # Which update signing key this build trusts.
 #

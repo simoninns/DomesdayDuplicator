@@ -78,7 +78,7 @@ class CaptureControllerTest : public ::testing::Test {
     device_ = std::make_unique<capture::FakeUsbDevice>();
     device_->SetSourceOptions(TestSourceOptions());
     device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
-                             MatchingProductString());
+                             ProductStringNamingACommit());
 
     controller_ = std::make_unique<CaptureController>(device_.get(), nullptr);
   }
@@ -89,16 +89,21 @@ class CaptureControllerTest : public ::testing::Test {
     QSettings().clear();
   }
 
-  // A product string naming this build's own commit, so the version check has
-  // nothing to complain about unless a test asks it to.
+  // A product string naming a commit, so there is nothing to warn about unless
+  // a test asks for it.
   //
-  // Built from the normalised commit rather than the raw version stamp: a
-  // developer build reports "abcd1234-dirty", and no firmware would ever put
-  // that in a descriptor.
-  static std::string MatchingProductString() {
-    const std::optional<std::string> commit =
-        capture::NormaliseCommit(capture::Version());
-    return "Domesday Duplicator (" + commit.value_or("a1b2c3d4") + ")";
+  // Any commit will do. This used to have to be built from the application's
+  // own stamp, because the two were compared and a difference raised a
+  // warning; they come from separate release streams and are not compared any
+  // more, which is what makes a literal correct here.
+  static std::string ProductStringNamingACommit() {
+    return "Domesday Duplicator (a1b2c3d4)";
+  }
+
+  // And one that names none, which is the only state left that warns: a device
+  // that could not be opened to be asked, or firmware older than the stamp.
+  static std::string ProductStringNamingNoCommit() {
+    return "Domesday Duplicator";
   }
 
   // Settings that keep the ring small, so the pipeline starts instantly, and
@@ -133,7 +138,7 @@ TEST_F(CaptureControllerTest, ADeviceUnpluggedIsReported) {
   EXPECT_TRUE(controller_->devices().empty());
 }
 
-TEST_F(CaptureControllerTest, MatchingFirmwareSaysNothing) {
+TEST_F(CaptureControllerTest, AFirmwareThatNamesItsBuildSaysNothing) {
   QSignalSpy warnings(controller_.get(), &CaptureController::FirmwareWarning);
   QSignalSpy devices(controller_.get(), &CaptureController::DevicesChanged);
   controller_->Start();
@@ -142,9 +147,25 @@ TEST_F(CaptureControllerTest, MatchingFirmwareSaysNothing) {
   EXPECT_EQ(warnings.count(), 0);
 }
 
-TEST_F(CaptureControllerTest, DifferentFirmwareWarnsExactlyOncePerConnection) {
+// A device from another release is not warned about at all any more: the
+// application and the firmware come from separate streams, so a different
+// commit is the ordinary state of an up-to-date Duplicator.
+TEST_F(CaptureControllerTest, FirmwareFromAnotherReleaseIsNotWarnedAbout) {
   device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
                            "Domesday Duplicator (deadbe01)");
+
+  QSignalSpy warnings(controller_.get(), &CaptureController::FirmwareWarning);
+  QSignalSpy devices(controller_.get(), &CaptureController::DevicesChanged);
+  controller_->Start();
+
+  ASSERT_TRUE(PumpUntil([&] { return devices.count() >= 1; }));
+  PumpUntil([] { return false; }, 200ms);
+  EXPECT_EQ(warnings.count(), 0);
+}
+
+TEST_F(CaptureControllerTest, ASilentFirmwareWarnsExactlyOncePerConnection) {
+  device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
+                           ProductStringNamingNoCommit());
 
   QSignalSpy warnings(controller_.get(), &CaptureController::FirmwareWarning);
   QSignalSpy devices(controller_.get(), &CaptureController::DevicesChanged);
@@ -159,11 +180,12 @@ TEST_F(CaptureControllerTest, DifferentFirmwareWarnsExactlyOncePerConnection) {
   EXPECT_EQ(warnings.count(), 1);
 }
 
-// Re-plugging is what a user does after updating firmware, so it has to warn
-// again rather than staying quiet because it warned about this path before.
+// Re-plugging is what a user does after installing udev rules, so it has to
+// warn again rather than staying quiet because it warned about this path
+// before.
 TEST_F(CaptureControllerTest, ReplacingTheDeviceWarnsAgain) {
   device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
-                           "Domesday Duplicator (deadbe01)");
+                           ProductStringNamingNoCommit());
 
   QSignalSpy warnings(controller_.get(), &CaptureController::FirmwareWarning);
   QSignalSpy devices(controller_.get(), &CaptureController::DevicesChanged);
@@ -173,8 +195,8 @@ TEST_F(CaptureControllerTest, ReplacingTheDeviceWarnsAgain) {
   device_->SetDevices({});
   ASSERT_TRUE(PumpUntil([&] { return devices.count() >= 2; }));
 
-  device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
-                           "Domesday Duplicator (deadbe02)");
+  device_->SetSingleDevice("bus-2", capture::DeviceSpeed::kSuper,
+                           ProductStringNamingNoCommit());
   ASSERT_TRUE(PumpUntil([&] { return warnings.count() >= 2; }));
 }
 

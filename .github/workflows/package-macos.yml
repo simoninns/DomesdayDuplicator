@@ -42,7 +42,17 @@ jobs:
             version="git-${GITHUB_SHA:0:8}"
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "ddd_version=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+          # Two stamps now, because the application reports two things and they
+          # answer different questions (ddd-gui/src/capture/version.h). The
+          # release version is only known on a tag — nothing else is a numbered
+          # release, and guessing would put a number on a binary no release
+          # carries. The commit is always known.
+          if [[ "${GITHUB_REF}" == refs/tags/gui-v* ]]; then
+            echo "ddd_version=${GITHUB_REF_NAME#gui-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ddd_version=unknown" >> "$GITHUB_OUTPUT"
+          fi
+          echo "ddd_commit=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
 
       - name: Install build dependencies
         shell: bash
@@ -93,6 +103,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON \
             -DDDD_VERSION="${{ steps.version.outputs.ddd_version }}" \
+            -DDDD_COMMIT="${{ steps.version.outputs.ddd_commit }}" \
             ${bundled[@]+"${bundled[@]}"}
           cmake --build build
 

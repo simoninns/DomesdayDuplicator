@@ -19,10 +19,10 @@
 namespace ddd::gui {
 namespace {
 
+// Both stamps as the About box shows them: "1.2.0 (a1b2c3d4)", or the commit
+// alone on a build that is not a numbered release.
 QString VersionString() {
-  const auto version = capture::Version();
-  return QString::fromUtf8(version.data(),
-                           static_cast<qsizetype>(version.size()));
+  return QString::fromStdString(capture::BuildStamp());
 }
 
 // The point of these tests: the About dialog is the second of two routes to the
@@ -42,6 +42,21 @@ TEST(AboutTextTest, AlwaysNamesAVersionEvenWhenItIsUnknown) {
   // a user who did not look, and the release gate needs the difference.
   EXPECT_FALSE(VersionString().isEmpty());
   EXPECT_TRUE(AboutText().contains(QStringLiteral("Build:")));
+}
+
+// A developer build has no release version, and must not put the word
+// "unknown" on screen when it can name the commit perfectly well. The release
+// gate greps this same stamp for "unknown", so the two requirements are one.
+TEST(AboutTextTest, TheCommitAloneIsShownWhenThereIsNoReleaseVersion) {
+  const QString stamp = VersionString();
+
+  if (capture::Version() == "unknown" && capture::Commit() != "unknown") {
+    EXPECT_FALSE(stamp.contains(QStringLiteral("unknown")))
+        << stamp.toStdString();
+    EXPECT_EQ(stamp, QString::fromUtf8(
+                         capture::Commit().data(),
+                         static_cast<qsizetype>(capture::Commit().size())));
+  }
 }
 
 TEST(AboutTextTest, NamesTheApplicationAndItsLicence) {

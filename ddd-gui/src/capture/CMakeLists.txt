@@ -114,7 +114,9 @@ endif()
 
 # Only this target sees the version stamp, so a new commit rebuilds one object file rather
 # than every Qt translation unit in the application.
-target_compile_definitions(ddd_capture PRIVATE DDD_VERSION="${DDD_VERSION}")
+target_compile_definitions(ddd_capture PRIVATE
+    DDD_VERSION="${DDD_VERSION}"
+    DDD_COMMIT="${DDD_COMMIT}")
 
 # The pinned release signing key, decided in the top-level CMakeLists.txt and delivered as a
 # generated header rather than a compile definition: the key is two lines of text, and a

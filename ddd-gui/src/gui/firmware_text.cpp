@@ -39,17 +39,20 @@ QString Row(const QString& name, const QString& value, const QString& note) {
   return row;
 }
 
-// The commit each of the three reports, or nothing where none was reported.
+// The commit each half of the *device* reports, or nothing where none was
+// reported.
+//
+// The application is not here, and that is the change rather than an omission.
+// It releases under its own tag, from its own commit, so it has no business in
+// a comparison about whether the device's two halves match — see
+// firmware_version.h.
 struct Commits {
-  std::optional<std::string> application;
   std::optional<std::string> firmware;
   std::optional<std::string> gateware;
 };
 
 Commits CollectCommits(const FirmwareVersions& versions) {
   Commits commits;
-  commits.application =
-      capture::NormaliseCommit(versions.application.toStdString());
 
   if (!versions.device_attached ||
       versions.personality != capture::DevicePersonality::kApplication) {
@@ -66,7 +69,20 @@ Commits CollectCommits(const FirmwareVersions& versions) {
   return commits;
 }
 
-QString GatewareValue(const FirmwareVersions& versions) {
+// A release version and a commit read as "1.5.0 (a1b2c3d4)"; a commit on its
+// own reads as itself. The same rule the application's own stamp follows, so
+// the three rows of this table are written the same way.
+QString Stamped(const std::optional<std::string>& release,
+                const std::string& commit) {
+  const QString hash = FromStdString(commit);
+  if (!release.has_value()) {
+    return hash;
+  }
+  return QStringLiteral("%1 (%2)").arg(FromStdString(*release), hash);
+}
+
+QString GatewareValue(const FirmwareVersions& versions,
+                      const Commits& commits) {
   if (!versions.gateware.present) {
     return Translate("Not reported");
   }
@@ -74,7 +90,27 @@ QString GatewareValue(const FirmwareVersions& versions) {
     return Translate("Unknown");
   }
 
-  QString value = FromStdString(versions.gateware.commit);
+  // The gateware cannot name its own release, and it is not going to be able
+  // to. Its identity block is eight bytes of ASCII that must be seven or eight
+  // hex digits, frozen across every register map version so that a host which
+  // does not recognise the version can still read who it is talking to — and
+  // the module that serves it lives in fpga/common/, which is compiled into
+  // the resident factory image. Changing it is a re-provisioning event
+  // (AGENTS.md §5.3): every fielded board would keep the old one until
+  // somebody opened it up with a JTAG cable.
+  //
+  // It does not have to. The firmware and the gateware are installed together,
+  // from one signed bundle, built from one commit — so when the two report the
+  // same commit, the firmware's release version names the gateware's release
+  // as well, on the firmware's word. When they differ the set is mixed, and
+  // then the honest thing is the bare commit and the note below saying so.
+  const std::optional<std::string> release =
+      commits.firmware.has_value() &&
+              capture::CommitsMatch(*commits.firmware, versions.gateware.commit)
+          ? capture::ParseFirmwareRelease(versions.product_string.toStdString())
+          : std::nullopt;
+
+  QString value = Stamped(release, versions.gateware.commit);
   if (versions.gateware.dirty) {
     value += Translate(" (modified)");
   }
@@ -127,11 +163,14 @@ QString GatewareNote(const FirmwareVersions& versions) {
   return {};
 }
 
-QString FirmwareValue(const Commits& commits) {
-  if (commits.firmware.has_value()) {
-    return FromStdString(*commits.firmware);
+QString FirmwareValue(const FirmwareVersions& versions,
+                      const Commits& commits) {
+  if (!commits.firmware.has_value()) {
+    return Translate("Not reported");
   }
-  return Translate("Not reported");
+  return Stamped(
+      capture::ParseFirmwareRelease(versions.product_string.toStdString()),
+      *commits.firmware);
 }
 
 QString FirmwareNote(const FirmwareVersions& versions, const Commits& commits) {
@@ -186,45 +225,38 @@ QString Verdict(const FirmwareVersions& versions, const Commits& commits) {
         "there.");
   }
 
-  // Checked before the device's halves, deliberately, and for the same reason
-  // firmware_version.cpp checks it first: a build that cannot name its own
-  // commit is in no position to accuse anything else of being out of date.
-  if (!commits.application.has_value()) {
-    return Translate(
-        "This application cannot name the commit it was built from, so there "
-        "is nothing to compare the device against.");
-  }
-
-  const std::string& application = *commits.application;
-
   const bool firmware_known = commits.firmware.has_value();
   const bool gateware_known = commits.gateware.has_value();
-
-  const bool firmware_matches =
-      firmware_known && capture::CommitsMatch(*commits.firmware, application);
-  const bool gateware_matches =
-      gateware_known && capture::CommitsMatch(*commits.gateware, application);
-
-  if (firmware_known && gateware_known && firmware_matches &&
-      gateware_matches) {
-    return Translate(
-        "All three were built from the same commit, which is what a release "
-        "is.");
-  }
 
   if (!firmware_known || !gateware_known) {
     return Translate(
         "Not every part of the device reported which build it is running, so "
-        "they cannot all be compared. Capture works normally either way; "
+        "the two cannot be compared. Capture works normally either way; "
         "updating the device when convenient is what makes this dialog able to "
         "answer the question.");
   }
 
+  // The one comparison worth making here, and the only one these three
+  // versions support. The firmware and the gateware are installed together,
+  // from one signed bundle, built from one commit — so a difference between
+  // them is a device that was half updated, which is a real thing to say.
+  //
+  // The application is deliberately not in it. It releases separately, under
+  // its own tag, so it shares a commit with the device only by coincidence.
+  // Comparing it here is what used to make this dialog report a correctly
+  // updated Duplicator as a mismatched set.
+  if (capture::CommitsMatch(*commits.firmware, *commits.gateware)) {
+    return Translate(
+        "The firmware and the gateware came from the same build, which is "
+        "what a device update installs. The application is released "
+        "separately and is not expected to match them.");
+  }
+
   return Translate(
-      "These were not all built from the same commit. Every release builds the "
-      "application, the firmware and the gateware together, so a difference "
-      "means one of them was not updated. Capture will work normally; if "
-      "something behaves oddly, matching them up is the first thing to try.");
+      "The firmware and the gateware came from different builds. They are "
+      "installed together from one update, so this usually means an update "
+      "that did not finish, or one half programmed by hand. Capture will work "
+      "normally; installing the latest update is what puts them back in step.");
 }
 
 }  // namespace
@@ -242,21 +274,21 @@ QString FirmwareText(const FirmwareVersions& versions) {
   table += Row(Translate("Application"), versions.application, {});
   table += Row(Translate("FX3 firmware"),
                !versions.device_attached ? unattached
-               : reports_versions        ? FirmwareValue(commits)
+               : reports_versions        ? FirmwareValue(versions, commits)
                                          : Translate("None installed"),
                FirmwareNote(versions, commits));
   table += Row(Translate("FPGA gateware"),
                !versions.device_attached ? unattached
-               : reports_versions        ? GatewareValue(versions)
+               : reports_versions        ? GatewareValue(versions, commits)
                                          : Translate("Cannot be read"),
                GatewareNote(versions));
   table += QStringLiteral("</table>");
 
   return QStringLiteral("<h3>%1</h3><p>%2</p>%3<p>%4</p>")
       .arg(Translate("Firmware versions"),
-           Translate("Each release builds the application, the FX3 firmware "
-                     "and the FPGA gateware from one commit. Each reports the "
-                     "commit it came from."),
+           Translate("The FX3 firmware and the FPGA gateware are installed "
+                     "together and come from one commit. The application is "
+                     "released separately and has a version of its own."),
            table, Verdict(versions, commits));
 }
 

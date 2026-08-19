@@ -245,11 +245,12 @@ the file name gets an abbreviation (`Analogue`, not `ANA`).
 | `gateware_register_map` | Which version of the gateware's register interface it implements |
 
 **A capture is the product of three builds, not one**: this application,
-the firmware in the Duplicator's USB chip, and the gateware in its FPGA. A release builds all
-three from one commit, so the ordinary case is three fields that agree — and the reason to
-record them is the case where they do not. When a capture turns out to have something wrong
-with it, the first question is which build produced it, and the gateware in particular is
-where sample loss, decimation and the sequence markers all live.
+the firmware in the Duplicator's USB chip, and the gateware in its FPGA. The firmware and the
+gateware are installed together from one update and come from one commit, so those two
+ordinarily agree; the application releases on its own schedule and has a version of its own.
+Recording all three is what makes the odd case answerable. When a capture turns out to have
+something wrong with it, the first question is which build produced it, and the gateware in
+particular is where sample loss, decimation and the sequence markers all live.
 
 `application_version` is at the top of the document rather than in here, because the
 application is what wrote the document; these two are about the machine on the other end of

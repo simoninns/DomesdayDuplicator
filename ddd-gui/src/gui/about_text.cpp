@@ -13,6 +13,7 @@
 
 #include <QCoreApplication>
 #include <QIcon>
+#include <string>
 
 #include "version.h"
 
@@ -35,11 +36,10 @@ namespace {
 constexpr const char* kProjectUrl =
     "https://github.com/simoninns/DomesdayDuplicator";
 
-QString Version() {
-  const auto version = capture::Version();
-  return QString::fromUtf8(version.data(),
-                           static_cast<qsizetype>(version.size()));
-}
+// The release and the commit together, which is what "Build:" means here: a
+// user reporting a problem needs to say which release they have, and a
+// developer reading the report needs the commit.
+QString Version() { return QString::fromStdString(capture::BuildStamp()); }
 
 }  // namespace
 

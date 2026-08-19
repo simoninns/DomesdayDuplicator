@@ -27,7 +27,7 @@ The lost acknowledgement has one consequence, handled below: SPI gives no signal
 
 ## Versioning
 
-Gateware, FX3 firmware and the capture application from one commit ship as a matched set and are flashed together. Mixed versions are *detectable* — that is what the identity block is for — but they are not supported, and no compatibility shims exist for them.
+Gateware and FX3 firmware from one commit ship as a matched set, in one signed update bundle under one `fw-v*` tag, and are flashed together. Mixed versions of *those two* are detectable — that is what the identity block is for — and are not supported. The capture application is not part of that set: it releases separately under `gui-v*` tags, so its commit has no reason to match the device's and is never compared against it. What holds the host and the device together is the protocol version in `bcdDevice` and the register map version below, both checked against the ranges the running application was built knowing.
 
 ## Physical layer
 

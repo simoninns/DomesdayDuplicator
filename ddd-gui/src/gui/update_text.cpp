@@ -53,18 +53,40 @@ std::vector<UpdateVersionRow> UpdateVersionRows(
 
   // The application, first, and in the list even though this dialog cannot
   // update it: leaving it out would answer two thirds of "am I up to date".
+  //
+  // What it is *not* compared against is the bundle's own version. This row
+  // used to put bundle->version in the "available" column and mark the
+  // application as out of date when its number was lower, which compares a
+  // gui-v* release against a fw-v* one — two independent streams whose numbers
+  // say nothing about each other. An application at 1.2.0 beside a firmware
+  // release at 1.5.0 is not behind; it is a different thing that happens to
+  // count separately. The comparison was harmless only for as long as the
+  // application reported a commit hash and CompareDottedVersions refused to
+  // answer at all.
+  //
+  // The bundle does say one true thing about the application stream, and it is
+  // the one the gate enforces: the oldest application allowed to install it.
+  // That is what belongs here.
   UpdateVersionRow application;
   application.name = Translate("Application");
   application.installed =
       application_version.isEmpty() ? NotReported() : application_version;
-  if (bundle != nullptr && !bundle->version.empty()) {
-    application.available = FromStdString(bundle->version);
-
-    // Compared as dotted versions, because that is the one comparison a
-    // release version supports and a commit does not.
+  if (bundle != nullptr &&
+      !bundle->compatibility.minimum_application_version.empty()) {
     const std::optional<int> ordering = capture::CompareDottedVersions(
-        application_version.toStdString(), bundle->version);
-    application.changes = ordering.has_value() && *ordering < 0;
+        application_version.toStdString(),
+        bundle->compatibility.minimum_application_version);
+
+    // Said only when it is a problem. A bundle that any application may
+    // install has nothing to tell this row, and printing its floor in the
+    // "available" column would read as a version to upgrade to.
+    if (ordering.has_value() && *ordering < 0) {
+      application.available =
+          Translate("%1 or newer needed")
+              .arg(FromStdString(
+                  bundle->compatibility.minimum_application_version));
+      application.changes = true;
+    }
   }
   rows.push_back(application);
 

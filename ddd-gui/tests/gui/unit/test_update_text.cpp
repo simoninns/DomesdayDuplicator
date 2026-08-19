@@ -66,9 +66,59 @@ TEST(UpdateTextTest, ItMarksWhatTheUpdateWouldChange) {
   const std::vector<UpdateVersionRow> rows =
       UpdateVersionRows(QStringLiteral("1.4.0"), MakeDevice(), true, &manifest);
 
-  EXPECT_TRUE(rows[0].changes) << "an older application is not marked";
   EXPECT_TRUE(rows[1].changes) << "different firmware is not marked";
   EXPECT_TRUE(rows[2].changes) << "different gateware is not marked";
+}
+
+// The comparison this row used to make, and must not make again.
+//
+// It put the bundle's own version in the application's "available" column and
+// marked the application as out of date when its number was lower. Those are
+// two independent release streams: an application at 1.4.0 beside a firmware
+// release at 1.5.0 is not behind, it is a different thing that counts
+// separately. The bug was invisible only for as long as the application
+// reported a commit hash, which CompareDottedVersions refused to order at all.
+TEST(UpdateTextTest, TheApplicationIsNotComparedAgainstTheBundlesOwnVersion) {
+  const capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
+  ASSERT_EQ(manifest.version, "1.5.0");
+
+  const std::vector<UpdateVersionRow> rows =
+      UpdateVersionRows(QStringLiteral("1.4.0"), MakeDevice(), true, &manifest);
+
+  EXPECT_FALSE(rows[0].changes)
+      << "an application from another release stream was marked out of date";
+  EXPECT_FALSE(rows[0].available.contains(QStringLiteral("1.5.0")))
+      << "a firmware release number was offered as an application version";
+}
+
+// What the bundle does say about the application stream, and the only thing it
+// says: the oldest application allowed to install it. That is a statement
+// about gui-v* versions and is worth showing, because the gate will refuse the
+// install on it.
+TEST(UpdateTextTest, AnApplicationTooOldForTheBundleIsMarked) {
+  capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
+  manifest.compatibility.minimum_application_version = "2.0.0";
+
+  const std::vector<UpdateVersionRow> rows =
+      UpdateVersionRows(QStringLiteral("1.4.0"), MakeDevice(), true, &manifest);
+
+  EXPECT_TRUE(rows[0].changes)
+      << "an application too old to install is not marked";
+  EXPECT_TRUE(rows[0].available.contains(QStringLiteral("2.0.0")))
+      << rows[0].available.toStdString();
+}
+
+// And a bundle any application may install has nothing to tell that row.
+// Printing its floor there would read as a version to upgrade to.
+TEST(UpdateTextTest, AFloorThisApplicationClearsIsNotMentioned) {
+  capture::UpdateManifest manifest = MakeManifest("89abcdef", "89abcdef");
+  manifest.compatibility.minimum_application_version = "0.0.0";
+
+  const std::vector<UpdateVersionRow> rows =
+      UpdateVersionRows(QStringLiteral("1.4.0"), MakeDevice(), true, &manifest);
+
+  EXPECT_FALSE(rows[0].changes);
+  EXPECT_TRUE(rows[0].available.isEmpty()) << rows[0].available.toStdString();
 }
 
 // An update that would install exactly what is already there is worth

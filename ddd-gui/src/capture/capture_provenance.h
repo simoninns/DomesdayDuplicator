@@ -96,9 +96,11 @@ struct CaptureProvenance {
   std::string application_version;
 
   // The commits the device's two halves were built from, empty where the
-  // device did not say. A release builds all three of these from one commit,
-  // so three fields that agree is the ordinary case and three that do not is
-  // the thing worth being able to see.
+  // device did not say. One update installs both, from one commit, so these
+  // two agreeing is the ordinary case and their differing is the thing worth
+  // being able to see. The application above is not part of that set — it
+  // releases separately — and is recorded because a capture is the product of
+  // all three, not because the three are expected to match.
   std::string firmware_version;
   std::string gateware_version;
 

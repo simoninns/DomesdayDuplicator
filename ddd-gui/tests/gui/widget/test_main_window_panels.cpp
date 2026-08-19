@@ -155,23 +155,18 @@ QMenu* FirmwareMenu(const MainWindow& window) {
                       QStringLiteral("Firmware"));
 }
 
-// A USB product string this build will not warn about.
+// A USB product string a device would report, with a commit in it.
 //
-// The version-mismatch warning is a modal message box raised from the device
-// monitor's report, so a fake device whose firmware this build cannot
-// recognise stops a widget test dead the moment the monitor finds one. Every
-// test below is about the menu rather than about that warning, so the fake is
-// given this build's own commit and the warning has nothing to say.
+// Any commit will do. The application no longer compares the device's build
+// against its own — the two come from separate release streams — so all that
+// is needed is a string naming *a* commit, which keeps the one remaining
+// warning quiet. That warning is a modal message box raised from the device
+// monitor's report, and it would stop these tests dead; they are about the
+// menu, not about it.
 //
-// A build that cannot name its own commit — one made outside a checkout — is
-// safe either way: the check refuses to judge a firmware when it cannot say
-// what it would be judging it against.
-std::string UnremarkableProductString() {
-  const std::optional<std::string> commit =
-      capture::NormaliseCommit(capture::Version());
-  return "Domesday Duplicator (" + commit.value_or(std::string("unknown")) +
-         ")";
-}
+// This used to have to be built from the application's own commit, back when
+// the two were compared. That it no longer does is the change working.
+std::string DeviceProductString() { return "Domesday Duplicator (a1b2c3d4)"; }
 
 // Each test gets a settings file of its own, named after the test, so none can
 // touch the developer's real settings and no two can touch each other's.
@@ -898,7 +893,7 @@ TEST_F(MainWindowTest, TheFirmwareEntriesGoAwayWhileACaptureIsRunning) {
   EXPECT_TRUE(bringup->isEnabled());
 
   device.SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
-                         UnremarkableProductString());
+                         DeviceProductString());
   controller.Start();
   ASSERT_TRUE(PumpUntil([&] { return !controller.devices().empty(); }));
 
@@ -936,7 +931,7 @@ TEST_F(MainWindowTest, OpeningTheBringUpWizardPutsMonitoringDownAndBackUp) {
   MainWindow window(&theme_controller_, &logger_, &controller);
 
   device.SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
-                         UnremarkableProductString());
+                         DeviceProductString());
   controller.Start();
   ASSERT_TRUE(PumpUntil([&] { return !controller.devices().empty(); }));
 
@@ -968,7 +963,7 @@ TEST_F(MainWindowTest, MonitoringIsNotPickedUpAgainWithNoDeviceToOpen) {
   MainWindow window(&theme_controller_, &logger_, &controller);
 
   device.SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
-                         UnremarkableProductString());
+                         DeviceProductString());
   controller.Start();
   ASSERT_TRUE(PumpUntil([&] { return !controller.devices().empty(); }));
 

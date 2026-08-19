@@ -40,11 +40,20 @@ if(NOT FIRMWARE_VERSION)
     set(FIRMWARE_VERSION "unknown")
 endif()
 
-message(STATUS "Firmware version: ${FIRMWARE_VERSION}")
+# The release this firmware belongs to, where it belongs to one. Only the release
+# workflow building from an fw-v* tag knows it, and it passes it in; every other build
+# leaves it empty and the product string keeps the shape it has always had. There is
+# deliberately no fallback: nothing else can work out which release a tree is going to
+# become, and a guess would put a number in a USB descriptor that no release carries.
+if(NOT DEFINED FIRMWARE_RELEASE_VERSION)
+    set(FIRMWARE_RELEASE_VERSION "")
+endif()
+
+message(STATUS "Firmware version: ${FIRMWARE_VERSION}, release '${FIRMWARE_RELEASE_VERSION}'")
 
 # Generate USB descriptor with embedded git commit at build time
 execute_process(
-    COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/generate-descriptor.sh" "${CMAKE_CURRENT_BINARY_DIR}" "${FIRMWARE_VERSION}"
+    COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/generate-descriptor.sh" "${CMAKE_CURRENT_BINARY_DIR}" "${FIRMWARE_VERSION}" "${FIRMWARE_RELEASE_VERSION}"
     OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/generated_descriptor_data.h"
     RESULT_VARIABLE desc_result
 )

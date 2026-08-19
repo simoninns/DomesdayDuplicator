@@ -85,11 +85,13 @@ later travel with it rather than in somebody's notes:
 | `DDD_TEST_MODE` | Whether this is signal or a test ramp |
 | `DDD_FRONT_END_GAIN` | The declared SW401 position — **only when one was actually declared** |
 
-**Three versions rather than one**, because a capture is the product of three things built
-from one commit: this application, the firmware in the Duplicator's USB chip, and the
-gateware in its FPGA. In a release they agree, so what these are for is the case where they
-do not — a device that was never updated, or a gateware built on the bench. When a capture
-turns out to have something wrong with it, "which build wrote this" is the first question,
+**Three versions rather than one**, because a capture is the product of three builds: this
+application, the firmware in the Duplicator's USB chip, and the gateware in its FPGA. The
+firmware and the gateware are installed together from one update and come from one commit,
+so those two agree unless something went wrong — a half-finished update, or a gateware
+built on the bench. The application is released separately and is not expected to match
+either of them. When a capture turns out to have something wrong with it, "which build
+wrote this" is the first question,
 and the gateware is where sample loss, decimation and the sequence markers all live.
 
 A version that is absent means the device did not say: firmware old enough to predate the

@@ -178,6 +178,11 @@ jobs:
       # this reason (ddd-gui/src/capture/firmware_version.h), so a seven-character identity
       # in the manifest matches an eight-character one on a device and the other way round
       # — hence a prefix match on the descriptor rather than an equality test.
+      #
+      # The grep is anchored on the name and a space rather than on the opening bracket,
+      # because a firmware built from a tag names its release before the bracket:
+      # "Domesday Duplicator 1.5.0 (0123abc)". The commit stays in brackets at the end of
+      # both forms, so the checks below read either.
       - name: Check the firmware carries the commit
         shell: bash
         run: |
@@ -185,7 +190,7 @@ jobs:
           SHORT_SHA="${GITHUB_SHA:0:7}"
           IMG=$(ls release-artifacts/*.img | head -1)
 
-          DESCRIPTOR=$(strings -e l "${IMG}" | grep -m1 '^Domesday Duplicator (' || true)
+          DESCRIPTOR=$(strings -e l "${IMG}" | grep -m1 '^Domesday Duplicator ' || true)
           if [[ -z "${DESCRIPTOR}" ]]; then
             echo "The firmware image carries no USB product descriptor at all — the" >&2
             echo "descriptor generation, not just the version stamping, has failed" >&2

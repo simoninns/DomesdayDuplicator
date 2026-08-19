@@ -50,7 +50,17 @@ jobs:
             version="git-${GITHUB_SHA:0:8}"
           fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
-          echo "ddd_version=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
+          # Two stamps now, because the application reports two things and they
+          # answer different questions (ddd-gui/src/capture/version.h). The
+          # release version is only known on a tag — nothing else is a numbered
+          # release, and guessing would put a number on a binary no release
+          # carries. The commit is always known.
+          if [[ "${GITHUB_REF}" == refs/tags/gui-v* ]]; then
+            echo "ddd_version=${GITHUB_REF_NAME#gui-v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ddd_version=unknown" >> "$GITHUB_OUTPUT"
+          fi
+          echo "ddd_commit=${GITHUB_SHA:0:8}" >> "$GITHUB_OUTPUT"
 
       - name: Install flatpak-builder
         shell: bash
@@ -106,7 +116,9 @@ jobs:
           set -euo pipefail
           MANIFEST=ddd-gui/packaging/flatpak/io.github.simoninns.DddGui.yml
           sed -i "s/@DDD_VERSION@/${{ steps.version.outputs.ddd_version }}/" "${MANIFEST}"
+          sed -i "s/@DDD_COMMIT@/${{ steps.version.outputs.ddd_commit }}/" "${MANIFEST}"
           grep -q "@DDD_VERSION@" "${MANIFEST}" && { echo "version placeholder not substituted" >&2; exit 1; }
+          grep -q "@DDD_COMMIT@" "${MANIFEST}" && { echo "commit placeholder not substituted" >&2; exit 1; }
 
           # The update bundle, if one was fetched. The path is the one the file has
           # *inside* the sandbox: the module's source is the repository root, mounted at
