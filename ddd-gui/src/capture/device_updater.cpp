@@ -73,10 +73,13 @@ uint32_t TargetFlags(UpdateTarget target) {
 // to hardware; the tests supply their own.
 class UsbDeviceUpdater : public IDeviceUpdater {
  public:
-  UsbDeviceUpdater(IUsbDevice& usb, std::string path,
-                   std::unique_ptr<IUsbControlChannel> channel, ILogger* logger)
+  UsbDeviceUpdater(IUsbDevice& usb, std::string path, DeviceInfo enumerated,
+                   std::unique_ptr<IUsbControlChannel> channel, ILogger* logger,
+                   bool enumerated_known)
       : usb_(usb),
         path_(std::move(path)),
+        enumerated_(std::move(enumerated)),
+        enumerated_known_(enumerated_known),
         channel_(std::move(channel)),
         logger_(logger) {}
 
@@ -87,26 +90,33 @@ class UsbDeviceUpdater : public IDeviceUpdater {
     if (channel_ == nullptr) {
       return std::nullopt;
     }
+    if (!enumerated_known_) {
+      return std::nullopt;
+    }
 
     DeviceIdentity identity;
 
     // The product string and the protocol version come from enumeration
     // rather than from a request, because that is where they live: one is a
     // string descriptor and the other is a field of the device descriptor.
-    std::vector<DeviceInfo> devices;
-    if (!usb_.Enumerate(devices)) {
-      return std::nullopt;
-    }
-
-    const auto found = std::find_if(
-        devices.begin(), devices.end(),
-        [this](const DeviceInfo& info) { return info.path == path_; });
-    if (found == devices.end()) {
-      return std::nullopt;
-    }
-
-    identity.product_string = found->product_string;
-    identity.protocol_version = found->protocol_version;
+    //
+    // **From an enumeration made while this object had no channel open**, and
+    // that is the whole reason they are carried rather than read here. On the
+    // WinUSB backend, listing devices means opening each one — there is no
+    // descriptor without a handle — so enumerating from inside a method that
+    // holds the device open makes this process ask Windows for a second
+    // handle to a device it already has. What comes back is not an error
+    // anybody sees: the device is skipped, the list does not contain it, and
+    // this returned nothing at all — which read as a board that had not been
+    // programmed rather than as a read that could not be made. The libusb
+    // backend reads descriptors without opening anything, so the same code
+    // was correct on Linux and macOS and wrong on Windows.
+    //
+    // Refreshed by WaitForReturn, which is the one place the device's
+    // descriptors can change underneath this object, and which enumerates
+    // before it reopens the channel.
+    identity.product_string = enumerated_.product_string;
+    identity.protocol_version = enumerated_.protocol_version;
 
     // The gateware's identity block is read through this channel rather than
     // through IUsbDevice::ReadRegisters, which would open and close the
@@ -267,6 +277,14 @@ class UsbDeviceUpdater : public IDeviceUpdater {
         continue;
       }
 
+      // Taken now, before anything is opened. The device that came back is
+      // running different firmware from the one that went away, so its
+      // descriptors are the ones this enumeration just read and not the ones
+      // this object was built with — and here is the only moment they can be
+      // read without a handle of ours in the way. See ReadIdentity.
+      enumerated_ = *found;
+      enumerated_known_ = true;
+
       // Present is not the same as ready: on Linux the device node appears
       // before the permissions are settled, so the channel is reopened and
       // only a device that answers counts as back.
@@ -294,6 +312,11 @@ class UsbDeviceUpdater : public IDeviceUpdater {
  private:
   IUsbDevice& usb_;
   std::string path_;
+
+  // What the bus said about this device when nothing of ours had it open.
+  DeviceInfo enumerated_;
+  bool enumerated_known_ = false;
+
   std::unique_ptr<IUsbControlChannel> channel_;
   ILogger* logger_ = nullptr;
   std::vector<uint8_t> chunk_;
@@ -413,6 +436,23 @@ std::optional<DeviceUpdateStatus> ParseDeviceUpdateStatus(
 std::unique_ptr<IDeviceUpdater> MakeDeviceUpdater(IUsbDevice& usb,
                                                   const std::string& path,
                                                   ILogger* logger) {
+  // Before the channel, deliberately. Everything the updater reports that
+  // comes from a descriptor rather than from a request is read here, while
+  // nothing of ours holds the device — which on Windows is the only time it
+  // can be read at all. See UsbDeviceUpdater::ReadIdentity.
+  DeviceInfo enumerated;
+  bool found_it = false;
+  std::vector<DeviceInfo> devices;
+  if (usb.Enumerate(devices)) {
+    const auto found = std::find_if(
+        devices.begin(), devices.end(),
+        [&path](const DeviceInfo& info) { return info.path == path; });
+    if (found != devices.end()) {
+      enumerated = *found;
+      found_it = true;
+    }
+  }
+
   std::unique_ptr<IUsbControlChannel> channel = usb.OpenControlChannel(path);
   if (channel == nullptr) {
     if (logger != nullptr) {
@@ -421,8 +461,8 @@ std::unique_ptr<IDeviceUpdater> MakeDeviceUpdater(IUsbDevice& usb,
     return nullptr;
   }
 
-  return std::make_unique<UsbDeviceUpdater>(usb, path, std::move(channel),
-                                            logger);
+  return std::make_unique<UsbDeviceUpdater>(
+      usb, path, std::move(enumerated), std::move(channel), logger, found_it);
 }
 
 }  // namespace ddd::capture
