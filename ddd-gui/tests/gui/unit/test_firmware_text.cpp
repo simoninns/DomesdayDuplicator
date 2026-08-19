@@ -202,6 +202,11 @@ TEST(FirmwareTextTest, ADeviceInRecoveryIsExplainedRatherThanDiagnosed) {
       << "the FPGA was blamed for not answering a question nothing asked it";
   EXPECT_FALSE(text.contains(QStringLiteral("not all built from the same")))
       << "a device with nothing installed was accused of a version mismatch";
+
+  EXPECT_TRUE(text.contains(QStringLiteral("Bring up a new or legacy board")))
+      << "a device whose FPGA nothing can reach was sent to the one window "
+         "that cannot program it: "
+      << text.toStdString();
 }
 
 // A working device with nothing to compare, which is a different sentence

@@ -1,4 +1,11 @@
-# Device permissions for the Domesday Duplicator and the Cypress FX3 it is built around.
+# Device permissions for the Domesday Duplicator: the Cypress FX3 it is built around, and the
+# Altera USB-Blaster that programs its FPGA.
+#
+# This is the whole ruleset. Install it and every device the project ever asks you to plug in
+# is reachable without root — including the ones that only appear when something has gone
+# wrong. Splitting the USB-Blaster off into a file a capture-only install has no reason to
+# fetch would mean recovering a board over JTAG began with diagnosing a permissions failure,
+# and two files matching the same device are much harder to debug than one.
 #
 # Originally from Cypress Semiconductor / ATR-LABS (rules by V. Radhakrishnan, rk@atr-labs.com),
 # rewritten for this project. Two changes from the Cypress original:
@@ -55,3 +62,34 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="04b4", ATTRS{idProduct}=="0007", MODE="0666"
 # The VID/PID pair is set in fx3/firmware/src/usb-descriptor.c and in
 # ddd-gui/src/capture/wire_protocol.h; all three must agree.
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="1209", ATTR{idProduct}=="2347", MODE="0666", TAG+="uaccess", TAG+="ddd_dev"
+
+# ---------------------------------------------------------------------------------------
+# Altera USB-Blaster — the JTAG cable that programs the FPGA.
+#
+# The DE0-NANO carries an on-board USB-Blaster, so on that board this is not an extra cable
+# to buy: it enumerates as 09fb:6001 on the same USB connector used to power the board.
+#
+# Neither Altera's own installer nor nixpkgs' quartus-prime-lite ships any udev rules
+# (checked), so without these lines the device node is root-only and both of the tools that
+# touch JTAG fail the same way:
+#
+#     $ jtagconfig
+#     1) USB-Blaster variant [7-3.2]
+#       Unable to lock chain - Insufficient port permissions
+#
+# These rules are here rather than in an FPGA-only file because JTAG is the recovery path.
+# A machine that has only ever captured is exactly the machine that needs the cable to work
+# first time, on the day the gateware has to be rewritten.
+# ---------------------------------------------------------------------------------------
+
+# USB-Blaster. 6001 is the original, and is what the DE0-NANO has on board; 6002 and 6003
+# are the later revisions Altera shipped under the same driver.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="09fb", ATTR{idProduct}=="6001", MODE="0666", TAG+="uaccess", TAG+="usb_blaster"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="09fb", ATTR{idProduct}=="6002", MODE="0666", TAG+="uaccess", TAG+="usb_blaster"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="09fb", ATTR{idProduct}=="6003", MODE="0666", TAG+="uaccess", TAG+="usb_blaster"
+
+# USB-Blaster II. Not used by the DE0-NANO, but a standalone cable is the usual way to
+# program a board with no on-board blaster, and leaving it out is a confusing failure for
+# anyone who has one.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="09fb", ATTR{idProduct}=="6010", MODE="0666", TAG+="uaccess", TAG+="usb_blaster"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="09fb", ATTR{idProduct}=="6810", MODE="0666", TAG+="uaccess", TAG+="usb_blaster"

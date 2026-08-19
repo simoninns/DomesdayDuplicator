@@ -6,7 +6,7 @@ Programming a Domesday Duplicator from nothing to fully up to date: the FX3's fi
 
 **It does not matter what the board is running now.** A newly built unit whose FX3 has never been programmed and whose DE0-Nano still holds whatever Terasic shipped on it; a unit running the original Duplicator firmware from before this application existed; a unit that already works; a unit left half-programmed by a run of this that was stopped. This asks for the same things and does the same work in every case, and running it twice is harmless.
 
-The reason is one physical fact: **fitting jumper J4 puts the FX3 into its boot ROM whatever it was doing**, and a JTAG configuration replaces whatever the FPGA is running whatever its flash holds. So nothing here has to diagnose your board, and nothing branches on what it finds. The one exception is a courtesy: a board already sitting in its boot ROM skips the two jumper pages.
+The reason is one physical fact: **fitting jumper J4 puts the FX3 into its boot ROM whatever it was doing**, and a JTAG configuration replaces whatever the FPGA is running whatever its flash holds. So nothing here has to diagnose your board, and nothing branches on what it finds — every board goes through the same nine pages, including one that is already sitting in its boot ROM.
 
 If your board already answers this application and you only want the current release on it, **Tools ▸ Firmware ▸ Update firmware…** does that with no cables moved and no case opened. That is [updating](updating-your-domesday-duplicator.md), and it is what you want nearly every time.
 
@@ -22,10 +22,10 @@ You will need:
 | --- | --- |
 | The kit's **USB 3.0 cable** | The one you normally capture through |
 | The DE0-Nano's **mini-USB cable** | A cable that carries **data**. A charge-only cable is the commonest thing that goes wrong here, and the board lights up either way |
-| A **jumper** (shunt) | Only if the board is running firmware already. A newly built kit is already waiting where the wizard needs it |
+| A **jumper** (shunt) | Always, whatever the board is running. A newly built kit already reports the boot ROM the wizard needs, but it does so because its EEPROM is empty — take the jumper away and it leaves again at the first restart |
 | An **update file** | Usually nothing to do: an installed copy of this application already carries one. See *The update file* below |
 
-Both cables stay connected for the whole procedure. Allow about five minutes, most of it watching the three images being written and checked.
+Both cables stay connected for the whole procedure, and the mini-USB comes off at the very end, when the case goes back on. Allow about five minutes, most of it watching the three images being written and checked.
 
 ## The one thing that catches people
 
@@ -96,7 +96,7 @@ What the FX3 row can say:
 
 | Row says | Meaning | Mark |
 | --- | --- | --- |
-| *Waiting in its boot ROM* | A newly built kit. No jumper needed; the wizard skips those pages | Green |
+| *Waiting in its boot ROM* | A newly built kit, whose EEPROM is empty. **The jumper is still needed**, and step 4 still asks for it: an empty board comes up in its boot ROM whether or not one is fitted | Amber |
 | *Running this application's own firmware (commit)* | A board that already works. **You probably want [Update firmware](updating-your-domesday-duplicator.md) instead.** Carrying on is safe and reprograms everything | Amber |
 | *Running the **original** Duplicator firmware … 1d50:603b* | The firmware from before this application existed | Amber |
 | *The kit's debug serial port is answering* | The board has power and its USB 3.0 link is not answering. Check that cable and that it is in a USB 3.0 socket | Red |
@@ -107,10 +107,10 @@ And the FPGA row:
 | Row says | Meaning | Mark |
 | --- | --- | --- |
 | *Found and opened* | The USB-Blaster is reachable | Green |
-| *Nothing found* | Nearly always a charge-only cable. On Linux, check `70-altera-usb-blaster.rules` is installed — see [Linux device access](../development/hardware-programming/linux-device-access.md) | Red |
+| *Nothing found* | Nearly always a charge-only cable. On Linux, check `70-domesday-duplicator.rules` is installed — see [Linux device access](../development/hardware-programming/linux-device-access.md) | Red |
 | *attached but could not be opened* | Something else has it. Quartus's own `jtagd` holds the cable open whenever it is running; on Windows it is the driver binding | Red |
 
-**Bring-up needs both device rules files installed on Linux** — the Duplicator's and the USB-Blaster's.
+**Bring-up needs the device rules installed on Linux.** One file, `70-domesday-duplicator.rules`, covers both the Duplicator and the USB-Blaster.
 
 ### 3 · The update file
 
@@ -120,19 +120,21 @@ If your copy carries none, this is the one page that needs something from elsewh
 
 ### 4 · Fit jumper J4
 
-Skipped for a board already in its boot ROM.
-
 Three numbered instructions: fit the jumper across the FX3 board's two-pin `PMODE` header, unplug both cables, plug both back in. A photograph shows exactly which header. The jumper only takes effect on a boot, and the unit does not boot while either cable still feeds it — which is why all three steps are needed and why doing only the first looks exactly like success.
 
-The page waits for the board to come back in its boot ROM, and says so until it does.
+**Fit it even if step 2 reported the FX3 as already waiting in its boot ROM.** That is the state a newly built kit arrives in, and it arrives there because its EEPROM is empty rather than because anything is holding it there. Without the jumper it leaves the boot ROM again at the first restart — part way through step 6, which is where the bring-up fails with nothing obvious to point at. Nothing in software can see a jumper, so the wizard cannot tell the two cases apart and does not try to.
 
-This is the page that makes your board's previous state irrelevant, and it is the only page that cares what that state was.
+The page waits for the board to **go away and come back in its boot ROM**, and says so until it does. Going away is the half it can actually see, and it is what proves both cables came out.
+
+This is the page that makes your board's previous state irrelevant.
 
 ### 5 · Load the gateware into the FPGA
 
 Press **Load the gateware**. It plays the gateware into the FPGA through the DE0-Nano's own USB-Blaster — the only route to a board whose flash holds nothing this application can talk to. About three seconds.
 
 **Nothing is written to the board by this step.** A JTAG configuration lives in the FPGA's own memory and would be lost the moment the power went off. What it buys is the next page: a Duplicator that can reach its own flash, so that everything after this is written by the device itself over the USB 3.0 cable.
+
+Because nothing is written, an attempt that does not take can simply be made again — and the page does that for you, once, before reporting anything. Nearly six million bits go down a bit-banged cable, the check at the end of the file exists to catch a configuration that did not arrive intact, and the answer to one that it catches is another three seconds rather than a message. If you see the bar go back to the beginning, that is what happened, and the page says so while it runs. A second failure is reported, with the line of the file it stopped at.
 
 The FX3 is sitting in its boot ROM while this happens, with every shared pin idle. That is why this comes before the firmware rather than after it — see *Why this order* below.
 
@@ -175,6 +177,8 @@ That second check catches the failure this page has always warned about. Pulling
 | **The board has come back in its boot ROM** | Jumper J4 is still fitted. Go back a page and take it off |
 | **✓ All done** | It restarted and is running from its own flash |
 
+**Both go back in, even though the USB 3.0 cable alone would boot the board.** It would: with both cables out the unit is dead, so the USB 3.0 cable on its own is a real cold start, and nothing on this page or the next one is read over the mini-USB. It goes back in so that the instruction is the same one every time — the half people get wrong is the *unplug* half — and so that the USB-Blaster is still there if this page sends you back a step. The mini-USB comes off at the end of step 9, when the case goes back on.
+
 ### 9 · What the device is running now
 
 Four things, read off the device rather than assumed:
@@ -186,7 +190,7 @@ Four things, read off the device rather than assumed:
 
 That last one is what separates a finished board from one that is most of the way there. A board that comes back on its factory image works and is not damaged, but it cannot capture — and the page says so rather than reporting success.
 
-Then: **put the case back on and click Close.** From now on this board updates itself.
+Then: **unplug the DE0-Nano's mini-USB cable, put the case back on and click Close.** The mini-USB was only ever the way in to a board that could not yet be reached over USB 3.0, and nothing from step 6 onwards uses it; the kit's USB 3.0 cable stays where it is, because that is the one you capture through. From now on this board updates itself.
 
 ## Why this order
 

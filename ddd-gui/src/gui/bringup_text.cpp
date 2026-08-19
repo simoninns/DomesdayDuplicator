@@ -110,15 +110,17 @@ QString BringUpOverviewText() {
       "connector cannot be reached with the case on;</li>"
       "<li><b>both cables connected</b>, the kit's USB 3.0 cable and the "
       "DE0-Nano's mini-USB, and left connected throughout;</li>"
-      "<li>a <b>jumper</b> for the FX3's two-pin PMODE header, unless the "
-      "board has never been programmed;</li>"
+      "<li>a <b>jumper</b> for the FX3's two-pin PMODE header — needed "
+      "whatever the board is running, including one that has never been "
+      "programmed;</li>"
       "<li>an <b>update file</b> — this application normally carries one, and "
       "step 3 says so if it does not.</li>"
       "</ul>"
 
       "<p><b>You will be asked to:</b> fit a jumper, unplug both cables and "
-      "reconnect them, press two buttons, remove the jumper, and unplug both "
-      "cables once more. Nothing physical is asked for twice.</p>"
+      "reconnect them, press two buttons, remove the jumper, unplug both "
+      "cables and reconnect them once more, and take the mini-USB off at the "
+      "end. Nothing physical is asked for twice.</p>"
 
       "<p><b>It does not matter what the board is running now</b>, and running "
       "this twice is harmless.</p>");
@@ -211,10 +213,18 @@ BringUpStatusRow BringUpFx3Row(const std::optional<capture::DeviceInfo>& fx3,
 
     switch (fx3->personality) {
       case capture::DevicePersonality::kRecovery:
-        row.state = BringUpRowState::kReady;
+        // Amber rather than green, and the sentence says why. A board sitting
+        // in its boot ROM looks like a board with nothing left to arrange, and
+        // it is the one board where that reading does most harm: an FX3 whose
+        // EEPROM has never been written comes up here jumper or no jumper, and
+        // leaves again at the first restart if there is no jumper holding it.
+        row.state = BringUpRowState::kWaiting;
         row.detail = Translate(
-            "Waiting in its boot ROM, which is where this needs it. Nothing "
-            "has to be done to the jumper.");
+            "Waiting in its boot ROM, which is where this needs it — most "
+            "likely a newly built kit, whose EEPROM is empty. The jumper is "
+            "still asked for further on: an empty board comes up here whether "
+            "or not one is fitted, and without it the board would leave the "
+            "boot ROM part way through the programming.");
         return row;
 
       case capture::DevicePersonality::kApplication:
@@ -309,9 +319,9 @@ BringUpStatusRow BringUpFpgaRow(bool opened, capture::UsbPresence presence,
             ? Translate(
                   "A USB-Blaster is attached but could not be opened. On Linux "
                   "this is the udev rules "
-                  "(fpga/configs/70-altera-usb-blaster.rules); on Windows it "
-                  "is the driver binding. Quartus's own jtagd holds the cable "
-                  "open whenever it is running.")
+                  "(fx3/programmer/configs/70-domesday-duplicator.rules); on "
+                  "Windows it is the driver binding. Quartus's own jtagd holds "
+                  "the cable open whenever it is running.")
             : problem;
     return row;
   }
@@ -336,7 +346,14 @@ BringUpStatusRow BringUpFpgaRow(bool opened, capture::UsbPresence presence,
 QString BringUpFitJumperText() {
   return Translate(
              "<p><b>1. Fit jumper J4</b> on the FX3 board — the two-pin "
-             "<tt>PMODE</tt> header shown below.</p>"
+             "<tt>PMODE</tt> header shown below. <b>Fit it even if the "
+             "FX3 has already been reported as waiting in its boot "
+             "ROM.</b> A board whose EEPROM has never been written "
+             "comes up there with or without the jumper — and one "
+             "that got there without it leaves again at the first "
+             "restart, part way through the writing, which is where "
+             "the bring-up fails. The jumper is what makes the boot "
+             "ROM the place the board comes back to every time.</p>"
 
              "<p><b>2. </b>") +
          BothCables() + QStringLiteral("</p>") +
@@ -643,10 +660,14 @@ QString BringUpCompleteText() {
       "firmware and gateware from the file you chose, and it is ready to "
       "capture. There is nothing else to do.</p>"
 
-      "<p><b>Put the case back on and click Close.</b> Nothing after this "
-      "point is physical, and from now on this board updates itself: "
-      "<b>Tools ▸ Firmware ▸ Update firmware…</b>, with no cables moved and no "
-      "case opened.</p>");
+      "<p><b>Unplug the DE0-Nano's mini-USB cable, put the case back on and "
+      "click Close.</b> The mini-USB was only ever the way in to a board that "
+      "could not yet be reached over USB 3.0, and nothing from here on uses "
+      "it. Leave the kit's USB 3.0 cable where it is — that is the one you "
+      "capture through.</p>"
+
+      "<p>From now on this board updates itself: <b>Tools ▸ Firmware ▸ "
+      "Update firmware…</b>, with no cables moved and no case opened.</p>");
 }
 
 QString BringUpIncompleteText() {

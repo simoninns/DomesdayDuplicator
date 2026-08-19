@@ -123,6 +123,71 @@ TEST_F(SvfPlayerTest, AnAnswerThatDiffersStopsTheRunAndSaysWhere) {
   EXPECT_NE(result.problem.find('B'), std::string::npos) << result.problem;
 }
 
+// The failure message has to show the bit it names.
+//
+// This is a regression: the message used to print the most significant 32
+// digits of both values and stop, so a wide scan reported a window that could
+// not contain the bit that disagreed. On the bench (2026-08-19) that produced
+// "at bit 286" beside 128 bits taken from the far end of a 732-bit scan —
+// true, and impossible to do anything with.
+TEST_F(SvfPlayerTest, AWideScanShowsTheBitsAroundTheOneThatDisagreed) {
+  std::vector<bool> answers(732, false);
+  answers[286] = true;
+  cable_.AnswerWith(answers);
+
+  const SvfPlayResult result = Play("SDR 732 TDI (0) TDO (0);");
+
+  ASSERT_FALSE(result.succeeded);
+  EXPECT_NE(result.problem.find("at bit 286 of a 732-bit scan"),
+            std::string::npos)
+      << result.problem;
+
+  // The window is named, so the two values can be lined up against the bit
+  // number rather than guessed at.
+  EXPECT_NE(result.problem.find("across bits 347 to 220"), std::string::npos)
+      << result.problem;
+
+  // And the bit is in it: bit 286 is the middle bit of nibble 71, which is
+  // sixteenth from the top of the window, with the elisions either side
+  // saying that there is more of the value than is shown.
+  EXPECT_NE(result.problem.find("…00000000000000040000000000000000…"),
+            std::string::npos)
+      << result.problem;
+}
+
+// A value that fits in the window is shown whole, with nothing elided.
+TEST_F(SvfPlayerTest, ANarrowScanIsShownEndToEnd) {
+  cable_.AnswerWithHex("B", 4);
+
+  const SvfPlayResult result = Play("SDR 4 TDI (0) TDO (A);");
+
+  ASSERT_FALSE(result.succeeded);
+  EXPECT_EQ(result.problem.find("…"), std::string::npos) << result.problem;
+  EXPECT_NE(result.problem.find("it said B where A was expected"),
+            std::string::npos)
+      << result.problem;
+}
+
+// Which statement it was in, so that a report of a failure can be looked up
+// in the file that produced it without counting lines by hand.
+TEST_F(SvfPlayerTest, AFailureNamesTheKindOfStatementItWasIn) {
+  cable_.AnswerWithHex("B", 4);
+
+  const SvfPlayResult result = Play("SDR 4 TDI (0) TDO (A);");
+
+  ASSERT_FALSE(result.succeeded);
+  EXPECT_EQ(result.statement_keyword, "SDR");
+}
+
+// And not the last statement that ran, when the failure is in reading the
+// next one rather than in playing it.
+TEST_F(SvfPlayerTest, AFailureBetweenStatementsNamesNoStatement) {
+  const SvfPlayResult result = Play("STATE IDLE; SDR 4 TDI (0)");
+
+  ASSERT_FALSE(result.succeeded);
+  EXPECT_TRUE(result.statement_keyword.empty()) << result.statement_keyword;
+}
+
 TEST_F(SvfPlayerTest, MaskedBitsAreNotCompared) {
   cable_.AnswerWithHex("B", 4);
 

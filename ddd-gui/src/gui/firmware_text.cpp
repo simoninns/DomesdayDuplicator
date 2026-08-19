@@ -168,8 +168,12 @@ QString Verdict(const FirmwareVersions& versions, const Commits& commits) {
     return Translate(
         "This device is in recovery mode: its firmware is missing, so it "
         "reports no versions and cannot capture. It is not damaged — either "
-        "it has never been programmed, or an update did not finish. The "
-        "Update tab will program it.");
+        "it has never been programmed, or an update did not finish. Which of "
+        "the two cannot be told from here, and it decides what programs it: "
+        "the Update tab repairs a board that was working before, while a "
+        "board that has never been programmed needs its FPGA configured "
+        "through a JTAG cable first — Tools ▸ Firmware ▸ Bring up a new or "
+        "legacy board… does both halves and is correct either way.");
   }
   // Working hardware, and said so: what is missing is not firmware but the
   // mechanism this dialog is built on, so there is nothing here to repair and

@@ -16,6 +16,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "device_recovery.h"
 #include "jtag_cable.h"
@@ -97,6 +98,11 @@ struct BringUpConfigureOutcome {
 
   // What the player counted, for the log and for TESTING.md's bench records.
   SvfPlayResult play;
+
+  // How many times the file was played. More than one means an attempt
+  // failed and was made again — see ConfigureFpga for why that is allowed
+  // here and nowhere else.
+  int attempts = 0;
 };
 
 // Roughly how long playing this many bytes of SVF will take, in seconds.
@@ -165,6 +171,13 @@ class BringUpOrchestrator {
 
  private:
   BringUpConfigureOutcome ConfigureFailure(std::string problem) const;
+
+  // One attempt at the vectors: open the cable, play the file, close it
+  // again. ConfigureFpga decides how many of these there are, and needs to
+  // know whether the cable opened at all to decide whether a second is worth
+  // anything.
+  BringUpConfigureOutcome PlayVectors(std::string_view text, int attempt,
+                                      bool& cable_opened);
 
   BringUpAccess access_;
   ILogger* logger_ = nullptr;

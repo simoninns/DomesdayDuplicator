@@ -66,11 +66,13 @@ class BringUpWorker;
 // two outputs on one wire. What this class owes it is the page order, and
 // there is a widget test that asserts exactly that.
 //
-// **Nothing here diagnoses the board.** Fitting the jumper reaches the FX3's
-// boot ROM from any state whatever, so the flow is the same for a bare kit, a
-// legacy unit, a current one, and one left half-programmed by a run somebody
-// stopped. The one conditional is a courtesy: a board already in its boot ROM
-// skips the two jumper pages.
+// **Nothing here diagnoses the board, and nothing branches on what it finds.**
+// Fitting the jumper reaches the FX3's boot ROM from any state whatever, so the
+// flow is the same for a bare kit, a legacy unit, a current one, and one left
+// half-programmed by a run somebody stopped. There is no longer any exception:
+// the jumper pages used to be skipped for a board already in its boot ROM, and
+// that was wrong for a freshly built kit, which arrives there on an empty
+// EEPROM whether or not a jumper is fitted.
 //
 // **Every page tells the user where it has got to, in the same two shapes.**
 // A page that is not finished says what it is waiting for; a page that is
@@ -157,11 +159,6 @@ class BoardBringUpWizard : public QDialog {
 
   BringUpPage page() const { return page_; }
   bool busy() const { return worker_ != nullptr; }
-
-  // Whether this run has to send the user to the jumper. False for a board
-  // already waiting in its boot ROM, which is what a freshly soldered kit
-  // does — the two jumper pages are then not in the flow at all.
-  bool jumper_needed() const { return jumper_needed_; }
 
   // The pages this run will visit, in order. The property a hardware-safety
   // rule deserves stated as data rather than inferred from a sequence of
@@ -280,7 +277,7 @@ class BoardBringUpWizard : public QDialog {
   // Whether the page in hand has finished what it is for.
   bool PageIsSatisfied(BringUpPage page) const;
 
-  // The next and previous pages this run visits, honouring the jumper skip.
+  // The next and previous pages, which are all nine of them in order.
   std::optional<BringUpPage> After(BringUpPage page) const;
   std::optional<BringUpPage> Before(BringUpPage page) const;
 
@@ -357,10 +354,15 @@ class BoardBringUpWizard : public QDialog {
 
   BringUpPage page_ = BringUpPage::kOverview;
 
-  // Decided once, on the way out of the connectivity page: a board already in
-  // its boot ROM needs no jumper, and asking for one would be asking somebody
-  // to fit a jumper so that the wizard could ask them to take it off again.
-  bool jumper_needed_ = true;
+  // Whether the board has been seen to leave the bus while the jumper page
+  // was in front of somebody. That is the whole of what this window can know
+  // about a jumper: the part it can see is the restart, and a board that has
+  // restarted into its boot ROM is a board with the jumper fitted.
+  //
+  // Without it the jumper page is satisfied the instant it opens for the one
+  // board that most needs it — a new kit, in its boot ROM because its EEPROM
+  // is empty rather than because anybody fitted anything.
+  bool jumper_restart_seen_ = false;
 
   // The chosen update file: the bytes, so the worker can verify them again
   // rather than trusting this window's verification, and the manifest, for

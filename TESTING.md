@@ -225,7 +225,7 @@ LaserDisc player protocol.
 | `tests/gui/unit/test_capture_faults.cpp` | Fault injection through the controller: each failure reaching the user as its own message and carrying nobody else's remedy, a capture that fails mid-write leaving a finalised and readable partial file, and the message naming where that file is | T1 |
 | `tests/gui/unit/test_capture_failure_presenter.cpp` | The error taxonomy as a user meets it: no two failures sharing a summary or a remedy, every failure naming something to do, the title carrying the code, and the usbfs remedy carrying the exact command to paste | T1 |
 | `tests/gui/unit/test_analysis_cli.cpp` | `--analyse-test-data`'s exit codes: 0 for an intact ramp, 1 for a break, 2 for a file that could not be analysed — with the verdict on stdout and "I could not read this" on stderr | T1 |
-| `tests/gui/unit/test_bringup_text.cpp` | What the bring-up wizard says: every page numbered and titled, the overview naming every physical act in advance, **every power-cycle instruction asking for *both* cables**, the timeout leading with the partial power cycle rather than mentioning it third, one vocabulary for the jumper (fitted and removed, never open and closed), the charge-only cable named ahead of the not-connected case, an attached-but-unopenable cable given the remedy that fits it, the kit's debug port separating an unpowered board from an unanswering one, each firmware a board can be running named as itself — current firmware with its commit and a pointer at the ordinary update path, a protocol this build does not know, and the original `1d50:603b` — the legend explaining the three marks in the colours the rows actually use, an ordinary update file refused with the reason, the closing checks — four for a finished board, one for a device that is not there, and none at all for a claim the set did not make — and the two lines every page ends in: a finished step leading with **All done** and naming the button to press rather than burying success mid-paragraph, an unfinished one saying what it is waiting for, the working pages opening by naming the button rather than closing with it, and the two physical pages given as numbered instructions | T1 |
+| `tests/gui/unit/test_bringup_text.cpp` | What the bring-up wizard says: every page numbered and titled, the overview naming every physical act in advance, **every power-cycle instruction asking for *both* cables**, the timeout leading with the partial power cycle rather than mentioning it third, one vocabulary for the jumper (fitted and removed, never open and closed), the charge-only cable named ahead of the not-connected case, an attached-but-unopenable cable given the remedy that fits it, the kit's debug port separating an unpowered board from an unanswering one, each firmware a board can be running named as itself — current firmware with its commit and a pointer at the ordinary update path, a protocol this build does not know, and the original `1d50:603b` — the legend explaining the three marks in the colours the rows actually use, an ordinary update file refused with the reason, the closing checks — four for a finished board, one for a device that is not there, and none at all for a claim the set did not make — the last page naming the one cable that comes off and the one that stays, so that *put the case back on* is not left to imply which, and the two lines every page ends in: a finished step leading with **All done** and naming the button to press rather than burying success mid-paragraph, an unfinished one saying what it is waiting for, the working pages opening by naming the button rather than closing with it, and the two physical pages given as numbered instructions | T1 |
 | `tests/gui/unit/test_bundled_update.cpp` | Where an installed build looks for the update bundle it was packaged with — three layouts, no two of which exist on the same computer: beside the executable for an MSI, `Contents/Resources` for a `.app`, and the XDG data path under the application ID for a Flatpak or a prefix install. One name everywhere, the data directories kept in QStandardPaths' order so a user's own copy wins, nothing offered at all when the application does not know where it is, and a build that bundles nothing finding nothing | T1 |
 | `tests/gui/widget/test_about_dialog.cpp` | That the logo and the application icon are compiled into the binary and load — the failure a static library's dropped resource initialiser causes, which appears only in the real application because the test binaries link it differently — and that the dialog is wider than the text it has to lay out, cuts no line off at the right-hand edge, can still be scrolled to text that does not fit, carries the logo and the notices, and has a link that can be followed | T1 |
 | `tests/gui/widget/test_main_window_panels.cpp` | The dock panel framework: every panel present, floatable, toggled from the View menu, a layout that survives a restart, that no panel demands so much height that the column it shares stops being resizable, and that the separator above the bottom panel can actually be dragged in both directions — the failure a zero-height central widget causes, which resizes fine when asked in code and not at all with the mouse | T1 |
@@ -236,7 +236,7 @@ LaserDisc player protocol.
 | `tests/gui/widget/test_guided_capture_dialog.cpp` | The guided capture setup: built from a profile rather than from nothing, so a CAV disc gets frame entry and a CLV disc gets time entry and neither is offered the other's — absent rather than merely disabled — the three shapes offered with the entry fields each of them needs, a plan that cannot be made saying which of the reasons it is and leaving **Start** unavailable, the estimate following what is typed, a suggested name that is already taken said so before anything is written, and a run's progress and its estimated time remaining shown while it goes | T1 |
 | `tests/gui/widget/test_capture_panel.cpp` | The capture controls: the device list, a USB 2 device named as such and refused, each button reading as the next thing that will happen and turning green while monitoring and red while capturing without changing size — the layout shift a stylesheet on a button causes, because the size the stylesheet path computes is not the one the platform style chose — device and test mode locked while streaming, the destination fixed once the file is open while the duration and low-space settings stay live, test mode taking the name field away, and free space shown as how much capture it holds rather than as a size | T1 |
 | `tests/gui/widget/test_update_page.cpp` | The whole update flow as a widget, driven against fakes with nothing plugged in — including branches a bench cannot be asked for. A verified bundle enabling the install and saying so, a development bundle bannered, a file that is not a bundle and one that is not there each refused with a reason, a bundle needing a newer application disabling the button, a successful install reporting what the device now runs, and each failure by name: a capture in progress, a corrupted transfer caught before anything is committed, a device that never comes back, and the wrong build coming back not being called a success. Plus a device with no firmware: named as being in recovery mode with both ways it gets there stated, offered **Program this device** rather than a repair, its version rows reading "None installed" and "Cannot be read", and a payload that is not firmware proved never to reach the device's memory | T1 |
-| `tests/gui/widget/test_board_bringup_wizard.cpp` | The bring-up flow driven end to end with nothing plugged in: the step order asserted as data — the jumper page before the configure page, the configure page before anything is written, no power cycle in the middle of the writing — and the programming button refused until the FPGA is configured; both branches, where a board in its boot ROM skips two pages and a legacy board is held at the jumper until it comes back; the connectivity page's three failures; a release bundle that predates the bring-up payloads refused by name and a complete one accepted with its development banner; the configure writing nothing, then all three images written in order with the restart deferred; a stopped play; a power cycle nobody performed; and a programming step that failed offered again with the sentence saying nothing is broken; the status marks asserted as characters rather than as words, because a UTF-8 tick read a byte at a time is mojibake that every wording test passes over; the four states a packaged build's own bundle produces — preselected and named as such, refused when it does not verify, replaced by a chosen file and put back again, and a build carrying none saying which file to download; a finished step disabling and relabelling its own button while the line under it says **All done**, and a failed run's sentence surviving the polls and navigation that would otherwise replace it with an invitation to start; and **the power-cycle page refusing to report a cycle that has not happened** — the step before it leaves the FX3 running the bundle's firmware out of RAM, so a working Duplicator is already enumerating, and the page requires the device to go away and come back on the *application* image, with a partial cycle caught by the image role and a board back in its boot ROM told that J4 is still fitted | T1 |
+| `tests/gui/widget/test_board_bringup_wizard.cpp` | The bring-up flow driven end to end with nothing plugged in: the step order asserted as data — the jumper page before the configure page, the configure page before anything is written, no power cycle in the middle of the writing — and the programming button refused until the FPGA is configured; the jumper asked of every board, including one already reporting its boot ROM, which is held there until it has been seen to go away and come back rather than waved through on a personality it had before anybody touched it — and not asked for twice when somebody steps back to re-read the page; the connectivity page's three failures; a release bundle that predates the bring-up payloads refused by name and a complete one accepted with its development banner; the configure writing nothing, then all three images written in order with the restart deferred; a stopped play; a power cycle nobody performed; and a programming step that failed offered again with the sentence saying nothing is broken; the status marks asserted as characters rather than as words, because a UTF-8 tick read a byte at a time is mojibake that every wording test passes over; the four states a packaged build's own bundle produces — preselected and named as such, refused when it does not verify, replaced by a chosen file and put back again, and a build carrying none saying which file to download; a finished step disabling and relabelling its own button while the line under it says **All done**, and a failed run's sentence surviving the polls and navigation that would otherwise replace it with an invitation to start; and **the power-cycle page refusing to report a cycle that has not happened** — the step before it leaves the FX3 running the bundle's firmware out of RAM, so a working Duplicator is already enumerating, and the page requires the device to go away and come back on the *application* image, with a partial cycle caught by the image role and a board back in its boot ROM told that J4 is still fitted | T1 |
 | `tests/gui/widget/test_analysis_dialog.cpp` | The analysis dialog: pass and fail reported with the break's offset, pass and fail coloured differently through the theme tokens, an unreadable file distinguished from a failed one, the cancel button becoming the close button, and a dialog destroyed mid-analysis joining its worker rather than leaving a thread running into a destroyed object | T1 |
 | `tests/gui/widget/test_statistics_panel.cpp` | That the figures reach the right labels: the four integrity states reading differently, a new run clearing the last one's numbers, a finished run leaving them up, the three capture-only rows blank while monitoring and filled in once a writer is attached, and the back-pressure bar — showing a working capture's buffer as half used rather than as nothing, carrying the reading's figures in its tooltip, and saying nothing at all rather than a confident zero when the gateware cannot report | T1 |
 | `tests/gui/widget/test_waveform_panel.cpp` | The scope panel: the span choices reaching the plot, persistence off until asked for, the cursor reading in codes alone until a gain is declared, the plot painting empty, full and in persistence mode, and — counted in pixels a person could actually see — persistence leaving earlier sweeps on screen while its absence leaves only the latest | T1 |
@@ -799,7 +799,10 @@ from a device left in bootloader mode by U3.
    attached with no firmware**, and the Capture panel's device list names the port with
    *recovery mode, no firmware installed*. Monitoring and capture are both unavailable.
 2. Open **Tools → Firmware → Update firmware…**. The page says the device is in recovery
-   mode, that its firmware is missing, and that it is not damaged. The firmware row reads
+   mode, that its firmware is missing, and that it is not damaged. It must also say that
+   nothing here can tell whether the board was ever programmed, and name **Bring up a new
+   or legacy board…** for the case where it was not — this device has gateware and can be
+   repaired from here, but nothing on the wire says so. The firmware row reads
    **None installed** and the gateware row **Cannot be read**.
 3. The button reads **Program this device**, not "Update" and not "Repair".
 4. Choose the bundle from U1 and press it. The stages must run:
@@ -930,7 +933,7 @@ Performed first on 2026-08-15. Needs the USB-Blaster and `nix build .#bitstream`
 **Partly performed, 2026-08-17 — and it found a defect the whole tier exists to find.**
 The gating item for the board bring-up work: it is what decides whether the application
 can provision a board itself, and it is the only thing about that path a bench can settle.
-Everything else is covered at T1 with nothing attached (`ctest -R jtag`, 61 tests), and no
+Everything else is covered at T1 with nothing attached (`ctest -R jtag`, 67 tests), and no
 test could have answered the question below.
 
 **What the first cable session established.** The cable was pointed at a DE0-Nano for the
@@ -1010,6 +1013,68 @@ configured instead.** The two options were —
   carries its USB-Blaster on the board, so the cable that recovers a half-written factory
   region is present on every unit and already connected during bring-up. The firmware
   gains a third update target guarded by a magic in the begin flags.
+
+**A third finding, 2026-08-19: the configure fails intermittently, and the message it
+produced could not say why.** A bring-up of a blank board through the Flatpak stopped at
+the last comparison in the factory configure `.svf` — the status readback, at 99% of the
+file — reporting `did not answer as the programming file expected at bit 286`. **Playing
+it again immediately succeeded, with nothing else changed.**
+
+Two readings of that, and the message as it stood could not tell them apart. Either the
+configuration was fine and the readback was misread, or 5.7 Mbit went through a
+full-speed bit-banged link and one of them did not arrive — in which case the comparison
+is the check working, and it is there precisely to catch that. The second is the more
+likely of the two, and neither is a reason to stop a bring-up.
+
+What was wrong with the message is a defect on its own. It printed the most significant
+32 hexadecimal digits of both values and stopped, so for a 732-bit scan it showed bits
+731 down to 604 — a window that **cannot contain** the bit it names. Both numbers were
+truthful and neither was usable. `BitsToHexAround` now places the window around the bit
+that disagreed and names the range it covers, and the message says how wide the scan was;
+`ConfigureFpga` appends the line in the file and the keyword of the statement, as
+*"(Programming file line 37141, SDR.)"*.
+
+Three changes came out of it, all covered at T1:
+
+- **The configure is played twice before it is a failure.** It is the one step of a
+  bring-up where a retry is safe, because it is the one that writes nothing: a failed
+  attempt leaves the board as it was, and the wizard already tells a user to run it again
+  by hand. The cable is re-opened between attempts, which resets the FT245 and empties its
+  buffers. Two attempts and no more — a board or a cable that is genuinely wrong should be
+  reported rather than retried at.
+- **A surplus read byte is now a failure rather than a silent discard.** One read is
+  outstanding at a time, so a byte nothing asked for means the answers are out of step
+  with the cycles they belong to; dropping it produced a scan that read back plausible
+  rubbish and failed somewhere unrelated. Given this cable's unexplained read behaviour
+  above, that is worth naming rather than absorbing. **Said as a warning, not an
+  error** — see the sighting below.
+- **The failure message carries the window, the scan width, the line and the statement.**
+
+**Still to check on the bench**: whether the retry is ever taken in practice, and if it is,
+how often. One occurrence in one session is not a rate. The warning it logs —
+*"Loading the gateware failed and is being tried once more"* — is what to grep for, and a
+run that needs the second attempt more than occasionally is a different problem from the
+one this closes.
+
+**A fourth finding, 2026-08-19 — the retry is taken, and the surplus-byte check is what
+takes it.** A bring-up that succeeded logged *"The USB-Blaster sent more than it was asked
+for"* once, part way through, and finished normally: the first configure attempt was
+abandoned on the surplus byte, the cable was re-opened — which resets the FT245 and
+empties the buffer the byte came from — and the second attempt played clean. So both
+halves of the previous entry are now bench-confirmed working, and the two known ways into
+the retry are a readback comparison and a surplus byte. Still one occurrence, still not a
+rate.
+
+What was wrong with it is the same defect as before, one layer down: the message was
+logged at ERROR, so it stood alone in the log panel of a run that had worked, saying that
+something had gone wrong and nothing at all about the consequence. **It is now a warning,
+and it says that the play was stopped rather than continued on answers that cannot be
+trusted.** It stops there deliberately: that nothing was written is true of a configure
+and not of the cable, which plays whatever file `ddd-jtag` hands it. The error, if there
+is to be one, is the orchestrator's when the second attempt fails too — which is the only
+point at which anyone has to act. Covered at T1
+(`UsbBlasterCableTest.ASurplusByteIsSaidAsAWarningNotAnError`), which asserts the level
+rather than only the refusal.
 
 **Still to perform**: the flash write itself, its duration, and the comparison against
 `quartus_pgm` — steps 4 to 6 below, which cannot run until the firmware carries that third
@@ -1156,8 +1221,13 @@ DE0-Nano carrying Terasic's demo bitstream.
    which ones it found; a run that names a missing factory pair cannot do this item.
 2. Open **Tools ▸ Firmware ▸ Bring up a new or legacy board…** with both cables connected
    and the unit out of its case.
-3. Work the wizard through. On this board the connectivity page should report the FX3
-   *waiting in its boot ROM* and skip both jumper pages — **7 of 9 steps, not 9**.
+3. Work the wizard through. The connectivity page should report the FX3 *waiting in its
+   boot ROM*, and mark it **amber rather than green**: an unprogrammed FX3 is in its boot
+   ROM because its EEPROM is empty, not because a jumper is holding it there. The flow is
+   **9 of 9 steps** on this board as on any other, and the jumper page must be worked
+   through for real — fit J4, pull **both** cables, plug them back in. The page must not
+   accept the boot ROM it can already see: with the jumper page in front of you and
+   nothing unplugged, **Next ›** stays disabled.
 4. Record the wall-clock duration of the configure step and of the programming step
    separately, and compare each against the estimate its page printed. Both estimates are
    deliberately pessimistic; a page that promised five minutes and took twelve is a defect
@@ -1170,7 +1240,9 @@ DE0-Nano carrying Terasic's demo bitstream.
 6. At the end, the verification page must show all four ticks, with the gateware line
    reading the **application** image — the factory image validated it at power-on and
    handed over. A board that comes back on the factory image is a failed run, not a
-   partial success.
+   partial success. The page must also say to take the **mini-USB** off and leave the USB
+   3.0 cable on before the case goes back — do exactly that, because T5 is run on the
+   reassembled unit.
 7. Then T5, with no update in between: there is nothing left to install.
 
 **Pass** = the wizard reaches its last page with every check ticked, and the unit passes
@@ -1184,8 +1256,9 @@ The differences from B0, and they are the point of running it separately:
 
 1. The connectivity page must name the board *running the original Duplicator firmware* —
    not report it as absent, and not call it broken.
-2. The flow is **9 of 9 steps**: this board is running firmware, so it has to be sent to the
-   jumper.
+2. The flow is **9 of 9 steps**, as it is for every board — with the difference that here
+   the jumper page has something visible to wait for, because this board is running
+   firmware and has to leave it.
 3. After fitting J4 and pulling **both** cables, the jumper page must notice the boot ROM
    appear by itself.
 4. On the **power cycle** page, deliberately pull only the USB 3.0 cable first. The board

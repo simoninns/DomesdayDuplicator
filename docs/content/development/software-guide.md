@@ -36,11 +36,11 @@ nix develop .#fpga             # verible, verilator, iverilog, gtkwave
 ```
 
 ## USB device configuration
-Programming the DE0-Nano needs user-space access to its onboard USB-Blaster. The repository ships the required udev rule, and the procedure — including the NixOS module that installs it alongside the FX3 rules — is on the **[Linux device access](hardware-programming/linux-device-access.md)** page.
+Programming the DE0-Nano needs user-space access to its onboard USB-Blaster. The repository ships the required udev rule — in the same `70-domesday-duplicator.rules` that covers the FX3, so a machine set up for capture is already able to program the FPGA — and the procedure, including the NixOS module that installs it, is on the **[Linux device access](hardware-programming/linux-device-access.md)** page.
 
-!!! warning "If you followed an older version of this page"
+!!! warning "If you followed an Altera installation guide"
 
-    This section used to tell you to hand-write `/etc/udev/rules.d/40-altera-usbblaster.rules`. **Delete that file if you have it.** It grants access through `MODE="0666"` alone, which hands write access to every user and process on the machine rather than to the user at the console, and having two files matching the same device makes permission problems much harder to diagnose.
+    Most of them tell you to hand-write `/etc/udev/rules.d/40-altera-usbblaster.rules`. **Delete that file if you have it.** It grants access through `MODE="0666"` alone, which hands write access to every user and process on the machine rather than to the user at the console, and having two files matching the same device makes permission problems much harder to diagnose.
 
 ## Building and programming the DE0-Nano
 Both steps are covered in full, with the output to expect at each stage and a troubleshooting table, on the **[FPGA bitstream](hardware-programming/fpga-bitstream.md)** page. In brief:

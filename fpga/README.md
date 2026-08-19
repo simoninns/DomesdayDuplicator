@@ -289,8 +289,11 @@ tried, and it refuses the conversion — so the two artefacts stay separate.
 
 `quartus_pgm` needs `jtagd` (it starts one) and a udev rule for the USB-Blaster — the DE0-Nano
 has one on board. **nixpkgs' Quartus package ships no udev rules**, so this repository
-supplies them: [configs/70-altera-usb-blaster.rules](configs/70-altera-usb-blaster.rules),
-installed on NixOS by
+supplies them, in the same single file that covers the FX3:
+[`fx3/programmer/configs/70-domesday-duplicator.rules`](../fx3/programmer/configs/70-domesday-duplicator.rules).
+They are not in an FPGA-only file on purpose: JTAG is the recovery path, so a machine set up
+only for capture has to be able to reach the cable the first time it is asked to. Installed
+on NixOS by
 
 ```nix
 imports = [ domesdayduplicator.nixosModules.udev ];

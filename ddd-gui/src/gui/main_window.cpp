@@ -176,6 +176,15 @@ MainWindow::MainWindow(ThemeController* theme_controller,
               // saying so to somebody looking straight at one is how a user
               // decides the application is broken. It is also not a device
               // that can capture, so it is not counted as one.
+              //
+              // The advice names the bring-up wizard rather than the update
+              // window, and the reason is what nobody can see from here: an
+              // FX3 with no firmware is also an FX3 that cannot be asked
+              // anything about the FPGA, so whether the board has gateware at
+              // all is unknown. Bring-up is correct whatever the answer;
+              // the update window is only correct for the half of the cases
+              // where the board was working before. The window that has room
+              // to say all of that says it.
               if (devices.empty()) {
                 statusBar()->showMessage(tr("No capture device attached"));
               } else if (static_cast<size_t>(legacy) == devices.size()) {
@@ -185,7 +194,7 @@ MainWindow::MainWindow(ThemeController* theme_controller,
               } else if (capturable == 0) {
                 statusBar()->showMessage(
                     tr("Device attached with no firmware — Tools ▸ Firmware ▸ "
-                       "Update firmware… can program it"));
+                       "Bring up a new or legacy board… can program it"));
               } else {
                 statusBar()->showMessage(
                     tr("%1 device(s) attached").arg(capturable));

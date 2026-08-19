@@ -57,6 +57,11 @@ This installs:
 - `/usr/local/share/domesday-duplicator/cyfxflashprog.img` - Cypress secondary loader
 - `/usr/local/lib/udev/rules.d/70-domesday-duplicator.rules` - udev rules for USB device access
 
+The rules file is the project's whole ruleset: the Duplicator, the FX3 in its bootloader and
+EEPROM-write identities, the Explorer Kit's debug UART, and the Altera USB-Blaster that
+programs the FPGA. The blaster is in there even though this tool never touches JTAG, because
+JTAG is the recovery path and the permissions need to be in place before anyone needs them.
+
 ### Activate the udev Rules
 
 The rules install under the CMake prefix rather than directly into `/etc`, so that a build

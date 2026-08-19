@@ -153,8 +153,9 @@ inline constexpr uint16_t kUsbBlasterTwoAlternateProductId = 0x6810;
 // Returns nothing if no cable is attached, if one is attached that this code
 // does not drive, or if it could not be opened — each of which is logged as
 // itself, because on Linux the third is nearly always the udev rules
-// (fpga/configs/70-altera-usb-blaster.rules) and on Windows the driver
-// binding, and neither is diagnosable from "failed".
+// (fx3/programmer/configs/70-domesday-duplicator.rules, which covers the
+// blaster as well as the FX3) and on Windows the driver binding, and neither
+// is diagnosable from "failed".
 //
 // `problem` takes the same sentence the log gets, for a caller that has to put
 // it on the screen rather than in a file. The bring-up wizard's connectivity

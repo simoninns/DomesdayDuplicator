@@ -111,7 +111,7 @@ Altera never published this protocol, but it has been described and independentl
 
 The cable is reached over libusb, so it is available on Linux and macOS. The Windows build talks to USB through WinUSB and has no byte pipe for the cable yet; it says so in those words rather than reporting "no cable found". Everything above the pipe — the protocol, the player, every test either has — is built there already.
 
-On Linux the cable needs `fpga/configs/70-altera-usb-blaster.rules` installed ([Linux device access](hardware-programming/linux-device-access.md)), and Quartus's own `jtagd` will hold the cable open whenever it is running.
+On Linux the cable needs `fx3/programmer/configs/70-domesday-duplicator.rules` installed ([Linux device access](hardware-programming/linux-device-access.md)) — the one file covers the cable as well as the Duplicator itself — and Quartus's own `jtagd` will hold the cable open whenever it is running.
 
 ## The shell tool
 

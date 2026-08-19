@@ -287,13 +287,53 @@ class UsbBlasterCable : public IJtagCable {
       }
     }
 
-    payload.resize(wanted);
+    // More than was asked for means the cable sent a byte nothing requested,
+    // and there is exactly one read outstanding at a time — so the stream is
+    // out of step and every answer from here on would be one byte early.
+    //
+    // Said rather than silently dropped, which is what this used to do. A
+    // dropped byte turns into a scan that reads back plausible rubbish,
+    // fails a TDO comparison somewhere unrelated, and clears on the next
+    // run: the hardest possible shape of bug to find from a screenshot, and
+    // one this cable's unexplained read behaviour makes worth naming
+    // (TESTING.md, B-V1).
+    //
+    // A warning rather than an error, though the read fails either way.
+    // Whether this is anything a user has to act on is not this layer's to
+    // say, and on the bench it usually is not: the caller that reads TDO in
+    // a bring-up is the FPGA configure, which writes nothing and is played a
+    // second time with the cable re-opened — and re-opening resets the FT245
+    // and empties the buffer this byte came from, so the usual end of it is a
+    // run that succeeds. The error, if there is to be one, is the one the
+    // orchestrator logs when the second attempt fails too as well
+    // (bringup_orchestrator.cpp). Logged at ERROR this stood alone in the
+    // panel of a run that had worked, saying that something had gone wrong
+    // and nothing about the consequence — seen on the bench, 2026-08-19.
+    //
+    // What the sentence may not say is that nothing was written, however true
+    // that is of a configure: this cable plays whatever file it is given, and
+    // `ddd-jtag` will hand it one that writes a flash. Only the caller knows.
+    if (payload.size() > wanted) {
+      Warn(
+          "The USB-Blaster sent more than it was asked for, so its answers "
+          "are no longer in step with the cycles they belong to. The play "
+          "has been stopped rather than continued on answers that cannot be "
+          "trusted.");
+      return false;
+    }
+
     return true;
   }
 
   void Fail(const std::string& message) {
     if (logger_ != nullptr) {
       logger_->Error(message);
+    }
+  }
+
+  void Warn(const std::string& message) {
+    if (logger_ != nullptr) {
+      logger_->Warning(message);
     }
   }
 

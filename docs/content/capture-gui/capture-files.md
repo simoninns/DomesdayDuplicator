@@ -146,6 +146,67 @@ flac -t capture.ddd.flac      # verify the file is intact
 The application can also read an uncompressed `.ddd.s16` file back — for the
 [test-data analysis](test-mode.md) only.
 
+## Compressing a raw capture afterwards
+
+Choosing **Uncompressed — `.ddd.s16`** is not a decision to do without FLAC. It moves the
+encode off the capture machine and on to a moment when nothing is being streamed, which is
+the whole point of it on a machine that cannot sustain the encoder live.
+
+The samples are signed 16-bit little-endian mono with no header, which is what `flac`'s raw
+input mode expects — it only has to be told what it is looking at, because the file does not
+say:
+
+```bash
+flac -8 --force-raw-format --endian=little --sign=signed \
+     --channels=1 --bps=16 --sample-rate=40000 \
+     capture.ddd.s16 -o capture.ddd.flac
+```
+
+`-8` is the level the application itself defaults to, and it is the right one here for the
+same reason: the higher levels are very nearly free on a multithreaded libFLAC and save tens
+of gigabytes over a disc side. Encoding after the fact is not racing the device, so there is
+no argument at all for a lower one.
+
+`--sample-rate=40000` is the **label**, not the rate — the same 40,000 Hz stand-in the
+application writes, for the reason given above. A capture taken at **20 MSPS for VHS** takes
+`--sample-rate=20000` instead. Nothing in the raw file distinguishes the two, so this is the
+step that the rate has to have been written down for.
+
+Verify before deleting the raw file:
+
+```bash
+flac -t capture.ddd.flac
+```
+
+FLAC is lossless, so the conversion is safe to treat as a replacement rather than a copy —
+decoding gives back the original bytes exactly, told the same things about the format on the
+way out:
+
+```bash
+flac -d --force-raw-format --endian=little --sign=signed \
+     capture.ddd.flac -o capture.ddd.s16
+```
+
+The encode does need both files on disk at once, so allow about 1.3× the raw size while it
+runs.
+
+What does not come back is the provenance. A file made this way has an empty tag block — no
+versions, no `DDD_SAMPLE_RATE_HZ`, no `DDD_TEST_MODE` — because none of that was ever in the
+raw samples to recover. The `.ddd.yaml` written beside the capture is the record, and it
+stays valid as long as the file keeps its name. If the file is going to travel without the
+sidecar, put back what is known by hand:
+
+```bash
+metaflac --set-tag=DDD_SAMPLE_RATE_HZ=40000000 \
+         --set-tag=DDD_DECIMATION=1 \
+         --set-tag=DDD_TEST_MODE=false \
+         capture.ddd.flac
+```
+
+For a 20 Msps capture that is `DDD_SAMPLE_RATE_HZ=20000000` and `DDD_DECIMATION=2`. Leave
+out anything that is being guessed at rather than known — a tag that is wrong is worse than
+a tag that is missing, which is the same rule the application follows with front-end gain.
+
 ## If a capture stops badly
 
 **Whatever went wrong, the FLAC stream is closed properly on the way out.** What had already
