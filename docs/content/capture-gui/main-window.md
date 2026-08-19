@@ -94,6 +94,13 @@ The entries that need a player to do anything — **Remote control…**, **Exami
 **Automatic capture…** — are greyed out until one is connected. When nothing is, the status
 bar is what says so.
 
+Both **Firmware** entries are greyed out the other way round: while a capture is running.
+Everything behind them resets the device, rewrites its flash or reconfigures its FPGA, and a
+capture is a bulk transfer from that same device — so stopping a recording that may be hours
+old is left as your decision rather than made a side effect of opening a menu. Monitoring is
+the other case entirely: nothing is being written, so opening either window simply puts it
+down and closing the window picks it up again.
+
 **Help ▸ About** carries the same commit `--version` prints, and that is deliberate rather
 than duplication: the Windows build has no console attached, so on the platform with the
 most installations the dialog is the only way to identify a binary. If you are reporting a

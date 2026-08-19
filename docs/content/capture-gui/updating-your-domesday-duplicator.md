@@ -10,7 +10,7 @@ You need the Duplicator, its USB cable, and a few minutes. No tools, no jumpers,
 
 ## What is in an update
 
-Three separate things can be out of date, and the update window shows all three so you can see at a glance which:
+Three separate things have software of their own, and the update window lists all three:
 
 | | What it is | How it is updated |
 | --- | --- | --- |
@@ -18,7 +18,9 @@ Three separate things can be out of date, and the update window shows all three 
 | **Firmware** | The program inside the Duplicator's USB chip | Here, in this window |
 | **Gateware** | The logic inside the Duplicator's programmable chip | Here, in this window, once your unit supports it |
 
-The application is in the list even though this window cannot install it, because "am I up to date" is a question about all three. If an update file needs a newer application than the one you are running, the window says **update the application first** and will not let you continue — so the order you have to do things in is the only order the window allows.
+The application is in the list even though this window cannot install it, because leaving it out would answer two thirds of "am I up to date". It is there to be **read** rather than compared: nothing appears beside it in the column saying what an update file would install, because an update file is a firmware and gateware release and has nothing true to say about whether your application is current. The two this window can act on are also the two worth comparing — the firmware and the gateware are built from one commit and installed together, so on a healthy device they agree.
+
+An update file can still refuse to install on an application too old to drive what is in it. When that happens the window says **update the application first** and will not let you continue. What decides it is the protocol the update would make the device speak and the register interface it would leave in the FPGA, rather than any comparison of version numbers — so the order you have to do things in is the only order the window allows.
 
 ## Getting an update file
 
