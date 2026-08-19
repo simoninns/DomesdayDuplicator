@@ -109,6 +109,14 @@ class FakeUsbDevice : public IUsbDevice {
     return !configuration_fails_;
   }
 
+  bool SetCollecting(const std::string& path, bool collecting) override {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    configured_path_ = path;
+    collecting_ = collecting;
+    ++collection_change_count_;
+    return !configuration_fails_;
+  }
+
   bool ReadRegisters(const std::string& path, uint8_t address, uint8_t length,
                      std::vector<uint8_t>& data) override {
     const std::lock_guard<std::mutex> guard(mutex_);
@@ -258,6 +266,18 @@ class FakeUsbDevice : public IUsbDevice {
     const std::lock_guard<std::mutex> guard(mutex_);
     return open_count_;
   }
+  // Whether the device was last told a capture was running, and how many
+  // times it has been told either way.
+  bool collecting() const {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return collecting_;
+  }
+
+  uint64_t collection_change_count() const {
+    const std::lock_guard<std::mutex> guard(mutex_);
+    return collection_change_count_;
+  }
+
   uint64_t configuration_count() const {
     const std::lock_guard<std::mutex> guard(mutex_);
     return configuration_count_;
@@ -313,6 +333,13 @@ class FakeUsbDevice : public IUsbDevice {
   bool hidden_while_open_ = false;
   int channels_outstanding_ = 0;
   bool configuration_fails_ = false;
+
+  // Whether the device has been told a capture is running, and how many times
+  // it has been told. Both, because "it was started" and "it was started once
+  // and stopped once" are different claims and the second is the one a
+  // stop-path test is making.
+  bool collecting_ = false;
+  uint64_t collection_change_count_ = 0;
   bool open_fails_ = false;
   TransferResult open_failure_ = TransferResult::kConnectionFailure;
 

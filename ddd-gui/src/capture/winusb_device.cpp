@@ -383,6 +383,32 @@ class WinUsbDevice : public IUsbDevice {
     return true;
   }
 
+  bool SetCollecting(const std::string& path, bool collecting) override {
+    ScopedWinUsbHandles handles;
+    if (!OpenSelected(path, DeviceSelection::kCaptureCapable, handles,
+                      nullptr)) {
+      return false;
+    }
+
+    WINUSB_SETUP_PACKET setup = {};
+    setup.RequestType = kVendorRequestType;
+    setup.Request = kCollectionRequest;
+    setup.Value = collecting ? kCollectionStart : kCollectionStop;
+    setup.Index = 0;
+    setup.Length = 0;
+
+    if (WinUsb_ControlTransfer(handles.interface_handle(), setup, nullptr, 0,
+                               nullptr, nullptr) != TRUE) {
+      if (logger_ != nullptr) {
+        logger_->Error(std::string("Telling the device a capture was ") +
+                       (collecting ? "starting" : "stopping") +
+                       " failed with error " + std::to_string(GetLastError()));
+      }
+      return false;
+    }
+    return true;
+  }
+
   bool ReadRegisters(const std::string& path, uint8_t address, uint8_t length,
                      std::vector<uint8_t>& data) override {
     if (length == 0) {

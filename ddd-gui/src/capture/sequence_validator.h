@@ -70,6 +70,27 @@ class SequenceValidator {
     uint64_t mismatch_sample_index = 0;
     uint8_t expected_counter = 0;
     uint8_t actual_counter = 0;
+
+    // How the validator came to expect what it did. A mismatch says samples
+    // were lost, but not where the loss is: the same message comes from a
+    // stream with a hole in it and from a validator that locked onto the
+    // wrong phase, and those have opposite causes. These say which.
+    //
+    // synchronised_here is true when the lock was acquired during this call,
+    // in which case synchronisation_sample_index is where the first counter
+    // change was seen and first_counter is what the buffer opened with. A
+    // lock at sample 1 means the opening sample disagreed with its
+    // neighbour, which is a corrupt or unwritten buffer head rather than a
+    // counter boundary.
+    bool synchronised_here = false;
+    uint64_t synchronisation_sample_index = 0;
+    uint8_t first_counter = 0;
+
+    // Samples the validator still expected to carry expected_counter. The
+    // shortfall against a full counter period is exactly how many samples the
+    // stream is missing, which is the figure that says whether a whole
+    // transfer went astray or a handful of samples did.
+    uint32_t samples_expected_remaining = 0;
   };
 
   // Validate, strip and measure one buffer. byte_count must be even; a trailing

@@ -497,13 +497,27 @@ void CapturePipeline::ProcessingThread() {
     metrics_.Accumulate(outcome.tally);
 
     if (!outcome.ok) {
-      LatchResult(TransferResult::kSequenceMismatch,
-                  "Sequence counter mismatch " +
-                      std::to_string(outcome.mismatch_sample_index) +
-                      " samples into buffer " +
-                      std::to_string(buffers_processed_.load()) +
-                      ": expected " + std::to_string(outcome.expected_counter) +
-                      ", got " + std::to_string(outcome.actual_counter));
+      // The counters alone say a capture is not bit-perfect. What follows
+      // them says where to look: how far short of a full counter period the
+      // run ended, and — when the lock was taken in this same buffer — where
+      // it was taken and what the buffer opened with. A lock at sample 1 is
+      // the buffer head disagreeing with itself rather than the stream having
+      // a hole in it, and the two have nothing in common but the message.
+      std::string detail =
+          "Sequence counter mismatch " +
+          std::to_string(outcome.mismatch_sample_index) +
+          " samples into buffer " + std::to_string(buffers_processed_.load()) +
+          ": expected " + std::to_string(outcome.expected_counter) + ", got " +
+          std::to_string(outcome.actual_counter) + ". The counter advanced " +
+          std::to_string(outcome.samples_expected_remaining) +
+          " samples early";
+      if (outcome.synchronised_here) {
+        detail += ", and the validator locked on at sample " +
+                  std::to_string(outcome.synchronisation_sample_index) +
+                  " of this buffer, which opened on counter " +
+                  std::to_string(outcome.first_counter);
+      }
+      LatchResult(TransferResult::kSequenceMismatch, detail);
       ring_->MarkSlotFree(slot_index);
       break;
     }

@@ -185,6 +185,19 @@ class IUsbDevice {
   virtual bool WriteRegister(const std::string& path, uint8_t address,
                              uint8_t value) = 0;
 
+  // Tell the device a capture is starting or stopping. Opens the device,
+  // sends, and closes.
+  //
+  // Not a register write, and not optional. See kCollectionRequest: the
+  // firmware holds the USB link out of U1/U2 for exactly as long as this says
+  // a capture is running, and a link that drops into U2 mid-capture loses
+  // samples that no amount of host buffering can recover.
+  //
+  // Returns false when the device did not accept it. A caller should say so
+  // rather than stream anyway: on a host with USB 3 link power management
+  // enabled, streaming without it produces a capture that is not bit-perfect.
+  virtual bool SetCollecting(const std::string& path, bool collecting) = 0;
+
   // Read consecutive registers into `data`, which is resized to `length` on
   // success and left alone otherwise.
   //

@@ -65,6 +65,7 @@ SequenceValidator::Outcome SequenceValidator::Process(uint8_t* buffer,
     // finding one in that span means the stream carries no markers.
     const uint8_t first_counter =
         static_cast<uint8_t>(buffer[1] >> kSequenceCounterHighByteShift);
+    outcome.first_counter = first_counter;
     const size_t search_limit =
         std::min<size_t>(sample_count, kSamplesPerSequenceCounter + 1);
 
@@ -83,6 +84,8 @@ SequenceValidator::Outcome SequenceValidator::Process(uint8_t* buffer,
         samples_until_increment_ = kSamplesPerSequenceCounter;
         validate_from = index;
         state_ = SequenceState::kRunning;
+        outcome.synchronised_here = true;
+        outcome.synchronisation_sample_index = index;
         found = true;
         break;
       }
@@ -115,6 +118,7 @@ SequenceValidator::Outcome SequenceValidator::Process(uint8_t* buffer,
         outcome.mismatch_sample_index = index;
         outcome.expected_counter = counter_value_;
         outcome.actual_counter = counter;
+        outcome.samples_expected_remaining = samples_until_increment_;
         break;
       }
 
