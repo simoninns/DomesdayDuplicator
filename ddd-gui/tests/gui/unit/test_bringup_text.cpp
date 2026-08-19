@@ -177,6 +177,14 @@ TEST(BringUpText, EveryPhotographPageHasAPictureAndACaption) {
   for (BringUpPage page : {BringUpPage::kOverview, BringUpPage::kJumper,
                            BringUpPage::kRemoveJumper}) {
     EXPECT_TRUE(BringUpPhotographPath(page).startsWith(":/photographs/"));
+
+    // PNG, and it matters which: Qt decodes PNG in QtGui itself and decodes
+    // JPEG only through an image-format plugin that a packaging step can fail
+    // to ship — which is how the Windows installer once shipped a wizard whose
+    // three pictures were empty boxes. A photograph reintroduced as a JPEG
+    // would build, run and look right on the machine that added it.
+    EXPECT_TRUE(BringUpPhotographPath(page).endsWith(".png"));
+
     EXPECT_FALSE(BringUpPhotographCaption(page).isEmpty());
   }
 

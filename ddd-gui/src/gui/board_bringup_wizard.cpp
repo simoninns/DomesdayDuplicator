@@ -35,6 +35,16 @@
 #include "update_text.h"
 #include "wire_protocol.h"
 
+// At global scope, for the reason about_text.cpp gives at its own copy: the
+// photographs are compiled into a static library, a linker may drop the object
+// file that registers them, and the resource then silently does not exist.
+// Called from MakePhotograph below rather than left to whatever else in the
+// application happened to ask for a graphic first, so the wizard's pictures do
+// not depend on the About dialog having been opened.
+static void DddGuiInitialiseBringUpResources() {
+  Q_INIT_RESOURCE(ddd_gui_resources);
+}
+
 namespace ddd::gui {
 namespace {
 
@@ -80,8 +90,15 @@ QLabel* MakeBody(QWidget* parent, const QString& text = QString()) {
 // A photograph and its caption, or nothing at all when the build has no
 // resources compiled in — which is what a test binary that links the library
 // without the qrc looks like, and is not worth failing over.
+//
+// The photographs are PNG rather than JPEG deliberately: Qt decodes PNG inside
+// QtGui and decodes JPEG only through an image-format plugin, which a packaging
+// step can fail to ship — and when it does, this function's tolerance of a null
+// pixmap turns that into three silently empty boxes. See the note in the .qrc.
 QWidget* MakePhotograph(QWidget* parent, const QString& path,
                         const QString& caption, const char* object_name) {
+  DddGuiInitialiseBringUpResources();
+
   auto* holder = new QWidget(parent);
   auto* layout = new QVBoxLayout(holder);
   layout->setContentsMargins(0, 0, 0, 0);

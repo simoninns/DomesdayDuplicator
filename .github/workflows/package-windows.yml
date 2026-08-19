@@ -158,7 +158,18 @@ jobs:
             cp "${matches[@]}" stage/
           done
 
-          # The compiler runtime and everything else the binary pulls in transitively.
+          # windeployqt puts Qt's plugins in subdirectories of stage — platforms/,
+          # imageformats/, styles/, tls/ — and those plugins have their own
+          # dependencies on the MSYS2 prefix. A sweep that globbed only stage/*.dll
+          # never looked inside them, so a plugin whose dependency nothing at the top
+          # level shares was staged unloadable: the application launches, and the one
+          # feature that needed that plugin quietly does nothing. Every binary in the
+          # tree is scanned now, at every depth. The copies land beside the
+          # executable, which is on the search path a plugin's dependencies are
+          # resolved from.
+          binaries() { find stage -type f \( -name '*.exe' -o -name '*.dll' \); }
+
+          # The compiler runtime and everything else the binaries pull in transitively.
           # ldd inside MSYS2 resolves the MinGW dependency chain. This runs to a fixed
           # point rather than a fixed number of passes: the chain is as deep as it is, and
           # a pass count one short stages an application that fails to launch.
@@ -166,7 +177,7 @@ jobs:
             before="$(find stage -type f | wc -l)"
             while read -r dll; do
               [[ -f "${dll}" ]] && cp -n "${dll}" stage/ || true
-            done < <(ldd stage/*.exe stage/*.dll 2>/dev/null | grep -oP '/ucrt64/bin/\S+\.dll' | sort -u)
+            done < <(binaries | xargs ldd 2>/dev/null | grep -oP '/ucrt64/bin/\S+\.dll' | sort -u)
             [[ "$(find stage -type f | wc -l)" == "${before}" ]] && break
           done
 
@@ -177,15 +188,17 @@ jobs:
           missing=()
           while read -r dll; do
             [[ -f "stage/$(basename "${dll}")" ]] || missing+=("$(basename "${dll}")")
-          done < <(ldd stage/*.exe stage/*.dll 2>/dev/null | grep -oP '/ucrt64/bin/\S+\.dll' | sort -u)
+          done < <(binaries | xargs ldd 2>/dev/null | grep -oP '/ucrt64/bin/\S+\.dll' | sort -u)
           if (( ${#missing[@]} > 0 )); then
             echo "These libraries are resolved from the MSYS2 prefix but were not staged:" >&2
             printf '  %s\n' "${missing[@]}" >&2
             exit 1
           fi
 
+          # Listed recursively: the plugin subdirectories are where this step's
+          # interesting failures live, and a top-level listing hides them.
           echo "== Staged files =="
-          ls -la stage
+          find stage -type f | sort
 
       - name: Check the staged application runs
         shell: pwsh

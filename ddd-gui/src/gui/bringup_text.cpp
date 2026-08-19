@@ -439,11 +439,11 @@ QString BringUpNotReloadedText() {
 QString BringUpPhotographPath(BringUpPage page) {
   switch (page) {
     case BringUpPage::kOverview:
-      return QStringLiteral(":/photographs/fpga-usb-port.jpg");
+      return QStringLiteral(":/photographs/fpga-usb-port.png");
     case BringUpPage::kJumper:
-      return QStringLiteral(":/photographs/fx3-j4-fitted.jpg");
+      return QStringLiteral(":/photographs/fx3-j4-fitted.png");
     case BringUpPage::kRemoveJumper:
-      return QStringLiteral(":/photographs/fx3-j4-removed.jpg");
+      return QStringLiteral(":/photographs/fx3-j4-removed.png");
     default:
       return QString();
   }
