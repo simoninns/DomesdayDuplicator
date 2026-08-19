@@ -61,14 +61,52 @@ jobs:
 
       - name: Install flatpak-builder
         shell: bash
-        # OSTree pulls have no built-in timeout of their own: a connection that stalls
-        # mid-transfer (a flaky Flathub CDN edge, say) just sits forever rather than
-        # failing. Bound it here so a stall surfaces as a fast, retryable failure.
-        timeout-minutes: 15
+        # Neither apt nor an OSTree pull has a timeout of its own: a mirror that stalls
+        # mid-transfer (a slow Azure archive edge, a flaky Flathub CDN edge) crawls rather
+        # than failing, and a plain command would spend the whole step budget on one
+        # hopeless attempt. Both fetches below are bounded and retried instead, so the step
+        # timeout is the backstop rather than the mechanism.
+        timeout-minutes: 20
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder
+
+          # Kill a fetch that is not making useful progress and try again rather than
+          # waiting on it. Both apt and flatpak keep their partial downloads, so an attempt
+          # resumes where the last one stopped instead of starting over — three bounded
+          # tries get further through a slow mirror than one unbounded one, and a genuine
+          # failure still surfaces as a message rather than as an opaque job timeout.
+          retry_fetch() {
+            local label="$1" limit="$2"; shift 2
+            local attempt
+            for attempt in 1 2 3; do
+              if sudo timeout "${limit}" "$@"; then
+                return 0
+              fi
+              echo "::warning::${label} did not finish on attempt ${attempt}; retrying"
+              # A fetch interrupted during unpacking rather than downloading leaves dpkg
+              # halfway through a package, which fails the next apt run for a reason that
+              # has nothing to do with the mirror.
+              sudo dpkg --configure -a || true
+              sleep 5
+            done
+            echo "${label} failed after three attempts" >&2
+            return 1
+          }
+
+          retry_fetch "apt-get update" 180 apt-get update
+
+          # --no-install-recommends, because flatpak Recommends xdg-desktop-portal-gtk, and
+          # that pulls GTK, pipewire, SDL2, mesa VA drivers and the whole ffmpeg codec set
+          # behind it: 123 packages and 99 MB, none of which builds anything. It is desktop
+          # runtime for a machine that runs Flatpaks, and this runner only makes one. What
+          # is named below is the part of flatpak-builder's Recommends it genuinely shells
+          # out to — binutils and elfutils for the debug-info strip at the end of a build,
+          # the archive tools for sources that are not this manifest's local directory —
+          # plus ca-certificates for the HTTPS pull from Flathub.
+          retry_fetch "apt-get install" 300 apt-get install -y --no-install-recommends \
+            flatpak flatpak-builder \
+            binutils ca-certificates elfutils git patch unzip xz-utils zstd
+
           sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
           # Read from the manifest rather than repeating it here. Two copies of a runtime
@@ -78,12 +116,14 @@ jobs:
           RUNTIME_VERSION="$(sed -n "s/^runtime-version: *'\(.*\)'/\1/p" "${MANIFEST}")"
           [[ -n "${RUNTIME_VERSION}" ]] || { echo "no runtime-version in ${MANIFEST}" >&2; exit 1; }
           echo "Installing the KDE runtime and SDK ${RUNTIME_VERSION}"
-          sudo flatpak install -y flathub \
+          retry_fetch "flatpak install" 600 flatpak install -y flathub \
             "org.kde.Platform//${RUNTIME_VERSION}" "org.kde.Sdk//${RUNTIME_VERSION}"
 
       - name: Validate desktop and AppStream metadata
         run: |
-          sudo apt-get install -y desktop-file-utils appstream
+          # appstream is already in as a dependency of flatpak-builder; desktop-file-utils
+          # is one of the recommends the step above declines, so it is named here.
+          sudo apt-get install -y --no-install-recommends desktop-file-utils appstream
           desktop-file-validate ddd-gui/packaging/assets/io.github.simoninns.DddGui.desktop
           # A malformed metainfo file is rejected at Flathub review rather than at build
           # time, so it is checked here where the feedback is immediate.
