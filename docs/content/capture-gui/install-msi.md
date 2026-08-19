@@ -61,6 +61,15 @@ Binding any of them is the same four steps:
    them, and it is the field to go by rather than the name.
 4. Choose **WinUSB** in the driver box and click **Replace Driver**.
 
+**Zadig can only bind an identifier the board is presenting at that moment.** A board is
+only ever one of these at a time: whatever firmware it is running is what it enumerates as.
+So a board running this project's firmware shows `1209:2347` and a board running the
+original firmware shows `1D50:603B` — and neither of them shows `04B4:00F3`, however long
+you look. To bind `04B4:00F3` you first have to put the board *into* its boot ROM by fitting
+jumper J4 and power-cycling it — see
+[If the board does not show up as a Domesday Duplicator](#if-the-board-does-not-show-up-as-a-domesday-duplicator)
+below.
+
 The application says so plainly when it cannot open a device it can see, so a missing
 binding looks like a clear message rather than an empty device list.
 
@@ -73,7 +82,7 @@ which case you are in:
 | Zadig lists | What the board is | What it needs |
 | --- | --- | --- |
 | `04B4:00F3` (`WestBridge`) | An FX3 sitting in its boot ROM: a newly built kit whose EEPROM has never been written, or a board left half-programmed by an interrupted update | Bring-up, or a firmware repair |
-| `1D50:603B` | The **original** Duplicator firmware, from before this application existed | Bring-up |
+| `1D50:603B` | The **original** Duplicator firmware, from before this application existed | Bring-up — and note that this is what Zadig shows *instead of* `04B4:00F3` until jumper J4 is fitted |
 | `04B4:0007` only | The FX3 kit's debug serial port. The board has power but its USB 3.0 link is not answering | Check the USB 3.0 cable, and that it is in a USB 3.0 socket |
 | Nothing from that board at all | No data cable, no power | A cable that carries **data**, in a working socket |
 
@@ -91,10 +100,25 @@ the step that uses it:
    `04B4:00F3` the application cannot open the board in that state at all, so the wizard's
    connectivity page marks the FX3 row as a problem and will not go on.
 
-   If the board is not in its boot ROM yet, you can put it there to do the binding: fit
-   jumper J4 across the FX3 board's two-pin `PMODE` header, unplug **both** cables, and plug
-   them back in. It will enumerate as `04B4:00F3`. That is also the first thing the wizard
-   asks for, so nothing is wasted.
+   **Putting the FX3 into its boot ROM so Zadig can see it.** A board that is running
+   firmware — legacy or otherwise — does not present `04B4:00F3`, so there is nothing for
+   Zadig to bind: a legacy board shows `1D50:603B` and a working one shows `1209:2347`.
+   Do this first, in this order:
+
+   1. **Unplug the USB 3.0 cable from the FX3**, and the DE0-Nano's mini-USB USB-Blaster
+      cable too if it is connected. Either cable on its own keeps the unit powered, and the
+      jumper is only read at boot — so with either still attached the board never reboots
+      and nothing changes.
+   2. **Fit jumper J4** across the FX3 board's two-pin `PMODE` header.
+   3. **Plug the USB 3.0 cable back in.** The board boots into its boot ROM and enumerates
+      as `04B4:00F3` (`WestBridge`).
+   4. **Now run Zadig** — **Options → List All Devices** — and bind `04B4:00F3` to WinUSB.
+
+   Leave J4 fitted afterwards: this is also the state the wizard's first pages ask for, so
+   nothing is wasted, and the wizard takes the jumper back off at step 7.
+
+   If you also need `09FB:6001` bound, reconnect the mini-USB cable once the FX3 binding is
+   done and bind that in the same Zadig session.
 
 2. **`09FB:6001` — the DE0-Nano's on-board USB-Blaster.** This is the JTAG cable that loads
    the gateware into the FPGA, and it is the only route to a board whose flash holds nothing
@@ -170,7 +194,8 @@ In this order:
    cannot open it.
 
 2. **If the board has never been programmed, or is running the original firmware**, bind
-   `04B4:00F3` and `09FB:6001` as well, then run
+   `04B4:00F3` and `09FB:6001` as well — a board running the original firmware has to be
+   put into its boot ROM with jumper J4 before Zadig can see `04B4:00F3` at all — then run
    **Tools ▸ Firmware ▸ Bring up a new or legacy board…** — see
    [If the board does not show up as a Domesday Duplicator](#if-the-board-does-not-show-up-as-a-domesday-duplicator)
    above, and [Bringing up a new or legacy board](bringing-up-a-board.md). A board that
