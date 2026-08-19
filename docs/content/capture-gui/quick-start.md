@@ -80,18 +80,34 @@ codes; nothing about the capture itself depends on it. See
 Press **Start monitoring**. Nothing is written yet — this is the stream with no file on the
 end of it.
 
-Now play a disc and look at three things:
+First check the machine is doing its job, in the **Statistics** panel:
 
-1. **Statistics ▸ Throughput** should settle at about **76 MB/s (40.00 Msps)**. That figure
-   is the converter's rate, and a working device cannot exceed it.
-2. **Statistics ▸ Integrity** should say **Verified — no samples lost**.
-3. **Amplitude History**, or **Signal level** in the Statistics panel, should show the
-   signal filling a good part of the range without reaching the ends. The
-   [amplitude strip](signal-analysis.md#amplitude-history) marks the recommended 75 % bounds
-   on both sides — aim to sit inside them, and check **Clipping** stays at zero.
+1. **Throughput** should settle at about **76 MB/s (40.00 Msps)**. That figure is the
+   converter's rate, and a working device cannot exceed it.
+2. **Integrity** should say **Verified — no samples lost**.
 
-Adjust the player's RF output, or the SW401 gain, until it does. This is what monitoring is
-for, and it costs nothing: you can leave it running for as long as you like.
+Now play a disc and ask the three questions of the signal itself. They are the three panels
+down the right-hand side, top to bottom, and they are in that order for a reason — see
+[The three questions](signal-analysis.md#the-three-questions):
+
+1. **Do I have a signal?** — the [Waveform](signal-analysis.md#waveform) panel. A band of RF
+   filling a recognisable part of the scale, with television line structure visible at the
+   default 200 µs span. A flat line or a trace pinned to one end means the player, the output
+   or the cable, and nothing further down this list will make up for it.
+2. **What is the signal?** — the [Spectrum](signal-analysis.md#spectrum) panel. The carriers
+   the disc ought to be producing, at the frequencies they belong at: the video carrier, the
+   analogue audio carriers below it, and the EFM band lower still on a digital-audio disc.
+   This is what tells you that what is arriving is the disc rather than merely *something*.
+3. **Can I capture it?** — the
+   [Amplitude History](signal-analysis.md#amplitude-history) panel, or **Signal level** in
+   the Statistics panel. The signal should fill a good part of the range without reaching the
+   ends: the [amplitude strip](signal-analysis.md#the-nominal-bounds) marks the recommended
+   75 % bounds on both sides, and the aim is to sit inside them with **Clipping** at zero.
+
+Adjust the player's RF output, or the SW401 gain, until the third one is right — too quiet
+and the decode gets a fraction of the converter's range, too loud and the peaks clip and are
+gone. Then leave it running for a minute and check the strip has *stayed* there: that is what
+monitoring is for, and it costs nothing.
 
 ## 5. Choose where the capture goes
 

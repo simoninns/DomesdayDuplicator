@@ -14,10 +14,17 @@ bottom](assets/main-window.png)
 | --- | --- | --- |
 | **Capture** | What the capture is called, what it is written as, and the buttons — see [Capture control](capture-control.md) | Left, top |
 | **Statistics** | What the run is doing, second by second — see [Statistics](statistics.md) | Left, below Capture |
-| **Waveform** | The scope: the signal right now — see [Signal analysis](signal-analysis.md#waveform) | Right, top |
-| **Spectrum** | What the signal is made of, live or over time — see [Signal analysis](signal-analysis.md#spectrum) | Right, middle |
-| **Amplitude History** | Level over the last five minutes — see [Signal analysis](signal-analysis.md#amplitude-history) | Right, bottom |
+| **Waveform** | *Do I have a signal?* The scope: the signal right now — see [Signal analysis](signal-analysis.md#waveform) | Right, top |
+| **Spectrum** | *What is the signal?* What it is made of, live or over time — see [Signal analysis](signal-analysis.md#spectrum) | Right, middle |
+| **Amplitude History** | *Can I capture it?* The level, over the last five minutes — see [Signal analysis](signal-analysis.md#amplitude-history) | Right, bottom |
 | **Log** | Diagnostics | Bottom, hidden |
+
+The three signal panels start down the right-hand side in that order because that is the
+order the questions come in: whether there is a signal, what it is, and whether it can be
+captured well. Each is worth asking only once the one above it has been answered, and
+[The three questions](signal-analysis.md#the-three-questions) is the short version of why.
+Rearranging them costs nothing — the order is a default that reads top to bottom, not a
+constraint.
 
 The Log panel starts hidden on purpose: it is a diagnostic view, and the first thing a new
 window should show is the signal rather than the plumbing. **View ▸ Panels ▸ Log** reveals

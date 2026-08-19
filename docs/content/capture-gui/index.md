@@ -37,7 +37,7 @@ what each one is for.
 | --- | --- |
 | [Capture control](capture-control.md) | What the capture is called, what it is written as, and the buttons that start things |
 | [Statistics](statistics.md) | Throughput, integrity, buffer depth and clipping, second by second |
-| [Signal analysis](signal-analysis.md) | The scope, the spectrum and spectrogram, and five minutes of level history |
+| [Signal analysis](signal-analysis.md) | The three questions a good capture answers — *do I have a signal*, *what is the signal*, *can I capture it* — and the scope, spectrum and level history that answer them |
 | [Capture files](capture-files.md) | What gets written, what it is called, and what reads it |
 | [Naming and metadata](capture-naming.md) | Saying what the disc is, and the metadata file written beside every capture |
 | [Settings](settings.md) | Where captures are written, which device to use, buffer queue, USB transfer mode and the front-end gain declaration |
@@ -65,7 +65,9 @@ This is the one idea worth knowing before anything else.
 **Monitoring** opens the device and runs the stream with nothing on the end of it. The
 signal is validated and measured, every display is live, and nothing is written anywhere.
 It is what you use to set a player's RF output, to check a cable, or to see whether a disc
-is worth capturing.
+is worth capturing — which is to say it is where the
+[three questions](signal-analysis.md#the-three-questions) get answered, before there is a
+file at stake.
 
 **Capturing** is the same stream with a file attached to it. Starting a capture from idle
 starts the stream too, so the common case is a single press; stopping a capture leaves the

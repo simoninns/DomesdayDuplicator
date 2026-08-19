@@ -3,13 +3,47 @@
 Three displays, all fed from the same live stream, all available while merely monitoring —
 so a player can be set up and a disc judged without writing anything to disk.
 
-They answer different questions:
+## The three questions
 
-| Panel | The question it answers |
-| --- | --- |
-| [Waveform](#waveform) | What is the signal doing *right now*, microsecond by microsecond |
-| [Spectrum](#spectrum) | What is the signal *made of* — and, as a spectrogram, how that changes |
-| [Amplitude History](#amplitude-history) | Has the level been *steady*, over the last five minutes |
+The panels are stacked, top to bottom, in the order the questions come in. Between them they
+are the whole of setting a capture up, and a capture that turned out to be no good nearly
+always failed at a question nobody asked:
+
+| | The question | What answers it |
+| --- | --- | --- |
+| 1 | **Do I have a signal?** | [Waveform](#waveform) — the live trace. Something is arriving, and it has the shape of RF rather than of a flat line, a hum or a burst of nothing between tracks |
+| 2 | **What is the signal?** | [Spectrum](#spectrum) — what that something is made of. The video carrier, the analogue audio carriers, the EFM band: the components the disc in the player ought to have, at the frequencies they belong at |
+| 3 | **Can I capture it?** | [Amplitude History](#amplitude-history) — the level, over the whole of the monitoring and the capture that follows. Not too quiet, not too loud, and holding there for as long as it has been watched |
+
+Asking them in that order is what makes the answers mean anything.
+
+**The first has to come first because every other display draws whatever arrives.** A
+spectrum of an unplugged input is a full screen of noise floor, laid out on the same axes,
+with a marker on the loudest bit of it — a picture that looks like a measurement and is an
+absence. The waveform is the panel that tells the two apart, because a flat line looks like a
+flat line.
+
+**The second has to come before the third because a level is only worth setting on the signal
+you meant to capture.** An amplitude reading sitting neatly inside its bounds says nothing
+about *what* is sitting there: a player parked in stop, a tuner on the wrong input, or a
+video carrier with no audio under it will all give a perfectly well-adjusted-looking strip.
+Seeing the carriers you expect, where you expect them, is what turns "a signal" into "this
+disc's signal".
+
+**The third is the one that decides whether the file is usable**, and it is the only one that
+cannot be answered from a glance. Too quiet and the disc's detail lives in the bottom few
+bits of the converter, with the noise floor of the front end scaled up to meet it in the
+decode; too loud and the peaks clip, and a clipped peak is gone rather than merely
+mismeasured. Between the two is a wide, comfortable middle, and the amplitude strip exists to
+show that the signal has stayed inside it — not at the instant you looked, but across the
+minutes since, which is the timescale a disc side actually takes.
+
+Answer all three and there is nothing left to find out: press **Start capture** and the same
+three panels carry on answering them while the file is being written.
+
+[Statistics](statistics.md) is the fourth question, asked of the machine rather than the
+signal — *did it all arrive* — and it is answered from every sample rather than from these
+snapshots.
 
 ## How they are fed
 
@@ -63,7 +97,20 @@ and its delay — is on [The decimation filter](../development/fpga-decimation-f
 
 ## Waveform
 
+> **Do I have a signal?**
+
 The scope. The signal as it arrives, with time across and level up.
+
+This is the first panel to look at and usually the quickest to finish with. A player that is
+running, on the right output, through a cable that is connected gives a band of RF that fills
+a recognisable part of the vertical scale and has television line structure in it at the
+default span. Anything else — a flat line, a trace that sits at one end of the scale, a
+mains-frequency wobble with nothing on top of it, a signal that comes and goes — is a problem
+with the bench rather than with the settings, and no amount of adjusting gain will fix it.
+
+Answered here, the question does not have to be asked again: the other two panels are drawn
+from the same stream, so once there is something to look at, there is something for them to
+measure.
 
 ### Trigger
 
@@ -171,7 +218,25 @@ time axis below the plot.
 
 ## Spectrum
 
+> **What is the signal?**
+
 The same signal by frequency. Two views of it, chosen with the first control.
+
+The waveform says that *something* is arriving; this panel says *what*. An RF signal off a
+disc is a sum of carriers, and on the spectrum they are individually visible and individually
+identifiable — the video carrier, the analogue audio carriers below it, the EFM band lower
+still on a digital-audio disc. Each is at a frequency the format fixes, so what is on screen
+can be checked against what the disc in the player is supposed to produce.
+
+That check is what the panel is really for. A missing analogue audio carrier, a video carrier
+several hundred kilohertz from where it belongs, a spike that has nothing to do with the disc
+sitting on top of the band — each of those is invisible on a waveform, which sums everything
+into one trace, and each of them changes what the capture is worth. The
+[spectrogram](#spectrogram) extends the same question over time, for the things that are only
+wrong sometimes.
+
+Only once this is answered is it worth setting a level, because a level is set on whatever
+happens to be arriving and the strip cannot tell you what that was.
 
 ### Spectrum
 
@@ -369,11 +434,27 @@ reason: it is the same reading, not a second one.
 
 ## Amplitude History
 
+> **Can I capture it?**
+
 A strip of the last **five minutes**: the min/max envelope, RMS drawn either side of 0 V,
 and a tick wherever clipping happened. Ten points a second, aggregated from the statistics
 stream.
 
-This is the panel that catches the faults the other two cannot. A player whose RF output
+The last question, and the one that decides whether the file will be any good. There is a
+band the signal wants to sit in — high enough that the disc's detail is well clear of the
+converter's own noise, low enough that the peaks never reach the rails — and this strip is
+where you see whether it is in it. Too cold and the decode is working with a fraction of the
+converter's range; too hot and the peaks clip, which is not a small error but a piece of the
+waveform replaced with a straight line. The [nominal bounds](#the-nominal-bounds) drawn
+across the strip are the edges of that band: sit inside them, with the clip count at zero.
+
+What makes this a strip rather than a number is the *over time* part. A level is easy enough
+to set on the moment you happen to be looking at, and a disc side lasts half an hour or more.
+The history shows the whole of what has happened since monitoring began — so the answer to
+*can I capture it* is not "it looked right when I checked" but "it has stayed right for as
+long as I have been watching", which is what the question was really asking.
+
+This is also the panel that catches the faults the other two cannot. A player whose RF output
 sags for two seconds forty minutes into a side is invisible on a scope you are not looking
 at and invisible on a spectrum that has averaged it away; here it is a notch in the
 envelope, still on screen when you come back.
