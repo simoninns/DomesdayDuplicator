@@ -81,6 +81,8 @@ jobs:
   build:
     name: Compile both images
     runs-on: ubuntu-latest
+    # a cold run fetches several GB of Quartus from Intel's CDN; warm runs take ~10 min
+    timeout-minutes: 120
 
     steps:
       # `ref` matters for the release path: a reusable workflow is called with the caller's

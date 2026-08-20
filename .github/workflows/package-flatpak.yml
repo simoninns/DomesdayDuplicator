@@ -123,7 +123,14 @@ jobs:
         run: |
           # appstream is already in as a dependency of flatpak-builder; desktop-file-utils
           # is one of the recommends the step above declines, so it is named here.
-          sudo apt-get install -y --no-install-recommends desktop-file-utils appstream
+          #
+          # `retry_fetch` is a shell function and does not outlive the step that defines it,
+          # so this fetch uses apt's own retry instead of reaching for it. It is a smaller
+          # download than the one above and does not warrant the timeout machinery, but it
+          # is still a mirror fetch, and an unretried mirror fetch is how this workflow
+          # failed twice on 2026-08-19.
+          sudo apt-get install -y --no-install-recommends -o Acquire::Retries=3 \
+            desktop-file-utils appstream
           desktop-file-validate ddd-gui/packaging/assets/io.github.simoninns.DddGui.desktop
           # A malformed metainfo file is rejected at Flathub review rather than at build
           # time, so it is checked here where the feedback is immediate.
@@ -138,7 +145,7 @@ jobs:
           # build itself has no network. An unpinned tree writes nothing and the flag is
           # removed by the stamping step below; that is a legitimate build, not a failure.
           #
-          # This step has to come *before* the stamping step: `${{ steps.bundled.outputs.path }}`
+          # This step has to come *before* the stamping step: `steps.bundled.outputs.path`
           # is evaluated when the step reading it begins, so a fetch placed after it would
           # hand the stamping step an empty string, delete the manifest's bundled-update
           # line, and then leave the install check hunting for a file the manifest never

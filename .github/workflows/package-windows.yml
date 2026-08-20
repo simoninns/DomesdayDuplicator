@@ -32,6 +32,8 @@ jobs:
   package:
     name: MSI
     runs-on: windows-latest
+    # ~14 min observed; MSYS2 mirror stalls are the risk
+    timeout-minutes: 60
 
     defaults:
       run:

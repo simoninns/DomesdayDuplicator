@@ -121,8 +121,14 @@ echo "  ${BUNDLED_UPDATE_URL}" >&2
 
 # --fail so an HTTP error is an error here rather than a file full of HTML two steps
 # later; retries because a packaging job should not fail on one bad minute at a CDN.
+# --retry alone covers a transient HTTP status or a timeout; --retry-all-errors extends
+# that to the connection-level failures a CDN edge actually produces (reset, DNS blip).
+# The two timeouts matter more than the retry count: without them a mirror that accepts
+# the connection and then stops sending stalls until the job's own timeout kills it, which
+# turns one slow minute at a CDN into a dead packaging run.
 curl --location --fail --silent --show-error \
-     --retry 3 --retry-delay 5 \
+     --retry 3 --retry-delay 5 --retry-all-errors \
+     --connect-timeout 20 --max-time 300 \
      --output "$output" \
      "$BUNDLED_UPDATE_URL"
 

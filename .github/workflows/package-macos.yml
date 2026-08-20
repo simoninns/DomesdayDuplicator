@@ -27,6 +27,8 @@ jobs:
   package:
     name: DMG
     runs-on: macos-latest
+    # ~11 min observed, and this runner bills at 10x
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -65,7 +67,22 @@ jobs:
           # googletest is a build dependency here, not just a developer convenience: this
           # job configures with -DBUILD_TESTING=ON and runs the suite before packaging, so
           # without it the configure step fails outright.
-          brew install cmake ninja pkg-config qt@6 libusb flac spdlog googletest dylibbundler
+          #
+          # Retried, and unlike the metadata refresh above it is fatal when it runs out of
+          # attempts. The download is the part that fails — qt@6 alone is several hundred
+          # megabytes from a CDN that does occasionally stall — and the failure it causes
+          # is a bad one to debug: without a retry, a stalled bottle leaves the configure
+          # step below reporting a missing dependency, which says nothing about the network
+          # and sends the reader looking at CMakeLists.txt instead.
+          for attempt in 1 2 3; do
+            brew install cmake ninja pkg-config qt@6 libusb flac spdlog googletest dylibbundler && break
+            if [[ "${attempt}" == 3 ]]; then
+              echo "brew install failed after three attempts" >&2
+              exit 1
+            fi
+            echo "::warning::brew install did not finish on attempt ${attempt}; retrying"
+            sleep 15
+          done
 
       - name: Fetch the pinned update bundle
         id: bundled

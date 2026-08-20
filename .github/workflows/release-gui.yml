@@ -42,6 +42,8 @@ jobs:
   check-ref:
     name: Check the ref
     runs-on: ubuntu-latest
+    # a ref comparison
+    timeout-minutes: 10
     steps:
       - name: The dispatched ref must be the tag being published
         if: github.event_name == 'workflow_dispatch'
@@ -85,6 +87,8 @@ jobs:
     name: Publish the release
     needs: [package-flatpak, package-macos, package-windows]
     runs-on: ubuntu-latest
+    # downloads the packaging artefacts and attaches them to the release
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
