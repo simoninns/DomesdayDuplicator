@@ -207,7 +207,12 @@ endif()
 # module rather than part of qtbase, so a distribution build needs its package installed.
 # The capture application this one replaced required it too, so no machine that could
 # build this repository is losing anything.
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets SerialPort Test)
+#
+# Network is for QLocalServer and QLocalSocket, and for nothing else: the control socket a
+# script stops a capture through. Despite the module's name nothing here opens a network
+# socket — a local socket is a named pipe on Windows and a Unix domain socket everywhere
+# else, both of which are reachable only from the machine the application is running on.
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Network SerialPort Test)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

@@ -263,6 +263,7 @@ ddd_add_test(ddd_gui_tests "unit"
     gui/unit/test_application_logger.cpp
     gui/unit/test_capture_settings.cpp
     gui/unit/test_capture_cli.cpp
+    gui/unit/test_capture_control_server.cpp
     gui/unit/test_capture_controller.cpp
     gui/unit/test_signal_watcher.cpp
     gui/unit/test_capture_to_disk.cpp

@@ -24,6 +24,7 @@ add_library(ddd_gui_lib STATIC
     bringup_worker.cpp
     bundled_update.cpp
     capture_cli.cpp
+    capture_control_server.cpp
     capture_controller.cpp
     capture_naming_dialog.cpp
     capture_naming_form.cpp
@@ -31,6 +32,7 @@ add_library(ddd_gui_lib STATIC
     capture_plan_form.cpp
     capture_failure_presenter.cpp
     capture_settings.cpp
+    capture_stop_client.cpp
     console_attach.cpp
     examine_dialog.cpp
     firmware_dialog.cpp
@@ -87,6 +89,7 @@ target_link_libraries(ddd_gui_lib
         ddd_player
         Qt6::Core
         Qt6::Gui
+        Qt6::Network
         Qt6::Widgets
         Qt6::SerialPort
 )
