@@ -33,9 +33,12 @@ enum CaptureCliExit : int {
   kExitSuccess = 0,
   kExitBadArguments = 1,
 
-  // Another instance holds the control socket. Two processes streaming from one
-  // device is not something either of them can do, so the second says so rather
-  // than racing for the USB claim.
+  // The control socket could not be taken, which almost always means another
+  // instance holds it. Two processes streaming from one device is not something
+  // either of them can do, so the second says so rather than racing for the USB
+  // claim — and a run that could not be reached over the socket would be one a
+  // script had no way to stop, so a socket that could not be created at all is
+  // refused here too. The message says which of the two it was.
   kExitInstanceRunning = 2,
 
   // Nothing was attached before the wait ran out.

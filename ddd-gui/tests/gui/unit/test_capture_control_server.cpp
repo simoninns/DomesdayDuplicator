@@ -480,5 +480,42 @@ TEST_F(CaptureControlServerTest, AnApplicationThatNeverAnswersIsGivenUpOn) {
   EXPECT_FALSE(run.error.isEmpty());
 }
 
+// An answer followed immediately by the far end going away, which is not an
+// edge case but the ordinary shape of a successful stop: a headless run exits
+// as soon as the capture it was asked to stop has finished, so the socket it
+// answered on closes in the same turn of the event loop as the answer.
+//
+// The client must take the answer and ignore what happens afterwards. Quitting
+// its loop does not stop the handlers for the rest of the socket's life from
+// running, so without this it printed a success and then, underneath it, a
+// failure about the same stop.
+TEST_F(CaptureControlServerTest, AnApplicationThatQuitsAfterAnsweringIsFine) {
+  const QString path = QStringLiteral("/captures/finished.ddd.flac");
+
+  QLocalServer departing;
+  ASSERT_TRUE(departing.listen(name_));
+  QObject::connect(&departing, &QLocalServer::newConnection, &departing, [&] {
+    QLocalSocket* const socket = departing.nextPendingConnection();
+    if (socket == nullptr) {
+      return;
+    }
+    QObject::connect(socket, &QLocalSocket::readyRead, socket, [socket, path] {
+      socket->readAll();
+      socket->write(FormatControlReplyStopped(path, 4096).toUtf8());
+      socket->flush();
+
+      // And then it is gone, exactly as the process would be.
+      socket->disconnectFromServer();
+    });
+  });
+
+  const Run run = Stop();
+
+  EXPECT_EQ(run.code, kExitSuccess);
+  EXPECT_EQ(run.out.trimmed(), path);
+  EXPECT_FALSE(run.error.contains(QStringLiteral("Error:")))
+      << run.error.toStdString();
+}
+
 }  // namespace
 }  // namespace ddd::gui

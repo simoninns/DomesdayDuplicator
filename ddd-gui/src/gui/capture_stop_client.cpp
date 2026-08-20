@@ -43,6 +43,11 @@ int RunStopCapture(QTextStream& out, QTextStream& error,
   // ways to end — a reply, a close, an error, a timeout — and more than one of
   // them can happen: a server that replies and then closes would otherwise
   // overwrite a success with the disconnection that followed it.
+  //
+  // That is not a rare case. A headless run exits the moment the capture it was
+  // asked to stop has finished, which is the moment after this reply, so the
+  // disconnection arrives in the same turn of the event loop as the answer
+  // nearly every time.
   const auto settle = [&](int result) {
     if (settled) {
       return;
@@ -52,6 +57,13 @@ int RunStopCapture(QTextStream& out, QTextStream& error,
     loop.quit();
   };
 
+  // Whether an answer has already been reached, checked before *saying*
+  // anything rather than only before recording it. Quitting the loop does not
+  // take effect until control returns to exec(), so the handlers for whatever
+  // else the socket does still run — and a message printed from one of them
+  // would tell a user their successful stop had failed.
+  const auto answered = [&settled] { return settled; };
+
   QObject::connect(&socket, &QLocalSocket::connected, &socket, [&] {
     connected = true;
     deadline.start(options.reply_timeout_milliseconds);
@@ -60,6 +72,9 @@ int RunStopCapture(QTextStream& out, QTextStream& error,
   });
 
   QObject::connect(&socket, &QLocalSocket::readyRead, &socket, [&] {
+    if (answered()) {
+      return;
+    }
     buffered.append(socket.readAll());
     const qsizetype newline = buffered.indexOf('\n');
     if (newline < 0) {
@@ -92,6 +107,9 @@ int RunStopCapture(QTextStream& out, QTextStream& error,
 
   QObject::connect(&socket, &QLocalSocket::errorOccurred, &socket,
                    [&](QLocalSocket::LocalSocketError) {
+                     if (answered()) {
+                       return;
+                     }
                      if (!connected) {
                        error << "There is no Domesday Duplicator running to "
                                 "stop.\n";
@@ -104,12 +122,18 @@ int RunStopCapture(QTextStream& out, QTextStream& error,
                    });
 
   QObject::connect(&socket, &QLocalSocket::disconnected, &socket, [&] {
+    if (answered()) {
+      return;
+    }
     error << "Error: the running application closed the connection without "
              "answering.\n";
     settle(kExitCaptureFailed);
   });
 
   QObject::connect(&deadline, &QTimer::timeout, &deadline, [&] {
+    if (answered()) {
+      return;
+    }
     if (!connected) {
       error << "There is no Domesday Duplicator running to stop.\n";
       settle(kExitNoRunningInstance);
