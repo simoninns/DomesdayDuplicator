@@ -18,7 +18,8 @@ bring-up, whichever went wrong. [Command line](../capture-gui/command-line.md) d
 both switches and what each level records.
 
 Without a log, the two things always worth quoting are the commit from **Help ▸ About** and
-the contents of the Log panel (**View ▸ Panels ▸ Log**).
+the contents of the Log panel (**View ▸ Panels ▸ Log**) — select the records there and
+press **Ctrl+C**, or right-click ▸ **Copy**, to paste them into the report.
 
 If you'd like to request new features please use the Github issue reporting tool and describe clearly your requirements and, if possible, the justification for inclusion.
 

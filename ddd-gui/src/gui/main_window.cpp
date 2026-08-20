@@ -341,7 +341,7 @@ void MainWindow::BuildAmplitudeDock() {
 void MainWindow::BuildLogDock() {
   log_dock_ = new QDockWidget(tr("Log"), this);
   log_dock_->setObjectName(QStringLiteral("log_dock"));
-  log_dock_->setWidget(new LogPanel(log_model_, log_dock_));
+  log_dock_->setWidget(new LogPanel(log_model_, logger_, log_dock_));
   addDockWidget(Qt::BottomDockWidgetArea, log_dock_);
   // Hidden by default: it is a diagnostic view, and the first run should show
   // the signal, not the plumbing. The View menu and --debug both reveal it.

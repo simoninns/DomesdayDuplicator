@@ -300,6 +300,7 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     gui/widget/test_board_bringup_wizard.cpp
     gui/widget/test_player_remote_dialog.cpp
     gui/widget/test_settings_dialog.cpp
+    gui/widget/test_log_panel.cpp
     gui/widget/test_statistics_panel.cpp
     gui/widget/test_waveform_panel.cpp
     gui/widget/test_spectrum_panel.cpp

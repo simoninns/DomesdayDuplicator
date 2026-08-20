@@ -119,10 +119,23 @@ are reporting a problem, that is the string to quote — along with the device's
 Every diagnostic the application produces arrives here, timestamped, in a fixed-pitch font
 so the columns line up. **Follow** keeps the newest record in view; **Clear** empties it.
 
+Records can be copied out. Click one to select it, shift-click or drag for a range, and
+**Ctrl+A** for all of them; **Ctrl+C** or right-click ▸ **Copy** puts what is selected on
+the clipboard as the lines shown here — which is how to paste a handful of records into a
+bug report without attaching a whole log file.
+
+**Level** sets the lowest severity that is recorded: debug, info, warning, error, or off,
+which records nothing. It is the same threshold
+[`--log-level`](command-line.md#-l-log-level-level) sets, so it governs the console and the
+log file as well as this panel, and it takes effect from the moment it is changed — records
+already listed stay listed when the level is raised, and a record dropped while the level
+was high does not reappear when it is lowered.
+
 By default it records informational messages and above. Starting with
 [`--debug`](command-line.md) lowers that to debug level and shows the panel at startup,
 which is what to do before reproducing a fault you intend to report;
-[`--log-level`](command-line.md#-l-log-level-level) sets the level on its own.
+[`--log-level`](command-line.md#-l-log-level-level) sets the level at startup, and the
+**Level** drop-down changes it while the application is running.
 
 The panel is one of the log's destinations and not the only one. The same records go to the
 console the application was started from, and to a file when
