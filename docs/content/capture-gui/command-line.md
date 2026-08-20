@@ -82,23 +82,31 @@ ddd-gui --log-level debug --log-file capture.log
 ```
 
 This is the log to attach to a bug report. The Log panel holds the last few thousand records
-and closes with the application; a file survives both.
+and closes with the application; a file survives both. The console stays quiet unless
+[`--log-out`](#-log-out-destination) asks for it.
 
 ### `--log-out <destination>`
 
-Where the log goes, for anyone who wants one destination and not the other:
+Where the log goes **besides** the Log panel:
 
 | Destination | Where records go |
 | --- | --- |
-| `console` | The console only. A `--log-file` is ignored |
-| `file` | The log file only, and nothing to the console |
-| `both` | The default: the console, plus the log file when one was named |
+| `none` | The default: the Log panel and nowhere else |
+| `console` | The console as well. A `--log-file` is ignored |
+| `file` | A log file as well, and nothing to the console |
+| `both` | The console and a log file |
 
-`file` and `both` need `--log-file` to have named a file. Asking for either without one logs
-to the console and says so, rather than quietly discarding the log.
+The Log panel is not one of these values and cannot be turned off by one. It shows every
+record the level admits whatever this says — it is the destination a user who is not looking
+at a terminal has, and `none` means *no second copy*, not "no log".
 
-The Log panel is not one of these. It shows every record the level admits whatever this is
-set to, because it is the destination a user who is not looking at a terminal has.
+Naming a [`--log-file`](#-f-log-file-file) with no `--log-out` is an explicit request for a
+file, so it means `file`. Spelling out `--log-out` always wins over that, including
+`--log-out none` beside a `--log-file` — which writes no file, and says so in the panel
+rather than leaving a switch that quietly did nothing.
+
+`file` and `both` need `--log-file` to have named one. Asking for either without a file logs
+to the panel and the console and says so.
 
 !!! tip "Where the console is"
 
@@ -141,6 +149,24 @@ it is opt-in and per-run rather than a setting.
 
 You want this only if you are building update bundles yourself; see
 [Developer update loop](../development/developer-update-loop.md).
+
+## What is always logged
+
+Three lines every run, whatever the level, because they are what every fault report is read
+against:
+
+```
+Capture application started.
+Application commit c6ca52b4-dirty.
+Platform: NixOS 26.05 (Yarara), kernel linux 6.18.43, x86_64, Qt 6.11.1.
+```
+
+The commit is the build; **Help ▸ About** carries the identical string. The platform line
+names the operating system as it names itself, the kernel — which is the version that
+actually decides how USB behaves, and is the one a kernel-level fault is filed against — the
+processor architecture, and the Qt in use. A packaged build that ships one Qt and loads
+another says both versions, which is a class of fault that reads as an application bug until
+this line contradicts it.
 
 ## What debug level records about a capture
 
@@ -213,6 +239,74 @@ Two of those figures are worth knowing how to read:
   samples were lost. The near-full time beside it is how long the device spent close to
   the edge, which is the figure that survives a squeeze nobody was reading at the moment
   it happened.
+
+## What debug level records about an update or a bring-up
+
+Installing firmware and bringing a board up are the two operations that touch a device
+permanently, and both are minutes long. At `debug` each keeps its own account, and the
+engine's half and the interface's half go to the same place.
+
+**Choosing a file** — what it is, whether it verified, and what the compatibility gate made
+of it beside the device it was asked about. A file that verifies and cannot be installed is
+the commonest thing to be handed, and the verdict alone does not say why:
+
+```
+Update page: opening /home/me/Downloads/domesday-duplicator-update-1.4.0.dddfw
+Update file verified: version 1.4.0, release channel, 3.41 MiB, …
+Compatibility gate: allowed (device attached, personality application, firmware
+  protocol 2, register map 3)
+```
+
+**Installing** — what the file carries, what is being written, the shape the device
+negotiated, and how long each part took:
+
+```
+Update starting: bundle version 1.4.0, channel release, restart deferred no
+  carries firmware 4d23a25, 195.3 KiB, sha256 c7a7d73b, interface version 2
+  carries gateware 4d23a25, 1.02 MiB, sha256 91b0e47c, interface version 3
+Installing firmware 4d23a25, 195.3 KiB, …: 98 chunks of 2.0 KiB (the device
+  offered 2048 bytes), device phase idle
+Sent the whole firmware: 98 chunks, 195.3 KiB in 12.41 s (16.1 KiB/s). Waiting for
+  the device to finish writing and reading back.
+Installed firmware after 41.20 s
+Update finished after 3 m 04 s: succeeded at stage Complete, identity confirmed,
+  device reports "Domesday Duplicator (4d23a25)", gateware 4d23a25
+```
+
+**When it fails** — the device's own account of itself at the moment it stopped, which is
+the diagnosis and the one thing nobody can go back and ask for afterwards:
+
+```
+Failed to install firmware after 2.31 s: The device could not write to its own
+  memory. The update was not completed.
+Device status at the failure: phase failed, error write (10), 200000 received,
+  0 written, 0 verified
+Update finished after 2.34 s: failed at stage Failed, identity not confirmed; …
+```
+
+**A bring-up** records the same for its writes, and around them the procedure itself: every
+page the wizard visited, what the USB-Blaster probe found, whether the file carries all four
+payloads a bring-up needs, each step and how long it took, and — because the JTAG step is
+allowed a second attempt — what each attempt did:
+
+```
+Bring-up: moved to page 5 of 9 — Load the gateware
+Bring-up: USB-Blaster probe: opened
+Bring-up: update file verified: version 1.4.0, release channel, carries firmware
+  yes, factory image yes, gateware yes, JTAG vectors yes
+Bring-up: starting the gateware-over-JTAG step
+Configuring the FPGA over JTAG: 1.38 MiB of vectors from the update file, up to 2
+  attempts. Nothing is written to the board by this step.
+JTAG attempt 1: succeeded after 2.71 s, cable opened, 1284 statements, 5717248
+  bits shifted
+Bring-up: the gateware-over-JTAG step succeeded after 2.83 s
+Programming the board, in the one order that leaves every interruption
+  recoverable: EEPROM (195.3 KiB), factory image (1.02 MiB), then application
+  image (1.02 MiB). Nothing is restarted here.
+```
+
+and, at the end, the last page's verdict check by check — a board that fails one of them is
+a completely different problem from one that fails all of them.
 
 ## A related tool
 

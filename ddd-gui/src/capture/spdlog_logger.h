@@ -39,7 +39,8 @@ struct LogConfig {
   std::string file;
 };
 
-// An ILogger that writes records to the console, to a file, or to both.
+// An ILogger that writes records to the console, to a file, to both, or — for
+// a front end whose own window is the log — to neither.
 //
 // This is the second implementation of the engine's logging seam, beside
 // CallbackLogger, and it is what makes a record visible outside the running
@@ -56,10 +57,13 @@ struct LogConfig {
 // so do not log per buffer.
 class SpdlogLogger : public ILogger {
  public:
-  // Installs the sinks the configuration asks for. Never throws for a
-  // destination it could not provide: a log file that cannot be opened is
-  // reported through warnings() and the console is kept, because losing the log
-  // is not a reason to refuse to start a capture application.
+  // Installs the sinks the configuration asks for, which for
+  // LogDestination::kNone is none at all — records are then accepted and
+  // dropped, and whatever the front end shows is the only copy.
+  //
+  // Never throws for a destination it could not provide: a log file that cannot
+  // be opened is reported through warnings() and the console is kept, because
+  // losing the log is not a reason to refuse to start a capture application.
   explicit SpdlogLogger(const LogConfig& config);
   ~SpdlogLogger() override;
 

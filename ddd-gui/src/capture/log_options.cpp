@@ -34,6 +34,9 @@ std::optional<LogLevel> ParseLogLevel(std::string_view value) {
 }
 
 std::optional<LogDestination> ParseLogDestination(std::string_view value) {
+  if (value == "none") {
+    return LogDestination::kNone;
+  }
   if (value == "console") {
     return LogDestination::kConsole;
   }
@@ -49,6 +52,8 @@ std::optional<LogDestination> ParseLogDestination(std::string_view value) {
 
 const char* LogDestinationName(LogDestination destination) {
   switch (destination) {
+    case LogDestination::kNone:
+      return "none";
     case LogDestination::kConsole:
       return "console";
     case LogDestination::kFile:
@@ -63,6 +68,13 @@ const char* LogDestinationName(LogDestination destination) {
 LogSinkSelection ResolveLogSinks(LogDestination destination,
                                  bool have_log_file) {
   LogSinkSelection selection;
+
+  if (destination == LogDestination::kNone) {
+    selection.console = false;
+    selection.file = false;
+    return selection;
+  }
+
   selection.file = have_log_file && destination != LogDestination::kConsole;
   selection.console = destination != LogDestination::kFile || !selection.file;
   return selection;

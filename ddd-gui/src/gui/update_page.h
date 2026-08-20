@@ -23,6 +23,7 @@
 
 #include "device_programmer.h"
 #include "device_updater.h"
+#include "logger.h"
 #include "update_key.h"
 #include "update_manifest.h"
 #include "update_orchestrator.h"
@@ -103,6 +104,13 @@ class UpdatePage : public QWidget {
 
     capture::DevicePersonality personality =
         capture::DevicePersonality::kApplication;
+
+    // Where a copy of everything this page reports goes, so that an
+    // investigation has it after the dialog has been closed. Not owned, may be
+    // null, and handed on to the worker — which means the engine's own account
+    // of the update reaches the same place. Written to from the worker thread
+    // as well as this one, so an implementation must be thread-safe.
+    capture::ILogger* logger = nullptr;
   };
 
   UpdatePage(QString application_commit, Device device,

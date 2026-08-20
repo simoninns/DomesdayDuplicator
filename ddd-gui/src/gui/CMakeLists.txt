@@ -38,6 +38,7 @@ add_library(ddd_gui_lib STATIC
     log_message_model.cpp
     log_panel.cpp
     main_window.cpp
+    platform_description.cpp
     player_controller.cpp
     player_discovery.cpp
     player_remote_dialog.cpp

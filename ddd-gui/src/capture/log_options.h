@@ -18,10 +18,14 @@
 
 namespace ddd::capture {
 
-// Where log records are written, chosen by --log-out. kBoth is the default and
-// means "the console, plus the file when --log-file named one" — so a run with
-// no log file logs to the console and nothing is lost by not having asked.
+// Where log records are written, chosen by --log-out.
+//
+// This is about the destinations *outside* the application. A front end with a
+// window of its own shows records there whatever this says — the GUI's Log
+// panel is not one of these values and cannot be turned off by one, which is
+// why kNone is a destination rather than a way of losing the log.
 enum class LogDestination {
+  kNone,     // Neither; whatever the front end shows is the only copy
   kConsole,  // The console only; a configured log file is ignored
   kFile,     // The log file only; nothing reaches the console
   kBoth,     // The console, plus the log file when one is configured
@@ -49,9 +53,9 @@ struct LogSinkSelection {
 // @return The level, or nullopt if the name is not one of the accepted ones
 std::optional<LogLevel> ParseLogLevel(std::string_view value);
 
-// Parses a --log-out value: "console", "file" or "both".
+// Parses a --log-out value: "none", "console", "file" or "both".
 //
-// @return The destination, or nullopt if the name is not one of those three
+// @return The destination, or nullopt if the name is not one of those four
 std::optional<LogDestination> ParseLogDestination(std::string_view value);
 
 // The lower-case name of a destination, as --log-out spells it.
@@ -63,6 +67,9 @@ const char* LogDestinationName(LogDestination destination);
 // would leave the log with no sinks at all and silently swallow every record.
 // The console is kept in that case, and the front end says separately that the
 // file it was asked for is not there.
+//
+// kNone resolves to no sinks at all, which is the one case where that is the
+// answer rather than a mistake.
 //
 // @param destination   What --log-out asked for
 // @param have_log_file True when --log-file named a path

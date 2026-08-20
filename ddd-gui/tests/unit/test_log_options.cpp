@@ -53,7 +53,8 @@ TEST(ParseLogLevelTest, RefusesAnUnknownName) {
   EXPECT_FALSE(ParseLogLevel("Debug").has_value());
 }
 
-TEST(ParseLogDestinationTest, TakesTheThreeDestinations) {
+TEST(ParseLogDestinationTest, TakesTheFourDestinations) {
+  EXPECT_EQ(ParseLogDestination("none"), LogDestination::kNone);
   EXPECT_EQ(ParseLogDestination("console"), LogDestination::kConsole);
   EXPECT_EQ(ParseLogDestination("file"), LogDestination::kFile);
   EXPECT_EQ(ParseLogDestination("both"), LogDestination::kBoth);
@@ -67,11 +68,22 @@ TEST(ParseLogDestinationTest, RefusesAnythingElse) {
 
 TEST(ParseLogDestinationTest, NamesRoundTripThroughTheParser) {
   for (const LogDestination destination :
-       {LogDestination::kConsole, LogDestination::kFile,
+       {LogDestination::kNone, LogDestination::kConsole, LogDestination::kFile,
         LogDestination::kBoth}) {
     EXPECT_EQ(ParseLogDestination(LogDestinationName(destination)),
               destination);
   }
+}
+
+// The default, and the one destination for which no sinks at all is the answer
+// rather than a mistake: a front end with a window of its own shows the log
+// there, and nothing outside the application needs a copy.
+TEST(ResolveLogSinksTest, NoneInstallsNothingEvenWithAFileNamed) {
+  const LogSinkSelection selection =
+      ResolveLogSinks(LogDestination::kNone, true);
+
+  EXPECT_FALSE(selection.console);
+  EXPECT_FALSE(selection.file);
 }
 
 TEST(ResolveLogSinksTest, ConsoleIgnoresAConfiguredFile) {

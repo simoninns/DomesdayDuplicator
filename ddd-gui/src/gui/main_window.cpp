@@ -759,6 +759,10 @@ void MainWindow::ShowFirmwareDialog() {
   capture::IUsbDevice* const usb = capture_controller_->usb_device();
   auto* const logger = static_cast<capture::ILogger*>(logger_);
 
+  // So that what the update page and the engine under it report reaches the
+  // application's log as well as the page's own, which closes with the dialog.
+  device.logger = logger;
+
   device.open =
       [usb, device_path, logger](
           const std::string& path) -> std::unique_ptr<capture::IDeviceUpdater> {
@@ -980,6 +984,10 @@ void MainWindow::ShowBringUpWizard() {
     // What this build was packaged with, if anything. Verified by the wizard
     // like any other file — this only says where to look.
     access.bundled_file = [] { return BundledUpdatePath(); };
+
+    // So that the wizard's steps and their results reach the application's log
+    // and, through it, whatever --log-file was told to write.
+    access.logger = logger;
 
     bringup_wizard_ = new BoardBringUpWizard(std::move(access), this);
     bringup_wizard_->setAttribute(Qt::WA_DeleteOnClose);

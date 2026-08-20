@@ -17,6 +17,7 @@
 #include <thread>
 
 #include "firmware_version.h"
+#include "log_format.h"
 #include "logger.h"
 #include "wire_protocol.h"
 
@@ -109,6 +110,110 @@ int EstimateUpdateSeconds(const UpdateManifest& manifest) {
 
 UpdateOrchestrator::UpdateOrchestrator(IDeviceUpdater& device, ILogger* logger)
     : device_(device), logger_(logger) {}
+
+namespace {
+
+// A digest is 64 characters and a log line is read by eye. The first eight are
+// enough to tell two payloads apart and to match a line against a manifest,
+// which is all this is ever used for.
+std::string ShortDigest(const Sha256Digest& digest) {
+  return ToHex(digest).substr(0, 8);
+}
+
+// One component, as a log line: what it is, how big, what it will make the
+// device report, and which payload it is.
+std::string DescribeComponent(UpdateTarget target,
+                              const UpdateComponent& component) {
+  return std::string(UpdateTargetName(target)) + " " +
+         (component.identity.empty() ? std::string("(unnamed)")
+                                     : component.identity) +
+         ", " + FormatBytes(component.length) + ", sha256 " +
+         ShortDigest(component.sha256) + ", interface version " +
+         std::to_string(component.interface_version);
+}
+
+}  // namespace
+
+void UpdateOrchestrator::LogPlan(const char* what,
+                                 const UpdateBundle& bundle) const {
+  if (logger_ == nullptr) {
+    return;
+  }
+
+  logger_->Debug(std::string(what) + " starting: bundle version " +
+                 bundle.manifest.version + ", channel " +
+                 UpdateChannelName(bundle.manifest.channel) +
+                 ", restart deferred " + (defer_restart_ ? "yes" : "no"));
+
+  // Every component the file carries, whether or not this flow will write it.
+  // What a bundle contains and what a run installs are different questions,
+  // and a log that only answered the second cannot tell a missing payload
+  // from a payload that was deliberately skipped.
+  if (bundle.manifest.firmware.has_value()) {
+    logger_->Debug("  carries " + DescribeComponent(UpdateTarget::kFirmware,
+                                                    *bundle.manifest.firmware));
+  }
+  if (bundle.manifest.gateware.has_value()) {
+    logger_->Debug("  carries " + DescribeComponent(UpdateTarget::kGateware,
+                                                    *bundle.manifest.gateware));
+  }
+  if (bundle.manifest.factory_gateware.has_value()) {
+    logger_->Debug("  carries " +
+                   DescribeComponent(UpdateTarget::kEpcsFactory,
+                                     *bundle.manifest.factory_gateware));
+  }
+}
+
+void UpdateOrchestrator::LogOutcome(
+    const char* what, const UpdateOutcome& outcome,
+    std::chrono::steady_clock::time_point started) const {
+  if (logger_ == nullptr) {
+    return;
+  }
+
+  const double seconds =
+      std::chrono::duration<double>(std::chrono::steady_clock::now() - started)
+          .count();
+
+  std::string line =
+      std::string(what) + " finished after " + FormatDuration(seconds) + ": " +
+      (outcome.succeeded ? "succeeded" : "failed") + " at stage " +
+      UpdateStageName(outcome.stage) + ", identity " +
+      (outcome.identity_confirmed ? "confirmed" : "not confirmed");
+
+  if (!outcome.identity.product_string.empty()) {
+    line += ", device reports \"" + outcome.identity.product_string + "\"";
+  }
+  if (!outcome.identity.gateware_commit.empty()) {
+    line += ", gateware " + outcome.identity.gateware_commit;
+  }
+  if (!outcome.problem.empty()) {
+    line += "; " + outcome.problem;
+  }
+
+  logger_->Debug(line);
+}
+
+void UpdateOrchestrator::LogDeviceStatus(const char* when) {
+  if (logger_ == nullptr) {
+    return;
+  }
+
+  const std::optional<DeviceUpdateStatus> status = device_.ReadStatus();
+  if (!status.has_value()) {
+    logger_->Debug(std::string("Device status at ") + when +
+                   ": the device did not answer");
+    return;
+  }
+
+  logger_->Debug(std::string("Device status at ") + when + ": phase " +
+                 UpdatePhaseName(status->phase) + ", error " +
+                 DeviceUpdateErrorName(status->error) + " (" +
+                 std::to_string(static_cast<int>(status->error)) + "), " +
+                 std::to_string(status->bytes_received) + " received, " +
+                 std::to_string(status->bytes_written) + " written, " +
+                 std::to_string(status->bytes_verified) + " verified");
+}
 
 void UpdateOrchestrator::Report(UpdateStage stage, UpdateTarget target,
                                 uint64_t done, uint64_t total,
@@ -207,6 +312,36 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
                                           const UpdateComponent& component,
                                           std::span<const uint8_t> payload,
                                           UpdateOutcome& outcome) {
+  // A wrapper for the same reason the three entry points have one: a component
+  // can fail at half a dozen points inside, and a line at each of them would
+  // be six chances to add a seventh and forget.
+  const auto started = std::chrono::steady_clock::now();
+
+  const bool installed = WriteComponent(target, component, payload, outcome);
+
+  if (logger_ != nullptr) {
+    const double seconds = std::chrono::duration<double>(
+                               std::chrono::steady_clock::now() - started)
+                               .count();
+    logger_->Debug(
+        std::string(installed ? "Installed " : "Failed to install ") +
+        UpdateTargetName(target) + " after " + FormatDuration(seconds) +
+        (installed ? "" : ": " + outcome.problem));
+  }
+
+  if (!installed) {
+    // The device's own account of itself at the moment it stopped, which is
+    // the diagnosis and the one thing nobody can go back and ask for later.
+    LogDeviceStatus("the failure");
+  }
+
+  return installed;
+}
+
+bool UpdateOrchestrator::WriteComponent(UpdateTarget target,
+                                        const UpdateComponent& component,
+                                        std::span<const uint8_t> payload,
+                                        UpdateOutcome& outcome) {
   const uint64_t total = payload.size();
 
   // The chunk size comes from the device rather than from a constant here,
@@ -227,6 +362,20 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
   }
 
   const uint64_t chunk_bytes = AlignedChunk(initial->maximum_chunk_bytes);
+
+  const auto component_started = std::chrono::steady_clock::now();
+
+  if (logger_ != nullptr) {
+    // The chunk size is the device's, not this build's, so it belongs in the
+    // log: a firmware that raises it changes the shape of every transfer that
+    // follows, and this is the line that says which one was in force.
+    logger_->Debug("Installing " + DescribeComponent(target, component) + ": " +
+                   std::to_string((total + chunk_bytes - 1) / chunk_bytes) +
+                   " chunks of " + FormatBytes(chunk_bytes) +
+                   " (the device offered " +
+                   std::to_string(initial->maximum_chunk_bytes) +
+                   " bytes), device phase " + UpdatePhaseName(initial->phase));
+  }
 
   // Named for what the *host* is doing, because that is what the progress
   // bar measures. On both targets the device writes each chunk to its medium
@@ -331,6 +480,23 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
     return false;
   }
 
+  if (logger_ != nullptr) {
+    const double seconds =
+        std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                      component_started)
+            .count();
+    logger_->Debug(
+        std::string("Sent the whole ") + UpdateTargetName(target) + ": " +
+        std::to_string(index) + " chunks, " + FormatBytes(total) + " in " +
+        FormatDuration(seconds) +
+        (seconds > 0.0 ? " (" +
+                             FormatBytes(static_cast<uint64_t>(
+                                 static_cast<double>(total) / seconds)) +
+                             "/s)"
+                       : std::string()) +
+        ". Waiting for the device to finish writing and reading back.");
+  }
+
   // No stage is announced here. Which one comes next is the device's
   // business: both media have already been written as the chunks arrived, so
   // both go on to read back — but the device is the thing that says so, and
@@ -341,6 +507,14 @@ bool UpdateOrchestrator::InstallComponent(UpdateTarget target,
 
 UpdateOutcome UpdateOrchestrator::InstallFactoryGateware(
     const UpdateBundle& bundle) {
+  const auto started = std::chrono::steady_clock::now();
+  LogPlan("Factory image write", bundle);
+  const UpdateOutcome outcome = RunFactoryWrite(bundle);
+  LogOutcome("Factory image write", outcome, started);
+  return outcome;
+}
+
+UpdateOutcome UpdateOrchestrator::RunFactoryWrite(const UpdateBundle& bundle) {
   UpdateOutcome outcome;
   outcome.stage = UpdateStage::kChecking;
 
@@ -382,6 +556,14 @@ UpdateOutcome UpdateOrchestrator::InstallFactoryGateware(
 }
 
 UpdateOutcome UpdateOrchestrator::RunBringUp(const UpdateBundle& bundle) {
+  const auto started = std::chrono::steady_clock::now();
+  LogPlan("Bring-up write", bundle);
+  const UpdateOutcome outcome = RunBringUpWrites(bundle);
+  LogOutcome("Bring-up write", outcome, started);
+  return outcome;
+}
+
+UpdateOutcome UpdateOrchestrator::RunBringUpWrites(const UpdateBundle& bundle) {
   UpdateOutcome outcome;
   outcome.stage = UpdateStage::kChecking;
 
@@ -440,6 +622,14 @@ UpdateOutcome UpdateOrchestrator::RunBringUp(const UpdateBundle& bundle) {
 }
 
 UpdateOutcome UpdateOrchestrator::Run(const UpdateBundle& bundle) {
+  const auto started = std::chrono::steady_clock::now();
+  LogPlan("Update", bundle);
+  const UpdateOutcome outcome = RunUpdate(bundle);
+  LogOutcome("Update", outcome, started);
+  return outcome;
+}
+
+UpdateOutcome UpdateOrchestrator::RunUpdate(const UpdateBundle& bundle) {
   UpdateOutcome outcome;
   outcome.stage = UpdateStage::kChecking;
 

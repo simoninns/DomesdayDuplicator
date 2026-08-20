@@ -75,10 +75,12 @@ SpdlogLogger::SpdlogLogger(const LogConfig& config) {
     }
   }
 
-  // Only reachable when the file was the only destination asked for and it
-  // could not be opened. Silently discarding every record from then on would be
-  // the worst of the available answers.
-  if (sinks.empty()) {
+  // An empty sink list means one of two opposite things, and they must not be
+  // treated alike: kNone asked for exactly this, and anything else got here
+  // because the file was the only destination asked for and it could not be
+  // opened. Silently discarding every record in the second case would be the
+  // worst of the available answers, so the console is put back.
+  if (sinks.empty() && config.destination != LogDestination::kNone) {
     sinks.push_back(std::make_shared<spdlog::sinks::stderr_color_sink_mt>());
     writes_to_console_ = true;
   } else {

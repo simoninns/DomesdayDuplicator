@@ -176,9 +176,13 @@ void CaptureController::CheckFirmware(
   // device come from separate release streams, so a difference between them is
   // the ordinary state of an up-to-date Duplicator rather than something to
   // interrupt anybody over.
+  //
+  // The device's two commits are here; the application's own is logged once at
+  // startup, on a line of its own. Putting it on the end of this one made a
+  // line about the device carry a fact about the application, and a reader
+  // looking for the build had to know to find it there.
   if (logger_ != nullptr && firmware.NamesCommit()) {
-    logger_->Info("Device firmware commit " + firmware.commit +
-                  ", application " + std::string(capture::Commit()));
+    logger_->Info("Device firmware commit " + firmware.commit);
   }
 
   if (logger_ != nullptr && fpga_version_.present) {

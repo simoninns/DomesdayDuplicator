@@ -148,6 +148,40 @@ TEST_F(SpdlogLoggerTest, BothWithNoFileIsJustTheConsole) {
   EXPECT_TRUE(logger.warnings().empty());
 }
 
+// The default destination. Records are accepted and dropped: the GUI's own Log
+// panel is fed by the bridge above this and is unaffected, which is the whole
+// point of the destination existing.
+TEST_F(SpdlogLoggerTest, NoneWritesNowhereAtAll) {
+  LogConfig config;
+  config.destination = LogDestination::kNone;
+  config.file = LogFile().string();
+
+  {
+    SpdlogLogger logger(config);
+    EXPECT_FALSE(logger.writes_to_console());
+    EXPECT_FALSE(logger.writes_to_file());
+    EXPECT_TRUE(logger.warnings().empty());
+
+    // Accepted rather than refused, and provably harmless: a front end hands
+    // every record to this whatever the destination is.
+    logger.Error("dropped on the floor");
+  }
+
+  EXPECT_FALSE(std::filesystem::exists(LogFile()));
+}
+
+// The fallback that puts the console back when a file could not be opened must
+// not fire for the destination that asked for nothing.
+TEST_F(SpdlogLoggerTest, NoneIsNotMistakenForAFailedFile) {
+  LogConfig config;
+  config.destination = LogDestination::kNone;
+
+  const SpdlogLogger logger(config);
+
+  EXPECT_FALSE(logger.writes_to_console());
+  EXPECT_TRUE(logger.warnings().empty());
+}
+
 TEST_F(SpdlogLoggerTest, ConsoleLeavesAConfiguredFileAlone) {
   LogConfig config;
   config.destination = LogDestination::kConsole;

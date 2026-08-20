@@ -93,6 +93,11 @@ enum class DeviceUpdateError : uint8_t {
 // always true and always worth saying — that the device is safe.
 std::string DeviceUpdateErrorText(DeviceUpdateError error);
 
+// The code's short name, for a log line. The sentence above is what a user
+// reads; this is the word a firmware developer greps the device sources for,
+// and "error 10" in a log is neither.
+const char* DeviceUpdateErrorName(DeviceUpdateError error);
+
 // The 16-byte status packet, decoded.
 struct DeviceUpdateStatus {
   UpdatePhase phase = UpdatePhase::kIdle;
@@ -111,6 +116,11 @@ struct DeviceUpdateStatus {
   uint32_t bytes_written = 0;
   uint32_t bytes_verified = 0;
 };
+
+// A name for a phase, for a log line rather than for a user: the interface
+// says what is happening in its own words, and this says which of the
+// protocol's six states the device reported when it said it.
+const char* UpdatePhaseName(UpdatePhase phase);
 
 // Decode a status packet. Returns nothing if the buffer is not exactly the
 // 16 bytes the protocol specifies, or names a phase or error this build

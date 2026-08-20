@@ -28,6 +28,7 @@
 #include "log_options.h"
 #include "logger.h"
 #include "main_window.h"
+#include "platform_description.h"
 #include "player_controller.h"
 #include "spdlog_logger.h"
 #include "theme_controller.h"
@@ -109,9 +110,10 @@ int main(int argc, char* argv[]) {
 
   const QCommandLineOption log_out_option(
       QStringLiteral("log-out"),
-      QStringLiteral("Where the log goes: console, file or both. file and both "
-                     "need --log-file. Default: both."),
-      QStringLiteral("destination"), QStringLiteral("both"));
+      QStringLiteral("Where the log goes besides the Log panel: none, console, "
+                     "file or both. Naming a --log-file implies file. "
+                     "Default: none."),
+      QStringLiteral("destination"), QStringLiteral("none"));
   parser.addOption(log_out_option);
 
   const QCommandLineOption analyse_option(
@@ -178,12 +180,26 @@ int main(int argc, char* argv[]) {
       ddd::capture::ParseLogDestination(destination_name.toStdString());
   if (!destination.has_value()) {
     error_stream << QStringLiteral(
-                        "Unknown --log-out '%1'. Use console, file or both.\n")
+                        "Unknown --log-out '%1'. Use none, console, file or "
+                        "both.\n")
                         .arg(destination_name);
     return 1;
   }
   log_config.destination = *destination;
   log_config.file = parser.value(log_file_option).toStdString();
+
+  // The default destination is none: the Log panel is the log, and an
+  // application started from a desktop has no console to write to anyway.
+  // Naming a file is an explicit request for one, so it turns the default into
+  // "the file" rather than being ignored — which is what a default of none
+  // would otherwise mean, and would be a switch that silently did nothing.
+  //
+  // An explicit --log-out always wins, including an explicit "none" beside a
+  // --log-file: that combination is warned about below rather than second
+  // guessed.
+  if (!parser.isSet(log_out_option) && !log_config.file.empty()) {
+    log_config.destination = ddd::capture::LogDestination::kFile;
+  }
 
   // The console and the file. The GUI logger below mirrors every record it
   // shows into this one, so the Log panel and the console carry the same log
@@ -229,6 +245,13 @@ int main(int argc, char* argv[]) {
 
   logger.Info("Capture application started.");
 
+  // Its own line, and said every run. These two are what a fault report is
+  // read against: which build this was, and what it was running on. Both are
+  // wanted whether or not anything goes wrong, so neither is behind a level.
+  logger.Info("Application commit " + commit + ".");
+  logger.Info("Platform: " + ddd::gui::PlatformDescription().toStdString() +
+              ".");
+
   // Said after the window exists, so that it reaches the Log panel as well as
   // the console. Anything logged before that point has nowhere in the GUI to
   // land, which is why the setup below reports itself here rather than where it
@@ -240,15 +263,29 @@ int main(int argc, char* argv[]) {
     logger.Warning(warning);
   }
 
-  // Only when the destination was asked for explicitly. The default is "both"
-  // with no log file, which is plain console logging and not worth a word.
+  // Both halves of asking for something that cannot be done, and both only
+  // when the destination was named explicitly: the defaults are chosen to be
+  // silent, and a warning about a switch nobody used would be noise.
   if (parser.isSet(log_out_option) && log_config.file.empty() &&
-      log_config.destination != ddd::capture::LogDestination::kConsole) {
+      (log_config.destination == ddd::capture::LogDestination::kFile ||
+       log_config.destination == ddd::capture::LogDestination::kBoth)) {
     logger.Warning(
         std::string("--log-out ") +
         ddd::capture::LogDestinationName(log_config.destination) +
-        " was asked for without --log-file, so the log goes to the console "
-        "only.");
+        " was asked for without --log-file, so nothing is being written to a "
+        "file.");
+  }
+
+  if (!log_config.file.empty() && !log_destinations.writes_to_file() &&
+      log_destinations.warnings().empty()) {
+    // A log file was named and the destination does not include one, which is
+    // a switch quietly doing nothing. Not said when the file simply could not
+    // be opened — that has its own message, above, and saying both would name
+    // one problem twice.
+    logger.Warning("--log-file " + log_config.file +
+                   " is not being written: " + "--log-out " +
+                   ddd::capture::LogDestinationName(log_config.destination) +
+                   " does not include a file.");
   }
 
   // Started after the window is up so that the first device report lands on a
