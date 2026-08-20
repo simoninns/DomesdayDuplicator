@@ -30,6 +30,7 @@
 #include "main_window.h"
 #include "platform_description.h"
 #include "player_controller.h"
+#include "qt_message_filter.h"
 #include "spdlog_logger.h"
 #include "theme_controller.h"
 #include "usb_device.h"
@@ -62,6 +63,10 @@ int main(int argc, char* argv[]) {
   // debugging the plugin can still switch the category back on.
   QLoggingCategory::setFilterRules(
       QStringLiteral("qt.qpa.wayland.textinput=false"));
+
+  // The same plugin, and the same reasoning, for a message that carries no
+  // category to switch off. See qt_message_filter.h.
+  ddd::gui::InstallQtMessageFilter();
 
   QApplication app(argc, argv);
 

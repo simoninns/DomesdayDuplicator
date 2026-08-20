@@ -288,6 +288,7 @@ target_include_directories(ddd_gui_tests PRIVATE support)
 ddd_add_test(ddd_gui_widget_tests "unit"
     support/widget_test_main.cpp
     gui/widget/test_main_window_panels.cpp
+    gui/widget/test_floating_dock_drag.cpp
     gui/widget/test_about_dialog.cpp
     gui/widget/test_firmware_dialog.cpp
     gui/widget/test_update_page.cpp

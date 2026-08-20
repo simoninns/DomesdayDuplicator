@@ -41,6 +41,7 @@
 #include "device_updater.h"
 #include "examine_dialog.h"
 #include "firmware_dialog.h"
+#include "floating_dock_drag.h"
 #include "log_message_model.h"
 #include "log_panel.h"
 #include "player_controller.h"
@@ -117,6 +118,15 @@ MainWindow::MainWindow(ThemeController* theme_controller,
   BuildSpectrumDock();
   BuildAmplitudeDock();
   BuildLogDock();
+
+  // After all six exist, because it applies to every one of them equally.
+  // Under Wayland a panel popped out of the window is one Qt draws a title bar
+  // for and then cannot move; this hands the drag to the compositor instead.
+  // See floating_dock_drag.h. It does nothing on any other platform.
+  for (QDockWidget* dock : {capture_dock_, statistics_dock_, waveform_dock_,
+                            spectrum_dock_, amplitude_dock_, log_dock_}) {
+    EnableFloatingDockDrag(dock);
+  }
 
   BuildMenus();
 
