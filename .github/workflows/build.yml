@@ -19,9 +19,15 @@
 # knowing the whole chain still works. The installers in particular are only proven by
 # being built, so they are built on every push rather than only on the way to a release.
 #
-# Path filtering survives for pull requests alone, where the same commits have already had
-# a full run from their branch push and the filtered run is the second opinion, not the
-# first.
+# Pull requests from a branch in this repository do not run at all. They used to run a
+# path-filtered second opinion, and the reasoning was that the branch push had already
+# produced the full result — which is exactly the argument for not running them: the same
+# commits, the same workflow, no new evidence. What it did produce was a second set of
+# concurrent jobs writing to the Nix store cache, and that cache was being rate-limited
+# hard enough to lose uploads (35 `ResourceExhausted` errors in one run, measured
+# 2026-08-20). Pull requests from a **fork** still run, and keep the path filter: a fork's
+# push triggers nothing in this repository, so the pull request run is the only evidence
+# those commits ever produced.
 #
 # Tags are deliberately absent from the triggers below: release-gui.yml and
 # release-firmware.yml handle those, and they call the same reusable packaging workflows.
@@ -52,15 +58,28 @@ concurrency:
 jobs:
   # Path filtering as a job rather than an `on: paths:` filter, because `on: paths:` cannot
   # be made conditional and this filter applies to pull requests only.
+  #
+  # This job is also where a same-repository pull request stops. Every other job depends on
+  # it, directly or through it, so skipping this one skips the run — which is the whole
+  # point: those commits were built in full by the push to their own branch, and running
+  # them again bought nothing but cache contention. A fork's pull request has no such
+  # earlier run, so it proceeds.
   changes:
     name: Detect changes
     runs-on: ubuntu-latest
+    # a checkout and a path filter
+    timeout-minutes: 10
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name != github.repository
     outputs:
       # No dash in the name: GitHub expression syntax would read `outputs.ddd-gui` as a
       # subtraction.
       dddgui: ${{ steps.decide.outputs.dddgui }}
       fx3: ${{ steps.decide.outputs.fx3 }}
-      fpga: ${{ steps.decide.outputs.fpga }}
+      # Not `fpga`: this gates the *matrix entry*, which is deliberately narrower than
+      # "the gateware changed". See the `decide` step.
+      fpgamatrix: ${{ steps.decide.outputs.fpgamatrix }}
       docs: ${{ steps.decide.outputs.docs }}
       everything: ${{ steps.decide.outputs.everything }}
     steps:
@@ -89,10 +108,11 @@ jobs:
               - *shared
               - docs/**
 
-      # Every push and every manual dispatch builds everything, on every branch. Only pull
-      # requests are filtered, and only because the branch push for the same commits has
-      # already run the complete set — without that, a filtered run would be the only
-      # evidence a change ever produced, which is how a component quietly stops building.
+      # Every push and every manual dispatch builds everything, on every branch. Only fork
+      # pull requests reach the filtered path at all — a same-repository one is stopped by
+      # this job's `if:` — and they are filtered because a fork's changes are scoped to what
+      # the diff touches. Note that this branch is the *only* place the filter outputs are
+      # consulted, so a component missing from it is a component that stops being built.
       - name: Decide what to build
         id: decide
         shell: bash
@@ -102,15 +122,25 @@ jobs:
             {
               echo "dddgui=${{ steps.filter.outputs.dddgui }}"
               echo "fx3=${{ steps.filter.outputs.fx3 }}"
-              echo "fpga=${{ steps.filter.outputs.fpga }}"
+              echo "fpgamatrix=${{ steps.filter.outputs.fpga }}"
               echo "docs=${{ steps.filter.outputs.docs }}"
               echo "everything=false"
             } >> "$GITHUB_OUTPUT"
           else
             echo "Building everything for ${GITHUB_REF} (${GITHUB_EVENT_NAME})"
-            for component in dddgui fx3 fpga docs; do
+            for component in dddgui fx3 docs; do
               echo "${component}=true" >> "$GITHUB_OUTPUT"
             done
+            # Deliberately false, and the one place this workflow builds *less* than
+            # everything on a push. `nix flake check` runs whenever `everything` is true
+            # and is a strict superset of the fpga matrix entry — it builds those five
+            # checks plus fpga-sdc, fpga-boot-block and fpga-halfband-coefficients. Running
+            # both meant two jobs compiling identical derivations at the same time and
+            # racing to upload the same store paths; between them they accounted for 29 of
+            # the 35 cache rate-limit errors in the run that prompted this change. The
+            # gateware coverage on a push is unchanged, and is strictly larger than what
+            # the matrix entry provided.
+            echo "fpgamatrix=false" >> "$GITHUB_OUTPUT"
             echo "everything=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -126,6 +156,8 @@ jobs:
     name: Nix — ${{ matrix.component }}
     needs: changes
     runs-on: ubuntu-latest
+    # slowest observed component build is ~8 min, cold cache is the variable
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -137,7 +169,10 @@ jobs:
             enabled: fx3
             attrs: .#fx3-firmware .#fx3-programmer
           - component: fpga
-            enabled: fpga
+            enabled: fpgamatrix
+            # Fork pull requests only; a push gets the whole gateware suite from
+            # `nix flake check` instead.
+            #
             # Every gateware check, named individually — there is no fpga package for the
             # matrix to build, so anything absent from this line is not covered on a
             # path-filtered pull request. Keep it in step with the `fpga-*` attributes in
@@ -214,6 +249,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.fx3 == 'true'
     runs-on: ubuntu-latest
+    # ~1 min warm; the bound is a cold Nix closure
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
@@ -253,6 +290,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.everything == 'true'
     runs-on: ubuntu-latest
+    # ~8 min warm, and it builds every check there is
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
@@ -276,6 +315,8 @@ jobs:
     name: Quality gates
     needs: changes
     runs-on: ubuntu-latest
+    # 18-24 min observed; clang-tidy over the whole tree plus tests
+    timeout-minutes: 60
     if: needs.changes.outputs.dddgui == 'true'
 
     steps:
@@ -301,22 +342,28 @@ jobs:
   # or an MSI is only proven by being built and installed, and finding out at release time
   # is finding out too late. release-gui.yml calls these same workflows from the tag.
   #
-  # Pull requests skip them, and only because the branch push for the same commits has
-  # already built them.
+  # They no longer wait for the quality gates. That dependency passed no artefact — each
+  # packaging workflow builds from source itself — so all it ever did was hold three
+  # runners idle until clang-tidy finished. It cost 14 minutes of wall time on every
+  # *successful* run to save runner minutes on the rare failing one, which is the wrong
+  # way round: a lint failure still fails the run, it just no longer serialises it.
+  #
+  # Fork pull requests skip them, and only because an installer is validated by the push
+  # to the branch it eventually merges to.
   package-flatpak:
     name: Package
-    needs: [changes, quality-gates]
+    needs: changes
     if: github.event_name != 'pull_request' && needs.changes.outputs.dddgui == 'true'
     uses: ./.github/workflows/package-flatpak.yml
 
   package-macos:
     name: Package
-    needs: [changes, quality-gates]
+    needs: changes
     if: github.event_name != 'pull_request' && needs.changes.outputs.dddgui == 'true'
     uses: ./.github/workflows/package-macos.yml
 
   package-windows:
     name: Package
-    needs: [changes, quality-gates]
+    needs: changes
     if: github.event_name != 'pull_request' && needs.changes.outputs.dddgui == 'true'
     uses: ./.github/workflows/package-windows.yml
