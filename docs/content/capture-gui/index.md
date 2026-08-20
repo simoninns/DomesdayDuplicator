@@ -45,6 +45,7 @@ what each one is for.
 | [Test mode](test-mode.md) | Proving the capture path with the gateware's test pattern |
 | [Updating your Duplicator](updating-your-domesday-duplicator.md) | Installing firmware and gateware into the device |
 | [Command line](command-line.md) | The options the application accepts, and the scriptable analysis |
+| [Scripting captures](scripting.md) | Starting and stopping a capture from a script, with no window if you want none — and starting an audio recording at the same moment |
 
 ## Getting the device programmed, and what to do when something is wrong
 
@@ -91,6 +92,10 @@ to put it, the run, and what happened — examining the disc, naming the capture
 found, driving the player through the side, and stopping both at the end. **Capture another side**
 on the last page turns the whole thing round for the other side of the disc. It is the path
 for working through a stack of them.
+
+Either can be started **from a script** instead of by hand, with the window or without one —
+which is what to do when something else has to start recording at the same moment, or when
+nobody is going to be in the room. See [Scripting captures](scripting.md).
 
 ## What it writes
 

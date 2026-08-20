@@ -114,6 +114,35 @@ to the panel and the console and says so.
     verdict from standard output does not have to filter them out. On Windows the console is
     the one the application was started from, as described under `--version` above.
 
+### Capture options
+
+Eight options start, stop and set up a capture, so that a script can do what the window
+does. They are listed here for completeness and covered properly — with the exit codes, the
+worked examples and what each platform needs — in
+**[Scripting captures](scripting.md)**.
+
+| Option | What it does |
+| --- | --- |
+| `--start-capture` | Start capturing as soon as a device is found. The window still opens unless `--headless` is given |
+| `--headless` | Run with no window. Needs `--start-capture` |
+| `--stop-capture` | Stop the capture a running instance is taking, wait for its file to be finished, print it and exit |
+| `--capture-directory <folder>` | Write here instead of the configured folder. Created if it is not there |
+| `--capture-name <name>` | Call the capture this, without a suffix |
+| `--sample-rate <msps>` | `40` or `20` |
+| `--duration-limit <seconds>` | 1 to 86400. Leave it out to capture until stopped |
+| `--output-format <format>` | `flac` or `s16` |
+
+Given without `--start-capture` or `--stop-capture`, the last five simply fill the window in
+and start nothing. Whatever they set applies to that run only and is never saved.
+
+```bash
+ddd-gui --headless --start-capture --capture-name disc-42-side-1 --duration-limit 1800
+```
+
+The finished file's path goes to standard output on its own, and everything meant for a
+person goes to standard error — so `file=$(ddd-gui --headless --start-capture …)` is all the
+parsing a script needs.
+
 ### `--analyse-test-data <file>`
 
 Check a test-mode capture for sequence breaks and exit, without opening a window.
