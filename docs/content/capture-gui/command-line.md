@@ -58,6 +58,10 @@ alike. One of:
 | `error`, `critical` | Only failures |
 | `off` | Nothing at all |
 
+At `debug`, a capture keeps a full account of itself — see
+[What debug level records about a capture](#what-debug-level-records-about-a-capture)
+below. That is the level to reproduce a fault at.
+
 The application has four levels of its own, and this vocabulary is the wider one the
 project's other tools use, so a level named there means the same thing here: `trace` is a
 second name for `debug` and `critical` a second name for `error`. The names are lower case
@@ -137,6 +141,78 @@ it is opt-in and per-run rather than a setting.
 
 You want this only if you are building update bundles yourself; see
 [Developer update loop](../development/developer-update-loop.md).
+
+## What debug level records about a capture
+
+`info` says a capture started, stopped, and how it ended. `debug` adds the account a
+developer needs to say *why* it ended that way, and none of it needs a rebuild to turn on.
+
+**When the stream starts**, the ring it will run with — asked for, planned, and how much
+time it buys before a sample would be lost — and every option the run was made under, so a
+log can be read without the settings file that has since been changed.
+
+```
+Ring: 256.0 MiB asked for, 127 slots of 2.0 MiB = 254.0 MiB, which is 3.33 s of
+  headroom at 40.0 Msps (80.0 MB/s)
+Options: test mode off, memory locking on, priority elevation on, stall timeout
+  5000 ms, snapshot every 4 buffers of 64.0 KiB, throughput window 1000 ms,
+  progress every 10000 ms
+```
+
+**While it runs**, a line every ten seconds carrying the throughput against what it should
+have been, the ring depth, the device's back pressure, and how much has reached the file.
+This is the record of *when* a squeeze happened, which no figure taken at the end can give.
+
+```
+Capturing for 4 m 12 s: 9648 buffers, 79.9 MB/s (99.9% of the wire rate), ring
+  1/127 slots, peak 6; device buffer 0% back pressure, peak 34%; written
+  9.42 GiB (4 m 12 s of stream)
+```
+
+**When a capture file closes**, what actually reached it: samples, the length of stream
+they are, the size on disk and what that is as a fraction of what arrived — which is the
+compression a FLAC capture achieved — and how long the encoder's final flush took, since
+that pause is paid for out of the ring's headroom.
+
+```
+Closed flac after 9648 buffers over 4 m 12 s: 10113318912 samples = 4 m 12 s of
+  stream, 9.42 GiB on disk (46.7% of the 18.83 GiB that arrived), finishing took
+  214 ms
+Capture file: 10113318912 samples over 4 m 12 s, 9.42 GiB of 18.83 GiB that
+  arrived (50.0%), 38.3 MB/s to disk
+Signal in the file: range 41-980 of 1023, RMS 331.2, clipped low 0 high 0
+While this file was open: device lost 0 samples in 0 overflows; session peak back
+  pressure 34%, session peak ring depth 6 of 127 slots
+```
+
+**When the stream stops**, the whole run: what went through, how full each buffer got, and
+what the device's own FIFO did. Back pressure is reported as a mean and as counts at three
+levels beside the peak, because a run that touched three quarters of the ring once and one
+that sat there for twenty minutes report the same peak and are not the same capture.
+
+```
+Run: 4 m 20 s, 9962 transfers, 9962 buffers = 19.45 GiB = 4 m 20 s of stream,
+  averaging 79.8 MB/s (99.8% of the wire rate, counting the discarded opening
+  slots and anything still in flight)
+Ring depth: mean 0.9%, peak 4.7% (9962 readings), never over a quarter full; peak
+  6 of 127 slots, 9962 filled, 9962 freed
+Device back pressure: mean 2.1%, peak 34% (1043 readings), over a quarter for 3,
+  never over half; at or above the gateware's near-full mark for 1.42 s, peak
+  9216 words
+Signal over the run: 10402320384 samples, range 38-988 of 1023, RMS 330.9,
+  clipped low 0 high 0; sequence intact
+```
+
+Two of those figures are worth knowing how to read:
+
+- **Ring depth** is the host keeping up. A healthy capture sits near zero and never
+  climbs; a mean that is not near zero means this machine is only just managing, whatever
+  the peak says.
+- **Device back pressure** is the device waiting for the host to take packets, on a scale
+  where zero means every packet was taken as soon as it was offered and one hundred means
+  samples were lost. The near-full time beside it is how long the device spent close to
+  the edge, which is the figure that survives a squeeze nobody was reading at the moment
+  it happened.
 
 ## A related tool
 

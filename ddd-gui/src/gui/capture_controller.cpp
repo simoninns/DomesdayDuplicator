@@ -25,6 +25,7 @@
 #include "firmware_version.h"
 #include "free_space.h"
 #include "gain_choices.h"
+#include "log_format.h"
 #include "logger.h"
 #include "raw_sink.h"
 #include "sample_format.h"
@@ -302,6 +303,11 @@ void CaptureController::StartMonitoring() {
   options.queue_size_bytes = settings_.queue_size_bytes;
   options.test_mode = settings_.test_mode;
 
+  // Only the log uses this, and it is why the log's times are right under
+  // decimation: a 2:1 capture delivers half as many samples a second, so a
+  // count of them stands for twice as long.
+  options.sample_rate_hz = settings_.SampleRateHz();
+
   // Enumerating opens devices and does control transfers on them. Doing that to
   // a device that is streaming would put avoidable traffic on the bus for an
   // answer that is already obvious: data is arriving, so it is plainly still
@@ -483,6 +489,44 @@ std::unique_ptr<capture::ISampleSink> CaptureController::OpenCaptureFile() {
                        ? ""
                        : ", " + std::to_string(decimation) + ":1 decimated") +
                   ")");
+
+    // The setup this file was recorded under, in one line, so that a log read
+    // afterwards does not have to be cross-referenced against a settings file
+    // that has since been changed.
+    logger_->Debug(
+        "Capture settings: " + pending_metadata_.format + " at " +
+        capture::FormatDecimal(
+            static_cast<double>(pending_metadata_.sample_rate_hz) / 1.0e6, 3) +
+        " Msps, ring " + capture::FormatBytes(settings_.queue_size_bytes) +
+        ", test mode " + (settings_.test_mode ? "on" : "off") +
+        ", duration limit " +
+        (settings_.duration_limit_seconds > 0
+             ? capture::FormatDuration(
+                   static_cast<double>(settings_.duration_limit_seconds))
+             : std::string("none")) +
+        ", device buffer already " +
+        std::to_string(opening.device_overflow_events) +
+        " overflows into the "
+        "session");
+
+    // What the volume has, as the time it stands for. A capture that runs out
+    // of disk is one of the few failures that is entirely predictable at the
+    // moment it starts, and this is the line that makes it predictable
+    // afterwards as well.
+    const capture::FreeSpace space =
+        capture::AvailableSpace(directory.toStdString());
+    if (space.known) {
+      logger_->Debug(
+          "Destination has " + capture::FormatBytes(space.bytes_available) +
+          " free, about " +
+          capture::FormatDuration(capture::CaptureSecondsRemaining(
+              space.bytes_available, settings_.EstimatedBytesPerSecond())) +
+          " of capture at this setting");
+    } else {
+      logger_->Debug(
+          "Destination free space could not be read, so nothing can be said "
+          "about how long this capture will fit");
+    }
   }
   return sink;
 }
@@ -602,6 +646,57 @@ void CaptureController::FinishCaptureFile(const capture::CaptureStats& stats,
   if (logger_ != nullptr) {
     logger_->Info("Capture finished: " + file.string() + ", " +
                   std::to_string(bytes) + " bytes");
+
+    // The file's own account, measured across the span it covers rather than
+    // across the session it sat in — the same figures the sidecar records, said
+    // where somebody debugging will see them without opening it.
+    const uint64_t raw_bytes = samples * capture::kBytesPerSample;
+    std::string written = "Capture file: " + std::to_string(samples) +
+                          " samples over " +
+                          capture::FormatDuration(duration_seconds) + ", " +
+                          capture::FormatBytes(bytes);
+    if (raw_bytes > 0) {
+      written += " of " + capture::FormatBytes(raw_bytes) + " that arrived (" +
+                 capture::FormatDecimal(100.0 * static_cast<double>(bytes) /
+                                            static_cast<double>(raw_bytes),
+                                        1) +
+                 "%)";
+    }
+    if (duration_seconds > 0.0) {
+      written += ", " +
+                 capture::FormatDecimal(
+                     static_cast<double>(bytes) / duration_seconds / 1.0e6, 1) +
+                 " MB/s to disk";
+    }
+    logger_->Debug(written);
+
+    if (stats.metrics.capture_sample_count > 0) {
+      logger_->Debug("Signal in the file: range " +
+                     std::to_string(stats.metrics.capture_minimum_value) + "-" +
+                     std::to_string(stats.metrics.capture_maximum_value) +
+                     " of 1023, "
+                     "RMS " +
+                     capture::FormatDecimal(stats.metrics.capture_rms, 1) +
+                     ", clipped low " +
+                     std::to_string(stats.metrics.capture_clipped_low_count) +
+                     " high " +
+                     std::to_string(stats.metrics.capture_clipped_high_count));
+    }
+
+    // Differences rather than totals, for the reason the sidecar takes
+    // differences: the pipeline's counters run for the whole session and what
+    // matters here is what this file cost.
+    logger_->Debug("While this file was open: device lost " +
+                   std::to_string(Since(stats.device_dropped_words,
+                                        device_drops_at_start_)) +
+                   " samples in " +
+                   std::to_string(Since(stats.device_overflow_events,
+                                        device_overflows_at_start_)) +
+                   " overflows; session peak back pressure " +
+                   std::to_string(stats.peak_back_pressure_percent) +
+                   "%, session peak ring depth " +
+                   std::to_string(stats.peak_slots_in_use) + " of " +
+                   std::to_string(stats.slot_count) + " slots");
   }
 
   emit CaptureFinished(capture_path_, static_cast<quint64>(bytes));

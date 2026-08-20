@@ -49,6 +49,7 @@ add_library(ddd_capture STATIC
     device_updater.cpp
     digest.cpp
     disk_buffer_ring.cpp
+    fill_history.cpp
     firmware_version.cpp
     flac_sink.cpp
     fpga_telemetry.cpp
@@ -57,6 +58,7 @@ add_library(ddd_capture STATIC
     free_space.cpp
     jtag_cli.cpp
     json_value.cpp
+    log_format.cpp
     log_options.cpp
     logger.cpp
     memory_lock.cpp

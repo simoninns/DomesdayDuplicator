@@ -22,7 +22,9 @@
 #include <thread>
 
 #include "disk_buffer_ring.h"
+#include "fill_history.h"
 #include "monitor_tap.h"
+#include "sample_format.h"
 #include "sample_metrics.h"
 #include "sample_sink.h"
 #include "sample_source.h"
@@ -96,6 +98,24 @@ class CapturePipeline {
     std::chrono::milliseconds throughput_window{1000};
 
     size_t snapshot_bytes = SnapshotPublisher::kDefaultSnapshotBytes;
+
+    // What the device is delivering, after whatever decimation the gateware is
+    // doing. Nothing in the pipeline depends on it: it is how the log turns
+    // counts into times and says what a measured rate should have been, and a
+    // caller that leaves it at the converter's own rate gets figures that are
+    // right for an undecimated capture and optimistic for any other.
+    uint32_t sample_rate_hz = kSampleRateHz;
+
+    // How often the control thread logs a line of progress, at debug level.
+    // Zero turns it off.
+    //
+    // Ten seconds is chosen against the length of the thing being watched: a
+    // capture is a disc side, so a line every ten seconds is a few hundred over
+    // a session — enough to see when a squeeze began and short of the volume at
+    // which nobody reads any of it. It is logged from the control thread, which
+    // is already awake on a timer and is on no deadline; the processing thread
+    // never logs on a schedule (see logger.h).
+    std::chrono::milliseconds progress_log_interval{10000};
   };
 
   explicit CapturePipeline(ILogger* logger);
@@ -166,6 +186,17 @@ class CapturePipeline {
     return test_pattern_result_;
   }
 
+  // How full the host's ring and the device's own buffer got over the run.
+  //
+  // Valid once the run has stopped and Wait() has returned. Both are filled by
+  // the processing thread and read by whatever asked for them afterwards; the
+  // join is what makes that safe, and reading either while a capture is running
+  // is a data race.
+  const FillHistory& ring_fill() const { return ring_fill_; }
+  const FillHistory& device_back_pressure() const {
+    return device_back_pressure_;
+  }
+
  private:
   class Control;
 
@@ -180,6 +211,16 @@ class CapturePipeline {
 
   void PerformPendingSinkChange();
   void PublishStats();
+
+  // The lines that exist for a developer reading a log after the event rather
+  // than for a user watching a window. Each is a no-op without a logger.
+  void LogStartDetail();
+  void LogProgress();
+  void LogStopDetail();
+
+  // The wire rate the configured sample rate implies, in bytes per second.
+  // What a measured throughput is worth comparing against.
+  double ExpectedBytesPerSecond() const;
 
   // The rate across the most recent window, or zero while there is not yet a
   // window's worth of history to measure across.
@@ -268,6 +309,24 @@ class CapturePipeline {
   uint16_t peak_device_buffer_words_ = 0;
   uint64_t device_overflow_events_ = 0;
   uint64_t device_dropped_words_ = 0;
+
+  // Time the device spent at or above its near-full threshold, in the
+  // gateware's prescaled units. The peak says how close a run came; this says
+  // how long it stayed there, which is the difference between a spike and a
+  // machine that cannot keep up.
+  uint64_t device_near_full_units_ = 0;
+
+  // How full each buffer got over the whole run. Processing-thread state like
+  // everything above it, published by being read after the join.
+  FillHistory ring_fill_;
+  FillHistory device_back_pressure_;
+
+  // The span the current file covers, for the line logged when it closes.
+  // Written by the processing thread inside PerformPendingSinkChange and
+  // nowhere else.
+  bool capture_span_open_ = false;
+  uint64_t capture_span_start_buffer_ = 0;
+  std::chrono::steady_clock::time_point capture_span_start_time_;
 
   StatsPublisher stats_;
 

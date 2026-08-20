@@ -48,7 +48,9 @@ endfunction()
 # T1 — the engine. GTest::gtest_main supplies main(): nothing here needs an event loop.
 ddd_add_test(ddd_capture_tests "unit"
     unit/test_logger.cpp
+    unit/test_log_format.cpp
     unit/test_log_options.cpp
+    unit/test_fill_history.cpp
     unit/test_spdlog_logger.cpp
     unit/test_sample_format.cpp
     unit/test_test_pattern_verifier.cpp

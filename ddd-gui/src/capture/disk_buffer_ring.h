@@ -172,6 +172,11 @@ class DiskBufferRing {
   // should track this exactly; a difference is a dropped handoff.
   uint64_t SlotsFilled() const { return slots_filled_.load(); }
 
+  // Slots given back in total. The pair says what a run ended holding: at rest
+  // the two are equal, and a run that stopped with buffers still in the ring
+  // ended with the consumer that many behind the producer.
+  uint64_t SlotsFreed() const { return slots_freed_.load(); }
+
   // Pin every slot into physical memory. Returns a description of what could
   // not be locked, or an empty string on complete success — degrading rather
   // than failing, because an unlocked capture is more exposed, not impossible.

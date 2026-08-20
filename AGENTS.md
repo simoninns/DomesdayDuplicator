@@ -487,7 +487,7 @@ nix flake check                    # everything, on a clean machine
 ctest --test-dir ddd-gui/build     # one component
 ```
 
-**What exists today: 1,792 tests across four components** — 1,733 in `ddd-gui/` (the capture engine — sample and wire
+**What exists today: 1,821 tests across four components** — 1,762 in `ddd-gui/` (the capture engine — sample and wire
 formats, the disk-buffer ring's handoff and abort protocol, sequence validation and
 metrics, the test-pattern verifier, the native FLAC writer and reader round-tripped
 against each other, capture naming and provenance, the offline test-data analyser and its
@@ -495,8 +495,11 @@ exit codes, the wait-free monitor tap, the USB transfer-layout arithmetic and
 firmware version check, hot-plug detection, and the pipeline orchestrator driven by a
 synthetic source that can be told to produce specific faults — plus theme resolution, the
 log model, the engine-to-GUI logging bridge and the console and file destinations
-underneath it — the level and destination names the command line accepts, and what a log
-file that cannot be opened does instead — the About text's build provenance, the dock
+underneath it — the level and destination names the command line accepts, what a log file
+that cannot be opened does instead, and the account a capture keeps of itself at debug
+level: the ring it ran with, how full that ring and the device's own buffer got, what
+reached each file and what the encoder's finish cost — the About text's build provenance,
+the dock
 panel framework with its layout persistence, and both the monitor-mode and capture-to-disk
 GUI driven end to end against a fake USB backend, with every failure code injected and
 checked for its own specific message — plus the Qt-free display mathematics behind the
