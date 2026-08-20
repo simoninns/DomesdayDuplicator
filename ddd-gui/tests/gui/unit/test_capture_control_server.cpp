@@ -158,7 +158,21 @@ class CaptureControlServerTest : public ::testing::Test {
     // processes and may run several at once, so a shared name would have one
     // test connecting to another's server — and none of them may go anywhere
     // near the socket a real application on this machine is listening on.
-    name_ = QStringLiteral("ddd-gui-control-test-%1").arg(test_name);
+    //
+    // Named after the process rather than after the test, because the name has
+    // a length budget and the test names here spend it. A bare name is created
+    // inside QDir::tempPath(), and the whole path has to fit in sun_path: 108
+    // bytes on Linux and 104 on macOS, where the temporary directory is a
+    // per-user /var/folders path of about fifty characters to begin with.
+    // Beyond that listen() fails with a name error rather than with anything
+    // that reads like a length. The process id is what makes the name unique
+    // between concurrent test processes; the counter separates the tests
+    // within one, for a run of the binary directly rather than through CTest.
+    static int sequence = 0;
+    ++sequence;
+    name_ = QStringLiteral("ddd-ctl-%1-%2")
+                .arg(QCoreApplication::applicationPid())
+                .arg(sequence);
 
     directory_ = std::filesystem::temp_directory_path() /
                  (std::string("ddd-control-test-") + info->name());

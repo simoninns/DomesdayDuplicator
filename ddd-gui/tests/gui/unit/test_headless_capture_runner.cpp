@@ -79,7 +79,16 @@ class HeadlessCaptureRunnerTest : public ::testing::Test {
         QStringLiteral("ddd-gui-headless-%1").arg(test_name));
     QSettings().clear();
 
-    socket_name_ = QStringLiteral("ddd-gui-headless-test-%1").arg(test_name);
+    // Named after the process rather than after the test: the whole path has
+    // to fit in sun_path, and a bare name goes inside QDir::tempPath(), which
+    // on macOS is a per-user /var/folders path with fifty characters gone
+    // before the name starts. See the same construction in
+    // test_capture_control_server.cpp.
+    static int sequence = 0;
+    ++sequence;
+    socket_name_ = QStringLiteral("ddd-hls-%1-%2")
+                       .arg(QCoreApplication::applicationPid())
+                       .arg(sequence);
 
     directory_ = std::filesystem::temp_directory_path() /
                  (std::string("ddd-headless-test-") + info->name());

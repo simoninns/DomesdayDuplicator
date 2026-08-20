@@ -965,19 +965,37 @@ TEST_F(CaptureToDiskTest, ADurationRenameNeverLandsOnAnEarlierCapture) {
 
   QSignalSpy renamed(controller_.get(), &CaptureController::CaptureRenamed);
 
-  const auto capture_once = [this] {
+  // The samples the run has recorded so far, read from the statistics rather
+  // than from the size of the open file on disk.
+  //
+  // This wait is what decides the name, so it has to be short: the duration is
+  // samples over the sample rate, and both captures have to come in under a
+  // second for them to collide at all. The statistics are a counter in memory
+  // published every 50 ms, whereas a live file's size is only as fresh as the
+  // platform makes it — on Windows the directory entry is not updated while
+  // the handle is open, so waiting for it to grow ran for most of a second and
+  // named the capture 00H00M01S, with the second one landing somewhere else.
+  //
+  // Connected through a receiver of its own, declared after the counter and so
+  // destroyed before it: the lambda writes to a local, and an assertion that
+  // ends this test early must not leave it connected to a controller that goes
+  // on publishing into a variable that is no longer there.
+  uint64_t samples = 0;
+  QObject tap;
+  QObject::connect(controller_.get(), &CaptureController::StatsUpdated, &tap,
+                   [&samples](const capture::CaptureStats& stats) {
+                     samples = stats.samples_written;
+                   });
+
+  const auto capture_once = [this, &samples] {
+    samples = 0;
     controller_->StartCapture();
     ASSERT_TRUE(controller_->capturing());
 
-    // Waited on by name rather than by taking one off the listing: while the
-    // second capture is open the first one's finished file is in there too,
-    // and it already has contents.
-    const std::filesystem::path live(controller_->capture_path().toStdString());
-    ASSERT_TRUE(PumpUntil([&live] {
-      std::error_code error;
-      const auto size = std::filesystem::file_size(live, error);
-      return !error && size > 0;
-    }));
+    // Something has to have reached the file before it is stopped, or the
+    // assertion at the end of this test proves nothing — and a capture of no
+    // samples has no duration to append and would never be renamed at all.
+    ASSERT_TRUE(PumpUntil([&samples] { return samples > 0; }));
 
     controller_->StopCapture();
     ASSERT_TRUE(PumpUntil([this] { return !controller_->capturing(); }));
@@ -991,10 +1009,12 @@ TEST_F(CaptureToDiskTest, ADurationRenameNeverLandsOnAnEarlierCapture) {
   const auto first_size = std::filesystem::file_size(first);
   ASSERT_GT(first_size, 0U);
 
-  // Both captures are stopped the moment anything has reached the file, and the
-  // duration in the name is samples over the sample rate rather than elapsed
-  // time — so a slow machine makes these shorter and never longer. Both are
-  // under a second whatever happens, which is what makes them collide.
+  // Both captures are stopped on the first statistics tick that shows a sample,
+  // which is fifty milliseconds of recording and change. The duration in the
+  // name is samples over the sample rate, so that is a name of 00H00M00S with
+  // an order of magnitude to spare even where the synthetic source outruns the
+  // clock — and it is the same name both times, which is what makes them
+  // collide.
   ASSERT_NE(first.filename().string().find("_00H00M00S"), std::string::npos)
       << first.filename().string();
 
