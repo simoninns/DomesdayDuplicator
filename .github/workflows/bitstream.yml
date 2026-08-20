@@ -117,6 +117,9 @@ jobs:
       # it exists for.
       - name: Use the Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          # Disabled: no FlakeHub account, so the attempt only annotates an error it ignores.
+          use-flakehub: disabled
 
       # Quartus is `redistributable = false`, so it is absent from cache.nixos.org by
       # design and no public substituter will ever have it. This is the project's own
