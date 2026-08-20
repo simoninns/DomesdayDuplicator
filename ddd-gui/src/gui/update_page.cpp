@@ -27,6 +27,7 @@
 #include <string>
 #include <utility>
 
+#include "log_format.h"
 #include "update_bundle.h"
 #include "update_gate.h"
 #include "update_step_list.h"
@@ -314,6 +315,16 @@ void UpdatePage::AppendLog(const QString& line) {
                             .arg(seconds / 60)
                             .arg(seconds % 60, 2, 10, QLatin1Char('0'))
                             .arg(line));
+
+  // The same line into the application's log. This is the cheapest useful
+  // thing this page does for an investigation: the rolling log above is
+  // already one line per change of phase rather than one per report, and it
+  // closes with the dialog — so mirroring it costs nothing and is the
+  // difference between a fault report that carries the update's own story and
+  // one that says "it failed".
+  if (device_.logger != nullptr) {
+    device_.logger->Debug("Update page: " + line.toStdString());
+  }
 }
 
 void UpdatePage::ChooseBundle() {
@@ -340,8 +351,17 @@ void UpdatePage::LoadBundle(const QString& path) {
   // previous file's steps on the screen.
   PlanSteps();
 
+  if (device_.logger != nullptr) {
+    device_.logger->Debug("Update page: opening " + path.toStdString());
+  }
+
   QFile file(path);
   if (!file.open(QIODevice::ReadOnly)) {
+    if (device_.logger != nullptr) {
+      device_.logger->Warning(
+          "The update file could not be read: " + path.toStdString() + " — " +
+          file.errorString().toStdString());
+    }
     SetBundleState(tr("That file could not be read."), QString());
     RefreshVersions();
     RefreshButtons();
@@ -355,6 +375,13 @@ void UpdatePage::LoadBundle(const QString& path) {
   const std::optional<capture::UpdateBundle> bundle =
       capture::OpenUpdateBundleForPolicy(archive_, policy_, &error);
   if (!bundle.has_value()) {
+    if (device_.logger != nullptr) {
+      // The file was read and refused, which is a different thing from a file
+      // that could not be read at all — and the two have completely different
+      // remedies, so the log says which happened rather than "it did not
+      // work".
+      device_.logger->Warning("The update file was refused: " + error);
+    }
     archive_.clear();
     SetBundleState(QString::fromStdString(error).toHtmlEscaped(), QString());
     RefreshVersions();
@@ -387,6 +414,31 @@ void UpdatePage::LoadBundle(const QString& path) {
   const capture::UpdateGateResult gate =
       capture::CheckUpdateGate(*manifest_, input);
   bundle_installable_ = gate.allowed();
+
+  if (device_.logger != nullptr) {
+    device_.logger->Debug("Update file verified: version " +
+                          manifest_->version + ", " +
+                          capture::UpdateChannelName(manifest_->channel) +
+                          " channel, " + capture::FormatBytes(archive_.size()) +
+                          ", " + std::to_string(bytes.size()) +
+                          " bytes read from " + path.toStdString());
+
+    // What the device looked like when the gate was asked, beside what the
+    // gate said. The verdict on its own cannot be argued with; the verdict
+    // beside its inputs can be checked.
+    device_.logger->Debug(
+        std::string("Compatibility gate: ") +
+        capture::UpdateGateVerdictName(gate.verdict) + " (device " +
+        (device_.attached ? "attached" : "not attached") + ", personality " +
+        capture::DevicePersonalityName(device_.personality) +
+        ", firmware protocol " +
+        std::to_string(device_.identity.protocol_version) + ", register map " +
+        std::to_string(device_.identity.register_map_version) + ")");
+
+    for (const std::string& reason : gate.reasons) {
+      device_.logger->Debug("  " + reason);
+    }
+  }
 
   const QString gate_text = UpdateGateText(gate);
   if (!gate_text.isEmpty()) {
@@ -451,7 +503,8 @@ void UpdatePage::StartUpdate() {
 
   attempted_ = true;
   thread_ = new QThread(this);
-  worker_ = new UpdateWorker(std::move(target), archive_, policy_);
+  worker_ =
+      new UpdateWorker(std::move(target), archive_, policy_, device_.logger);
   worker_->moveToThread(thread_);
 
   connect(thread_, &QThread::started, worker_, &UpdateWorker::Run);

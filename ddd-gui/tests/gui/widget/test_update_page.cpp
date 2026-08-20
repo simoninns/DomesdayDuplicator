@@ -21,11 +21,14 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <memory>
+#include <mutex>
+#include <string>
 #include <vector>
 
 #include "fake_device_programmer.h"
 #include "fake_device_updater.h"
 #include "firmware_dialog.h"
+#include "logger.h"
 #include "update_bundle.h"
 #include "update_fixtures.h"
 #include "update_key.h"
@@ -166,6 +169,32 @@ struct PageUnderTest {
       std::make_unique<FakeDeviceUpdater>();
   std::unique_ptr<capture::FakeDeviceProgrammer> programmer =
       std::make_unique<capture::FakeDeviceProgrammer>();
+
+  // Records arrive from the worker thread as well as this one, so the
+  // collection has a lock of its own: the logger serialises its callbacks, and
+  // what it cannot do is stop a test reading the vector while the update
+  // thread appends to it.
+  mutable std::mutex log_mutex;
+  std::vector<std::string> log;
+  capture::CallbackLogger logger{
+      [this](capture::LogLevel /*level*/, const std::string& message) {
+        const std::lock_guard<std::mutex> guard(log_mutex);
+        log.push_back(message);
+      },
+      capture::LogLevel::kDebug};
+
+  bool LogContains(const std::string& fragment) const {
+    const std::lock_guard<std::mutex> guard(log_mutex);
+    for (const std::string& line : log) {
+      if (line.find(fragment) != std::string::npos) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Declared after the logger so that it is destroyed before it: the page
+  // holds the pointer for as long as it exists.
   std::unique_ptr<UpdatePage> page;
 
   explicit PageUnderTest(
@@ -188,6 +217,11 @@ struct PageUnderTest {
       seam.identity =
           gateware_recovery ? GatewareRecoveryDevice() : FixtureDevice();
     }
+
+    // Given a logger, so that every test here also runs the page's mirroring
+    // of its own rolling log into the application's. A line that only exists
+    // on the path nobody tests is a line that can crash a release.
+    seam.logger = &logger;
 
     FakeDeviceUpdater* const raw = device.get();
     seam.open =
@@ -594,6 +628,44 @@ TEST(UpdatePageStepsTest, TheDetailsWindowHoldsWhatTheEngineReported) {
   // being there.
   EXPECT_LT(log.count(QLatin1Char('\n')), 40)
       << "the log is one line per report rather than one per phase";
+}
+
+// The details window closes with the dialog; the application's log does not.
+// Everything in one has to be in the other, or a fault report carries the
+// version table and nothing about what actually happened.
+TEST(UpdatePageStepsTest, EverythingInTheDetailsWindowIsAlsoInTheLog) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_TRUE(test.RunToCompletion());
+
+  // The page's own account.
+  EXPECT_TRUE(test.LogContains("Update page: Update started"));
+  EXPECT_TRUE(test.LogContains("Update file verified: version"));
+  EXPECT_TRUE(test.LogContains("Compatibility gate: allowed"));
+
+  // And the engine's, through the same logger — which is the change that
+  // makes an update investigable at all: before it, the orchestrator was
+  // given no logger and its every word was discarded.
+  EXPECT_TRUE(test.LogContains("Update starting: bundle version"));
+  EXPECT_TRUE(test.LogContains("Installing firmware"));
+  EXPECT_TRUE(test.LogContains("Update finished after"));
+}
+
+TEST(UpdatePageStepsTest, AFailedUpdateSaysWhyInTheLogAsWellAsOnThePage) {
+  const BundleFile bundle;
+  PageUnderTest test;
+
+  test.device->SetFault(FakeDeviceUpdater::Fault::kFailDuringWrite);
+  test.device->SetFailureError(capture::DeviceUpdateError::kWrite);
+
+  test.page->LoadBundle(bundle.path());
+  ASSERT_TRUE(test.RunToCompletion());
+
+  EXPECT_TRUE(test.LogContains("Failed to install"));
+  EXPECT_TRUE(test.LogContains("Device status at the failure"));
+  EXPECT_TRUE(test.LogContains("failed at stage"));
 }
 
 // A failure is the case the details window exists for, so the reason has to

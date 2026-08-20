@@ -25,6 +25,11 @@ enum class LogLevel : int {
   kInfo,
   kWarning,
   kError,
+
+  // A threshold no record can meet, so nothing is logged. It is a minimum
+  // level and never the level of a record: --log-level off is the only thing
+  // that produces it, and Log() is never called with it.
+  kOff,
 };
 
 // Returns the lower-case name of a level ("debug", "info", ...).

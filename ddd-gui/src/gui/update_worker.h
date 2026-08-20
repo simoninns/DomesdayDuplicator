@@ -21,6 +21,7 @@
 #include "capture_metatypes.h"
 #include "device_recovery.h"
 #include "device_updater.h"
+#include "logger.h"
 #include "update_key.h"
 #include "update_orchestrator.h"
 
@@ -65,8 +66,16 @@ class UpdateWorker : public QObject {
   Q_OBJECT
 
  public:
+  // `logger` may be null and is not owned. It is what puts the engine's own
+  // account of the update — every stage, every device status, every reason it
+  // stopped — into the application's log rather than only into this page's
+  // rolling one, which closes with the dialog.
+  //
+  // Called from this worker's thread, so the implementation must be
+  // thread-safe. ApplicationLogger is.
   UpdateWorker(UpdateDevice device, std::vector<uint8_t> archive,
-               capture::UpdateKeyPolicy policy, QObject* parent = nullptr);
+               capture::UpdateKeyPolicy policy,
+               capture::ILogger* logger = nullptr, QObject* parent = nullptr);
   ~UpdateWorker() override;
 
   // Ask the update to stop at the next safe point, which is any point before
@@ -100,6 +109,7 @@ class UpdateWorker : public QObject {
   UpdateDevice device_;
   std::vector<uint8_t> archive_;
   capture::UpdateKeyPolicy policy_;
+  capture::ILogger* logger_ = nullptr;
   std::atomic<bool> cancelled_{false};
 };
 

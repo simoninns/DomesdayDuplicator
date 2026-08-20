@@ -47,6 +47,10 @@ pkgs.mkShell {
     flac
     libusb1
 
+    # The log's console and file destinations. MIT, so linking it into a GPLv3
+    # application is fine (AGENTS.md §10).
+    spdlog
+
     # Test
     gtest
 

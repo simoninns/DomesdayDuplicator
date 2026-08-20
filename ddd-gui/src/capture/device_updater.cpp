@@ -344,6 +344,58 @@ const char* UpdateTargetName(UpdateTarget target) {
   return "unknown";
 }
 
+const char* DeviceUpdateErrorName(DeviceUpdateError error) {
+  switch (error) {
+    case DeviceUpdateError::kNone:
+      return "none";
+    case DeviceUpdateError::kBusy:
+      return "busy";
+    case DeviceUpdateError::kTarget:
+      return "target";
+    case DeviceUpdateError::kLength:
+      return "length";
+    case DeviceUpdateError::kSequence:
+      return "sequence";
+    case DeviceUpdateError::kChunk:
+      return "chunk";
+    case DeviceUpdateError::kOverrun:
+      return "overrun";
+    case DeviceUpdateError::kShort:
+      return "short";
+    case DeviceUpdateError::kStreamDigest:
+      return "stream digest";
+    case DeviceUpdateError::kMediumDigest:
+      return "medium digest";
+    case DeviceUpdateError::kWrite:
+      return "write";
+    case DeviceUpdateError::kRead:
+      return "read";
+    case DeviceUpdateError::kImage:
+      return "image";
+    case DeviceUpdateError::kHardware:
+      return "hardware";
+  }
+  return "unknown";
+}
+
+const char* UpdatePhaseName(UpdatePhase phase) {
+  switch (phase) {
+    case UpdatePhase::kIdle:
+      return "idle";
+    case UpdatePhase::kReceiving:
+      return "receiving";
+    case UpdatePhase::kWriting:
+      return "writing";
+    case UpdatePhase::kVerifying:
+      return "verifying";
+    case UpdatePhase::kComplete:
+      return "complete";
+    case UpdatePhase::kFailed:
+      return "failed";
+  }
+  return "unknown";
+}
+
 std::string DeviceUpdateErrorText(DeviceUpdateError error) {
   // Every one of these names what happened and, where it is not obvious,
   // what to do about it. None of them says "error 9". The device is safe in

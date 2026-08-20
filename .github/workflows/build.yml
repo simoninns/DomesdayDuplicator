@@ -158,6 +158,12 @@ jobs:
       - name: Use the Magic Nix Cache
         if: needs.changes.outputs[matrix.enabled] == 'true'
         uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          # Disabled: this project has no FlakeHub account, so the opportunistic
+          # attempt to authenticate fails on every run and annotates the job with an
+          # error it then ignores. The GitHub Actions cache it falls back to is what
+          # this step is here for, and is unaffected.
+          use-flakehub: disabled
 
       - name: Build
         if: needs.changes.outputs[matrix.enabled] == 'true'
@@ -212,6 +218,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          # Disabled: no FlakeHub account, so the attempt only annotates an error it ignores.
+          use-flakehub: disabled
 
       - name: Check the bundle tooling
         run: nix build --print-build-logs .#checks.x86_64-linux.update-bundle
@@ -248,6 +257,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          # Disabled: no FlakeHub account, so the attempt only annotates an error it ignores.
+          use-flakehub: disabled
       - run: nix flake check --print-build-logs
 
   # The two quality gates, run in the development shell so that CI and a developer's
@@ -270,6 +282,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          # Disabled: no FlakeHub account, so the attempt only annotates an error it ignores.
+          use-flakehub: disabled
 
       # Both gates are attached to the build: clang-format as its own target, clang-tidy
       # through CXX_CLANG_TIDY, so compiling is what runs them.

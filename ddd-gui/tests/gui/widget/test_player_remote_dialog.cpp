@@ -357,7 +357,6 @@ TEST_F(PlayerRemoteDialogTest, AnEntryThatIsNotAnAddressIsNotSentAtAll) {
   auto* address = Find<QLineEdit>(PlayerRemoteDialog::kAddressEditName);
   address->setText(QStringLiteral("1:99"));
 
-  const size_t writes_before = port_.writes().size();
   Find<QPushButton>(PlayerRemoteDialog::kSearchButtonName)->click();
 
   auto* note = Find<QLabel>(PlayerRemoteDialog::kSearchNoteLabelName);
@@ -365,8 +364,14 @@ TEST_F(PlayerRemoteDialogTest, AnEntryThatIsNotAnAddressIsNotSentAtAll) {
   EXPECT_TRUE(note->isVisibleTo(dialog_.get()));
   EXPECT_FALSE(note->text().isEmpty());
 
+  // Read as what went on the wire rather than as how much did: the link polls
+  // the player the whole time this dialog is up, so the number of writes grows
+  // on its own and a count taken either side of the click says nothing.
   PumpUntil([] { return false; }, 100ms);
-  EXPECT_EQ(port_.writes().size(), writes_before);
+  for (const std::string& sent : port_.writes()) {
+    EXPECT_EQ(sent.find("SE"), std::string::npos)
+        << "a seek reached the player: " << sent;
+  }
 }
 
 TEST_F(PlayerRemoteDialogTest, TheAddressingFollowsTheDisc) {

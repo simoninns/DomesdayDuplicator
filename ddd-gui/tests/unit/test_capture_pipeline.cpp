@@ -808,6 +808,170 @@ TEST_F(CapturePipelineTest, SnapshotsArriveWhileTheCaptureRuns) {
   pipeline.Wait();
 }
 
+// --- What the log says about a run -----------------------------------------
+//
+// These pin the debug-level account of a capture, which is the only record of
+// how a run behaved on somebody else's machine. Asserted on by fragment rather
+// than by whole line: the wording is meant to be edited, and what must not
+// change is that each figure is reported at all.
+
+TEST_F(CapturePipelineTest, TheStartIsLoggedWithTheGeometryItWillRunWith) {
+  SyntheticSource::Options source_options = BaseSourceOptions();
+  source_options.slot_limit = 4;
+  SyntheticSource source(source_options);
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(),
+                             BasePipelineOptions()));
+  RunToCompletion(pipeline);
+
+  // The ring, as a size and as the length of time it buys — which is the term
+  // that decides whether it is big enough.
+  EXPECT_TRUE(LogContains("Ring: "));
+  EXPECT_TRUE(LogContains("of headroom"));
+  EXPECT_TRUE(LogContains("slots of"));
+
+  // And the settings the run was made under, so a log can be read without the
+  // settings file that has since been changed.
+  EXPECT_TRUE(LogContains("Options: test mode off"));
+  EXPECT_TRUE(LogContains("stall timeout"));
+}
+
+TEST_F(CapturePipelineTest, TheStopIsLoggedWithWhatWentThroughAndWhatItCost) {
+  SyntheticSource::Options source_options = BaseSourceOptions();
+  source_options.slot_limit = 8;
+  SyntheticSource source(source_options);
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(),
+                             BasePipelineOptions()));
+  const RunResult outcome = RunToCompletion(pipeline);
+  ASSERT_EQ(outcome.result, TransferResult::kSuccess);
+
+  EXPECT_TRUE(LogContains("Run: "));
+  EXPECT_TRUE(LogContains("transfers"));
+  EXPECT_TRUE(LogContains("of stream"));
+
+  // The ring's own account. A peak alone cannot tell a run that touched a level
+  // once from one that sat there, which is why the mean and the counts are
+  // beside it.
+  EXPECT_TRUE(LogContains("Ring depth: mean "));
+  EXPECT_TRUE(LogContains(" filled, "));
+
+  // Accumulated a buffer at a time rather than worked out at the end from the
+  // peak: one reading per buffer that was processed, which is what makes the
+  // mean mean anything.
+  EXPECT_EQ(pipeline.ring_fill().readings(), outcome.stats.buffers_processed);
+  EXPECT_GT(pipeline.ring_fill().peak_percent(), 0);
+
+  EXPECT_TRUE(LogContains("Signal over the run: "));
+  EXPECT_TRUE(LogContains("of 1023"));
+}
+
+TEST_F(CapturePipelineTest, TheDeviceBackPressureIsSummarisedWhenTheRunEnds) {
+  SyntheticSource::Options source_options = BaseSourceOptions();
+  source_options.slot_limit = 20;
+
+  // A reading that advances, so the pipeline accumulates it rather than seeing
+  // the same interval over and over.
+  TelemetrySource source(source_options, MakeReading(), true);
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(),
+                             BasePipelineOptions()));
+  RunToCompletion(pipeline);
+
+  EXPECT_TRUE(LogContains("Device back pressure: mean "));
+  EXPECT_TRUE(LogContains("near-full mark for"));
+
+  // The readings themselves, and not only the sentence built from them. Every
+  // interval this source reports lost samples, and an interval that lost a
+  // sample is full back pressure whatever its occupancy arithmetic says — so
+  // both figures must land on exactly 100 rather than on the 50 the peak of
+  // 12,288 words in a 16,384-word buffer would otherwise give.
+  EXPECT_GT(pipeline.device_back_pressure().readings(), 0U);
+  EXPECT_EQ(pipeline.device_back_pressure().peak_percent(), 100);
+  EXPECT_DOUBLE_EQ(pipeline.device_back_pressure().mean_percent(), 100.0);
+}
+
+TEST_F(CapturePipelineTest, AClosingFileIsLoggedWithWhatReachedIt) {
+  SyntheticSource source(BaseSourceOptions());
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(),
+                             BasePipelineOptions()));
+
+  auto sink = std::make_unique<test::RecordingSink>();
+  test::RecordingSink* sink_view = sink.get();
+  uint64_t request = pipeline.AttachSink(std::move(sink));
+  ASSERT_TRUE(WaitFor([&] { return pipeline.SinkChangeCount() >= request; }));
+  ASSERT_TRUE(WaitFor([&] { return sink_view->write_calls() > 3; }));
+
+  request = pipeline.DetachSink();
+  ASSERT_TRUE(WaitFor([&] { return pipeline.SinkChangeCount() >= request; }));
+
+  pipeline.RequestStop();
+  ASSERT_EQ(RunToCompletion(pipeline).result, TransferResult::kSuccess);
+
+  // How much reached the file, how long that is, and what the encoder's own
+  // finish cost — which happens on the processing thread between two buffers
+  // and is paid for out of the ring's headroom.
+  EXPECT_TRUE(LogContains("Closed recording after "));
+  EXPECT_TRUE(LogContains("samples = "));
+  EXPECT_TRUE(LogContains("finishing took "));
+
+  // And the state of the ring at each swap, which is where a slow finish shows
+  // up as a backlog rather than as a lost sample.
+  EXPECT_TRUE(LogContains("Sink change at buffer "));
+  EXPECT_TRUE(LogContains("peak so far"));
+}
+
+// Paced rather than free-running, so that the run lasts long enough for the
+// control thread's own poll to come round several times. Four slots a second
+// over three slots is about three quarters of a second — long by the standards
+// of this file and the only way to test something that happens on a timer
+// without polling the log from another thread while it is being written.
+SyntheticSource::Options PacedSourceOptions() {
+  SyntheticSource::Options options = BaseSourceOptions();
+  options.rate_bytes_per_second = 4 * kTestSlotBytes;
+  options.slot_limit = 3;
+  return options;
+}
+
+TEST_F(CapturePipelineTest, ProgressIsLoggedWhileTheRunGoesOn) {
+  SyntheticSource source(PacedSourceOptions());
+
+  CapturePipeline::Options options = BasePipelineOptions();
+
+  // Ten seconds in the application, which no test can wait for. What is being
+  // checked is that the interval is honoured at all and that the line carries
+  // the figures somebody watching a long capture needs.
+  options.progress_log_interval = 100ms;
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(), options));
+  RunToCompletion(pipeline);
+
+  // "Streaming" and not "Capturing": nothing is being written, and the line
+  // says which of the two a run was without anybody having to work it out.
+  EXPECT_TRUE(LogContains("Streaming for "));
+  EXPECT_TRUE(LogContains(" slots, peak "));
+  EXPECT_TRUE(LogContains("MB/s"));
+}
+
+TEST_F(CapturePipelineTest, ProgressIsNotLoggedWhenTheIntervalIsZero) {
+  SyntheticSource source(PacedSourceOptions());
+
+  CapturePipeline::Options options = BasePipelineOptions();
+  options.progress_log_interval = std::chrono::milliseconds{0};
+
+  CapturePipeline pipeline(&logger_);
+  ASSERT_TRUE(pipeline.Start(&source, std::make_unique<NullSink>(), options));
+  RunToCompletion(pipeline);
+
+  EXPECT_FALSE(LogContains("Streaming for "));
+}
+
 TEST_F(CapturePipelineTest,
        TheDestructorStopsARunningCaptureRatherThanHanging) {
   // A pipeline destroyed while running is what happens when the application is

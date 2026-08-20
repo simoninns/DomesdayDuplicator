@@ -213,4 +213,16 @@ UpdateGateResult CheckUpdateGate(const UpdateManifest& manifest,
   return result;
 }
 
+const char* UpdateGateVerdictName(UpdateGateVerdict verdict) {
+  switch (verdict) {
+    case UpdateGateVerdict::kAllowed:
+      return "allowed";
+    case UpdateGateVerdict::kApplicationTooOld:
+      return "refused: this application is too old";
+    case UpdateGateVerdict::kIncompatible:
+      return "refused: incompatible";
+  }
+  return "unknown";
+}
+
 }  // namespace ddd::capture

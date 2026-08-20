@@ -30,19 +30,23 @@ add_library(ddd_gui_lib STATIC
     capture_plan_form.cpp
     capture_failure_presenter.cpp
     capture_settings.cpp
+    console_attach.cpp
     examine_dialog.cpp
     firmware_dialog.cpp
     firmware_text.cpp
+    floating_dock_drag.cpp
     gain_choices.cpp
     log_message_model.cpp
     log_panel.cpp
     main_window.cpp
+    platform_description.cpp
     player_controller.cpp
     player_discovery.cpp
     player_remote_dialog.cpp
     player_settings.cpp
     player_text.cpp
     player_worker.cpp
+    qt_message_filter.cpp
     qt_serial_port.cpp
     serial_port_scanner.cpp
     settings_dialog.cpp

@@ -227,5 +227,27 @@ TEST(DeviceUpdaterIdentity,
   EXPECT_NE(MakeDeviceUpdater(usb, "device", nullptr), nullptr);
 }
 
+// Every code the firmware can answer with has both a sentence for a user and a
+// short name for a log. "error 10" in a log file is neither, and the two
+// vocabularies are separate because they are read by different people.
+TEST(DeviceUpdateErrorNames, EveryCodeHasASentenceAndAName) {
+  const DeviceUpdateError codes[] = {
+      DeviceUpdateError::kNone,         DeviceUpdateError::kBusy,
+      DeviceUpdateError::kTarget,       DeviceUpdateError::kLength,
+      DeviceUpdateError::kSequence,     DeviceUpdateError::kChunk,
+      DeviceUpdateError::kOverrun,      DeviceUpdateError::kShort,
+      DeviceUpdateError::kStreamDigest, DeviceUpdateError::kMediumDigest,
+      DeviceUpdateError::kWrite,        DeviceUpdateError::kRead,
+      DeviceUpdateError::kImage,        DeviceUpdateError::kHardware};
+
+  for (const DeviceUpdateError code : codes) {
+    EXPECT_STRNE(DeviceUpdateErrorName(code), "unknown")
+        << "code " << static_cast<int>(code);
+    EXPECT_FALSE(DeviceUpdateErrorText(code).empty());
+  }
+
+  EXPECT_STREQ(DeviceUpdateErrorName(DeviceUpdateError::kWrite), "write");
+}
+
 }  // namespace
 }  // namespace ddd::capture

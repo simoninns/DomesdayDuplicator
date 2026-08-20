@@ -120,6 +120,9 @@ jobs:
 
       - name: Use the Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          # Disabled: no FlakeHub account, so the attempt only annotates an error it ignores.
+          use-flakehub: disabled
 
       - name: Rebuild the firmware from the tag
         run: nix build --print-build-logs .#fx3-firmware --out-link result-firmware

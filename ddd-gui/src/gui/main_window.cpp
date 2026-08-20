@@ -41,6 +41,7 @@
 #include "device_updater.h"
 #include "examine_dialog.h"
 #include "firmware_dialog.h"
+#include "floating_dock_drag.h"
 #include "log_message_model.h"
 #include "log_panel.h"
 #include "player_controller.h"
@@ -117,6 +118,15 @@ MainWindow::MainWindow(ThemeController* theme_controller,
   BuildSpectrumDock();
   BuildAmplitudeDock();
   BuildLogDock();
+
+  // After all six exist, because it applies to every one of them equally.
+  // Under Wayland a panel popped out of the window is one Qt draws a title bar
+  // for and then cannot move; this hands the drag to the compositor instead.
+  // See floating_dock_drag.h. It does nothing on any other platform.
+  for (QDockWidget* dock : {capture_dock_, statistics_dock_, waveform_dock_,
+                            spectrum_dock_, amplitude_dock_, log_dock_}) {
+    EnableFloatingDockDrag(dock);
+  }
 
   BuildMenus();
 
@@ -341,7 +351,7 @@ void MainWindow::BuildAmplitudeDock() {
 void MainWindow::BuildLogDock() {
   log_dock_ = new QDockWidget(tr("Log"), this);
   log_dock_->setObjectName(QStringLiteral("log_dock"));
-  log_dock_->setWidget(new LogPanel(log_model_, log_dock_));
+  log_dock_->setWidget(new LogPanel(log_model_, logger_, log_dock_));
   addDockWidget(Qt::BottomDockWidgetArea, log_dock_);
   // Hidden by default: it is a diagnostic view, and the first run should show
   // the signal, not the plumbing. The View menu and --debug both reveal it.
@@ -759,6 +769,10 @@ void MainWindow::ShowFirmwareDialog() {
   capture::IUsbDevice* const usb = capture_controller_->usb_device();
   auto* const logger = static_cast<capture::ILogger*>(logger_);
 
+  // So that what the update page and the engine under it report reaches the
+  // application's log as well as the page's own, which closes with the dialog.
+  device.logger = logger;
+
   device.open =
       [usb, device_path, logger](
           const std::string& path) -> std::unique_ptr<capture::IDeviceUpdater> {
@@ -980,6 +994,10 @@ void MainWindow::ShowBringUpWizard() {
     // What this build was packaged with, if anything. Verified by the wizard
     // like any other file — this only says where to look.
     access.bundled_file = [] { return BundledUpdatePath(); };
+
+    // So that the wizard's steps and their results reach the application's log
+    // and, through it, whatever --log-file was told to write.
+    access.logger = logger;
 
     bringup_wizard_ = new BoardBringUpWizard(std::move(access), this);
     bringup_wizard_->setAttribute(Qt::WA_DeleteOnClose);

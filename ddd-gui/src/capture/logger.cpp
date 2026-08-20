@@ -25,6 +25,8 @@ const char* LogLevelName(LogLevel level) {
       return "warning";
     case LogLevel::kError:
       return "error";
+    case LogLevel::kOff:
+      return "off";
   }
 
   return "unknown";

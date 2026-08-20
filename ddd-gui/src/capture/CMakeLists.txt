@@ -49,6 +49,7 @@ add_library(ddd_capture STATIC
     device_updater.cpp
     digest.cpp
     disk_buffer_ring.cpp
+    fill_history.cpp
     firmware_version.cpp
     flac_sink.cpp
     fpga_telemetry.cpp
@@ -57,6 +58,8 @@ add_library(ddd_capture STATIC
     free_space.cpp
     jtag_cli.cpp
     json_value.cpp
+    log_format.cpp
+    log_options.cpp
     logger.cpp
     memory_lock.cpp
     minisign_verify.cpp
@@ -66,6 +69,7 @@ add_library(ddd_capture STATIC
     sample_metrics.cpp
     sample_sink.cpp
     sequence_validator.cpp
+    spdlog_logger.cpp
     sysfs_device_list.cpp
     svf_player.cpp
     synthetic_source.cpp
@@ -92,6 +96,12 @@ target_compile_options(ddd_capture PRIVATE -Wall -Wextra)
 
 target_include_directories(ddd_capture SYSTEM PUBLIC ${FLAC_INCLUDE_DIRS})
 target_link_libraries(ddd_capture PUBLIC ${FLAC_LIBRARIES} Threads::Threads)
+
+# spdlog, behind spdlog_logger.h. PRIVATE because that header forward-declares the one
+# spdlog type it holds rather than including anything: only spdlog_logger.cpp compiles
+# spdlog's headers, and nothing else in the application can reach them by accident. CMake
+# still carries the library through to whatever links ddd_capture.
+target_link_libraries(ddd_capture PRIVATE spdlog::spdlog)
 
 # The vendored SHA-256 and Ed25519, behind digest.h and minisign_verify.h. PRIVATE
 # because nothing outside those two wrappers may reach the vendored headers — a call to

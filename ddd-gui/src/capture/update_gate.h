@@ -69,6 +69,10 @@ struct UpdateGateResult {
   bool allowed() const { return verdict == UpdateGateVerdict::kAllowed; }
 };
 
+// A name for a verdict, for a log line. The reasons beside it are the words a
+// user reads; this is the one word that says which way the gate went.
+const char* UpdateGateVerdictName(UpdateGateVerdict verdict);
+
 // What the gate is being asked about.
 struct UpdateGateInput {
   // The device as it reports itself now.

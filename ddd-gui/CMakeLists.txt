@@ -216,6 +216,12 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # application is fine (AGENTS.md §10).
 find_package(FLAC REQUIRED)
 
+# spdlog, for the console and file halves of the log. MIT, so linking it into a GPLv3
+# application is fine (AGENTS.md §10). Only src/capture/spdlog_logger.cpp includes it: the
+# engine's logging seam is logger.h and stays that way, and spdlog is one implementation
+# of it rather than a logging library the whole application calls into.
+find_package(spdlog REQUIRED)
+
 # libusb, for talking to the device on Linux and macOS. Not needed on Windows, where the
 # WinUSB backend uses libraries that ship with the system. LGPL-2.1-or-later, so linking
 # it into a GPLv3 application is fine (AGENTS.md §10).

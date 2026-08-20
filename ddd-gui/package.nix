@@ -21,6 +21,7 @@
   wrapQtAppsHook,
   flac,
   libusb1,
+  spdlog,
   gtest,
   # The commit this binary was built from. It reaches --version and the About dialog, which
   # is the only way a released artefact can be traced back to its source. There is no .git
@@ -74,6 +75,10 @@ stdenv.mkDerivation (finalAttrs: {
 
     flac
     libusb1
+
+    # The console and file halves of the log, behind src/capture/spdlog_logger.h. MIT, so
+    # linking it into a GPLv3 application is fine (AGENTS.md §10).
+    spdlog
   ];
 
   checkInputs = [ gtest ];

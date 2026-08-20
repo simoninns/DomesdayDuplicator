@@ -245,9 +245,36 @@ class UpdateOrchestrator {
   UpdateOutcome RunBringUp(const UpdateBundle& bundle);
 
  private:
+  // The three above are thin wrappers around these, so that what a run was
+  // asked to do and how it ended are logged in one place rather than at every
+  // one of the dozen points a failure can return from.
+  UpdateOutcome RunUpdate(const UpdateBundle& bundle);
+  UpdateOutcome RunFactoryWrite(const UpdateBundle& bundle);
+  UpdateOutcome RunBringUpWrites(const UpdateBundle& bundle);
+
+  // What is about to be attempted, and how it ended. Debug level throughout:
+  // an update that works needs none of this, and an update that did not is
+  // usually being investigated from a log somebody else produced.
+  //
+  // `what` names the flow — "Update", "Bring-up", "Factory image" — so that
+  // three flows through one orchestrator are told apart in a log without
+  // reading the lines around them.
+  void LogPlan(const char* what, const UpdateBundle& bundle) const;
+  void LogOutcome(const char* what, const UpdateOutcome& outcome,
+                  std::chrono::steady_clock::time_point started) const;
+
+  // The device's own status, in the protocol's terms. Read at a failure,
+  // where what the device says about itself is the diagnosis.
+  void LogDeviceStatus(const char* when);
+
+  // InstallComponent wraps WriteComponent so that how a component ended is
+  // logged in one place: the write itself can stop at half a dozen points, and
+  // a line at each of them would be six chances to add a seventh and forget.
   bool InstallComponent(UpdateTarget target, const UpdateComponent& component,
                         std::span<const uint8_t> payload,
                         UpdateOutcome& outcome);
+  bool WriteComponent(UpdateTarget target, const UpdateComponent& component,
+                      std::span<const uint8_t> payload, UpdateOutcome& outcome);
 
   // Poll the device until it leaves the phase it is in, feeding progress out
   // as it goes. Returns false and fills in the outcome on a failure, a

@@ -20,6 +20,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -28,6 +29,7 @@
 #include "fake_device_programmer.h"
 #include "fake_device_updater.h"
 #include "fake_jtag_cable.h"
+#include "logger.h"
 #include "svf_fixtures.h"
 #include "update_bundle.h"
 #include "update_fixtures.h"
@@ -226,6 +228,33 @@ struct WizardUnderTest {
   FakeJtagCable cable;
 
   BringUpFile file;
+
+  // Records arrive from the worker thread as well as this one, so the
+  // collection has a lock of its own: the logger serialises its callbacks, and
+  // what it cannot do is stop a test reading the vector while a programming
+  // thread appends to it.
+  mutable std::mutex log_mutex;
+  std::vector<std::string> log;
+  capture::CallbackLogger logger{
+      [this](capture::LogLevel /*level*/, const std::string& message) {
+        const std::lock_guard<std::mutex> guard(log_mutex);
+        log.push_back(message);
+      },
+      capture::LogLevel::kDebug};
+
+  bool LogContains(const std::string& fragment) const {
+    const std::lock_guard<std::mutex> guard(log_mutex);
+    for (const std::string& line : log) {
+      if (line.find(fragment) != std::string::npos) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Declared after the logger so it is destroyed before it: the wizard holds
+  // the pointer for as long as it exists, and its worker logs through it right
+  // up to the moment it is joined.
   std::unique_ptr<BoardBringUpWizard> wizard;
 
   // What this "build" was packaged with, if anything. Empty is the ordinary
@@ -266,6 +295,10 @@ struct WizardUnderTest {
     };
 
     access.bundled_file = [bundled] { return bundled; };
+
+    // Given a logger, so that every test here also runs the wizard's own
+    // account of what it did — the record a bench procedure leaves behind.
+    access.logger = &logger;
 
     wizard = std::make_unique<BoardBringUpWizard>(std::move(access));
 
@@ -836,6 +869,13 @@ TEST(BoardBringUpWizardTest, ItConfiguresThenProgramsAndVerifiesAtTheEnd) {
   EXPECT_TRUE(test.Label(BoardBringUpWizard::kVerifySummaryName)
                   ->text()
                   .contains("Bring-up complete"));
+
+  // And the last page's answer is in the log, check by check. This is where a
+  // bring-up is proved, so it is the part of the record a report is built
+  // around — and a board that fails one check of six is a completely
+  // different problem from one that fails all six.
+  EXPECT_TRUE(test.LogContains("verifying the finished board"));
+  EXPECT_TRUE(test.LogContains("passed:"));
 }
 
 // --- the power cycle ------------------------------------------------------
@@ -1022,6 +1062,65 @@ TEST(BoardBringUpWizardTest, AFailedProgramStepSaysNothingIsBroken) {
   // And offered again, because every step of this can simply be run again.
   EXPECT_TRUE(
       test.Button(BoardBringUpWizard::kProgramStartButtonName)->isEnabled());
+}
+
+// --- what the log says about a bring-up ------------------------------------
+//
+// A bench procedure on a board that may have nothing working on it. The log is
+// often the only record of what was tried, and these pin that it is kept.
+
+TEST(BoardBringUpWizardTest, TheWholeProcedureIsRecordedInTheLog) {
+  WizardUnderTest test;
+  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
+  test.AdvanceTo(BringUpPage::kConfigure);
+
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+  test.wizard->GoNext();
+
+  test.Button(BoardBringUpWizard::kProgramStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+
+  // How far it got: every page it visited, in order.
+  EXPECT_TRUE(test.LogContains("Bring-up: moved to page"));
+
+  // What it found on the bench before it started.
+  EXPECT_TRUE(test.LogContains("USB-Blaster probe:"));
+
+  // The file, and whether it can do the job — an ordinary update carries two
+  // of the four payloads a bring-up needs, and that is the commonest thing to
+  // be handed here.
+  EXPECT_TRUE(test.LogContains("update file verified: version"));
+  EXPECT_TRUE(test.LogContains("carries firmware yes"));
+
+  // Each step, and how it ended.
+  EXPECT_TRUE(test.LogContains("starting the gateware-over-JTAG step"));
+  EXPECT_TRUE(test.LogContains("the gateware-over-JTAG step succeeded after"));
+  EXPECT_TRUE(test.LogContains("starting the programming step"));
+  EXPECT_TRUE(test.LogContains("the programming step succeeded after"));
+
+  // And the engine underneath, through the same logger. This is the change
+  // that makes a bring-up investigable: before it, the orchestrator was
+  // handed no logger at all and everything it said was discarded.
+  EXPECT_TRUE(test.LogContains("Configuring the FPGA over JTAG"));
+  EXPECT_TRUE(test.LogContains("JTAG attempt 1: succeeded"));
+  EXPECT_TRUE(test.LogContains("Programming the board, in the one order"));
+}
+
+TEST(BoardBringUpWizardTest, AFailedStepSaysWhyInTheLog) {
+  WizardUnderTest test;
+  test.cable.AnswerWith(capture::QuartusOpeningAnswers());
+  test.programmer.SetFault(FakeDeviceProgrammer::Fault::kRefuseStart);
+  test.AdvanceTo(BringUpPage::kConfigure);
+
+  test.Button(BoardBringUpWizard::kConfigureStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+  test.wizard->GoNext();
+
+  test.Button(BoardBringUpWizard::kProgramStartButtonName)->click();
+  ASSERT_TRUE(test.RunToCompletion());
+
+  EXPECT_TRUE(test.LogContains("the programming step failed:"));
 }
 
 TEST(BoardBringUpWizardTest, AStoppedConfigureIsNotReportedAsAFailure) {

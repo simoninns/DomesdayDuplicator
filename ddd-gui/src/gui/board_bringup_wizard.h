@@ -12,6 +12,7 @@
 #pragma once
 
 #include <QDialog>
+#include <QElapsedTimer>
 #include <QString>
 #include <cstdint>
 #include <functional>
@@ -25,6 +26,7 @@
 #include "device_programmer.h"
 #include "device_updater.h"
 #include "jtag_cable.h"
+#include "logger.h"
 #include "update_key.h"
 #include "update_manifest.h"
 #include "usb_device_info.h"
@@ -123,6 +125,14 @@ class BoardBringUpWizard : public QDialog {
     std::function<std::unique_ptr<capture::IDeviceUpdater>(
         const std::string& path)>
         open_updater;
+
+    // Where a copy of every step and every result goes, so that a bring-up
+    // that went wrong can be investigated afterwards. Not owned, may be null,
+    // and handed on to the engine — which is what puts the JTAG player's and
+    // the orchestrator's own account into the same log. Written to from the
+    // worker thread as well as this one, so an implementation must be
+    // thread-safe.
+    capture::ILogger* logger = nullptr;
 
     // Where this build's own update file is, or an empty string when it
     // carries none. A function rather than a path so that the search — which
@@ -268,6 +278,11 @@ class BoardBringUpWizard : public QDialog {
 
   void ShowPage(BringUpPage page);
 
+  // One line into the application's log, prefixed so that the wizard's own
+  // account is legible among everything else a session logs. Debug level: a
+  // bring-up that worked needs none of it.
+  void Log(const QString& line) const;
+
   // Set every button and every gate from the state in hand. One function,
   // called after anything changes, because a wizard whose Next button is only
   // correct on the page it was drawn on is a wizard that offers a step it will
@@ -353,6 +368,9 @@ class BoardBringUpWizard : public QDialog {
   capture::UpdateKeyPolicy policy_;
 
   BringUpPage page_ = BringUpPage::kOverview;
+
+  // How long the running step has taken, for the line logged when it ends.
+  QElapsedTimer task_clock_;
 
   // Whether the board has been seen to leave the bus while the jumper page
   // was in front of somebody. That is the whole of what this window can know

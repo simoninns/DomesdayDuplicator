@@ -12,9 +12,12 @@
 
 #include "bringup_orchestrator.h"
 
+#include <chrono>
+#include <string>
 #include <string_view>
 #include <utility>
 
+#include "log_format.h"
 #include "logger.h"
 
 namespace ddd::capture {
@@ -167,11 +170,43 @@ BringUpConfigureOutcome BringUpOrchestrator::ConfigureFpga(
   // catch a configuration that did not take. A single caught one is not a
   // fault to report — it is the check working, and the answer to it is
   // another attempt (TESTING.md, B-V1, 2026-08-19).
+  if (logger_ != nullptr) {
+    logger_->Debug(
+        "Configuring the FPGA over JTAG: " + FormatBytes(text.size()) +
+        " of vectors from the update file, up to " +
+        std::to_string(kConfigureAttempts) +
+        " attempts. Nothing is written to the board by this step.");
+  }
+
+  const auto configure_started = std::chrono::steady_clock::now();
+
   BringUpConfigureOutcome outcome;
   for (int attempt = 1; attempt <= kConfigureAttempts; ++attempt) {
     bool cable_opened = false;
+    const auto attempt_started = std::chrono::steady_clock::now();
     outcome = PlayVectors(text, attempt, cable_opened);
     outcome.attempts = attempt;
+
+    if (logger_ != nullptr) {
+      // Per attempt, because the retry is the interesting part: a run that
+      // succeeded on the second attempt and a run that succeeded on the first
+      // report the same outcome and are not the same board.
+      const double seconds =
+          std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                        attempt_started)
+              .count();
+      logger_->Debug(
+          "JTAG attempt " + std::to_string(attempt) + ": " +
+          (outcome.succeeded ? "succeeded"
+                             : (outcome.stopped ? "stopped" : "failed")) +
+          " after " + FormatDuration(seconds) + ", cable " +
+          (cable_opened ? "opened" : "not opened") + ", " +
+          std::to_string(outcome.play.statements) + " statements, " +
+          std::to_string(outcome.play.shifted_bits) + " bits shifted" +
+          (outcome.play.line > 0
+               ? ", stopped at file line " + std::to_string(outcome.play.line)
+               : std::string()));
+    }
 
     if (outcome.succeeded || outcome.stopped) {
       break;
@@ -203,6 +238,14 @@ BringUpConfigureOutcome BringUpOrchestrator::ConfigureFpga(
   fpga_configured_ = true;
 
   if (logger_ != nullptr) {
+    logger_->Debug(
+        "The FPGA was configured in " +
+        FormatDuration(std::chrono::duration<double>(
+                           std::chrono::steady_clock::now() - configure_started)
+                           .count()) +
+        " over " + std::to_string(outcome.attempts) + " attempt" +
+        (outcome.attempts == 1 ? "" : "s"));
+
     logger_->Info("The FPGA is running the factory image: " +
                   std::to_string(outcome.play.statements) +
                   " statements played, " +
@@ -256,6 +299,21 @@ UpdateOutcome BringUpOrchestrator::ProgramDevice(const UpdateBundle& bundle) {
     return outcome;
   }
 
+  if (logger_ != nullptr) {
+    // The order is a hardware-safety property (see the header), so it is
+    // stated in the log as well as in the code: a board found in a strange
+    // state afterwards is diagnosed by which of these three had happened.
+    logger_->Debug(
+        "Programming the board, in the one order that leaves every "
+        "interruption recoverable: EEPROM (" +
+        FormatBytes(bundle.firmware.size()) + "), factory image (" +
+        FormatBytes(bundle.factory_gateware.size()) +
+        "), then application image (" + FormatBytes(bundle.gateware.size()) +
+        "). Nothing is restarted here.");
+  }
+
+  const auto program_started = std::chrono::steady_clock::now();
+
   RecoveryInstaller installer(access_.fx3, logger_);
   installer.SetTimings(timings_);
   installer.SetUpdateTimings(update_timings_);
@@ -272,6 +330,17 @@ UpdateOutcome BringUpOrchestrator::ProgramDevice(const UpdateBundle& bundle) {
   // is what makes every image written below the running one, and it owns the
   // check afterwards.
   outcome = installer.RunBringUp(bundle);
+
+  if (logger_ != nullptr) {
+    logger_->Debug(
+        std::string("Programming ") +
+        (outcome.succeeded ? "finished" : "stopped") + " after " +
+        FormatDuration(std::chrono::duration<double>(
+                           std::chrono::steady_clock::now() - program_started)
+                           .count()) +
+        " at stage " + UpdateStageName(outcome.stage) +
+        (outcome.problem.empty() ? std::string() : ": " + outcome.problem));
+  }
 
   if (outcome.succeeded && logger_ != nullptr) {
     logger_->Info(

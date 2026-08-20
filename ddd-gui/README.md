@@ -169,6 +169,14 @@ core. It is BSD-3-Clause, so linking it into a GPLv3 application is fine.
 `winusb` and `cfgmgr32`, which ship with the toolchain. It is LGPL-2.1-or-later, so
 linking it into a GPLv3 application is fine.
 
+**spdlog** carries the console and file halves of the log — `--log-level`, `--log-file` and
+`--log-out`, described on the *Command line* documentation page. Neither is on by default:
+the Log panel is the log, and `--log-out` is what asks for a second copy. Only
+`src/capture/spdlog_logger.cpp` includes it: the engine logs through `logger.h` and always
+has, and this is one implementation of that interface rather than a logging library the
+application calls into everywhere. It is MIT, so linking it into a GPLv3 application is
+fine.
+
 On Linux the device needs a udev rule before a non-root user can open it — without one,
 enumeration finds the device but opening it fails. See
 the rules shipped with the FX3 programmer,

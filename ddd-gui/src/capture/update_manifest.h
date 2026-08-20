@@ -49,6 +49,11 @@ enum class UpdateChannel : uint8_t {
 };
 
 // One flashable payload.
+// The channel's name, for a log line. What the interface says about a
+// development bundle is a paragraph with a banner around it; this is the one
+// word that says which key signed the file.
+const char* UpdateChannelName(UpdateChannel channel);
+
 struct UpdateComponent {
   // The archive entry holding the bytes. A bare filename: bundle entries are
   // flat, so a name with a path separator in it is a malformed bundle.

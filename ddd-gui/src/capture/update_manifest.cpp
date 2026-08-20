@@ -373,4 +373,14 @@ std::string SerialiseUpdateManifest(const UpdateManifest& manifest) {
   return SerialiseJson(JsonValue::Object(std::move(members)));
 }
 
+const char* UpdateChannelName(UpdateChannel channel) {
+  switch (channel) {
+    case UpdateChannel::kRelease:
+      return "release";
+    case UpdateChannel::kDevelopment:
+      return "development";
+  }
+  return "unknown";
+}
+
 }  // namespace ddd::capture

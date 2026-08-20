@@ -256,5 +256,12 @@ TEST(UpdateManifest, RefusesTextThatIsNotJsonAtAll) {
   EXPECT_FALSE(ErrorsFrom("[1, 2, 3]").empty());
 }
 
+TEST(UpdateChannelNames, BothChannelsAreNamed) {
+  // Which key signed a file is the first question asked of a bundle that
+  // behaved oddly, and a log that named neither channel could not answer it.
+  EXPECT_STREQ(UpdateChannelName(UpdateChannel::kRelease), "release");
+  EXPECT_STREQ(UpdateChannelName(UpdateChannel::kDevelopment), "development");
+}
+
 }  // namespace
 }  // namespace ddd::capture

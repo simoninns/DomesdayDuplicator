@@ -31,6 +31,7 @@
 #include <utility>
 
 #include "bringup_worker.h"
+#include "log_format.h"
 #include "update_bundle.h"
 #include "update_text.h"
 #include "wire_protocol.h"
@@ -646,7 +647,14 @@ void BoardBringUpWizard::GoPrevious() {
   }
 }
 
+void BoardBringUpWizard::Log(const QString& line) const {
+  if (access_.logger != nullptr) {
+    access_.logger->Debug("Bring-up: " + line.toStdString());
+  }
+}
+
 void BoardBringUpWizard::ShowPage(BringUpPage page) {
+  const bool moved = page != page_;
   page_ = page;
 
   const std::vector<BringUpPage> steps = Steps();
@@ -667,6 +675,14 @@ void BoardBringUpWizard::ShowPage(BringUpPage page) {
   // Numbered out of nine even on a run that visits seven of them, so that two
   // runs of one procedure can be talked about in the same words.
   step_->setText(BringUpPageTitle(page));
+
+  // Every page a run visits, in the order it visited them. A bring-up is a
+  // procedure a user is walked through, and half of investigating one that
+  // went wrong is knowing how far it got and what it had already done.
+  if (moved) {
+    Log(QStringLiteral("moved to page %1 — %2")
+            .arg(BringUpPageTitle(page), BringUpPageHeading(page)));
+  }
 
   if (page == BringUpPage::kImage) {
     LoadBundledFileOnce();
@@ -960,6 +976,17 @@ void BoardBringUpWizard::ProbeCable(bool force) {
   cable_opened_ = cable != nullptr;
   cable_problem_ = QString::fromStdString(problem);
 
+  // Which of the three answers this was: not there, there and openable, or
+  // there and refused. They have completely different remedies — a cable, a
+  // udev rule, or another program holding it — and only the log records which
+  // one a user actually met.
+  Log(QStringLiteral("USB-Blaster probe: %1")
+          .arg(cable_opened_ ? QStringLiteral("opened")
+                             : QStringLiteral("could not be opened — %1")
+                                   .arg(cable_problem_.isEmpty()
+                                            ? QStringLiteral("no reason given")
+                                            : cable_problem_)));
+
   // And closed again immediately. Holding it open for the minutes between
   // this page and the one that programs would keep Quartus's jtagd — and
   // anything else on the bench — locked out for no reason.
@@ -1095,7 +1122,7 @@ void BoardBringUpWizard::StartTask(int task) {
     access.open_cable = access_.open_cable;
 
     orchestrator_ = std::make_unique<capture::BringUpOrchestrator>(
-        std::move(access), nullptr);
+        std::move(access), access_.logger);
   }
 
   QLabel* const status = kind == BringUpWorker::Task::kConfigure
@@ -1116,6 +1143,12 @@ void BoardBringUpWizard::StartTask(int task) {
 
   status->setText(tr("<p>Starting…</p>"));
   bar->setValue(0);
+
+  task_clock_.start();
+  Log(QStringLiteral("starting the %1 step")
+          .arg(kind == BringUpWorker::Task::kConfigure
+                   ? QStringLiteral("gateware-over-JTAG")
+                   : QStringLiteral("programming")));
 
   thread_ = new QThread(this);
   worker_ = new BringUpWorker(orchestrator_.get(), kind, archive_, policy_);
@@ -1143,6 +1176,20 @@ void BoardBringUpWizard::FinishTask(bool succeeded, bool stopped,
                                     const QString& problem) {
   const bool configure =
       running_task_ == static_cast<int>(BringUpWorker::Task::kConfigure);
+
+  // The result of the step, in one line, whichever way it went. The engine has
+  // already logged what it did; this says how it ended and how long it took,
+  // which is what a report is read for.
+  Log(QStringLiteral("the %1 step %2 after %3")
+          .arg(configure ? QStringLiteral("gateware-over-JTAG")
+                         : QStringLiteral("programming"),
+               succeeded ? QStringLiteral("succeeded")
+                         : (stopped ? QStringLiteral("was stopped")
+                                    : QStringLiteral("failed: ") + problem),
+               QString::fromStdString(capture::FormatDuration(
+                   task_clock_.isValid()
+                       ? static_cast<double>(task_clock_.elapsed()) / 1000.0
+                       : 0.0))));
 
   if (thread_ != nullptr) {
     thread_->quit();
@@ -1223,10 +1270,31 @@ void BoardBringUpWizard::Verify() {
                       : capture::DevicePersonality::kApplication,
       identity, expected);
 
+  // What the finished board says it is, whether or not every check passed. The
+  // last page is where a bring-up is proved, so its answer is the line a
+  // report is built around.
+  Log(QStringLiteral("verifying the finished board: device %1, firmware \"%2\" "
+                     "(expected %3), gateware %4")
+          .arg(fx3.has_value() ? QStringLiteral("attached")
+                               : QStringLiteral("not attached"),
+               QString::fromStdString(identity.product_string),
+               expected.isEmpty() ? QStringLiteral("nothing in particular")
+                                  : expected,
+               identity.gateware_present
+                   ? QString::fromStdString(identity.gateware_commit)
+                   : QStringLiteral("not answering")));
+
   QString text = QStringLiteral("<p>");
   bool all_passed = true;
   for (const BringUpCheck& check : checks) {
     all_passed = all_passed && check.passed;
+
+    // Each check by name, passed or failed. A board that fails one of six is
+    // a completely different problem from one that fails all six, and the
+    // summary line alone cannot tell them apart.
+    Log(QStringLiteral("  %1 %2").arg(
+        check.passed ? QStringLiteral("passed:") : QStringLiteral("FAILED:"),
+        check.description));
     // The same two marks the connectivity rows use, from the same place: a
     // page that ticked in one shape and crossed in another would be two
     // vocabularies for one answer.
@@ -1263,8 +1331,12 @@ void BoardBringUpWizard::LoadUpdateFile(const QString& path) {
   image_banner_->hide();
   chosen_path_ = path;
 
+  Log(QStringLiteral("opening the update file %1").arg(path));
+
   QFile file(path);
   if (!file.open(QIODevice::ReadOnly)) {
+    Log(QStringLiteral("the update file could not be read: %1")
+            .arg(file.errorString()));
     image_->setText(tr("That file could not be read."));
     Refresh();
     return;
@@ -1277,6 +1349,11 @@ void BoardBringUpWizard::LoadUpdateFile(const QString& path) {
   const std::optional<capture::UpdateBundle> bundle =
       capture::OpenUpdateBundleForPolicy(archive_, policy_, &error);
   if (!bundle.has_value()) {
+    // Read and refused, which is not the same as unreadable and has a
+    // different remedy — the wrong file against a build that pins the release
+    // key looks identical to a corrupted one from the page alone.
+    Log(QStringLiteral("the update file was refused: %1")
+            .arg(QString::fromStdString(error)));
     archive_.clear();
     image_->setText(QStringLiteral("<p>%1</p>")
                         .arg(QString::fromStdString(error).toHtmlEscaped()));
@@ -1285,6 +1362,24 @@ void BoardBringUpWizard::LoadUpdateFile(const QString& path) {
   }
 
   manifest_ = bundle->manifest;
+
+  // What the file is, and whether it carries the four payloads a bring-up
+  // needs. A file that verifies and cannot do the job is the commonest thing
+  // to be handed here — an ordinary update carries two of the four.
+  Log(QStringLiteral(
+          "update file verified: version %1, %2 channel, carries firmware %3, "
+          "factory image %4, gateware %5, JTAG vectors %6")
+          .arg(
+              QString::fromStdString(manifest_->version),
+              QString::fromUtf8(capture::UpdateChannelName(manifest_->channel)),
+              manifest_->firmware.has_value() ? QStringLiteral("yes")
+                                              : QStringLiteral("no"),
+              manifest_->factory_gateware.has_value() ? QStringLiteral("yes")
+                                                      : QStringLiteral("no"),
+              manifest_->gateware.has_value() ? QStringLiteral("yes")
+                                              : QStringLiteral("no"),
+              manifest_->provisioning.has_value() ? QStringLiteral("yes")
+                                                  : QStringLiteral("no")));
 
   QString summary = BringUpImageSummary(*manifest_);
   const QString problem = BringUpImageProblem(*manifest_);

@@ -12,9 +12,12 @@
 #include <gtest/gtest.h>
 
 #include <numeric>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "fake_device_updater.h"
+#include "logger.h"
 #include "update_orchestrator.h"
 
 namespace ddd::capture {
@@ -644,6 +647,120 @@ TEST(UpdateEstimate, TheGatewareIsEstimatedAsTheSlowerMedium) {
   // And a real gateware image is a minutes-long operation, which is what the
   // interface has to say before the first byte moves.
   EXPECT_GT(EstimateUpdateSeconds(gateware_only), 60);
+}
+
+// --- What the log says about an update ------------------------------------
+//
+// The engine's own account, which is what an investigation has when the
+// window that showed the progress bar has been closed. Asserted by fragment
+// rather than by whole line: the wording is meant to be edited, and what must
+// not change is that each fact is recorded at all.
+
+class RecordingLog {
+ public:
+  CallbackLogger::Sink Sink() {
+    return [this](LogLevel /*level*/, const std::string& message) {
+      lines_.push_back(message);
+    };
+  }
+
+  bool Contains(std::string_view fragment) const {
+    for (const std::string& line : lines_) {
+      if (line.find(fragment) != std::string::npos) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+ private:
+  std::vector<std::string> lines_;
+};
+
+TEST(UpdateOrchestratorLog, SaysWhatItWasGivenAndWhatItDid) {
+  const TestBundle test;
+  FakeDeviceUpdater device;
+
+  RecordingLog log;
+  CallbackLogger logger(log.Sink(), LogLevel::kDebug);
+
+  UpdateOrchestrator orchestrator(device, &logger);
+  orchestrator.SetTimings(FastTimings());
+  ASSERT_TRUE(orchestrator.Run(test.bundle).succeeded);
+
+  // What was in the file, before anything was written. A payload that is not
+  // installed is still worth naming: what a bundle contains and what a run
+  // installs are different questions.
+  EXPECT_TRUE(log.Contains("Update starting: bundle version"));
+  EXPECT_TRUE(log.Contains("carries firmware 0123abcd"));
+
+  // What the transfer was actually shaped like. The chunk size is the
+  // device's, not this build's, so a firmware that changes it changes every
+  // transfer that follows and this is the line that says which was in force.
+  EXPECT_TRUE(log.Contains("Installing firmware"));
+  EXPECT_TRUE(log.Contains("chunks of"));
+  EXPECT_TRUE(log.Contains("the device offered"));
+  EXPECT_TRUE(log.Contains("Sent the whole firmware"));
+  EXPECT_TRUE(log.Contains("Installed firmware after"));
+
+  // And how it ended, including the proof: an update that was performed and
+  // an update that is proved are different things.
+  EXPECT_TRUE(log.Contains("Update finished after"));
+  EXPECT_TRUE(log.Contains("succeeded at stage"));
+  EXPECT_TRUE(log.Contains("identity confirmed"));
+}
+
+TEST(UpdateOrchestratorLog, RecordsTheDevicesOwnStatusWhenItFails) {
+  const TestBundle test;
+  FakeDeviceUpdater device;
+  device.SetFault(FakeDeviceUpdater::Fault::kRefuseFinish);
+  device.SetFailureError(DeviceUpdateError::kStreamDigest);
+
+  RecordingLog log;
+  CallbackLogger logger(log.Sink(), LogLevel::kDebug);
+
+  UpdateOrchestrator orchestrator(device, &logger);
+  orchestrator.SetTimings(FastTimings());
+  ASSERT_FALSE(orchestrator.Run(test.bundle).succeeded);
+
+  // The stage it stopped at, and the device's own account of itself at that
+  // moment — which is the diagnosis, and the thing nobody can go back and ask
+  // for afterwards.
+  EXPECT_TRUE(log.Contains("Failed to install firmware"));
+  EXPECT_TRUE(log.Contains("Device status at the failure"));
+  EXPECT_TRUE(log.Contains("phase "));
+  EXPECT_TRUE(log.Contains("Update finished after"));
+  EXPECT_TRUE(log.Contains("failed at stage"));
+  EXPECT_TRUE(log.Contains("not confirmed"));
+}
+
+TEST(UpdateOrchestratorLog, NamesTheFlowSoThreeOfThemAreToldApart) {
+  // One orchestrator runs three different flows, and a log that called them
+  // all "update" would leave a bring-up indistinguishable from the ordinary
+  // path it deliberately is not.
+  const TestBundle test;
+  FakeDeviceUpdater device;
+
+  RecordingLog log;
+  CallbackLogger logger(log.Sink(), LogLevel::kDebug);
+
+  UpdateOrchestrator orchestrator(device, &logger);
+  orchestrator.SetTimings(FastTimings());
+  orchestrator.InstallFactoryGateware(test.bundle);
+
+  EXPECT_TRUE(log.Contains("Factory image write starting"));
+  EXPECT_TRUE(log.Contains("Factory image write finished"));
+  EXPECT_FALSE(log.Contains("Update starting"));
+}
+
+TEST(UpdatePhaseNames, EveryPhaseIsNamed) {
+  const UpdatePhase phases[] = {UpdatePhase::kIdle,     UpdatePhase::kReceiving,
+                                UpdatePhase::kWriting,  UpdatePhase::kVerifying,
+                                UpdatePhase::kComplete, UpdatePhase::kFailed};
+
+  for (const UpdatePhase phase : phases) {
+    EXPECT_STRNE(UpdatePhaseName(phase), "unknown");
+  }
 }
 
 TEST(UpdateStageNames, EveryStageIsNamed) {

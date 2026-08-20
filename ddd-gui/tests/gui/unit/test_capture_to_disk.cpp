@@ -22,8 +22,10 @@
 #include <fstream>
 #include <iterator>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "capture_controller.h"
 #include "capture_format.h"
@@ -33,6 +35,7 @@
 #include "fake_usb_device.h"
 #include "firmware_version.h"
 #include "front_end_gain.h"
+#include "logger.h"
 #include "sample_format.h"
 #include "synthetic_source.h"
 #include "test_data_analysis.h"
@@ -89,7 +92,11 @@ class CaptureToDiskTest : public ::testing::Test {
     device_->SetSingleDevice("bus-1", capture::DeviceSpeed::kSuper,
                              MatchingProductString());
 
-    controller_ = std::make_unique<CaptureController>(device_.get(), nullptr);
+    // Given a logger rather than nullptr, so that every test here runs the
+    // controller's own logging as well as its behaviour — a line that only
+    // exists on the path nobody tests is a line that can crash a release and
+    // pass CI.
+    controller_ = std::make_unique<CaptureController>(device_.get(), &logger_);
 
     CaptureSettings settings = controller_->settings();
     settings.queue_size_bytes = capture::DiskBufferRing::kMinimumQueueSizeBytes;
@@ -108,6 +115,19 @@ class CaptureToDiskTest : public ::testing::Test {
     device_.reset();
     std::filesystem::remove_all(directory_);
     QSettings().clear();
+  }
+
+  // Records arrive on engine threads as well as this one, so the collection has
+  // a lock of its own. The logger serialises its callbacks; what it cannot do
+  // is stop a test reading the vector while a capture thread appends to it.
+  bool LogContains(const std::string& fragment) const {
+    const std::lock_guard<std::mutex> guard(log_mutex_);
+    for (const std::string& message : log_) {
+      if (message.find(fragment) != std::string::npos) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // A product string in the shape the firmware reports, so the device the
@@ -159,8 +179,56 @@ class CaptureToDiskTest : public ::testing::Test {
 
   std::filesystem::path directory_;
   std::unique_ptr<capture::FakeUsbDevice> device_;
+
+  // Declared before the controller so that it outlives it: the controller holds
+  // the pointer for as long as it exists, and the engine threads it starts log
+  // through it right up to the moment they are joined in its destructor.
+  mutable std::mutex log_mutex_;
+  std::vector<std::string> log_;
+  capture::CallbackLogger logger_{
+      [this](capture::LogLevel /*level*/, const std::string& message) {
+        const std::lock_guard<std::mutex> guard(log_mutex_);
+        log_.push_back(message);
+      },
+      capture::LogLevel::kDebug};
+
   std::unique_ptr<CaptureController> controller_;
 };
+
+// --- What the log says about a capture ------------------------------------
+
+// The developer's account of a recording: what reached the file, what the
+// signal in it looked like, and what the device lost while it was open. Pinned
+// by fragment rather than by whole line — the wording is meant to be edited,
+// and what must not change is that each figure is reported at all.
+TEST_F(CaptureToDiskTest, TheFilesOwnAccountIsLoggedWhenItFinishes) {
+  QSignalSpy finished(controller_.get(), &CaptureController::CaptureFinished);
+
+  controller_->StartCapture();
+  ASSERT_TRUE(PumpUntil([&] {
+    return !WrittenFiles().empty() &&
+           std::filesystem::file_size(WrittenFiles().front()) > 0;
+  }));
+
+  controller_->StopCapture();
+  ASSERT_TRUE(PumpUntil([&] { return finished.count() == 1; }));
+
+  controller_->StopMonitoring();
+  ASSERT_TRUE(PumpUntil([&] { return !controller_->monitoring(); }));
+
+  // The setup the file was recorded under, said at the moment it was opened so
+  // that a log can be read without the settings file that has since changed.
+  EXPECT_TRUE(LogContains("Capture settings: "));
+  EXPECT_TRUE(LogContains("Msps, ring "));
+  EXPECT_TRUE(LogContains("Destination has "));
+
+  // And what it came out as.
+  EXPECT_TRUE(LogContains("Capture file: "));
+  EXPECT_TRUE(LogContains("that arrived"));
+  EXPECT_TRUE(LogContains("Signal in the file: "));
+  EXPECT_TRUE(LogContains("While this file was open: device lost "));
+  EXPECT_TRUE(LogContains("session peak ring depth "));
+}
 
 // --- Starting and stopping ------------------------------------------------
 
@@ -832,7 +900,14 @@ TEST_F(CaptureToDiskTest, ASecondCaptureOfTheSameNameIsRenamedAndSaidSo) {
 
   controller_->StartCapture();
   ASSERT_TRUE(controller_->capturing());
-  ASSERT_TRUE(PumpUntil([&] { return !WrittenFiles().empty(); }));
+
+  // Waited on for contents rather than for the file merely to appear: what the
+  // second capture must not write over has to be something before the second
+  // one starts, or the assertion at the end of this test proves nothing.
+  ASSERT_TRUE(PumpUntil([&] {
+    return !WrittenFiles().empty() &&
+           std::filesystem::file_size(WrittenFiles().front()) > 0;
+  }));
 
   // The first one is the name that was asked for, and nothing is said.
   EXPECT_EQ(renamed.count(), 0);
@@ -859,9 +934,14 @@ TEST_F(CaptureToDiskTest, ASecondCaptureOfTheSameNameIsRenamedAndSaidSo) {
   ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
   controller_->StopMonitoring();
 
-  // Both files are there, and the first still has its own contents.
+  // Both files are there, and the first still has its own contents. Named
+  // rather than taken from the front of the listing: " (1)" sorts ahead of
+  // ".ddd", so the front of it is the second capture, whose length is only
+  // however much happened to arrive before it was stopped.
   ASSERT_EQ(WrittenFiles().size(), 2U);
-  EXPECT_GT(std::filesystem::file_size(WrittenFiles().front()), 0U);
+  EXPECT_GT(
+      std::filesystem::file_size(std::filesystem::path(first.toStdString())),
+      0U);
 }
 
 TEST_F(CaptureToDiskTest, TheGeneratedNameIsNeverReportedAsRenamed) {

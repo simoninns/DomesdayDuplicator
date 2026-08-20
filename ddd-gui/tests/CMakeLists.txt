@@ -48,6 +48,10 @@ endfunction()
 # T1 — the engine. GTest::gtest_main supplies main(): nothing here needs an event loop.
 ddd_add_test(ddd_capture_tests "unit"
     unit/test_logger.cpp
+    unit/test_log_format.cpp
+    unit/test_log_options.cpp
+    unit/test_fill_history.cpp
+    unit/test_spdlog_logger.cpp
     unit/test_sample_format.cpp
     unit/test_test_pattern_verifier.cpp
     unit/test_sequence_validator.cpp
@@ -253,6 +257,7 @@ ddd_add_test(ddd_gui_tests "unit"
     gui/unit/test_firmware_text.cpp
     gui/unit/test_update_text.cpp
     gui/unit/test_update_steps.cpp
+    gui/unit/test_platform_description.cpp
     gui/unit/test_theme_manager.cpp
     gui/unit/test_log_message_model.cpp
     gui/unit/test_application_logger.cpp
@@ -283,6 +288,7 @@ target_include_directories(ddd_gui_tests PRIVATE support)
 ddd_add_test(ddd_gui_widget_tests "unit"
     support/widget_test_main.cpp
     gui/widget/test_main_window_panels.cpp
+    gui/widget/test_floating_dock_drag.cpp
     gui/widget/test_about_dialog.cpp
     gui/widget/test_firmware_dialog.cpp
     gui/widget/test_update_page.cpp
@@ -295,6 +301,7 @@ ddd_add_test(ddd_gui_widget_tests "unit"
     gui/widget/test_board_bringup_wizard.cpp
     gui/widget/test_player_remote_dialog.cpp
     gui/widget/test_settings_dialog.cpp
+    gui/widget/test_log_panel.cpp
     gui/widget/test_statistics_panel.cpp
     gui/widget/test_waveform_panel.cpp
     gui/widget/test_spectrum_panel.cpp

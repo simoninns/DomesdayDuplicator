@@ -458,5 +458,20 @@ TEST(UpdateGate, SupportedRangesAreRangesAndNotSingleValues) {
   EXPECT_FALSE(RegisterMapVersionIsSupported(kRegisterMapVersionMinimum - 1));
 }
 
+TEST(UpdateGateVerdictNames, EveryVerdictIsNamed) {
+  // The reasons beside a verdict are the words a user reads; this is the one
+  // word a log carries, and a verdict with no name would make a refusal
+  // indistinguishable from an allowance in the only record that survives.
+  const UpdateGateVerdict verdicts[] = {UpdateGateVerdict::kAllowed,
+                                        UpdateGateVerdict::kApplicationTooOld,
+                                        UpdateGateVerdict::kIncompatible};
+
+  for (const UpdateGateVerdict verdict : verdicts) {
+    EXPECT_STRNE(UpdateGateVerdictName(verdict), "unknown");
+  }
+
+  EXPECT_STREQ(UpdateGateVerdictName(UpdateGateVerdict::kAllowed), "allowed");
+}
+
 }  // namespace
 }  // namespace ddd::capture

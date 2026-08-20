@@ -15,6 +15,7 @@
 #include <memory>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "boot_image_fixture.h"
@@ -23,6 +24,7 @@
 #include "fake_device_programmer.h"
 #include "fake_device_updater.h"
 #include "fake_jtag_cable.h"
+#include "logger.h"
 #include "svf_fixtures.h"
 #include "update_fixtures.h"
 
@@ -550,6 +552,97 @@ TEST(BringUpOrchestrator, ReportsProgressAsTheUpdateFlowDoes) {
 }
 
 // --- the estimate ---------------------------------------------------------
+
+// --- What the log says about a bring-up ------------------------------------
+//
+// A bring-up is a bench procedure carried out on a board that may have nothing
+// working on it, so the log is often the only record of what was tried. These
+// pin that it is kept, by fragment rather than by whole line.
+
+class RecordingLog {
+ public:
+  CallbackLogger::Sink Sink() {
+    return [this](LogLevel /*level*/, const std::string& message) {
+      lines_.push_back(message);
+    };
+  }
+
+  bool Contains(std::string_view fragment) const {
+    for (const std::string& line : lines_) {
+      if (line.find(fragment) != std::string::npos) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+ private:
+  std::vector<std::string> lines_;
+};
+
+TEST(BringUpOrchestratorLog, RecordsTheJtagStepAndEachAttempt) {
+  Fixture fixture;
+  RecordingLog log;
+  CallbackLogger logger(log.Sink(), LogLevel::kDebug);
+
+  BringUpOrchestrator orchestrator(fixture.Access(), &logger);
+  fixture.Configure(orchestrator);
+
+  ASSERT_TRUE(orchestrator.ConfigureFpga(fixture.bundle).succeeded);
+
+  EXPECT_TRUE(log.Contains("Configuring the FPGA over JTAG"));
+  EXPECT_TRUE(log.Contains("Nothing is written to the board by this step"));
+
+  // Per attempt, because the retry is the interesting part: a board that took
+  // two attempts and one that took one report the same outcome and are not
+  // the same board.
+  EXPECT_TRUE(log.Contains("JTAG attempt 1: succeeded"));
+  EXPECT_TRUE(log.Contains("statements"));
+  EXPECT_TRUE(log.Contains("bits shifted"));
+  EXPECT_TRUE(log.Contains("The FPGA was configured in"));
+}
+
+TEST(BringUpOrchestratorLog, RecordsWhatProgrammingWroteAndInWhatOrder) {
+  Fixture fixture;
+  RecordingLog log;
+  CallbackLogger logger(log.Sink(), LogLevel::kDebug);
+
+  BringUpOrchestrator orchestrator(fixture.Access(), &logger);
+  fixture.Configure(orchestrator);
+
+  ASSERT_TRUE(orchestrator.ConfigureFpga(fixture.bundle).succeeded);
+  ASSERT_TRUE(orchestrator.ProgramDevice(fixture.bundle).succeeded);
+
+  // The order is a hardware-safety property, so it is stated in the log as
+  // well as in the code: a board found in a strange state afterwards is
+  // diagnosed by which of the three writes had happened.
+  EXPECT_TRUE(log.Contains("Programming the board, in the one order"));
+  EXPECT_TRUE(log.Contains("EEPROM ("));
+  EXPECT_TRUE(log.Contains("factory image ("));
+  EXPECT_TRUE(log.Contains("application image ("));
+  EXPECT_TRUE(log.Contains("Programming finished after"));
+
+  // And the engine underneath it logs through the same logger, which is what
+  // makes the wizard's account and the orchestrator's one story.
+  EXPECT_TRUE(log.Contains("Bring-up write starting"));
+  EXPECT_TRUE(log.Contains("Installed firmware after"));
+}
+
+TEST(BringUpOrchestratorLog, RecordsARefusalBeforeAnythingIsReachedFor) {
+  Fixture fixture;
+  RecordingLog log;
+  CallbackLogger logger(log.Sink(), LogLevel::kDebug);
+
+  BringUpOrchestrator orchestrator(fixture.Access(), &logger);
+  fixture.Configure(orchestrator);
+
+  // Programming without configuring first is the refusal that protects the
+  // hardware, and it is worth being able to see that it fired.
+  ASSERT_FALSE(orchestrator.ProgramDevice(fixture.bundle).succeeded);
+
+  EXPECT_TRUE(log.Contains("has to be configured before anything can be"));
+  EXPECT_FALSE(log.Contains("Programming the board, in the one order"));
+}
 
 TEST(ConfigureEstimate, GrowsWithTheFileAndIsSecondsForARealOne) {
   EXPECT_LT(EstimateConfigureSeconds(1000), EstimateConfigureSeconds(1000000));
