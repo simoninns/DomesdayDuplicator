@@ -20,3 +20,4 @@ nav:
   - If an update fails: if-an-update-fails.md
   - If a capture fails: if-a-capture-fails.md
   - Command line: command-line.md
+  - Scripting captures: scripting.md

@@ -14,6 +14,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCommandLineParser>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -21,6 +22,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QSpinBox>
+#include <QStringList>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -29,6 +31,7 @@
 #include <thread>
 #include <vector>
 
+#include "capture_cli.h"
 #include "capture_controller.h"
 #include "capture_format.h"
 #include "capture_panel.h"
@@ -945,6 +948,56 @@ TEST_F(CapturePanelTest, TheNamingButtonAsksForItsDialogRatherThanOpeningOne) {
 
   NamingButton()->click();
   EXPECT_EQ(asked.count(), 1);
+}
+
+// The other half of --start-capture: attributes given on the command line with
+// no start command simply set the window up, so that somebody can check what a
+// script would have done and then press the button themselves.
+//
+// Driven from an actual command line rather than from a settings struct,
+// because the chain is the thing being tested — the argument, the parse, the
+// override, the session apply, and the control a user reads it off.
+TEST_F(CapturePanelTest, WhatTheCommandLineNamedIsWhatThePanelOpensShowing) {
+  const QString directory = QString::fromStdString(
+      (std::filesystem::temp_directory_path() / "ddd-panel-test-cli-directory")
+          .string());
+
+  QCommandLineParser parser;
+  const CaptureCliOptionSet options = AddCaptureCliOptions(parser);
+  ASSERT_TRUE(parser.parse(QStringList{
+      QStringLiteral("ddd-gui"), QStringLiteral("--capture-directory"),
+      directory, QStringLiteral("--capture-name"),
+      QStringLiteral("Casper side 1"), QStringLiteral("--sample-rate"),
+      QStringLiteral("20"), QStringLiteral("--duration-limit"),
+      QStringLiteral("300"), QStringLiteral("--output-format"),
+      QStringLiteral("s16")}))
+      << parser.errorText().toStdString();
+
+  const CaptureCliParseResult parsed = ParseCaptureCliOptions(parser, options);
+  ASSERT_TRUE(parsed.ok()) << parsed.error.toStdString();
+
+  CaptureSettings settings = controller_->settings();
+  ApplyCliOverrides(settings, parsed.options);
+  controller_->ApplySessionSettings(settings);
+
+  // Rebuilt afterwards, as the window's panel is: CapturePanel reads the
+  // controller's settings in its constructor, so this is the case where the
+  // panel has to be born populated rather than told later.
+  panel_ = std::make_unique<CapturePanel>(controller_.get());
+
+  EXPECT_EQ(NameEdit()->text(), QStringLiteral("Casper side 1"));
+  EXPECT_EQ(SampleRateCombo()->currentData().toInt(),
+            capture::kTapeDecimationFactor);
+  EXPECT_EQ(FormatCombo()->currentData().toInt(),
+            static_cast<int>(capture::CaptureOutputFormat::kSigned16Bit));
+
+  // The panel offers minutes where the command line takes seconds, so five
+  // minutes is what three hundred seconds shows as.
+  EXPECT_EQ(DurationSpin()->value(), 5);
+
+  // Not on the panel — it lives in File ▸ Settings… — so it is checked where it
+  // landed rather than not checked at all.
+  EXPECT_EQ(controller_->settings().capture_directory, directory);
 }
 
 }  // namespace

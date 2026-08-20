@@ -236,8 +236,12 @@ MainWindow::MainWindow(ThemeController* theme_controller,
     connect(capture_controller_, &CaptureController::CaptureRenamed, this,
             [this](const QString& requested, const QString& written) {
               const QString message =
-                  tr("\u201c%1\u201d was already taken — capturing to "
-                     "\u201c%2\u201d instead.")
+                  // Worded for both of the moments this can arrive at: the
+                  // name is resolved before the file is opened, and resolved
+                  // again if the length added to it at the end lands on a
+                  // name that is taken too.
+                  tr("\u201c%1\u201d was already taken — this capture "
+                     "is \u201c%2\u201d.")
                       .arg(requested, written);
               statusBar()->showMessage(message);
               if (logger_ != nullptr) {

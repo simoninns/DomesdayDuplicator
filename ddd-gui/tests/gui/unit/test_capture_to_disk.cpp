@@ -944,6 +944,98 @@ TEST_F(CaptureToDiskTest, ASecondCaptureOfTheSameNameIsRenamedAndSaidSo) {
       0U);
 }
 
+// The same guarantee at the other end of the capture, which is where it used to
+// stop holding.
+//
+// A name is resolved before the file is opened, but that is not the name the
+// file ends up with when the naming appends the capture's length: the finished
+// file is renamed, and std::filesystem::rename replaces whatever is at the
+// destination without a word. Two captures of one name that ran for the same
+// length both wanted "<name>_00H00M00S", so the second quietly destroyed the
+// first — after the first had been reported as finished, and with its sidecar
+// going the same way.
+//
+// It is not an unlikely shape. It is what a script produces on every run: one
+// --capture-name, one --duration-limit, the same answer every time.
+TEST_F(CaptureToDiskTest, ADurationRenameNeverLandsOnAnEarlierCapture) {
+  Settings([](CaptureSettings& settings) {
+    settings.capture_name = QStringLiteral("Casper side 1");
+    settings.naming.append_duration = true;
+  });
+
+  QSignalSpy renamed(controller_.get(), &CaptureController::CaptureRenamed);
+
+  // The samples the run has recorded so far, read from the statistics rather
+  // than from the size of the open file on disk.
+  //
+  // This wait is what decides the name, so it has to be short: the duration is
+  // samples over the sample rate, and both captures have to come in under a
+  // second for them to collide at all. The statistics are a counter in memory
+  // published every 50 ms, whereas a live file's size is only as fresh as the
+  // platform makes it — on Windows the directory entry is not updated while
+  // the handle is open, so waiting for it to grow ran for most of a second and
+  // named the capture 00H00M01S, with the second one landing somewhere else.
+  //
+  // Connected through a receiver of its own, declared after the counter and so
+  // destroyed before it: the lambda writes to a local, and an assertion that
+  // ends this test early must not leave it connected to a controller that goes
+  // on publishing into a variable that is no longer there.
+  uint64_t samples = 0;
+  QObject tap;
+  QObject::connect(controller_.get(), &CaptureController::StatsUpdated, &tap,
+                   [&samples](const capture::CaptureStats& stats) {
+                     samples = stats.samples_written;
+                   });
+
+  const auto capture_once = [this, &samples] {
+    samples = 0;
+    controller_->StartCapture();
+    ASSERT_TRUE(controller_->capturing());
+
+    // Something has to have reached the file before it is stopped, or the
+    // assertion at the end of this test proves nothing — and a capture of no
+    // samples has no duration to append and would never be renamed at all.
+    ASSERT_TRUE(PumpUntil([&samples] { return samples > 0; }));
+
+    controller_->StopCapture();
+    ASSERT_TRUE(PumpUntil([this] { return !controller_->capturing(); }));
+  };
+
+  ASSERT_NO_FATAL_FAILURE(capture_once());
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+  ASSERT_EQ(WrittenFiles().size(), 1U);
+
+  const std::filesystem::path first = WrittenFiles().front();
+  const auto first_size = std::filesystem::file_size(first);
+  ASSERT_GT(first_size, 0U);
+
+  // Both captures are stopped on the first statistics tick that shows a sample,
+  // which is fifty milliseconds of recording and change. The duration in the
+  // name is samples over the sample rate, so that is a name of 00H00M00S with
+  // an order of magnitude to spare even where the synthetic source outruns the
+  // clock — and it is the same name both times, which is what makes them
+  // collide.
+  ASSERT_NE(first.filename().string().find("_00H00M00S"), std::string::npos)
+      << first.filename().string();
+
+  ASSERT_NO_FATAL_FAILURE(capture_once());
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 2U; }));
+  controller_->StopMonitoring();
+
+  // Two recordings and two sidecars. This was one of each.
+  ASSERT_EQ(WrittenFiles().size(), 2U);
+  EXPECT_TRUE(std::filesystem::exists(first));
+  EXPECT_EQ(std::filesystem::file_size(first), first_size);
+
+  // And it was said out loud, exactly as a collision found before the file is
+  // opened is said out loud.
+  ASSERT_EQ(renamed.count(), 1);
+  EXPECT_EQ(renamed.front().at(0).toString(),
+            QStringLiteral("Casper side 1_00H00M00S"));
+  EXPECT_EQ(renamed.front().at(1).toString(),
+            QStringLiteral("Casper side 1_00H00M00S (1)"));
+}
+
 TEST_F(CaptureToDiskTest, TheGeneratedNameIsNeverReportedAsRenamed) {
   ASSERT_TRUE(controller_->settings().capture_name.isEmpty());
 

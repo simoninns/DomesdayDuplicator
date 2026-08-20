@@ -21,6 +21,27 @@ namespace ddd::gui {
 
 #ifdef _WIN32
 
+namespace {
+
+// Whether the caller pointed this stream somewhere of its own — `> file`, or a
+// pipe into another command — rather than leaving it to the console.
+//
+// Asked of the handle rather than of the process, because a windowed
+// application started from a command prompt has no console but does have
+// whatever handles the prompt passed it: a redirection is set up before the
+// process starts, and the C runtime binds the stream to it at startup whatever
+// subsystem the executable was linked for.
+bool Redirected(HANDLE handle) {
+  if (handle == nullptr || handle == INVALID_HANDLE_VALUE) {
+    return false;
+  }
+  const DWORD type =
+      GetFileType(handle) & ~static_cast<DWORD>(FILE_TYPE_REMOTE);
+  return type == FILE_TYPE_DISK || type == FILE_TYPE_PIPE;
+}
+
+}  // namespace
+
 bool AttachParentConsole() {
   // A console this process already owns — a developer build linked without
   // WIN32_EXECUTABLE, or a second call — is left alone. Attaching over it
@@ -28,6 +49,11 @@ bool AttachParentConsole() {
   if (GetConsoleWindow() != nullptr) {
     return true;
   }
+
+  // Asked before attaching, because attaching is entitled to replace the
+  // process's standard handles with the console's own.
+  const bool stdout_redirected = Redirected(GetStdHandle(STD_OUTPUT_HANDLE));
+  const bool stderr_redirected = Redirected(GetStdHandle(STD_ERROR_HANDLE));
 
   if (AttachConsole(ATTACH_PARENT_PROCESS) == 0) {
     return false;
@@ -38,13 +64,16 @@ bool AttachParentConsole() {
   // reopened onto the console's own device name. Without this the console
   // exists and every write still goes nowhere.
   //
-  // Both are attempted whatever the other does. A stream that will not reopen
-  // has almost certainly been redirected to a file by the caller, which is a
-  // use of the console this does not need to understand and has no business
-  // overriding — and standard input is left alone entirely, because a windowed
-  // application reads none.
-  const bool have_stdout = std::freopen("CONOUT$", "w", stdout) != nullptr;
-  const bool have_stderr = std::freopen("CONOUT$", "w", stderr) != nullptr;
+  // A stream the caller redirected is left exactly as it was found. Reopening
+  // that one onto the console would take a script's output away from the file
+  // or the pipe it asked for and put it on the screen instead — which is the
+  // whole of `ddd-gui --stop-capture > path.txt`, and the one thing this
+  // function must not do. Standard input is left alone in every case, because
+  // a windowed application reads none.
+  const bool have_stdout =
+      stdout_redirected || std::freopen("CONOUT$", "w", stdout) != nullptr;
+  const bool have_stderr =
+      stderr_redirected || std::freopen("CONOUT$", "w", stderr) != nullptr;
 
   return have_stdout || have_stderr;
 }

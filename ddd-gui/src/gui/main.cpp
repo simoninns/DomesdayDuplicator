@@ -11,6 +11,7 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QCoreApplication>
 #include <QLoggingCategory>
 #include <QString>
 #include <QTextStream>
@@ -23,18 +24,96 @@
 #include "analysis_cli.h"
 #include "application_logger.h"
 #include "auto_capture_controller.h"
+#include "capture_cli.h"
+#include "capture_control_server.h"
 #include "capture_controller.h"
+#include "capture_settings.h"
+#include "capture_stop_client.h"
 #include "console_attach.h"
+#include "headless_capture_runner.h"
 #include "log_options.h"
 #include "logger.h"
 #include "main_window.h"
 #include "platform_description.h"
 #include "player_controller.h"
 #include "qt_message_filter.h"
+#include "signal_watcher.h"
 #include "spdlog_logger.h"
 #include "theme_controller.h"
 #include "usb_device.h"
 #include "version.h"
+
+namespace {
+
+// A capture with no window around it: the whole of --headless.
+//
+// Everything it wires is tested elsewhere — the lifecycle in
+// HeadlessCaptureRunner, the socket in CaptureControlServer, the interrupt in
+// SignalWatcher — so what is left here is the wiring, and it is kept out of
+// main() so that the three modes read as three modes rather than as one long
+// function with branches in it.
+int RunHeadlessCapture(QCoreApplication& app, ddd::gui::ApplicationLogger& log,
+                       const ddd::gui::CaptureCliOptions& options,
+                       QTextStream& out, QTextStream& error) {
+  // A null backend is fatal here where the window survives it: a window with no
+  // device can still show settings and open a capture for reading, and a
+  // headless run has nothing left to do at all.
+  const std::unique_ptr<ddd::capture::IUsbDevice> usb_device =
+      ddd::capture::MakeUsbDevice(&log);
+
+  ddd::gui::CaptureController capture_controller(usb_device.get(), &log);
+
+  ddd::gui::CaptureSettings settings = capture_controller.settings();
+  ddd::gui::ApplyCliOverrides(settings, options);
+  capture_controller.ApplySessionSettings(settings);
+
+  // Before anything is started, and a hard failure rather than a warning. Two
+  // processes streaming from one device is not something either can do, and a
+  // headless capture that could not be reached over the socket would be a
+  // process a script had no way to stop — on Windows, where there is no
+  // interrupt to fall back on, no way at all.
+  ddd::gui::CaptureControlServer control_server(&capture_controller, &log);
+  QString listen_error;
+  if (!control_server.Listen(&listen_error)) {
+    error << listen_error << "\n";
+    error.flush();
+    return ddd::gui::kExitInstanceRunning;
+  }
+
+  ddd::gui::HeadlessCaptureRunner runner(&capture_controller, out, error);
+
+  int exit_code = ddd::gui::kExitSuccess;
+  QObject::connect(&runner, &ddd::gui::HeadlessCaptureRunner::Finished, &app,
+                   [&exit_code, &app](int code) {
+                     exit_code = code;
+                     app.quit();
+                   });
+
+  // Ctrl+C and kill on Unix, a console control event on Windows. Null if the
+  // platform would not take the handler, which is not a reason to refuse to
+  // capture: --stop-capture works whatever this returns, which is why the
+  // socket above is not optional and this is.
+  ddd::gui::SignalWatcher* const watcher =
+      ddd::gui::SignalWatcher::Install(&app);
+  if (watcher != nullptr) {
+    QObject::connect(watcher, &ddd::gui::SignalWatcher::Interrupted, &runner,
+                     &ddd::gui::HeadlessCaptureRunner::RequestStop);
+  }
+
+  // The runner first, so that it is connected before the controller's first
+  // device report goes out — that report is the one that starts the capture.
+  runner.Begin();
+  capture_controller.Start();
+
+  QCoreApplication::exec();
+
+  // Stack destruction from here, exactly as the windowed path unwinds: the
+  // controller's destructor stops the monitor, the analysis worker and the
+  // pipeline in the order they have to be stopped in.
+  return exit_code;
+}
+
+}  // namespace
 
 int main(int argc, char* argv[]) {
   // First, before anything can write to a stream. On Windows this application
@@ -44,46 +123,75 @@ int main(int argc, char* argv[]) {
   // Linux or macOS.
   ddd::gui::AttachParentConsole();
 
-  QApplication::setHighDpiScaleFactorRoundingPolicy(
-      Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+  // Which application object to build, decided from the raw arguments because
+  // QCommandLineParser needs the application it is about to decide on. A
+  // headless capture and a --stop-capture client both want a QCoreApplication:
+  // a QApplication would demand a platform plugin neither has any use for,
+  // which on a machine with no display is the difference between running and
+  // refusing to start.
+  const bool core_only = ddd::gui::WantsCoreApplication(argc, argv);
 
-  // Qt's own Wayland plugin, not this application. Every popup — a menu, a
-  // submenu, a tooltip, a combo box — is a surface of its own, and when one
-  // goes away the compositor's text-input protocol sends a leave event for a
-  // surface the plugin has already forgotten, which it complains about:
-  //
-  //   qt.qpa.wayland.textinput: … Got leave event for surface 0x0 …
-  //
-  // Nothing is wrong and nothing can be done about it from here, so opening a
-  // menu would print a line of somebody else's diagnostics into a terminal a
-  // user is watching for this application's own messages. Silenced by category
-  // rather than by matching the text, so nothing else is hidden with it.
-  //
-  // Rules from QT_LOGGING_RULES are applied after these and win, so anybody
-  // debugging the plugin can still switch the category back on.
-  QLoggingCategory::setFilterRules(
-      QStringLiteral("qt.qpa.wayland.textinput=false"));
+  std::unique_ptr<QCoreApplication> app;
 
-  // The same plugin, and the same reasoning, for a message that carries no
-  // category to switch off. See qt_message_filter.h.
-  ddd::gui::InstallQtMessageFilter();
+  // The same object as app, when there is a window. Held separately because the
+  // theme controller takes a QApplication and the branch below is the only
+  // place that knows which of the two was built.
+  QApplication* gui_app = nullptr;
 
-  QApplication app(argc, argv);
+  if (core_only) {
+    app = std::make_unique<QCoreApplication>(argc, argv);
+  } else {
+    QApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+
+    // Qt's own Wayland plugin, not this application. Every popup — a menu, a
+    // submenu, a tooltip, a combo box — is a surface of its own, and when one
+    // goes away the compositor's text-input protocol sends a leave event for a
+    // surface the plugin has already forgotten, which it complains about:
+    //
+    //   qt.qpa.wayland.textinput: … Got leave event for surface 0x0 …
+    //
+    // Nothing is wrong and nothing can be done about it from here, so opening a
+    // menu would print a line of somebody else's diagnostics into a terminal a
+    // user is watching for this application's own messages. Silenced by
+    // category rather than by matching the text, so nothing else is hidden with
+    // it.
+    //
+    // Rules from QT_LOGGING_RULES are applied after these and win, so anybody
+    // debugging the plugin can still switch the category back on.
+    QLoggingCategory::setFilterRules(
+        QStringLiteral("qt.qpa.wayland.textinput=false"));
+
+    // The same plugin, and the same reasoning, for a message that carries no
+    // category to switch off. See qt_message_filter.h.
+    ddd::gui::InstallQtMessageFilter();
+
+    auto gui = std::make_unique<QApplication>(argc, argv);
+    gui_app = gui.get();
+    app = std::move(gui);
+  }
 
   // Set before anything constructs a QSettings: the identity decides which file
   // settings are read from and written to, and a QSettings built earlier would
   // quietly use a different one. The application name differs from the older
   // capture application's, so the two do not share a settings file.
-  QApplication::setOrganizationName(QStringLiteral("Domesday86"));
-  QApplication::setOrganizationDomain(QStringLiteral("domesday86.com"));
-  QApplication::setWindowIcon(ddd::gui::ApplicationIcon());
-  QApplication::setApplicationName(QStringLiteral("ddd-gui"));
+  //
+  // Unconditional, and not only for the window: a headless capture reads the
+  // same settings file, and one that read a different one would capture with
+  // settings nobody had ever chosen.
+  QCoreApplication::setOrganizationName(QStringLiteral("Domesday86"));
+  QCoreApplication::setOrganizationDomain(QStringLiteral("domesday86.com"));
+  QCoreApplication::setApplicationName(QStringLiteral("ddd-gui"));
+
+  if (!core_only) {
+    QApplication::setWindowIcon(ddd::gui::ApplicationIcon());
+  }
 
   // The commit this build was made from. The packaging workflows run --version
   // and reject an artefact that reports "unknown", which is what a build with
   // no commit to name says.
   const std::string commit(ddd::capture::Commit());
-  QApplication::setApplicationVersion(QString::fromStdString(commit));
+  QCoreApplication::setApplicationVersion(QString::fromStdString(commit));
 
   QCommandLineParser parser;
   parser.setApplicationDescription(
@@ -142,7 +250,10 @@ int main(int argc, char* argv[]) {
                      "formed and nothing about where it came from."));
   parser.addOption(development_key_option);
 
-  parser.process(app);
+  const ddd::gui::CaptureCliOptionSet capture_options =
+      ddd::gui::AddCaptureCliOptions(parser);
+
+  parser.process(*app);
 
   // Before the logger, the theme and the window, so that nothing about this
   // path depends on a display being available. On Windows the output goes to
@@ -156,7 +267,23 @@ int main(int argc, char* argv[]) {
                                          error);
   }
 
+  QTextStream out_stream(stdout);
   QTextStream error_stream(stderr);
+
+  const ddd::gui::CaptureCliParseResult capture_cli =
+      ddd::gui::ParseCaptureCliOptions(parser, capture_options);
+  if (!capture_cli.ok()) {
+    error_stream << capture_cli.error << "\n";
+    error_stream.flush();
+    return ddd::gui::kExitBadArguments;
+  }
+
+  // The client mode, and it is only a client: it opens no device, reads no
+  // settings and writes no log. Everything it does is one line down a socket to
+  // the application that is actually capturing.
+  if (capture_cli.options.stop_capture) {
+    return ddd::gui::RunStopCapture(out_stream, error_stream);
+  }
 
   ddd::capture::LogConfig log_config;
 
@@ -214,7 +341,21 @@ int main(int argc, char* argv[]) {
   ddd::gui::ApplicationLogger logger(&log_destinations);
   logger.SetMinimumLevel(log_config.level);
 
-  ddd::gui::ThemeController theme_controller(&app);
+  // With no window there is no Log panel, so nothing about the log can be said
+  // after one exists — it is said here, where a redirected console is the only
+  // place it can land.
+  if (capture_cli.options.headless) {
+    logger.Info("Application commit " + commit + ".");
+    logger.Info("Platform: " + ddd::gui::PlatformDescription().toStdString() +
+                ".");
+    for (const std::string& warning : log_destinations.warnings()) {
+      logger.Warning(warning);
+    }
+    return RunHeadlessCapture(*app, logger, capture_cli.options, out_stream,
+                              error_stream);
+  }
+
+  ddd::gui::ThemeController theme_controller(gui_app);
   theme_controller.Initialize();
 
   // A null backend is survivable rather than fatal: the window opens, says why
@@ -223,6 +364,17 @@ int main(int argc, char* argv[]) {
       ddd::capture::MakeUsbDevice(&logger);
 
   ddd::gui::CaptureController capture_controller(usb_device.get(), &logger);
+
+  // Before the window is built. CapturePanel reads the controller's settings in
+  // its constructor, so applying them here is what makes the panel open already
+  // showing what the command line asked for — and applied rather than set,
+  // because what a command line names belongs to this run and is not the user's
+  // new saved answer.
+  if (capture_cli.options.HasAttributeOverrides()) {
+    ddd::gui::CaptureSettings settings = capture_controller.settings();
+    ddd::gui::ApplyCliOverrides(settings, capture_cli.options);
+    capture_controller.ApplySessionSettings(settings);
+  }
 
   // Nothing is opened, enumerated or written to until the settings say player
   // control is on — see PlayerSettings::enabled, which is off until a user
@@ -293,10 +445,34 @@ int main(int argc, char* argv[]) {
                    " does not include a file.");
   }
 
+  // The window has one of these too, so that a capture started by hand and a
+  // capture started from a script are stopped the same way. Failure is fatal
+  // only when the command line asked for a capture: an ordinary second window
+  // is a reasonable thing to want — to read a capture, or to look at the
+  // settings — and refusing to open it because the first one holds the socket
+  // would be worse than losing --stop-capture for that instance.
+  ddd::gui::CaptureControlServer control_server(&capture_controller, &logger);
+  QString listen_error;
+  if (!control_server.Listen(&listen_error)) {
+    if (capture_cli.options.start_capture) {
+      error_stream << listen_error << "\n";
+      error_stream.flush();
+      return ddd::gui::kExitInstanceRunning;
+    }
+    logger.Warning(listen_error.toStdString() +
+                   " This window will not answer --stop-capture.");
+  }
+
   // Started after the window is up so that the first device report lands on a
   // window that already has panels to receive it.
   capture_controller.Start();
   player_controller.Start();
 
-  return QApplication::exec();
+  // After the controller is started, so that a device already attached is
+  // captured from at once rather than at the next poll.
+  if (capture_cli.options.start_capture) {
+    ddd::gui::StartCaptureWhenDeviceAppears(&capture_controller);
+  }
+
+  return QCoreApplication::exec();
 }

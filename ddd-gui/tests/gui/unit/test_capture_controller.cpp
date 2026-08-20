@@ -23,6 +23,7 @@
 
 #include "capture_controller.h"
 #include "capture_format.h"
+#include "capture_settings.h"
 #include "fake_usb_device.h"
 #include "firmware_version.h"
 #include "synthetic_source.h"
@@ -573,6 +574,58 @@ TEST_F(CaptureControllerTest, StartingTwiceDoesNotOpenTheDeviceTwice) {
 TEST_F(CaptureControllerTest, StoppingWhenNotMonitoringIsHarmless) {
   controller_->StopMonitoring();
   EXPECT_FALSE(controller_->monitoring());
+}
+
+// --- Settings that belong to one run -------------------------------------
+
+// What the command line names applies to the run it was given to. A script that
+// captures one disc at 20 Msps has not asked for every capture afterwards to be
+// taken at 20 Msps, and SetSettings() would have made that the user's new saved
+// answer — which they would discover the next time they opened the window.
+TEST_F(CaptureControllerTest, SessionSettingsAreNotSaved) {
+  CaptureSettings settings = controller_->settings();
+  settings.capture_name = QStringLiteral("from-the-command-line");
+  settings.decimation_factor = capture::kTapeDecimationFactor;
+
+  controller_->ApplySessionSettings(settings);
+
+  EXPECT_EQ(controller_->settings().capture_name,
+            QStringLiteral("from-the-command-line"));
+  EXPECT_EQ(controller_->settings().decimation_factor,
+            capture::kTapeDecimationFactor);
+
+  // The saved answer is what it was. This fixture points QSettings at a file of
+  // its own and clears it, so a first load is the defaults.
+  const CaptureSettings saved = LoadCaptureSettings();
+  EXPECT_TRUE(saved.capture_name.isEmpty());
+  EXPECT_EQ(saved.decimation_factor, capture::kUndecimatedFactor);
+}
+
+// The panels are told, exactly as they are for a setting the user changed:
+// the window has to show what the capture is going to do, whoever asked for it.
+TEST_F(CaptureControllerTest, SessionSettingsStillReachThePanels) {
+  QSignalSpy changes(controller_.get(), &CaptureController::SettingsChanged);
+
+  CaptureSettings settings = controller_->settings();
+  settings.duration_limit_seconds = 120;
+  controller_->ApplySessionSettings(settings);
+
+  ASSERT_EQ(changes.count(), 1);
+}
+
+// And an edit made afterwards saves in the ordinary way. At that point it is
+// the user's choice rather than the script's, and the panel calls SetSettings()
+// for it like any other.
+TEST_F(CaptureControllerTest, AnEditAfterwardsSavesAsItNormallyWould) {
+  CaptureSettings settings = controller_->settings();
+  settings.capture_name = QStringLiteral("from-the-command-line");
+  controller_->ApplySessionSettings(settings);
+
+  settings.capture_name = QStringLiteral("typed-by-hand");
+  controller_->SetSettings(settings);
+
+  EXPECT_EQ(LoadCaptureSettings().capture_name,
+            QStringLiteral("typed-by-hand"));
 }
 
 TEST_F(CaptureControllerTest, NoBackendAtAllIsReportedRatherThanCrashing) {

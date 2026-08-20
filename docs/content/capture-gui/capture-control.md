@@ -40,6 +40,12 @@ names the capture from what it found, takes the side, and reports what was writt
 way into that window rather than a mode the panel enters: the format and sample rate below
 are the same settings the workflow's own second page shows, and the two cannot disagree.
 
+Both buttons have a command-line equivalent, for when something other than a person has to
+press them — an audio recording that must start at the same moment, or a capture nobody is
+going to be in the room for. A capture started from a script can be stopped from this panel
+and one started here can be stopped from a script; they are the same capture either way. See
+[Scripting captures](scripting.md).
+
 ## Where the device and the folder went
 
 Both are on the **Capture** tab of **File ▸ Settings…** rather than on this panel. Neither
