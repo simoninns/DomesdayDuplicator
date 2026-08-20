@@ -119,6 +119,11 @@ void CaptureController::SetSettings(const CaptureSettings& settings) {
   emit SettingsChanged(settings_);
 }
 
+void CaptureController::ApplySessionSettings(const CaptureSettings& settings) {
+  settings_ = settings;
+  emit SettingsChanged(settings_);
+}
+
 void CaptureController::SetDiscProvenance(const capture::DiscProvenance& disc) {
   disc_provenance_ = disc;
 }

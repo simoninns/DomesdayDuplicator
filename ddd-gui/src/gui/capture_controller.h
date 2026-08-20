@@ -143,6 +143,18 @@ class CaptureController : public QObject {
   // running transfer.
   void SetSettings(const CaptureSettings& settings);
 
+  // The same, without saving them.
+  //
+  // What the command line names applies to the run it was given to and is then
+  // forgotten: a script that captures one disc at 20 Msps has not asked for
+  // every capture afterwards to be taken at 20 Msps, and SetSettings() above
+  // would have made that the user's new saved answer. The window is populated
+  // from what this sets, so a capture set up from a script and then taken by
+  // hand still runs with what the script asked for — and if the user then edits
+  // any of it in the panel, that edit saves in the ordinary way, because at
+  // that point it is their choice rather than the script's.
+  void ApplySessionSettings(const CaptureSettings& settings);
+
   // How often the statistics are republished to the panels. 20 Hz: fast enough
   // that a throughput reading looks live, slow enough that it is nowhere near
   // the cost of anything else the application does.
