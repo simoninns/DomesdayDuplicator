@@ -183,6 +183,24 @@ jobs:
           dylibbundler -od -b -x dist/DomesdayDuplicator.app/Contents/MacOS/ddd-gui \
             -d dist/DomesdayDuplicator.app/Contents/libs -p @executable_path/../libs
 
+          # dylibbundler rewrites each Homebrew rpath it finds to the bundle's own
+          # libs directory, one install_name_tool call per rpath. A binary carrying
+          # more than one of them — /opt/homebrew/lib for libusb and libFLAC, and the
+          # keg-only qt prefix for Qt — therefore comes out with the same LC_RPATH
+          # twice, and dyld aborts rather than launching it. Whichever prefixes the
+          # runner's Homebrew happens to use, the bundle needs each rpath once.
+          BIN=dist/DomesdayDuplicator.app/Contents/MacOS/ddd-gui
+          while duplicate=$(otool -l "${BIN}" | awk '$1 == "path" { print $2 }' \
+                              | sort | uniq -d | head -n 1); [[ -n "${duplicate}" ]]; do
+            echo "Removing a duplicate LC_RPATH: ${duplicate}"
+            install_name_tool -delete_rpath "${duplicate}" "${BIN}"
+          done
+
+          # install_name_tool invalidates the ad-hoc signature dylibbundler left
+          # behind, and an unsigned arm64 binary will not run at all.
+          codesign --force --preserve-metadata=entitlements,requirements,flags,runtime \
+            --sign - "${BIN}"
+
           echo "== Remaining references to Homebrew prefixes (must be none) =="
           if otool -L dist/DomesdayDuplicator.app/Contents/MacOS/ddd-gui | grep -E '/opt/homebrew|/usr/local/Cellar'; then
             echo "The bundle still references Homebrew paths and would not run on a user's machine" >&2

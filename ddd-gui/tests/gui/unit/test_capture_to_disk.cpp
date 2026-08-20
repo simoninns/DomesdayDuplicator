@@ -900,7 +900,14 @@ TEST_F(CaptureToDiskTest, ASecondCaptureOfTheSameNameIsRenamedAndSaidSo) {
 
   controller_->StartCapture();
   ASSERT_TRUE(controller_->capturing());
-  ASSERT_TRUE(PumpUntil([&] { return !WrittenFiles().empty(); }));
+
+  // Waited on for contents rather than for the file merely to appear: what the
+  // second capture must not write over has to be something before the second
+  // one starts, or the assertion at the end of this test proves nothing.
+  ASSERT_TRUE(PumpUntil([&] {
+    return !WrittenFiles().empty() &&
+           std::filesystem::file_size(WrittenFiles().front()) > 0;
+  }));
 
   // The first one is the name that was asked for, and nothing is said.
   EXPECT_EQ(renamed.count(), 0);
@@ -927,9 +934,14 @@ TEST_F(CaptureToDiskTest, ASecondCaptureOfTheSameNameIsRenamedAndSaidSo) {
   ASSERT_TRUE(PumpUntil([&] { return !controller_->capturing(); }));
   controller_->StopMonitoring();
 
-  // Both files are there, and the first still has its own contents.
+  // Both files are there, and the first still has its own contents. Named
+  // rather than taken from the front of the listing: " (1)" sorts ahead of
+  // ".ddd", so the front of it is the second capture, whose length is only
+  // however much happened to arrive before it was stopped.
   ASSERT_EQ(WrittenFiles().size(), 2U);
-  EXPECT_GT(std::filesystem::file_size(WrittenFiles().front()), 0U);
+  EXPECT_GT(
+      std::filesystem::file_size(std::filesystem::path(first.toStdString())),
+      0U);
 }
 
 TEST_F(CaptureToDiskTest, TheGeneratedNameIsNeverReportedAsRenamed) {
