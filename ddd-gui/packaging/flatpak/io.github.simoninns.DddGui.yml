@@ -82,6 +82,35 @@ finish-args:
   - --filesystem=/mnt
 
 modules:
+  # The KDE runtime carries Qt, libusb and libFLAC, but not spdlog, so the one dependency
+  # this manifest has to build is the log's console and file destinations. Pinned by tag
+  # and checksum like every other Flatpak source: flatpak-builder fetches sources before
+  # it starts, and the build itself has no network.
+  #
+  # Static, with spdlog's own bundled copy of fmt. A shared library would need a second
+  # module for fmt and would put two more files in /app/lib to no purpose — nothing but
+  # ddd-gui links it.
+  - name: spdlog
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+      # Stated rather than left to GNUInstallDirs, which chooses lib64 on a 64-bit host and
+      # would put the library somewhere the cleanup patterns below do not name.
+      - -DCMAKE_INSTALL_LIBDIR=lib
+      - -DSPDLOG_BUILD_SHARED=OFF
+      - -DSPDLOG_BUILD_EXAMPLE=OFF
+      - -DSPDLOG_BUILD_TESTS=OFF
+    sources:
+      - type: archive
+        url: https://github.com/gabime/spdlog/archive/refs/tags/v1.17.0.tar.gz
+        sha256: d8862955c6d74e5846b3f580b1605d2428b11d97a410d86e2fb13e857cd3a744
+    cleanup:
+      - /include
+      - /lib/cmake
+      - /lib/pkgconfig
+      - /lib/*.a
+
   - name: ddd-gui
     buildsystem: cmake-ninja
     subdir: ddd-gui

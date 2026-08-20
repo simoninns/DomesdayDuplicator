@@ -109,10 +109,10 @@ the other case entirely: nothing is being written, so opening either window simp
 down and closing the window picks it up again.
 
 **Help ▸ About** carries the same commit `--version` prints, and that is deliberate rather
-than duplication: the Windows build has no console attached, so on the platform with the
-most installations the dialog is the only way to identify a binary. If you are reporting a
-problem, that is the string to quote — along with the device's two, from **Tools ▸ Firmware
-▸ Update firmware…**.
+than duplication: the Windows build has no console of its own, so for anyone who started the
+application from a desktop shortcut the dialog is the only way to identify a binary. If you
+are reporting a problem, that is the string to quote — along with the device's two, from
+**Tools ▸ Firmware ▸ Update firmware…**.
 
 ## The Log panel
 
@@ -121,4 +121,10 @@ so the columns line up. **Follow** keeps the newest record in view; **Clear** em
 
 By default it records informational messages and above. Starting with
 [`--debug`](command-line.md) lowers that to debug level and shows the panel at startup,
-which is what to do before reproducing a fault you intend to report.
+which is what to do before reproducing a fault you intend to report;
+[`--log-level`](command-line.md#-l-log-level-level) sets the level on its own.
+
+The panel is one of the log's destinations and not the only one. The same records go to the
+console the application was started from, and to a file when
+[`--log-file`](command-line.md#-f-log-file-file) named one — which is the copy to attach
+to a report, since this panel closes with the application.

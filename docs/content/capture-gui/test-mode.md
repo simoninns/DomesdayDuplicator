@@ -94,8 +94,8 @@ collection.
 The read loop is the same code the dialog uses. That is deliberate: the previous application
 had it written out twice, and the two could report different things about the same file.
 
-See [Command line](command-line.md) for the other options, including the note about Windows
-having no console attached.
+See [Command line](command-line.md) for the other options, including the note about where
+the output goes on Windows.
 
 ## Where this fits
 

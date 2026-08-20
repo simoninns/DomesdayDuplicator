@@ -149,10 +149,11 @@ in transit. Check the cable and the port, then repeat the test capture. See
 
 > The capture failed because of a fault in this application.
 
-Or any failure the application cannot name. Please report it, with the contents of the Log
-panel — start with [`--debug`](command-line.md) to record the full diagnostics, reproduce
-the fault, then copy the panel's contents into the report along with the build commit from
-**Help ▸ About**.
+Or any failure the application cannot name. Please report it, with the log — start with
+`--debug --log-file ddd.log` ([command line](command-line.md)) to record the full
+diagnostics into a file, reproduce the fault, then attach that file to the report along with
+the build commit from **Help ▸ About**. Copying the Log panel's contents works too, and the
+file is easier to attach and holds the whole run.
 
 [Submitting a bug report](../support/submitting-a-bug-report.md) says what else is useful.
 

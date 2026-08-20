@@ -13,7 +13,10 @@
 
 #include <QCoreApplication>
 #include <QSignalSpy>
+#include <string>
+#include <string_view>
 #include <thread>
+#include <vector>
 
 #include "application_logger.h"
 #include "log_message_model.h"
@@ -21,6 +24,23 @@
 
 namespace ddd::gui {
 namespace {
+
+// Stands in for the console and file destinations, which is all the bridge
+// knows about them: it hands records to an ILogger and never asks what it is.
+class RecordingMirror : public capture::ILogger {
+ public:
+  void Log(capture::LogLevel level, std::string_view message) override {
+    levels_.push_back(level);
+    messages_.emplace_back(message);
+  }
+
+  const std::vector<capture::LogLevel>& levels() const { return levels_; }
+  const std::vector<std::string>& messages() const { return messages_; }
+
+ private:
+  std::vector<capture::LogLevel> levels_;
+  std::vector<std::string> messages_;
+};
 
 TEST(ApplicationLoggerTest, EmitsARecordPerAdmittedMessage) {
   ApplicationLogger logger;
@@ -89,6 +109,45 @@ TEST(ApplicationLoggerTest, RecordsFromAnotherThreadReachTheModelQueued) {
   EXPECT_EQ(
       model.data(model.index(0, 0), LogMessageModel::kMessageRole).toString(),
       QStringLiteral("from a worker thread"));
+}
+
+// The panel and the console have to carry the same log. A record that reaches
+// one and not the other is the failure this bridge exists to prevent: a user
+// reading the panel and a developer reading the file would be looking at two
+// different accounts of the same run.
+TEST(ApplicationLoggerTest, MirrorsEveryShownRecordToTheConsoleAndFile) {
+  RecordingMirror mirror;
+  ApplicationLogger logger(&mirror);
+  const QSignalSpy spy(&logger, &ApplicationLogger::RecordLogged);
+
+  logger.Info("shown and written");
+
+  EXPECT_EQ(spy.count(), 1);
+  ASSERT_EQ(mirror.messages().size(), 1U);
+  EXPECT_EQ(mirror.messages().front(), "shown and written");
+  EXPECT_EQ(mirror.levels().front(), capture::LogLevel::kInfo);
+}
+
+TEST(ApplicationLoggerTest, RecordsBelowTheLevelReachNeitherDestination) {
+  RecordingMirror mirror;
+  ApplicationLogger logger(&mirror);
+  const QSignalSpy spy(&logger, &ApplicationLogger::RecordLogged);
+
+  logger.Debug("dropped by the level");
+
+  EXPECT_EQ(spy.count(), 0);
+  EXPECT_TRUE(mirror.messages().empty());
+}
+
+// A front end with nowhere to mirror to still logs to its panel. This is the
+// shape every other test here uses, and the one the widget tests construct.
+TEST(ApplicationLoggerTest, WorksWithNoMirrorAtAll) {
+  ApplicationLogger logger;
+  const QSignalSpy spy(&logger, &ApplicationLogger::RecordLogged);
+
+  logger.Info("panel only");
+
+  EXPECT_EQ(spy.count(), 1);
 }
 
 TEST(ApplicationLoggerTest, SatisfiesTheEngineLoggingSeam) {

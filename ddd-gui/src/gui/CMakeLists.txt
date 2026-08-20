@@ -30,6 +30,7 @@ add_library(ddd_gui_lib STATIC
     capture_plan_form.cpp
     capture_failure_presenter.cpp
     capture_settings.cpp
+    console_attach.cpp
     examine_dialog.cpp
     firmware_dialog.cpp
     firmware_text.cpp

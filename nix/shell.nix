@@ -50,6 +50,11 @@ pkgs.mkShell {
       flac
       libogg
 
+      # The capture application's log destinations, for the same reason: without it the GUI
+      # does not configure in this shell. MIT, so linking it into a GPLv3 application is
+      # fine (AGENTS.md §10).
+      spdlog
+
       # FX3 firmware cross toolchain
       gcc-arm-embedded
 

@@ -15,7 +15,8 @@
 
 namespace ddd::gui {
 
-ApplicationLogger::ApplicationLogger(QObject* parent) : QObject(parent) {}
+ApplicationLogger::ApplicationLogger(capture::ILogger* mirror, QObject* parent)
+    : QObject(parent), mirror_(mirror) {}
 
 void ApplicationLogger::Log(capture::LogLevel level, std::string_view message) {
   if (static_cast<int>(level) <
@@ -28,6 +29,14 @@ void ApplicationLogger::Log(capture::LogLevel level, std::string_view message) {
   // the same misleading arrival time.
   const QString timestamp =
       QDateTime::currentDateTime().toString(QStringLiteral("hh:mm:ss.zzz"));
+
+  // Before the signal, not after. The signal is queued when the record came
+  // from an engine thread, so the panel sees it whenever the GUI thread next
+  // runs; the console and the file see it now, which is what makes them useful
+  // for a fault that ends the process before that happens.
+  if (mirror_ != nullptr) {
+    mirror_->Log(level, message);
+  }
 
   emit RecordLogged(static_cast<int>(level), timestamp,
                     QString::fromUtf8(message.data(),

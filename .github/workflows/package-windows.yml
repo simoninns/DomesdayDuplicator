@@ -57,6 +57,7 @@ jobs:
             mingw-w64-ucrt-x86_64-libusb
             mingw-w64-ucrt-x86_64-flac
             mingw-w64-ucrt-x86_64-libogg
+            mingw-w64-ucrt-x86_64-spdlog
             mingw-w64-ucrt-x86_64-gtest
 
       - name: Resolve versions
