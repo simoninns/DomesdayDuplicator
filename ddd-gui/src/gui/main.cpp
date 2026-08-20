@@ -89,8 +89,10 @@ int RunHeadlessCapture(QCoreApplication& app, ddd::gui::ApplicationLogger& log,
                      app.quit();
                    });
 
-  // Null on Windows, which has no POSIX signals. A Windows script stops a
-  // capture with --stop-capture, which is why the socket above is not optional.
+  // Ctrl+C and kill on Unix, a console control event on Windows. Null if the
+  // platform would not take the handler, which is not a reason to refuse to
+  // capture: --stop-capture works whatever this returns, which is why the
+  // socket above is not optional and this is.
   ddd::gui::SignalWatcher* const watcher =
       ddd::gui::SignalWatcher::Install(&app);
   if (watcher != nullptr) {

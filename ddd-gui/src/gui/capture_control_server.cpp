@@ -11,7 +11,6 @@
 
 #include "capture_control_server.h"
 
-#include <QAbstractSocket>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -21,6 +20,8 @@
 #include <QLatin1String>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QStandardPaths>
+#include <QtGlobal>
 
 #include "capture_controller.h"
 #include "logger.h"
@@ -54,6 +55,22 @@ QString ToLine(const QJsonObject& object) {
   return QString::fromUtf8(
              QJsonDocument(object).toJson(QJsonDocument::Compact)) +
          QLatin1Char('\n');
+}
+
+// Whether something is listening on this name and willing to talk. This is the
+// single-instance check, and it is a knock rather than a look at the filesystem
+// because the two things that can be there — a running application and the
+// socket a killed one left behind — are the same file.
+//
+// Nothing to connect to fails at once rather than waiting out the timeout: an
+// absent socket is ENOENT and an absent named pipe is ERROR_FILE_NOT_FOUND, so
+// the ordinary case of starting with nothing running costs nothing.
+bool SomethingIsAnswering(const QString& name) {
+  QLocalSocket probe;
+  probe.connectToServer(name);
+  const bool answered = probe.waitForConnected(kProbeTimeoutMilliseconds);
+  probe.abort();
+  return answered;
 }
 
 std::optional<QJsonObject> ToObject(const QByteArray& line) {
@@ -153,17 +170,57 @@ CaptureControlServer::~CaptureControlServer() {
 
 QString CaptureControlServer::ServerName() {
   // Per user, because the directory a local socket is created in is shared on
-  // some platforms. Two people logged into one machine have two Duplicator
-  // sessions, and the first to start must not be what the second one finds in
-  // the way — nor, with the access bits above, something it could use anyway.
+  // some platforms and a Windows pipe name is shared on every one of them. Two
+  // people logged into one machine have two Duplicator sessions, and the first
+  // to start must not be what the second one finds in the way — nor, with the
+  // access bits above, something it could use anyway.
+  //
+  // Each platform's own variable is asked for first. Both are often set at
+  // once — a Windows shell that came with a Unix toolchain sets USER as well —
+  // and an application started from one kind of shell must land on the same
+  // name as a --stop-capture run from the other.
+#ifdef Q_OS_WIN
+  QString user = qEnvironmentVariable("USERNAME");
+  if (user.isEmpty()) {
+    user = qEnvironmentVariable("USER");
+  }
+#else
   QString user = qEnvironmentVariable("USER");
   if (user.isEmpty()) {
     user = qEnvironmentVariable("USERNAME");
   }
-  if (user.isEmpty()) {
-    return QStringLiteral("ddd-gui-control");
+#endif
+
+  const QString name = user.isEmpty()
+                           ? QStringLiteral("ddd-gui-control")
+                           : QStringLiteral("ddd-gui-control-") + user;
+
+#ifdef Q_OS_WIN
+  // A named pipe, which is not a path and has nowhere to be put.
+  return name;
+#else
+  // An absolute path, so that the socket does not follow TMPDIR.
+  //
+  // A bare name is created in QDir::tempPath(), which honours TMPDIR — and a
+  // shell that sets one is not unusual: a development shell, a systemd unit
+  // with PrivateTmp, a build sandbox. The application and the --stop-capture
+  // run that means to stop it would then be looking in two different places,
+  // and the script would be told nothing was running while a capture was going
+  // on in front of it.
+  //
+  // The runtime directory is the right place for a socket in any case: it is
+  // per user, it is cleaned when the session ends rather than surviving on
+  // disk, and inside a Flatpak it is per application and shared between that
+  // application's instances, which is exactly the reach this needs.
+  const QString runtime =
+      QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+  if (runtime.isEmpty()) {
+    // macOS has no such directory, and neither has a stripped-down Linux
+    // session. The temporary directory is where Qt would have put it anyway.
+    return name;
   }
-  return QStringLiteral("ddd-gui-control-") + user;
+  return runtime + QLatin1Char('/') + name;
+#endif
 }
 
 bool CaptureControlServer::Listen(QString* error) {
@@ -175,39 +232,53 @@ bool CaptureControlServer::Listen(const QString& name, QString* error) {
     return true;
   }
 
+  const auto refuse = [error] {
+    if (error != nullptr) {
+      *error = QStringLiteral(
+          "Another Domesday Duplicator is already running. Only one can use "
+          "the device at a time.");
+    }
+    return false;
+  };
+
+  // Knocked on before it is listened on, rather than the other way about, and
+  // this order is what makes the check mean anything on Windows.
+  //
+  // On Unix a second listen() on a socket in use is refused by the operating
+  // system, so asking first is only tidier. On Windows a QLocalServer is a
+  // named pipe, and Qt creates it with PIPE_UNLIMITED_INSTANCES and without
+  // FILE_FLAG_FIRST_PIPE_INSTANCE — so a second process listening on a name
+  // its neighbour already holds *succeeds*, adding another instance of the
+  // same pipe. Both would then believe they were the only one, and a client's
+  // stop would be answered by whichever of them the kernel handed the
+  // connection to, which may be the one that is not capturing.
+  if (SomethingIsAnswering(name)) {
+    return refuse();
+  }
+
   if (server_->listen(name)) {
     RestrictToOwner();
     return true;
   }
 
-  if (server_->serverError() == QAbstractSocket::AddressInUseError) {
-    // Something is there. Whether it is a running application or the remains of
-    // one that was killed is the difference between refusing to start and
-    // starting normally, and the only way to tell is to knock.
-    QLocalSocket probe;
-    probe.connectToServer(name);
-    const bool answered = probe.waitForConnected(kProbeTimeoutMilliseconds);
-    probe.abort();
+  // Nothing answered a moment ago and the name is still taken, which is either
+  // the socket a killed application left behind or an instance that started in
+  // the time between the two. Knocking again is what tells those apart, and
+  // without it the recovery below would delete a live application's socket and
+  // take its place.
+  if (SomethingIsAnswering(name)) {
+    return refuse();
+  }
 
-    if (answered) {
-      if (error != nullptr) {
-        *error = QStringLiteral(
-            "Another Domesday Duplicator is already running. Only one can use "
-            "the device at a time.");
-      }
-      return false;
+  QLocalServer::removeServer(name);
+  if (server_->listen(name)) {
+    RestrictToOwner();
+    if (logger_ != nullptr) {
+      logger_->Info(
+          "Removed a control socket left behind by an application that did "
+          "not shut down.");
     }
-
-    QLocalServer::removeServer(name);
-    if (server_->listen(name)) {
-      RestrictToOwner();
-      if (logger_ != nullptr) {
-        logger_->Info(
-            "Removed a control socket left behind by an application that did "
-            "not shut down.");
-      }
-      return true;
-    }
+    return true;
   }
 
   if (error != nullptr) {

@@ -13,10 +13,12 @@
 
 #include <QByteArray>
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QString>
 #include <QTextStream>
 #include <algorithm>
@@ -289,16 +291,75 @@ TEST_F(CaptureControlServerTest, ListeningIsTheSingleInstanceCheck) {
   EXPECT_FALSE(second.listening());
 }
 
+// A second instance is refused, and refusing means leaving the first one
+// alone. The recovery that removes a socket nobody is answering on runs a step
+// away from here, and a version of it that ran against a live application
+// would look exactly like success until somebody tried to stop a capture and
+// reached the wrong process.
+TEST_F(CaptureControlServerTest,
+       ARefusedSecondInstanceLeavesTheFirstReachable) {
+  ASSERT_NO_FATAL_FAILURE(Listen());
+
+  {
+    CaptureControlServer second(controller_.get(), &logger_);
+    QString error;
+    ASSERT_FALSE(second.Listen(name_, &error));
+  }
+
+  EXPECT_TRUE(server_->listening());
+
+  // Answered by the first server, which is the assertion: a client that
+  // reached nothing would be told there was no application at all.
+  const Run run = Stop();
+  EXPECT_EQ(run.code, kExitCaptureFailed);
+  EXPECT_TRUE(run.error.contains(QStringLiteral("No capture is running")))
+      << run.error.toStdString();
+}
+
 // The application every user actually runs looks for one name, and it must not
 // be one another user's session is already sitting on.
 TEST_F(CaptureControlServerTest, TheRealNameIsPerUser) {
+  // The variable each platform sets, in the order ServerName() prefers them.
+  // A Windows shell that came with a Unix toolchain sets both.
+#ifdef Q_OS_WIN
+  const QString user = qEnvironmentVariable("USERNAME");
+  const char* const variable = "USERNAME";
+#else
   const QString user = qEnvironmentVariable("USER");
+  const char* const variable = "USER";
+#endif
   if (user.isEmpty()) {
-    GTEST_SKIP() << "No USER in the environment to name a socket after.";
+    GTEST_SKIP() << "No " << variable << " in the environment to name a socket "
+                 << "after.";
   }
 
   EXPECT_TRUE(CaptureControlServer::ServerName().contains(user));
 }
+
+#ifndef Q_OS_WIN
+
+// The name is a path, and the path is not the temporary directory.
+//
+// A bare name puts the socket under TMPDIR, which a development shell, a
+// systemd unit with PrivateTmp and a build sandbox all set to somewhere of
+// their own. An application started in one of those and a --stop-capture run
+// from an ordinary shell would then be looking in two places, and the script
+// would be told nothing was running while a capture went on in front of it.
+TEST_F(CaptureControlServerTest,
+       TheRealNameDoesNotFollowTheTemporaryDirectory) {
+  const QString runtime =
+      QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+  if (runtime.isEmpty()) {
+    GTEST_SKIP() << "This session has no runtime directory to put a socket in.";
+  }
+
+  const QString name = CaptureControlServer::ServerName();
+  EXPECT_TRUE(QDir::isAbsolutePath(name)) << name.toStdString();
+  EXPECT_TRUE(name.startsWith(runtime + QLatin1Char('/')))
+      << name.toStdString() << " is not in " << runtime.toStdString();
+}
+
+#endif  // Q_OS_WIN
 
 #ifndef Q_OS_WIN
 

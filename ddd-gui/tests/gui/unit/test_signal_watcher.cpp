@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <QCoreApplication>
+#include <QMetaObject>
 #include <QSignalSpy>
 #include <chrono>
 #include <thread>
@@ -46,11 +47,66 @@ bool PumpUntil(Predicate predicate, std::chrono::milliseconds limit = 2000ms) {
 
 #ifdef Q_OS_WIN
 
-// Nothing to install, and saying so is the contract: main() has to be able to
-// carry on without a watcher rather than treating its absence as a failure.
-TEST(SignalWatcherTest, ThereIsNothingToInstallHere) {
+// What can be tested here and what cannot.
+//
+// The delivery is testable: the console handler's whole job is to post to the
+// watcher from another thread, and a test can post the same way and prove the
+// interrupt comes out on the event loop rather than wherever it arrived.
+//
+// The arrival is not. A console control event is sent to a whole process
+// group, and this test runs in the group CTest is running in — raising a real
+// Ctrl+C here would interrupt the test runner along with everything beside it.
+// That half is covered by the manual pass on Windows.
+class SignalWatcherTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    watcher_ = SignalWatcher::Install();
+    ASSERT_NE(watcher_, nullptr);
+  }
+
+  void TearDown() override {
+    delete watcher_;
+    watcher_ = nullptr;
+  }
+
+  // The one thing the console handler does, from a thread of its own as it
+  // does it.
+  void PostFromAnotherThread() {
+    std::thread([this] {
+      QMetaObject::invokeMethod(watcher_, "Deliver", Qt::QueuedConnection);
+    }).join();
+  }
+
+  SignalWatcher* watcher_ = nullptr;
+};
+
+TEST_F(SignalWatcherTest, AnInterruptArrivesOnTheEventLoop) {
+  QSignalSpy interrupts(watcher_, &SignalWatcher::Interrupted);
+
+  PostFromAnotherThread();
+
+  // Nothing yet: the point of the posting is that the interrupt waits for the
+  // loop rather than running on whatever thread Windows delivered it on.
+  EXPECT_EQ(interrupts.count(), 0);
+
+  EXPECT_TRUE(PumpUntil([&interrupts] { return interrupts.count() == 1; }));
+  EXPECT_EQ(interrupts.count(), 1);
+}
+
+TEST_F(SignalWatcherTest, ThereIsOnlyEverOneOfThem) {
+  EXPECT_TRUE(SignalWatcher::installed());
   EXPECT_EQ(SignalWatcher::Install(), nullptr);
+}
+
+TEST_F(SignalWatcherTest, DestroyingItUninstallsIt) {
+  delete watcher_;
+  watcher_ = nullptr;
+
   EXPECT_FALSE(SignalWatcher::installed());
+
+  SignalWatcher* replacement = SignalWatcher::Install();
+  EXPECT_NE(replacement, nullptr);
+  delete replacement;
 }
 
 #else

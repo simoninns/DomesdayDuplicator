@@ -11,9 +11,14 @@
 
 #include "signal_watcher.h"
 
+#include <QMetaObject>
 #include <QSocketNotifier>
 
-#ifndef Q_OS_WIN
+#ifdef Q_OS_WIN
+#include <windows.h>
+
+#include <mutex>
+#else
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -24,7 +29,45 @@
 namespace ddd::gui {
 namespace {
 
-#ifndef Q_OS_WIN
+#ifdef Q_OS_WIN
+
+// The watcher, and the lock the console's own thread takes to reach it.
+//
+// A console control handler does not run on the thread that installed it:
+// Windows makes one for the occasion, and it can arrive at any moment —
+// including while this object is being destroyed on the main thread.
+std::mutex g_watcher_mutex;
+SignalWatcher* g_watcher = nullptr;
+
+BOOL WINAPI HandleConsoleControl(DWORD type) {
+  // Ctrl+C, Ctrl+Break, and the break a script sends with
+  // GenerateConsoleCtrlEvent. Everything else is left to the default handler,
+  // which ends the process: closing the console window, logging off and
+  // shutting down all give a process a few seconds to be finished in and then
+  // end it whatever it says, so answering them would be a promise this cannot
+  // keep. Those are the cases --stop-capture is for.
+  if (type != CTRL_C_EVENT && type != CTRL_BREAK_EVENT) {
+    return FALSE;
+  }
+
+  const std::lock_guard<std::mutex> lock(g_watcher_mutex);
+  if (g_watcher == nullptr) {
+    return FALSE;
+  }
+
+  // Posted rather than called. This is another thread, and everything the
+  // interrupt leads to — stopping a capture, closing an encoder, writing a
+  // sidecar — belongs to the one running the event loop. A queued call is
+  // taken off the queue again if the watcher is destroyed first, so there is
+  // nothing here that can outlive what it points at.
+  QMetaObject::invokeMethod(g_watcher, "Deliver", Qt::QueuedConnection);
+
+  // Handled, which is what keeps Windows from ending the process before the
+  // file has been finished.
+  return TRUE;
+}
+
+#else
 
 // The write end of the socketpair, where the handler can reach it.
 //
@@ -91,15 +134,29 @@ SignalWatcher::SignalWatcher(int read_descriptor, int write_descriptor,
                              QObject* parent)
     : QObject(parent),
       read_descriptor_(read_descriptor),
-      write_descriptor_(write_descriptor),
-      notifier_(
-          new QSocketNotifier(read_descriptor, QSocketNotifier::Read, this)) {
+      write_descriptor_(write_descriptor) {
+  // No descriptor to watch on Windows, where the handler posts for itself.
+  if (read_descriptor_ < 0) {
+    return;
+  }
+
+  notifier_ =
+      new QSocketNotifier(read_descriptor_, QSocketNotifier::Read, this);
   connect(notifier_, &QSocketNotifier::activated, this,
           &SignalWatcher::OnActivated);
 }
 
 SignalWatcher::~SignalWatcher() {
-#ifndef Q_OS_WIN
+#ifdef Q_OS_WIN
+  // Forgotten first, then unregistered. A handler already running holds the
+  // lock and will find nothing to post to; one that arrives afterwards finds
+  // no handler at all and the process ends as it normally would.
+  {
+    const std::lock_guard<std::mutex> lock(g_watcher_mutex);
+    g_watcher = nullptr;
+  }
+  SetConsoleCtrlHandler(&HandleConsoleControl, FALSE);
+#else
   // The handlers first: after this nothing can write to the descriptor being
   // closed below, which is the only ordering that matters here.
   RestoreHandler(SIGINT);
@@ -121,12 +178,27 @@ SignalWatcher::~SignalWatcher() {
 
 SignalWatcher* SignalWatcher::Install(QObject* parent) {
 #ifdef Q_OS_WIN
-  // No POSIX signals, and a GUI-subsystem executable has no console to be
-  // interrupted from in the first place. A Windows script stops a capture by
-  // running the application again with --stop-capture, which works everywhere
-  // and is what the documentation tells everyone to use.
-  Q_UNUSED(parent);
-  return nullptr;
+  {
+    const std::lock_guard<std::mutex> lock(g_watcher_mutex);
+    if (g_watcher != nullptr) {
+      return nullptr;
+    }
+  }
+
+  if (SetConsoleCtrlHandler(&HandleConsoleControl, TRUE) == 0) {
+    return nullptr;
+  }
+
+  // Registering with no console attached is not a failure and is not worth
+  // refusing over: a headless run reaches its parent's console through
+  // AttachConsole, and one started from a shortcut has none to be interrupted
+  // from, so the handler is simply never called.
+  auto* watcher = new SignalWatcher(-1, -1, parent);
+  {
+    const std::lock_guard<std::mutex> lock(g_watcher_mutex);
+    g_watcher = watcher;
+  }
+  return watcher;
 #else
   if (g_watcher != nullptr) {
     return nullptr;
@@ -156,10 +228,9 @@ SignalWatcher* SignalWatcher::Install(QObject* parent) {
 
 bool SignalWatcher::installed() {
 #ifdef Q_OS_WIN
-  return false;
-#else
-  return g_watcher != nullptr;
+  const std::lock_guard<std::mutex> lock(g_watcher_mutex);
 #endif
+  return g_watcher != nullptr;
 }
 
 void SignalWatcher::OnActivated() {
@@ -172,7 +243,9 @@ void SignalWatcher::OnActivated() {
   static_cast<void>(read_bytes);
 #endif
 
-  emit Interrupted();
+  Deliver();
 }
+
+void SignalWatcher::Deliver() { emit Interrupted(); }
 
 }  // namespace ddd::gui

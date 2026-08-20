@@ -97,18 +97,23 @@ class CaptureControlServer : public QObject {
 
   // The socket every instance uses, and the one --stop-capture looks for.
   //
-  // Per user, because the directory the socket is created in may be shared:
-  // two people logged into one machine each have their own Duplicator session,
-  // and neither should find the other's socket in the way.
+  // Per user, because the place the socket is created in may be shared: two
+  // people logged into one machine each have their own Duplicator session, and
+  // neither should find the other's socket in the way.
+  //
+  // On Unix this is an absolute path in the session's runtime directory rather
+  // than a bare name, which would be created under TMPDIR and so would differ
+  // between two shells that ought to be able to reach each other.
   static QString ServerName();
 
   // Start listening. False means another instance is already running — or, for
   // any other failure, that the socket could not be created at all; `error`
   // says which, in words meant for a user.
   //
-  // A socket left behind by an instance that was killed is recovered from
-  // rather than treated as a live one: it is probed first, and only removed
-  // when nothing answers.
+  // The name is knocked on before it is listened on, so that a socket left
+  // behind by an instance that was killed is recovered from rather than
+  // treated as a live one — and so that the check works on Windows, where
+  // listening on a name in use succeeds rather than failing.
   bool Listen(QString* error);
 
   // The same, on a name of the test's choosing. Two test processes running at
