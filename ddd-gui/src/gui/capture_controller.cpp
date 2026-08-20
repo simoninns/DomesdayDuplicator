@@ -630,8 +630,22 @@ void CaptureController::FinishCaptureFile(const capture::CaptureStats& stats,
   if (settings_.naming.append_duration && duration_seconds > 0.0) {
     const std::string suffix = capture::MatchedCaptureFileSuffix(file.string());
     const std::string base = capture::StripCaptureFileSuffix(file.string());
-    const std::filesystem::path renamed(
+    const std::filesystem::path wanted(
         capture::AppendDurationToStem(base, duration_seconds) + suffix);
+
+    // Made unique here as well, and for the same reason it was made unique
+    // before the file was opened.
+    //
+    // The uniqueness settled at the open is about the name without the
+    // duration, and this is a different name — so a capture that took the same
+    // length as an earlier one of the same name arrives at a destination that
+    // is already occupied. std::filesystem::rename replaces whatever is there
+    // without a word, which would destroy a finished recording to tidy up a
+    // file name. That is not a rare shape: it is exactly what a script that
+    // captures with a fixed --capture-name and a fixed --duration-limit
+    // produces every time it runs.
+    const std::filesystem::path renamed =
+        capture::MakeUniqueCapturePath(wanted);
 
     std::error_code error;
     std::filesystem::rename(file, renamed, error);
@@ -644,6 +658,17 @@ void CaptureController::FinishCaptureFile(const capture::CaptureStats& stats,
                          renamed.string() + ": " + error.message());
       }
     } else {
+      if (renamed != wanted) {
+        // The same thing the open says when it happens there, and it has to be
+        // said here too: the file is not the one the naming asked for, and
+        // nobody watching would otherwise know.
+        emit CaptureRenamed(
+            QString::fromStdString(
+                capture::StripCaptureFileSuffix(wanted.filename().string())),
+            QString::fromStdString(
+                capture::StripCaptureFileSuffix(renamed.filename().string())));
+      }
+
       file = renamed;
       capture_path_ = QString::fromStdString(file.string());
       pending_metadata_.capture_file_name = file.filename().string();

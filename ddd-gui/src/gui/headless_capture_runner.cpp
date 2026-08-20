@@ -105,12 +105,12 @@ void HeadlessCaptureRunner::Begin() {
   // the one asked for is not a failure — nothing was overwritten — but a script
   // that named the file needs to be told, because the name it reads back is not
   // the one it gave. The path on stdout at the end is the authority.
-  connect(controller_, &CaptureController::CaptureRenamed, this,
-          [this](const QString& requested, const QString& written) {
-            Say(QStringLiteral("'%1' was already taken, so the capture is "
-                               "being written as '%2'.")
-                    .arg(requested, written));
-          });
+  connect(
+      controller_, &CaptureController::CaptureRenamed, this,
+      [this](const QString& requested, const QString& written) {
+        Say(QStringLiteral("'%1' was already taken, so this capture is '%2'.")
+                .arg(requested, written));
+      });
 
   connect(controller_, &CaptureController::MetadataWriteFailed, this,
           [this](const QString& detail) {

@@ -944,6 +944,78 @@ TEST_F(CaptureToDiskTest, ASecondCaptureOfTheSameNameIsRenamedAndSaidSo) {
       0U);
 }
 
+// The same guarantee at the other end of the capture, which is where it used to
+// stop holding.
+//
+// A name is resolved before the file is opened, but that is not the name the
+// file ends up with when the naming appends the capture's length: the finished
+// file is renamed, and std::filesystem::rename replaces whatever is at the
+// destination without a word. Two captures of one name that ran for the same
+// length both wanted "<name>_00H00M00S", so the second quietly destroyed the
+// first — after the first had been reported as finished, and with its sidecar
+// going the same way.
+//
+// It is not an unlikely shape. It is what a script produces on every run: one
+// --capture-name, one --duration-limit, the same answer every time.
+TEST_F(CaptureToDiskTest, ADurationRenameNeverLandsOnAnEarlierCapture) {
+  Settings([](CaptureSettings& settings) {
+    settings.capture_name = QStringLiteral("Casper side 1");
+    settings.naming.append_duration = true;
+  });
+
+  QSignalSpy renamed(controller_.get(), &CaptureController::CaptureRenamed);
+
+  const auto capture_once = [this] {
+    controller_->StartCapture();
+    ASSERT_TRUE(controller_->capturing());
+
+    // Waited on by name rather than by taking one off the listing: while the
+    // second capture is open the first one's finished file is in there too,
+    // and it already has contents.
+    const std::filesystem::path live(controller_->capture_path().toStdString());
+    ASSERT_TRUE(PumpUntil([&live] {
+      std::error_code error;
+      const auto size = std::filesystem::file_size(live, error);
+      return !error && size > 0;
+    }));
+
+    controller_->StopCapture();
+    ASSERT_TRUE(PumpUntil([this] { return !controller_->capturing(); }));
+  };
+
+  ASSERT_NO_FATAL_FAILURE(capture_once());
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 1U; }));
+  ASSERT_EQ(WrittenFiles().size(), 1U);
+
+  const std::filesystem::path first = WrittenFiles().front();
+  const auto first_size = std::filesystem::file_size(first);
+  ASSERT_GT(first_size, 0U);
+
+  // Both captures are stopped the moment anything has reached the file, and the
+  // duration in the name is samples over the sample rate rather than elapsed
+  // time — so a slow machine makes these shorter and never longer. Both are
+  // under a second whatever happens, which is what makes them collide.
+  ASSERT_NE(first.filename().string().find("_00H00M00S"), std::string::npos)
+      << first.filename().string();
+
+  ASSERT_NO_FATAL_FAILURE(capture_once());
+  ASSERT_TRUE(PumpUntil([&] { return MetadataFiles().size() == 2U; }));
+  controller_->StopMonitoring();
+
+  // Two recordings and two sidecars. This was one of each.
+  ASSERT_EQ(WrittenFiles().size(), 2U);
+  EXPECT_TRUE(std::filesystem::exists(first));
+  EXPECT_EQ(std::filesystem::file_size(first), first_size);
+
+  // And it was said out loud, exactly as a collision found before the file is
+  // opened is said out loud.
+  ASSERT_EQ(renamed.count(), 1);
+  EXPECT_EQ(renamed.front().at(0).toString(),
+            QStringLiteral("Casper side 1_00H00M00S"));
+  EXPECT_EQ(renamed.front().at(1).toString(),
+            QStringLiteral("Casper side 1_00H00M00S (1)"));
+}
+
 TEST_F(CaptureToDiskTest, TheGeneratedNameIsNeverReportedAsRenamed) {
   ASSERT_TRUE(controller_->settings().capture_name.isEmpty());
 

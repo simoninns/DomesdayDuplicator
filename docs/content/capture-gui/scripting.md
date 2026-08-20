@@ -85,6 +85,13 @@ file may end up with [its length appended](capture-naming.md#append-the-captures
 is exactly why the finished path is printed at the end: **read the path, do not construct
 it.**
 
+A script that runs repeatedly with the same `--capture-name` therefore accumulates files
+rather than replacing them — `disc-42_00H30M00S`, then `disc-42_00H30M00S (1)`, and so on,
+with the new name reported on standard error each time. Nothing a capture writes is ever
+written over. If you want one file per run rather than a growing pile, give each run a name
+of its own, or leave `--capture-name` out and take the generated name, which carries a
+timestamp and is unique by construction.
+
 ### The duration limit
 
 In seconds, from 1 to 86400 (24 hours). Zero is refused rather than taken to mean *no
